@@ -1,0 +1,15 @@
+# Ignore environment variables
+# Ignore environment variables
+.env
+
+# Ignore virtual environments
+.venv/
+venv/
+
+# Ignore system files
+__pycache__/
+.DS_Store
+
+# Ignore output data
+Output/
+JSON_Files/
