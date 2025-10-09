@@ -54,8 +54,19 @@ def fetch_fixture_player_stats(fixture_id, fixture_map):
             stats = player_entry.get("statistics", [{}])[0]
             games = stats.get("games", {}) or {}
             minutes = games.get("minutes") or 0
+
+            if not minutes or minutes <= MIN_MINUTES:
+                continue
+            
+            passes = stats.get('passes', {}) or {}
             passes_total = stats.get('passes', {}).get('total') or 0
-            accurate_passes = stats.get('passes', {}).get('accuracy') or 0
+            pass_accuracy_str = stats.get('passes', {}).get('accuracy')
+            try:
+                pass_accuracy_pct = float(pass_accuracy_str)
+                accurate_passes = round((passes_total * pass_accuracy_pct) / 100, 1)
+            except (ValueError, TypeError):
+                accurate_passes = None
+                pass_accuracy_pct = None
 
 
             if minutes and minutes > MIN_MINUTES:
@@ -81,6 +92,8 @@ def fetch_fixture_player_stats(fixture_id, fixture_map):
                     "red_cards": stats.get("cards", {}).get("red"),
                     "duels_won": stats.get("duels", {}).get("won"),
                     "duels_total": stats.get("duels", {}).get("total"),
+                    "accurate_passes": accurate_passes,
+                    "pass_accuracy_%": pass_accuracy_pct,
                 }
                 players.append(row)
 
@@ -271,6 +284,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
 
