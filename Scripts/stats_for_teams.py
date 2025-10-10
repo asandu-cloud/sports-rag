@@ -15,7 +15,7 @@ OUTPUT_DIR = Path('/Users/sanduandrei/Desktop/Betting_RAG/Output/Prem_teams')
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-# --- STEP 1: Fetch all fixture IDs and metadata ---
+# --- Fetch all fixture IDs and metadata ---
 def get_fixture_info():
     url = "https://v3.football.api-sports.io/fixtures"
     headers = {"x-apisports-key": API_KEY}
@@ -47,7 +47,7 @@ def get_fixture_info():
     return fixture_map
 
 
-# --- STEP 2: Fetch per-fixture team stats ---
+# --- Fetch per-fixture team stats ---
 def fetch_fixture_team_stats(fixture_id, fixture_info):
     url = "https://v3.football.api-sports.io/fixtures/statistics"
     headers = {"x-apisports-key": API_KEY}
@@ -91,7 +91,7 @@ def fetch_fixture_team_stats(fixture_id, fixture_info):
     return teams_data
 
 
-# --- STEP 3: Iterate through all fixtures ---
+# --- Iterate through all fixtures ---
 def fetch_all_team_fixtures():
     fixture_map = get_fixture_info()
     fixture_ids = list(fixture_map.keys())
@@ -111,39 +111,69 @@ def fetch_all_team_fixtures():
     return all_team_stats
 
 
-# --- STEP 4: Aggregate per-team averages ---
+# --- Aggregate per-team averages ---
 def aggregate_team_stats(team_fixture_data):
+    import pandas as pd
+
     df = pd.DataFrame(team_fixture_data)
 
-    # Convert numeric-like columns
+    # --- Convert numeric-like columns ---
     for col in df.columns:
         if col not in ["fixture", "team", "home_team", "away_team", "final_score"]:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # Compute per-team averages
-    team_avg = df.groupby("team").mean(numeric_only=True).reset_index()
-
-    # Opponent averages: what happens *against* each team
-    opponent_avg = (
-        df.merge(df, on="fixture")
-        .query("team_x != team_y")
-        .groupby("team_y")
+    # --- 1️⃣ Compute team "for" averages ---
+    team_for = (
+        df.groupby("team", dropna=False)
         .mean(numeric_only=True)
         .reset_index()
-        .rename(columns={"team_y": "team"})
+        .rename(columns=lambda c: f"{c}_for" if c not in ["team"] else c)
     )
 
-    # Merge both averages
-    merged = team_avg.merge(
-        opponent_avg,
-        on="team",
-        suffixes=("_for", "_against"),
-        how="left"
+    # --- 2️⃣ Compute team "against" averages ---
+    paired = (
+        df.merge(df, on="fixture", suffixes=("_team", "_opp"))
+        .query("team_team != team_opp")
+        .reset_index(drop=True)
     )
+
+    # Keep only opponent stats and who they played against
+    opp_cols = [c for c in paired.columns if c.endswith("_opp")]
+    opp_stats = paired[["team_team"] + opp_cols].copy()
+
+    # Rename cleanly
+    opp_stats.columns = ["team"] + [c.replace("_opp", "") for c in opp_cols]
+
+    # --- 💡 Ensure 'team' is the only team column and is 1D ---
+    opp_stats = opp_stats.loc[:, ~opp_stats.columns.duplicated()]
+    opp_stats["team"] = opp_stats["team"].astype(str)
+
+    # Drop any potential multi-index issues
+    opp_stats.columns = opp_stats.columns.get_level_values(0)
+
+    # --- ✅ Group safely ---
+    team_against = (
+        opp_stats.groupby("team", dropna=False)
+        .mean(numeric_only=True)
+        .reset_index()
+        .rename(columns=lambda c: f"{c}_against" if c not in ["team"] else c)
+    )
+
+    # --- 3️⃣ Merge both sets of averages ---
+    merged = team_for.merge(team_against, on="team", how="left")
+
+    # --- 4️⃣ Round numeric columns for readability ---
+    numeric_cols = merged.select_dtypes(include=["float", "int"]).columns
+    merged[numeric_cols] = merged[numeric_cols].round(1)
+
+    # --- 5️⃣ Sort alphabetically ---
+    merged = merged.sort_values(by="team").reset_index(drop=True)
 
     return df, merged
 
-# --- STEP 5: Save outputs ---
+
+
+# --- Save outputs ---
 def save_team_outputs(per_fixture_df, aggregate_df):
     json_path1 = OUTPUT_DIR / f"team_fixture_stats_{SEASON}.json"
     csv_path1 = OUTPUT_DIR / f"team_fixture_stats_{SEASON}.csv"
@@ -158,14 +188,13 @@ def save_team_outputs(per_fixture_df, aggregate_df):
     print(f"💾 Saved {len(per_fixture_df)} fixture team entries and {len(aggregate_df)} team aggregates")
 
 
-# --- STEP 6: Main execution ---
+# --- Main execution ---
 def main():
     start = datetime.now()
     all_team_stats = fetch_all_team_fixtures()
     per_fixture_df, aggregate_df = aggregate_team_stats(all_team_stats)
     save_team_outputs(per_fixture_df, aggregate_df)
     print(f"⏱️ Completed in {(datetime.now() - start).seconds} seconds")
-
 
 if __name__ == "__main__":
     main()
