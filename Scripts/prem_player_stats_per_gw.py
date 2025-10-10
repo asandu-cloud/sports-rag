@@ -7,13 +7,15 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 import time 
+from dotenv import load_dotenv
+import os 
 
-API_KEY = "63dbcf42afa65f2e2769daee817f6e48"
+load_dotenv()
+API_KEY = os.getenv('API-FOOTBALL-KEY')
 LEAGUE_ID = 39   # Premier League
 SEASON = 2025
 OUTPUT_DIR = Path('/Users/sanduandrei/Desktop/Betting_RAG/Output/Prem_output')
 MIN_MINUTES = 1 
-
 
 # --- GET FIXTURE ID'S ---
 def get_fixture_info():

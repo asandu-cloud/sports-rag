@@ -2,6 +2,9 @@
 # Ignore environment variables
 .env
 
+# Ignore main 
+/Users/sanduandrei/Desktop/Betting_RAG/main.py
+
 # Ignore virtual environments
 .venv/
 venv/
