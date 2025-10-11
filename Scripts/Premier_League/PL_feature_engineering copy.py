@@ -5,7 +5,6 @@
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
-import re
 
 # --- CONFIG ---
 LEAGUE = "Premier League"
@@ -67,7 +66,6 @@ def load_fixture_stats():
     print("📋 Fixture columns after load/rename:", list(fx.columns))
     print(f"📂 Loaded {len(fx)} fixture-level rows from {FIXTURE_PATH.name}")
     return fx
-
 
 
 # ===============================================================
@@ -154,102 +152,56 @@ def engineer_team_core_features(df):
     return team_fixture
 
 
-def _norm_merge_str(series: pd.Series) -> pd.Series:
-    """
-    Robust normalizer for merge keys: to string, lower, collapse spaces, strip.
-    Keeps dtype as object (plain Python strings), avoiding float64 surprises.
-    """
-    return (
-        series.astype(str)
-              .str.lower()
-              .str.replace(r"\s+", " ", regex=True)
-              .str.strip()
-    )
-
 def merge_team_with_fixture(team_df, fixture_df):
-    """
-    Merge aggregated player-based team data with fixture-level stats
-    using normalized (fixture, team) directly — no fixture_key.
-    Also guarantees shots_on/shots_total/corners/possession are present and numeric.
-    """
     if fixture_df is None or fixture_df.empty:
         print("⚠️ Fixture stats missing, skipping merge.")
         return team_df
 
     fx = fixture_df.copy()
     df = team_df.copy()
+    fx["fixture_key"] = fx["home_team"].str.lower().str.strip() + "_vs_" + fx["away_team"].str.lower().str.strip()
+    df["fixture_key"] = df["fixture"].str.lower().str.strip()
 
-    # --- 1) Normalize fixture_df columns & unify names we care about
-    fx.columns = fx.columns.str.strip().str.lower().str.replace(" ", "_")
+    merged = df.merge(
+        fx[
+            ["fixture_key", "team", "expected_goals", "goals_prevented", "possession",
+             "corners", "shots_total", "shots_on"]
+        ],
+        on=["fixture_key", "team"],
+        how="left",
+    )
 
-    rename_map = {
-        "shots_on_goal": "shots_on",
-        "shots_on_target": "shots_on",
-        "shots_on_goals": "shots_on",
-        "shots_on": "shots_on",
-        "total_shots": "shots_total",
-        "shots_total": "shots_total",
-        "total_passes": "passes_total",
-        "passes_accurate": "accurate_passes",
-        "passes_%": "pass_accuracy_rate",
-        "corner_kicks": "corners",
-        "ball_possession": "possession",
-        "fouls": "fouls_committed",
-    }
-    fx.rename(columns={k: v for k, v in rename_map.items() if k in fx.columns}, inplace=True)
-
-    # --- 2) Ensure fx has a reliable 'fixture' text that matches your player data
-    # Prefer existing 'fixture'; if missing, reconstruct as "home vs away"
-    have_fixture = "fixture" in fx.columns and fx["fixture"].notna().any()
-    if not have_fixture:
-        for col in ["home_team", "away_team"]:
-            if col not in fx.columns:
-                fx[col] = ""
-        fx["fixture"] = (
-            fx["home_team"].astype(str).str.strip() + " vs " +
-            fx["away_team"].astype(str).str.strip()
-        )
-
-    # --- 3) Build normalized merge keys on BOTH sides (fixture, team)
-    df["fixture_norm"] = _norm_merge_str(df["fixture"])
-    df["team_norm"]    = _norm_merge_str(df["team"])
-    fx["fixture_norm"] = _norm_merge_str(fx["fixture"])
-    fx["team_norm"]    = _norm_merge_str(fx["team"])
-
-    # --- 4) Make sure required numeric columns exist & are numeric
-    required_fx_cols = [
-        "expected_goals", "goals_prevented",
-        "possession", "corners", "shots_total", "shots_on"
-    ]
-    for col in required_fx_cols:
-        if col not in fx.columns:
-            fx[col] = 0
-        fx[col] = pd.to_numeric(fx[col], errors="coerce").fillna(0)
-
-    # --- 5) Merge directly on normalized keys (object dtype on both sides)
-    keep_cols = ["fixture_norm", "team_norm"] + required_fx_cols
-    merged = df.merge(fx[keep_cols], on=["fixture_norm", "team_norm"], how="left")
-
-    # --- 6) Guarantee numeric safety post-merge
-    for col in ["shots_on", "shots_total", "corners", "possession",
-                "expected_goals", "goals_prevented"]:
+    for col in ["shots_on", "shots_total", "corners", "possession"]:
         if col not in merged.columns:
+            print(f"⚠️ Column '{col}' missing — filling with zeros.")
             merged[col] = 0
-        merged[col] = pd.to_numeric(merged[col], errors="coerce").fillna(0)
+        merged[col] = merged[col].fillna(0)
 
-    # --- 7) Compute dominance index now that shots are guaranteed present
     merged["dominance_index"] = (
         (merged["possession"] * 0.4)
         + ((merged["shots_on"] / merged["shots_total"].replace(0, pd.NA)).fillna(0) * 0.3)
         + ((merged["corners"] / (merged["corners"].max() or 1)) * 0.3)
     )
-
-    # --- 8) Clean up helper columns
-    merged.drop(columns=["fixture_norm", "team_norm"], inplace=True)
-
-    merged.fillna(0, inplace=True)
-    print("✅ Successfully merged fixture-level stats (shots + possession included) using (fixture, team).")
+    print("✅ Successfully merged fixture-level stats.")
     return merged
+
+
+def engineer_team_strength_efficiency(team_df):
+    df = team_df.copy()
+    for col in ["shots_total", "passes_total", "tackles", "fouls_committed"]:
+        df[col] = df[col].replace(0, pd.NA)
+
+    df["goal_conversion_rate"] = df["goals"] / df["shots_total"]
+    df["shot_on_target_ratio"] = df["shots_on"] / df["shots_total"]
+    df["control_index"] = (
+        (df["pass_accuracy_team"].fillna(0) * 0.5)
+        + ((df["passes_total"].fillna(0) / df["passes_total"].max()) * 0.3)
+        + ((df["corners"].fillna(0) / (df["corners"].max() or 1)) * 0.2)
+    )
+
+    df.fillna(0, inplace=True)
+    print(f"✅ Engineered team strength & efficiency metrics (2.2): {len(df)} rows")
+    return df
 
 
 def engineer_team_aggression_discipline(team_df):
@@ -290,22 +242,7 @@ def engineer_team_aggression_discipline(team_df):
     print(f"✅ Engineered team aggression & discipline metrics (2.3): {len(df)} rows")
     return df
 
-def engineer_team_strength_efficiency(team_df):
-    df = team_df.copy()
-    for col in ["shots_total", "passes_total", "tackles", "fouls_committed"]:
-        df[col] = df[col].replace(0, pd.NA)
 
-    df["goal_conversion_rate"] = df["goals"] / df["shots_total"]
-    df["shot_on_target_ratio"] = df["shots_on"] / df["shots_total"]
-    df["control_index"] = (
-        (df["pass_accuracy_team"].fillna(0) * 0.5)
-        + ((df["passes_total"].fillna(0) / df["passes_total"].max()) * 0.3)
-        + ((df["corners"].fillna(0) / (df["corners"].max() or 1)) * 0.2)
-    )
-
-    df.fillna(0, inplace=True)
-    print(f"✅ Engineered team strength & efficiency metrics (2.2): {len(df)} rows")
-    return df
 
 def engineer_team_form_consistency(team_df):
     df = team_df.copy().sort_values(by=["team", "fixture"]).reset_index(drop=True)
@@ -322,19 +259,16 @@ def engineer_team_form_consistency(team_df):
     print(f"✅ Engineered team form & consistency metrics (2.4): {len(df)} rows")
     return df
 
-# --- CONTEXTUAL (PLAYER + OPPONENT) ---
 
+# ===============================================================
+# 4️⃣ CONTEXTUAL (PLAYER + OPPONENT)
+# ===============================================================
 def engineer_player_contextual_features(player_df, team_df):
+    """(1.4) Merge opponent-based contextual features for each player record."""
     df = player_df.copy()
     team = team_df.copy()
 
-    # Normalize casing and strip whitespace for safer joins
-    df["fixture"] = df["fixture"].str.lower().str.strip()
-    df["team"] = df["team"].str.lower().str.strip()
-    team["fixture"] = team["fixture"].str.lower().str.strip()
-    team["team"] = team["team"].str.lower().str.strip()
-
-    # Ensure required team-level columns exist
+    # ✅ Ensure expected team-level columns exist before merge
     required_cols = [
         "cards_per_90_team", "fouls_per_90_team",
         "aggression_index_norm", "form_index_team", "control_index"
@@ -344,7 +278,7 @@ def engineer_player_contextual_features(player_df, team_df):
             print(f"⚠️ '{col}' missing in team data — creating zeros.")
             team[col] = 0
 
-    # Build opponent map
+
     fixture_teams = team.groupby("fixture")["team"].apply(list).reset_index(name="teams")
     fixture_teams = fixture_teams[fixture_teams["teams"].apply(len) == 2]
 
@@ -354,9 +288,7 @@ def engineer_player_contextual_features(player_df, team_df):
         opponent_map[(row["fixture"], t1)] = t2
         opponent_map[(row["fixture"], t2)] = t1
 
-    # Merge team metrics
-    df = df.merge(team[["fixture", "team", "aggression_index_norm",
-                        "form_index_team", "control_index"]],
+    df = df.merge(team[["fixture", "team", "aggression_index_norm", "form_index_team", "control_index"]],
                   on=["fixture", "team"], how="left")
 
     df["opponent"] = df.apply(lambda x: opponent_map.get((x["fixture"], x["team"])), axis=1)
@@ -368,16 +300,9 @@ def engineer_player_contextual_features(player_df, team_df):
         how="left", suffixes=("", "_opp")
     )
 
-    # Ensure missing opponent columns exist after merge
-    for col in ["cards_per_90_team_opp", "fouls_per_90_team_opp",
-                "aggression_index_norm_opp", "form_index_team_opp", "control_index_opp"]:
-        if col not in df.columns:
-            df[col] = 0
-
     if "team_opp" in df.columns:
         df.drop(columns=["team_opp"], inplace=True)
 
-    # Compute contextual features
     df["agg_diff"] = df["aggression_index_norm"] - df["aggression_index_norm_opp"]
     df["form_diff"] = df["form_index_team"] - df["form_index_team_opp"]
     df["control_diff"] = df["control_index"] - df["control_index_opp"]
@@ -394,8 +319,10 @@ def engineer_player_contextual_features(player_df, team_df):
     print(f"✅ Engineered contextual opponent-based player features (1.4): {len(df)} rows")
     return df
 
-# --- MASTER PIPELINE ---
 
+# ===============================================================
+# 5️⃣ MASTER PIPELINE
+# ===============================================================
 def run_feature_engineering():
     df = load_player_data()
     fixture_stats = load_fixture_stats()
