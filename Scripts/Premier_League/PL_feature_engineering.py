@@ -1,28 +1,22 @@
 # Premier League feature engineering
 
-# feature_engineering.py
-
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
 import re
 
-# --- CONFIG ---
 LEAGUE = "Premier League"
 SEASON = 2025
 
-# Input data paths
+# Input data
 PLAYER_PATH = Path("/Users/sanduandrei/Desktop/Betting_RAG/Output/Prem_output/player_fixture_stats_2025.json")
 FIXTURE_PATH = Path("/Users/sanduandrei/Desktop/Betting_RAG/Output/Prem_teams/team_fixture_stats_2025.json")
 
-# Output directory
+# Output dir
 OUTPUT_PATH = Path("/Users/sanduandrei/Desktop/Betting_RAG/Output/Prem_feature_engineering")
 OUTPUT_PATH.mkdir(parents=True, exist_ok=True)
 
-
-# ===============================================================
-# 1️⃣ DATA LOADING
-# ===============================================================
+# --- LOADING DATA ---
 def load_player_data():
     df = pd.read_json(PLAYER_PATH)
     print(f"📂 Loaded {len(df)} player-fixture rows from {PLAYER_PATH.name}")
@@ -35,7 +29,7 @@ def load_fixture_stats():
     # Normalize column names
     fx.columns = fx.columns.str.strip().str.lower().str.replace(" ", "_")
 
-    # Rename for consistency
+    # rename to match input files
     rename_map = {
         "corner_kicks": "corners",
         "ball_possession": "possession",
@@ -128,9 +122,8 @@ def engineer_player_form(df):
     return df
 
 
-# ===============================================================
+
 # 3️⃣ TEAM-LEVEL FEATURE ENGINEERING
-# ===============================================================
 def engineer_team_core_features(df):
     agg_map = {
         "goals": "sum",
@@ -424,9 +417,7 @@ def run_feature_engineering():
     return df, team_features
 
 
-# ===============================================================
 # MAIN
-# ===============================================================
 if __name__ == "__main__":
     start = datetime.now()
     run_feature_engineering()
