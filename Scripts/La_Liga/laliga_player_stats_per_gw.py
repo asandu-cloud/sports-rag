@@ -1,4 +1,4 @@
-# Prem players per gw
+# LaLiga players per gw
 
 import requests
 import json
@@ -38,7 +38,6 @@ def get_fixture_info():
 
 # --- GET PLAYER STATS PER FIXTURE ---
 def fetch_fixture_player_stats(fixture_id, fixture_map):
-    """Return list of players (dicts) for one fixture."""
     url = "https://v3.football.api-sports.io/fixtures/players"
     headers = {"x-apisports-key": API_KEY}
     params = {"fixture": fixture_id}
@@ -48,55 +47,72 @@ def fetch_fixture_player_stats(fixture_id, fixture_map):
     response = data.get("response", [])
     players = []
 
-    for team_block in response:
-        team = team_block.get("team", {}).get("name")
-        for player_entry in team_block.get("players", []):
-            player = player_entry.get("player", {})
-            stats = player_entry.get("statistics", [{}])[0]
-            games = stats.get("games", {}) or {}
-            minutes = games.get("minutes") or 0
+    def _to_float(x):
+        try:
+            if isinstance(x, str):
+                x = x.strip().replace("%", "")
+            return float(x)
+        except (TypeError, ValueError):
+            return None
 
+    for team_block in response:
+        team = (team_block.get("team") or {}).get("name")
+        for player_entry in team_block.get("players", []):
+
+            player = player_entry.get("player", {}) or {}
+            stats  = (player_entry.get("statistics") or [{}])[0]
+            games  = stats.get("games", {}) or {}
+            minutes = games.get("minutes") or 0
             if not minutes or minutes <= MIN_MINUTES:
                 continue
-            
-            passes = stats.get('passes', {}) or {}
-            passes_total = stats.get('passes', {}).get('total') or 0
-            pass_accuracy_str = stats.get('passes', {}).get('accuracy')
-            try:
-                pass_accuracy_pct = float(pass_accuracy_str)
-                accurate_passes = round((passes_total * pass_accuracy_pct) / 100, 1)
-            except (ValueError, TypeError):
-                accurate_passes = None
-                pass_accuracy_pct = None
 
+            passes = stats.get("passes", {}) or {}
+            passes_total = passes.get("total") or 0
+            acc_raw = passes.get("accuracy")  # may be count OR percent
 
-            if minutes and minutes > MIN_MINUTES:
-                row = {
-                    "fixture": fixture_map.get(fixture_id, f"Fixture {fixture_id}"),
-                    "team": team,
-                    "player_id": player.get("id"),
-                    "name": player.get("name"),
-                    "position": games.get("position"),
-                    "minutes": minutes,
-                    "rating": games.get("rating"),
-                    "goals": stats.get("goals", {}).get("total"),
-                    "assists": stats.get("goals", {}).get("assists"),
-                    "shots_total": stats.get("shots", {}).get("total"),
-                    "shots_on": stats.get("shots", {}).get("on"),
-                    "passes_total": stats.get("passes", {}).get("total"),
-                    "accurate_passes": stats.get("passes", {}).get("accuracy"),
-                    "tackles": stats.get("tackles", {}).get("total"),
-                    "interceptions": stats.get("tackles", {}).get("interceptions"),
-                    "fouls_committed": stats.get("fouls", {}).get("committed"),
-                    "fouls_drawn": stats.get("fouls", {}).get("drawn"),
-                    "yellow_cards": stats.get("cards", {}).get("yellow"),
-                    "red_cards": stats.get("cards", {}).get("red"),
-                    "duels_won": stats.get("duels", {}).get("won"),
-                    "duels_total": stats.get("duels", {}).get("total"),
-                    "accurate_passes": accurate_passes,
-                    "pass_accuracy_%": pass_accuracy_pct,
-                }
-                players.append(row)
+            accurate_passes = None
+            pass_accuracy_pct = None
+
+            acc_val = _to_float(acc_raw)
+            pt = _to_float(passes_total) or 0.0
+
+            if pt > 0 and acc_val is not None:
+                if 0 <= acc_val <= pt:
+                    # Treat as COUNT of accurate passes
+                    accurate_passes = int(round(acc_val))
+                    pass_accuracy_pct = round((accurate_passes / pt) * 100.0, 1)
+                elif 0 <= acc_val <= 100:
+                    # Treat as PERCENT of accurate passes
+                    pass_accuracy_pct = round(acc_val, 1)
+                    accurate_passes = int(round((pt * acc_val) / 100.0))
+                # else: unusable → leave both as None
+
+            row = {
+                "fixture": fixture_map.get(fixture_id, f"Fixture {fixture_id}"),
+                "team": team,
+                "player_id": player.get("id"),
+                "name": player.get("name"),
+                "position": games.get("position"),
+                "minutes": minutes,
+                "rating": games.get("rating"),
+                "goals": (stats.get("goals", {}) or {}).get("total"),
+                "assists": (stats.get("goals", {}) or {}).get("assists"),
+                "shots_total": (stats.get("shots", {}) or {}).get("total"),
+                "shots_on": (stats.get("shots", {}) or {}).get("on"),
+                "passes_total": passes_total,
+                # keep exact field names
+                "accurate_passes": accurate_passes,
+                "pass_accuracy_%": pass_accuracy_pct,
+                "tackles": (stats.get("tackles", {}) or {}).get("total"),
+                "interceptions": (stats.get("tackles", {}) or {}).get("interceptions"),
+                "fouls_committed": (stats.get("fouls", {}) or {}).get("committed"),
+                "fouls_drawn": (stats.get("fouls", {}) or {}).get("drawn"),
+                "yellow_cards": (stats.get("cards", {}) or {}).get("yellow"),
+                "red_cards": (stats.get("cards", {}) or {}).get("red"),
+                "duels_won": (stats.get("duels", {}) or {}).get("won"),
+                "duels_total": (stats.get("duels", {}) or {}).get("total"),
+            }
+            players.append(row)
 
     print(f"Fetched {len(players)} players from fixture {fixture_id}")
     return players

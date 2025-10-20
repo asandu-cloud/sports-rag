@@ -1,0 +1,145 @@
+fixture,team,home_team,away_team,home_goals,away_goals,final_score,Shots on Goal,Shots off Goal,Total Shots,Blocked Shots,Shots insidebox,Shots outsidebox,Fouls,Corner Kicks,Offsides,Ball Possession,Yellow Cards,Red Cards,Goalkeeper Saves,Total passes,Passes accurate,Passes %,expected_goals,goals_prevented
+Rennes vs Marseille,Rennes,Rennes,Marseille,1,0,1-0,5,2,12,5,8,4,8,1,5,0.28,2,1,2,284,220,0.77,1.39,0
+Rennes vs Marseille,Marseille,Rennes,Marseille,1,0,1-0,2,13,24,9,15,9,11,12,0,0.72,3,0,4,718,658,0.92,1.79,0
+Lens vs Lyon,Lens,Lens,Lyon,0,1,0-1,5,9,18,4,11,7,13,13,5,0.55,2,0,2,445,378,0.85,1.38,1
+Lens vs Lyon,Lyon,Lens,Lyon,0,1,0-1,3,7,11,1,8,3,20,8,1,0.45,3,0,4,371,298,0.8,1.41,1
+Monaco vs Le Havre,Monaco,Monaco,Le Havre,3,1,3-1,3,5,13,5,7,6,5,5,5,0.74,0,0,3,725,643,0.89,1.76,-1
+Monaco vs Le Havre,Le Havre,Monaco,Le Havre,3,1,3-1,4,3,9,2,5,4,14,4,1,0.26,1,0,1,243,175,0.72,0.6,-1
+Nice vs Toulouse,Nice,Nice,Toulouse,0,1,0-1,2,5,13,6,4,9,12,9,0,0.57,2,0,1,472,403,0.85,0.79,0
+Nice vs Toulouse,Toulouse,Nice,Toulouse,0,1,0-1,2,6,10,2,7,3,13,4,0,0.43,3,0,2,362,306,0.85,0.61,0
+Stade Brestois 29 vs Lille,Stade Brestois 29,Stade Brestois 29,Lille,3,3,3-3,5,8,18,5,12,6,11,2,1,0.46,2,0,3,366,272,0.74,2.01,0
+Stade Brestois 29 vs Lille,Lille,Stade Brestois 29,Lille,3,3,3-3,6,0,10,4,7,3,13,2,2,0.54,1,0,2,441,363,0.82,1.62,0
+Angers vs Paris FC,Angers,Angers,Paris FC,1,0,1-0,2,3,8,3,5,3,14,3,0,0.32,2,1,7,277,206,0.74,0.97,0
+Angers vs Paris FC,Paris FC,Angers,Paris FC,1,0,1-0,7,6,17,4,5,12,10,7,3,0.68,1,0,1,589,531,0.9,0.92,0
+Auxerre vs Lorient,Auxerre,Auxerre,Lorient,1,0,1-0,3,3,7,1,4,3,18,4,0,0.44,3,0,3,361,291,0.81,1.44,0
+Auxerre vs Lorient,Lorient,Auxerre,Lorient,1,0,1-0,3,6,14,5,11,3,14,4,2,0.56,2,0,2,465,392,0.84,1.37,0
+Metz vs Strasbourg,Metz,Metz,Strasbourg,0,1,0-1,0,2,2,0,2,0,16,3,1,0.38,2,0,2,349,272,0.78,0.3,0
+Metz vs Strasbourg,Strasbourg,Metz,Strasbourg,0,1,0-1,4,2,9,3,4,5,13,3,1,0.62,2,0,0,585,521,0.89,0.62,0
+Nantes vs Paris Saint Germain,Nantes,Nantes,Paris Saint Germain,0,1,0-1,0,5,5,0,2,3,6,2,0,0.29,1,0,3,304,224,0.74,0.14,0
+Nantes vs Paris Saint Germain,Paris Saint Germain,Nantes,Paris Saint Germain,0,1,0-1,4,7,18,7,12,6,6,7,1,0.71,1,0,0,744,680,0.91,1.43,0
+Paris Saint Germain vs Angers,Paris Saint Germain,Paris Saint Germain,Angers,1,0,1-0,4,13,21,4,8,13,3,12,1,0.84,0,0,0,981,918,0.94,1.85,0
+Paris Saint Germain vs Angers,Angers,Paris Saint Germain,Angers,1,0,1-0,0,3,3,0,3,0,9,0,1,0.16,0,0,3,195,141,0.72,0.24,0
+Marseille vs Paris FC,Marseille,Marseille,Paris FC,5,2,5-2,7,4,11,0,9,2,9,5,1,0.61,1,0,2,590,539,0.91,2.83,-2
+Marseille vs Paris FC,Paris FC,Marseille,Paris FC,5,2,5-2,4,4,8,0,6,2,12,2,1,0.39,0,0,2,380,333,0.88,1.09,-2
+Nice vs Auxerre,Nice,Nice,Auxerre,3,1,3-1,6,9,16,1,9,7,10,5,1,0.55,2,0,7,478,417,0.87,1.94,0
+Nice vs Auxerre,Auxerre,Nice,Auxerre,3,1,3-1,8,2,12,2,8,4,15,4,0,0.45,2,1,4,389,309,0.79,1.51,0
+Lyon vs Metz,Lyon,Lyon,Metz,3,0,3-0,8,3,13,2,9,4,13,4,1,0.53,0,0,2,542,500,0.92,2.77,0
+Lyon vs Metz,Metz,Lyon,Metz,3,0,3-0,2,3,11,6,7,4,15,3,3,0.47,2,0,5,485,442,0.91,0.56,0
+Lorient vs Rennes,Lorient,Lorient,Rennes,4,0,4-0,7,9,22,6,13,9,18,3,4,0.51,6,0,1,486,428,0.88,3.04,0
+Lorient vs Rennes,Rennes,Lorient,Rennes,4,0,4-0,1,3,4,0,0,4,7,2,2,0.49,0,2,3,476,413,0.87,0.08,0
+Strasbourg vs Nantes,Strasbourg,Strasbourg,Nantes,1,0,1-0,4,6,15,5,9,6,11,7,4,0.49,2,0,2,448,394,0.88,1.78,0
+Strasbourg vs Nantes,Nantes,Strasbourg,Nantes,1,0,1-0,2,2,9,5,7,2,9,6,2,0.51,2,0,3,474,394,0.83,0.44,0
+Toulouse vs Stade Brestois 29,Toulouse,Toulouse,Stade Brestois 29,2,0,2-0,3,3,6,0,6,0,14,3,3,0.47,0,0,2,387,314,0.81,1.28,0
+Toulouse vs Stade Brestois 29,Stade Brestois 29,Toulouse,Stade Brestois 29,2,0,2-0,2,6,16,8,10,6,10,9,2,0.53,1,0,1,417,344,0.82,0.97,0
+Le Havre vs Lens,Le Havre,Le Havre,Lens,1,2,1-2,6,7,18,5,11,7,17,7,2,0.57,3,0,1,526,438,0.83,1.89,0
+Le Havre vs Lens,Lens,Le Havre,Lens,1,2,1-2,3,2,6,1,4,2,16,0,0,0.43,1,0,5,407,348,0.86,1.07,0
+Lille vs Monaco,Lille,Lille,Monaco,1,0,1-0,1,13,18,4,10,8,7,8,2,0.5,1,0,2,417,345,0.83,2.92,0
+Lille vs Monaco,Monaco,Lille,Monaco,1,0,1-0,1,4,6,1,5,1,14,3,0,0.5,2,0,0,425,338,0.8,1.25,0
+Lens vs Stade Brestois 29,Lens,Lens,Stade Brestois 29,3,1,3-1,10,9,30,11,26,4,7,15,2,0.68,1,0,1,581,495,0.85,3.99,2
+Lens vs Stade Brestois 29,Stade Brestois 29,Lens,Stade Brestois 29,3,1,3-1,2,2,9,5,7,2,12,1,0,0.32,3,1,7,284,207,0.73,1.08,2
+Lorient vs Lille,Lorient,Lorient,Lille,1,7,1-7,2,3,6,1,5,1,14,3,3,0.41,3,0,5,363,305,0.84,1.5,0
+Lorient vs Lille,Lille,Lorient,Lille,1,7,1-7,11,3,20,6,15,5,18,8,2,0.59,3,0,1,538,467,0.87,3.49,0
+Nantes vs Auxerre,Nantes,Nantes,Auxerre,1,0,1-0,3,0,4,1,1,3,13,3,1,0.43,1,0,4,345,270,0.78,0.48,0
+Nantes vs Auxerre,Auxerre,Nantes,Auxerre,1,0,1-0,4,3,14,7,8,6,11,9,6,0.57,3,0,2,439,365,0.83,0.68,0
+Toulouse vs Paris Saint Germain,Toulouse,Toulouse,Paris Saint Germain,3,6,3-6,6,3,14,5,8,6,7,5,1,0.24,1,0,2,268,207,0.77,2.22,0
+Toulouse vs Paris Saint Germain,Paris Saint Germain,Toulouse,Paris Saint Germain,3,6,3-6,8,3,13,2,9,4,11,7,0,0.76,0,0,3,860,805,0.94,2.62,0
+Angers vs Rennes,Angers,Angers,Rennes,1,1,1-1,7,3,10,0,6,4,9,1,4,0.37,2,0,6,383,334,0.87,1.23,0
+Angers vs Rennes,Rennes,Angers,Rennes,1,1,1-1,7,4,15,4,9,6,11,7,0,0.63,2,0,6,676,612,0.91,1.46,0
+Monaco vs Strasbourg,Monaco,Monaco,Strasbourg,3,2,3-2,4,4,12,4,10,2,13,6,4,0.43,2,0,2,383,321,0.84,1.94,0
+Monaco vs Strasbourg,Strasbourg,Monaco,Strasbourg,3,2,3-2,4,5,12,3,10,2,12,5,2,0.57,1,1,1,525,461,0.88,1.62,0
+Le Havre vs Nice,Le Havre,Le Havre,Nice,3,1,3-1,8,2,12,2,8,4,13,0,0,0.41,1,0,2,326,256,0.79,2.56,0
+Le Havre vs Nice,Nice,Le Havre,Nice,3,1,3-1,3,2,7,2,5,2,16,5,0,0.59,4,0,5,475,406,0.85,0.63,0
+Paris FC vs Metz,Paris FC,Paris FC,Metz,3,2,3-2,9,12,24,3,19,5,4,14,0,0.51,1,0,0,485,426,0.88,3.21,0
+Paris FC vs Metz,Metz,Paris FC,Metz,3,2,3-2,2,7,14,5,10,4,8,6,1,0.49,1,1,6,472,414,0.88,1.84,0
+Lyon vs Marseille,Lyon,Lyon,Marseille,1,0,1-0,5,7,17,5,11,6,16,9,1,0.58,2,0,2,429,371,0.86,2.27,0
+Lyon vs Marseille,Marseille,Lyon,Marseille,1,0,1-0,2,1,5,2,3,2,11,4,1,0.42,2,1,4,321,252,0.79,0.77,0
+Marseille vs Lorient,Marseille,Marseille,Lorient,4,0,4-0,8,2,15,5,10,5,18,10,1,0.72,3,0,1,800,746,0.93,2.26,-1
+Marseille vs Lorient,Lorient,Marseille,Lorient,4,0,4-0,1,1,4,2,3,1,5,0,0,0.28,2,1,4,306,257,0.84,0.14,-1
+Nice vs Nantes,Nice,Nice,Nantes,1,0,1-0,8,8,19,3,13,6,16,7,7,0.59,2,0,3,489,421,0.86,1.75,0
+Nice vs Nantes,Nantes,Nice,Nantes,1,0,1-0,3,7,14,4,7,7,14,4,0,0.41,0,0,7,348,275,0.79,0.75,0
+Auxerre vs Monaco,Auxerre,Auxerre,Monaco,1,2,1-2,2,4,9,3,4,5,12,5,0,0.33,3,1,1,282,203,0.72,0.67,0
+Auxerre vs Monaco,Monaco,Auxerre,Monaco,1,2,1-2,3,6,13,4,12,1,19,8,1,0.67,6,0,2,574,486,0.85,1.42,0
+Lille vs Toulouse,Lille,Lille,Toulouse,2,1,2-1,5,7,20,8,14,6,12,7,1,0.7,2,0,3,553,479,0.87,2.21,0
+Lille vs Toulouse,Toulouse,Lille,Toulouse,2,1,2-1,4,3,9,2,5,4,10,6,2,0.3,3,1,3,231,171,0.74,0.81,0
+Paris Saint Germain vs Lens,Paris Saint Germain,Paris Saint Germain,Lens,2,0,2-0,6,3,14,5,6,8,10,4,0,0.68,1,0,3,771,713,0.92,1.07,0
+Paris Saint Germain vs Lens,Lens,Paris Saint Germain,Lens,2,0,2-0,3,7,11,1,6,5,8,3,0,0.32,2,0,4,352,293,0.83,1.16,0
+Strasbourg vs Le Havre,Strasbourg,Strasbourg,Le Havre,1,0,1-0,7,1,9,1,8,1,8,4,1,0.49,2,1,1,453,398,0.88,1.36,0
+Strasbourg vs Le Havre,Le Havre,Strasbourg,Le Havre,1,0,1-0,1,7,10,2,5,5,16,3,1,0.51,2,0,5,468,406,0.87,0.65,0
+Stade Brestois 29 vs Paris FC,Stade Brestois 29,Stade Brestois 29,Paris FC,1,2,1-2,8,7,23,8,14,9,11,6,3,0.46,0,0,2,401,316,0.79,2.57,0
+Stade Brestois 29 vs Paris FC,Paris FC,Stade Brestois 29,Paris FC,1,2,1-2,4,1,7,2,5,2,10,1,1,0.54,2,1,6,487,405,0.83,1.55,0
+Metz vs Angers,Metz,Metz,Angers,1,1,1-1,5,1,9,3,7,2,10,4,1,0.55,0,0,4,542,481,0.89,1.71,2
+Metz vs Angers,Angers,Metz,Angers,1,1,1-1,4,6,10,0,7,3,7,3,3,0.45,1,0,4,443,387,0.87,2.27,2
+Rennes vs Lyon,Rennes,Rennes,Lyon,3,1,3-1,5,9,23,9,13,10,18,5,3,0.48,2,0,4,449,386,0.86,2.19,-1
+Rennes vs Lyon,Lyon,Rennes,Lyon,3,1,3-1,5,0,8,3,7,1,13,4,0,0.52,2,1,2,492,420,0.85,1.71,-1
+Lyon vs Angers,Lyon,Lyon,Angers,1,0,1-0,5,7,16,4,10,6,16,7,1,0.67,2,0,2,583,529,0.91,1.81,1
+Lyon vs Angers,Angers,Lyon,Angers,1,0,1-0,2,4,10,4,8,2,10,4,1,0.33,2,0,4,284,227,0.8,1.18,1
+Nantes vs Rennes,Nantes,Nantes,Rennes,2,2,2-2,4,6,16,6,10,6,14,4,1,0.43,3,0,2,361,290,0.8,2.11,0
+Nantes vs Rennes,Rennes,Nantes,Rennes,2,2,2-2,4,4,8,0,5,3,18,4,3,0.57,1,0,2,495,429,0.87,1.37,0
+Stade Brestois 29 vs Nice,Stade Brestois 29,Stade Brestois 29,Nice,4,1,4-1,5,4,11,2,6,5,17,2,0,0.38,1,0,3,376,290,0.77,2.03,-2
+Stade Brestois 29 vs Nice,Nice,Stade Brestois 29,Nice,4,1,4-1,4,10,21,7,16,5,11,7,1,0.62,3,0,1,605,538,0.89,2.33,-2
+Lens vs Lille,Lens,Lens,Lille,3,0,3-0,6,7,15,2,10,5,17,4,4,0.38,1,0,3,326,256,0.79,3.54,0
+Lens vs Lille,Lille,Lens,Lille,3,0,3-0,3,6,17,8,13,4,11,10,1,0.62,3,0,3,539,453,0.84,1.9,0
+Paris FC vs Strasbourg,Paris FC,Paris FC,Strasbourg,2,3,2-3,6,10,18,2,12,6,11,4,2,0.61,1,0,0,634,576,0.91,1.6,0
+Paris FC vs Strasbourg,Strasbourg,Paris FC,Strasbourg,2,3,2-3,4,2,8,2,7,1,10,2,1,0.39,5,0,4,414,344,0.83,2.38,0
+Monaco vs Metz,Monaco,Monaco,Metz,5,2,5-2,6,7,16,3,12,4,15,4,3,0.43,1,0,1,410,342,0.83,3.5,-1
+Monaco vs Metz,Metz,Monaco,Metz,5,2,5-2,3,2,8,3,6,2,6,5,0,0.57,0,0,2,551,464,0.84,2.16,-1
+Auxerre vs Toulouse,Auxerre,Auxerre,Toulouse,1,0,1-0,1,3,6,2,5,1,12,3,0,0.4,1,1,3,300,231,0.77,0.75,0
+Auxerre vs Toulouse,Toulouse,Auxerre,Toulouse,1,0,1-0,3,6,13,4,12,1,20,4,0,0.6,6,0,0,450,392,0.87,2.33,0
+Le Havre vs Lorient,Le Havre,Le Havre,Lorient,1,1,1-1,2,9,13,2,10,3,20,6,0,0.6,3,0,3,555,472,0.85,2.47,0
+Le Havre vs Lorient,Lorient,Le Havre,Lorient,1,1,1-1,4,4,8,0,5,3,15,2,0,0.4,6,0,0,378,302,0.8,1.21,0
+Marseille vs Paris Saint Germain,Marseille,Marseille,Paris Saint Germain,1,0,1-0,2,4,9,3,8,1,16,5,2,0.32,3,0,5,308,245,0.8,1.09,0
+Marseille vs Paris Saint Germain,Paris Saint Germain,Marseille,Paris Saint Germain,1,0,1-0,5,6,12,1,4,8,7,3,1,0.68,0,0,1,669,611,0.91,0.67,0
+Strasbourg vs Marseille,Strasbourg,Strasbourg,Marseille,1,2,1-2,1,6,9,2,7,2,13,5,2,0.4,2,0,7,393,323,0.82,1.36,0
+Strasbourg vs Marseille,Marseille,Strasbourg,Marseille,1,2,1-2,9,5,16,2,10,6,15,4,1,0.6,4,0,0,588,518,0.88,2.02,0
+Lorient vs Monaco,Lorient,Lorient,Monaco,3,1,3-1,8,5,19,6,12,7,10,2,0,0.47,2,0,1,511,449,0.88,1.98,0
+Lorient vs Monaco,Monaco,Lorient,Monaco,3,1,3-1,2,3,5,0,2,3,11,4,1,0.53,3,1,5,570,516,0.91,0.92,0
+Toulouse vs Nantes,Toulouse,Toulouse,Nantes,2,2,2-2,7,8,20,5,15,5,18,1,2,0.46,2,0,0,404,335,0.83,2.15,0
+Toulouse vs Nantes,Nantes,Toulouse,Nantes,2,2,2-2,2,4,12,6,7,5,12,4,1,0.54,3,0,5,498,427,0.86,1.46,0
+Paris Saint Germain vs Auxerre,Paris Saint Germain,Paris Saint Germain,Auxerre,2,0,2-0,8,4,15,3,10,5,17,5,1,0.66,1,0,2,672,607,0.9,1.77,0
+Paris Saint Germain vs Auxerre,Auxerre,Paris Saint Germain,Auxerre,2,0,2-0,3,4,12,5,7,5,10,5,4,0.34,2,0,6,333,256,0.77,0.71,0
+Nice vs Paris FC,Nice,Nice,Paris FC,1,1,1-1,5,2,11,4,8,3,14,5,1,0.44,1,0,2,392,319,0.81,0.96,0
+Nice vs Paris FC,Paris FC,Nice,Paris FC,1,1,1-1,3,3,13,7,8,5,14,5,1,0.56,1,0,4,512,437,0.85,1.84,0
+Angers vs Stade Brestois 29,Angers,Angers,Stade Brestois 29,0,2,0-2,2,5,11,4,7,4,13,11,2,0.57,1,0,1,452,384,0.85,0.48,0
+Angers vs Stade Brestois 29,Stade Brestois 29,Angers,Stade Brestois 29,0,2,0-2,3,3,7,1,6,1,13,4,1,0.43,1,0,2,366,266,0.73,1.56,0
+Lille vs Lyon,Lille,Lille,Lyon,0,1,0-1,3,4,14,7,9,5,20,3,1,0.54,4,0,1,429,363,0.85,1.47,0
+Lille vs Lyon,Lyon,Lille,Lyon,0,1,0-1,2,1,5,2,4,1,24,4,1,0.46,4,0,3,369,300,0.81,0.52,0
+Metz vs Le Havre,Metz,Metz,Le Havre,0,0,0-0,0,5,7,2,6,1,16,4,1,0.53,2,0,2,421,376,0.89,0.47,0
+Metz vs Le Havre,Le Havre,Metz,Le Havre,0,0,0-0,2,2,10,6,1,9,16,6,2,0.47,2,0,0,367,306,0.83,0.27,0
+Rennes vs Lens,Rennes,Rennes,Lens,0,0,0-0,2,6,14,6,10,4,16,8,1,0.67,3,0,2,529,464,0.88,1.19,0
+Rennes vs Lens,Lens,Rennes,Lens,0,0,0-0,2,8,13,3,11,2,9,4,0,0.33,2,1,2,257,181,0.7,1.04,0
+Paris FC vs Lorient,Paris FC,Paris FC,Lorient,2,0,2-0,2,6,10,2,7,3,19,1,3,0.59,0,0,3,653,597,0.91,1.02,0
+Paris FC vs Lorient,Lorient,Paris FC,Lorient,2,0,2-0,3,4,8,1,4,4,10,5,2,0.41,2,0,0,452,382,0.85,0.97,0
+Metz vs Marseille,Metz,Metz,Marseille,0,3,0-3,1,2,4,1,1,3,8,4,2,0.38,0,0,6,375,322,0.86,0.16,0
+Metz vs Marseille,Marseille,Metz,Marseille,0,3,0-3,9,10,21,2,11,10,7,4,2,0.62,0,0,1,639,586,0.92,2.71,0
+Stade Brestois 29 vs Nantes,Stade Brestois 29,Stade Brestois 29,Nantes,0,0,0-0,5,5,17,7,9,8,11,12,1,0.51,2,0,0,388,318,0.82,1.51,1
+Stade Brestois 29 vs Nantes,Nantes,Stade Brestois 29,Nantes,0,0,0-0,0,4,6,2,5,1,12,3,3,0.49,1,0,5,390,328,0.84,0.15,1
+Auxerre vs Lens,Auxerre,Auxerre,Lens,1,2,1-2,2,7,18,9,9,9,10,2,0,0.57,3,0,2,514,420,0.82,1.71,0
+Auxerre vs Lens,Lens,Auxerre,Lens,1,2,1-2,4,1,7,2,5,2,21,2,2,0.43,7,1,1,397,324,0.82,0.41,0
+Lyon vs Toulouse,Lyon,Lyon,Toulouse,1,2,1-2,3,7,13,3,10,3,13,8,2,0.69,1,0,2,583,504,0.86,1.02,0
+Lyon vs Toulouse,Toulouse,Lyon,Toulouse,1,2,1-2,4,4,14,6,10,4,17,5,0,0.31,3,0,2,257,183,0.71,1.16,0
+Monaco vs Nice,Monaco,Monaco,Nice,2,2,2-2,6,10,20,4,12,8,10,6,4,0.66,1,0,0,527,448,0.85,2.98,0
+Monaco vs Nice,Nice,Monaco,Nice,2,2,2-2,2,2,9,5,5,4,9,7,2,0.34,3,1,4,272,186,0.68,1.15,0
+Strasbourg vs Angers,Strasbourg,Strasbourg,Angers,5,0,5-0,12,3,18,3,14,4,12,2,2,0.66,2,0,1,781,706,0.9,4.73,0
+Strasbourg vs Angers,Angers,Strasbourg,Angers,5,0,5-0,1,1,5,3,4,1,11,5,2,0.34,2,0,7,400,310,0.78,0.32,0
+Le Havre vs Rennes,Le Havre,Le Havre,Rennes,2,2,2-2,2,7,10,1,5,5,13,3,3,0.43,1,0,1,390,316,0.81,1.71,0
+Le Havre vs Rennes,Rennes,Le Havre,Rennes,2,2,2-2,3,4,9,2,6,3,9,4,2,0.57,2,0,0,543,463,0.85,1.11,0
+Lille vs Paris Saint Germain,Lille,Lille,Paris Saint Germain,1,1,1-1,3,2,9,4,8,1,11,3,1,0.38,1,0,4,389,317,0.81,0.65,0
+Lille vs Paris Saint Germain,Paris Saint Germain,Lille,Paris Saint Germain,1,1,1-1,5,7,17,5,9,8,12,5,0,0.62,1,0,2,656,600,0.91,1.5,0
+Paris Saint Germain vs Strasbourg,Paris Saint Germain,Paris Saint Germain,Strasbourg,3,3,3-3,9,7,21,5,11,10,12,4,0,0.71,2,0,4,783,717,0.92,2.67,0
+Paris Saint Germain vs Strasbourg,Strasbourg,Paris Saint Germain,Strasbourg,3,3,3-3,7,3,12,2,9,3,15,1,0,0.29,1,0,6,309,257,0.83,2.15,0
+Nice vs Lyon,Nice,Nice,Lyon,3,2,3-2,4,1,5,0,5,0,10,1,2,0.31,1,0,5,252,192,0.76,0.6,-1
+Nice vs Lyon,Lyon,Nice,Lyon,3,2,3-2,7,7,29,15,16,13,11,16,0,0.69,2,0,1,544,477,0.88,3.39,-1
+Angers vs Monaco,Angers,Angers,Monaco,1,1,1-1,3,4,16,9,10,6,16,10,0,0.42,2,0,3,397,327,0.82,1.77,0
+Angers vs Monaco,Monaco,Angers,Monaco,1,1,1-1,4,4,11,3,8,3,11,3,0,0.58,2,0,2,568,488,0.86,1.88,0
+Marseille vs Le Havre,Marseille,Marseille,Le Havre,6,2,6-2,11,4,18,3,11,7,18,2,3,0.74,2,0,1,684,640,0.94,4.01,-2
+Marseille vs Le Havre,Le Havre,Marseille,Le Havre,6,2,6-2,3,3,8,2,6,2,8,1,3,0.26,1,1,5,238,181,0.76,0.49,-2
+Lens vs Paris FC,Lens,Lens,Paris FC,2,1,2-1,3,4,11,4,10,1,11,11,2,0.43,2,0,2,397,323,0.81,1.79,0
+Lens vs Paris FC,Paris FC,Lens,Paris FC,2,1,2-1,3,2,9,4,7,2,9,3,2,0.57,2,0,1,565,478,0.85,0.53,0
+Rennes vs Auxerre,Rennes,Rennes,Auxerre,2,2,2-2,7,6,19,6,14,5,19,6,2,0.52,1,0,2,415,338,0.81,1.89,0
+Rennes vs Auxerre,Auxerre,Rennes,Auxerre,2,2,2-2,4,2,7,1,3,4,7,2,2,0.48,3,0,5,395,307,0.78,1.49,0
+Toulouse vs Metz,Toulouse,Toulouse,Metz,4,0,4-0,7,6,16,3,13,3,14,5,1,0.36,2,0,2,325,272,0.84,2.34,0
+Toulouse vs Metz,Metz,Toulouse,Metz,4,0,4-0,2,0,2,0,0,2,11,1,1,0.64,1,1,4,608,545,0.9,0.08,0
+Lorient vs Stade Brestois 29,Lorient,Lorient,Stade Brestois 29,3,3,3-3,7,3,12,2,10,2,13,5,4,0.49,3,0,2,391,323,0.83,1.06,-1
+Lorient vs Stade Brestois 29,Stade Brestois 29,Lorient,Stade Brestois 29,3,3,3-3,4,3,8,1,7,1,16,2,0,0.51,2,0,4,407,342,0.84,1.46,-1
+Nantes vs Lille,Nantes,Nantes,Lille,0,2,0-2,3,3,8,2,4,4,12,5,0,0.37,1,0,3,295,220,0.75,0.45,0
+Nantes vs Lille,Lille,Nantes,Lille,0,2,0-2,5,10,23,8,19,4,15,9,0,0.63,4,0,2,531,460,0.87,2.6,0

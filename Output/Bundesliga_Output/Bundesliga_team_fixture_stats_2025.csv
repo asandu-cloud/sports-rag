@@ -1,0 +1,127 @@
+fixture,team,home_team,away_team,home_goals,away_goals,final_score,Shots on Goal,Shots off Goal,Total Shots,Blocked Shots,Shots insidebox,Shots outsidebox,Fouls,Corner Kicks,Offsides,Ball Possession,Yellow Cards,Red Cards,Goalkeeper Saves,Total passes,Passes accurate,Passes %,expected_goals,goals_prevented
+Bayern München vs RB Leipzig,Bayern München,Bayern München,RB Leipzig,6,0,6-0,10,4,19,5,13,6,13,5,2,0.63,4,0,1,656,599,0.91,1.72,-2
+Bayern München vs RB Leipzig,RB Leipzig,Bayern München,RB Leipzig,6,0,6-0,1,4,12,7,7,5,13,5,0,0.37,1,0,3,388,319,0.82,0.54,-2
+SC Freiburg vs FC Augsburg,SC Freiburg,SC Freiburg,FC Augsburg,1,3,1-3,4,6,16,6,12,4,14,5,4,0.6,4,0,2,458,373,0.81,2.6,1
+SC Freiburg vs FC Augsburg,FC Augsburg,SC Freiburg,FC Augsburg,1,3,1-3,5,3,14,6,9,5,18,5,3,0.4,5,0,3,299,215,0.72,1.34,1
+Bayer Leverkusen vs 1899 Hoffenheim,Bayer Leverkusen,Bayer Leverkusen,1899 Hoffenheim,1,2,1-2,2,3,7,2,4,3,9,6,1,0.6,0,0,3,565,489,0.87,0.71,0
+Bayer Leverkusen vs 1899 Hoffenheim,1899 Hoffenheim,Bayer Leverkusen,1899 Hoffenheim,1,2,1-2,5,4,10,1,6,4,17,4,1,0.4,4,0,2,387,313,0.81,0.45,0
+Eintracht Frankfurt vs Werder Bremen,Eintracht Frankfurt,Eintracht Frankfurt,Werder Bremen,4,1,4-1,5,9,18,4,15,3,9,7,2,0.53,1,0,4,467,399,0.85,2.74,-1
+Eintracht Frankfurt vs Werder Bremen,Werder Bremen,Eintracht Frankfurt,Werder Bremen,4,1,4-1,5,4,10,1,4,6,9,1,3,0.47,3,0,1,433,350,0.81,0.53,-1
+1. FC Heidenheim vs VfL Wolfsburg,1. FC Heidenheim,1. FC Heidenheim,VfL Wolfsburg,1,3,1-3,2,4,7,1,2,5,12,2,2,0.49,2,0,2,392,324,0.83,0.72,0
+1. FC Heidenheim vs VfL Wolfsburg,VfL Wolfsburg,1. FC Heidenheim,VfL Wolfsburg,1,3,1-3,5,9,15,1,6,9,12,5,0,0.51,3,0,1,409,329,0.8,2.45,0
+Union Berlin vs VfB Stuttgart,Union Berlin,Union Berlin,VfB Stuttgart,2,1,2-1,2,5,8,1,6,2,21,5,2,0.25,4,0,5,198,125,0.63,0.34,-1
+Union Berlin vs VfB Stuttgart,VfB Stuttgart,Union Berlin,VfB Stuttgart,2,1,2-1,6,9,21,6,14,7,13,11,1,0.75,4,0,0,618,547,0.89,1.73,-1
+FC St. Pauli vs Borussia Dortmund,FC St. Pauli,FC St. Pauli,Borussia Dortmund,3,3,3-3,7,3,11,1,8,3,13,5,4,0.51,2,0,4,484,397,0.82,1.29,0
+FC St. Pauli vs Borussia Dortmund,Borussia Dortmund,FC St. Pauli,Borussia Dortmund,3,3,3-3,7,1,8,0,7,1,12,2,3,0.49,3,1,4,481,413,0.86,1.56,0
+FSV Mainz 05 vs 1.FC Köln,FSV Mainz 05,FSV Mainz 05,1.FC Köln,0,1,0-1,2,5,19,12,14,5,7,8,5,0.51,0,1,1,389,302,0.78,1.52,0
+FSV Mainz 05 vs 1.FC Köln,1.FC Köln,FSV Mainz 05,1.FC Köln,0,1,0-1,2,8,12,2,8,4,9,3,0,0.49,2,0,2,401,323,0.81,1.36,0
+Borussia Mönchengladbach vs Hamburger SV,Borussia Mönchengladbach,Borussia Mönchengladbach,Hamburger SV,0,0,0-0,4,9,17,4,9,8,10,7,1,0.61,2,0,1,549,484,0.88,1.1,0
+Borussia Mönchengladbach vs Hamburger SV,Hamburger SV,Borussia Mönchengladbach,Hamburger SV,0,0,0-0,2,3,7,2,2,5,10,6,4,0.39,1,0,4,350,282,0.81,0.41,0
+Hamburger SV vs FC St. Pauli,Hamburger SV,Hamburger SV,FC St. Pauli,0,2,0-2,2,2,5,1,2,3,13,2,1,0.48,3,1,4,445,367,0.82,0.35,0
+Hamburger SV vs FC St. Pauli,FC St. Pauli,Hamburger SV,FC St. Pauli,0,2,0-2,6,5,17,6,11,6,19,5,2,0.52,3,0,2,481,390,0.81,1.44,0
+Werder Bremen vs Bayer Leverkusen,Werder Bremen,Werder Bremen,Bayer Leverkusen,3,3,3-3,5,7,12,0,8,4,11,3,1,0.45,4,1,1,458,386,0.84,2.59,0
+Werder Bremen vs Bayer Leverkusen,Bayer Leverkusen,Werder Bremen,Bayer Leverkusen,3,3,3-3,4,3,10,3,7,3,10,7,1,0.55,3,0,2,575,510,0.89,2.1,0
+1899 Hoffenheim vs Eintracht Frankfurt,1899 Hoffenheim,1899 Hoffenheim,Eintracht Frankfurt,1,3,1-3,5,10,17,2,11,6,14,4,3,0.58,2,0,3,473,393,0.83,1.37,0
+1899 Hoffenheim vs Eintracht Frankfurt,Eintracht Frankfurt,1899 Hoffenheim,Eintracht Frankfurt,1,3,1-3,6,1,9,2,5,4,10,5,1,0.42,3,0,4,341,260,0.76,1.56,0
+VfB Stuttgart vs Borussia Mönchengladbach,VfB Stuttgart,VfB Stuttgart,Borussia Mönchengladbach,1,0,1-0,5,3,13,5,9,4,5,6,2,0.51,2,0,6,496,438,0.88,0.84,0
+VfB Stuttgart vs Borussia Mönchengladbach,Borussia Mönchengladbach,VfB Stuttgart,Borussia Mönchengladbach,1,0,1-0,6,7,15,2,14,1,13,10,4,0.49,1,0,4,460,391,0.85,1.82,0
+RB Leipzig vs 1. FC Heidenheim,RB Leipzig,RB Leipzig,1. FC Heidenheim,2,0,2-0,5,10,19,4,16,3,7,4,1,0.66,2,0,4,539,470,0.87,2.23,0
+RB Leipzig vs 1. FC Heidenheim,1. FC Heidenheim,RB Leipzig,1. FC Heidenheim,2,0,2-0,3,1,5,1,5,0,13,3,2,0.34,5,0,4,271,194,0.72,1.02,0
+FC Augsburg vs Bayern München,FC Augsburg,FC Augsburg,Bayern München,2,3,2-3,3,6,10,1,7,3,14,7,4,0.42,3,0,7,371,292,0.79,0.51,0
+FC Augsburg vs Bayern München,Bayern München,FC Augsburg,Bayern München,2,3,2-3,10,5,20,5,16,4,11,5,3,0.58,4,0,1,518,437,0.84,4.24,0
+VfL Wolfsburg vs FSV Mainz 05,VfL Wolfsburg,VfL Wolfsburg,FSV Mainz 05,1,1,1-1,3,5,11,3,7,4,15,3,0,0.4,3,1,2,310,224,0.72,0.62,0
+VfL Wolfsburg vs FSV Mainz 05,FSV Mainz 05,VfL Wolfsburg,FSV Mainz 05,1,1,1-1,3,8,17,6,14,3,14,10,0,0.6,5,0,2,458,384,0.84,1.95,0
+Borussia Dortmund vs Union Berlin,Borussia Dortmund,Borussia Dortmund,Union Berlin,3,0,3-0,6,2,11,3,9,2,14,4,1,0.65,0,0,3,711,642,0.9,2.51,0
+Borussia Dortmund vs Union Berlin,Union Berlin,Borussia Dortmund,Union Berlin,3,0,3-0,3,6,12,3,8,4,7,6,1,0.35,0,0,3,363,291,0.8,1.14,0
+1.FC Köln vs SC Freiburg,1.FC Köln,1.FC Köln,SC Freiburg,4,1,4-1,6,7,18,5,12,6,12,3,1,0.39,2,0,1,353,278,0.79,2.11,-1
+1.FC Köln vs SC Freiburg,SC Freiburg,1.FC Köln,SC Freiburg,4,1,4-1,2,8,12,2,8,4,9,5,2,0.61,1,0,2,554,473,0.85,0.91,-1
+Bayer Leverkusen vs Eintracht Frankfurt,Bayer Leverkusen,Bayer Leverkusen,Eintracht Frankfurt,3,1,3-1,8,9,18,1,11,7,10,4,3,0.39,5,2,1,313,243,0.78,2.11,0
+Bayer Leverkusen vs Eintracht Frankfurt,Eintracht Frankfurt,Bayer Leverkusen,Eintracht Frankfurt,3,1,3-1,2,9,13,2,7,6,9,8,0,0.61,3,0,4,477,412,0.86,0.65,0
+SC Freiburg vs VfB Stuttgart,SC Freiburg,SC Freiburg,VfB Stuttgart,3,1,3-1,6,3,14,5,10,4,8,7,0,0.46,0,1,1,362,280,0.77,1.55,0
+SC Freiburg vs VfB Stuttgart,VfB Stuttgart,SC Freiburg,VfB Stuttgart,3,1,3-1,2,4,7,1,4,3,13,1,2,0.54,1,0,3,455,378,0.83,0.53,0
+VfL Wolfsburg vs 1.FC Köln,VfL Wolfsburg,VfL Wolfsburg,1.FC Köln,3,3,3-3,6,5,14,3,9,5,15,7,0,0.56,2,0,5,448,385,0.86,1.5,-1
+VfL Wolfsburg vs 1.FC Köln,1.FC Köln,VfL Wolfsburg,1.FC Köln,3,3,3-3,8,2,14,4,10,4,11,4,1,0.44,3,0,3,356,288,0.81,1.65,-1
+FSV Mainz 05 vs RB Leipzig,FSV Mainz 05,FSV Mainz 05,RB Leipzig,0,1,0-1,2,7,13,4,10,3,12,3,4,0.56,1,0,2,451,335,0.74,0.9,0
+FSV Mainz 05 vs RB Leipzig,RB Leipzig,FSV Mainz 05,RB Leipzig,0,1,0-1,3,10,19,6,11,8,11,5,1,0.44,0,0,2,361,259,0.72,1.79,0
+1. FC Heidenheim vs Borussia Dortmund,1. FC Heidenheim,1. FC Heidenheim,Borussia Dortmund,0,2,0-2,1,4,6,1,3,3,5,5,2,0.25,2,1,6,253,175,0.69,0.4,0
+1. FC Heidenheim vs Borussia Dortmund,Borussia Dortmund,1. FC Heidenheim,Borussia Dortmund,0,2,0-2,8,6,17,3,15,2,9,4,2,0.75,3,0,1,786,712,0.91,2.76,0
+Union Berlin vs 1899 Hoffenheim,Union Berlin,Union Berlin,1899 Hoffenheim,2,4,2-4,7,9,20,4,14,6,13,9,2,0.42,0,1,4,324,227,0.7,2.59,0
+Union Berlin vs 1899 Hoffenheim,1899 Hoffenheim,Union Berlin,1899 Hoffenheim,2,4,2-4,8,1,9,0,9,0,12,2,0,0.58,1,0,5,465,359,0.77,2.76,0
+Bayern München vs Hamburger SV,Bayern München,Bayern München,Hamburger SV,5,0,5-0,12,6,22,4,12,10,11,5,1,0.71,2,0,2,772,712,0.92,2.54,-2
+Bayern München vs Hamburger SV,Hamburger SV,Bayern München,Hamburger SV,5,0,5-0,2,4,9,3,9,0,14,3,2,0.29,2,0,7,317,266,0.84,0.58,-2
+FC St. Pauli vs FC Augsburg,FC St. Pauli,FC St. Pauli,FC Augsburg,2,1,2-1,7,3,13,3,8,5,10,3,0,0.57,1,0,4,546,438,0.8,1.9,0
+FC St. Pauli vs FC Augsburg,FC Augsburg,FC St. Pauli,FC Augsburg,2,1,2-1,5,4,10,1,6,4,12,1,3,0.43,4,0,5,419,336,0.8,0.78,0
+Borussia Mönchengladbach vs Werder Bremen,Borussia Mönchengladbach,Borussia Mönchengladbach,Werder Bremen,0,4,0-4,3,9,19,7,10,9,12,9,0,0.55,1,0,3,508,430,0.85,1.48,0
+Borussia Mönchengladbach vs Werder Bremen,Werder Bremen,Borussia Mönchengladbach,Werder Bremen,0,4,0-4,7,4,12,1,9,3,9,4,1,0.45,0,0,2,428,350,0.82,2.09,0
+VfB Stuttgart vs FC St. Pauli,VfB Stuttgart,VfB Stuttgart,FC St. Pauli,2,0,2-0,8,3,17,6,11,6,13,8,2,0.54,0,0,3,528,462,0.88,2.11,1
+VfB Stuttgart vs FC St. Pauli,FC St. Pauli,VfB Stuttgart,FC St. Pauli,2,0,2-0,2,2,9,5,7,2,15,4,0,0.46,2,0,6,439,338,0.77,0.95,1
+Werder Bremen vs SC Freiburg,Werder Bremen,Werder Bremen,SC Freiburg,0,3,0-3,5,6,12,1,8,4,13,2,1,0.62,5,0,3,557,475,0.85,1.22,0
+Werder Bremen vs SC Freiburg,SC Freiburg,Werder Bremen,SC Freiburg,0,3,0-3,5,3,10,2,6,4,7,0,2,0.38,2,0,5,352,275,0.78,2.42,0
+1899 Hoffenheim vs Bayern München,1899 Hoffenheim,1899 Hoffenheim,Bayern München,1,4,1-4,4,5,13,4,10,3,17,5,2,0.38,1,0,6,334,257,0.77,0.85,0
+1899 Hoffenheim vs Bayern München,Bayern München,1899 Hoffenheim,Bayern München,1,4,1-4,10,3,18,5,10,8,9,5,1,0.62,2,0,3,567,503,0.89,3.04,0
+FC Augsburg vs FSV Mainz 05,FC Augsburg,FC Augsburg,FSV Mainz 05,1,4,1-4,5,9,18,4,11,7,13,6,2,0.61,1,0,0,485,414,0.85,1.12,0
+FC Augsburg vs FSV Mainz 05,FSV Mainz 05,FC Augsburg,FSV Mainz 05,1,4,1-4,4,4,12,4,11,1,10,6,2,0.39,2,1,4,327,234,0.72,2.52,0
+Hamburger SV vs 1. FC Heidenheim,Hamburger SV,Hamburger SV,1. FC Heidenheim,2,1,2-1,9,8,22,5,15,7,15,1,1,0.49,5,0,6,395,337,0.85,2.35,0
+Hamburger SV vs 1. FC Heidenheim,1. FC Heidenheim,Hamburger SV,1. FC Heidenheim,2,1,2-1,8,6,20,6,15,5,10,12,2,0.51,1,0,7,391,325,0.83,2.98,0
+RB Leipzig vs 1.FC Köln,RB Leipzig,RB Leipzig,1.FC Köln,3,1,3-1,8,7,18,3,14,4,10,9,3,0.47,1,0,0,421,366,0.87,3.28,1
+RB Leipzig vs 1.FC Köln,1.FC Köln,RB Leipzig,1.FC Köln,3,1,3-1,2,5,13,6,8,5,8,5,0,0.53,1,0,5,474,412,0.87,1.7,1
+Eintracht Frankfurt vs Union Berlin,Eintracht Frankfurt,Eintracht Frankfurt,Union Berlin,3,4,3-4,10,3,19,6,12,7,10,5,2,0.78,3,0,1,674,589,0.87,1.9,0
+Eintracht Frankfurt vs Union Berlin,Union Berlin,Eintracht Frankfurt,Union Berlin,3,4,3-4,5,3,11,3,9,2,11,1,5,0.22,2,0,7,193,112,0.58,1.64,0
+Bayer Leverkusen vs Borussia Mönchengladbach,Bayer Leverkusen,Bayer Leverkusen,Borussia Mönchengladbach,1,1,1-1,9,2,13,2,10,3,12,3,2,0.62,5,0,6,675,606,0.9,1.46,0
+Bayer Leverkusen vs Borussia Mönchengladbach,Borussia Mönchengladbach,Bayer Leverkusen,Borussia Mönchengladbach,1,1,1-1,7,2,13,4,10,3,15,4,3,0.38,5,0,7,413,346,0.84,0.81,0
+Borussia Dortmund vs VfL Wolfsburg,Borussia Dortmund,Borussia Dortmund,VfL Wolfsburg,1,0,1-0,4,6,12,2,7,5,10,9,2,0.56,1,0,0,528,464,0.88,1.1,0
+Borussia Dortmund vs VfL Wolfsburg,VfL Wolfsburg,Borussia Dortmund,VfL Wolfsburg,1,0,1-0,0,6,9,3,4,5,9,3,0,0.44,0,0,3,429,360,0.84,0.8,0
+Bayern München vs Werder Bremen,Bayern München,Bayern München,Werder Bremen,4,0,4-0,13,7,26,6,17,9,9,7,0,0.59,2,0,3,664,587,0.88,3.46,0
+Bayern München vs Werder Bremen,Werder Bremen,Bayern München,Werder Bremen,4,0,4-0,3,2,9,4,6,3,4,6,2,0.41,0,0,8,451,359,0.8,0.41,0
+VfL Wolfsburg vs RB Leipzig,VfL Wolfsburg,VfL Wolfsburg,RB Leipzig,0,1,0-1,4,9,22,9,17,5,7,6,0,0.51,2,0,5,447,367,0.82,3.05,0
+VfL Wolfsburg vs RB Leipzig,RB Leipzig,VfL Wolfsburg,RB Leipzig,0,1,0-1,6,6,20,8,10,10,9,11,5,0.49,2,0,4,435,358,0.82,2.41,0
+FSV Mainz 05 vs Borussia Dortmund,FSV Mainz 05,FSV Mainz 05,Borussia Dortmund,0,2,0-2,2,5,8,1,6,2,12,7,5,0.49,2,1,2,369,275,0.75,0.48,0
+FSV Mainz 05 vs Borussia Dortmund,Borussia Dortmund,FSV Mainz 05,Borussia Dortmund,0,2,0-2,4,3,10,3,8,2,14,5,2,0.51,1,0,2,389,300,0.77,1.44,0
+1. FC Heidenheim vs FC Augsburg,1. FC Heidenheim,1. FC Heidenheim,FC Augsburg,2,1,2-1,5,6,11,0,8,3,16,3,1,0.48,1,0,1,369,274,0.74,1.24,0
+1. FC Heidenheim vs FC Augsburg,FC Augsburg,1. FC Heidenheim,FC Augsburg,2,1,2-1,2,4,8,2,6,2,20,2,2,0.52,6,0,3,407,330,0.81,0.82,0
+FC St. Pauli vs Bayer Leverkusen,FC St. Pauli,FC St. Pauli,Bayer Leverkusen,1,2,1-2,6,6,13,1,7,6,13,13,2,0.49,3,0,2,447,372,0.83,0.82,0
+FC St. Pauli vs Bayer Leverkusen,Bayer Leverkusen,FC St. Pauli,Bayer Leverkusen,1,2,1-2,4,0,5,1,4,1,11,1,0,0.51,5,0,4,490,414,0.84,0.69,0
+Borussia Mönchengladbach vs Eintracht Frankfurt,Borussia Mönchengladbach,Borussia Mönchengladbach,Eintracht Frankfurt,4,6,4-6,8,1,11,2,9,2,14,4,4,0.39,1,0,1,362,291,0.8,1.7,0
+Borussia Mönchengladbach vs Eintracht Frankfurt,Eintracht Frankfurt,Borussia Mönchengladbach,Eintracht Frankfurt,4,6,4-6,7,6,21,8,13,8,8,6,1,0.61,2,0,4,587,496,0.84,2.8,0
+SC Freiburg vs 1899 Hoffenheim,SC Freiburg,SC Freiburg,1899 Hoffenheim,1,1,1-1,1,3,6,2,6,0,9,6,1,0.43,2,0,3,297,205,0.69,1.31,0
+SC Freiburg vs 1899 Hoffenheim,1899 Hoffenheim,SC Freiburg,1899 Hoffenheim,1,1,1-1,4,3,15,8,11,4,15,8,2,0.57,1,0,0,400,310,0.78,2.54,0
+1.FC Köln vs VfB Stuttgart,1.FC Köln,1.FC Köln,VfB Stuttgart,1,2,1-2,7,5,15,3,10,5,12,8,4,0.43,2,0,3,383,309,0.81,1.08,0
+1.FC Köln vs VfB Stuttgart,VfB Stuttgart,1.FC Köln,VfB Stuttgart,1,2,1-2,5,4,15,6,10,5,12,8,1,0.57,2,0,5,507,431,0.85,1.87,0
+Union Berlin vs Hamburger SV,Union Berlin,Union Berlin,Hamburger SV,0,0,0-0,2,6,11,3,8,3,18,5,1,0.34,2,0,6,265,188,0.71,1.37,0
+Union Berlin vs Hamburger SV,Hamburger SV,Union Berlin,Hamburger SV,0,0,0-0,6,5,16,5,8,8,17,3,3,0.66,2,1,2,536,472,0.88,1.08,0
+1899 Hoffenheim vs 1.FC Köln,1899 Hoffenheim,1899 Hoffenheim,1.FC Köln,0,1,0-1,4,5,15,6,12,3,15,11,1,0.61,3,0,3,502,418,0.83,1.12,1
+1899 Hoffenheim vs 1.FC Köln,1.FC Köln,1899 Hoffenheim,1.FC Köln,0,1,0-1,4,5,10,1,7,3,6,6,2,0.39,1,0,4,330,251,0.76,0.94,1
+Werder Bremen vs FC St. Pauli,Werder Bremen,Werder Bremen,FC St. Pauli,1,0,1-0,5,3,15,7,8,7,8,4,3,0.41,3,0,3,463,359,0.78,1.86,0
+Werder Bremen vs FC St. Pauli,FC St. Pauli,Werder Bremen,FC St. Pauli,1,0,1-0,3,6,13,4,6,7,9,0,1,0.59,1,0,4,652,539,0.83,0.76,0
+Borussia Dortmund vs RB Leipzig,Borussia Dortmund,Borussia Dortmund,RB Leipzig,1,1,1-1,3,6,15,6,7,8,13,7,2,0.5,1,0,2,492,417,0.85,0.89,0
+Borussia Dortmund vs RB Leipzig,RB Leipzig,Borussia Dortmund,RB Leipzig,1,1,1-1,3,6,13,4,8,5,14,7,3,0.5,3,0,2,497,422,0.85,1.09,0
+Bayer Leverkusen vs Union Berlin,Bayer Leverkusen,Bayer Leverkusen,Union Berlin,2,0,2-0,3,12,20,5,8,12,11,4,1,0.74,1,0,3,823,755,0.92,2.87,0
+Bayer Leverkusen vs Union Berlin,Union Berlin,Bayer Leverkusen,Union Berlin,2,0,2-0,3,5,10,2,7,3,13,4,0,0.26,3,0,1,279,201,0.72,0.74,0
+FC Augsburg vs VfL Wolfsburg,FC Augsburg,FC Augsburg,VfL Wolfsburg,3,1,3-1,5,3,10,2,8,2,9,10,5,0.47,2,0,3,371,286,0.77,1.71,0
+FC Augsburg vs VfL Wolfsburg,VfL Wolfsburg,FC Augsburg,VfL Wolfsburg,3,1,3-1,4,7,14,3,10,4,7,5,2,0.53,1,0,2,431,354,0.82,1.19,0
+Eintracht Frankfurt vs Bayern München,Eintracht Frankfurt,Eintracht Frankfurt,Bayern München,0,3,0-3,1,5,6,0,2,4,11,4,0,0.4,1,0,0,459,372,0.81,0.39,0
+Eintracht Frankfurt vs Bayern München,Bayern München,Eintracht Frankfurt,Bayern München,0,3,0-3,3,5,12,4,9,3,11,3,5,0.6,2,0,1,706,632,0.9,1.71,0
+VfB Stuttgart vs 1. FC Heidenheim,VfB Stuttgart,VfB Stuttgart,1. FC Heidenheim,1,0,1-0,6,7,18,5,7,11,11,1,2,0.64,1,0,1,620,534,0.86,0.99,0
+VfB Stuttgart vs 1. FC Heidenheim,1. FC Heidenheim,VfB Stuttgart,1. FC Heidenheim,1,0,1-0,1,3,5,1,4,1,12,1,3,0.36,1,0,5,351,248,0.71,0.38,0
+Hamburger SV vs FSV Mainz 05,Hamburger SV,Hamburger SV,FSV Mainz 05,4,0,4-0,9,5,15,1,10,5,14,1,3,0.35,2,0,4,285,194,0.68,1.91,-1
+Hamburger SV vs FSV Mainz 05,FSV Mainz 05,Hamburger SV,FSV Mainz 05,4,0,4-0,4,4,11,3,7,4,13,4,3,0.65,3,0,5,514,428,0.83,0.67,-1
+Borussia Mönchengladbach vs SC Freiburg,Borussia Mönchengladbach,Borussia Mönchengladbach,SC Freiburg,0,0,0-0,5,3,9,1,4,5,15,4,0,0.53,3,0,1,464,402,0.87,0.58,0
+Borussia Mönchengladbach vs SC Freiburg,SC Freiburg,Borussia Mönchengladbach,SC Freiburg,0,0,0-0,1,9,12,2,7,5,7,1,3,0.47,1,0,5,412,346,0.84,0.7,0
+Union Berlin vs Borussia Mönchengladbach,Union Berlin,Union Berlin,Borussia Mönchengladbach,3,1,3-1,5,7,16,4,11,5,16,6,1,0.37,5,0,1,277,195,0.7,1.23,0
+Union Berlin vs Borussia Mönchengladbach,Borussia Mönchengladbach,Union Berlin,Borussia Mönchengladbach,3,1,3-1,2,4,8,2,5,3,8,6,2,0.63,3,0,2,497,419,0.84,0.63,0
+VfL Wolfsburg vs VfB Stuttgart,VfL Wolfsburg,VfL Wolfsburg,VfB Stuttgart,0,3,0-3,3,3,11,5,7,4,12,3,0,0.41,1,0,4,412,315,0.76,0.32,0
+VfL Wolfsburg vs VfB Stuttgart,VfB Stuttgart,VfL Wolfsburg,VfB Stuttgart,0,3,0-3,7,5,15,3,11,4,8,8,1,0.59,1,0,3,598,502,0.84,1.9,0
+FSV Mainz 05 vs Bayer Leverkusen,FSV Mainz 05,FSV Mainz 05,Bayer Leverkusen,3,4,3-4,4,4,12,4,6,6,12,2,2,0.42,4,0,3,400,289,0.72,1.66,0
+FSV Mainz 05 vs Bayer Leverkusen,Bayer Leverkusen,FSV Mainz 05,Bayer Leverkusen,3,4,3-4,8,6,20,6,18,2,20,3,0,0.58,4,0,1,559,457,0.82,3.48,0
+RB Leipzig vs Hamburger SV,RB Leipzig,RB Leipzig,Hamburger SV,2,1,2-1,4,4,10,2,5,5,10,3,0,0.47,3,0,2,468,393,0.84,1.06,0
+RB Leipzig vs Hamburger SV,Hamburger SV,RB Leipzig,Hamburger SV,2,1,2-1,3,7,15,5,10,5,15,5,1,0.53,1,0,2,518,446,0.86,1.53,0
+1. FC Heidenheim vs Werder Bremen,1. FC Heidenheim,1. FC Heidenheim,Werder Bremen,2,2,2-2,11,10,31,10,17,14,31,12,2,0.55,1,0,2,465,384,0.83,3.0,0
+1. FC Heidenheim vs Werder Bremen,Werder Bremen,1. FC Heidenheim,Werder Bremen,2,2,2-2,4,5,11,2,8,3,11,2,0,0.45,3,0,9,393,307,0.78,1.33,0
+1.FC Köln vs FC Augsburg,1.FC Köln,1.FC Köln,FC Augsburg,1,1,1-1,2,5,9,2,3,6,9,5,6,0.56,2,0,3,487,377,0.77,0.58,0
+1.FC Köln vs FC Augsburg,FC Augsburg,1.FC Köln,FC Augsburg,1,1,1-1,4,4,10,2,2,8,10,2,0,0.44,2,0,1,390,283,0.73,1.12,0
+Bayern München vs Borussia Dortmund,Bayern München,Bayern München,Borussia Dortmund,2,1,2-1,7,5,15,3,12,3,12,4,2,0.61,1,0,0,586,516,0.88,2.48,0
+Bayern München vs Borussia Dortmund,Borussia Dortmund,Bayern München,Borussia Dortmund,2,1,2-1,1,4,8,3,5,3,17,3,1,0.39,3,0,6,369,285,0.77,1.58,0
+SC Freiburg vs Eintracht Frankfurt,SC Freiburg,SC Freiburg,Eintracht Frankfurt,2,2,2-2,5,5,12,2,10,2,12,3,4,0.52,2,0,1,444,358,0.81,1.35,-1
+SC Freiburg vs Eintracht Frankfurt,Eintracht Frankfurt,SC Freiburg,Eintracht Frankfurt,2,2,2-2,3,2,8,3,7,1,8,1,0,0.48,3,0,3,420,318,0.76,0.89,-1
+FC St. Pauli vs 1899 Hoffenheim,FC St. Pauli,FC St. Pauli,1899 Hoffenheim,0,3,0-3,2,2,10,6,4,6,10,9,4,0.49,1,0,3,416,316,0.76,0.95,0
+FC St. Pauli vs 1899 Hoffenheim,1899 Hoffenheim,FC St. Pauli,1899 Hoffenheim,0,3,0-3,5,6,14,3,10,4,17,7,2,0.51,3,0,2,441,357,0.81,2.08,0
