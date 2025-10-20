@@ -11,9 +11,9 @@ import os
 
 load_dotenv()
 API_KEY = os.getenv('API-FOOTBALL-KEY')
-LEAGUE_ID = 39   # Premier League
+LEAGUE_ID = 140   # Premier League
 SEASON = 2025
-OUTPUT_DIR = Path('/Users/sanduandrei/Desktop/Betting_RAG/Output/Prem_output')
+OUTPUT_DIR = Path('/Users/sanduandrei/Desktop/Betting_RAG/Output/LaLiga_Output')
 MIN_MINUTES = 1 
 
 # --- GET FIXTURE ID'S ---
@@ -167,10 +167,11 @@ def cluster_player_performances(player_fixture_data):
     print(f"✅ Clustered performances for {len(clustered)} players.")
     return list(clustered.values())
 
-# --- AGGREGATE PER PLAYER TOTALS --- 
+# --- AGGREGATE PER PLAYER TOTALS WITH FEATURE ENGINEERING --- 
 def aggregate_player_totals(player_fixture_data):
     df = pd.DataFrame(player_fixture_data)
 
+    # Step 1 — Aggregate raw statistics
     agg_map = {
         "minutes": "sum",
         "goals": "sum",
@@ -178,6 +179,7 @@ def aggregate_player_totals(player_fixture_data):
         "shots_total": "sum",
         "shots_on": "sum",
         "passes_total": "sum",
+        "accurate_passes": "sum",
         "tackles": "sum",
         "interceptions": "sum",
         "fouls_committed": "sum",
@@ -193,7 +195,39 @@ def aggregate_player_totals(player_fixture_data):
         .agg(agg_map)
         .reset_index()
     )
+
+    # Step 2 — Derived metrics (feature engineering)
+    totals["goals_per_90"] = totals.apply(
+        lambda x: (x["goals"] / x["minutes"]) * 90 if x["minutes"] > 0 else 0, axis=1
+    )
+    totals["assists_per_90"] = totals.apply(
+        lambda x: (x["assists"] / x["minutes"]) * 90 if x["minutes"] > 0 else 0, axis=1
+    )
+    totals["shots_accuracy"] = totals.apply(
+        lambda x: (x["shots_on"] / x["shots_total"]) if x["shots_total"] > 0 else None, axis=1
+    )
+    totals["pass_accuracy_pct"] = totals.apply(
+        lambda x: (x["accurate_passes"] / x["passes_total"]) * 100 if x["passes_total"] > 0 else None, axis=1
+    )
+    totals["duel_success_rate"] = totals.apply(
+        lambda x: (x["duels_won"] / x["duels_total"]) * 100 if x["duels_total"] > 0 else None, axis=1
+    )
+    totals["defensive_contrib_per_90"] = totals.apply(
+        lambda x: ((x["tackles"] + x["interceptions"]) / x["minutes"]) * 90 if x["minutes"] > 0 else 0, axis=1
+    )
+    totals["discipline_index"] = totals.apply(
+        lambda x: ((x["yellow_cards"] + 2 * x["red_cards"] + 0.25 * x["fouls_committed"]) / x["minutes"]) * 90 if x["minutes"] > 0 else 0,
+        axis=1
+    )
+
+    # Step 3 — Round selected columns for readability
+    numeric_cols = ["goals_per_90", "assists_per_90", "shots_accuracy", "pass_accuracy_pct",
+                    "duel_success_rate", "defensive_contrib_per_90", "discipline_index"]
+    totals[numeric_cols] = totals[numeric_cols].round(3)
+
+    print(f"✅ Aggregated {len(totals)} players with derived performance features.")
     return df, totals
+
 
 
 # --- NEW FUNCTION: save_clustered_performances ---
@@ -206,7 +240,7 @@ def save_clustered_performances(clustered_players):
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     # JSON output
-    json_path = OUTPUT_DIR / f"player_clustered_performances_{SEASON}.json"
+    json_path = OUTPUT_DIR / f"LaLiga_player_clustered_performances_{SEASON}.json"
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(clustered_players, f, indent=4, ensure_ascii=False)
 
@@ -245,7 +279,7 @@ def save_clustered_performances(clustered_players):
             })
 
     df_csv = pd.DataFrame(csv_rows)
-    csv_path = OUTPUT_DIR / f"player_clustered_performances_{SEASON}.csv"
+    csv_path = OUTPUT_DIR / f"LaLiga_player_clustered_performances_{SEASON}.csv"
     df_csv.to_csv(csv_path, index=False)
 
     print(f"💾 Saved clustered performances: {json_path.name} and {csv_path.name} ({len(clustered_players)} players)")
@@ -255,14 +289,14 @@ def save_outputs(per_fixture_df, total_df):
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     # Per fixture
-    json_path1 = OUTPUT_DIR / f"player_fixture_stats_{SEASON}.json"
-    csv_path1 = OUTPUT_DIR / f"player_fixture_stats_{SEASON}.csv"
+    json_path1 = OUTPUT_DIR / f"LaLiga_player_fixture_stats_{SEASON}.json"
+    csv_path1 = OUTPUT_DIR / f"LaLiga_player_fixture_stats_{SEASON}.csv"
     per_fixture_df.to_json(json_path1, orient="records", indent=4)
     per_fixture_df.to_csv(csv_path1, index=False)
 
     # Aggregated totals
-    json_path2 = OUTPUT_DIR / f"player_total_stats_{SEASON}.json"
-    csv_path2 = OUTPUT_DIR / f"player_total_stats_{SEASON}.csv"
+    json_path2 = OUTPUT_DIR / f"LaLiga_player_total_stats_{SEASON}.json"
+    csv_path2 = OUTPUT_DIR / f"LaLiga_player_total_stats_{SEASON}.csv"
     total_df.to_json(json_path2, orient="records", indent=4)
     total_df.to_csv(csv_path2, index=False)
 

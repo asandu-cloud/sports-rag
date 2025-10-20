@@ -3,7 +3,7 @@
 import requests
 
 url = "https://v3.football.api-sports.io/leagues"
-headers = {'x-apisports-key': '63dbcf42afa65f2e2769daee817f6e48'}
+headers = {'x-apisports-key': 'API-FOOTBALL-KEY'}
 
 response = requests.get(url, headers = headers)
 data = response.json()
