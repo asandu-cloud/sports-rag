@@ -5,7 +5,7 @@ from pathlib import Path
 from datetime import datetime
 import re
 
-LEAGUE = "Bundesliga"
+LEAGUE = "Ligue1"
 SEASON = 2025
 
 # Input data
