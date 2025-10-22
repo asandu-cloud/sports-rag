@@ -1,5 +1,4 @@
 # Ignore environment variables
-# Ignore environment variables
 .env
 
 # Ignore main 
@@ -13,3 +12,5 @@ venv/
 __pycache__/
 .DS_Store
 
+# Hide output
+/Output
