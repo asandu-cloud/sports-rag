@@ -50,6 +50,10 @@ def load_team_fixtures(path: str) -> pd.DataFrame:
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors="coerce")
 
+    # Feature-engineering output drops team-level minutes; keep column to avoid KeyError downstream
+    if "minutes" not in df.columns:
+        df["minutes"] = 0
+
     # Ensure identity columns exist
     if "team" not in df.columns:
         df["team"] = None

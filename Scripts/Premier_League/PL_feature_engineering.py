@@ -81,7 +81,7 @@ def load_fixture_stats() -> pd.DataFrame:
             fx[col] = 0
         fx[col] = pd.to_numeric(fx[col], errors="coerce").fillna(0)
 
-    # make sure metadata columns ALSO exist, because we want them in final output
+    # make sure metadata columns  ALSOexist, because we want them in final output
     meta_cols = [
         "fixture",
         "team",
@@ -115,11 +115,7 @@ def load_fixture_stats() -> pd.DataFrame:
     print(f"📂 Loaded {len(fx)} fixture-level rows from {FIXTURE_PATH.name}")
     return fx
 
-
-
-# =====================================================
 # PLAYER FEATURES
-# =====================================================
 def engineer_player_efficiency(df: pd.DataFrame) -> pd.DataFrame:
     # Avoid div-by-zero during ratios
     for col in ["shots_on", "shots_total", "duels_total", "tackles"]:
@@ -150,7 +146,7 @@ def engineer_player_aggression(df: pd.DataFrame) -> pd.DataFrame:
     df["duel_foul_ratio"] = df["fouls_committed"] / df["duels_total"]
 
     df.fillna(0, inplace=True)
-    print("✅ Player aggression engineered.")
+    print("Player aggression engineered.")
     return df
 
 
