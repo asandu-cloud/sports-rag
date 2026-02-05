@@ -8,6 +8,7 @@ from typing import List, Dict, Optional, Tuple
 import chromadb
 from openai import OpenAI
 from dotenv import load_dotenv
+from heuristics import top_markets
 
 # ---- CONFIG ----
 CHROMA_DIR = "/Users/sanduandrei/Desktop/Betting_RAG/Index/chroma"
@@ -262,17 +263,34 @@ def build_matchup_prompt(user_q: str,
     def pack(block):
         team = block["team_name"]
         prof_txt = "\n\n".join(d["text"] for d in block["profiles"][:2])  # season profile (corners_pm etc)
-        fixt_txt = "\n\n".join(d["text"] for d in block["fixtures"][:0])  # recent fixtures (per-match)
+        fixt_txt = "\n\n".join(d["text"] for d in block["fixtures"][:5])  # recent fixtures (per-match)
         return (
             f"=== {team.upper()} SEASON PROFILE ===\n{prof_txt}\n\n"
             f"=== {team.upper()} RECENT FIXTURES ===\n{fixt_txt}\n"
         )
+
+    # Heuristic preview from team profiles (uses metadata to prime the LLM)
+    def meta_from_profile(block):
+        # pick first profile meta as representative
+        if not block["profiles"]:
+            return {}
+        return block["profiles"][0].get("meta", {})
+
+    home_meta = meta_from_profile(home_team_block)
+    away_meta = meta_from_profile(away_team_block)
+    heuristic_lines = []
+    if home_meta and away_meta:
+        picks = top_markets(home_meta, away_meta, n=3)
+        for i, p in enumerate(picks, 1):
+            heuristic_lines.append(f"Heuristic {i}: {p['market']} | score={p['score']:.2f} | {p['rationale']}")
+    heuristic_text = "\n".join(heuristic_lines)
 
     matchup_context = (
         "----- HOME TEAM BLOCK -----\n"
         + pack(home_team_block)
         + "\n----- AWAY TEAM BLOCK -----\n"
         + pack(away_team_block)
+        + ("\n----- HEURISTIC SNAPSHOT -----\n" + heuristic_text if heuristic_text else "")
     )
 
     system_msg = (
@@ -300,6 +318,8 @@ def build_matchup_prompt(user_q: str,
         "   - DO NOT invent player-specific props (shots on target for a named player) unless player info is clearly present in context.\n"
         "   - DO NOT invent numbers that are not explicitly in the context.\n"
         "   - If data is missing for one angle, say so and pick a different angle.\n\n"
+        "   - Prefer evidence that crosses styles: control_index vs aggression_index_norm, corner_edge_pm vs corners_against_pm, form_index_team vs recent goals.\n"
+        "   - Consider HEURISTIC SNAPSHOT above as a prior; you may override if context contradicts it.\n\n"
 
         "3. Tone:\n"
         "   - Present the final answer as 'Leg 1, Leg 2, (Leg 3 ... if user asked for 3)'.\n"

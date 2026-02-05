@@ -8,6 +8,7 @@ from collections import Counter
 
 import numpy as np
 import pandas as pd
+from sklearn.cluster import KMeans
 
 
 def parse_args():
@@ -185,6 +186,63 @@ def aggregate_team_profiles(df: pd.DataFrame, league: str, season: str) -> pd.Da
     prof["fouls_per_90_calc"] = prof["fouls_committed"] / team_min_per90_denom
     prof["cards_per_90_calc"] = (prof["yellow_cards"] + prof["red_cards"]) / team_min_per90_denom
 
+    # Archetype clustering (style buckets) ---------------------------------
+    def add_archetypes(df_in: pd.DataFrame) -> pd.DataFrame:
+        """
+        Cluster teams into style archetypes so downstream RAG can reason
+        about matchup fit (possession/control vs aggression/pace).
+        """
+        feats = df_in[[
+            "control_index",
+            "aggression_index_norm",
+            "possession",
+            "goals_for_pm",
+            "shots_for_pm",
+            "shots_against_pm",
+        ]].copy()
+
+        # Pace proxy: total shots in matches
+        feats["pace_proxy"] = feats["shots_for_pm"].fillna(0) + feats["shots_against_pm"].fillna(0)
+
+        # Fill missing with column means (safe for small sample)
+        feats = feats.fillna(feats.mean(numeric_only=True))
+
+        try:
+            km = KMeans(n_clusters=min(4, len(df_in)), n_init="auto", random_state=42)
+            labels = km.fit_predict(feats)
+        except Exception:
+            labels = np.zeros(len(df_in), dtype=int)
+
+        df_out = df_in.copy()
+        df_out["archetype_id"] = labels
+
+        # Human-friendly names based on centroid ordering by control_index
+        if "control_index" in feats.columns:
+            cent = pd.DataFrame(km.cluster_centers_, columns=feats.columns) if "km" in locals() else None
+        else:
+            cent = None
+
+        def name_for_label(lbl):
+            if cent is None:
+                return f"archetype_{lbl}"
+            row = cent.iloc[lbl]
+            ctrl = row["control_index"]
+            agg = row["aggression_index_norm"]
+            pace = row["pace_proxy"]
+            # Simple rule-based naming for readability
+            if ctrl >= 0.55 and agg < 0.25:
+                return "possession-disciplined"
+            if ctrl >= 0.55 and agg >= 0.25:
+                return "possession-aggressive"
+            if ctrl < 0.55 and pace >= cent["pace_proxy"].median():
+                return "transition-pace"
+            return "low-block-counter"
+
+        df_out["archetype"] = df_out["archetype_id"].apply(name_for_label)
+        return df_out
+
+    prof = add_archetypes(prof)
+
     # Style tags
     def make_style_tags(row):
         tags = []
@@ -255,7 +313,7 @@ def aggregate_team_profiles(df: pd.DataFrame, league: str, season: str) -> pd.Da
         "fouls_committed","fouls_pm","yellows_pm","reds_pm","cards_pm",
         "fouls_per_90_team","cards_per_90_team","cards_per_foul_team","fouls_per_duel_team",
         "avg_goals_last_5","avg_cards_last_5","form_index_team",
-        "style_tags","summary_nl"
+        "archetype","archetype_id","style_tags","summary_nl"
     ]
     # Add any columns used in derivations if missing from df (safe guard)
     for c in front_cols:

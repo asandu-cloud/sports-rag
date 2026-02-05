@@ -288,7 +288,7 @@ def doc_from_team_profile(row: dict, season_hint: Optional[str], source_file: st
         f"G/Match:{row.get('goals_for_pm')} xG/Match:{row.get('expected_goals')} Poss:{row.get('possession')}\n"
         f"Corners For/Match:{row.get('corners_pm')} | Corners Against/Match:{c_against_pm}\n"
         f"Corner Edge/Match (For - Against):{corner_edge_pm}\n"
-        f"Dominance:{row.get('dominance_index')} Control:{row.get('control_index')}\n"
+        f"Dominance:{row.get('dominance_index')} Control:{row.get('control_index')} Archetype:{row.get('archetype')}\n"
         f"Fouls/90:{row.get('fouls_per_90_team')} Cards/90:{row.get('cards_per_90_team')} Cards/Foul:{row.get('cards_per_foul_team')}\n"
         f"Tags: {', '.join(row.get('style_tags', []))}\n"
         f"Summary: {row.get('summary_nl')}"
@@ -299,6 +299,17 @@ def doc_from_team_profile(row: dict, season_hint: Optional[str], source_file: st
         "team": team,
         "corners_against_pm": c_against_pm,
         "corner_edge_pm": corner_edge_pm,
+        "control_index": row.get("control_index"),
+        "dominance_index": row.get("dominance_index"),
+        "aggression_index_norm": row.get("aggression_index_norm"),
+        "form_index_team": row.get("form_index_team"),
+        "goals_for_pm": row.get("goals_for_pm"),
+        "goals_against_pm": row.get("shots_against_pm"),  # proxy if no explicit GA
+        "corners_pm": row.get("corners_pm"),
+        "cards_per_90_team": row.get("cards_per_90_team"),
+        "fouls_per_90_team": row.get("fouls_per_90_team"),
+        "possession": row.get("possession"),
+        "archetype": row.get("archetype"),
         "source_file": source_file,
     }
     uid = make_doc_id([league, season, "team_profile", team])

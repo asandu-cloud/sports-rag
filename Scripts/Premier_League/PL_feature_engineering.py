@@ -428,7 +428,7 @@ def engineer_team_aggression_discipline(team_df: pd.DataFrame) -> pd.DataFrame:
         df["aggression_index_norm"] = 0
 
     df.fillna(0, inplace=True)
-    print("✅ Team aggression metrics computed.")
+    print("Team aggression metrics computed.")
     return df
 
 
@@ -454,7 +454,7 @@ def engineer_team_form_consistency(team_df: pd.DataFrame) -> pd.DataFrame:
     )
 
     df.fillna(0, inplace=True)
-    print("✅ Team form metrics computed.")
+    print("Team form metrics computed.")
     return df
 
 
