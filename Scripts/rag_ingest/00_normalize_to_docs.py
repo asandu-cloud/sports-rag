@@ -73,6 +73,52 @@ def season_from_any(*candidates: Optional[str]) -> Optional[str]:
             return euro_season_from_year(yr)
     return None
 
+def write_variable_dictionary(out_dir: str) -> str:
+    """
+    Writes a small glossary the RAG can retrieve when unsure about variable meanings.
+    Returns the file path.
+    """
+    txt = """VARIABLE DICTIONARY (Top-5 Leagues)
+
+corners_for (team fixture): Team's corners won in that fixture.
+corners_against (team fixture): Opponent's corners won in the same fixture (opponent row join).
+corners_pm (team profile): Average corners won per match (season).
+corners_against_pm (team profile): Average corners conceded per match (computed from fixture rows).
+corner_edge_pm (team profile): corners_pm - corners_against_pm. Positive = team typically wins more corners than it concedes.
+
+shots_for / sot_for (team fixture): Shots / shots on target by the team in that fixture.
+shots_against / sot_against (team fixture): Shots / SOT by the opponent in that fixture.
+
+control_index: Possession + pass control composite index (higher = more control).
+dominance_index: Territory + chance quality composite (higher = more dominance).
+
+cards_per_90 (player): Player’s cards per 90 minutes.
+fouls_per_90 (player): Player’s fouls committed per 90.
+aggression_index_norm: Normalized aggression proxy (fouls, duels, cards).
+expected_card_risk / expected_foul_pressure: Model-derived estimates for next match (0–1).
+
+Notes:
+- *_pm means per-match season averages.
+- Fixture-level 'Against' values are joined from the opponent's row for the same fixture.
+"""
+    path = Path(out_dir) / "variable_dictionary.txt"
+    Path(out_dir).mkdir(parents=True, exist_ok=True)
+    path.write_text(txt)
+    return str(path)
+
+def dictionary_to_doc(path: str) -> dict:
+    text = Path(path).read_text()
+    meta = {
+        "entity_type": "guide",
+        "doc_type": "data_dictionary",
+        "league": "GLOBAL",
+        "season": "ALL",
+        "source_file": path,
+    }
+    uid = make_doc_id(["GLOBAL", "ALL", "data_dictionary", "v1"])
+    return {"id": uid, "text": "GLOBAL | Data Dictionary\n" + text, "metadata": meta}
+
+
 # --------- DOC BUILDERS ---------
 def doc_from_player_engineered(row: dict, league: str, season: str, source_file: str) -> dict:
     # Ensure numeric-like strings from CSV become usable (best-effort)
@@ -138,38 +184,111 @@ def doc_from_player_profile(row: dict, season_hint: Optional[str], source_file: 
     uid = make_doc_id([league, season, "player_profile", meta["player_id"]])
     return {"id": uid, "text": text, "metadata": meta}
 
-def doc_from_team_engineered(row: dict, league: str, season: str, source_file: str) -> dict:
-    home_away, opponent = infer_home_away(row.get("fixture",""), row.get("team",""))
+def doc_from_team_engineered(row: dict, league: str, season: str, source_file: str, opp_row: dict | None = None) -> dict:
+    home_away, opponent = infer_home_away(row.get("fixture", ""), row.get("team", ""))
+
+    # Team's own stats
+    shots_for        = row.get("shots_total")
+    sot_for          = row.get("shots_on")
+    corners_for      = row.get("corners")
+    xg_for           = row.get("expected_goals")
+    possession_for   = row.get("possession")
+    fouls_for        = row.get("fouls_committed")
+    yc_for           = row.get("yellow_cards")
+    rc_for           = row.get("red_cards")
+
+    # Opponent-derived stats
+    # We look up the opponent's row for the same fixture (precomputed in normalize_feature_engineering_dir)
+    shots_against    = (opp_row or {}).get("shots_total")
+    sot_against      = (opp_row or {}).get("shots_on")
+    corners_against  = (opp_row or {}).get("corners")
+
+    # Extra engineered metrics we now trust
+    dominance_idx    = row.get("dominance_index")
+    control_idx      = row.get("control_index")
+    conv_rate        = row.get("goal_conversion_rate")
+    sot_ratio        = row.get("shot_on_target_ratio")
+    cards_per_90     = row.get("cards_per_90_team")
+    fouls_per_90     = row.get("fouls_per_90_team")
+    form_idx_team    = row.get("form_index_team")
+    aggression_norm  = row.get("aggression_index_norm")
+
+    # New match metadata we want to expose to the RAG so it stops hallucinating scores/timing
+    fixture_date     = row.get("fixture_date")
+    final_score_str  = row.get("final_score_string")
+
     text = (
         f"{league} {season} | Team Fixture\n"
-        f"Fixture: {row.get('fixture')} | Team: {row.get('team')} ({home_away or 'n/a'}) vs {opponent or 'n/a'}\n"
-        f"G:{row.get('goals')} A:{row.get('assists')} ShotsFor:{row.get('shots_total_x')} (On:{row.get('shots_on_x')}) "
-        f"Passes:{row.get('passes_total')} (Acc:{row.get('accurate_passes')}) Pos:{row.get('possession')}\n"
-        f"xG:{row.get('expected_goals')} GoalsPrevented:{row.get('goals_prevented')} Corners:{row.get('corners')} "
-        f"Fouls:{row.get('fouls_committed')} YC:{row.get('yellow_cards')} RC:{row.get('red_cards')}\n"
-        f"Dominance:{row.get('dominance_index')} Control:{row.get('control_index')} ShotAccFor:{row.get('shots_accuracy_for')} "
-        f"Fouls/90:{row.get('fouls_per_90_team')} Cards/90:{row.get('cards_per_90_team')}"
+        f"Date: {fixture_date} | Fixture: {row.get('fixture')} | Final score: {final_score_str}\n"
+        f"Team: {row.get('team')} ({home_away or 'n/a'}) vs {opponent or 'n/a'}\n"
+        f"G:{row.get('goals')} A:{row.get('assists')} | xG:{xg_for} | Possession:{possession_for}\n"
+        f"Shots For:{shots_for} (On:{sot_for}) | Shots Against:{shots_against} (On:{sot_against})\n"
+        f"Corners For:{corners_for} | Corners Against:{corners_against}\n"
+        f"Fouls:{fouls_for} YC:{yc_for} RC:{rc_for}\n"
+        f"Team Rates → Conv%:{conv_rate} SoT%:{sot_ratio} ControlIdx:{control_idx} "
+        f"DomIdx:{dominance_idx} FormIdx:{form_idx_team} AggIdxNorm:{aggression_norm}\n"
+        f"Discipline → Fouls/90:{fouls_per_90} Cards/90:{cards_per_90}"
     )
+
     meta = {
-        "entity_type": "team", "doc_type": "team_fixture",
-        "league": league, "season": season,
+        "entity_type": "team",
+        "doc_type": "team_fixture",
+        "league": league,
+        "season": season,
         "fixture": row.get("fixture"),
+        "fixture_date": fixture_date,
+        "final_score": final_score_str,
         "team": row.get("team"),
         "opponent": opponent,
         "home_away": home_away,
+
+        # Useful numeric cues for retrieval filters / analytics
+        "shots_for": shots_for,
+        "shots_against": shots_against,
+        "sot_for": sot_for,
+        "sot_against": sot_against,
+        "corners_for": corners_for,
+        "corners_against": corners_against,
+        "possession": possession_for,
+        "xg_for": xg_for,
+
+        # aggression / discipline for betting props
+        "cards_per_90_team": cards_per_90,
+        "fouls_per_90_team": fouls_per_90,
+        "aggression_index_norm": aggression_norm,
+
+        "control_index": control_idx,
+        "form_index_team": form_idx_team,
+
         "source_file": source_file,
     }
+
     uid = make_doc_id([league, season, "team_fixture", row.get("team"), row.get("fixture")])
     return {"id": uid, "text": text, "metadata": meta}
 
-def doc_from_team_profile(row: dict, season_hint: Optional[str], source_file: str) -> dict:
+
+
+def doc_from_team_profile(row: dict, season_hint: Optional[str], source_file: str, c_against_pm_map: dict | None = None) -> dict:
     league = row.get("league")
     season = row.get("season") or season_hint
+    team   = row.get("team")
+    tkey   = (team or "").lower().strip()
+    c_against_pm = (c_against_pm_map or {}).get(tkey)
+
+    corner_edge_pm = None
+    try:
+        if c_against_pm is not None and row.get("corners_pm") is not None:
+            corner_edge_pm = float(row["corners_pm"]) - float(c_against_pm)
+    except Exception:
+        pass
+
     text = (
         f"{league} {season} | Team Profile\n"
-        f"{row.get('team')} | MP:{row.get('matches_played')} G:{row.get('goals')} A:{row.get('assists')} "
+        f"{team} | MP:{row.get('matches_played')} G:{row.get('goals')} A:{row.get('assists')}\n"
         f"G/Match:{row.get('goals_for_pm')} xG/Match:{row.get('expected_goals')} Poss:{row.get('possession')}\n"
-        f"Dominance:{row.get('dominance_index')} Control:{row.get('control_index')} "
+        f"Corners For/Match:{row.get('corners_pm')} | Corners Against/Match:{c_against_pm}\n"
+        f"Corner Edge/Match (For - Against):{corner_edge_pm}\n"
+        f"Dominance:{row.get('dominance_index')} Control:{row.get('control_index')}\n"
         f"Fouls/90:{row.get('fouls_per_90_team')} Cards/90:{row.get('cards_per_90_team')} Cards/Foul:{row.get('cards_per_foul_team')}\n"
         f"Tags: {', '.join(row.get('style_tags', []))}\n"
         f"Summary: {row.get('summary_nl')}"
@@ -177,26 +296,85 @@ def doc_from_team_profile(row: dict, season_hint: Optional[str], source_file: st
     meta = {
         "entity_type": "team", "doc_type": "team_profile",
         "league": league, "season": season,
-        "team": row.get("team"),
+        "team": team,
+        "corners_against_pm": c_against_pm,
+        "corner_edge_pm": corner_edge_pm,
         "source_file": source_file,
     }
-    uid = make_doc_id([league, season, "team_profile", row.get("team")])
+    uid = make_doc_id([league, season, "team_profile", team])
     return {"id": uid, "text": text, "metadata": meta}
+
 
 def _maybe_int(x):
     try:
         return int(float(x))
     except (TypeError, ValueError):
         return x
+    
+# --- new helper at top-level, near other utils ---
+def build_fixture_team_map(team_rows: list[dict]) -> dict:
+    """
+    Returns: { (fixture_lower): { team_lower: row, ... }, ... }
+    Lets us find opponent's row quickly to compute corners_against, etc.
+    """
+    fx_map = {}
+    for r in team_rows:
+        fx = (r.get("fixture") or "").lower().strip()
+        tm = (r.get("team") or "").lower().strip()
+        if fx and tm:
+            fx_map.setdefault(fx, {})[tm] = r
+    return fx_map
+
+# --- aggregate season-level conceded corners per team from engineered rows ---
+def compute_corners_against_pm(team_rows: list[dict]) -> dict:
+    """
+    Returns { team_lower: corners_against_per_match }
+    Requires opponent join: we look up opponent's row corners for each fixture.
+    """
+    fx_map = build_fixture_team_map(team_rows)
+    sum_cagainst = {}
+    cnt_matches  = {}
+
+    for r in team_rows:
+        fx = (r.get("fixture") or "").lower().strip()
+        team = (r.get("team") or "").lower().strip()
+        if not fx or not team: 
+            continue
+        # find opponent row, grab their 'corners'
+        opp_row = None
+        hm, opp_name = infer_home_away(r.get("fixture",""), r.get("team",""))
+        if opp_name:
+            opp_row = fx_map.get(fx, {}).get(opp_name.lower().strip())
+        c_against = (opp_row or {}).get("corners")
+        try:
+            c_against = float(c_against) if c_against is not None else None
+        except:
+            c_against = None
+
+        if c_against is not None:
+            sum_cagainst[team] = sum_cagainst.get(team, 0.0) + c_against
+            cnt_matches[team]  = cnt_matches.get(team, 0) + 1
+
+    out = {}
+    for t, s in sum_cagainst.items():
+        n = max(1, cnt_matches.get(t, 1))
+        out[t] = s / n
+    return out
+
 
 # --------- DISCOVERY & NORMALIZATION ---------
 def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
     """
-    single folder input
-    auto detects files in folder, only ones needed
+    Normalize a single *_feature_engineering folder into doclets.
+    - Auto-detects the four input files (JSON/JSONL preferred; CSV fallback).
+    - Infers league from folder name, season from filename tokens (e.g., _2025 -> 2024/25).
+    - Adds opponent-joined fields for team fixtures (e.g., corners_against).
+    - Computes corners_against_pm from engineered rows and injects into team profiles.
+    - Appends a GLOBAL data-dictionary doc at the end.
     """
     p = Path(dir_path)
     league = league_from_dir(p.name) or "UNKNOWN"
+    docs: List[dict] = []
 
     # Helper: best file match with priority to JSON/JSONL
     def pick(patterns: List[str]) -> Optional[Path]:
@@ -204,35 +382,74 @@ def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
         for pat in patterns:
             for ext in (".json", ".jsonl"):
                 hit = list(p.glob(pat + ext))
-                if hit: return hit[0]
+                if hit:
+                    return hit[0]
         # Fallback to CSV
         for pat in patterns:
             hit = list(p.glob(pat + ".csv"))
-            if hit: return hit[0]
+            if hit:
+                return hit[0]
         return None
 
+    # Discover files
     f_player_eng = pick(["player_engineered_features_*"])
     f_player_prof = pick(["player_profiles_*"])
     f_team_eng   = pick(["team_engineered_features_*"])
     f_team_prof  = pick(["team_profiles_*"])
 
-    # Derive a season hint from any filename that has a year token
+    # Derive a season hint from any filename that has a year token (MUST be before using season_hint)
     season_hint = season_from_any(
         f_player_eng.name if f_player_eng else None,
         f_player_prof.name if f_player_prof else None,
         f_team_eng.name if f_team_eng else None,
         f_team_prof.name if f_team_prof else None,
-    )
+    ) or "UNKNOWN"
 
-    docs: List[dict] = []
+    # -----------------------------
+    # TEAM ENGINEERED (load first)
+    # -----------------------------
+    team_rows: List[dict] = []
+    if f_team_eng:
+        team_rows = read_json(str(f_team_eng)) if f_team_eng.suffix == ".json" else read_csv_rows(str(f_team_eng))
 
-    # Player engineered
+    # Opponent-join map and conceded-corners per match (season-level) from engineered rows
+    c_against_pm_map = compute_corners_against_pm(team_rows) if team_rows else {}
+
+    # Emit team fixture docs with opponent join (corners_against, shots_against, etc.)
+    if team_rows:
+        fx_map = build_fixture_team_map(team_rows)
+        for r in team_rows:
+            fx = (r.get("fixture") or "").lower().strip()
+            opp_name = infer_home_away(r.get("fixture", ""), r.get("team", ""))[1]
+            opp_row = fx_map.get(fx, {}).get((opp_name or "").lower().strip()) if opp_name else None
+            docs.append(
+                doc_from_team_engineered(
+                    r,
+                    league=league,
+                    season=season_hint,
+                    source_file=str(f_team_eng),
+                    opp_row=opp_row,
+                )
+            )
+
+    # -----------------------------
+    # PLAYER ENGINEERED
+    # -----------------------------
     if f_player_eng:
         rows = read_json(str(f_player_eng)) if f_player_eng.suffix == ".json" else read_csv_rows(str(f_player_eng))
         for r in rows:
-            docs.append(doc_from_player_engineered(r, league=league, season=season_hint or "UNKNOWN", source_file=str(f_player_eng)))
+            docs.append(
+                doc_from_player_engineered(
+                    r,
+                    league=league,
+                    season=season_hint,
+                    source_file=str(f_player_eng),
+                )
+            )
 
-    # Player profiles
+    # -----------------------------
+    # PLAYER PROFILES
+    # -----------------------------
     if f_player_prof:
         if f_player_prof.suffix == ".jsonl":
             iterator = read_jsonl(str(f_player_prof))
@@ -241,15 +458,17 @@ def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
         else:
             iterator = read_csv_rows(str(f_player_prof))
         for r in iterator:
-            docs.append(doc_from_player_profile(r, season_hint=season_hint, source_file=str(f_player_prof)))
+            docs.append(
+                doc_from_player_profile(
+                    r,
+                    season_hint=season_hint,
+                    source_file=str(f_player_prof),
+                )
+            )
 
-    # Team engineered
-    if f_team_eng:
-        rows = read_json(str(f_team_eng)) if f_team_eng.suffix == ".json" else read_csv_rows(str(f_team_eng))
-        for r in rows:
-            docs.append(doc_from_team_engineered(r, league=league, season=season_hint or "UNKNOWN", source_file=str(f_team_eng)))
-
-    # Team profiles
+    # -----------------------------
+    # TEAM PROFILES (inject corners_against_pm + corner_edge_pm)
+    # -----------------------------
     if f_team_prof:
         if f_team_prof.suffix == ".jsonl":
             iterator = read_jsonl(str(f_team_prof))
@@ -258,9 +477,23 @@ def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
         else:
             iterator = read_csv_rows(str(f_team_prof))
         for r in iterator:
-            docs.append(doc_from_team_profile(r, season_hint=season_hint, source_file=str(f_team_prof)))
+            docs.append(
+                doc_from_team_profile(
+                    r,
+                    season_hint=season_hint,
+                    source_file=str(f_team_prof),
+                    c_against_pm_map=c_against_pm_map,
+                )
+            )
+
+    # -----------------------------
+    # GLOBAL data dictionary (single doc)
+    # -----------------------------
+    dict_path = write_variable_dictionary(INDEX_DIR)  # ensure INDEX_DIR is defined globally
+    docs.append(dictionary_to_doc(dict_path))
 
     return docs
+
 
 def main():
     os.makedirs(INDEX_DIR, exist_ok=True)

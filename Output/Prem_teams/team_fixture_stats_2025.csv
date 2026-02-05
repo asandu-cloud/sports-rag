@@ -1,159 +1,163 @@
-fixture,team,home_team,away_team,home_goals,away_goals,final_score,Shots on Goal,Shots off Goal,Total Shots,Blocked Shots,Shots insidebox,Shots outsidebox,Fouls,Corner Kicks,Offsides,Ball Possession,Yellow Cards,Red Cards,Goalkeeper Saves,Total passes,Passes accurate,Passes %,expected_goals,goals_prevented
-Liverpool vs Bournemouth,Liverpool,Liverpool,Bournemouth,4,2,4-2,10,7,19,2,15,4,7,6,2,0.61,1,0,1,489,401,0.82,2.21,0
-Liverpool vs Bournemouth,Bournemouth,Liverpool,Bournemouth,4,2,4-2,3,4,10,3,8,2,10,7,2,0.39,2,0,6,299,209,0.7,1.7,0
-Aston Villa vs Newcastle,Aston Villa,Aston Villa,Newcastle,0,0,0-0,3,0,3,0,3,0,13,3,2,0.4,1,1,3,310,227,0.73,0.2,0
-Aston Villa vs Newcastle,Newcastle,Aston Villa,Newcastle,0,0,0-0,3,6,16,7,9,7,11,6,1,0.6,1,0,3,451,376,0.83,1.43,0
-Tottenham vs Burnley,Tottenham,Tottenham,Burnley,3,0,3-0,6,9,16,1,12,4,14,6,0,0.67,0,0,4,511,451,0.88,2.32,0
-Tottenham vs Burnley,Burnley,Tottenham,Burnley,3,0,3-0,4,7,14,3,7,7,8,5,4,0.33,0,0,3,246,181,0.74,0.94,0
-Brighton vs Fulham,Brighton,Brighton,Fulham,1,1,1-1,4,5,10,1,6,4,16,4,3,0.5,3,0,1,427,374,0.88,1.48,0
-Brighton vs Fulham,Fulham,Brighton,Fulham,1,1,1-1,2,4,7,1,5,2,15,3,2,0.5,3,0,3,423,349,0.83,0.76,0
-Sunderland vs West Ham,Sunderland,Sunderland,West Ham,3,0,3-0,5,4,10,1,9,1,8,5,0,0.37,0,0,4,323,250,0.77,0.68,-1
-Sunderland vs West Ham,West Ham,Sunderland,West Ham,3,0,3-0,4,2,12,6,7,5,10,7,0,0.63,1,0,2,550,468,0.85,0.56,-1
-Wolves vs Manchester City,Wolves,Wolves,Manchester City,0,4,0-4,3,3,9,3,6,3,13,4,4,0.42,1,0,0,394,326,0.83,0.56,0
-Wolves vs Manchester City,Manchester City,Wolves,Manchester City,0,4,0-4,4,7,15,4,8,7,7,5,0,0.58,2,0,3,563,510,0.91,2.47,0
-Chelsea vs Crystal Palace,Chelsea,Chelsea,Crystal Palace,0,0,0-0,3,7,19,9,11,8,10,11,0,0.72,2,0,4,568,510,0.9,1.6,0
-Chelsea vs Crystal Palace,Crystal Palace,Chelsea,Crystal Palace,0,0,0-0,4,3,11,4,4,7,12,2,0,0.28,3,0,2,226,168,0.74,0.66,0
-Nottingham Forest vs Brentford,Nottingham Forest,Nottingham Forest,Brentford,3,1,3-1,5,4,11,2,6,5,7,5,2,0.55,1,0,2,404,334,0.83,1.86,0
-Nottingham Forest vs Brentford,Brentford,Nottingham Forest,Brentford,3,1,3-1,3,4,10,3,7,3,15,5,0,0.45,2,0,2,330,257,0.78,1.5,0
-Manchester United vs Arsenal,Manchester United,Manchester United,Arsenal,0,1,0-1,7,7,22,8,15,7,10,3,1,0.61,1,0,2,475,393,0.83,1.52,0
-Manchester United vs Arsenal,Arsenal,Manchester United,Arsenal,0,1,0-1,3,3,9,3,5,4,19,4,2,0.39,4,0,7,294,219,0.74,1.31,0
-Leeds vs Everton,Leeds,Leeds,Everton,1,0,1-0,3,7,21,11,12,9,6,7,1,0.54,0,0,1,481,401,0.83,2.13,0
-Leeds vs Everton,Everton,Leeds,Everton,1,0,1-0,1,3,7,3,5,2,8,2,2,0.46,2,0,2,411,324,0.79,0.8,0
-West Ham vs Chelsea,West Ham,West Ham,Chelsea,1,5,1-5,4,5,12,3,9,3,7,7,4,0.41,0,0,2,392,339,0.86,0.73,0
-West Ham vs Chelsea,Chelsea,West Ham,Chelsea,1,5,1-5,7,4,12,1,10,2,10,5,2,0.59,1,0,3,577,505,0.88,2.74,0
-Manchester City vs Tottenham,Manchester City,Manchester City,Tottenham,0,2,0-2,4,3,10,3,6,4,7,7,0,0.61,1,0,3,525,456,0.87,1.55,0
-Manchester City vs Tottenham,Tottenham,Manchester City,Tottenham,0,2,0-2,5,5,12,2,10,2,12,2,1,0.39,4,0,4,331,259,0.78,1.11,0
-Bournemouth vs Wolves,Bournemouth,Bournemouth,Wolves,1,0,1-0,4,5,14,5,8,6,13,8,2,0.59,2,0,1,447,387,0.87,1.29,0
-Bournemouth vs Wolves,Wolves,Bournemouth,Wolves,1,0,1-0,1,3,6,2,3,3,16,3,2,0.41,4,1,3,307,225,0.73,0.46,0
-Burnley vs Sunderland,Burnley,Burnley,Sunderland,2,0,2-0,2,4,7,1,4,3,9,4,0,0.42,0,0,1,442,356,0.81,1.0,0
-Burnley vs Sunderland,Sunderland,Burnley,Sunderland,2,0,2-0,1,3,9,5,6,3,5,3,2,0.58,1,0,0,616,530,0.86,0.77,0
-Brentford vs Aston Villa,Brentford,Brentford,Aston Villa,1,0,1-0,2,4,9,3,8,1,11,2,1,0.24,1,0,2,178,126,0.71,1.27,0
-Brentford vs Aston Villa,Aston Villa,Brentford,Aston Villa,1,0,1-0,2,7,17,8,12,5,9,9,0,0.76,2,0,1,577,506,0.88,1.23,0
-Arsenal vs Leeds,Arsenal,Arsenal,Leeds,5,0,5-0,5,9,18,4,13,5,8,2,0,0.68,0,0,1,599,549,0.92,2.88,-2
-Arsenal vs Leeds,Leeds,Arsenal,Leeds,5,0,5-0,1,0,3,2,2,1,11,2,0,0.32,2,0,0,290,219,0.76,0.17,-2
-Everton vs Brighton,Everton,Everton,Brighton,2,0,2-0,3,7,11,1,6,5,7,2,0,0.42,4,0,4,362,272,0.75,1.6,0
-Everton vs Brighton,Brighton,Everton,Brighton,2,0,2-0,4,5,13,4,7,6,15,2,6,0.58,3,0,1,490,411,0.84,2.43,0
-Crystal Palace vs Nottingham Forest,Crystal Palace,Crystal Palace,Nottingham Forest,1,1,1-1,4,4,8,0,7,1,11,1,2,0.42,3,0,0,377,287,0.76,1.1,0
-Crystal Palace vs Nottingham Forest,Nottingham Forest,Crystal Palace,Nottingham Forest,1,1,1-1,1,7,9,1,8,1,11,3,2,0.58,3,0,3,514,442,0.86,0.93,0
-Fulham vs Manchester United,Fulham,Fulham,Manchester United,1,1,1-1,4,4,13,5,10,3,12,9,2,0.52,1,0,3,419,353,0.84,1.76,0
-Fulham vs Manchester United,Manchester United,Fulham,Manchester United,1,1,1-1,3,6,10,1,8,2,10,6,1,0.48,1,0,2,397,328,0.83,1.63,0
-Newcastle vs Liverpool,Newcastle,Newcastle,Liverpool,2,3,2-3,3,4,10,3,8,2,17,7,0,0.38,2,1,1,248,170,0.69,0.98,0
-Newcastle vs Liverpool,Liverpool,Newcastle,Liverpool,2,3,2-3,4,0,5,1,3,2,15,1,0,0.62,3,0,1,446,370,0.83,0.69,0
-Chelsea vs Fulham,Chelsea,Chelsea,Fulham,2,0,2-0,6,1,13,6,10,3,11,6,3,0.54,2,0,1,494,429,0.87,2.35,1
-Chelsea vs Fulham,Fulham,Chelsea,Fulham,2,0,2-0,3,6,11,2,8,3,17,4,1,0.46,2,0,4,415,337,0.81,1.02,1
-Manchester United vs Burnley,Manchester United,Manchester United,Burnley,3,2,3-2,6,13,26,7,19,7,9,7,1,0.62,1,0,1,500,410,0.82,3.54,-1
-Manchester United vs Burnley,Burnley,Manchester United,Burnley,3,2,3-2,3,1,6,2,5,1,9,1,1,0.38,5,0,5,309,219,0.71,1.2,-1
-Wolves vs Everton,Wolves,Wolves,Everton,2,3,2-3,4,3,12,5,6,6,15,2,2,0.59,0,0,1,524,421,0.8,1.11,0
-Wolves vs Everton,Everton,Wolves,Everton,2,3,2-3,4,2,10,4,7,3,10,2,1,0.41,1,0,2,371,275,0.74,1.93,0
-Tottenham vs Bournemouth,Tottenham,Tottenham,Bournemouth,0,1,0-1,1,3,5,1,3,2,17,0,2,0.61,2,0,5,477,394,0.83,0.19,0
-Tottenham vs Bournemouth,Bournemouth,Tottenham,Bournemouth,0,1,0-1,6,9,20,5,15,5,13,8,3,0.39,4,0,1,296,208,0.7,1.59,0
-Sunderland vs Brentford,Sunderland,Sunderland,Brentford,2,1,2-1,3,6,12,3,9,3,11,3,0,0.54,3,0,3,419,340,0.81,1.54,0
-Sunderland vs Brentford,Brentford,Sunderland,Brentford,2,1,2-1,4,2,7,1,5,2,12,4,3,0.46,2,0,1,354,283,0.8,1.2,0
-Leeds vs Newcastle,Leeds,Leeds,Newcastle,0,0,0-0,1,6,10,3,4,6,10,5,1,0.43,1,0,2,414,328,0.79,0.69,0
-Leeds vs Newcastle,Newcastle,Leeds,Newcastle,0,0,0-0,2,3,8,3,4,4,15,5,0,0.57,1,0,1,547,463,0.85,0.46,0
-Brighton vs Manchester City,Brighton,Brighton,Manchester City,2,1,2-1,7,2,12,3,10,2,16,3,1,0.37,2,0,2,311,231,0.74,2.29,0
-Brighton vs Manchester City,Manchester City,Brighton,Manchester City,2,1,2-1,3,8,12,1,8,4,14,2,0,0.63,2,0,5,556,486,0.87,1.84,0
-Nottingham Forest vs West Ham,Nottingham Forest,Nottingham Forest,West Ham,0,3,0-3,3,3,11,5,9,2,14,9,0,0.58,0,0,5,541,470,0.87,0.73,0
-Nottingham Forest vs West Ham,West Ham,Nottingham Forest,West Ham,0,3,0-3,8,4,12,0,10,2,6,7,0,0.42,0,0,3,385,316,0.82,2.42,0
-Liverpool vs Arsenal,Liverpool,Liverpool,Arsenal,1,0,1-0,3,2,9,4,4,5,7,3,1,0.53,2,0,1,435,368,0.85,0.52,0
-Liverpool vs Arsenal,Arsenal,Liverpool,Arsenal,1,0,1-0,1,3,11,7,8,3,10,8,0,0.47,2,0,2,371,303,0.82,0.49,0
-Aston Villa vs Crystal Palace,Aston Villa,Aston Villa,Crystal Palace,0,3,0-3,4,8,13,1,10,3,7,10,0,0.58,2,0,1,531,475,0.89,1.14,1
-Aston Villa vs Crystal Palace,Crystal Palace,Aston Villa,Crystal Palace,0,3,0-3,4,1,6,1,5,1,14,1,2,0.42,3,0,4,386,328,0.85,2.65,1
-Arsenal vs Nottingham Forest,Arsenal,Arsenal,Nottingham Forest,3,0,3-0,5,6,16,5,12,4,8,8,2,0.54,1,0,1,478,415,0.87,1.84,0
-Arsenal vs Nottingham Forest,Nottingham Forest,Arsenal,Nottingham Forest,3,0,3-0,1,1,5,3,3,2,11,3,0,0.46,1,0,2,409,350,0.86,0.2,0
-Newcastle vs Wolves,Newcastle,Newcastle,Wolves,1,0,1-0,4,7,16,5,8,8,10,9,1,0.57,1,0,3,449,361,0.8,1.55,0
-Newcastle vs Wolves,Wolves,Newcastle,Wolves,1,0,1-0,3,3,8,2,7,1,17,4,0,0.43,4,0,3,343,259,0.76,0.5,0
-Bournemouth vs Brighton,Bournemouth,Bournemouth,Brighton,2,1,2-1,5,4,13,4,7,6,16,4,1,0.51,4,0,1,393,309,0.79,1.45,0
-Bournemouth vs Brighton,Brighton,Bournemouth,Brighton,2,1,2-1,2,2,6,2,5,1,10,4,0,0.49,4,0,3,374,293,0.78,0.62,0
-Fulham vs Leeds,Fulham,Fulham,Leeds,1,0,1-0,3,2,5,0,3,2,20,3,1,0.54,1,0,3,451,382,0.85,0.85,0
-Fulham vs Leeds,Leeds,Fulham,Leeds,1,0,1-0,3,3,10,4,7,3,15,3,3,0.46,2,0,3,388,313,0.81,0.79,0
-Everton vs Aston Villa,Everton,Everton,Aston Villa,0,0,0-0,2,9,20,9,14,6,17,10,2,0.48,3,0,1,343,281,0.82,2.08,0
-Everton vs Aston Villa,Aston Villa,Everton,Aston Villa,0,0,0-0,1,1,7,5,3,4,15,3,2,0.52,3,0,2,384,313,0.82,0.54,0
-Crystal Palace vs Sunderland,Crystal Palace,Crystal Palace,Sunderland,0,0,0-0,6,4,14,4,8,6,10,5,0,0.56,1,0,0,491,410,0.84,1.77,1
-Crystal Palace vs Sunderland,Sunderland,Crystal Palace,Sunderland,0,0,0-0,0,4,6,2,5,1,8,3,2,0.44,1,0,6,386,310,0.8,0.36,1
-West Ham vs Tottenham,West Ham,West Ham,Tottenham,0,3,0-3,4,3,7,0,6,1,8,2,0,0.36,0,1,2,310,239,0.77,0.6,0
-West Ham vs Tottenham,Tottenham,West Ham,Tottenham,0,3,0-3,5,4,14,5,10,4,7,13,4,0.64,1,0,4,534,465,0.87,1.29,0
-Brentford vs Chelsea,Brentford,Brentford,Chelsea,2,2,2-2,4,2,7,1,7,0,13,5,0,0.34,3,0,4,284,215,0.76,1.43,0
-Brentford vs Chelsea,Chelsea,Brentford,Chelsea,2,2,2-2,6,3,16,7,10,6,9,6,4,0.66,2,0,3,570,516,0.91,1.25,0
-Burnley vs Liverpool,Burnley,Burnley,Liverpool,0,1,0-1,0,3,3,0,1,2,9,1,3,0.19,2,1,3,168,80,0.48,0.13,0
-Burnley vs Liverpool,Liverpool,Burnley,Liverpool,0,1,0-1,4,11,27,12,14,13,9,13,1,0.81,2,0,0,697,610,0.88,2.65,0
-Manchester City vs Manchester United,Manchester City,Manchester City,Manchester United,3,0,3-0,6,7,13,0,12,1,8,2,2,0.45,0,0,2,430,352,0.82,2.63,0
-Manchester City vs Manchester United,Manchester United,Manchester City,Manchester United,3,0,3-0,2,8,12,2,7,5,8,4,3,0.55,0,0,3,501,420,0.84,1.52,0
-Liverpool vs Everton,Liverpool,Liverpool,Everton,2,1,2-1,3,3,11,5,9,2,11,5,1,0.57,2,0,1,475,404,0.85,0.9,0
-Liverpool vs Everton,Everton,Liverpool,Everton,2,1,2-1,2,4,9,3,6,3,10,4,1,0.43,3,0,1,345,263,0.76,0.7,0
-Wolves vs Leeds,Wolves,Wolves,Leeds,1,3,1-3,6,6,16,4,13,3,11,4,0,0.56,1,0,1,507,425,0.84,1.78,0
-Wolves vs Leeds,Leeds,Wolves,Leeds,1,3,1-3,4,2,6,0,2,4,9,0,2,0.44,1,0,5,416,351,0.84,0.48,0
-Burnley vs Nottingham Forest,Burnley,Burnley,Nottingham Forest,1,1,1-1,5,4,12,3,9,3,12,4,1,0.37,1,0,7,348,269,0.77,0.85,0
-Burnley vs Nottingham Forest,Nottingham Forest,Burnley,Nottingham Forest,1,1,1-1,8,2,17,7,9,8,11,5,2,0.63,1,0,4,628,564,0.9,1.1,0
-West Ham vs Crystal Palace,West Ham,West Ham,Crystal Palace,1,2,1-2,3,4,8,1,7,1,15,8,1,0.57,3,0,1,450,375,0.83,0.66,0
-West Ham vs Crystal Palace,Crystal Palace,West Ham,Crystal Palace,1,2,1-2,3,9,18,6,14,4,5,8,2,0.43,3,0,2,345,284,0.82,2.31,0
-Brighton vs Tottenham,Brighton,Brighton,Tottenham,2,2,2-2,4,7,12,1,5,7,10,2,0,0.36,1,0,2,307,236,0.77,1.32,0
-Brighton vs Tottenham,Tottenham,Brighton,Tottenham,2,2,2-2,3,6,11,2,9,2,13,10,1,0.64,2,0,2,523,464,0.89,1.22,0
-Manchester United vs Chelsea,Manchester United,Manchester United,Chelsea,2,1,2-1,4,3,11,4,6,5,13,5,3,0.41,2,1,0,371,292,0.79,1.84,0
-Manchester United vs Chelsea,Chelsea,Manchester United,Chelsea,2,1,2-1,1,2,5,2,4,1,14,5,2,0.59,5,1,2,550,466,0.85,0.43,0
-Fulham vs Brentford,Fulham,Fulham,Brentford,3,1,3-1,3,5,14,6,8,6,11,2,2,0.53,4,0,2,456,382,0.84,1.01,-2
-Fulham vs Brentford,Brentford,Fulham,Brentford,3,1,3-1,3,2,8,3,8,0,13,10,2,0.47,1,0,2,398,324,0.81,0.6,-2
-Bournemouth vs Newcastle,Bournemouth,Bournemouth,Newcastle,0,0,0-0,2,3,11,6,4,7,7,5,3,0.56,2,0,1,498,409,0.82,0.46,0
-Bournemouth vs Newcastle,Newcastle,Bournemouth,Newcastle,0,0,0-0,1,2,4,1,1,3,10,2,2,0.44,1,0,2,390,298,0.76,0.14,0
-Sunderland vs Aston Villa,Sunderland,Sunderland,Aston Villa,1,1,1-1,4,6,14,4,10,4,14,6,0,0.29,2,1,1,218,151,0.69,1.04,0
-Sunderland vs Aston Villa,Aston Villa,Sunderland,Aston Villa,1,1,1-1,2,4,12,6,6,6,8,5,3,0.71,1,0,3,547,488,0.89,0.78,0
-Arsenal vs Manchester City,Arsenal,Arsenal,Manchester City,1,1,1-1,3,6,12,3,11,1,11,11,4,0.67,1,0,2,582,517,0.89,0.89,0
-Arsenal vs Manchester City,Manchester City,Arsenal,Manchester City,1,1,1-1,3,2,5,0,4,1,10,1,2,0.33,2,0,2,300,229,0.76,0.87,0
-Brentford vs Manchester United,Brentford,Brentford,Manchester United,3,1,3-1,8,1,10,1,7,3,14,4,2,0.44,2,0,5,351,268,0.76,1.99,0
-Brentford vs Manchester United,Manchester United,Brentford,Manchester United,3,1,3-1,6,4,14,4,9,5,10,2,1,0.56,2,0,5,455,369,0.81,2.03,0
-Chelsea vs Brighton,Chelsea,Chelsea,Brighton,1,3,1-3,3,4,13,6,7,6,9,5,2,0.6,3,1,0,470,396,0.84,1.81,1
-Chelsea vs Brighton,Brighton,Chelsea,Brighton,1,3,1-3,3,7,12,2,8,4,16,7,2,0.4,5,0,2,316,266,0.84,2.28,1
-Manchester City vs Burnley,Manchester City,Manchester City,Burnley,5,1,5-1,8,7,21,6,13,8,5,10,1,0.69,1,0,1,638,566,0.89,2.03,-2
-Manchester City vs Burnley,Burnley,Manchester City,Burnley,5,1,5-1,2,2,9,5,5,4,7,2,1,0.31,3,0,5,295,242,0.82,0.41,-2
-Crystal Palace vs Liverpool,Crystal Palace,Crystal Palace,Liverpool,2,1,2-1,7,7,16,2,12,4,10,2,2,0.28,1,0,3,270,175,0.65,2.92,0
-Crystal Palace vs Liverpool,Liverpool,Crystal Palace,Liverpool,2,1,2-1,4,11,20,5,13,7,8,6,1,0.72,3,0,5,688,609,0.89,2.14,0
-Leeds vs Bournemouth,Leeds,Leeds,Bournemouth,2,2,2-2,8,5,19,6,16,3,12,7,0,0.41,2,0,3,357,280,0.78,1.84,0
-Leeds vs Bournemouth,Bournemouth,Leeds,Bournemouth,2,2,2-2,5,4,12,3,7,5,13,4,2,0.59,2,0,6,509,436,0.86,0.82,0
-Nottingham Forest vs Sunderland,Nottingham Forest,Nottingham Forest,Sunderland,0,1,0-1,6,10,22,6,15,7,11,7,0,0.65,4,0,2,567,510,0.9,1.65,2
-Nottingham Forest vs Sunderland,Sunderland,Nottingham Forest,Sunderland,0,1,0-1,3,5,11,3,8,3,6,4,1,0.35,2,0,6,306,246,0.8,1.19,2
-Tottenham vs Wolves,Tottenham,Tottenham,Wolves,1,1,1-1,3,5,10,2,7,3,9,10,2,0.51,3,0,2,398,325,0.82,0.87,0
-Tottenham vs Wolves,Wolves,Tottenham,Wolves,1,1,1-1,3,5,9,1,6,3,11,9,0,0.49,2,0,2,394,321,0.81,1.15,0
-Aston Villa vs Fulham,Aston Villa,Aston Villa,Fulham,3,1,3-1,4,3,9,2,4,5,10,2,2,0.48,1,0,3,403,340,0.84,1.11,-1
-Aston Villa vs Fulham,Fulham,Aston Villa,Fulham,3,1,3-1,4,4,11,3,9,2,13,8,4,0.52,4,0,1,414,357,0.86,0.92,-1
-Newcastle vs Arsenal,Newcastle,Newcastle,Arsenal,1,2,1-2,3,1,8,4,7,1,8,7,1,0.37,2,0,5,279,194,0.7,0.61,0
-Newcastle vs Arsenal,Arsenal,Newcastle,Arsenal,1,2,1-2,7,7,20,6,18,2,9,12,0,0.63,1,0,2,495,405,0.82,2.04,0
-Everton vs West Ham,Everton,Everton,West Ham,1,1,1-1,6,3,12,3,9,3,7,3,0,0.52,3,0,2,447,380,0.85,0.73,0
-Everton vs West Ham,West Ham,Everton,West Ham,1,1,1-1,3,5,14,6,10,4,16,5,2,0.48,4,0,5,416,332,0.8,1.19,0
-Bournemouth vs Fulham,Bournemouth,Bournemouth,Fulham,3,1,3-1,6,2,11,3,6,5,8,4,2,0.54,0,0,3,536,460,0.86,1.12,-1
-Bournemouth vs Fulham,Fulham,Bournemouth,Fulham,3,1,3-1,4,4,12,4,5,7,10,3,2,0.46,1,0,3,473,383,0.81,0.88,-1
-Leeds vs Tottenham,Leeds,Leeds,Tottenham,1,2,1-2,4,10,16,2,11,5,10,4,1,0.57,2,0,1,478,401,0.84,1.68,0
-Leeds vs Tottenham,Tottenham,Leeds,Tottenham,1,2,1-2,3,4,9,2,4,5,12,1,2,0.43,3,0,3,374,298,0.8,0.53,0
-Manchester United vs Sunderland,Manchester United,Manchester United,Sunderland,2,0,2-0,6,7,15,2,11,4,10,2,1,0.51,1,0,3,445,350,0.79,1.88,0
-Manchester United vs Sunderland,Sunderland,Manchester United,Sunderland,2,0,2-0,3,4,8,1,5,3,12,3,2,0.49,4,0,4,416,332,0.8,0.71,0
-Arsenal vs West Ham,Arsenal,Arsenal,West Ham,2,0,2-0,5,7,21,9,16,5,14,8,1,0.68,0,0,0,566,498,0.88,2.77,0
-Arsenal vs West Ham,West Ham,Arsenal,West Ham,2,0,2-0,0,3,4,1,4,0,14,3,1,0.32,2,0,3,268,210,0.78,0.49,0
-Chelsea vs Liverpool,Chelsea,Chelsea,Liverpool,2,1,2-1,6,4,12,2,6,6,9,7,2,0.53,0,0,1,508,422,0.83,1.0,0
-Chelsea vs Liverpool,Liverpool,Chelsea,Liverpool,2,1,2-1,2,5,12,5,8,4,8,2,2,0.47,2,0,4,450,370,0.82,1.95,0
-Newcastle vs Nottingham Forest,Newcastle,Newcastle,Nottingham Forest,2,0,2-0,9,4,18,5,13,5,16,8,0,0.52,0,0,4,457,381,0.83,3.28,1
-Newcastle vs Nottingham Forest,Nottingham Forest,Newcastle,Nottingham Forest,2,0,2-0,4,1,5,0,4,1,15,1,2,0.48,4,0,7,432,353,0.82,0.29,1
-Wolves vs Brighton,Wolves,Wolves,Brighton,1,1,1-1,3,3,6,0,4,2,13,2,1,0.42,2,0,5,353,270,0.76,0.56,0
-Wolves vs Brighton,Brighton,Wolves,Brighton,1,1,1-1,6,6,17,5,10,7,9,8,3,0.58,4,0,3,492,427,0.87,0.92,0
-Everton vs Crystal Palace,Everton,Everton,Crystal Palace,2,1,2-1,7,5,14,2,10,4,13,2,0,0.5,2,0,5,433,351,0.81,2.03,0
-Everton vs Crystal Palace,Crystal Palace,Everton,Crystal Palace,2,1,2-1,8,4,15,3,11,4,16,4,1,0.5,3,0,5,432,349,0.81,1.53,0
-Aston Villa vs Burnley,Aston Villa,Aston Villa,Burnley,2,1,2-1,7,5,15,3,12,3,9,6,3,0.55,3,0,1,496,434,0.88,1.16,0
-Aston Villa vs Burnley,Burnley,Aston Villa,Burnley,2,1,2-1,2,1,5,2,3,2,15,4,5,0.45,1,0,5,409,331,0.81,0.4,0
-Brentford vs Manchester City,Brentford,Brentford,Manchester City,0,1,0-1,1,3,6,2,4,2,10,3,1,0.3,3,0,3,311,249,0.8,0.7,0
-Brentford vs Manchester City,Manchester City,Brentford,Manchester City,0,1,0-1,4,2,10,4,6,4,6,2,1,0.7,2,0,1,764,698,0.91,0.85,0
-Nottingham Forest vs Chelsea,Nottingham Forest,Nottingham Forest,Chelsea,0,3,0-3,2,8,12,2,8,4,12,5,1,0.5,2,0,3,445,367,0.82,2.35,0
-Nottingham Forest vs Chelsea,Chelsea,Nottingham Forest,Chelsea,0,3,0-3,6,6,17,5,11,6,17,2,2,0.5,4,1,2,463,397,0.86,1.67,0
-Burnley vs Leeds,Burnley,Burnley,Leeds,2,0,2-0,3,1,4,0,1,3,10,1,1,0.31,2,0,4,292,221,0.76,0.45,0
-Burnley vs Leeds,Leeds,Burnley,Leeds,2,0,2-0,4,12,19,3,17,2,7,5,0,0.69,1,0,1,615,526,0.86,2.63,0
-Manchester City vs Everton,Manchester City,Manchester City,Everton,2,0,2-0,7,5,19,7,16,3,8,11,0,0.71,0,0,1,749,685,0.91,2.38,0
-Manchester City vs Everton,Everton,Manchester City,Everton,2,0,2-0,1,2,5,2,4,1,14,3,1,0.29,2,0,5,300,237,0.79,0.81,0
-Brighton vs Newcastle,Brighton,Brighton,Newcastle,2,1,2-1,5,3,13,5,6,7,13,8,3,0.46,0,0,2,421,341,0.81,0.91,0
-Brighton vs Newcastle,Newcastle,Brighton,Newcastle,2,1,2-1,3,8,16,5,10,6,16,4,1,0.54,1,0,3,491,419,0.85,1.45,0
-Crystal Palace vs Bournemouth,Crystal Palace,Crystal Palace,Bournemouth,3,3,3-3,7,6,20,7,15,5,8,6,3,0.52,1,0,2,404,308,0.76,4.44,0
-Crystal Palace vs Bournemouth,Bournemouth,Crystal Palace,Bournemouth,3,3,3-3,5,3,8,0,5,3,16,5,3,0.48,4,0,4,364,280,0.77,2.03,0
-Sunderland vs Wolves,Sunderland,Sunderland,Wolves,2,0,2-0,2,3,8,3,5,3,5,2,2,0.41,0,0,3,341,248,0.73,0.65,-1
-Sunderland vs Wolves,Wolves,Sunderland,Wolves,2,0,2-0,3,8,16,5,8,8,12,2,2,0.59,0,0,1,466,393,0.84,0.83,-1
-Fulham vs Arsenal,Fulham,Fulham,Arsenal,0,1,0-1,0,5,9,4,6,3,11,6,0,0.37,0,0,4,313,248,0.79,0.44,0
-Fulham vs Arsenal,Arsenal,Fulham,Arsenal,0,1,0-1,5,7,16,4,14,2,4,10,2,0.63,0,0,0,546,475,0.87,1.87,0
-Tottenham vs Aston Villa,Tottenham,Tottenham,Aston Villa,1,2,1-2,3,4,9,2,6,3,9,6,6,0.53,2,0,0,383,336,0.88,0.97,0
-Tottenham vs Aston Villa,Aston Villa,Tottenham,Aston Villa,1,2,1-2,2,4,8,2,2,6,8,6,1,0.47,0,0,2,343,287,0.84,0.37,0
-Liverpool vs Manchester United,Liverpool,Liverpool,Manchester United,1,2,1-2,6,11,19,2,16,3,22,9,1,0.63,0,0,2,475,409,0.86,2.76,1
-Liverpool vs Manchester United,Manchester United,Liverpool,Manchester United,1,2,1-2,4,5,12,3,10,2,0,4,1,0.37,2,0,5,292,200,0.68,1.26,1
+fixture_id,fixture,fixture_date_utc,fixture_date,team,home_team,away_team,home_goals,away_goals,final_score,final_score_string,Shots on Goal,Shots off Goal,Total Shots,Blocked Shots,Shots insidebox,Shots outsidebox,Fouls,Corner Kicks,Offsides,Ball Possession,Yellow Cards,Red Cards,Goalkeeper Saves,Total passes,Passes accurate,Passes %,expected_goals,goals_prevented
+1378969,Liverpool vs Bournemouth,2025-08-15T19:00:00+00:00,2025-08-15,Liverpool,Liverpool,Bournemouth,4,2,4-2,Liverpool 4 - 2 Bournemouth,10,7,19,2,15,4,7,6,2,0.61,1,0,1,489,401,0.82,2.21,0
+1378969,Liverpool vs Bournemouth,2025-08-15T19:00:00+00:00,2025-08-15,Bournemouth,Liverpool,Bournemouth,4,2,4-2,Liverpool 4 - 2 Bournemouth,3,4,10,3,8,2,10,7,2,0.39,2,0,6,299,209,0.7,1.7,0
+1378970,Aston Villa vs Newcastle,2025-08-16T11:30:00+00:00,2025-08-16,Aston Villa,Aston Villa,Newcastle,0,0,0-0,Aston Villa 0 - 0 Newcastle,3,0,3,0,3,0,13,3,2,0.4,1,1,3,310,227,0.73,0.2,0
+1378970,Aston Villa vs Newcastle,2025-08-16T11:30:00+00:00,2025-08-16,Newcastle,Aston Villa,Newcastle,0,0,0-0,Aston Villa 0 - 0 Newcastle,3,6,16,7,9,7,11,6,1,0.6,1,0,3,451,376,0.83,1.43,0
+1378974,Tottenham vs Burnley,2025-08-16T14:00:00+00:00,2025-08-16,Tottenham,Tottenham,Burnley,3,0,3-0,Tottenham 3 - 0 Burnley,6,9,16,1,12,4,14,6,0,0.67,0,0,4,511,451,0.88,2.32,0
+1378974,Tottenham vs Burnley,2025-08-16T14:00:00+00:00,2025-08-16,Burnley,Tottenham,Burnley,3,0,3-0,Tottenham 3 - 0 Burnley,4,7,14,3,7,7,8,5,4,0.33,0,0,3,246,181,0.74,0.94,0
+1378971,Brighton vs Fulham,2025-08-16T14:00:00+00:00,2025-08-16,Brighton,Brighton,Fulham,1,1,1-1,Brighton 1 - 1 Fulham,4,5,10,1,6,4,16,4,3,0.5,3,0,1,427,374,0.88,1.48,0
+1378971,Brighton vs Fulham,2025-08-16T14:00:00+00:00,2025-08-16,Fulham,Brighton,Fulham,1,1,1-1,Brighton 1 - 1 Fulham,2,4,7,1,5,2,15,3,2,0.5,3,0,3,423,349,0.83,0.76,0
+1378973,Sunderland vs West Ham,2025-08-16T14:00:00+00:00,2025-08-16,Sunderland,Sunderland,West Ham,3,0,3-0,Sunderland 3 - 0 West Ham,5,4,10,1,9,1,8,5,0,0.37,0,0,4,323,250,0.77,0.68,-1
+1378973,Sunderland vs West Ham,2025-08-16T14:00:00+00:00,2025-08-16,West Ham,Sunderland,West Ham,3,0,3-0,Sunderland 3 - 0 West Ham,4,2,12,6,7,5,10,7,0,0.63,1,0,2,550,468,0.85,0.56,-1
+1378975,Wolves vs Manchester City,2025-08-16T16:30:00+00:00,2025-08-16,Wolves,Wolves,Manchester City,0,4,0-4,Wolves 0 - 4 Manchester City,3,3,9,3,6,3,13,4,4,0.42,1,0,0,394,326,0.83,0.56,0
+1378975,Wolves vs Manchester City,2025-08-16T16:30:00+00:00,2025-08-16,Manchester City,Wolves,Manchester City,0,4,0-4,Wolves 0 - 4 Manchester City,4,7,15,4,8,7,7,5,0,0.58,2,0,3,563,510,0.91,2.47,0
+1378976,Chelsea vs Crystal Palace,2025-08-17T13:00:00+00:00,2025-08-17,Chelsea,Chelsea,Crystal Palace,0,0,0-0,Chelsea 0 - 0 Crystal Palace,3,7,19,9,11,8,10,11,0,0.72,2,0,4,568,510,0.9,1.6,0
+1378976,Chelsea vs Crystal Palace,2025-08-17T13:00:00+00:00,2025-08-17,Crystal Palace,Chelsea,Crystal Palace,0,0,0-0,Chelsea 0 - 0 Crystal Palace,4,3,11,4,4,7,12,2,0,0.28,3,0,2,226,168,0.74,0.66,0
+1378972,Nottingham Forest vs Brentford,2025-08-17T13:00:00+00:00,2025-08-17,Nottingham Forest,Nottingham Forest,Brentford,3,1,3-1,Nottingham Forest 3 - 1 Brentford,5,4,11,2,6,5,7,5,2,0.55,1,0,2,404,334,0.83,1.86,0
+1378972,Nottingham Forest vs Brentford,2025-08-17T13:00:00+00:00,2025-08-17,Brentford,Nottingham Forest,Brentford,3,1,3-1,Nottingham Forest 3 - 1 Brentford,3,4,10,3,7,3,15,5,0,0.45,2,0,2,330,257,0.78,1.5,0
+1378977,Manchester United vs Arsenal,2025-08-17T15:30:00+00:00,2025-08-17,Manchester United,Manchester United,Arsenal,0,1,0-1,Manchester United 0 - 1 Arsenal,7,7,22,8,15,7,10,3,1,0.61,1,0,2,475,393,0.83,1.52,0
+1378977,Manchester United vs Arsenal,2025-08-17T15:30:00+00:00,2025-08-17,Arsenal,Manchester United,Arsenal,0,1,0-1,Manchester United 0 - 1 Arsenal,3,3,9,3,5,4,19,4,2,0.39,4,0,7,294,219,0.74,1.31,0
+1378978,Leeds vs Everton,2025-08-18T19:00:00+00:00,2025-08-18,Leeds,Leeds,Everton,1,0,1-0,Leeds 1 - 0 Everton,3,7,21,11,12,9,6,7,1,0.54,0,0,1,481,401,0.83,2.13,0
+1378978,Leeds vs Everton,2025-08-18T19:00:00+00:00,2025-08-18,Everton,Leeds,Everton,1,0,1-0,Leeds 1 - 0 Everton,1,3,7,3,5,2,8,2,2,0.46,2,0,2,411,324,0.79,0.8,0
+1378988,West Ham vs Chelsea,2025-08-22T19:00:00+00:00,2025-08-22,West Ham,West Ham,Chelsea,1,5,1-5,West Ham 1 - 5 Chelsea,4,5,12,3,9,3,7,7,4,0.41,0,0,2,392,339,0.86,0.73,0
+1378988,West Ham vs Chelsea,2025-08-22T19:00:00+00:00,2025-08-22,Chelsea,West Ham,Chelsea,1,5,1-5,West Ham 1 - 5 Chelsea,7,4,12,1,10,2,10,5,2,0.59,1,0,3,577,505,0.88,2.74,0
+1378986,Manchester City vs Tottenham,2025-08-23T11:30:00+00:00,2025-08-23,Manchester City,Manchester City,Tottenham,0,2,0-2,Manchester City 0 - 2 Tottenham,4,3,10,3,6,4,7,7,0,0.61,1,0,3,525,456,0.87,1.55,0
+1378986,Manchester City vs Tottenham,2025-08-23T11:30:00+00:00,2025-08-23,Tottenham,Manchester City,Tottenham,0,2,0-2,Manchester City 0 - 2 Tottenham,5,5,12,2,10,2,12,2,1,0.39,4,0,4,331,259,0.78,1.11,0
+1378980,Bournemouth vs Wolves,2025-08-23T14:00:00+00:00,2025-08-23,Bournemouth,Bournemouth,Wolves,1,0,1-0,Bournemouth 1 - 0 Wolves,4,5,14,5,8,6,13,8,2,0.59,2,0,1,447,387,0.87,1.29,0
+1378980,Bournemouth vs Wolves,2025-08-23T14:00:00+00:00,2025-08-23,Wolves,Bournemouth,Wolves,1,0,1-0,Bournemouth 1 - 0 Wolves,1,3,6,2,3,3,16,3,2,0.41,4,1,3,307,225,0.73,0.46,0
+1378982,Burnley vs Sunderland,2025-08-23T14:00:00+00:00,2025-08-23,Burnley,Burnley,Sunderland,2,0,2-0,Burnley 2 - 0 Sunderland,2,4,7,1,4,3,9,4,0,0.42,0,0,1,442,356,0.81,1.0,0
+1378982,Burnley vs Sunderland,2025-08-23T14:00:00+00:00,2025-08-23,Sunderland,Burnley,Sunderland,2,0,2-0,Burnley 2 - 0 Sunderland,1,3,9,5,6,3,5,3,2,0.58,1,0,0,616,530,0.86,0.77,0
+1378981,Brentford vs Aston Villa,2025-08-23T14:00:00+00:00,2025-08-23,Brentford,Brentford,Aston Villa,1,0,1-0,Brentford 1 - 0 Aston Villa,2,4,9,3,8,1,11,2,1,0.24,1,0,2,178,126,0.71,1.27,0
+1378981,Brentford vs Aston Villa,2025-08-23T14:00:00+00:00,2025-08-23,Aston Villa,Brentford,Aston Villa,1,0,1-0,Brentford 1 - 0 Aston Villa,2,7,17,8,12,5,9,9,0,0.76,2,0,1,577,506,0.88,1.23,0
+1378979,Arsenal vs Leeds,2025-08-23T16:30:00+00:00,2025-08-23,Arsenal,Arsenal,Leeds,5,0,5-0,Arsenal 5 - 0 Leeds,5,9,18,4,13,5,8,2,0,0.68,0,0,1,599,549,0.92,2.88,-2
+1378979,Arsenal vs Leeds,2025-08-23T16:30:00+00:00,2025-08-23,Leeds,Arsenal,Leeds,5,0,5-0,Arsenal 5 - 0 Leeds,1,0,3,2,2,1,11,2,0,0.32,2,0,0,290,219,0.76,0.17,-2
+1378984,Everton vs Brighton,2025-08-24T13:00:00+00:00,2025-08-24,Everton,Everton,Brighton,2,0,2-0,Everton 2 - 0 Brighton,3,7,11,1,6,5,7,2,0,0.42,4,0,4,362,272,0.75,1.6,0
+1378984,Everton vs Brighton,2025-08-24T13:00:00+00:00,2025-08-24,Brighton,Everton,Brighton,2,0,2-0,Everton 2 - 0 Brighton,4,5,13,4,7,6,15,2,6,0.58,3,0,1,490,411,0.84,2.43,0
+1378983,Crystal Palace vs Nottingham Forest,2025-08-24T13:00:00+00:00,2025-08-24,Crystal Palace,Crystal Palace,Nottingham Forest,1,1,1-1,Crystal Palace 1 - 1 Nottingham Forest,4,4,8,0,7,1,11,1,2,0.42,3,0,0,377,287,0.76,1.1,0
+1378983,Crystal Palace vs Nottingham Forest,2025-08-24T13:00:00+00:00,2025-08-24,Nottingham Forest,Crystal Palace,Nottingham Forest,1,1,1-1,Crystal Palace 1 - 1 Nottingham Forest,1,7,9,1,8,1,11,3,2,0.58,3,0,3,514,442,0.86,0.93,0
+1378985,Fulham vs Manchester United,2025-08-24T15:30:00+00:00,2025-08-24,Fulham,Fulham,Manchester United,1,1,1-1,Fulham 1 - 1 Manchester United,4,4,13,5,10,3,12,9,2,0.52,1,0,3,419,353,0.84,1.76,0
+1378985,Fulham vs Manchester United,2025-08-24T15:30:00+00:00,2025-08-24,Manchester United,Fulham,Manchester United,1,1,1-1,Fulham 1 - 1 Manchester United,3,6,10,1,8,2,10,6,1,0.48,1,0,2,397,328,0.83,1.63,0
+1378987,Newcastle vs Liverpool,2025-08-25T19:00:00+00:00,2025-08-25,Newcastle,Newcastle,Liverpool,2,3,2-3,Newcastle 2 - 3 Liverpool,3,4,10,3,8,2,17,7,0,0.38,2,1,1,248,170,0.69,0.98,0
+1378987,Newcastle vs Liverpool,2025-08-25T19:00:00+00:00,2025-08-25,Liverpool,Newcastle,Liverpool,2,3,2-3,Newcastle 2 - 3 Liverpool,4,0,5,1,3,2,15,1,0,0.62,3,0,1,446,370,0.83,0.69,0
+1378991,Chelsea vs Fulham,2025-08-30T11:30:00+00:00,2025-08-30,Chelsea,Chelsea,Fulham,2,0,2-0,Chelsea 2 - 0 Fulham,6,1,13,6,10,3,11,6,3,0.54,2,0,1,494,429,0.87,2.35,1
+1378991,Chelsea vs Fulham,2025-08-30T11:30:00+00:00,2025-08-30,Fulham,Chelsea,Fulham,2,0,2-0,Chelsea 2 - 0 Fulham,3,6,11,2,8,3,17,4,1,0.46,2,0,4,415,337,0.81,1.02,1
+1378994,Manchester United vs Burnley,2025-08-30T14:00:00+00:00,2025-08-30,Manchester United,Manchester United,Burnley,3,2,3-2,Manchester United 3 - 2 Burnley,6,13,26,7,19,7,9,7,1,0.62,1,0,1,500,410,0.82,3.54,-1
+1378994,Manchester United vs Burnley,2025-08-30T14:00:00+00:00,2025-08-30,Burnley,Manchester United,Burnley,3,2,3-2,Manchester United 3 - 2 Burnley,3,1,6,2,5,1,9,1,1,0.38,5,0,5,309,219,0.71,1.2,-1
+1378998,Wolves vs Everton,2025-08-30T14:00:00+00:00,2025-08-30,Wolves,Wolves,Everton,2,3,2-3,Wolves 2 - 3 Everton,4,3,12,5,6,6,15,2,2,0.59,0,0,1,524,421,0.8,1.11,0
+1378998,Wolves vs Everton,2025-08-30T14:00:00+00:00,2025-08-30,Everton,Wolves,Everton,2,3,2-3,Wolves 2 - 3 Everton,4,2,10,4,7,3,10,2,1,0.41,1,0,2,371,275,0.74,1.93,0
+1378997,Tottenham vs Bournemouth,2025-08-30T14:00:00+00:00,2025-08-30,Tottenham,Tottenham,Bournemouth,0,1,0-1,Tottenham 0 - 1 Bournemouth,1,3,5,1,3,2,17,0,2,0.61,2,0,5,477,394,0.83,0.19,0
+1378997,Tottenham vs Bournemouth,2025-08-30T14:00:00+00:00,2025-08-30,Bournemouth,Tottenham,Bournemouth,0,1,0-1,Tottenham 0 - 1 Bournemouth,6,9,20,5,15,5,13,8,3,0.39,4,0,1,296,208,0.7,1.59,0
+1378996,Sunderland vs Brentford,2025-08-30T14:00:00+00:00,2025-08-30,Sunderland,Sunderland,Brentford,2,1,2-1,Sunderland 2 - 1 Brentford,3,6,12,3,9,3,11,3,0,0.54,3,0,3,419,340,0.81,1.54,0
+1378996,Sunderland vs Brentford,2025-08-30T14:00:00+00:00,2025-08-30,Brentford,Sunderland,Brentford,2,1,2-1,Sunderland 2 - 1 Brentford,4,2,7,1,5,2,12,4,3,0.46,2,0,1,354,283,0.8,1.2,0
+1378992,Leeds vs Newcastle,2025-08-30T16:30:00+00:00,2025-08-30,Leeds,Leeds,Newcastle,0,0,0-0,Leeds 0 - 0 Newcastle,1,6,10,3,4,6,10,5,1,0.43,1,0,2,414,328,0.79,0.69,0
+1378992,Leeds vs Newcastle,2025-08-30T16:30:00+00:00,2025-08-30,Newcastle,Leeds,Newcastle,0,0,0-0,Leeds 0 - 0 Newcastle,2,3,8,3,4,4,15,5,0,0.57,1,0,1,547,463,0.85,0.46,0
+1378990,Brighton vs Manchester City,2025-08-31T13:00:00+00:00,2025-08-31,Brighton,Brighton,Manchester City,2,1,2-1,Brighton 2 - 1 Manchester City,7,2,12,3,10,2,16,3,1,0.37,2,0,2,311,231,0.74,2.29,0
+1378990,Brighton vs Manchester City,2025-08-31T13:00:00+00:00,2025-08-31,Manchester City,Brighton,Manchester City,2,1,2-1,Brighton 2 - 1 Manchester City,3,8,12,1,8,4,14,2,0,0.63,2,0,5,556,486,0.87,1.84,0
+1378995,Nottingham Forest vs West Ham,2025-08-31T13:00:00+00:00,2025-08-31,Nottingham Forest,Nottingham Forest,West Ham,0,3,0-3,Nottingham Forest 0 - 3 West Ham,3,3,11,5,9,2,14,9,0,0.58,0,0,5,541,470,0.87,0.73,0
+1378995,Nottingham Forest vs West Ham,2025-08-31T13:00:00+00:00,2025-08-31,West Ham,Nottingham Forest,West Ham,0,3,0-3,Nottingham Forest 0 - 3 West Ham,8,4,12,0,10,2,6,7,0,0.42,0,0,3,385,316,0.82,2.42,0
+1378993,Liverpool vs Arsenal,2025-08-31T15:30:00+00:00,2025-08-31,Liverpool,Liverpool,Arsenal,1,0,1-0,Liverpool 1 - 0 Arsenal,3,2,9,4,4,5,7,3,1,0.53,2,0,1,435,368,0.85,0.52,0
+1378993,Liverpool vs Arsenal,2025-08-31T15:30:00+00:00,2025-08-31,Arsenal,Liverpool,Arsenal,1,0,1-0,Liverpool 1 - 0 Arsenal,1,3,11,7,8,3,10,8,0,0.47,2,0,2,371,303,0.82,0.49,0
+1378989,Aston Villa vs Crystal Palace,2025-08-31T18:00:00+00:00,2025-08-31,Aston Villa,Aston Villa,Crystal Palace,0,3,0-3,Aston Villa 0 - 3 Crystal Palace,4,8,13,1,10,3,7,10,0,0.58,2,0,1,531,475,0.89,1.14,1
+1378989,Aston Villa vs Crystal Palace,2025-08-31T18:00:00+00:00,2025-08-31,Crystal Palace,Aston Villa,Crystal Palace,0,3,0-3,Aston Villa 0 - 3 Crystal Palace,4,1,6,1,5,1,14,1,2,0.42,3,0,4,386,328,0.85,2.65,1
+1378999,Arsenal vs Nottingham Forest,2025-09-13T11:30:00+00:00,2025-09-13,Arsenal,Arsenal,Nottingham Forest,3,0,3-0,Arsenal 3 - 0 Nottingham Forest,5,6,16,5,12,4,8,8,2,0.54,1,0,1,478,415,0.87,1.84,0
+1378999,Arsenal vs Nottingham Forest,2025-09-13T11:30:00+00:00,2025-09-13,Nottingham Forest,Arsenal,Nottingham Forest,3,0,3-0,Arsenal 3 - 0 Nottingham Forest,1,1,5,3,3,2,11,3,0,0.46,1,0,2,409,350,0.86,0.2,0
+1379007,Newcastle vs Wolves,2025-09-13T14:00:00+00:00,2025-09-13,Newcastle,Newcastle,Wolves,1,0,1-0,Newcastle 1 - 0 Wolves,4,7,16,5,8,8,10,9,1,0.57,1,0,3,449,361,0.8,1.55,0
+1379007,Newcastle vs Wolves,2025-09-13T14:00:00+00:00,2025-09-13,Wolves,Newcastle,Wolves,1,0,1-0,Newcastle 1 - 0 Wolves,3,3,8,2,7,1,17,4,0,0.43,4,0,3,343,259,0.76,0.5,0
+1379000,Bournemouth vs Brighton,2025-09-13T14:00:00+00:00,2025-09-13,Bournemouth,Bournemouth,Brighton,2,1,2-1,Bournemouth 2 - 1 Brighton,5,4,13,4,7,6,16,4,1,0.51,4,0,1,393,309,0.79,1.45,0
+1379000,Bournemouth vs Brighton,2025-09-13T14:00:00+00:00,2025-09-13,Brighton,Bournemouth,Brighton,2,1,2-1,Bournemouth 2 - 1 Brighton,2,2,6,2,5,1,10,4,0,0.49,4,0,3,374,293,0.78,0.62,0
+1379005,Fulham vs Leeds,2025-09-13T14:00:00+00:00,2025-09-13,Fulham,Fulham,Leeds,1,0,1-0,Fulham 1 - 0 Leeds,3,2,5,0,3,2,20,3,1,0.54,1,0,3,451,382,0.85,0.85,0
+1379005,Fulham vs Leeds,2025-09-13T14:00:00+00:00,2025-09-13,Leeds,Fulham,Leeds,1,0,1-0,Fulham 1 - 0 Leeds,3,3,10,4,7,3,15,3,3,0.46,2,0,3,388,313,0.81,0.79,0
+1379004,Everton vs Aston Villa,2025-09-13T14:00:00+00:00,2025-09-13,Everton,Everton,Aston Villa,0,0,0-0,Everton 0 - 0 Aston Villa,2,9,20,9,14,6,17,10,2,0.48,3,0,1,343,281,0.82,2.08,0
+1379004,Everton vs Aston Villa,2025-09-13T14:00:00+00:00,2025-09-13,Aston Villa,Everton,Aston Villa,0,0,0-0,Everton 0 - 0 Aston Villa,1,1,7,5,3,4,15,3,2,0.52,3,0,2,384,313,0.82,0.54,0
+1379003,Crystal Palace vs Sunderland,2025-09-13T14:00:00+00:00,2025-09-13,Crystal Palace,Crystal Palace,Sunderland,0,0,0-0,Crystal Palace 0 - 0 Sunderland,6,4,14,4,8,6,10,5,0,0.56,1,0,0,491,410,0.84,1.77,1
+1379003,Crystal Palace vs Sunderland,2025-09-13T14:00:00+00:00,2025-09-13,Sunderland,Crystal Palace,Sunderland,0,0,0-0,Crystal Palace 0 - 0 Sunderland,0,4,6,2,5,1,8,3,2,0.44,1,0,6,386,310,0.8,0.36,1
+1379008,West Ham vs Tottenham,2025-09-13T16:30:00+00:00,2025-09-13,West Ham,West Ham,Tottenham,0,3,0-3,West Ham 0 - 3 Tottenham,4,3,7,0,6,1,8,2,0,0.36,0,1,2,310,239,0.77,0.6,0
+1379008,West Ham vs Tottenham,2025-09-13T16:30:00+00:00,2025-09-13,Tottenham,West Ham,Tottenham,0,3,0-3,West Ham 0 - 3 Tottenham,5,4,14,5,10,4,7,13,4,0.64,1,0,4,534,465,0.87,1.29,0
+1379001,Brentford vs Chelsea,2025-09-13T19:00:00+00:00,2025-09-13,Brentford,Brentford,Chelsea,2,2,2-2,Brentford 2 - 2 Chelsea,4,2,7,1,7,0,13,5,0,0.34,3,0,4,284,215,0.76,1.43,0
+1379001,Brentford vs Chelsea,2025-09-13T19:00:00+00:00,2025-09-13,Chelsea,Brentford,Chelsea,2,2,2-2,Brentford 2 - 2 Chelsea,6,3,16,7,10,6,9,6,4,0.66,2,0,3,570,516,0.91,1.25,0
+1379002,Burnley vs Liverpool,2025-09-14T13:00:00+00:00,2025-09-14,Burnley,Burnley,Liverpool,0,1,0-1,Burnley 0 - 1 Liverpool,0,3,3,0,1,2,9,1,3,0.19,2,1,3,168,80,0.48,0.13,0
+1379002,Burnley vs Liverpool,2025-09-14T13:00:00+00:00,2025-09-14,Liverpool,Burnley,Liverpool,0,1,0-1,Burnley 0 - 1 Liverpool,4,11,27,12,14,13,9,13,1,0.81,2,0,0,697,610,0.88,2.65,0
+1379006,Manchester City vs Manchester United,2025-09-14T15:30:00+00:00,2025-09-14,Manchester City,Manchester City,Manchester United,3,0,3-0,Manchester City 3 - 0 Manchester United,6,7,13,0,12,1,8,2,2,0.45,0,0,2,430,352,0.82,2.63,0
+1379006,Manchester City vs Manchester United,2025-09-14T15:30:00+00:00,2025-09-14,Manchester United,Manchester City,Manchester United,3,0,3-0,Manchester City 3 - 0 Manchester United,2,8,12,2,7,5,8,4,3,0.55,0,0,3,501,420,0.84,1.52,0
+1379014,Liverpool vs Everton,2025-09-20T11:30:00+00:00,2025-09-20,Liverpool,Liverpool,Everton,2,1,2-1,Liverpool 2 - 1 Everton,3,3,11,5,9,2,11,5,1,0.57,2,0,1,475,404,0.85,0.9,0
+1379014,Liverpool vs Everton,2025-09-20T11:30:00+00:00,2025-09-20,Everton,Liverpool,Everton,2,1,2-1,Liverpool 2 - 1 Everton,2,4,9,3,6,3,10,4,1,0.43,3,0,1,345,263,0.76,0.7,0
+1379018,Wolves vs Leeds,2025-09-20T14:00:00+00:00,2025-09-20,Wolves,Wolves,Leeds,1,3,1-3,Wolves 1 - 3 Leeds,6,6,16,4,13,3,11,4,0,0.56,1,0,1,507,425,0.84,1.78,0
+1379018,Wolves vs Leeds,2025-09-20T14:00:00+00:00,2025-09-20,Leeds,Wolves,Leeds,1,3,1-3,Wolves 1 - 3 Leeds,4,2,6,0,2,4,9,0,2,0.44,1,0,5,416,351,0.84,0.48,0
+1379012,Burnley vs Nottingham Forest,2025-09-20T14:00:00+00:00,2025-09-20,Burnley,Burnley,Nottingham Forest,1,1,1-1,Burnley 1 - 1 Nottingham Forest,5,4,12,3,9,3,12,4,1,0.37,1,0,7,348,269,0.77,0.85,0
+1379012,Burnley vs Nottingham Forest,2025-09-20T14:00:00+00:00,2025-09-20,Nottingham Forest,Burnley,Nottingham Forest,1,1,1-1,Burnley 1 - 1 Nottingham Forest,8,2,17,7,9,8,11,5,2,0.63,1,0,4,628,564,0.9,1.1,0
+1379017,West Ham vs Crystal Palace,2025-09-20T14:00:00+00:00,2025-09-20,West Ham,West Ham,Crystal Palace,1,2,1-2,West Ham 1 - 2 Crystal Palace,3,4,8,1,7,1,15,8,1,0.57,3,0,1,450,375,0.83,0.66,0
+1379017,West Ham vs Crystal Palace,2025-09-20T14:00:00+00:00,2025-09-20,Crystal Palace,West Ham,Crystal Palace,1,2,1-2,West Ham 1 - 2 Crystal Palace,3,9,18,6,14,4,5,8,2,0.43,3,0,2,345,284,0.82,2.31,0
+1379011,Brighton vs Tottenham,2025-09-20T14:00:00+00:00,2025-09-20,Brighton,Brighton,Tottenham,2,2,2-2,Brighton 2 - 2 Tottenham,4,7,12,1,5,7,10,2,0,0.36,1,0,2,307,236,0.77,1.32,0
+1379011,Brighton vs Tottenham,2025-09-20T14:00:00+00:00,2025-09-20,Tottenham,Brighton,Tottenham,2,2,2-2,Brighton 2 - 2 Tottenham,3,6,11,2,9,2,13,10,1,0.64,2,0,2,523,464,0.89,1.22,0
+1379015,Manchester United vs Chelsea,2025-09-20T16:30:00+00:00,2025-09-20,Manchester United,Manchester United,Chelsea,2,1,2-1,Manchester United 2 - 1 Chelsea,4,3,11,4,6,5,13,5,3,0.41,2,1,0,371,292,0.79,1.84,0
+1379015,Manchester United vs Chelsea,2025-09-20T16:30:00+00:00,2025-09-20,Chelsea,Manchester United,Chelsea,2,1,2-1,Manchester United 2 - 1 Chelsea,1,2,5,2,4,1,14,5,2,0.59,5,1,2,550,466,0.85,0.43,0
+1379013,Fulham vs Brentford,2025-09-20T19:00:00+00:00,2025-09-20,Fulham,Fulham,Brentford,3,1,3-1,Fulham 3 - 1 Brentford,3,5,14,6,8,6,11,2,2,0.53,4,0,2,456,382,0.84,1.01,-2
+1379013,Fulham vs Brentford,2025-09-20T19:00:00+00:00,2025-09-20,Brentford,Fulham,Brentford,3,1,3-1,Fulham 3 - 1 Brentford,3,2,8,3,8,0,13,10,2,0.47,1,0,2,398,324,0.81,0.6,-2
+1379010,Bournemouth vs Newcastle,2025-09-21T13:00:00+00:00,2025-09-21,Bournemouth,Bournemouth,Newcastle,0,0,0-0,Bournemouth 0 - 0 Newcastle,2,3,11,6,4,7,7,5,3,0.56,2,0,1,498,409,0.82,0.46,0
+1379010,Bournemouth vs Newcastle,2025-09-21T13:00:00+00:00,2025-09-21,Newcastle,Bournemouth,Newcastle,0,0,0-0,Bournemouth 0 - 0 Newcastle,1,2,4,1,1,3,10,2,2,0.44,1,0,2,390,298,0.76,0.14,0
+1379016,Sunderland vs Aston Villa,2025-09-21T13:00:00+00:00,2025-09-21,Sunderland,Sunderland,Aston Villa,1,1,1-1,Sunderland 1 - 1 Aston Villa,4,6,14,4,10,4,14,6,0,0.29,2,1,1,218,151,0.69,1.04,0
+1379016,Sunderland vs Aston Villa,2025-09-21T13:00:00+00:00,2025-09-21,Aston Villa,Sunderland,Aston Villa,1,1,1-1,Sunderland 1 - 1 Aston Villa,2,4,12,6,6,6,8,5,3,0.71,1,0,3,547,488,0.89,0.78,0
+1379009,Arsenal vs Manchester City,2025-09-21T15:30:00+00:00,2025-09-21,Arsenal,Arsenal,Manchester City,1,1,1-1,Arsenal 1 - 1 Manchester City,3,6,12,3,11,1,11,11,4,0.67,1,0,2,582,517,0.89,0.89,0
+1379009,Arsenal vs Manchester City,2025-09-21T15:30:00+00:00,2025-09-21,Manchester City,Arsenal,Manchester City,1,1,1-1,Arsenal 1 - 1 Manchester City,3,2,5,0,4,1,10,1,2,0.33,2,0,2,300,229,0.76,0.87,0
+1379020,Brentford vs Manchester United,2025-09-27T11:30:00+00:00,2025-09-27,Brentford,Brentford,Manchester United,3,1,3-1,Brentford 3 - 1 Manchester United,8,1,10,1,7,3,14,4,2,0.44,2,0,5,351,268,0.76,1.99,0
+1379020,Brentford vs Manchester United,2025-09-27T11:30:00+00:00,2025-09-27,Manchester United,Brentford,Manchester United,3,1,3-1,Brentford 3 - 1 Manchester United,6,4,14,4,9,5,10,2,1,0.56,2,0,5,455,369,0.81,2.03,0
+1379021,Chelsea vs Brighton,2025-09-27T14:00:00+00:00,2025-09-27,Chelsea,Chelsea,Brighton,1,3,1-3,Chelsea 1 - 3 Brighton,3,4,13,6,7,6,9,5,2,0.6,3,1,0,470,396,0.84,1.81,1
+1379021,Chelsea vs Brighton,2025-09-27T14:00:00+00:00,2025-09-27,Brighton,Chelsea,Brighton,1,3,1-3,Chelsea 1 - 3 Brighton,3,7,12,2,8,4,16,7,2,0.4,5,0,2,316,266,0.84,2.28,1
+1379025,Manchester City vs Burnley,2025-09-27T14:00:00+00:00,2025-09-27,Manchester City,Manchester City,Burnley,5,1,5-1,Manchester City 5 - 1 Burnley,8,7,21,6,13,8,5,10,1,0.69,1,0,1,638,566,0.89,2.03,-2
+1379025,Manchester City vs Burnley,2025-09-27T14:00:00+00:00,2025-09-27,Burnley,Manchester City,Burnley,5,1,5-1,Manchester City 5 - 1 Burnley,2,2,9,5,5,4,7,2,1,0.31,3,0,5,295,242,0.82,0.41,-2
+1379022,Crystal Palace vs Liverpool,2025-09-27T14:00:00+00:00,2025-09-27,Crystal Palace,Crystal Palace,Liverpool,2,1,2-1,Crystal Palace 2 - 1 Liverpool,7,7,16,2,12,4,10,2,2,0.28,1,0,3,270,175,0.65,2.92,0
+1379022,Crystal Palace vs Liverpool,2025-09-27T14:00:00+00:00,2025-09-27,Liverpool,Crystal Palace,Liverpool,2,1,2-1,Crystal Palace 2 - 1 Liverpool,4,11,20,5,13,7,8,6,1,0.72,3,0,5,688,609,0.89,2.14,0
+1379024,Leeds vs Bournemouth,2025-09-27T14:00:00+00:00,2025-09-27,Leeds,Leeds,Bournemouth,2,2,2-2,Leeds 2 - 2 Bournemouth,8,5,19,6,16,3,12,7,0,0.41,2,0,3,357,280,0.78,1.84,0
+1379024,Leeds vs Bournemouth,2025-09-27T14:00:00+00:00,2025-09-27,Bournemouth,Leeds,Bournemouth,2,2,2-2,Leeds 2 - 2 Bournemouth,5,4,12,3,7,5,13,4,2,0.59,2,0,6,509,436,0.86,0.82,0
+1379027,Nottingham Forest vs Sunderland,2025-09-27T16:30:00+00:00,2025-09-27,Nottingham Forest,Nottingham Forest,Sunderland,0,1,0-1,Nottingham Forest 0 - 1 Sunderland,6,10,22,6,15,7,11,7,0,0.65,4,0,2,567,510,0.9,1.65,2
+1379027,Nottingham Forest vs Sunderland,2025-09-27T16:30:00+00:00,2025-09-27,Sunderland,Nottingham Forest,Sunderland,0,1,0-1,Nottingham Forest 0 - 1 Sunderland,3,5,11,3,8,3,6,4,1,0.35,2,0,6,306,246,0.8,1.19,2
+1379028,Tottenham vs Wolves,2025-09-27T19:00:00+00:00,2025-09-27,Tottenham,Tottenham,Wolves,1,1,1-1,Tottenham 1 - 1 Wolves,3,5,10,2,7,3,9,10,2,0.51,3,0,2,398,325,0.82,0.87,0
+1379028,Tottenham vs Wolves,2025-09-27T19:00:00+00:00,2025-09-27,Wolves,Tottenham,Wolves,1,1,1-1,Tottenham 1 - 1 Wolves,3,5,9,1,6,3,11,9,0,0.49,2,0,2,394,321,0.81,1.15,0
+1379019,Aston Villa vs Fulham,2025-09-28T13:00:00+00:00,2025-09-28,Aston Villa,Aston Villa,Fulham,3,1,3-1,Aston Villa 3 - 1 Fulham,4,3,9,2,4,5,10,2,2,0.48,1,0,3,403,340,0.84,1.11,-1
+1379019,Aston Villa vs Fulham,2025-09-28T13:00:00+00:00,2025-09-28,Fulham,Aston Villa,Fulham,3,1,3-1,Aston Villa 3 - 1 Fulham,4,4,11,3,9,2,13,8,4,0.52,4,0,1,414,357,0.86,0.92,-1
+1379026,Newcastle vs Arsenal,2025-09-28T15:30:00+00:00,2025-09-28,Newcastle,Newcastle,Arsenal,1,2,1-2,Newcastle 1 - 2 Arsenal,3,1,8,4,7,1,8,7,1,0.37,2,0,5,279,194,0.7,0.61,0
+1379026,Newcastle vs Arsenal,2025-09-28T15:30:00+00:00,2025-09-28,Arsenal,Newcastle,Arsenal,1,2,1-2,Newcastle 1 - 2 Arsenal,7,7,20,6,18,2,9,12,0,0.63,1,0,2,495,405,0.82,2.04,0
+1379023,Everton vs West Ham,2025-09-29T19:00:00+00:00,2025-09-29,Everton,Everton,West Ham,1,1,1-1,Everton 1 - 1 West Ham,6,3,12,3,9,3,7,3,0,0.52,3,0,2,447,380,0.85,0.73,0
+1379023,Everton vs West Ham,2025-09-29T19:00:00+00:00,2025-09-29,West Ham,Everton,West Ham,1,1,1-1,Everton 1 - 1 West Ham,3,5,14,6,10,4,16,5,2,0.48,4,0,5,416,332,0.8,1.19,0
+1379031,Bournemouth vs Fulham,2025-10-03T19:00:00+00:00,2025-10-03,Bournemouth,Bournemouth,Fulham,3,1,3-1,Bournemouth 3 - 1 Fulham,6,2,11,3,6,5,8,4,2,0.54,0,0,3,536,460,0.86,1.12,-1
+1379031,Bournemouth vs Fulham,2025-10-03T19:00:00+00:00,2025-10-03,Fulham,Bournemouth,Fulham,3,1,3-1,Bournemouth 3 - 1 Fulham,4,4,12,4,5,7,10,3,2,0.46,1,0,3,473,383,0.81,0.88,-1
+1379035,Leeds vs Tottenham,2025-10-04T11:30:00+00:00,2025-10-04,Leeds,Leeds,Tottenham,1,2,1-2,Leeds 1 - 2 Tottenham,4,10,16,2,11,5,10,4,1,0.57,2,0,1,478,401,0.84,1.68,0
+1379035,Leeds vs Tottenham,2025-10-04T11:30:00+00:00,2025-10-04,Tottenham,Leeds,Tottenham,1,2,1-2,Leeds 1 - 2 Tottenham,3,4,9,2,4,5,12,1,2,0.43,3,0,3,374,298,0.8,0.53,0
+1379036,Manchester United vs Sunderland,2025-10-04T14:00:00+00:00,2025-10-04,Manchester United,Manchester United,Sunderland,2,0,2-0,Manchester United 2 - 0 Sunderland,6,7,15,2,11,4,10,2,1,0.51,1,0,3,445,350,0.79,1.88,0
+1379036,Manchester United vs Sunderland,2025-10-04T14:00:00+00:00,2025-10-04,Sunderland,Manchester United,Sunderland,2,0,2-0,Manchester United 2 - 0 Sunderland,3,4,8,1,5,3,12,3,2,0.49,4,0,4,416,332,0.8,0.71,0
+1379029,Arsenal vs West Ham,2025-10-04T14:00:00+00:00,2025-10-04,Arsenal,Arsenal,West Ham,2,0,2-0,Arsenal 2 - 0 West Ham,5,7,21,9,16,5,14,8,1,0.68,0,0,0,566,498,0.88,2.77,0
+1379029,Arsenal vs West Ham,2025-10-04T14:00:00+00:00,2025-10-04,West Ham,Arsenal,West Ham,2,0,2-0,Arsenal 2 - 0 West Ham,0,3,4,1,4,0,14,3,1,0.32,2,0,3,268,210,0.78,0.49,0
+1379033,Chelsea vs Liverpool,2025-10-04T16:30:00+00:00,2025-10-04,Chelsea,Chelsea,Liverpool,2,1,2-1,Chelsea 2 - 1 Liverpool,6,4,12,2,6,6,9,7,2,0.53,0,0,1,508,422,0.83,1.0,0
+1379033,Chelsea vs Liverpool,2025-10-04T16:30:00+00:00,2025-10-04,Liverpool,Chelsea,Liverpool,2,1,2-1,Chelsea 2 - 1 Liverpool,2,5,12,5,8,4,8,2,2,0.47,2,0,4,450,370,0.82,1.95,0
+1379037,Newcastle vs Nottingham Forest,2025-10-05T13:00:00+00:00,2025-10-05,Newcastle,Newcastle,Nottingham Forest,2,0,2-0,Newcastle 2 - 0 Nottingham Forest,9,4,18,5,13,5,16,8,0,0.52,0,0,4,457,381,0.83,3.28,1
+1379037,Newcastle vs Nottingham Forest,2025-10-05T13:00:00+00:00,2025-10-05,Nottingham Forest,Newcastle,Nottingham Forest,2,0,2-0,Newcastle 2 - 0 Nottingham Forest,4,1,5,0,4,1,15,1,2,0.48,4,0,7,432,353,0.82,0.29,1
+1379038,Wolves vs Brighton,2025-10-05T13:00:00+00:00,2025-10-05,Wolves,Wolves,Brighton,1,1,1-1,Wolves 1 - 1 Brighton,3,3,6,0,4,2,13,2,1,0.42,2,0,5,353,270,0.76,0.56,0
+1379038,Wolves vs Brighton,2025-10-05T13:00:00+00:00,2025-10-05,Brighton,Wolves,Brighton,1,1,1-1,Wolves 1 - 1 Brighton,6,6,17,5,10,7,9,8,3,0.58,4,0,3,492,427,0.87,0.92,0
+1379034,Everton vs Crystal Palace,2025-10-05T13:00:00+00:00,2025-10-05,Everton,Everton,Crystal Palace,2,1,2-1,Everton 2 - 1 Crystal Palace,7,5,14,2,10,4,13,2,0,0.5,2,0,5,433,351,0.81,2.03,0
+1379034,Everton vs Crystal Palace,2025-10-05T13:00:00+00:00,2025-10-05,Crystal Palace,Everton,Crystal Palace,2,1,2-1,Everton 2 - 1 Crystal Palace,8,4,15,3,11,4,16,4,1,0.5,3,0,5,432,349,0.81,1.53,0
+1379030,Aston Villa vs Burnley,2025-10-05T13:00:00+00:00,2025-10-05,Aston Villa,Aston Villa,Burnley,2,1,2-1,Aston Villa 2 - 1 Burnley,7,5,15,3,12,3,9,6,3,0.55,3,0,1,496,434,0.88,1.16,0
+1379030,Aston Villa vs Burnley,2025-10-05T13:00:00+00:00,2025-10-05,Burnley,Aston Villa,Burnley,2,1,2-1,Aston Villa 2 - 1 Burnley,2,1,5,2,3,2,15,4,5,0.45,1,0,5,409,331,0.81,0.4,0
+1379032,Brentford vs Manchester City,2025-10-05T15:30:00+00:00,2025-10-05,Brentford,Brentford,Manchester City,0,1,0-1,Brentford 0 - 1 Manchester City,1,3,6,2,4,2,10,3,1,0.3,3,0,3,311,249,0.8,0.7,0
+1379032,Brentford vs Manchester City,2025-10-05T15:30:00+00:00,2025-10-05,Manchester City,Brentford,Manchester City,0,1,0-1,Brentford 0 - 1 Manchester City,4,2,10,4,6,4,6,2,1,0.7,2,0,1,764,698,0.91,0.85,0
+1379045,Nottingham Forest vs Chelsea,2025-10-18T11:30:00+00:00,2025-10-18,Nottingham Forest,Nottingham Forest,Chelsea,0,3,0-3,Nottingham Forest 0 - 3 Chelsea,2,8,12,2,8,4,12,5,1,0.5,2,0,3,445,367,0.82,2.35,0
+1379045,Nottingham Forest vs Chelsea,2025-10-18T11:30:00+00:00,2025-10-18,Chelsea,Nottingham Forest,Chelsea,0,3,0-3,Nottingham Forest 0 - 3 Chelsea,6,6,17,5,11,6,17,2,2,0.5,4,1,2,463,397,0.86,1.67,0
+1379040,Burnley vs Leeds,2025-10-18T14:00:00+00:00,2025-10-18,Burnley,Burnley,Leeds,2,0,2-0,Burnley 2 - 0 Leeds,3,1,4,0,1,3,10,1,1,0.31,2,0,4,292,221,0.76,0.45,0
+1379040,Burnley vs Leeds,2025-10-18T14:00:00+00:00,2025-10-18,Leeds,Burnley,Leeds,2,0,2-0,Burnley 2 - 0 Leeds,4,12,19,3,17,2,7,5,0,0.69,1,0,1,615,526,0.86,2.63,0
+1379044,Manchester City vs Everton,2025-10-18T14:00:00+00:00,2025-10-18,Manchester City,Manchester City,Everton,2,0,2-0,Manchester City 2 - 0 Everton,7,5,19,7,16,3,8,11,0,0.71,0,0,1,749,685,0.91,2.38,0
+1379044,Manchester City vs Everton,2025-10-18T14:00:00+00:00,2025-10-18,Everton,Manchester City,Everton,2,0,2-0,Manchester City 2 - 0 Everton,1,2,5,2,4,1,14,3,1,0.29,2,0,5,300,237,0.79,0.81,0
+1379039,Brighton vs Newcastle,2025-10-18T14:00:00+00:00,2025-10-18,Brighton,Brighton,Newcastle,2,1,2-1,Brighton 2 - 1 Newcastle,5,3,13,5,6,7,13,8,3,0.46,0,0,2,421,341,0.81,0.91,0
+1379039,Brighton vs Newcastle,2025-10-18T14:00:00+00:00,2025-10-18,Newcastle,Brighton,Newcastle,2,1,2-1,Brighton 2 - 1 Newcastle,3,8,16,5,10,6,16,4,1,0.54,1,0,3,491,419,0.85,1.45,0
+1379041,Crystal Palace vs Bournemouth,2025-10-18T14:00:00+00:00,2025-10-18,Crystal Palace,Crystal Palace,Bournemouth,3,3,3-3,Crystal Palace 3 - 3 Bournemouth,7,6,20,7,15,5,8,6,3,0.52,1,0,2,404,308,0.76,4.44,0
+1379041,Crystal Palace vs Bournemouth,2025-10-18T14:00:00+00:00,2025-10-18,Bournemouth,Crystal Palace,Bournemouth,3,3,3-3,Crystal Palace 3 - 3 Bournemouth,5,3,8,0,5,3,16,5,3,0.48,4,0,4,364,280,0.77,2.03,0
+1379046,Sunderland vs Wolves,2025-10-18T14:00:00+00:00,2025-10-18,Sunderland,Sunderland,Wolves,2,0,2-0,Sunderland 2 - 0 Wolves,2,3,8,3,5,3,5,2,2,0.41,0,0,3,341,248,0.73,0.65,-1
+1379046,Sunderland vs Wolves,2025-10-18T14:00:00+00:00,2025-10-18,Wolves,Sunderland,Wolves,2,0,2-0,Sunderland 2 - 0 Wolves,3,8,16,5,8,8,12,2,2,0.59,0,0,1,466,393,0.84,0.83,-1
+1379042,Fulham vs Arsenal,2025-10-18T16:30:00+00:00,2025-10-18,Fulham,Fulham,Arsenal,0,1,0-1,Fulham 0 - 1 Arsenal,0,5,9,4,6,3,11,6,0,0.37,0,0,4,313,248,0.79,0.44,0
+1379042,Fulham vs Arsenal,2025-10-18T16:30:00+00:00,2025-10-18,Arsenal,Fulham,Arsenal,0,1,0-1,Fulham 0 - 1 Arsenal,5,7,16,4,14,2,4,10,2,0.63,0,0,0,546,475,0.87,1.87,0
+1379047,Tottenham vs Aston Villa,2025-10-19T13:00:00+00:00,2025-10-19,Tottenham,Tottenham,Aston Villa,1,2,1-2,Tottenham 1 - 2 Aston Villa,3,4,9,2,6,3,11,6,6,0.53,2,0,0,382,336,0.88,0.75,0
+1379047,Tottenham vs Aston Villa,2025-10-19T13:00:00+00:00,2025-10-19,Aston Villa,Tottenham,Aston Villa,1,2,1-2,Tottenham 1 - 2 Aston Villa,2,4,8,2,2,6,7,6,1,0.47,0,0,2,348,292,0.84,0.32,0
+1379043,Liverpool vs Manchester United,2025-10-19T15:30:00+00:00,2025-10-19,Liverpool,Liverpool,Manchester United,1,2,1-2,Liverpool 1 - 2 Manchester United,6,11,19,2,16,3,19,9,1,0.64,0,0,2,480,408,0.85,2.75,1
+1379043,Liverpool vs Manchester United,2025-10-19T15:30:00+00:00,2025-10-19,Manchester United,Liverpool,Manchester United,1,2,1-2,Liverpool 1 - 2 Manchester United,4,5,12,3,10,2,12,4,1,0.36,2,0,5,294,200,0.68,1.34,1
+1379048,West Ham vs Brentford,2025-10-20T19:00:00+00:00,2025-10-20,West Ham,West Ham,Brentford,0,2,0-2,West Ham 0 - 2 Brentford,1,3,7,3,2,5,10,6,3,0.43,1,0,4,339,251,0.74,0.33,0
+1379048,West Ham vs Brentford,2025-10-20T19:00:00+00:00,2025-10-20,Brentford,West Ham,Brentford,0,2,0-2,West Ham 0 - 2 Brentford,7,10,22,5,20,2,10,10,2,0.57,1,0,1,451,373,0.83,2.31,0
+1379055,Leeds vs West Ham,2025-10-24T19:00:00+00:00,2025-10-24,Leeds,Leeds,West Ham,2,1,2-1,Leeds 2 - 1 West Ham,5,5,13,3,8,5,12,3,1,0.41,3,0,2,369,296,0.8,1.49,0
+1379055,Leeds vs West Ham,2025-10-24T19:00:00+00:00,2025-10-24,West Ham,Leeds,West Ham,2,1,2-1,Leeds 2 - 1 West Ham,3,3,9,3,4,5,11,4,1,0.59,3,0,3,525,431,0.82,0.65,0

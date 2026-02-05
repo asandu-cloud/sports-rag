@@ -1,9 +1,10 @@
-# Small local RAG trial
+#!/usr/bin/env python3
+# Small local RAG trial (matchup-aware)
 
 import os
 import sys
 import argparse
-from typing import List, Dict
+from typing import List, Dict, Optional, Tuple
 import chromadb
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -12,18 +13,24 @@ from dotenv import load_dotenv
 CHROMA_DIR = "/Users/sanduandrei/Desktop/Betting_RAG/Index/chroma"
 COLLECTION = "football_top5"
 EMBED_MODEL = "text-embedding-3-large"
-CHAT_MODEL = "gpt-4o-mini"  # cheap/fast; swap to a bigger model if you like
+CHAT_MODEL = "gpt-4o"  # choose your chat model here
 
-# ---- INIT ----
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# --- Small helpers ---
+
+# -------------------------
+# Embedding helper
+# -------------------------
 def embed(texts: List[str]) -> List[List[float]]:
     resp = client.embeddings.create(model=EMBED_MODEL, input=texts).data
     return [r.embedding for r in resp]
 
-def resolve_league_from_flag_or_query(league_flag: str | None, user_q: str) -> str | None:
+
+# -------------------------
+# League resolution
+# -------------------------
+def resolve_league_from_flag_or_query(league_flag: Optional[str], user_q: str) -> Optional[str]:
     if league_flag:
         return league_flag
     q = user_q.lower()
@@ -37,51 +44,311 @@ def resolve_league_from_flag_or_query(league_flag: str | None, user_q: str) -> s
     for lg, keys in hints.items():
         if any(k in q for k in keys):
             return lg
-    return None  # let the query go wide if not provided
+    return None
 
-def _build_where(league: str | None, season: str | None):
-    clauses = []
+
+# -------------------------
+# Season parsing and where-clause builder
+# -------------------------
+def parse_seasons_arg(season_arg: Optional[str]) -> Optional[List[str]]:
+    if not season_arg:
+        return None
+    parts = [s.strip() for s in season_arg.split(",") if s.strip()]
+    return parts or None
+
+
+def build_where(league: Optional[str],
+                seasons: Optional[List[str]],
+                extra_filters: Optional[List[dict]] = None) -> dict:
+    """
+    Chroma where syntax rules:
+    - single dict like {"league": "EPL"} is fine
+    - if multiple conditions, wrap in {"$and": [ ... ]}
+    - OR across seasons uses {"$or": [{"season": "2024/25"}, {"season":"2025/26"}]}
+    """
+    clauses: List[dict] = []
+
     if league:
-        clauses.append({"league": league})              # equals
-    if season:
-        clauses.append({"season": season})              # equals
+        clauses.append({"league": league})
+
+    if seasons:
+        if len(seasons) == 1:
+            clauses.append({"season": seasons[0]})
+        else:
+            clauses.append({"$or": [{"season": s} for s in seasons]})
+
+    if extra_filters:
+        clauses.extend(extra_filters)
 
     if not clauses:
-        return {}                                       # no filter
+        return {}
     if len(clauses) == 1:
-        return clauses[0]                               # single field is OK
-    return {"$and": clauses}                            # multiple fields need an operator
+        return clauses[0]
+    return {"$and": clauses}
 
-def retrieve(q: str, league: str | None, season: str | None, k: int = 12) -> list[dict]:
+
+# -------------------------
+# Basic semantic retrieval (fallback mode)
+# -------------------------
+def generic_retrieve(user_q: str,
+                     league: Optional[str],
+                     seasons: Optional[List[str]],
+                     k: int) -> List[Dict]:
+    """
+    Old/default behavior: embed the query and pull top-k similar docs,
+   constrained by league / seasons.
+    """
     db = chromadb.PersistentClient(path=CHROMA_DIR)
     col = db.get_or_create_collection(COLLECTION)
 
-    where = _build_where(league, season)
-    vec = embed([q])[0]
+    where = build_where(league, seasons)
+    vec = embed([user_q])[0]
     res = col.query(query_embeddings=[vec], n_results=k, where=where)
 
-    hits = []
-    for doc, meta, id_ in zip(res["documents"][0], res["metadatas"][0], res["ids"][0]):
-        hits.append({"id": id_, "text": doc, "meta": meta})
+    hits: List[Dict] = []
+    for d, m, i in zip(res["documents"][0], res["metadatas"][0], res["ids"][0]):
+        hits.append({"id": i, "text": d, "meta": m})
     return hits
 
 
-def build_prompt(user_q: str, context_docs: List[Dict], league: str | None):
-    lead = (
-        f"You are a football analyst. Use ONLY the context. "
-        "If a numeric value (e.g., yellow cards) appears, quote the exact number and the row it came from. "
-        "If missing, say you don't have it."
-        f"{'Stay in ' + league + ' unless the user explicitly asks otherwise. ' if league else ''}"
-        "Prefer recent per-fixture rows for props. If data is insufficient, say so clearly. "
-        "Show your reasoning succinctly; avoid speculation."
+# -------------------------
+# Parse "Leeds vs West Ham" style questions
+# -------------------------
+def parse_match_request(user_q: str) -> dict:
+    """
+    Extract (home_team, away_team) from a question like:
+      "Leeds is playing West Ham at home today"
+      "Leeds vs West Ham"
+      "Arsenal @ West Ham"
+    Assumptions:
+      - first team mentioned is home unless "@"
+      - we lowercase teams to match metadata["team"] which we stored lowercase
+    """
+    q = user_q.lower()
+
+    home_team = None
+    away_team = None
+    home_flag = None  # may be "home"
+
+    # case 1: "<team1> is playing <team2>"
+    if " is playing " in q:
+        left, right = q.split(" is playing ", 1)
+        home_team_candidate = left.strip()
+
+        # strip common filler
+        right_clean = (
+            right.replace("at home", "")
+                 .replace("today", "")
+                 .replace("tonight", "")
+                 .replace("this weekend", "")
+        ).strip()
+
+        # grab first 1-2 tokens as away team guess ("west ham")
+        away_team_candidate = " ".join(right_clean.split(" ")[0:2]).strip()
+
+        if "at home" in q or "at their place" in q:
+            home_team = home_team_candidate
+            away_team = away_team_candidate
+            home_flag = "home"
+        else:
+            home_team = home_team_candidate
+            away_team = away_team_candidate
+            home_flag = "home"
+
+    # case 2: "leeds vs west ham"
+    if home_team is None and " vs " in q:
+        a, b = q.split(" vs ", 1)
+        home_team = a.strip()
+        away_team = " ".join(b.strip().split(" ")[0:2]).strip()
+        home_flag = "home"
+
+    # case 3: "arsenal @ west ham"
+    if home_team is None and " @ " in q:
+        a, b = q.split(" @ ", 1)
+        away_team = a.strip()  # the team before '@' is traveling
+        home_team = " ".join(b.strip().split(" ")[0:2]).strip()
+        home_flag = "home"
+
+    def norm_team(name: Optional[str]) -> Optional[str]:
+        if not name:
+            return None
+        return name.strip().lower()
+
+    return {
+        "home_team": norm_team(home_team),
+        "away_team": norm_team(away_team),
+        "home_flag": home_flag,
+    }
+
+
+# -------------------------
+# Focused retrieval for a single team
+# -------------------------
+def get_team_context(team_name: str,
+                     league: Optional[str],
+                     seasons: Optional[List[str]],
+                     k_fixture: int = 6) -> Tuple[List[Dict], List[Dict]]:
+    """
+    Returns:
+    - profiles: list of {id, text, meta} for team_profile docs
+    - fixtures: list of {id, text, meta} for team_fixture docs
+    """
+    db = chromadb.PersistentClient(path=CHROMA_DIR)
+    col = db.get_or_create_collection(COLLECTION)
+
+    # ---- team_profile docs ----
+    where_profile = build_where(
+        league,
+        seasons,
+        extra_filters=[{"doc_type": "team_profile"}, {"team": team_name}],
     )
-    ctx = "\n\n".join(d["text"] for d in context_docs[:8])
+
+    prof_res = col.get(
+        where=where_profile,
+        include=["documents", "metadatas"],  # <-- 'ids' removed
+        limit=3,
+    )
+
+    profiles: List[Dict] = []
+    # NOTE: col.get(...) returns dict with keys "ids", "documents", "metadatas", ...
+    for i, d, m in zip(prof_res.get("ids", []),
+                       prof_res.get("documents", []),
+                       prof_res.get("metadatas", [])):
+        profiles.append({"id": i, "text": d, "meta": m})
+
+    # ---- team_fixture docs ----
+    vec = embed([f"recent fixtures and style profile for {team_name}"])[0]
+
+    where_fixture = build_where(
+        league,
+        seasons,
+        extra_filters=[{"doc_type": "team_fixture"}, {"team": team_name}],
+    )
+
+    fix_res = col.query(
+        query_embeddings=[vec],
+        n_results=k_fixture,
+        where=where_fixture,
+    )
+
+    fixtures: List[Dict] = []
+    for d, m, i in zip(
+        fix_res["documents"][0],
+        fix_res["metadatas"][0],
+        fix_res["ids"][0],
+    ):
+        fixtures.append({"id": i, "text": d, "meta": m})
+
+    return profiles, fixtures
+
+
+
+# -------------------------
+# Build matchup prompt (two-team parlay reasoning)
+# -------------------------
+def build_matchup_prompt(user_q: str,
+                         home_team_block: dict,
+                         away_team_block: dict) -> List[Dict]:
+    """
+    home_team_block = {
+        "team_name": "leeds",
+        "profiles": [...],
+        "fixtures": [...],
+    }
+    away_team_block = same structure.
+    We assume home_team_block["team_name"] is actually the home side in this matchup.
+    """
+
+    def pack(block):
+        team = block["team_name"]
+        prof_txt = "\n\n".join(d["text"] for d in block["profiles"][:2])  # season profile (corners_pm etc)
+        fixt_txt = "\n\n".join(d["text"] for d in block["fixtures"][:0])  # recent fixtures (per-match)
+        return (
+            f"=== {team.upper()} SEASON PROFILE ===\n{prof_txt}\n\n"
+            f"=== {team.upper()} RECENT FIXTURES ===\n{fixt_txt}\n"
+        )
+
+    matchup_context = (
+        "----- HOME TEAM BLOCK -----\n"
+        + pack(home_team_block)
+        + "\n----- AWAY TEAM BLOCK -----\n"
+        + pack(away_team_block)
+    )
+
+    system_msg = (
+        "You are building a SAME-GAME PARLAY for sports betting.\n"
+        "You MUST reason about the MATCHUP between the two teams, not just historical averages in isolation.\n\n"
+
+        "INSTRUCTIONS:\n"
+        "1. Matchup reasoning:\n"
+        "   - Compare Home Team's attacking output vs Away Team's defensive concessions.\n"
+        "   - Compare Home Team's corners_pm vs Away Team's corners_against_pm (and vice versa).\n"
+        "   - Compare fouls_per_90_team and cards_per_90_team between both teams to justify card-related legs.\n"
+        "   - Use corner_edge_pm (corners_for - corners_against) to argue which team tends to dominate corners.\n"
+        "   - Use goals_for_pm, xG, goals_conceded trends from recent fixtures to justify BTTS / Over / Under.\n"
+        "   - Explicitly say things like: 'Leeds typically wins X corners per match and West Ham typically concedes Y corners per match, so Leeds Over corners / Leeds most corners is live'.\n\n"
+
+        "2. Output requirements:\n"
+        "   - Return 2 or 3 legs max (user might say 2-leg, honor that).\n"
+        "   - Each leg MUST be matchup-informed. NO generic 'Team under 1.5' unless you justify it using BOTH sides.\n"
+        "   - For each leg, explain in 1-2 sentences using actual numeric stats from the context (use exact numbers like 'corners_pm 7.8', 'corners_against_pm 6.1', 'cards_per_90_team 2.0').\n"
+        "   - Legs should be realistic sportsbook-style markets: "
+        "      • Team Over X.5 Corners / Team To Win Corners\n"
+        "      • Both Teams To Score / Over 2.5 Goals / Under 1.5 Team Goals\n"
+        "      • Over X.5 Total Cards / Specific Team Over X.5 Cards\n"
+        "      • etc.\n"
+        "   - DO NOT invent player-specific props (shots on target for a named player) unless player info is clearly present in context.\n"
+        "   - DO NOT invent numbers that are not explicitly in the context.\n"
+        "   - If data is missing for one angle, say so and pick a different angle.\n\n"
+
+        "3. Tone:\n"
+        "   - Present the final answer as 'Leg 1, Leg 2, (Leg 3 ... if user asked for 3)'.\n"
+        "   - After the legs, include a short 'Why this parlay makes sense' section summarizing the interaction of styles.\n"
+    )
+
+    user_msg = (
+        f"User request: {user_q}\n\n"
+        "We consider the HOME team to be the first block below and the AWAY team to be the second block.\n"
+        "Use ONLY the stats below. Do not guess form for players not mentioned.\n\n"
+        f"{matchup_context}\n\n"
+        "Now build the parlay."
+    )
+
     return [
-        {"role": "system", "content": lead},
-        {"role": "user", "content": f"Question: {user_q}\n\nContext:\n{ctx}\n\nAnswer with a short rationale and specific player/team stats if relevant."}
+        {"role": "system", "content": system_msg},
+        {"role": "user", "content": user_msg},
     ]
 
-def format_sources(hits: List[Dict], max_sources: int = 5) -> str:
+
+# -------------------------
+# Build generic RAG prompt (single-team or stat lookup)
+# -------------------------
+def build_generic_prompt(user_q: str,
+                         context_docs: List[Dict],
+                         league: Optional[str]) -> List[Dict]:
+    lead = (
+        "You are a football analyst.\n"
+        "- Only use the provided context.\n"
+        "- Quote exact numbers where possible (e.g. cards_per_90_team, corners_against_pm, etc.).\n"
+        "- Stay in the given league unless told otherwise.\n"
+        "- If data is missing, say you don't have it.\n"
+        "- If predicting a fixture outcome, explain reasoning using the stats you see.\n"
+    )
+    if league:
+        lead += f"\nThis league is {league}. Do not mix in other leagues.\n"
+
+    ctx = "\n\n".join(d["text"] for d in context_docs[:8])
+
+    return [
+        {"role": "system", "content": lead},
+        {"role": "user", "content": f"Question: {user_q}\n\nContext:\n{ctx}\n\nAnswer clearly."}
+    ]
+
+
+# -------------------------
+# Pretty-print sources
+# -------------------------
+def format_sources(hits: List[Dict], max_sources: int = 15) -> str:
     lines = []
     for h in hits[:max_sources]:
         m = h["meta"]
@@ -91,18 +358,72 @@ def format_sources(hits: List[Dict], max_sources: int = 5) -> str:
         lines.append(f"- {who or 'N/A'} | {tag}" + (f" | {fx}" if fx else ""))
     return "Sources:\n" + "\n".join(lines)
 
-def chat_once(user_q: str, league_flag: str | None, season: str | None, k: int, show_sources: bool):
-    # Resolve league (flag beats heuristic)
+
+# -------------------------
+# Main chat logic
+# -------------------------
+def chat_once(user_q: str,
+              league_flag: Optional[str],
+              seasons_arg: Optional[str],
+              k: int,
+              show_sources: bool):
+
+    # Resolve target league
     league = resolve_league_from_flag_or_query(league_flag, user_q)
 
-    # Retrieve
-    hits = retrieve(user_q, league=league, season=season, k=k)
+    # Parse seasons string into list
+    seasons = parse_seasons_arg(seasons_arg)
+
+    # Try matchup mode first
+    matchup = parse_match_request(user_q)
+    home_team = matchup["home_team"]
+    away_team = matchup["away_team"]
+
+    if home_team and away_team:
+        # Pull both teams
+        home_profiles, home_fixtures = get_team_context(home_team, league, seasons, k_fixture=12)
+        away_profiles, away_fixtures = get_team_context(away_team, league, seasons, k_fixture=12)
+
+        # If we didn't find anything for one of the teams WITH the provided seasons,
+        # retry once without seasons filter (in case season mismatch like UNKNOWN)
+        if (not home_profiles and not home_fixtures) or (not away_profiles and not away_fixtures):
+            home_profiles, home_fixtures = get_team_context(home_team, league, None, k_fixture=6)
+            away_profiles, away_fixtures = get_team_context(away_team, league, None, k_fixture=6)
+
+        # If we now have data for both, build a matchup parlay answer
+        if (home_profiles or home_fixtures) and (away_profiles or away_fixtures):
+            home_block = {"team_name": home_team, "profiles": home_profiles, "fixtures": home_fixtures}
+            away_block = {"team_name": away_team, "profiles": away_profiles, "fixtures": away_fixtures}
+
+            messages = build_matchup_prompt(user_q, home_block, away_block)
+            resp = client.chat.completions.create(model=CHAT_MODEL, messages=messages, temperature=0.2)
+            answer = resp.choices[0].message.content
+            print("\n" + answer.strip())
+
+            if show_sources:
+                print("\nSources:")
+                for d in (home_profiles[:1] + home_fixtures[:4] + away_profiles[:1] + away_fixtures[:4]):
+                    m = d["meta"]
+                    print("-", m.get("team"),
+                          "|", m.get("doc_type"),
+                          "|", m.get("season"),
+                          "|", m.get("fixture"))
+            return
+
+        # if we fall through here, we just didn't have enough matchup data; continue to generic mode
+
+    # Generic fallback mode:
+    hits = generic_retrieve(user_q, league=league, seasons=seasons, k=k)
+
+    # If no hits with season restriction, retry w/out seasons
+    if not hits and seasons:
+        hits = generic_retrieve(user_q, league=league, seasons=None, k=k)
+
     if not hits:
         print("No results found in the index for your filters. Try widening league/season or re-ingest.")
         return
 
-    # Build prompt and call chat
-    messages = build_prompt(user_q, hits, league)
+    messages = build_generic_prompt(user_q, hits, league)
     resp = client.chat.completions.create(model=CHAT_MODEL, messages=messages, temperature=0.2)
     answer = resp.choices[0].message.content
 
@@ -110,16 +431,22 @@ def chat_once(user_q: str, league_flag: str | None, season: str | None, k: int, 
     if show_sources:
         print("\n" + format_sources(hits))
 
+
 def main():
     ap = argparse.ArgumentParser(description="Terminal RAG over your football KB")
-    ap.add_argument("--league", type=str, default="EPL", help="EPL|LaLiga|SerieA|Bundesliga|Ligue1 (default: EPL)")
-    ap.add_argument("--season", type=str, default=None, help='Season filter like "2024/25" (optional)')
-    ap.add_argument("--topk", type=int, default=12, help="Top-k docs to retrieve (default: 12)")
-    ap.add_argument("--no-sources", action="store_true", help="Hide sources footer")
-    ap.add_argument("--once", type=str, default=None, help="Run a single query then exit")
+    ap.add_argument("--league", type=str, default="EPL",
+                    help="EPL|LaLiga|SerieA|Bundesliga|Ligue1 (default: EPL)")
+    ap.add_argument("--season", type=str, default=None,
+                    help='Comma-separated seasons like "2024/25,2025/26", or leave unset')
+    ap.add_argument("--topk", type=int, default=12,
+                    help="Top-k docs to retrieve for generic mode (default: 12)")
+    ap.add_argument("--no-sources", action="store_true",
+                    help="Hide sources footer")
+    ap.add_argument("--once", type=str, default=None,
+                    help="Run a single query then exit")
     args = ap.parse_args()
 
-    # Quick DB sanity check
+    # DB sanity
     db = chromadb.PersistentClient(path=CHROMA_DIR)
     names = [c.name for c in db.list_collections()]
     if COLLECTION not in names:
@@ -130,6 +457,7 @@ def main():
         chat_once(args.once, args.league, args.season, args.topk, show_sources=not args.no_sources)
         return
 
+    # Interactive loop
     print(f"RAG ready. League={args.league or 'auto'} Season={args.season or 'any'} | type 'exit' to quit.")
     while True:
         try:
@@ -143,6 +471,7 @@ def main():
             print("Bye!")
             break
         chat_once(q, args.league, args.season, args.topk, show_sources=not args.no_sources)
+
 
 if __name__ == "__main__":
     main()

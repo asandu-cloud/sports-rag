@@ -13,16 +13,20 @@ import os
 load_dotenv()
 API_KEY = os.getenv('API-FOOTBALL-KEY')
 LEAGUE_ID = 39  # Premier League
-SEASON = 2025
+SEASON = 2025   # API-Football convention: 2025 means 2025/26 season start
 OUTPUT_DIR = Path('/Users/sanduandrei/Desktop/Betting_RAG/Output/Prem_teams')
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-# --- Fetch all fixture IDs and metadata ---
+# --- Fetch all fixture IDs and metadata (including final score + date) ---
 def get_fixture_info():
     url = "https://v3.football.api-sports.io/fixtures"
     headers = {"x-apisports-key": API_KEY}
-    params = {"league": LEAGUE_ID, "season": SEASON, "status": "FT"}
+    params = {
+        "league": LEAGUE_ID,
+        "season": SEASON,
+        "status": "FT",  # finished matches only
+    }
 
     response = requests.get(url, headers=headers, params=params)
     data = response.json()
@@ -30,23 +34,38 @@ def get_fixture_info():
 
     for f in data.get("response", []):
         fid = f["fixture"]["id"]
+
         home = f["teams"]["home"]["name"]
         away = f["teams"]["away"]["name"]
 
-        # ✅ Extract the final score
         home_goals = f["goals"]["home"]
         away_goals = f["goals"]["away"]
 
+        # 🗓 match datetime in UTC from API
+        # API-Football returns "fixture.date" like "2025-10-20T19:00:00+00:00"
+        raw_dt = f["fixture"]["date"]  # ISO8601
+        # keep both raw and a nice YYYY-MM-DD localizable token
+        # we will store UTC iso and a short date for readability
+        fixture_dt_utc_iso = raw_dt  # keep as-is
+        fixture_dt_short = raw_dt[:10]  # "2025-10-20"
+
+        # 🏁 final score in canonical "HomeTeam X - AwayTeam Y" form
+        final_score_string = f"{home} {home_goals} - {away_goals} {away}"
+
         fixture_map[fid] = {
+            "fixture_id": fid,
             "fixture_name": f"{home} vs {away}",
             "home_team": home,
             "away_team": away,
             "home_goals": home_goals,
             "away_goals": away_goals,
-            "final_score": f"{home_goals}-{away_goals}"
+            "final_score": f"{home_goals}-{away_goals}",  # numeric only, legacy
+            "final_score_string": final_score_string,      # readable, canonical
+            "fixture_date_utc": fixture_dt_utc_iso,
+            "fixture_date": fixture_dt_short,
         }
 
-    print(f"✅ Retrieved {len(fixture_map)} fixtures with names and scores.")
+    print(f"✅ Retrieved {len(fixture_map)} fixtures with names, scores, and dates.")
     return fixture_map
 
 
@@ -60,29 +79,43 @@ def fetch_fixture_team_stats(fixture_id, fixture_info):
     data = response.json()
 
     teams_data = []
+
     for entry in data.get("response", []):
         team_name = entry.get("team", {}).get("name")
         stats_list = entry.get("statistics", [])
 
-        # ✅ Start with fixture context (score, teams, etc.)
+        # ✅ Start with fixture context (score, teams, date, etc.)
         team_stats = {
-            "fixture": fixture_info.get("fixture_name"),
+            "fixture_id": fixture_info.get("fixture_id"),
+            "fixture": fixture_info.get("fixture_name"),  # "Chelsea vs West Ham"
+            "fixture_date_utc": fixture_info.get("fixture_date_utc"),  # full ISO
+            "fixture_date": fixture_info.get("fixture_date"),          # "YYYY-MM-DD"
+
             "team": team_name,
             "home_team": fixture_info.get("home_team"),
             "away_team": fixture_info.get("away_team"),
+
             "home_goals": fixture_info.get("home_goals"),
             "away_goals": fixture_info.get("away_goals"),
-            "final_score": fixture_info.get("final_score"),
+
+            "final_score": fixture_info.get("final_score"),  # "5-1"
+            "final_score_string": fixture_info.get("final_score_string"),
         }
 
+        # Attach stat metrics (possession, shots, corners, etc.)
         for stat in stats_list:
             key = stat.get("type")
             value = stat.get("value")
 
-            # Convert percentages or None types
+            # Convert percentages like "62%" -> 0.62
             if isinstance(value, str) and "%" in value:
-                value = float(value.replace("%", "")) / 100
-            elif value is None:
+                try:
+                    value = float(value.replace("%", "")) / 100.0
+                except:
+                    value = None
+
+            # Normalize None -> 0 for numeric stats; keep None for weird text fields if any
+            if value is None:
                 value = 0
 
             team_stats[key] = value
@@ -107,6 +140,7 @@ def fetch_all_team_fixtures():
             all_team_stats.extend(team_stats)
         except Exception as e:
             print(f"⚠️ Error fetching fixture {fid}: {e}")
+
         time.sleep(0.5)
         if i % 10 == 0:
             print(f"Progress: {i}/{len(fixture_ids)} fixtures processed")
@@ -114,81 +148,88 @@ def fetch_all_team_fixtures():
     return all_team_stats
 
 
-# --- Aggregate per-team averages ---
+# --- Aggregate per-team averages (season-level team profile features) ---
 def aggregate_team_stats(team_fixture_data):
-    import pandas as pd
-
     df = pd.DataFrame(team_fixture_data)
 
-    # --- Convert numeric-like columns ---
+    # Make sure these stay as strings (identifiers / metadata)
+    string_cols = [
+        "fixture_id",
+        "fixture",
+        "fixture_date_utc",
+        "fixture_date",
+        "team",
+        "home_team",
+        "away_team",
+        "final_score",
+        "final_score_string",
+    ]
+
     for col in df.columns:
-        if col not in ["fixture", "team", "home_team", "away_team", "final_score"]:
+        if col not in string_cols:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # --- 1️⃣ Compute team "for" averages ---
+    # --- 1) Team 'for' averages (their own stats per match)
     team_for = (
         df.groupby("team", dropna=False)
-        .mean(numeric_only=True)
-        .reset_index()
-        .rename(columns=lambda c: f"{c}_for" if c not in ["team"] else c)
+          .mean(numeric_only=True)
+          .reset_index()
+          .rename(columns=lambda c: f"{c}_for" if c != "team" else c)
     )
 
-    # --- 2️⃣ Compute team "against" averages ---
+    # --- 2) Team 'against' averages (what opponents did vs them)
+    # pair each fixture with its opponent row
     paired = (
-        df.merge(df, on="fixture", suffixes=("_team", "_opp"))
-        .query("team_team != team_opp")
-        .reset_index(drop=True)
+        df.merge(df, on="fixture_id", suffixes=("_team", "_opp"))
+          .query("team_team != team_opp")
+          .reset_index(drop=True)
     )
 
-    # Keep only opponent stats and who they played against
+    # isolate opponent stats columns
     opp_cols = [c for c in paired.columns if c.endswith("_opp")]
     opp_stats = paired[["team_team"] + opp_cols].copy()
 
-    # Rename cleanly
+    # clean col names: team_team -> team ; <stat>_opp -> <stat>
     opp_stats.columns = ["team"] + [c.replace("_opp", "") for c in opp_cols]
 
-    # --- 💡 Ensure 'team' is the only team column and is 1D ---
+    # drop duplicate columns if merge created collisions
     opp_stats = opp_stats.loc[:, ~opp_stats.columns.duplicated()]
-    opp_stats["team"] = opp_stats["team"].astype(str)
 
-    # Drop any potential multi-index issues
-    opp_stats.columns = opp_stats.columns.get_level_values(0)
-
-    # --- ✅ Group safely ---
     team_against = (
         opp_stats.groupby("team", dropna=False)
-        .mean(numeric_only=True)
-        .reset_index()
-        .rename(columns=lambda c: f"{c}_against" if c not in ["team"] else c)
+                 .mean(numeric_only=True)
+                 .reset_index()
+                 .rename(columns=lambda c: f"{c}_against" if c != "team" else c)
     )
 
-    # --- 3️⃣ Merge both sets of averages ---
+    # --- 3) Merge
     merged = team_for.merge(team_against, on="team", how="left")
 
-    # --- 4️⃣ Round numeric columns for readability ---
+    # --- 4) Round for readability
     numeric_cols = merged.select_dtypes(include=["float", "int"]).columns
-    merged[numeric_cols] = merged[numeric_cols].round(1)
+    merged[numeric_cols] = merged[numeric_cols].round(2)
 
-    # --- 5️⃣ Sort alphabetically ---
+    # --- 5) Sort
     merged = merged.sort_values(by="team").reset_index(drop=True)
 
     return df, merged
 
 
-
 # --- Save outputs ---
 def save_team_outputs(per_fixture_df, aggregate_df):
+    # Per-fixture stats for each team in each game this season
     json_path1 = OUTPUT_DIR / f"team_fixture_stats_{SEASON}.json"
-    csv_path1 = OUTPUT_DIR / f"team_fixture_stats_{SEASON}.csv"
+    csv_path1  = OUTPUT_DIR / f"team_fixture_stats_{SEASON}.csv"
     per_fixture_df.to_json(json_path1, orient="records", indent=4)
     per_fixture_df.to_csv(csv_path1, index=False)
 
+    # Aggregated stats per team across season
     json_path2 = OUTPUT_DIR / f"team_aggregate_stats_{SEASON}.json"
-    csv_path2 = OUTPUT_DIR / f"team_aggregate_stats_{SEASON}.csv"
+    csv_path2  = OUTPUT_DIR / f"team_aggregate_stats_{SEASON}.csv"
     aggregate_df.to_json(json_path2, orient="records", indent=4)
     aggregate_df.to_csv(csv_path2, index=False)
 
-    print(f"💾 Saved {len(per_fixture_df)} fixture team entries and {len(aggregate_df)} team aggregates")
+    print(f"💾 Saved {len(per_fixture_df)} per-fixture team rows and {len(aggregate_df)} team aggregates")
 
 
 # --- Main execution ---
@@ -201,4 +242,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

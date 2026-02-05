@@ -1,0 +1,22 @@
+VARIABLE DICTIONARY (Top-5 Leagues)
+
+corners_for (team fixture): Team's corners won in that fixture.
+corners_against (team fixture): Opponent's corners won in the same fixture (opponent row join).
+corners_pm (team profile): Average corners won per match (season).
+corners_against_pm (team profile): Average corners conceded per match (computed from fixture rows).
+corner_edge_pm (team profile): corners_pm - corners_against_pm. Positive = team typically wins more corners than it concedes.
+
+shots_for / sot_for (team fixture): Shots / shots on target by the team in that fixture.
+shots_against / sot_against (team fixture): Shots / SOT by the opponent in that fixture.
+
+control_index: Possession + pass control composite index (higher = more control).
+dominance_index: Territory + chance quality composite (higher = more dominance).
+
+cards_per_90 (player): Player’s cards per 90 minutes.
+fouls_per_90 (player): Player’s fouls committed per 90.
+aggression_index_norm: Normalized aggression proxy (fouls, duels, cards).
+expected_card_risk / expected_foul_pressure: Model-derived estimates for next match (0–1).
+
+Notes:
+- *_pm means per-match season averages.
+- Fixture-level 'Against' values are joined from the opponent's row for the same fixture.
