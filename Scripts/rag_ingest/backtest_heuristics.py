@@ -18,6 +18,9 @@ def load_team_fixtures(path: str) -> pd.DataFrame:
 
 def to_meta(row: pd.Series, opp_row: pd.Series | None) -> dict:
     corners_against = opp_row["corners"] if opp_row is not None and "corners" in opp_row else None
+    cards_total = row.get("cards_total")
+    if cards_total is None:
+        cards_total = row.get("yellow_cards", 0) + row.get("red_cards", 0)
     return {
         "team": row.get("team"),
         "control_index": row.get("control_index"),
@@ -28,6 +31,7 @@ def to_meta(row: pd.Series, opp_row: pd.Series | None) -> dict:
         "corners_pm": row.get("corners"),
         "corners_against_pm": corners_against,
         "cards_per_90_team": row.get("cards_per_90_team"),
+        "cards_pm": cards_total,  # proxy if per-90 missing
         "fouls_per_90_team": row.get("fouls_per_90_team"),
         "possession": row.get("possession"),
         "shots_for_pm": row.get("shots_total"),
@@ -62,7 +66,13 @@ def evaluate(path: str):
 
         markets = top_markets(home_meta, away_meta, n=3)
         total_goals = float(home_row.get("goals", 0) + away_row.get("goals", 0))
-        total_cards = float(home_row.get("cards_total", 0) + away_row.get("cards_total", 0))
+        # Cards: fall back to yellows+reds if cards_total missing
+        def card_sum(r):
+            if r.get("cards_total") is not None:
+                return float(r.get("cards_total"))
+            return float(r.get("yellow_cards", 0) + r.get("red_cards", 0))
+
+        total_cards = card_sum(home_row) + card_sum(away_row)
 
         # crude checks: if top market is over goals, count hit
         over_pick = next((m for m in markets if "Over 2.5" in m["market"]), None)

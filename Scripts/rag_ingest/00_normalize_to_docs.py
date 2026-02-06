@@ -184,7 +184,9 @@ def doc_from_player_profile(row: dict, season_hint: Optional[str], source_file: 
     uid = make_doc_id([league, season, "player_profile", meta["player_id"]])
     return {"id": uid, "text": text, "metadata": meta}
 
-def doc_from_team_engineered(row: dict, league: str, season: str, source_file: str, opp_row: dict | None = None) -> dict:
+from typing import Optional
+
+def doc_from_team_engineered(row: dict, league: str, season: str, source_file: str, opp_row: Optional[dict] = None) -> dict:
     home_away, opponent = infer_home_away(row.get("fixture", ""), row.get("team", ""))
 
     # Team's own stats
@@ -268,7 +270,7 @@ def doc_from_team_engineered(row: dict, league: str, season: str, source_file: s
 
 
 
-def doc_from_team_profile(row: dict, season_hint: Optional[str], source_file: str, c_against_pm_map: dict | None = None) -> dict:
+def doc_from_team_profile(row: dict, season_hint: Optional[str], source_file: str, c_against_pm_map: Optional[dict] = None) -> dict:
     league = row.get("league")
     season = row.get("season") or season_hint
     team   = row.get("team")
@@ -289,7 +291,7 @@ def doc_from_team_profile(row: dict, season_hint: Optional[str], source_file: st
         f"Corners For/Match:{row.get('corners_pm')} | Corners Against/Match:{c_against_pm}\n"
         f"Corner Edge/Match (For - Against):{corner_edge_pm}\n"
         f"Dominance:{row.get('dominance_index')} Control:{row.get('control_index')} Archetype:{row.get('archetype')}\n"
-        f"Fouls/90:{row.get('fouls_per_90_team')} Cards/90:{row.get('cards_per_90_team')} Cards/Foul:{row.get('cards_per_foul_team')}\n"
+        f"Fouls/90:{row.get('fouls_per_90_team')} Cards/90:{row.get('cards_per_90_team')} Cards/Foul:{row.get('cards_per_foul_team')} Cards/Match:{row.get('cards_pm')}\n"
         f"Tags: {', '.join(row.get('style_tags', []))}\n"
         f"Summary: {row.get('summary_nl')}"
     )

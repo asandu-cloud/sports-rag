@@ -102,13 +102,23 @@ def generic_retrieve(user_q: str,
     db = chromadb.PersistentClient(path=CHROMA_DIR)
     col = db.get_or_create_collection(COLLECTION)
 
-    where = build_where(league, seasons)
     vec = embed([user_q])[0]
-    res = col.query(query_embeddings=[vec], n_results=k, where=where)
 
-    hits: List[Dict] = []
-    for d, m, i in zip(res["documents"][0], res["metadatas"][0], res["ids"][0]):
-        hits.append({"id": i, "text": d, "meta": m})
+    def q_with_extra(extra_filters: List[dict], topk: int) -> List[Dict]:
+        where = build_where(league, seasons, extra_filters=extra_filters)
+        res = col.query(query_embeddings=[vec], n_results=topk, where=where)
+        out = []
+        if res.get("documents"):
+            for d, m, i in zip(res["documents"][0], res["metadatas"][0], res["ids"][0]):
+                out.append({"id": i, "text": d, "meta": m})
+        return out
+
+    # Prefer team profiles then team fixtures before anything else
+    hits = q_with_extra([{"doc_type": "team_profile"}], k)
+    if not hits:
+        hits = q_with_extra([{"doc_type": "team_fixture"}], k)
+    if not hits:
+        hits = q_with_extra([], k)
     return hits
 
 
@@ -175,11 +185,58 @@ def parse_match_request(user_q: str) -> dict:
             return None
         return name.strip().lower()
 
+    # canonical aliases to match stored team names
+    alias_map = {
+        "spurs": "Tottenham",
+        "tottenham hotspur": "Tottenham",
+        "man utd": "Manchester United",
+        "man united": "Manchester United",
+        "manchester utd": "Manchester United",
+        "united": "Manchester United",  # EPL-focused; adjust if multi-league ambiguity
+        "wolves": "Wolves",
+        "nottm forest": "Nottingham Forest",
+        "forest": "Nottingham Forest",
+        "brighton & hove albion": "Brighton",
+    }
+
+    def canonical(name: Optional[str]) -> Optional[str]:
+        if not name:
+            return None
+        key = name.strip().lower()
+        return alias_map.get(key, name.title())
+
     return {
-        "home_team": norm_team(home_team),
-        "away_team": norm_team(away_team),
+        "home_team": canonical(home_team),
+        "away_team": canonical(away_team),
         "home_flag": home_flag,
     }
+
+
+# -------------------------
+# Detect team names when "vs" not explicit
+# -------------------------
+EPL_TEAMS = {
+    "arsenal", "aston villa", "bournemouth", "brentford", "brighton", "burnley",
+    "chelsea", "crystal palace", "everton", "fulham", "leeds", "leicester",
+    "liverpool", "luton", "manchester city", "manchester united", "man united",
+    "man utd", "newcastle", "nottingham forest", "forest", "southampton",
+    "tottenham", "spurs", "west ham", "wolves", "wolverhampton"
+}
+
+def detect_teams_from_query(user_q: str) -> List[str]:
+    q = user_q.lower()
+    found = []
+    for t in EPL_TEAMS:
+        if t in q:
+            found.append(t)
+    # de-dup preserving order of appearance
+    seen = set()
+    ordered = []
+    for t in sorted(found, key=lambda x: q.index(x)):
+        if t not in seen:
+            seen.add(t)
+            ordered.append(t)
+    return ordered[:2]
 
 
 # -------------------------
@@ -218,27 +275,34 @@ def get_team_context(team_name: str,
         profiles.append({"id": i, "text": d, "meta": m})
 
     # ---- team_fixture docs ----
-    vec = embed([f"recent fixtures and style profile for {team_name}"])[0]
-
+    # Fetch a wider set and sort by fixture_date descending to avoid single-match bias
     where_fixture = build_where(
         league,
         seasons,
         extra_filters=[{"doc_type": "team_fixture"}, {"team": team_name}],
     )
 
-    fix_res = col.query(
-        query_embeddings=[vec],
-        n_results=k_fixture,
+    fix_res = col.get(
         where=where_fixture,
+        include=["documents", "metadatas"],
+        limit=200,
     )
 
-    fixtures: List[Dict] = []
-    for d, m, i in zip(
-        fix_res["documents"][0],
-        fix_res["metadatas"][0],
-        fix_res["ids"][0],
-    ):
-        fixtures.append({"id": i, "text": d, "meta": m})
+    fixtures_all: List[Dict] = []
+    # chroma returns ids separately even without include
+    ids = fix_res.get("ids", [])
+    docs = fix_res.get("documents", [])
+    metas = fix_res.get("metadatas", [])
+    for i, d, m in zip(ids, docs, metas):
+        fixtures_all.append({"id": i, "text": d, "meta": m})
+
+    def sort_key(rec):
+        md = rec["meta"]
+        fd = md.get("fixture_date") or ""
+        return fd
+
+    fixtures_all.sort(key=sort_key, reverse=True)
+    fixtures = fixtures_all[:k_fixture]
 
     return profiles, fixtures
 
@@ -280,7 +344,7 @@ def build_matchup_prompt(user_q: str,
     away_meta = meta_from_profile(away_team_block)
     heuristic_lines = []
     if home_meta and away_meta:
-        picks = top_markets(home_meta, away_meta, n=3)
+        picks = top_markets(home_meta, away_meta, n=5)
         for i, p in enumerate(picks, 1):
             heuristic_lines.append(f"Heuristic {i}: {p['market']} | score={p['score']:.2f} | {p['rationale']}")
     heuristic_text = "\n".join(heuristic_lines)
@@ -315,10 +379,17 @@ def build_matchup_prompt(user_q: str,
         "      • Both Teams To Score / Over 2.5 Goals / Under 1.5 Team Goals\n"
         "      • Over X.5 Total Cards / Specific Team Over X.5 Cards\n"
         "      • etc.\n"
-        "   - DO NOT invent player-specific props (shots on target for a named player) unless player info is clearly present in context.\n"
+        "   - DO NOT propose player props unless BOTH:\n"
+        "       • The user explicitly asked for that player, AND\n"
+        "       • The context shows that player with meaningful sample (>=300 minutes or multiple matches).\n"
+        "     Otherwise, avoid player props entirely.\n"
         "   - DO NOT invent numbers that are not explicitly in the context.\n"
         "   - If data is missing for one angle, say so and pick a different angle.\n\n"
+        "   - At least one leg should be NON-GOAL (cards or corners) when the context has those stats; avoid delivering only goal totals unless nothing else is supported.\n"
+        "   - Prefer picking from the HEURISTIC SNAPSHOT shortlist; only propose markets not listed there if the context strongly supports them.\n"
+        "   - Each leg must be justified by at least TWO distinct stats (e.g., form_index_team + control_index, or corners_pm + corners_against_pm). Single-stat or single-H2H justifications are not allowed.\n"
         "   - Prefer evidence that crosses styles: control_index vs aggression_index_norm, corner_edge_pm vs corners_against_pm, form_index_team vs recent goals.\n"
+        "   - DO NOT base legs on a single prior head-to-head. If you mention a past meeting, back it up with current form, control, aggression, and opponent archetype fit.\n"
         "   - Consider HEURISTIC SNAPSHOT above as a prior; you may override if context contradicts it.\n\n"
 
         "3. Tone:\n"
@@ -398,6 +469,12 @@ def chat_once(user_q: str,
     matchup = parse_match_request(user_q)
     home_team = matchup["home_team"]
     away_team = matchup["away_team"]
+
+    # If parsing failed to find two teams, try detection from query tokens
+    if not (home_team and away_team):
+        detected = detect_teams_from_query(user_q)
+        if len(detected) == 2:
+            home_team, away_team = detected[0].title(), detected[1].title()
 
     if home_team and away_team:
         # Pull both teams
