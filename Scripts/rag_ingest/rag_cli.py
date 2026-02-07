@@ -4,11 +4,27 @@
 import os
 import sys
 import argparse
+from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 import chromadb
 from openai import OpenAI
 from dotenv import load_dotenv
 from heuristics import top_markets
+
+# Make project root importable for graph modules
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.append(str(ROOT))
+sys.path.append(str(ROOT / "Scripts"))
+
+from graph.query_graph import get_matchup_snapshot, snapshot_to_text
+
+# Simple in-process memory for interactive use (last matchup + parlay)
+memory = {
+    "last_home": None,
+    "last_away": None,
+    "last_parlay": None,
+    "last_query": None,
+}
 
 # ---- CONFIG ----
 CHROMA_DIR = "/Users/sanduandrei/Desktop/Betting_RAG/Index/chroma"
@@ -239,6 +255,16 @@ def detect_teams_from_query(user_q: str) -> List[str]:
     return ordered[:2]
 
 
+def is_add_leg_request(user_q: str) -> bool:
+    q = user_q.lower()
+    return any(phrase in q for phrase in [
+        "add one more leg",
+        "add another leg",
+        "one more leg",
+        "add a leg",
+    ])
+
+
 # -------------------------
 # Focused retrieval for a single team
 # -------------------------
@@ -313,7 +339,8 @@ def get_team_context(team_name: str,
 # -------------------------
 def build_matchup_prompt(user_q: str,
                          home_team_block: dict,
-                         away_team_block: dict) -> List[Dict]:
+                         away_team_block: dict,
+                         graph_snapshot_text: Optional[str] = None) -> List[Dict]:
     """
     home_team_block = {
         "team_name": "leeds",
@@ -354,6 +381,7 @@ def build_matchup_prompt(user_q: str,
         + pack(home_team_block)
         + "\n----- AWAY TEAM BLOCK -----\n"
         + pack(away_team_block)
+        + ("\n----- GRAPH SNAPSHOT -----\n" + (graph_snapshot_text or "none"))
         + ("\n----- HEURISTIC SNAPSHOT -----\n" + heuristic_text if heuristic_text else "")
     )
 
@@ -466,6 +494,15 @@ def chat_once(user_q: str,
     seasons = parse_seasons_arg(seasons_arg)
 
     # Try matchup mode first
+    # Memory-assisted "add leg" handling
+    add_leg = is_add_leg_request(user_q)
+    if add_leg and memory["last_home"] and memory["last_away"]:
+        user_q = (
+            f"Add one more leg to previous parlay for {memory['last_home']} vs {memory['last_away']}."
+            f" Previous parlay:\n{memory['last_parlay'] or 'n/a'}\n"
+            "Return only the new leg, distinct from prior legs, still multi-signal justified."
+        )
+
     matchup = parse_match_request(user_q)
     home_team = matchup["home_team"]
     away_team = matchup["away_team"]
@@ -477,6 +514,10 @@ def chat_once(user_q: str,
             home_team, away_team = detected[0].title(), detected[1].title()
 
     if home_team and away_team:
+        # Graph snapshot (cohort aggregates)
+        graph_snap = get_matchup_snapshot(home_team, away_team, last_n=6)
+        graph_snap_text = snapshot_to_text(graph_snap) if graph_snap else "Graph snapshot unavailable."
+
         # Pull both teams
         home_profiles, home_fixtures = get_team_context(home_team, league, seasons, k_fixture=12)
         away_profiles, away_fixtures = get_team_context(away_team, league, seasons, k_fixture=12)
@@ -492,10 +533,16 @@ def chat_once(user_q: str,
             home_block = {"team_name": home_team, "profiles": home_profiles, "fixtures": home_fixtures}
             away_block = {"team_name": away_team, "profiles": away_profiles, "fixtures": away_fixtures}
 
-            messages = build_matchup_prompt(user_q, home_block, away_block)
+            messages = build_matchup_prompt(user_q, home_block, away_block, graph_snapshot_text=graph_snap_text)
             resp = client.chat.completions.create(model=CHAT_MODEL, messages=messages, temperature=0.2)
             answer = resp.choices[0].message.content
             print("\n" + answer.strip())
+
+            # update memory
+            memory["last_home"] = home_team
+            memory["last_away"] = away_team
+            memory["last_parlay"] = answer.strip()
+            memory["last_query"] = user_q
 
             if show_sources:
                 print("\nSources:")

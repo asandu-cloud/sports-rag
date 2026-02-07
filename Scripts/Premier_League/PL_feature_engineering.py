@@ -612,6 +612,7 @@ def run_feature_engineering():
         "aggression_index_raw", "aggression_index_norm",
         "avg_goals_last_5", "avg_cards_last_5", "form_index_team",
     ]
+    
     for col in expected_final_cols:
         if col not in team_df.columns:
             team_df[col] = 0 if col not in [
