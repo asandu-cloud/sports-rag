@@ -14,3 +14,6 @@ __pycache__/
 
 # Hide output
 /Output
+
+# Hide local vector DB artifacts
+Index/chroma/
