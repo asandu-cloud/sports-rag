@@ -17,3 +17,6 @@ __pycache__/
 
 # Hide local vector DB artifacts
 Index/chroma/
+/Index/chroma/**
+/Index/chroma.sqlite3
+*.sqlite3
