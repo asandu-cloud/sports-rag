@@ -4,12 +4,17 @@
 import os
 import sys
 import argparse
+import re
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
+import requests
 import chromadb
 from openai import OpenAI
 from dotenv import load_dotenv
 from heuristics import top_markets
+
+
+load_dotenv()
 
 # Make project root importable for graph modules
 ROOT = Path(__file__).resolve().parents[2]
@@ -31,8 +36,17 @@ CHROMA_DIR = "/Users/sanduandrei/Desktop/Betting_RAG/Index/chroma"
 COLLECTION = "football_top5"
 EMBED_MODEL = "text-embedding-3-large"
 CHAT_MODEL = "gpt-5.2"  # choose your chat model here
+ODDS_API_BASE = "https://api.the-odds-api.com/v4"
+# Key is expected from process environment under this exact name.
+ODDS_API_KEY = os.environ.get("ODDS-API")
+LEAGUE_TO_ODDS_SPORT = {
+    "EPL": "soccer_epl",
+    "LaLiga": "soccer_spain_la_liga",
+    "SerieA": "soccer_italy_serie_a",
+    "Bundesliga": "soccer_germany_bundesliga",
+    "Ligue1": "soccer_france_ligue_one",
+}
 
-load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
@@ -136,6 +150,177 @@ def generic_retrieve(user_q: str,
     if not hits:
         hits = q_with_extra([], k)
     return hits
+
+
+def extract_target_multiplier(user_q: str, default: float = 3.0) -> float:
+    m = re.search(r"(\d+(?:\.\d+)?)\s*x", user_q.lower())
+    if not m:
+        return default
+    try:
+        return float(m.group(1))
+    except ValueError:
+        return default
+
+
+def is_odds_parlay_request(user_q: str) -> bool:
+    q = user_q.lower()
+    has_parlay = "parlay" in q
+    has_odds = "odds" in q or "odd" in q or "x" in q
+    has_time = "today" in q or "tonight" in q or "upcoming" in q or "tomorrow" in q
+    return has_parlay and (has_odds or has_time)
+
+
+def is_schedule_request(user_q: str) -> bool:
+    q = user_q.lower()
+    schedule_terms = ["what matches", "fixtures", "games are on", "matches are on", "who plays", "schedule"]
+    time_terms = ["today", "tonight", "tomorrow", "upcoming"]
+    return any(t in q for t in schedule_terms) and any(t in q for t in time_terms)
+
+
+def fetch_upcoming_odds(league: Optional[str], markets: str = "h2h", max_events: int = 10) -> Tuple[List[Dict], Optional[str]]:
+    if not ODDS_API_KEY:
+        return [], "Missing ODDS API key (ODDS-API)."
+
+    sport_key = LEAGUE_TO_ODDS_SPORT.get(league or "EPL", "soccer_epl")
+    url = f"{ODDS_API_BASE}/sports/{sport_key}/odds"
+    params = {
+        "api_key": ODDS_API_KEY,
+        "regions": "uk,eu,us",
+        "markets": markets,
+        "oddsFormat": "decimal",
+        "dateFormat": "iso",
+    }
+    try:
+        r = requests.get(url, params=params, timeout=20)
+        if r.status_code != 200:
+            body = (r.text or "")[:500]
+            return [], f"Odds API HTTP {r.status_code}: {body}"
+        rows = r.json()
+    except Exception as exc:
+        return [], f"Odds API request failed: {exc}"
+
+    parsed: List[Dict] = []
+    for ev in rows:
+        best_prices: Dict[str, Dict] = {}
+        for bm in ev.get("bookmakers", []):
+            bm_title = bm.get("title")
+            for mk in bm.get("markets", []):
+                if mk.get("key") != "h2h":
+                    continue
+                for out in mk.get("outcomes", []):
+                    name = out.get("name")
+                    price = out.get("price")
+                    try:
+                        price = float(price)
+                    except (TypeError, ValueError):
+                        continue
+                    if name not in best_prices or price > best_prices[name]["price"]:
+                        best_prices[name] = {"price": price, "bookmaker": bm_title}
+
+        parsed.append({
+            "id": ev.get("id"),
+            "commence_time": ev.get("commence_time"),
+            "home_team": ev.get("home_team"),
+            "away_team": ev.get("away_team"),
+            "best_prices": best_prices,
+        })
+
+    parsed.sort(key=lambda x: x.get("commence_time") or "")
+    out = parsed[:max_events]
+    if not out:
+        return [], "Odds API returned 0 upcoming events for this league/region."
+    return out, None
+
+
+def format_upcoming_odds_text(events: List[Dict]) -> str:
+    if not events:
+        return "No upcoming odds events available."
+    lines = []
+    for ev in events:
+        home = ev.get("home_team")
+        away = ev.get("away_team")
+        when = ev.get("commence_time")
+        bp = ev.get("best_prices", {})
+        h_odds = bp.get(home, {}).get("price")
+        a_odds = bp.get(away, {}).get("price")
+        d_odds = bp.get("Draw", {}).get("price")
+        lines.append(
+            f"{home} vs {away} | {when} | H:{h_odds} D:{d_odds} A:{a_odds}"
+        )
+    return "\n".join(lines)
+
+
+def format_fixture_list(events: List[Dict]) -> str:
+    if not events:
+        return "No upcoming fixtures found."
+    lines = []
+    for i, ev in enumerate(events, start=1):
+        lines.append(f"{i}. {ev.get('home_team')} vs {ev.get('away_team')} | {ev.get('commence_time')}")
+    return "\n".join(lines)
+
+
+def get_team_profile_snippets_for_events(events: List[Dict],
+                                         league: Optional[str],
+                                         seasons: Optional[List[str]],
+                                         per_team: int = 1,
+                                         limit_teams: int = 12) -> List[Dict]:
+    db = chromadb.PersistentClient(path=CHROMA_DIR)
+    col = db.get_or_create_collection(COLLECTION)
+
+    teams: List[str] = []
+    for ev in events:
+        for t in [ev.get("home_team"), ev.get("away_team")]:
+            if t and t not in teams:
+                teams.append(t)
+    teams = teams[:limit_teams]
+
+    out: List[Dict] = []
+    for team in teams:
+        variants = list({team, team.lower(), team.title()})
+        picked = 0
+        for tv in variants:
+            where = build_where(league, seasons, extra_filters=[{"doc_type": "team_profile"}, {"team": tv}])
+            res = col.get(where=where, include=["documents", "metadatas"], limit=per_team)
+            for i, d, m in zip(res.get("ids", []), res.get("documents", []), res.get("metadatas", [])):
+                out.append({"id": i, "text": d, "meta": m})
+                picked += 1
+            if picked >= per_team:
+                break
+    return out
+
+
+def build_odds_parlay_prompt(user_q: str,
+                             odds_text: str,
+                             profile_docs: List[Dict],
+                             target_multiplier: float) -> List[Dict]:
+    prof_text = "\n\n".join(d["text"] for d in profile_docs[:12])
+
+    system_msg = (
+        "You are a football betting analyst.\n"
+        "Use internal reasoning, but output only concise conclusions with numeric evidence.\n"
+        "Build a same-day parlay from the provided upcoming odds board.\n"
+        f"Target combined decimal odds should be close to or above {target_multiplier:.2f}x.\n"
+        "Use team profile stats to select higher-probability legs, not just longest prices.\n"
+        "Each leg must include at least 2 independent numeric signals.\n"
+        "Prefer corners/cards/ML where justified; avoid single-match recency logic.\n"
+        "Do not invent lines or odds not shown in the board.\n"
+        "Output format:\n"
+        "- Leg 1: <market + line + odds>\n"
+        "  Evidence: <2-3 short numeric points>\n"
+        "- Leg 2: ...\n"
+        "- Leg 3: ...\n"
+        "- Estimated combined odds: <number>\n"
+        "- Why this parlay: <2-4 concise sentences>\n"
+    )
+    user_msg = (
+        f"User request: {user_q}\n\n"
+        "Upcoming odds board:\n"
+        f"{odds_text}\n\n"
+        "Team profile context:\n"
+        f"{prof_text}\n\n"
+        "Build the best parlay for the request."
+    )
+    return [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}]
 
 
 # -------------------------
@@ -553,6 +738,38 @@ def chat_once(user_q: str,
 
     # Parse seasons string into list
     seasons = parse_seasons_arg(seasons_arg)
+
+    # Odds schedule mode: "What matches are on today?"
+    if is_schedule_request(user_q):
+        events, err = fetch_upcoming_odds(league, markets="h2h", max_events=20)
+        if err:
+            print(f"Could not fetch upcoming fixtures: {err}")
+            return
+        print("\nUpcoming fixtures:")
+        print(format_fixture_list(events))
+        return
+
+    # Odds-first mode for requests like "make me a 3x odds parlay from today's matches"
+    if is_odds_parlay_request(user_q):
+        target_mult = extract_target_multiplier(user_q, default=3.0)
+        events, err = fetch_upcoming_odds(league, markets="h2h", max_events=12)
+        if events:
+            odds_text = format_upcoming_odds_text(events)
+            prof_docs = get_team_profile_snippets_for_events(events, league, seasons, per_team=1)
+            messages = build_odds_parlay_prompt(user_q, odds_text, prof_docs, target_mult)
+            resp = client.chat.completions.create(model=CHAT_MODEL, messages=messages, temperature=0.2)
+            answer = resp.choices[0].message.content
+            print("\n" + answer.strip())
+            if show_sources:
+                print("\nSources:")
+                print("- odds_api | upcoming_h2h_board")
+                for d in prof_docs[:10]:
+                    m = d["meta"]
+                    print("-", m.get("team"), "|", m.get("doc_type"), "|", m.get("season"))
+            return
+        else:
+            print(f"Odds API unavailable for parlay mode: {err}")
+            print("Falling back to standard RAG flow.")
 
     # Try matchup mode first
     # Memory-assisted "add leg" handling
