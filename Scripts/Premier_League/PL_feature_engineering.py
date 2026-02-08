@@ -311,6 +311,16 @@ def merge_team_with_fixture(team_df: pd.DataFrame, fixture_df: pd.DataFrame) -> 
         how="left"
     )
 
+    # 3b. Resolve duplicate columns (player aggregation vs fixture stats) by preferring fixture stats, fallback to player agg
+    for col in numeric_cols:
+        cx, cy = f"{col}_x", f"{col}_y"
+        if cx in merged.columns or cy in merged.columns:
+            merged[col] = merged.get(cy)
+            if col in merged and merged[col].isna().any() and cx in merged:
+                merged[col] = merged[col].fillna(merged[cx])
+    # Drop suffix columns
+    merged.drop(columns=[c for c in merged.columns if c.endswith("_x") or c.endswith("_y")], inplace=True, errors="ignore")
+
     # 4. Clean helper cols
     merged.drop(columns=["fixture_norm", "team_norm"], inplace=True, errors="ignore")
 

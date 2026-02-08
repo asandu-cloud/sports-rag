@@ -30,7 +30,7 @@ memory = {
 CHROMA_DIR = "/Users/sanduandrei/Desktop/Betting_RAG/Index/chroma"
 COLLECTION = "football_top5"
 EMBED_MODEL = "text-embedding-3-large"
-CHAT_MODEL = "gpt-4o"  # choose your chat model here
+CHAT_MODEL = "gpt-5.2"  # choose your chat model here
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -333,6 +333,53 @@ def get_team_context(team_name: str,
     return profiles, fixtures
 
 
+def get_team_player_context(team_name: str,
+                            league: Optional[str],
+                            seasons: Optional[List[str]],
+                            k_player_profile: int = 6,
+                            k_player_fixture: int = 8) -> Tuple[List[Dict], List[Dict]]:
+    """
+    Returns:
+    - player_profiles: list of {id, text, meta} for player_profile docs scoped to team
+    - player_fixtures: list of {id, text, meta} for player_fixture docs scoped to team
+    """
+    db = chromadb.PersistentClient(path=CHROMA_DIR)
+    col = db.get_or_create_collection(COLLECTION)
+
+    # Player docs in index currently use lowercase team metadata;
+    # team docs use title-case. Query both forms and merge.
+    team_variants = list({team_name, team_name.lower(), team_name.title()})
+
+    player_profiles_map: Dict[str, Dict] = {}
+    for tv in team_variants:
+        where_player_profile = build_where(
+            league,
+            seasons,
+            extra_filters=[{"doc_type": "player_profile"}, {"team": tv}],
+        )
+        prof_res = col.get(where=where_player_profile, include=["documents", "metadatas"], limit=k_player_profile)
+        for i, d, m in zip(prof_res.get("ids", []), prof_res.get("documents", []), prof_res.get("metadatas", [])):
+            player_profiles_map[i] = {"id": i, "text": d, "meta": m}
+
+    # semantic query helps bring form-relevant player fixture docs
+    vec = embed([f"recent player form, shots on target, cards, fouls for {team_name}"])[0]
+    player_fixtures_map: Dict[str, Dict] = {}
+    for tv in team_variants:
+        where_player_fixture = build_where(
+            league,
+            seasons,
+            extra_filters=[{"doc_type": "player_fixture"}, {"team": tv}],
+        )
+        fx_res = col.query(query_embeddings=[vec], n_results=k_player_fixture, where=where_player_fixture)
+        if fx_res.get("documents"):
+            for d, m, i in zip(fx_res["documents"][0], fx_res["metadatas"][0], fx_res["ids"][0]):
+                player_fixtures_map[i] = {"id": i, "text": d, "meta": m}
+
+    player_profiles = list(player_profiles_map.values())[:k_player_profile]
+    player_fixtures = list(player_fixtures_map.values())[:k_player_fixture]
+    return player_profiles, player_fixtures
+
+
 
 # -------------------------
 # Build matchup prompt (two-team parlay reasoning)
@@ -340,6 +387,8 @@ def get_team_context(team_name: str,
 def build_matchup_prompt(user_q: str,
                          home_team_block: dict,
                          away_team_block: dict,
+                         home_player_block: Optional[dict] = None,
+                         away_player_block: Optional[dict] = None,
                          graph_snapshot_text: Optional[str] = None) -> List[Dict]:
     """
     home_team_block = {
@@ -358,6 +407,17 @@ def build_matchup_prompt(user_q: str,
         return (
             f"=== {team.upper()} SEASON PROFILE ===\n{prof_txt}\n\n"
             f"=== {team.upper()} RECENT FIXTURES ===\n{fixt_txt}\n"
+        )
+
+    def pack_players(block):
+        if not block:
+            return "No player context provided."
+        team = block["team_name"]
+        p_prof = "\n\n".join(d["text"] for d in block["profiles"][:3])
+        p_fix = "\n\n".join(d["text"] for d in block["fixtures"][:4])
+        return (
+            f"=== {team.upper()} PLAYER PROFILES ===\n{p_prof}\n\n"
+            f"=== {team.upper()} PLAYER FIXTURES ===\n{p_fix}\n"
         )
 
     # Heuristic preview from team profiles (uses metadata to prime the LLM)
@@ -381,48 +441,47 @@ def build_matchup_prompt(user_q: str,
         + pack(home_team_block)
         + "\n----- AWAY TEAM BLOCK -----\n"
         + pack(away_team_block)
+        + "\n----- HOME PLAYER BLOCK -----\n"
+        + pack_players(home_player_block)
+        + "\n----- AWAY PLAYER BLOCK -----\n"
+        + pack_players(away_player_block)
         + ("\n----- GRAPH SNAPSHOT -----\n" + (graph_snapshot_text or "none"))
         + ("\n----- HEURISTIC SNAPSHOT -----\n" + heuristic_text if heuristic_text else "")
     )
 
     system_msg = (
         "You are building a SAME-GAME PARLAY for sports betting.\n"
-        "You MUST reason about the MATCHUP between the two teams, not just historical averages in isolation.\n\n"
-
-        "INSTRUCTIONS:\n"
-        "1. Matchup reasoning:\n"
-        "   - Compare Home Team's attacking output vs Away Team's defensive concessions.\n"
-        "   - Compare Home Team's corners_pm vs Away Team's corners_against_pm (and vice versa).\n"
-        "   - Compare fouls_per_90_team and cards_per_90_team between both teams to justify card-related legs.\n"
-        "   - Use corner_edge_pm (corners_for - corners_against) to argue which team tends to dominate corners.\n"
-        "   - Use goals_for_pm, xG, goals_conceded trends from recent fixtures to justify BTTS / Over / Under.\n"
-        "   - Explicitly say things like: 'Leeds typically wins X corners per match and West Ham typically concedes Y corners per match, so Leeds Over corners / Leeds most corners is live'.\n\n"
-
-        "2. Output requirements:\n"
-        "   - Return 2 or 3 legs max (user might say 2-leg, honor that).\n"
-        "   - Each leg MUST be matchup-informed. NO generic 'Team under 1.5' unless you justify it using BOTH sides.\n"
-        "   - For each leg, explain in 1-2 sentences using actual numeric stats from the context (use exact numbers like 'corners_pm 7.8', 'corners_against_pm 6.1', 'cards_per_90_team 2.0').\n"
-        "   - Legs should be realistic sportsbook-style markets: "
-        "      • Team Over X.5 Corners / Team To Win Corners\n"
-        "      • Both Teams To Score / Over 2.5 Goals / Under 1.5 Team Goals\n"
-        "      • Over X.5 Total Cards / Specific Team Over X.5 Cards\n"
-        "      • etc.\n"
-        "   - DO NOT propose player props unless BOTH:\n"
-        "       • The user explicitly asked for that player, AND\n"
-        "       • The context shows that player with meaningful sample (>=300 minutes or multiple matches).\n"
-        "     Otherwise, avoid player props entirely.\n"
-        "   - DO NOT invent numbers that are not explicitly in the context.\n"
-        "   - If data is missing for one angle, say so and pick a different angle.\n\n"
-        "   - At least one leg should be NON-GOAL (cards or corners) when the context has those stats; avoid delivering only goal totals unless nothing else is supported.\n"
-        "   - Prefer picking from the HEURISTIC SNAPSHOT shortlist; only propose markets not listed there if the context strongly supports them.\n"
-        "   - Each leg must be justified by at least TWO distinct stats (e.g., form_index_team + control_index, or corners_pm + corners_against_pm). Single-stat or single-H2H justifications are not allowed.\n"
-        "   - Prefer evidence that crosses styles: control_index vs aggression_index_norm, corner_edge_pm vs corners_against_pm, form_index_team vs recent goals.\n"
-        "   - DO NOT base legs on a single prior head-to-head. If you mention a past meeting, back it up with current form, control, aggression, and opponent archetype fit.\n"
-        "   - Consider HEURISTIC SNAPSHOT above as a prior; you may override if context contradicts it.\n\n"
-
-        "3. Tone:\n"
-        "   - Present the final answer as 'Leg 1, Leg 2, (Leg 3 ... if user asked for 3)'.\n"
-        "   - After the legs, include a short 'Why this parlay makes sense' section summarizing the interaction of styles.\n"
+        "Use chain-of-thought style analysis internally, but do NOT expose hidden reasoning.\n"
+        "Return only concise, evidence-backed conclusions.\n\n"
+        "REASONING PROTOCOL (internal):\n"
+        "1. Build a candidate slate from goals, corners, cards, and ML/double-chance angles.\n"
+        "2. Score each candidate using multi-signal evidence:\n"
+        "   - form_index_team, control_index, aggression_index_norm\n"
+        "   - corners_pm vs corners_against_pm and corner_edge_pm\n"
+        "   - cards_per_90_team and fouls_per_90_team\n"
+        "   - graph snapshot cohorts and heuristic snapshot\n"
+        "3. Reject weak candidates:\n"
+        "   - single-stat rationale\n"
+        "   - single prior H2H as main justification\n"
+        "   - missing numeric support from context\n"
+        "4. Select best 2-3 legs with diversified market types when data supports it.\n\n"
+        "RULES:\n"
+        "- Each leg MUST cite at least 2 independent numeric signals.\n"
+        "- At least one NON-goal leg (corners/cards) when available.\n"
+        "- Prefer shortlist markets from HEURISTIC SNAPSHOT unless contradicted by stronger evidence.\n"
+        "- DO NOT invent numbers. If data is missing, say so.\n"
+        "- Actively evaluate player props when player context exists, and pick the top-N most probable props requested by the user.\n"
+        "- Use sample-size safety for player props: avoid tiny-sample players unless no better evidence exists.\n"
+        "- Rank player props by multi-signal support (recent form + role/usage + opponent profile), not single-match recency.\n"
+        "- If mentioning past H2H, treat it as secondary evidence only.\n\n"
+        "OUTPUT FORMAT:\n"
+        "- Leg 1: <market>\n"
+        "  Evidence: <2-3 short numeric points>\n"
+        "- Leg 2: <market>\n"
+        "  Evidence: <2-3 short numeric points>\n"
+        "- Leg 3: <market>\n"
+        "  Evidence: <2-3 short numeric points>\n"
+        "- Why this parlay makes sense: <2-4 concise sentences on style/form matchup>\n"
     )
 
     user_msg = (
@@ -447,11 +506,13 @@ def build_generic_prompt(user_q: str,
                          league: Optional[str]) -> List[Dict]:
     lead = (
         "You are a football analyst.\n"
+        "Use chain-of-thought analysis internally, but do not reveal hidden reasoning.\n"
+        "Return concise, evidence-first answers only.\n"
         "- Only use the provided context.\n"
-        "- Quote exact numbers where possible (e.g. cards_per_90_team, corners_against_pm, etc.).\n"
+        "- Quote exact numbers where possible (e.g. cards_per_90_team, corners_against_pm, control_index, form_index_team).\n"
         "- Stay in the given league unless told otherwise.\n"
         "- If data is missing, say you don't have it.\n"
-        "- If predicting a fixture outcome, explain reasoning using the stats you see.\n"
+        "- If predicting a fixture outcome, justify with at least 2 numeric signals and avoid single-match recency.\n"
     )
     if league:
         lead += f"\nThis league is {league}. Do not mix in other leagues.\n"
@@ -521,19 +582,40 @@ def chat_once(user_q: str,
         # Pull both teams
         home_profiles, home_fixtures = get_team_context(home_team, league, seasons, k_fixture=12)
         away_profiles, away_fixtures = get_team_context(away_team, league, seasons, k_fixture=12)
+        home_player_profiles, home_player_fixtures = get_team_player_context(home_team, league, seasons)
+        away_player_profiles, away_player_fixtures = get_team_player_context(away_team, league, seasons)
 
         # If we didn't find anything for one of the teams WITH the provided seasons,
         # retry once without seasons filter (in case season mismatch like UNKNOWN)
         if (not home_profiles and not home_fixtures) or (not away_profiles and not away_fixtures):
             home_profiles, home_fixtures = get_team_context(home_team, league, None, k_fixture=6)
             away_profiles, away_fixtures = get_team_context(away_team, league, None, k_fixture=6)
+            home_player_profiles, home_player_fixtures = get_team_player_context(home_team, league, None)
+            away_player_profiles, away_player_fixtures = get_team_player_context(away_team, league, None)
 
         # If we now have data for both, build a matchup parlay answer
         if (home_profiles or home_fixtures) and (away_profiles or away_fixtures):
             home_block = {"team_name": home_team, "profiles": home_profiles, "fixtures": home_fixtures}
             away_block = {"team_name": away_team, "profiles": away_profiles, "fixtures": away_fixtures}
+            home_player_block = {
+                "team_name": home_team,
+                "profiles": home_player_profiles,
+                "fixtures": home_player_fixtures,
+            }
+            away_player_block = {
+                "team_name": away_team,
+                "profiles": away_player_profiles,
+                "fixtures": away_player_fixtures,
+            }
 
-            messages = build_matchup_prompt(user_q, home_block, away_block, graph_snapshot_text=graph_snap_text)
+            messages = build_matchup_prompt(
+                user_q,
+                home_block,
+                away_block,
+                home_player_block=home_player_block,
+                away_player_block=away_player_block,
+                graph_snapshot_text=graph_snap_text,
+            )
             resp = client.chat.completions.create(model=CHAT_MODEL, messages=messages, temperature=0.2)
             answer = resp.choices[0].message.content
             print("\n" + answer.strip())
@@ -546,7 +628,16 @@ def chat_once(user_q: str,
 
             if show_sources:
                 print("\nSources:")
-                for d in (home_profiles[:1] + home_fixtures[:4] + away_profiles[:1] + away_fixtures[:4]):
+                for d in (
+                    home_profiles[:1]
+                    + home_fixtures[:3]
+                    + away_profiles[:1]
+                    + away_fixtures[:3]
+                    + home_player_profiles[:2]
+                    + home_player_fixtures[:2]
+                    + away_player_profiles[:2]
+                    + away_player_fixtures[:2]
+                ):
                     m = d["meta"]
                     print("-", m.get("team"),
                           "|", m.get("doc_type"),

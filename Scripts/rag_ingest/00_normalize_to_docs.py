@@ -424,6 +424,20 @@ def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
     team_rows: List[dict] = []
     if f_team_eng:
         team_rows = read_json(str(f_team_eng)) if f_team_eng.suffix == ".json" else read_csv_rows(str(f_team_eng))
+        # numeric cleanup for key stats
+        num_keys = [
+            "yellow_cards", "red_cards", "cards_per_90_team", "fouls_per_90_team",
+            "corners", "expected_goals", "goals_prevented",
+            "shots_on", "shots_total", "control_index", "form_index_team",
+            "aggression_index_norm",
+        ]
+        for r in team_rows:
+            for k in num_keys:
+                if k in r:
+                    try:
+                        r[k] = float(r[k])
+                    except Exception:
+                        pass
 
     # Opponent-join map and conceded-corners per match (season-level) from engineered rows
     c_against_pm_map = compute_corners_against_pm(team_rows) if team_rows else {}
@@ -451,6 +465,13 @@ def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
     if f_player_eng:
         rows = read_json(str(f_player_eng)) if f_player_eng.suffix == ".json" else read_csv_rows(str(f_player_eng))
         for r in rows:
+            for k in ["yellow_cards", "red_cards", "cards_per_90", "fouls_per_90",
+                      "shots_on_target_ratio", "goal_conversion_rate", "shots_on", "shots_total"]:
+                if k in r:
+                    try:
+                        r[k] = float(r[k])
+                    except Exception:
+                        pass
             docs.append(
                 doc_from_player_engineered(
                     r,
