@@ -5,6 +5,8 @@ import os
 import sys
 import argparse
 import re
+import unicodedata
+from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 import requests
@@ -12,6 +14,13 @@ import chromadb
 from openai import OpenAI
 from dotenv import load_dotenv
 from heuristics import top_markets
+from zoneinfo import ZoneInfo
+from odds_parlay_solver import (
+    OddsLeg,
+    combined_odds,
+    extract_h2h_candidates,
+    select_best_parlay,
+)
 
 
 load_dotenv()
@@ -29,6 +38,8 @@ memory = {
     "last_away": None,
     "last_parlay": None,
     "last_query": None,
+    "last_answer": None,
+    "history": [],
 }
 
 # ---- CONFIG ----
@@ -118,6 +129,140 @@ def build_where(league: Optional[str],
     return {"$and": clauses}
 
 
+def add_chat_turn(user_q: str, assistant_a: str, max_turns: int = 10) -> None:
+    hist = memory.get("history") or []
+    hist.append({"user": user_q, "assistant": assistant_a})
+    memory["history"] = hist[-max_turns:]
+    memory["last_query"] = user_q
+    memory["last_answer"] = assistant_a
+
+
+def render_recent_chat_context(max_turns: int = 3) -> str:
+    hist = memory.get("history") or []
+    if not hist:
+        return "None."
+    lines = []
+    for i, turn in enumerate(hist[-max_turns:], start=1):
+        u = (turn.get("user") or "").strip()
+        a = (turn.get("assistant") or "").strip()
+        lines.append(f"Turn {i} User: {u}")
+        lines.append(f"Turn {i} Assistant: {a}")
+    return "\n".join(lines)
+
+
+def normalize_text_for_match(value: str) -> str:
+    """
+    Accent-insensitive, punctuation-light normalization used for matching
+    free-text player mentions (e.g., Ekitike -> Ekitike).
+    """
+    if not value:
+        return ""
+    s = unicodedata.normalize("NFKD", value)
+    s = "".join(ch for ch in s if not unicodedata.combining(ch))
+    s = s.lower()
+    s = re.sub(r"[^a-z0-9\s]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def get_mentioned_player_docs(user_q: str,
+                              league: Optional[str],
+                              seasons: Optional[List[str]],
+                              max_players: int = 3,
+                              per_player_profiles: int = 1,
+                              per_player_fixtures: int = 3) -> List[Dict]:
+    """
+    Pull player docs when the query mentions a player name with accent variance.
+    Example: "Ekitike" should match stored "Ekitiké".
+    """
+    q_norm = normalize_text_for_match(user_q)
+    if not q_norm:
+        return []
+
+    db = chromadb.PersistentClient(path=CHROMA_DIR)
+    col = db.get_or_create_collection(COLLECTION)
+
+    def collect_candidate_names(use_seasons: Optional[List[str]]) -> List[str]:
+        where_profiles = build_where(league, use_seasons, extra_filters=[{"doc_type": "player_profile"}])
+        res = col.get(where=where_profiles, include=["metadatas"], limit=10000)
+        names: List[str] = []
+        seen = set()
+        for m in res.get("metadatas", []):
+            name = (m or {}).get("player_name")
+            if name and name not in seen:
+                seen.add(name)
+                names.append(name)
+        return names
+
+    def match_names(names: List[str]) -> List[str]:
+        scored: List[Tuple[int, str]] = []
+        for name in names:
+            n_norm = normalize_text_for_match(name)
+            if not n_norm:
+                continue
+
+            hit = False
+            # Full-name / multi-token mention
+            if n_norm in q_norm:
+                hit = True
+            else:
+                # Surname fallback for user prompts that provide only last name.
+                tokens = [t for t in n_norm.split(" ") if len(t) >= 3]
+                if tokens:
+                    last = tokens[-1]
+                    if re.search(rf"\b{re.escape(last)}\b", q_norm):
+                        hit = True
+
+            if hit:
+                # Prefer more specific names first.
+                scored.append((len(n_norm), name))
+
+        scored.sort(reverse=True)
+        out: List[str] = []
+        seen = set()
+        for _, nm in scored:
+            if nm not in seen:
+                seen.add(nm)
+                out.append(nm)
+            if len(out) >= max_players:
+                break
+        return out
+
+    names = collect_candidate_names(seasons)
+    matched_names = match_names(names)
+
+    # If season filter is too narrow, retry matching over all seasons.
+    if not matched_names and seasons:
+        names = collect_candidate_names(None)
+        matched_names = match_names(names)
+
+    out_map: Dict[str, Dict] = {}
+    for player_name in matched_names:
+        where_pp = build_where(
+            league,
+            seasons,
+            extra_filters=[{"doc_type": "player_profile"}, {"player_name": player_name}],
+        )
+        pp_res = col.get(where=where_pp, include=["documents", "metadatas"], limit=per_player_profiles)
+        for i, d, m in zip(pp_res.get("ids", []), pp_res.get("documents", []), pp_res.get("metadatas", [])):
+            out_map[i] = {"id": i, "text": d, "meta": m}
+
+        where_pf = build_where(
+            league,
+            seasons,
+            extra_filters=[{"doc_type": "player_fixture"}, {"player_name": player_name}],
+        )
+        pf_res = col.get(where=where_pf, include=["documents", "metadatas"], limit=50)
+        rows = []
+        for i, d, m in zip(pf_res.get("ids", []), pf_res.get("documents", []), pf_res.get("metadatas", [])):
+            rows.append({"id": i, "text": d, "meta": m})
+        rows.sort(key=lambda x: (x["meta"].get("fixture_date") or ""), reverse=True)
+        for r in rows[:per_player_fixtures]:
+            out_map[r["id"]] = r
+
+    return list(out_map.values())
+
+
 # -------------------------
 # Basic semantic retrieval (fallback mode)
 # -------------------------
@@ -143,13 +288,33 @@ def generic_retrieve(user_q: str,
                 out.append({"id": i, "text": d, "meta": m})
         return out
 
-    # Prefer team profiles then team fixtures before anything else
-    hits = q_with_extra([{"doc_type": "team_profile"}], k)
-    if not hits:
-        hits = q_with_extra([{"doc_type": "team_fixture"}], k)
-    if not hits:
-        hits = q_with_extra([], k)
-    return hits
+    # Mixed retrieval so open-ended prompts include player context too.
+    type_budgets = [
+        ("team_profile", max(2, k // 3)),
+        ("team_fixture", max(2, k // 3)),
+        ("player_profile", max(2, k // 4)),
+        ("player_fixture", max(2, k // 4)),
+    ]
+
+    merged: Dict[str, Dict] = {}
+    for doc_type, topk in type_budgets:
+        rows = q_with_extra([{"doc_type": doc_type}], topk)
+        for r in rows:
+            merged[r["id"]] = r
+
+    # Deterministically include explicitly-mentioned players (accent-insensitive).
+    for r in get_mentioned_player_docs(user_q, league, seasons):
+        merged[r["id"]] = r
+
+    hits = list(merged.values())
+    if len(hits) < k:
+        # Backfill with unrestricted search if needed
+        for r in q_with_extra([], k):
+            if r["id"] not in merged:
+                merged[r["id"]] = r
+        hits = list(merged.values())
+
+    return hits[:k]
 
 
 def extract_target_multiplier(user_q: str, default: float = 3.0) -> float:
@@ -160,6 +325,37 @@ def extract_target_multiplier(user_q: str, default: float = 3.0) -> float:
         return float(m.group(1))
     except ValueError:
         return default
+
+
+def extract_leg_count(user_q: str, default: int = 3) -> int:
+    m = re.search(r"(\d+)\s*[- ]?leg", user_q.lower())
+    if not m:
+        return default
+    try:
+        v = int(m.group(1))
+        return max(1, min(v, 8))
+    except ValueError:
+        return default
+
+
+def extract_match_count(user_q: str) -> Optional[int]:
+    q = user_q.lower()
+    m = re.search(r"\b(\d+)\s+matches?\b", q)
+    if m:
+        try:
+            return int(m.group(1))
+        except ValueError:
+            return None
+    words = {
+        "one match": 1,
+        "two matches": 2,
+        "three matches": 3,
+        "four matches": 4,
+    }
+    for k, v in words.items():
+        if k in q:
+            return v
+    return None
 
 
 def is_odds_parlay_request(user_q: str) -> bool:
@@ -232,6 +428,35 @@ def fetch_upcoming_odds(league: Optional[str], markets: str = "h2h", max_events:
     return out, None
 
 
+def filter_events_by_time(events: List[Dict], user_q: str, tz_name: str = "Europe/London") -> List[Dict]:
+    q = user_q.lower()
+    if not events:
+        return events
+
+    tz = ZoneInfo(tz_name)
+    today = datetime.now(tz).date()
+
+    if "today" in q or "tonight" in q:
+        target_date = today
+    elif "tomorrow" in q:
+        target_date = today.fromordinal(today.toordinal() + 1)
+    else:
+        return events
+
+    out = []
+    for ev in events:
+        ts = ev.get("commence_time")
+        if not ts:
+            continue
+        try:
+            dt = datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone(tz)
+        except Exception:
+            continue
+        if dt.date() == target_date:
+            out.append(ev)
+    return out
+
+
 def format_upcoming_odds_text(events: List[Dict]) -> str:
     if not events:
         return "No upcoming odds events available."
@@ -289,6 +514,94 @@ def get_team_profile_snippets_for_events(events: List[Dict],
     return out
 
 
+def get_team_fixture_snippets_for_events(events: List[Dict],
+                                         league: Optional[str],
+                                         seasons: Optional[List[str]],
+                                         per_team: int = 2,
+                                         limit_teams: int = 12) -> List[Dict]:
+    """
+    Pull a few recent team_fixture docs per team so odds-mode can reference
+    concrete shots-on-target and conceded stats instead of only season summaries.
+    """
+    db = chromadb.PersistentClient(path=CHROMA_DIR)
+    col = db.get_or_create_collection(COLLECTION)
+
+    teams: List[str] = []
+    for ev in events:
+        for t in [ev.get("home_team"), ev.get("away_team")]:
+            if t and t not in teams:
+                teams.append(t)
+    teams = teams[:limit_teams]
+
+    out_map: Dict[str, Dict] = {}
+    for team in teams:
+        variants = list({team, team.lower(), team.title()})
+        picked = 0
+        for tv in variants:
+            where = build_where(league, seasons, extra_filters=[{"doc_type": "team_fixture"}, {"team": tv}])
+            res = col.get(where=where, include=["documents", "metadatas"], limit=20)
+            rows = []
+            for i, d, m in zip(res.get("ids", []), res.get("documents", []), res.get("metadatas", [])):
+                rows.append({"id": i, "text": d, "meta": m})
+            rows.sort(key=lambda x: (x["meta"].get("fixture_date") or ""), reverse=True)
+            for r in rows[:per_team]:
+                out_map[r["id"]] = r
+                picked += 1
+            if picked >= per_team:
+                break
+    return list(out_map.values())
+
+
+def get_player_snippets_for_events(events: List[Dict],
+                                   league: Optional[str],
+                                   seasons: Optional[List[str]],
+                                   per_team_profiles: int = 4,
+                                   per_team_fixtures: int = 4,
+                                   limit_teams: int = 12) -> List[Dict]:
+    """
+    Pull player_profile + player_fixture docs for teams in selected events.
+    This is required for open-ended player-prop recommendations in odds mode.
+    """
+    db = chromadb.PersistentClient(path=CHROMA_DIR)
+    col = db.get_or_create_collection(COLLECTION)
+
+    teams: List[str] = []
+    for ev in events:
+        for t in [ev.get("home_team"), ev.get("away_team")]:
+            if t and t not in teams:
+                teams.append(t)
+    teams = teams[:limit_teams]
+
+    out_map: Dict[str, Dict] = {}
+    for team in teams:
+        variants = list({team, team.lower(), team.title()})
+
+        # player_profile docs
+        prof_picked = 0
+        for tv in variants:
+            where = build_where(league, seasons, extra_filters=[{"doc_type": "player_profile"}, {"team": tv}])
+            res = col.get(where=where, include=["documents", "metadatas"], limit=per_team_profiles)
+            for i, d, m in zip(res.get("ids", []), res.get("documents", []), res.get("metadatas", [])):
+                out_map[i] = {"id": i, "text": d, "meta": m}
+                prof_picked += 1
+            if prof_picked >= per_team_profiles:
+                break
+
+        # player_fixture docs (semantic pull for foul/sot/shot terms)
+        vec = embed([f"best player props for {team}: shots on target, shots, fouls, cards, minutes, role"])[0]
+        fix_picked = 0
+        for tv in variants:
+            where = build_where(league, seasons, extra_filters=[{"doc_type": "player_fixture"}, {"team": tv}])
+            res = col.query(query_embeddings=[vec], n_results=per_team_fixtures, where=where)
+            if res.get("documents"):
+                for d, m, i in zip(res["documents"][0], res["metadatas"][0], res["ids"][0]):
+                    out_map[i] = {"id": i, "text": d, "meta": m}
+                    fix_picked += 1
+            if fix_picked >= per_team_fixtures:
+                break
+    return list(out_map.values())
+
+
 def build_odds_parlay_prompt(user_q: str,
                              odds_text: str,
                              profile_docs: List[Dict],
@@ -319,6 +632,55 @@ def build_odds_parlay_prompt(user_q: str,
         "Team profile context:\n"
         f"{prof_text}\n\n"
         "Build the best parlay for the request."
+    )
+    return [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}]
+
+
+def format_selected_legs(legs: List[OddsLeg]) -> str:
+    lines = []
+    for i, leg in enumerate(legs, start=1):
+        bm = f" ({leg.bookmaker})" if leg.bookmaker else ""
+        lines.append(f"{i}. {leg.fixture} | {leg.outcome} @ {leg.odds:.2f}{bm}")
+    return "\n".join(lines)
+
+
+def build_odds_explain_prompt(user_q: str,
+                              selected_legs: List[OddsLeg],
+                              target_multiplier: float,
+                              profile_docs: List[Dict],
+                              team_fixture_docs: Optional[List[Dict]] = None,
+                              player_docs: Optional[List[Dict]] = None) -> List[Dict]:
+    legs_text = format_selected_legs(selected_legs)
+    combo = combined_odds(selected_legs)
+    prof_text = "\n\n".join(d["text"] for d in profile_docs[:12])
+    tf_text = "\n\n".join(d["text"] for d in (team_fixture_docs or [])[:12])
+    pl_text = "\n\n".join(d["text"] for d in (player_docs or [])[:16])
+
+    system_msg = (
+        "You are a football betting analyst.\n"
+        "Do not change, replace, or add legs. Use the provided selected legs exactly as given.\n"
+        "Your job is to explain why each selected leg is reasonable using profile stats.\n"
+        "Use concise evidence with numeric values.\n"
+        "Avoid single-match recency logic.\n"
+        "Player props are allowed if player context exists. If missing, state that explicitly.\n"
+        "Output format:\n"
+        "- Leg 1: <repeat exact market>\n"
+        "  Evidence: <2-3 short numeric points>\n"
+        "- Leg 2: ...\n"
+        "- Leg 3: ...\n"
+        "- Estimated combined odds: <number>\n"
+        "- Target check: <how close to requested multiplier>\n"
+    )
+
+    user_msg = (
+        f"User request: {user_q}\n"
+        f"Target combined odds: ~{target_multiplier:.2f}x\n"
+        f"Selected legs (fixed):\n{legs_text}\n"
+        f"Current combined odds: {combo:.2f}\n\n"
+        f"Team profile context:\n{prof_text}\n\n"
+        f"Team fixture context:\n{tf_text or 'None'}\n\n"
+        f"Player context:\n{pl_text or 'None'}\n\n"
+        "Explain these selected legs."
     )
     return [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}]
 
@@ -450,6 +812,46 @@ def is_add_leg_request(user_q: str) -> bool:
     ])
 
 
+def is_followup_request(user_q: str) -> bool:
+    q = user_q.lower().strip()
+    follow_tokens = [
+        "another",
+        "one more",
+        "same game",
+        "that game",
+        "this game",
+        "for this one",
+        "for this match",
+        "based on that",
+        "from that",
+        "now add",
+        "give me another",
+    ]
+    if any(tok in q for tok in follow_tokens):
+        return True
+    # Very short prompts after a prior turn are usually continuation asks.
+    if len(q.split()) <= 7 and memory.get("last_query"):
+        return True
+    return False
+
+
+def enrich_query_with_memory(user_q: str,
+                             has_matchup_in_query: bool) -> str:
+    """
+    Make follow-up prompts self-contained by carrying last matchup context.
+    """
+    if has_matchup_in_query:
+        return user_q
+    if not (memory.get("last_home") and memory.get("last_away")):
+        return user_q
+    if not is_followup_request(user_q):
+        return user_q
+    return (
+        f"For the same matchup {memory['last_home']} vs {memory['last_away']}, {user_q}\n"
+        f"Previous assistant answer:\n{memory.get('last_answer') or memory.get('last_parlay') or 'n/a'}"
+    )
+
+
 # -------------------------
 # Focused retrieval for a single team
 # -------------------------
@@ -574,6 +976,8 @@ def build_matchup_prompt(user_q: str,
                          away_team_block: dict,
                          home_player_block: Optional[dict] = None,
                          away_player_block: Optional[dict] = None,
+                         mentioned_player_docs: Optional[List[Dict]] = None,
+                         chat_context: Optional[str] = None,
                          graph_snapshot_text: Optional[str] = None) -> List[Dict]:
     """
     home_team_block = {
@@ -622,6 +1026,9 @@ def build_matchup_prompt(user_q: str,
     heuristic_text = "\n".join(heuristic_lines)
 
     matchup_context = (
+        "----- RECENT CHAT CONTEXT -----\n"
+        + (chat_context or "None.")
+        + "\n"
         "----- HOME TEAM BLOCK -----\n"
         + pack(home_team_block)
         + "\n----- AWAY TEAM BLOCK -----\n"
@@ -630,6 +1037,8 @@ def build_matchup_prompt(user_q: str,
         + pack_players(home_player_block)
         + "\n----- AWAY PLAYER BLOCK -----\n"
         + pack_players(away_player_block)
+        + "\n----- EXPLICITLY MENTIONED PLAYERS -----\n"
+        + ("\n\n".join(d["text"] for d in (mentioned_player_docs or [])[:8]) if mentioned_player_docs else "None")
         + ("\n----- GRAPH SNAPSHOT -----\n" + (graph_snapshot_text or "none"))
         + ("\n----- HEURISTIC SNAPSHOT -----\n" + heuristic_text if heuristic_text else "")
     )
@@ -688,7 +1097,13 @@ def build_matchup_prompt(user_q: str,
 # -------------------------
 def build_generic_prompt(user_q: str,
                          context_docs: List[Dict],
-                         league: Optional[str]) -> List[Dict]:
+                         league: Optional[str],
+                         chat_context: Optional[str] = None) -> List[Dict]:
+    has_player_context = any(
+        (d.get("meta") or {}).get("doc_type") in {"player_profile", "player_fixture"}
+        for d in context_docs
+    )
+
     lead = (
         "You are a football analyst.\n"
         "Use chain-of-thought analysis internally, but do not reveal hidden reasoning.\n"
@@ -699,6 +1114,15 @@ def build_generic_prompt(user_q: str,
         "- If data is missing, say you don't have it.\n"
         "- If predicting a fixture outcome, justify with at least 2 numeric signals and avoid single-match recency.\n"
     )
+    if has_player_context:
+        lead += (
+            "- Player props are allowed even if the user did not name a player. "
+            "Pick the top likely player props from context using multi-signal evidence "
+            "(minutes/sample + role/usage + opponent profile).\n"
+        )
+    else:
+        lead += "- If no player docs are present, explicitly state player-prop limitation.\n"
+
     if league:
         lead += f"\nThis league is {league}. Do not mix in other leagues.\n"
 
@@ -706,7 +1130,15 @@ def build_generic_prompt(user_q: str,
 
     return [
         {"role": "system", "content": lead},
-        {"role": "user", "content": f"Question: {user_q}\n\nContext:\n{ctx}\n\nAnswer clearly."}
+        {
+            "role": "user",
+            "content": (
+                f"Question: {user_q}\n\n"
+                f"Recent chat context:\n{chat_context or 'None.'}\n\n"
+                f"Context:\n{ctx}\n\n"
+                "Answer clearly."
+            ),
+        }
     ]
 
 
@@ -739,11 +1171,21 @@ def chat_once(user_q: str,
     # Parse seasons string into list
     seasons = parse_seasons_arg(seasons_arg)
 
+    # Carry forward context for follow-up chat turns.
+    preview_matchup = parse_match_request(user_q)
+    has_matchup_in_query = bool(preview_matchup.get("home_team") and preview_matchup.get("away_team"))
+    user_q = enrich_query_with_memory(user_q, has_matchup_in_query)
+    chat_context_text = render_recent_chat_context(max_turns=3)
+
     # Odds schedule mode: "What matches are on today?"
     if is_schedule_request(user_q):
-        events, err = fetch_upcoming_odds(league, markets="h2h", max_events=20)
+        events, err = fetch_upcoming_odds(league, markets="h2h", max_events=50)
         if err:
             print(f"Could not fetch upcoming fixtures: {err}")
+            return
+        events = filter_events_by_time(events, user_q)
+        if not events:
+            print("No fixtures found for the requested time window.")
             return
         print("\nUpcoming fixtures:")
         print(format_fixture_list(events))
@@ -752,20 +1194,73 @@ def chat_once(user_q: str,
     # Odds-first mode for requests like "make me a 3x odds parlay from today's matches"
     if is_odds_parlay_request(user_q):
         target_mult = extract_target_multiplier(user_q, default=3.0)
-        events, err = fetch_upcoming_odds(league, markets="h2h", max_events=12)
+        leg_count = extract_leg_count(user_q, default=3)
+        req_match_count = extract_match_count(user_q)
+        events, err = fetch_upcoming_odds(league, markets="h2h", max_events=50)
         if events:
-            odds_text = format_upcoming_odds_text(events)
-            prof_docs = get_team_profile_snippets_for_events(events, league, seasons, per_team=1)
-            messages = build_odds_parlay_prompt(user_q, odds_text, prof_docs, target_mult)
+            events = filter_events_by_time(events, user_q)
+            if not events:
+                print("No fixtures found for the requested time window.")
+                return
+
+            if req_match_count is not None and len(events) != req_match_count:
+                print(
+                    f"Requested {req_match_count} matches, but found {len(events)} for the requested window."
+                )
+                print("Fixtures found:")
+                print(format_fixture_list(events))
+                return
+
+            candidates = extract_h2h_candidates(events)
+            chosen_legs, sel_err = select_best_parlay(
+                candidates=candidates,
+                leg_count=leg_count,
+                target_multiplier=target_mult,
+                require_unique_events=True,
+            )
+            if sel_err:
+                print(f"Could not build a valid parlay: {sel_err}")
+                print("Tip: request fewer legs or include additional markets beyond h2h.")
+                return
+
+            combo = combined_odds(chosen_legs)
+            deviation = abs(combo - target_mult) / max(target_mult, 1e-9)
+            if deviation > 0.25:
+                print(
+                    f"Closest valid {leg_count}-leg parlay is {combo:.2f}x, which is outside ±25% of target {target_mult:.2f}x."
+                )
+                print("Try a different target multiplier or number of legs.")
+                return
+
+            selected_event_ids = {x.event_id for x in chosen_legs}
+            selected_events = [ev for ev in events if str(ev.get("id") or "") in selected_event_ids]
+            prof_docs = get_team_profile_snippets_for_events(selected_events, league, seasons, per_team=1)
+            team_fixture_docs = get_team_fixture_snippets_for_events(selected_events, league, seasons, per_team=2)
+            player_docs = get_player_snippets_for_events(selected_events, league, seasons, per_team_profiles=4, per_team_fixtures=4)
+            messages = build_odds_explain_prompt(
+                user_q,
+                chosen_legs,
+                target_mult,
+                prof_docs,
+                team_fixture_docs=team_fixture_docs,
+                player_docs=player_docs,
+            )
             resp = client.chat.completions.create(model=CHAT_MODEL, messages=messages, temperature=0.2)
             answer = resp.choices[0].message.content
             print("\n" + answer.strip())
+            add_chat_turn(user_q, answer.strip())
             if show_sources:
                 print("\nSources:")
                 print("- odds_api | upcoming_h2h_board")
                 for d in prof_docs[:10]:
                     m = d["meta"]
                     print("-", m.get("team"), "|", m.get("doc_type"), "|", m.get("season"))
+                for d in team_fixture_docs[:8]:
+                    m = d["meta"]
+                    print("-", m.get("team"), "|", m.get("doc_type"), "|", m.get("season"), "|", m.get("fixture"))
+                for d in player_docs[:10]:
+                    m = d["meta"]
+                    print("-", m.get("player_name") or m.get("team"), "|", m.get("doc_type"), "|", m.get("season"), "|", m.get("fixture"))
             return
         else:
             print(f"Odds API unavailable for parlay mode: {err}")
@@ -801,6 +1296,14 @@ def chat_once(user_q: str,
         away_profiles, away_fixtures = get_team_context(away_team, league, seasons, k_fixture=12)
         home_player_profiles, home_player_fixtures = get_team_player_context(home_team, league, seasons)
         away_player_profiles, away_player_fixtures = get_team_player_context(away_team, league, seasons)
+        mentioned_player_docs = get_mentioned_player_docs(
+            user_q,
+            league,
+            seasons,
+            max_players=4,
+            per_player_profiles=1,
+            per_player_fixtures=3,
+        )
 
         # If we didn't find anything for one of the teams WITH the provided seasons,
         # retry once without seasons filter (in case season mismatch like UNKNOWN)
@@ -809,6 +1312,15 @@ def chat_once(user_q: str,
             away_profiles, away_fixtures = get_team_context(away_team, league, None, k_fixture=6)
             home_player_profiles, home_player_fixtures = get_team_player_context(home_team, league, None)
             away_player_profiles, away_player_fixtures = get_team_player_context(away_team, league, None)
+            if not mentioned_player_docs:
+                mentioned_player_docs = get_mentioned_player_docs(
+                    user_q,
+                    league,
+                    None,
+                    max_players=4,
+                    per_player_profiles=1,
+                    per_player_fixtures=3,
+                )
 
         # If we now have data for both, build a matchup parlay answer
         if (home_profiles or home_fixtures) and (away_profiles or away_fixtures):
@@ -831,6 +1343,8 @@ def chat_once(user_q: str,
                 away_block,
                 home_player_block=home_player_block,
                 away_player_block=away_player_block,
+                mentioned_player_docs=mentioned_player_docs,
+                chat_context=chat_context_text,
                 graph_snapshot_text=graph_snap_text,
             )
             resp = client.chat.completions.create(model=CHAT_MODEL, messages=messages, temperature=0.2)
@@ -842,6 +1356,7 @@ def chat_once(user_q: str,
             memory["last_away"] = away_team
             memory["last_parlay"] = answer.strip()
             memory["last_query"] = user_q
+            add_chat_turn(user_q, answer.strip())
 
             if show_sources:
                 print("\nSources:")
@@ -854,6 +1369,7 @@ def chat_once(user_q: str,
                     + home_player_fixtures[:2]
                     + away_player_profiles[:2]
                     + away_player_fixtures[:2]
+                    + (mentioned_player_docs[:3] if mentioned_player_docs else [])
                 ):
                     m = d["meta"]
                     print("-", m.get("team"),
@@ -875,11 +1391,12 @@ def chat_once(user_q: str,
         print("No results found in the index for your filters. Try widening league/season or re-ingest.")
         return
 
-    messages = build_generic_prompt(user_q, hits, league)
+    messages = build_generic_prompt(user_q, hits, league, chat_context=chat_context_text)
     resp = client.chat.completions.create(model=CHAT_MODEL, messages=messages, temperature=0.2)
     answer = resp.choices[0].message.content
 
     print("\n" + answer.strip())
+    add_chat_turn(user_q, answer.strip())
     if show_sources:
         print("\n" + format_sources(hits))
 
