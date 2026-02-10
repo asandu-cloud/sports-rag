@@ -1,21 +1,26 @@
 # Embedding
 
-import json, os, argparse
+import argparse
+import json
 from pathlib import Path
-import chromadb
-from chromadb.config import Settings
 from openai import OpenAI
 from dotenv import load_dotenv
 
+try:
+    from chroma_backend import backend_description, env_first, get_chroma_client
+except ImportError:
+    from Scripts.rag_ingest.chroma_backend import backend_description, env_first, get_chroma_client
+
 
 # ---- CONFIG (EPL-only) ----
-INDEX_DIR  = "/Users/sanduandrei/Desktop/Betting_RAG/Index"
-CHROMA_DIR = "/Users/sanduandrei/Desktop/Betting_RAG/Index/chroma"
-COLLECTION = "football_top5"   # keep one collection, filter by metadata
+ROOT = Path(__file__).resolve().parents[2]
+INDEX_DIR = str(ROOT / "Index")
+CHROMA_DIR = str(ROOT / "Index" / "chroma")
+COLLECTION = env_first("CHROMA_COLLECTION", default="football_top5")   # keep one collection, filter by metadata
 EMBED_MODEL = "text-embedding-3-large"
 
 load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=env_first("OPENAI_API_KEY"))
 
 def _upsert_batch(collection, batch):
     ids   = [d["id"] for d in batch]
@@ -40,10 +45,8 @@ if __name__ == "__main__":
     parser.add_argument("--reset", action="store_true", help="Drop and recreate the collection.")
     args = parser.parse_args()
 
-    os.makedirs(CHROMA_DIR, exist_ok=True)
-
-    # ✅ Use PersistentClient to guarantee on-disk storage
-    db = chromadb.PersistentClient(path=CHROMA_DIR)
+    db = get_chroma_client(CHROMA_DIR)
+    print("Chroma backend:", backend_description(CHROMA_DIR))
 
     if args.reset:
         try:

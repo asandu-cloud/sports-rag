@@ -1,26 +1,26 @@
 # 02_query_smoke.py — EPL-only retrieval smoke test (PersistentClient)
-import os
-import chromadb
 from openai import OpenAI
 from dotenv import load_dotenv
+from pathlib import Path
 
-CHROMA_DIR = "/Users/sanduandrei/Desktop/Betting_RAG/Index/chroma"
-COLLECTION = "football_top5"
+try:
+    from chroma_backend import backend_description, env_first, get_chroma_client
+except ImportError:
+    from Scripts.rag_ingest.chroma_backend import backend_description, env_first, get_chroma_client
+
+ROOT = Path(__file__).resolve().parents[2]
+CHROMA_DIR = str(ROOT / "Index" / "chroma")
+COLLECTION = env_first("CHROMA_COLLECTION", default="football_top5")
 EMBED_MODEL = "text-embedding-3-large"
 
 load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=env_first("OPENAI_API_KEY"))
 
 def embed_one(text: str):
     return client.embeddings.create(model=EMBED_MODEL, input=[text]).data[0].embedding
 
 def query(q: str, where: dict, k=10):
-    # ✅ same client & path as 01
-    db = chromadb.PersistentClient(path=CHROMA_DIR)
-
-    # Helpful: list what's actually there
-    # print("Collections present:", [c.name for c in db.list_collections()])
-
+    db = get_chroma_client(CHROMA_DIR)
     col = db.get_or_create_collection(COLLECTION)  # safe if already created
     res = col.query(query_embeddings=[embed_one(q)], n_results=k, where=where)
 
@@ -37,7 +37,8 @@ if __name__ == "__main__":
         "Jadon Sancho shots and passes last match",
     ]
     # quick existence check
-    db = chromadb.PersistentClient(path=CHROMA_DIR)
+    db = get_chroma_client(CHROMA_DIR)
+    print("Chroma backend:", backend_description(CHROMA_DIR))
     print("Collections present:", [c.name for c in db.list_collections()])
     col = db.get_or_create_collection(COLLECTION)
     print("Vector count in collection:", col.count())

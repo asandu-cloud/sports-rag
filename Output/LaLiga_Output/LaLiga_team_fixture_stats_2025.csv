@@ -1,10 +1,10 @@
 fixture,team,home_team,away_team,home_goals,away_goals,final_score,Shots on Goal,Shots off Goal,Total Shots,Blocked Shots,Shots insidebox,Shots outsidebox,Fouls,Corner Kicks,Offsides,Ball Possession,Yellow Cards,Red Cards,Goalkeeper Saves,Total passes,Passes accurate,Passes %,expected_goals,goals_prevented
 Girona vs Rayo Vallecano,Girona,Girona,Rayo Vallecano,1,3,1-3,2,2,7,3,3,4,8,2,1,0.44,0,1,2,382,296,0.77,0.56,0
 Girona vs Rayo Vallecano,Rayo Vallecano,Girona,Rayo Vallecano,1,3,1-3,5,10,16,1,12,4,17,4,1,0.56,1,0,1,481,415,0.86,3.43,0
-Villarreal vs Oviedo,Villarreal,Villarreal,Oviedo,2,0,2-0,10,11,25,4,17,8,10,10,0,0.68,1,0,4,668,612,0.92,2.54,0
-Villarreal vs Oviedo,Oviedo,Villarreal,Oviedo,2,0,2-0,4,1,5,0,3,2,8,1,1,0.32,2,1,8,325,266,0.82,0.94,0
-Mallorca vs Barcelona,Mallorca,Mallorca,Barcelona,0,3,0-3,1,2,4,1,3,1,8,3,2,0.29,4,2,5,225,153,0.68,0.21,0
-Mallorca vs Barcelona,Barcelona,Mallorca,Barcelona,0,3,0-3,8,9,24,7,11,13,17,6,3,0.71,1,0,1,570,506,0.89,2.14,0
+Villarreal vs Oviedo,Villarreal,Villarreal,Oviedo,2,0,2-0,10,11,25,4,17,8,10,10,0,0.68,1,0,4,668,612,0.92,2.44,0
+Villarreal vs Oviedo,Oviedo,Villarreal,Oviedo,2,0,2-0,4,1,5,0,3,2,8,1,1,0.32,2,1,8,326,267,0.82,0.93,0
+Mallorca vs Barcelona,Mallorca,Mallorca,Barcelona,0,3,0-3,1,2,4,1,3,1,8,3,2,0.29,4,2,5,225,154,0.68,0.21,0
+Mallorca vs Barcelona,Barcelona,Mallorca,Barcelona,0,3,0-3,8,9,24,7,11,13,17,6,3,0.71,1,0,1,569,505,0.89,2.13,0
 Valencia vs Real Sociedad,Valencia,Valencia,Real Sociedad,1,1,1-1,2,7,18,9,11,7,5,8,1,0.54,1,0,2,395,341,0.86,2.04,0
 Valencia vs Real Sociedad,Real Sociedad,Valencia,Real Sociedad,1,1,1-1,3,7,13,3,6,7,11,7,2,0.46,2,0,1,340,294,0.86,0.81,0
 Alaves vs Levante,Alaves,Alaves,Levante,2,1,2-1,4,7,15,4,10,5,15,10,1,0.62,0,0,2,471,382,0.81,1.29,0
@@ -15,8 +15,8 @@ Athletic Club vs Sevilla,Athletic Club,Athletic Club,Sevilla,3,2,3-2,3,3,14,8,11
 Athletic Club vs Sevilla,Sevilla,Athletic Club,Sevilla,3,2,3-2,6,4,12,2,10,2,12,1,8,0.54,2,0,0,477,396,0.83,1.01,0
 Espanyol vs Atletico Madrid,Espanyol,Espanyol,Atletico Madrid,2,1,2-1,5,4,9,0,6,3,14,1,0,0.4,3,0,3,394,323,0.82,1.26,0
 Espanyol vs Atletico Madrid,Atletico Madrid,Espanyol,Atletico Madrid,2,1,2-1,4,7,15,4,9,6,11,3,1,0.6,3,0,3,618,551,0.89,1.1,0
-Elche vs Real Betis,Elche,Elche,Real Betis,1,1,1-1,2,3,6,1,3,3,14,1,4,0.68,0,0,3,683,615,0.9,0.73,0
-Elche vs Real Betis,Real Betis,Elche,Real Betis,1,1,1-1,4,4,12,4,6,6,13,3,0,0.32,1,0,1,321,261,0.81,1.86,0
+Elche vs Real Betis,Elche,Elche,Real Betis,1,1,1-1,2,3,6,1,3,3,14,1,4,0.68,0,0,3,683,617,0.9,0.64,0
+Elche vs Real Betis,Real Betis,Elche,Real Betis,1,1,1-1,4,4,12,4,6,6,13,3,0,0.32,1,0,1,323,262,0.81,1.86,0
 Real Madrid vs Osasuna,Real Madrid,Real Madrid,Osasuna,1,0,1-0,5,7,18,6,11,7,10,7,0,0.71,1,0,0,721,659,0.91,1.64,0
 Real Madrid vs Osasuna,Osasuna,Real Madrid,Osasuna,1,0,1-0,0,2,2,0,2,0,12,0,0,0.29,0,1,4,299,228,0.76,0.36,0
 Real Betis vs Alaves,Real Betis,Real Betis,Alaves,1,0,1-0,5,7,16,4,10,6,10,5,2,0.49,2,0,5,470,406,0.86,1.95,0
@@ -31,16 +31,16 @@ Osasuna vs Valencia,Osasuna,Osasuna,Valencia,1,0,1-0,4,6,16,6,9,7,14,3,2,0.56,2,
 Osasuna vs Valencia,Valencia,Osasuna,Valencia,1,0,1-0,1,2,4,1,1,3,13,4,1,0.44,1,1,3,370,296,0.8,0.41,0
 Villarreal vs Girona,Villarreal,Villarreal,Girona,5,0,5-0,7,7,19,5,13,6,8,8,3,0.53,1,0,2,517,467,0.9,2.3,-3
 Villarreal vs Girona,Girona,Villarreal,Girona,5,0,5-0,2,1,5,2,3,2,9,1,0,0.47,2,0,2,470,426,0.91,0.14,-3
-Real Sociedad vs Espanyol,Real Sociedad,Real Sociedad,Espanyol,2,2,2-2,7,4,15,4,11,4,16,5,1,0.62,2,0,1,501,434,0.87,1.1,0
-Real Sociedad vs Espanyol,Espanyol,Real Sociedad,Espanyol,2,2,2-2,3,7,14,4,5,9,18,2,1,0.38,2,0,5,306,216,0.71,1.84,0
+Real Sociedad vs Espanyol,Real Sociedad,Real Sociedad,Espanyol,2,2,2-2,7,4,15,4,11,4,16,5,1,0.62,2,0,1,498,433,0.87,1.09,0
+Real Sociedad vs Espanyol,Espanyol,Real Sociedad,Espanyol,2,2,2-2,3,7,14,4,5,9,18,2,1,0.38,2,0,5,305,215,0.7,1.81,0
 Oviedo vs Real Madrid,Oviedo,Oviedo,Real Madrid,0,3,0-3,3,3,6,0,3,3,8,1,2,0.35,2,0,8,376,314,0.84,0.5,0
-Oviedo vs Real Madrid,Real Madrid,Oviedo,Real Madrid,0,3,0-3,10,6,26,10,14,12,7,9,2,0.65,1,0,3,699,644,0.92,2.67,0
+Oviedo vs Real Madrid,Real Madrid,Oviedo,Real Madrid,0,3,0-3,10,6,26,10,14,12,7,9,2,0.65,1,0,3,699,644,0.92,2.68,0
 Athletic Club vs Rayo Vallecano,Athletic Club,Athletic Club,Rayo Vallecano,1,0,1-0,4,3,11,4,5,6,13,3,0,0.41,0,0,1,334,253,0.76,1.51,0
 Athletic Club vs Rayo Vallecano,Rayo Vallecano,Athletic Club,Rayo Vallecano,1,0,1-0,1,2,6,3,2,4,13,6,7,0.59,4,0,3,498,413,0.83,0.29,0
 Sevilla vs Getafe,Sevilla,Sevilla,Getafe,1,2,1-2,3,8,12,1,8,4,10,5,4,0.71,2,0,4,533,453,0.85,0.51,0
 Sevilla vs Getafe,Getafe,Sevilla,Getafe,1,2,1-2,6,1,9,2,3,6,24,3,1,0.29,2,0,3,221,132,0.6,0.71,0
-Celta Vigo vs Real Betis,Celta Vigo,Celta Vigo,Real Betis,1,1,1-1,5,6,14,3,10,4,13,10,5,0.47,1,0,0,496,442,0.89,0.76,0
-Celta Vigo vs Real Betis,Real Betis,Celta Vigo,Real Betis,1,1,1-1,2,2,7,3,3,4,11,4,2,0.53,2,0,4,571,515,0.9,0.32,0
+Celta Vigo vs Real Betis,Celta Vigo,Celta Vigo,Real Betis,1,1,1-1,5,6,14,3,10,4,13,10,5,0.47,1,0,0,496,441,0.89,0.83,0
+Celta Vigo vs Real Betis,Real Betis,Celta Vigo,Real Betis,1,1,1-1,2,2,7,3,3,4,11,4,2,0.53,2,0,4,568,513,0.9,0.33,0
 Elche vs Levante,Elche,Elche,Levante,2,0,2-0,5,7,16,4,13,3,14,4,1,0.67,1,0,1,568,503,0.89,1.11,0
 Elche vs Levante,Levante,Elche,Levante,2,0,2-0,1,8,11,2,5,6,17,2,1,0.33,2,0,3,272,216,0.79,1.01,0
 Valencia vs Getafe,Valencia,Valencia,Getafe,3,0,3-0,4,1,7,2,5,2,18,8,0,0.57,2,0,1,408,332,0.81,1.13,-1
@@ -53,8 +53,8 @@ Girona vs Sevilla,Girona,Girona,Sevilla,0,2,0-2,5,6,20,9,12,8,5,11,2,0.59,0,0,2,
 Girona vs Sevilla,Sevilla,Girona,Sevilla,0,2,0-2,4,6,13,3,10,3,14,3,0,0.41,1,0,5,322,254,0.79,1.26,1
 Real Madrid vs Mallorca,Real Madrid,Real Madrid,Mallorca,2,1,2-1,7,6,17,4,7,10,12,4,3,0.58,2,0,2,538,481,0.89,1.82,0
 Real Madrid vs Mallorca,Mallorca,Real Madrid,Mallorca,2,1,2-1,5,2,9,2,8,1,7,5,1,0.42,0,0,5,382,302,0.79,0.72,0
-Celta Vigo vs Villarreal,Celta Vigo,Celta Vigo,Villarreal,1,1,1-1,2,4,10,4,6,4,11,1,0,0.65,1,0,2,738,653,0.88,0.68,0
-Celta Vigo vs Villarreal,Villarreal,Celta Vigo,Villarreal,1,1,1-1,3,4,8,1,5,3,8,5,0,0.35,1,0,2,390,318,0.82,1.15,0
+Celta Vigo vs Villarreal,Celta Vigo,Celta Vigo,Villarreal,1,1,1-1,2,4,10,4,6,4,11,1,0,0.65,1,0,2,742,656,0.88,0.96,0
+Celta Vigo vs Villarreal,Villarreal,Celta Vigo,Villarreal,1,1,1-1,3,4,8,1,5,3,8,5,0,0.35,1,0,2,394,320,0.81,1.04,0
 Real Betis vs Athletic Club,Real Betis,Real Betis,Athletic Club,1,2,1-2,2,4,9,3,6,3,9,4,3,0.5,1,0,5,454,373,0.82,0.62,0
 Real Betis vs Athletic Club,Athletic Club,Real Betis,Athletic Club,1,2,1-2,6,5,15,4,9,6,16,10,2,0.5,4,1,1,440,376,0.85,1.11,0
 Espanyol vs Osasuna,Espanyol,Espanyol,Osasuna,1,0,1-0,4,5,10,1,7,3,13,2,2,0.45,2,0,3,408,320,0.78,1.21,0
@@ -67,22 +67,22 @@ Getafe vs Oviedo,Getafe,Getafe,Oviedo,2,0,2-0,3,4,10,3,6,4,12,4,1,0.48,2,0,1,342
 Getafe vs Oviedo,Oviedo,Getafe,Oviedo,2,0,2-0,1,2,5,2,1,4,18,3,1,0.52,5,1,1,373,303,0.81,0.46,0
 Real Sociedad vs Real Madrid,Real Sociedad,Real Sociedad,Real Madrid,1,2,1-2,4,7,23,12,15,8,17,12,0,0.64,2,0,4,521,447,0.86,2.23,0
 Real Sociedad vs Real Madrid,Real Madrid,Real Sociedad,Real Madrid,1,2,1-2,6,7,16,3,14,2,7,4,2,0.36,1,1,3,314,241,0.77,2.42,0
-Athletic Club vs Alaves,Athletic Club,Athletic Club,Alaves,0,1,0-1,3,4,12,5,7,5,17,6,2,0.58,4,0,2,461,372,0.81,1.08,0
-Athletic Club vs Alaves,Alaves,Athletic Club,Alaves,0,1,0-1,2,2,4,0,0,4,21,6,1,0.42,3,0,3,350,252,0.72,0.09,0
-Atletico Madrid vs Villarreal,Atletico Madrid,Atletico Madrid,Villarreal,2,0,2-0,3,3,8,2,5,3,12,8,1,0.61,2,0,1,626,560,0.89,1.17,0
-Atletico Madrid vs Villarreal,Villarreal,Atletico Madrid,Villarreal,2,0,2-0,1,4,8,3,5,3,15,3,0,0.39,4,0,1,396,340,0.86,0.97,0
+Athletic Club vs Alaves,Athletic Club,Athletic Club,Alaves,0,1,0-1,3,4,12,5,7,5,17,6,2,0.58,2,0,2,461,372,0.81,1.08,0
+Athletic Club vs Alaves,Alaves,Athletic Club,Alaves,0,1,0-1,2,2,4,0,0,4,21,6,1,0.42,4,0,3,350,252,0.72,0.09,0
+Atletico Madrid vs Villarreal,Atletico Madrid,Atletico Madrid,Villarreal,2,0,2-0,3,3,8,2,5,3,12,8,1,0.61,2,0,1,623,559,0.9,1.01,0
+Atletico Madrid vs Villarreal,Villarreal,Atletico Madrid,Villarreal,2,0,2-0,1,4,8,3,5,3,15,3,0,0.39,4,0,1,395,340,0.86,1.03,0
 Celta Vigo vs Girona,Celta Vigo,Celta Vigo,Girona,1,1,1-1,7,9,21,5,14,7,7,10,0,0.6,0,0,7,630,556,0.88,2.5,1
 Celta Vigo vs Girona,Girona,Celta Vigo,Girona,1,1,1-1,8,2,13,3,10,3,9,3,3,0.4,3,0,6,439,362,0.82,0.64,1
 Levante vs Real Betis,Levante,Levante,Real Betis,2,2,2-2,2,2,5,1,4,1,16,4,2,0.33,4,0,7,268,196,0.73,0.73,0
 Levante vs Real Betis,Real Betis,Levante,Real Betis,2,2,2-2,9,8,28,11,21,7,11,12,1,0.67,2,0,0,544,482,0.89,2.12,0
-Osasuna vs Rayo Vallecano,Osasuna,Osasuna,Rayo Vallecano,2,0,2-0,7,1,9,1,6,3,13,3,0,0.36,3,0,6,303,230,0.76,1.77,0
-Osasuna vs Rayo Vallecano,Rayo Vallecano,Osasuna,Rayo Vallecano,2,0,2-0,6,7,19,6,12,7,7,6,1,0.64,2,0,4,540,472,0.87,1.04,0
-Barcelona vs Valencia,Barcelona,Barcelona,Valencia,6,0,6-0,10,10,24,4,16,8,9,5,4,0.72,0,0,1,677,615,0.91,3.35,-3
-Barcelona vs Valencia,Valencia,Barcelona,Valencia,6,0,6-0,1,1,2,0,2,0,8,4,4,0.28,1,0,5,248,167,0.67,0.18,-3
-Espanyol vs Mallorca,Espanyol,Espanyol,Mallorca,3,2,3-2,3,5,9,1,6,3,9,3,0,0.38,2,1,8,302,241,0.8,2.51,-1
-Espanyol vs Mallorca,Mallorca,Espanyol,Mallorca,3,2,3-2,10,6,24,8,14,10,16,9,2,0.62,1,0,0,494,424,0.86,2.17,-1
-Real Betis vs Real Sociedad,Real Betis,Real Betis,Real Sociedad,3,1,3-1,6,8,21,7,12,9,7,3,0,0.5,3,0,4,492,400,0.81,2.09,0
-Real Betis vs Real Sociedad,Real Sociedad,Real Betis,Real Sociedad,3,1,3-1,5,2,11,4,8,3,20,5,3,0.5,7,0,4,481,385,0.8,0.67,0
+Osasuna vs Rayo Vallecano,Osasuna,Osasuna,Rayo Vallecano,2,0,2-0,7,1,9,1,6,3,13,3,0,0.36,3,0,6,306,231,0.75,1.59,0
+Osasuna vs Rayo Vallecano,Rayo Vallecano,Osasuna,Rayo Vallecano,2,0,2-0,6,7,19,6,12,7,7,6,1,0.64,2,0,4,539,471,0.87,1.09,0
+Barcelona vs Valencia,Barcelona,Barcelona,Valencia,6,0,6-0,10,10,24,4,16,8,9,5,4,0.72,0,0,1,677,616,0.91,4.02,-3
+Barcelona vs Valencia,Valencia,Barcelona,Valencia,6,0,6-0,1,1,2,0,2,0,8,4,4,0.28,1,0,5,248,168,0.68,0.18,-3
+Espanyol vs Mallorca,Espanyol,Espanyol,Mallorca,3,2,3-2,3,5,9,1,6,3,9,3,0,0.38,2,1,8,303,241,0.8,2.46,0
+Espanyol vs Mallorca,Mallorca,Espanyol,Mallorca,3,2,3-2,10,6,24,8,14,10,16,9,2,0.62,1,0,0,493,424,0.86,2.23,0
+Real Betis vs Real Sociedad,Real Betis,Real Betis,Real Sociedad,3,1,3-1,6,8,21,7,12,9,7,3,0,0.5,3,0,4,491,400,0.81,2.25,0
+Real Betis vs Real Sociedad,Real Sociedad,Real Betis,Real Sociedad,3,1,3-1,5,2,11,4,8,3,20,5,3,0.5,6,0,4,481,385,0.8,0.67,0
 Girona vs Levante,Girona,Girona,Levante,0,4,0-4,1,3,7,3,5,2,11,5,0,0.35,4,2,2,295,248,0.84,0.5,0
 Girona vs Levante,Levante,Girona,Levante,0,4,0-4,7,6,14,1,11,3,17,4,1,0.65,3,0,1,575,529,0.92,2.88,0
 Real Madrid vs Espanyol,Real Madrid,Real Madrid,Espanyol,2,0,2-0,5,6,16,5,11,5,10,5,2,0.72,2,0,1,753,700,0.93,1.18,0
@@ -93,7 +93,7 @@ Alaves vs Sevilla,Alaves,Alaves,Sevilla,1,2,1-2,5,2,8,1,4,4,20,4,3,0.48,1,0,1,39
 Alaves vs Sevilla,Sevilla,Alaves,Sevilla,1,2,1-2,3,4,9,2,5,4,19,4,4,0.52,7,0,4,423,340,0.8,0.48,0
 Valencia vs Athletic Club,Valencia,Valencia,Athletic Club,2,0,2-0,5,6,13,2,10,3,13,5,0,0.44,1,0,6,378,296,0.78,1.88,0
 Valencia vs Athletic Club,Athletic Club,Valencia,Athletic Club,2,0,2-0,5,2,11,4,7,4,6,6,1,0.56,1,1,3,486,404,0.83,0.49,0
-Rayo Vallecano vs Celta Vigo,Rayo Vallecano,Rayo Vallecano,Celta Vigo,1,1,1-1,5,8,15,2,8,7,8,5,1,0.59,1,0,4,533,461,0.86,0.99,0
+Rayo Vallecano vs Celta Vigo,Rayo Vallecano,Rayo Vallecano,Celta Vigo,1,1,1-1,5,8,15,2,8,7,8,5,1,0.59,1,0,4,533,461,0.86,1.08,0
 Rayo Vallecano vs Celta Vigo,Celta Vigo,Rayo Vallecano,Celta Vigo,1,1,1-1,5,1,9,3,6,3,10,7,0,0.41,1,0,4,370,295,0.8,0.81,0
 Mallorca vs Atletico Madrid,Mallorca,Mallorca,Atletico Madrid,1,1,1-1,3,3,8,2,3,5,14,3,0,0.43,0,0,6,396,328,0.83,0.6,0
 Mallorca vs Atletico Madrid,Atletico Madrid,Mallorca,Atletico Madrid,1,1,1-1,7,4,12,1,9,3,6,6,1,0.57,0,1,2,550,485,0.88,2.26,0
@@ -103,8 +103,8 @@ Barcelona vs Getafe,Barcelona,Barcelona,Getafe,3,0,3-0,7,7,16,2,10,6,9,3,3,0.71,
 Barcelona vs Getafe,Getafe,Barcelona,Getafe,3,0,3-0,2,1,3,0,3,0,16,2,1,0.29,4,0,4,300,205,0.68,0.27,0
 Athletic Club vs Girona,Athletic Club,Athletic Club,Girona,1,1,1-1,5,7,17,5,14,3,19,8,0,0.67,0,0,2,600,524,0.87,1.46,0
 Athletic Club vs Girona,Girona,Athletic Club,Girona,1,1,1-1,3,2,6,1,4,2,15,1,5,0.33,2,0,4,305,225,0.74,0.78,0
-Espanyol vs Valencia,Espanyol,Espanyol,Valencia,2,2,2-2,10,7,21,4,15,6,9,8,5,0.56,1,0,0,441,357,0.81,2.5,0
-Espanyol vs Valencia,Valencia,Espanyol,Valencia,2,2,2-2,2,2,5,1,3,2,9,3,2,0.44,4,0,6,367,280,0.76,0.74,0
+Espanyol vs Valencia,Espanyol,Espanyol,Valencia,2,2,2-2,10,7,21,4,15,6,9,8,5,0.56,1,0,0,440,356,0.81,2.57,0
+Espanyol vs Valencia,Valencia,Espanyol,Valencia,2,2,2-2,2,2,5,1,4,1,9,3,2,0.44,4,0,6,369,281,0.76,0.74,0
 Sevilla vs Villarreal,Sevilla,Sevilla,Villarreal,1,2,1-2,2,6,16,8,10,6,17,3,0,0.65,2,0,3,599,523,0.87,0.97,0
 Sevilla vs Villarreal,Villarreal,Sevilla,Villarreal,1,2,1-2,5,4,12,3,11,1,14,3,3,0.35,3,0,1,324,264,0.81,1.95,0
 Levante vs Real Madrid,Levante,Levante,Real Madrid,1,4,1-4,2,3,11,6,8,3,17,1,0,0.37,1,0,6,416,365,0.88,1.6,0
@@ -115,10 +115,10 @@ Atletico Madrid vs Rayo Vallecano,Atletico Madrid,Atletico Madrid,Rayo Vallecano
 Atletico Madrid vs Rayo Vallecano,Rayo Vallecano,Atletico Madrid,Rayo Vallecano,3,2,3-2,3,6,9,0,5,4,12,6,2,0.39,5,0,5,370,299,0.81,1.6,0
 Real Sociedad vs Mallorca,Real Sociedad,Real Sociedad,Mallorca,1,0,1-0,4,10,17,3,12,5,13,11,2,0.64,2,0,3,548,449,0.82,2.76,0
 Real Sociedad vs Mallorca,Mallorca,Real Sociedad,Mallorca,1,0,1-0,3,3,7,1,6,1,15,2,0,0.36,2,0,3,310,224,0.72,0.76,0
-Osasuna vs Elche,Osasuna,Osasuna,Elche,1,1,1-1,2,4,9,3,7,2,19,2,0,0.39,2,0,3,371,288,0.78,1.1,0
-Osasuna vs Elche,Elche,Osasuna,Elche,1,1,1-1,4,2,12,6,7,5,13,3,0,0.61,2,0,1,589,502,0.85,0.78,0
-Oviedo vs Barcelona,Oviedo,Oviedo,Barcelona,1,3,1-3,3,1,7,3,5,2,10,6,7,0.21,1,0,7,194,123,0.63,0.99,0
-Oviedo vs Barcelona,Barcelona,Oviedo,Barcelona,1,3,1-3,10,4,22,8,13,9,6,9,1,0.79,0,0,2,786,717,0.91,2.14,0
+Osasuna vs Elche,Osasuna,Osasuna,Elche,1,1,1-1,2,4,9,3,7,2,19,2,0,0.4,2,0,3,375,290,0.77,0.9,0
+Osasuna vs Elche,Elche,Osasuna,Elche,1,1,1-1,4,2,12,6,7,5,13,3,0,0.6,2,0,1,588,504,0.86,0.82,0
+Oviedo vs Barcelona,Oviedo,Oviedo,Barcelona,1,3,1-3,3,1,7,3,5,2,10,6,7,0.21,1,0,7,194,124,0.64,1.04,0
+Oviedo vs Barcelona,Barcelona,Oviedo,Barcelona,1,3,1-3,10,4,22,8,13,9,6,9,1,0.79,0,0,2,787,717,0.91,2.07,0
 Girona vs Espanyol,Girona,Girona,Espanyol,0,0,0-0,3,4,12,5,7,5,9,8,1,0.6,0,0,5,522,455,0.87,1.08,0
 Girona vs Espanyol,Espanyol,Girona,Espanyol,0,0,0-0,5,10,20,5,11,9,11,4,1,0.4,1,0,3,338,279,0.83,1.08,0
 Getafe vs Levante,Getafe,Getafe,Levante,1,1,1-1,4,6,11,1,3,8,15,6,2,0.54,4,0,2,328,211,0.64,0.55,0
@@ -133,18 +133,18 @@ Rayo Vallecano vs Sevilla,Rayo Vallecano,Rayo Vallecano,Sevilla,0,1,0-1,6,7,18,5
 Rayo Vallecano vs Sevilla,Sevilla,Rayo Vallecano,Sevilla,0,1,0-1,1,1,4,2,2,2,15,4,1,0.36,2,0,6,280,193,0.69,0.63,1
 Elche vs Celta Vigo,Elche,Elche,Celta Vigo,2,1,2-1,8,4,17,5,15,2,12,7,3,0.62,3,0,1,574,523,0.91,3.58,0
 Elche vs Celta Vigo,Celta Vigo,Elche,Celta Vigo,2,1,2-1,2,3,8,3,7,1,20,2,3,0.38,3,0,6,358,298,0.83,0.77,0
-Barcelona vs Real Sociedad,Barcelona,Barcelona,Real Sociedad,2,1,2-1,12,5,22,5,14,8,6,12,3,0.75,1,0,1,745,685,0.92,2.21,0
-Barcelona vs Real Sociedad,Real Sociedad,Barcelona,Real Sociedad,2,1,2-1,2,3,7,2,5,2,12,1,5,0.25,2,0,8,250,194,0.78,0.97,0
+Barcelona vs Real Sociedad,Barcelona,Barcelona,Real Sociedad,2,1,2-1,12,5,22,5,14,8,6,12,3,0.75,1,0,1,744,684,0.92,2.22,0
+Barcelona vs Real Sociedad,Real Sociedad,Barcelona,Real Sociedad,2,1,2-1,2,3,7,2,5,2,12,1,5,0.25,2,0,8,250,195,0.78,0.97,0
 Real Betis vs Osasuna,Real Betis,Real Betis,Osasuna,2,0,2-0,6,3,12,3,6,6,6,5,2,0.51,0,0,1,519,435,0.84,0.76,0
 Real Betis vs Osasuna,Osasuna,Real Betis,Osasuna,2,0,2-0,1,8,12,3,9,3,7,5,2,0.49,1,0,4,493,420,0.85,0.7,0
 Valencia vs Oviedo,Valencia,Valencia,Oviedo,1,2,1-2,5,8,16,3,12,4,14,5,1,0.57,1,0,2,541,473,0.87,1.51,0
 Valencia vs Oviedo,Oviedo,Valencia,Oviedo,1,2,1-2,4,3,10,3,5,5,12,4,4,0.43,4,1,4,414,338,0.82,0.77,0
-Osasuna vs Getafe,Osasuna,Osasuna,Getafe,2,1,2-1,3,4,7,0,6,1,11,1,3,0.58,1,0,1,438,316,0.72,0.43,0
-Osasuna vs Getafe,Getafe,Osasuna,Getafe,2,1,2-1,2,3,6,1,6,0,14,6,6,0.42,4,0,2,318,225,0.71,0.85,0
+Osasuna vs Getafe,Osasuna,Osasuna,Getafe,2,1,2-1,3,4,7,0,6,1,11,1,3,0.58,1,0,1,435,316,0.73,0.43,0
+Osasuna vs Getafe,Getafe,Osasuna,Getafe,2,1,2-1,2,3,6,1,5,1,14,6,6,0.42,4,0,2,319,226,0.71,0.82,0
 Oviedo vs Levante,Oviedo,Oviedo,Levante,0,2,0-2,2,6,13,5,9,4,10,9,1,0.57,2,0,3,484,418,0.86,1.31,0
 Oviedo vs Levante,Levante,Oviedo,Levante,0,2,0-2,5,1,14,8,9,5,10,3,2,0.43,2,0,2,370,298,0.81,1.94,0
-Girona vs Valencia,Girona,Girona,Valencia,2,1,2-1,4,0,4,0,3,1,13,0,5,0.45,5,2,5,386,314,0.81,1.02,0
-Girona vs Valencia,Valencia,Girona,Valencia,2,1,2-1,6,8,19,5,9,10,12,7,1,0.55,1,0,2,461,384,0.83,1.21,0
+Girona vs Valencia,Girona,Girona,Valencia,2,1,2-1,4,0,4,0,3,1,13,0,5,0.45,5,2,5,387,313,0.81,1.02,0
+Girona vs Valencia,Valencia,Girona,Valencia,2,1,2-1,6,8,19,5,9,10,12,7,1,0.55,1,0,2,461,385,0.84,1.14,0
 Athletic Club vs Mallorca,Athletic Club,Athletic Club,Mallorca,2,1,2-1,5,6,18,7,10,8,16,7,0,0.52,4,0,1,442,380,0.86,2.05,0
 Athletic Club vs Mallorca,Mallorca,Athletic Club,Mallorca,2,1,2-1,2,4,6,0,2,4,13,2,5,0.48,6,1,3,416,343,0.82,0.32,0
 Real Madrid vs Villarreal,Real Madrid,Real Madrid,Villarreal,3,1,3-1,7,10,26,9,16,10,9,4,0,0.7,2,0,1,711,653,0.92,3.52,0
@@ -153,27 +153,305 @@ Alaves vs Elche,Alaves,Alaves,Elche,3,1,3-1,5,8,25,12,14,11,13,14,2,0.47,3,0,2,3
 Alaves vs Elche,Elche,Alaves,Elche,3,1,3-1,3,1,6,2,3,3,9,4,1,0.53,1,1,2,461,399,0.87,0.38,0
 Sevilla vs Barcelona,Sevilla,Sevilla,Barcelona,4,1,4-1,5,6,13,2,12,1,18,7,10,0.39,7,0,7,266,205,0.77,2.8,0
 Sevilla vs Barcelona,Barcelona,Sevilla,Barcelona,4,1,4-1,8,4,17,5,14,3,9,6,0,0.61,5,0,1,427,363,0.85,2.25,0
-Espanyol vs Real Betis,Espanyol,Espanyol,Real Betis,1,2,1-2,5,8,14,1,9,5,16,10,2,0.5,2,0,1,448,372,0.83,2.24,1
-Espanyol vs Real Betis,Real Betis,Espanyol,Real Betis,1,2,1-2,3,6,12,3,7,5,4,5,1,0.5,6,0,4,463,385,0.83,1.33,1
+Espanyol vs Real Betis,Espanyol,Espanyol,Real Betis,1,2,1-2,5,8,14,1,9,5,16,10,2,0.5,2,0,1,449,374,0.83,2.28,1
+Espanyol vs Real Betis,Real Betis,Espanyol,Real Betis,1,2,1-2,3,6,12,3,7,5,4,5,1,0.5,6,0,4,467,386,0.83,1.4,1
 Real Sociedad vs Rayo Vallecano,Real Sociedad,Real Sociedad,Rayo Vallecano,0,1,0-1,3,1,10,6,7,3,13,7,0,0.51,1,0,1,421,338,0.8,0.79,1
 Real Sociedad vs Rayo Vallecano,Rayo Vallecano,Real Sociedad,Rayo Vallecano,0,1,0-1,2,3,7,2,5,2,21,5,1,0.49,2,0,3,414,328,0.79,0.8,1
 Celta Vigo vs Atletico Madrid,Celta Vigo,Celta Vigo,Atletico Madrid,1,1,1-1,4,11,18,3,9,9,7,6,2,0.59,1,0,1,726,659,0.91,1.92,0
 Celta Vigo vs Atletico Madrid,Atletico Madrid,Celta Vigo,Atletico Madrid,1,1,1-1,1,4,6,1,4,2,10,3,0,0.41,3,1,3,501,436,0.87,0.3,0
-Oviedo vs Espanyol,Oviedo,Oviedo,Espanyol,0,2,0-2,4,5,13,4,7,6,13,3,0,0.61,2,0,8,528,467,0.88,0.77,0
-Oviedo vs Espanyol,Espanyol,Oviedo,Espanyol,0,2,0-2,10,5,19,4,15,4,19,5,2,0.39,1,0,4,321,263,0.82,3.74,0
+Oviedo vs Espanyol,Oviedo,Oviedo,Espanyol,0,2,0-2,4,5,13,4,7,6,9,3,0,0.61,2,0,8,528,467,0.88,0.77,0
+Oviedo vs Espanyol,Espanyol,Oviedo,Espanyol,0,2,0-2,10,5,19,4,15,4,8,5,2,0.39,1,0,4,321,263,0.82,3.74,0
 Sevilla vs Mallorca,Sevilla,Sevilla,Mallorca,1,3,1-3,4,2,13,7,11,2,16,9,3,0.58,2,0,3,413,341,0.83,1.26,0
 Sevilla vs Mallorca,Mallorca,Sevilla,Mallorca,1,3,1-3,6,1,7,0,6,1,13,2,0,0.42,1,0,3,299,226,0.76,1.85,0
-Barcelona vs Girona,Barcelona,Barcelona,Girona,2,1,2-1,9,12,27,6,15,12,27,11,1,0.68,1,0,3,670,615,0.92,1.61,0
-Barcelona vs Girona,Girona,Barcelona,Girona,2,1,2-1,4,4,11,3,10,1,11,5,2,0.32,2,0,7,309,261,0.84,1.55,0
+Barcelona vs Girona,Barcelona,Barcelona,Girona,2,1,2-1,9,12,27,6,15,12,10,11,1,0.68,2,0,3,670,615,0.92,1.61,0
+Barcelona vs Girona,Girona,Barcelona,Girona,2,1,2-1,4,4,11,3,10,1,7,5,2,0.32,2,0,7,309,261,0.84,1.55,0
 Villarreal vs Real Betis,Villarreal,Villarreal,Real Betis,2,2,2-2,3,4,7,0,5,2,13,5,3,0.4,1,0,1,372,293,0.79,0.66,-1
 Villarreal vs Real Betis,Real Betis,Villarreal,Real Betis,2,2,2-2,3,7,16,6,11,5,10,6,1,0.6,1,0,2,561,493,0.88,1.18,-1
 Atletico Madrid vs Osasuna,Atletico Madrid,Atletico Madrid,Osasuna,1,0,1-0,9,9,18,0,11,7,10,4,6,0.59,1,0,2,529,465,0.88,2.58,1
 Atletico Madrid vs Osasuna,Osasuna,Atletico Madrid,Osasuna,1,0,1-0,2,5,9,2,6,3,11,2,1,0.41,3,0,8,366,296,0.81,1.14,1
-Elche vs Athletic Club,Elche,Elche,Athletic Club,0,0,0-0,5,4,15,6,11,4,15,6,3,0.69,2,0,1,596,519,0.87,1.04,0
-Elche vs Athletic Club,Athletic Club,Elche,Athletic Club,0,0,0-0,1,2,4,1,4,0,4,2,3,0.31,3,0,5,271,199,0.73,0.22,0
-Celta Vigo vs Real Sociedad,Celta Vigo,Celta Vigo,Real Sociedad,1,1,1-1,1,3,4,0,2,2,10,1,1,0.42,4,1,6,380,291,0.77,0.95,0
-Celta Vigo vs Real Sociedad,Real Sociedad,Celta Vigo,Real Sociedad,1,1,1-1,7,4,17,6,10,7,20,10,8,0.58,3,0,0,512,448,0.88,1.58,0
-Levante vs Rayo Vallecano,Levante,Levante,Rayo Vallecano,0,3,0-3,5,5,17,7,9,8,6,11,1,0.54,0,0,1,419,339,0.81,0.85,0
-Levante vs Rayo Vallecano,Rayo Vallecano,Levante,Rayo Vallecano,0,3,0-3,5,3,10,2,7,3,18,4,0,0.46,1,0,5,367,302,0.82,1.74,0
-Getafe vs Real Madrid,Getafe,Getafe,Real Madrid,0,1,0-1,1,5,7,1,2,5,27,1,2,0.24,4,2,9,194,105,0.54,0.48,0
-Getafe vs Real Madrid,Real Madrid,Getafe,Real Madrid,0,1,0-1,10,9,23,4,14,9,11,4,3,0.76,1,0,1,632,550,0.87,1.96,0
+Elche vs Athletic Club,Elche,Elche,Athletic Club,0,0,0-0,5,4,15,6,11,4,14,6,3,0.69,2,0,1,596,518,0.87,1.08,0
+Elche vs Athletic Club,Athletic Club,Elche,Athletic Club,0,0,0-0,1,2,4,1,4,0,20,2,3,0.31,3,0,5,271,199,0.73,0.25,0
+Celta Vigo vs Real Sociedad,Celta Vigo,Celta Vigo,Real Sociedad,1,1,1-1,1,3,4,0,2,2,10,1,1,0.41,4,1,6,380,290,0.76,0.95,0
+Celta Vigo vs Real Sociedad,Real Sociedad,Celta Vigo,Real Sociedad,1,1,1-1,7,4,17,6,10,7,20,10,8,0.59,3,0,0,518,455,0.88,1.55,0
+Levante vs Rayo Vallecano,Levante,Levante,Rayo Vallecano,0,3,0-3,4,5,17,8,9,8,6,11,1,0.54,0,0,1,419,340,0.81,0.91,0
+Levante vs Rayo Vallecano,Rayo Vallecano,Levante,Rayo Vallecano,0,3,0-3,5,3,10,2,7,3,18,4,0,0.46,1,0,4,365,300,0.82,1.55,0
+Getafe vs Real Madrid,Getafe,Getafe,Real Madrid,0,1,0-1,1,5,7,1,2,5,27,1,2,0.24,4,2,9,194,103,0.53,0.52,0
+Getafe vs Real Madrid,Real Madrid,Getafe,Real Madrid,0,1,0-1,10,9,23,4,12,11,11,4,3,0.76,1,0,1,636,552,0.87,2.3,0
+Alaves vs Valencia,Alaves,Alaves,Valencia,0,0,0-0,3,7,13,3,10,3,13,7,3,0.63,1,0,2,512,430,0.84,0.74,0
+Alaves vs Valencia,Valencia,Alaves,Valencia,0,0,0-0,2,3,5,0,3,2,20,0,0,0.37,2,0,3,309,216,0.7,0.45,0
+Real Sociedad vs Sevilla,Real Sociedad,Real Sociedad,Sevilla,2,1,2-1,3,2,5,0,4,1,19,1,2,0.4,1,0,0,303,209,0.69,1.61,0
+Real Sociedad vs Sevilla,Sevilla,Real Sociedad,Sevilla,2,1,2-1,1,3,6,2,2,4,14,9,1,0.6,3,0,1,464,358,0.77,0.23,0
+Girona vs Oviedo,Girona,Girona,Oviedo,3,3,3-3,6,1,8,1,4,4,13,11,2,0.65,4,0,2,551,489,0.89,2.03,0
+Girona vs Oviedo,Oviedo,Girona,Oviedo,3,3,3-3,5,3,10,2,8,2,16,4,2,0.35,3,0,3,296,234,0.79,1.79,0
+Espanyol vs Elche,Espanyol,Espanyol,Elche,1,0,1-0,7,8,16,1,10,6,14,4,0,0.32,4,0,4,266,201,0.76,1.93,1
+Espanyol vs Elche,Elche,Espanyol,Elche,1,0,1-0,4,4,13,5,7,6,15,2,1,0.68,2,0,6,598,519,0.87,0.86,1
+Athletic Club vs Getafe,Athletic Club,Athletic Club,Getafe,0,1,0-1,4,1,7,2,4,3,15,1,3,0.57,1,1,3,435,336,0.77,0.39,0
+Athletic Club vs Getafe,Getafe,Athletic Club,Getafe,0,1,0-1,3,1,8,4,5,3,14,5,4,0.43,3,0,4,323,203,0.63,0.93,0
+Valencia vs Villarreal,Valencia,Valencia,Villarreal,0,2,0-2,3,6,15,6,7,8,13,7,2,0.57,2,0,3,540,461,0.85,0.8,0
+Valencia vs Villarreal,Villarreal,Valencia,Villarreal,0,2,0-2,5,4,12,3,11,1,14,5,3,0.43,4,0,3,416,359,0.86,2.18,0
+Mallorca vs Levante,Mallorca,Mallorca,Levante,1,1,1-1,4,11,20,5,13,7,8,5,3,0.63,3,0,4,551,470,0.85,1.58,0
+Mallorca vs Levante,Levante,Mallorca,Levante,1,1,1-1,5,3,13,5,10,3,13,4,3,0.37,2,0,4,331,233,0.7,2.08,0
+Real Madrid vs Barcelona,Real Madrid,Real Madrid,Barcelona,2,1,2-1,10,6,23,7,17,6,12,12,5,0.32,5,1,4,275,223,0.81,3.63,2
+Real Madrid vs Barcelona,Barcelona,Real Madrid,Barcelona,2,1,2-1,6,5,15,4,6,9,9,4,2,0.68,5,1,9,640,574,0.9,1.03,2
+Osasuna vs Celta Vigo,Osasuna,Osasuna,Celta Vigo,2,3,2-3,7,7,17,3,10,7,10,5,0,0.61,3,0,2,555,469,0.85,2.31,0
+Osasuna vs Celta Vigo,Celta Vigo,Osasuna,Celta Vigo,2,3,2-3,5,4,11,2,5,6,13,2,5,0.39,4,0,5,357,291,0.82,1.96,0
+Rayo Vallecano vs Alaves,Rayo Vallecano,Rayo Vallecano,Alaves,1,0,1-0,5,8,15,2,8,7,13,7,2,0.54,1,0,2,419,340,0.81,1.18,0
+Rayo Vallecano vs Alaves,Alaves,Rayo Vallecano,Alaves,1,0,1-0,2,3,12,7,6,6,11,5,0,0.46,3,0,4,358,266,0.74,0.84,0
+Real Betis vs Atletico Madrid,Real Betis,Real Betis,Atletico Madrid,0,2,0-2,5,7,17,5,7,10,9,2,4,0.57,2,0,2,545,474,0.87,1.07,1
+Real Betis vs Atletico Madrid,Atletico Madrid,Real Betis,Atletico Madrid,0,2,0-2,4,4,9,1,5,4,18,5,4,0.43,1,0,5,421,341,0.81,0.6,1
+Getafe vs Girona,Getafe,Getafe,Girona,2,1,2-1,4,7,12,1,7,5,17,8,3,0.4,1,0,3,247,164,0.66,0.88,0
+Getafe vs Girona,Girona,Getafe,Girona,2,1,2-1,4,2,8,2,4,4,15,3,0,0.6,2,0,2,403,302,0.75,1.43,0
+Villarreal vs Rayo Vallecano,Villarreal,Villarreal,Rayo Vallecano,4,0,4-0,7,6,16,3,11,5,7,3,1,0.47,1,0,3,426,371,0.87,3.02,-1
+Villarreal vs Rayo Vallecano,Rayo Vallecano,Villarreal,Rayo Vallecano,4,0,4-0,3,7,13,3,7,6,11,5,0,0.53,1,0,3,459,396,0.86,1.02,-1
+Atletico Madrid vs Sevilla,Atletico Madrid,Atletico Madrid,Sevilla,3,0,3-0,6,6,15,3,12,3,9,9,0,0.47,0,0,2,459,392,0.85,3.53,0
+Atletico Madrid vs Sevilla,Sevilla,Atletico Madrid,Sevilla,3,0,3-0,2,7,10,1,5,5,12,4,0,0.53,3,0,3,531,453,0.85,0.46,0
+Real Sociedad vs Athletic Club,Real Sociedad,Real Sociedad,Athletic Club,3,2,3-2,5,3,9,1,7,2,20,6,3,0.51,2,0,2,363,267,0.74,1.52,0
+Real Sociedad vs Athletic Club,Athletic Club,Real Sociedad,Athletic Club,3,2,3-2,4,5,11,2,8,3,8,2,1,0.49,3,0,2,357,276,0.77,0.83,0
+Real Madrid vs Valencia,Real Madrid,Real Madrid,Valencia,4,0,4-0,11,4,21,6,12,9,14,7,2,0.65,1,0,1,715,647,0.9,2.71,0
+Real Madrid vs Valencia,Valencia,Real Madrid,Valencia,4,0,4-0,1,2,4,1,3,1,7,1,0,0.35,1,0,7,381,317,0.83,0.49,0
+Levante vs Celta Vigo,Levante,Levante,Celta Vigo,1,2,1-2,3,5,9,1,8,1,10,4,0,0.36,2,1,5,328,256,0.78,1.2,0
+Levante vs Celta Vigo,Celta Vigo,Levante,Celta Vigo,1,2,1-2,6,9,20,5,15,5,12,4,0,0.64,3,0,2,609,544,0.89,2.0,0
+Alaves vs Espanyol,Alaves,Alaves,Espanyol,2,1,2-1,4,6,13,3,9,4,14,1,0,0.54,4,1,1,474,394,0.83,1.22,0
+Alaves vs Espanyol,Espanyol,Alaves,Espanyol,2,1,2-1,2,6,18,10,12,6,12,6,0,0.46,2,0,2,374,303,0.81,1.06,0
+Barcelona vs Elche,Barcelona,Barcelona,Elche,3,1,3-1,5,6,17,6,11,6,12,6,5,0.49,0,0,2,413,342,0.83,1.88,0
+Barcelona vs Elche,Elche,Barcelona,Elche,3,1,3-1,3,4,9,2,7,2,16,3,5,0.51,1,0,2,435,367,0.84,0.66,0
+Real Betis vs Mallorca,Real Betis,Real Betis,Mallorca,3,0,3-0,8,4,15,3,9,6,9,4,1,0.52,0,0,1,553,483,0.87,2.36,0
+Real Betis vs Mallorca,Mallorca,Real Betis,Mallorca,3,0,3-0,1,10,14,3,6,8,8,5,4,0.48,3,0,5,483,420,0.87,0.62,0
+Oviedo vs Osasuna,Oviedo,Oviedo,Osasuna,0,0,0-0,2,4,8,2,6,2,17,4,3,0.53,3,0,5,408,340,0.83,0.96,0
+Oviedo vs Osasuna,Osasuna,Oviedo,Osasuna,0,0,0-0,5,5,11,1,8,3,17,2,0,0.47,1,0,2,364,312,0.86,0.82,0
+Elche vs Real Sociedad,Elche,Elche,Real Sociedad,1,1,1-1,3,8,12,1,6,6,14,1,1,0.63,1,0,4,579,506,0.87,0.8,0
+Elche vs Real Sociedad,Real Sociedad,Elche,Real Sociedad,1,1,1-1,5,4,13,4,9,4,15,3,2,0.37,3,0,2,335,254,0.76,1.36,0
+Girona vs Alaves,Girona,Girona,Alaves,1,0,1-0,2,4,10,4,6,4,9,6,1,0.52,0,0,5,507,445,0.88,0.85,0
+Girona vs Alaves,Alaves,Girona,Alaves,1,0,1-0,5,7,14,2,10,4,15,1,3,0.48,3,0,1,463,391,0.84,1.84,0
+Sevilla vs Osasuna,Sevilla,Sevilla,Osasuna,1,0,1-0,4,2,10,4,6,4,21,5,6,0.47,5,0,3,323,255,0.79,1.7,0
+Sevilla vs Osasuna,Osasuna,Sevilla,Osasuna,1,0,1-0,3,1,9,5,6,3,13,6,0,0.53,3,0,3,359,287,0.8,1.29,0
+Atletico Madrid vs Levante,Atletico Madrid,Atletico Madrid,Levante,3,1,3-1,10,9,25,6,16,9,5,21,1,0.74,3,0,2,630,559,0.89,2.92,1
+Atletico Madrid vs Levante,Levante,Atletico Madrid,Levante,3,1,3-1,3,2,6,1,5,1,6,4,4,0.26,1,0,8,212,151,0.71,1.19,1
+Espanyol vs Villarreal,Espanyol,Espanyol,Villarreal,0,2,0-2,3,4,14,7,8,6,9,4,2,0.55,0,0,2,563,499,0.89,0.5,0
+Espanyol vs Villarreal,Villarreal,Espanyol,Villarreal,0,2,0-2,3,3,9,3,7,2,9,2,3,0.45,2,0,3,483,418,0.87,1.61,0
+Athletic Club vs Oviedo,Athletic Club,Athletic Club,Oviedo,1,0,1-0,7,12,21,2,14,7,12,7,0,0.48,1,0,2,417,352,0.84,1.7,0
+Athletic Club vs Oviedo,Oviedo,Athletic Club,Oviedo,1,0,1-0,2,2,4,0,3,1,8,4,4,0.52,1,0,7,472,386,0.82,0.22,0
+Rayo Vallecano vs Real Madrid,Rayo Vallecano,Rayo Vallecano,Real Madrid,0,0,0-0,2,8,13,3,7,6,17,5,1,0.46,3,0,5,368,311,0.85,1.2,0
+Rayo Vallecano vs Real Madrid,Real Madrid,Rayo Vallecano,Real Madrid,0,0,0-0,5,10,21,6,10,11,7,8,1,0.54,2,0,2,445,376,0.84,0.98,0
+Valencia vs Real Betis,Valencia,Valencia,Real Betis,1,1,1-1,4,6,17,7,12,5,13,7,4,0.43,4,0,1,420,354,0.84,1.94,1
+Valencia vs Real Betis,Real Betis,Valencia,Real Betis,1,1,1-1,2,5,9,2,7,2,10,2,1,0.57,4,0,3,566,491,0.87,1.6,1
+Mallorca vs Getafe,Mallorca,Mallorca,Getafe,1,0,1-0,4,1,6,1,5,1,15,1,0,0.39,0,0,2,263,161,0.61,1.11,0
+Mallorca vs Getafe,Getafe,Mallorca,Getafe,1,0,1-0,3,5,14,6,6,8,8,14,1,0.61,2,0,2,390,298,0.76,0.75,0
+Celta Vigo vs Barcelona,Celta Vigo,Celta Vigo,Barcelona,2,4,2-4,3,1,5,1,1,4,13,2,5,0.39,1,0,5,450,377,0.84,0.58,-1
+Celta Vigo vs Barcelona,Barcelona,Celta Vigo,Barcelona,2,4,2-4,9,4,21,8,14,7,10,5,2,0.61,5,1,1,720,652,0.91,3.31,-1
+Valencia vs Levante,Valencia,Valencia,Levante,1,0,1-0,3,5,14,6,10,4,16,7,2,0.59,4,0,0,525,456,0.87,1.49,0
+Valencia vs Levante,Levante,Valencia,Levante,1,0,1-0,0,6,7,1,4,3,15,0,0,0.41,4,0,2,372,294,0.79,0.72,0
+Alaves vs Celta Vigo,Alaves,Alaves,Celta Vigo,0,1,0-1,2,3,5,0,4,1,21,4,4,0.52,2,0,3,510,432,0.85,0.67,0
+Alaves vs Celta Vigo,Celta Vigo,Alaves,Celta Vigo,0,1,0-1,4,2,7,1,4,3,15,2,2,0.48,2,0,2,499,413,0.83,1.37,0
+Barcelona vs Athletic Club,Barcelona,Barcelona,Athletic Club,4,0,4-0,7,5,19,7,14,5,9,5,7,0.68,0,0,2,698,619,0.89,2.0,-2
+Barcelona vs Athletic Club,Athletic Club,Barcelona,Athletic Club,4,0,4-0,2,8,13,3,13,0,9,7,3,0.32,2,1,3,317,256,0.81,0.8,-2
+Osasuna vs Real Sociedad,Osasuna,Osasuna,Real Sociedad,1,3,1-3,4,8,14,2,10,4,13,3,1,0.46,3,1,6,387,304,0.79,1.34,0
+Osasuna vs Real Sociedad,Real Sociedad,Osasuna,Real Sociedad,1,3,1-3,9,5,19,5,8,11,7,3,3,0.54,2,0,4,466,390,0.84,1.63,0
+Villarreal vs Mallorca,Villarreal,Villarreal,Mallorca,2,1,2-1,7,4,14,3,10,4,17,3,3,0.58,2,0,2,516,430,0.83,2.23,0
+Villarreal vs Mallorca,Mallorca,Villarreal,Mallorca,2,1,2-1,3,4,9,2,4,5,8,1,1,0.42,2,0,5,372,281,0.76,1.02,0
+Oviedo vs Rayo Vallecano,Oviedo,Oviedo,Rayo Vallecano,0,0,0-0,3,4,8,1,5,3,11,5,2,0.39,1,1,4,326,262,0.8,0.43,0
+Oviedo vs Rayo Vallecano,Rayo Vallecano,Oviedo,Rayo Vallecano,0,0,0-0,4,6,12,2,6,6,13,6,1,0.61,2,1,2,515,457,0.89,1.74,0
+Real Betis vs Girona,Real Betis,Real Betis,Girona,1,1,1-1,7,12,23,4,13,10,10,8,1,0.54,3,1,3,541,454,0.84,1.42,0
+Real Betis vs Girona,Girona,Real Betis,Girona,1,1,1-1,4,2,11,5,6,5,16,0,4,0.46,4,0,6,464,399,0.86,1.46,0
+Getafe vs Atletico Madrid,Getafe,Getafe,Atletico Madrid,0,1,0-1,1,4,9,4,5,4,9,6,2,0.41,2,0,6,300,208,0.69,0.7,0
+Getafe vs Atletico Madrid,Atletico Madrid,Getafe,Atletico Madrid,0,1,0-1,6,2,13,5,10,3,17,7,5,0.59,3,0,1,445,360,0.81,0.99,0
+Elche vs Real Madrid,Elche,Elche,Real Madrid,2,2,2-2,6,4,15,5,8,7,10,2,1,0.49,4,1,5,474,406,0.86,1.44,0
+Elche vs Real Madrid,Real Madrid,Elche,Real Madrid,2,2,2-2,7,10,20,3,17,3,8,8,2,0.51,1,0,4,489,440,0.9,3.49,0
+Espanyol vs Sevilla,Espanyol,Espanyol,Sevilla,2,1,2-1,5,2,8,1,7,1,18,4,0,0.33,4,0,5,242,169,0.7,1.09,0
+Espanyol vs Sevilla,Sevilla,Espanyol,Sevilla,2,1,2-1,6,8,22,8,16,6,7,13,1,0.67,1,0,3,493,415,0.84,1.82,0
+Getafe vs Elche,Getafe,Getafe,Elche,1,0,1-0,6,5,15,4,8,7,18,3,2,0.34,2,0,4,258,179,0.69,1.06,0
+Getafe vs Elche,Elche,Getafe,Elche,1,0,1-0,4,3,9,2,6,3,11,5,3,0.66,2,0,4,530,451,0.85,0.51,0
+Mallorca vs Osasuna,Mallorca,Mallorca,Osasuna,2,2,2-2,4,3,7,0,5,2,10,2,0,0.52,3,0,0,419,321,0.77,1.49,0
+Mallorca vs Osasuna,Osasuna,Mallorca,Osasuna,2,2,2-2,2,6,14,6,5,9,15,8,0,0.48,4,0,2,350,273,0.78,1.09,0
+Barcelona vs Alaves,Barcelona,Barcelona,Alaves,3,1,3-1,6,6,18,6,11,7,10,5,0,0.69,2,0,1,697,622,0.89,2.24,0
+Barcelona vs Alaves,Alaves,Barcelona,Alaves,3,1,3-1,2,5,9,2,8,1,17,4,8,0.31,3,0,3,307,231,0.75,1.59,0
+Levante vs Athletic Club,Levante,Levante,Athletic Club,0,2,0-2,4,5,11,2,8,3,11,4,4,0.56,3,0,1,413,311,0.75,1.3,1
+Levante vs Athletic Club,Athletic Club,Levante,Athletic Club,0,2,0-2,4,8,14,2,10,4,19,2,2,0.44,2,0,4,319,227,0.71,2.9,1
+Atletico Madrid vs Oviedo,Atletico Madrid,Atletico Madrid,Oviedo,2,0,2-0,8,5,14,1,10,4,5,7,2,0.52,0,0,1,533,476,0.89,1.93,0
+Atletico Madrid vs Oviedo,Oviedo,Atletico Madrid,Oviedo,2,0,2-0,1,8,12,3,8,4,8,2,1,0.48,1,0,6,496,439,0.89,0.93,0
+Real Sociedad vs Villarreal,Real Sociedad,Real Sociedad,Villarreal,2,3,2-3,7,6,18,5,9,9,15,8,1,0.6,4,0,1,530,456,0.86,1.02,0
+Real Sociedad vs Villarreal,Villarreal,Real Sociedad,Villarreal,2,3,2-3,5,4,10,1,6,4,18,2,0,0.4,8,0,5,358,277,0.77,1.51,0
+Sevilla vs Real Betis,Sevilla,Sevilla,Real Betis,0,2,0-2,3,4,9,2,4,5,14,6,2,0.65,2,0,2,419,326,0.78,0.35,0
+Sevilla vs Real Betis,Real Betis,Sevilla,Real Betis,0,2,0-2,4,3,9,2,8,1,22,4,0,0.35,3,0,2,217,143,0.66,1.1,0
+Celta Vigo vs Espanyol,Celta Vigo,Celta Vigo,Espanyol,0,1,0-1,4,2,11,5,7,4,12,4,1,0.61,1,0,1,555,483,0.87,0.63,0
+Celta Vigo vs Espanyol,Espanyol,Celta Vigo,Espanyol,0,1,0-1,2,4,9,3,4,5,15,3,3,0.39,2,0,4,354,281,0.79,0.38,0
+Girona vs Real Madrid,Girona,Girona,Real Madrid,1,1,1-1,4,4,10,2,6,4,9,2,1,0.4,3,0,4,426,359,0.84,0.79,0
+Girona vs Real Madrid,Real Madrid,Girona,Real Madrid,1,1,1-1,4,12,25,9,15,10,13,5,2,0.6,0,0,3,611,553,0.91,2.53,0
+Rayo Vallecano vs Valencia,Rayo Vallecano,Rayo Vallecano,Valencia,1,1,1-1,7,9,19,3,9,10,11,10,1,0.56,1,0,0,441,373,0.85,1.57,0
+Rayo Vallecano vs Valencia,Valencia,Rayo Vallecano,Valencia,1,1,1-1,2,4,10,4,6,4,9,5,0,0.44,1,0,5,350,285,0.81,0.63,0
+Barcelona vs Atletico Madrid,Barcelona,Barcelona,Atletico Madrid,3,1,3-1,6,9,19,4,12,7,12,5,1,0.58,1,0,1,560,480,0.86,3.6,0
+Barcelona vs Atletico Madrid,Atletico Madrid,Barcelona,Atletico Madrid,3,1,3-1,2,4,7,1,6,1,9,4,4,0.42,1,0,3,391,308,0.79,0.98,0
+Athletic Club vs Real Madrid,Athletic Club,Athletic Club,Real Madrid,0,3,0-3,4,4,9,1,7,2,15,5,1,0.38,2,0,5,375,298,0.79,0.84,1
+Athletic Club vs Real Madrid,Real Madrid,Athletic Club,Real Madrid,0,3,0-3,8,4,13,1,5,8,4,7,1,0.62,0,0,4,641,567,0.88,2.21,1
+Oviedo vs Mallorca,Oviedo,Oviedo,Mallorca,0,0,0-0,3,8,15,4,9,6,14,8,2,0.62,2,2,5,464,408,0.88,1.18,0
+Oviedo vs Mallorca,Mallorca,Oviedo,Mallorca,0,0,0-0,6,5,13,2,5,8,12,5,0,0.38,1,0,3,284,217,0.76,0.68,0
+Villarreal vs Getafe,Villarreal,Villarreal,Getafe,2,0,2-0,5,2,10,3,7,3,19,5,6,0.61,2,0,0,491,398,0.81,0.61,-1
+Villarreal vs Getafe,Getafe,Villarreal,Getafe,2,0,2-0,0,3,6,3,4,2,15,3,0,0.39,4,1,3,313,215,0.69,0.22,-1
+Alaves vs Real Sociedad,Alaves,Alaves,Real Sociedad,1,0,1-0,3,7,14,4,8,6,20,5,1,0.38,2,0,1,323,260,0.8,1.39,0
+Alaves vs Real Sociedad,Real Sociedad,Alaves,Real Sociedad,1,0,1-0,1,7,10,2,8,2,16,8,0,0.62,2,0,2,550,466,0.85,1.17,0
+Real Betis vs Barcelona,Real Betis,Real Betis,Barcelona,3,5,3-5,5,7,17,5,13,4,14,7,6,0.38,4,0,3,342,268,0.78,2.51,0
+Real Betis vs Barcelona,Barcelona,Real Betis,Barcelona,3,5,3-5,8,6,16,2,13,3,9,7,1,0.62,2,0,2,575,512,0.89,2.83,0
+Athletic Club vs Atletico Madrid,Athletic Club,Athletic Club,Atletico Madrid,1,0,1-0,3,8,14,3,10,4,9,5,1,0.44,3,0,3,386,287,0.74,1.15,0
+Athletic Club vs Atletico Madrid,Atletico Madrid,Athletic Club,Atletico Madrid,1,0,1-0,3,3,7,1,3,4,12,6,2,0.56,2,0,2,487,384,0.79,0.69,0
+Elche vs Girona,Elche,Elche,Girona,3,0,3-0,6,3,11,2,8,3,18,2,2,0.58,0,0,4,544,492,0.9,2.03,-1
+Elche vs Girona,Girona,Elche,Girona,3,0,3-0,4,2,8,2,6,2,13,2,1,0.42,3,0,3,400,334,0.84,0.94,-1
+Valencia vs Sevilla,Valencia,Valencia,Sevilla,1,1,1-1,3,5,11,3,8,3,12,2,3,0.48,3,0,1,409,321,0.78,1.19,0
+Valencia vs Sevilla,Sevilla,Valencia,Sevilla,1,1,1-1,1,3,4,0,3,1,18,2,3,0.52,6,0,2,446,345,0.77,0.32,0
+Espanyol vs Rayo Vallecano,Espanyol,Espanyol,Rayo Vallecano,1,0,1-0,2,5,9,2,6,3,19,6,1,0.36,4,1,2,234,171,0.73,1.33,0
+Espanyol vs Rayo Vallecano,Rayo Vallecano,Espanyol,Rayo Vallecano,1,0,1-0,2,1,6,3,2,4,22,2,1,0.64,8,1,1,427,355,0.83,0.25,0
+Real Madrid vs Celta Vigo,Real Madrid,Real Madrid,Celta Vigo,0,2,0-2,7,12,23,4,12,11,6,8,2,0.58,6,3,3,585,532,0.91,2.46,1
+Real Madrid vs Celta Vigo,Celta Vigo,Real Madrid,Celta Vigo,0,2,0-2,5,1,7,1,4,3,12,1,1,0.42,1,0,7,447,384,0.86,1.55,1
+Osasuna vs Levante,Osasuna,Osasuna,Levante,2,0,2-0,6,2,14,6,12,2,15,3,0,0.41,2,0,4,370,268,0.72,1.05,0
+Osasuna vs Levante,Levante,Osasuna,Levante,2,0,2-0,5,2,11,4,4,7,7,3,1,0.59,2,0,4,535,448,0.84,0.48,0
+Real Sociedad vs Girona,Real Sociedad,Real Sociedad,Girona,1,2,1-2,4,3,9,2,6,3,20,4,2,0.47,1,0,1,494,426,0.86,0.95,0
+Real Sociedad vs Girona,Girona,Real Sociedad,Girona,1,2,1-2,3,6,14,5,10,4,5,3,4,0.53,2,0,3,559,493,0.88,1.43,0
+Atletico Madrid vs Valencia,Atletico Madrid,Atletico Madrid,Valencia,2,1,2-1,6,2,10,2,8,2,13,5,2,0.46,3,0,1,447,373,0.83,1.01,0
+Atletico Madrid vs Valencia,Valencia,Atletico Madrid,Valencia,2,1,2-1,2,7,13,4,8,5,11,7,1,0.54,1,0,4,516,438,0.85,1.17,0
+Mallorca vs Elche,Mallorca,Mallorca,Elche,3,1,3-1,8,5,15,2,12,3,13,1,1,0.42,3,0,0,391,339,0.87,2.44,0
+Mallorca vs Elche,Elche,Mallorca,Elche,3,1,3-1,0,6,9,3,5,4,13,1,0,0.58,0,0,5,541,482,0.89,0.29,0
+Barcelona vs Osasuna,Barcelona,Barcelona,Osasuna,2,0,2-0,7,10,24,7,10,14,5,14,2,0.8,0,0,2,734,669,0.91,2.41,0
+Barcelona vs Osasuna,Osasuna,Barcelona,Osasuna,2,0,2-0,2,1,3,0,2,1,8,1,6,0.2,3,0,5,186,110,0.59,0.37,0
+Getafe vs Espanyol,Getafe,Getafe,Espanyol,0,1,0-1,1,6,11,4,3,8,18,6,2,0.56,5,0,3,382,282,0.74,0.26,0
+Getafe vs Espanyol,Espanyol,Getafe,Espanyol,0,1,0-1,4,2,6,0,5,1,17,4,3,0.44,1,0,1,315,197,0.63,0.5,0
+Sevilla vs Oviedo,Sevilla,Sevilla,Oviedo,4,0,4-0,7,2,13,4,11,2,11,5,3,0.56,1,0,1,430,360,0.84,2.03,-1
+Sevilla vs Oviedo,Oviedo,Sevilla,Oviedo,4,0,4-0,1,3,4,0,3,1,12,3,1,0.44,2,1,3,329,260,0.79,0.64,-1
+Celta Vigo vs Athletic Club,Celta Vigo,Celta Vigo,Athletic Club,2,0,2-0,2,2,5,1,4,1,11,1,2,0.5,3,0,2,507,415,0.82,1.35,0
+Celta Vigo vs Athletic Club,Athletic Club,Celta Vigo,Athletic Club,2,0,2-0,2,6,14,6,8,6,13,4,3,0.5,2,0,0,492,427,0.87,1.61,0
+Alaves vs Real Madrid,Alaves,Alaves,Real Madrid,1,2,1-2,2,2,6,2,4,2,12,5,2,0.52,3,0,4,488,421,0.86,1.36,0
+Alaves vs Real Madrid,Real Madrid,Alaves,Real Madrid,1,2,1-2,6,5,13,2,10,3,13,7,0,0.48,1,0,1,462,397,0.86,1.83,0
+Rayo Vallecano vs Real Betis,Rayo Vallecano,Rayo Vallecano,Real Betis,0,0,0-0,7,9,23,7,9,14,10,8,4,0.59,4,0,6,434,352,0.81,1.86,0
+Rayo Vallecano vs Real Betis,Real Betis,Rayo Vallecano,Real Betis,0,0,0-0,6,4,13,3,5,8,7,3,0,0.41,1,0,7,304,225,0.74,0.81,0
+Valencia vs Mallorca,Valencia,Valencia,Mallorca,1,1,1-1,2,5,17,10,9,8,10,12,2,0.71,2,0,1,568,502,0.88,1.42,0
+Valencia vs Mallorca,Mallorca,Valencia,Mallorca,1,1,1-1,2,1,4,1,2,2,12,3,4,0.29,3,0,1,242,172,0.71,0.19,0
+Oviedo vs Celta Vigo,Oviedo,Oviedo,Celta Vigo,0,0,0-0,3,5,10,2,5,5,14,4,6,0.56,2,0,2,485,410,0.85,0.63,0
+Oviedo vs Celta Vigo,Celta Vigo,Oviedo,Celta Vigo,0,0,0-0,2,3,6,1,5,1,7,3,3,0.44,1,0,3,398,327,0.82,0.66,0
+Levante vs Real Sociedad,Levante,Levante,Real Sociedad,1,1,1-1,3,5,13,5,9,4,16,7,3,0.44,6,0,5,349,277,0.79,1.29,0
+Levante vs Real Sociedad,Real Sociedad,Levante,Real Sociedad,1,1,1-1,6,7,18,5,9,9,13,10,3,0.56,2,0,2,455,388,0.85,1.38,0
+Osasuna vs Alaves,Osasuna,Osasuna,Alaves,3,0,3-0,7,7,16,2,13,3,16,9,1,0.47,2,0,3,375,288,0.77,2.21,0
+Osasuna vs Alaves,Alaves,Osasuna,Alaves,3,0,3-0,3,3,7,1,6,1,11,0,2,0.53,2,0,4,438,345,0.79,0.57,0
+Real Madrid vs Sevilla,Real Madrid,Real Madrid,Sevilla,2,0,2-0,8,7,18,3,15,3,13,6,1,0.53,2,0,5,496,445,0.9,2.33,1
+Real Madrid vs Sevilla,Sevilla,Real Madrid,Sevilla,2,0,2-0,5,5,14,4,10,4,19,5,0,0.47,5,1,6,437,386,0.88,1.56,1
+Girona vs Atletico Madrid,Girona,Girona,Atletico Madrid,0,3,0-3,2,2,9,5,5,4,7,3,4,0.51,2,0,3,521,476,0.91,1.06,1
+Girona vs Atletico Madrid,Atletico Madrid,Girona,Atletico Madrid,0,3,0-3,6,5,14,3,9,5,14,4,3,0.49,0,0,2,509,454,0.89,0.9,1
+Villarreal vs Barcelona,Villarreal,Villarreal,Barcelona,0,2,0-2,5,6,14,3,11,3,10,5,6,0.21,1,1,2,197,135,0.69,1.66,0
+Villarreal vs Barcelona,Barcelona,Villarreal,Barcelona,0,2,0-2,5,9,19,5,12,7,8,10,1,0.79,1,0,5,798,730,0.91,2.72,0
+Elche vs Rayo Vallecano,Elche,Elche,Rayo Vallecano,4,0,4-0,6,9,18,3,16,2,15,4,1,0.46,2,0,8,343,273,0.8,2.41,0
+Elche vs Rayo Vallecano,Rayo Vallecano,Elche,Rayo Vallecano,4,0,4-0,8,6,18,4,8,10,11,5,4,0.54,3,0,2,401,327,0.82,0.95,0
+Real Betis vs Getafe,Real Betis,Real Betis,Getafe,4,0,4-0,8,9,19,2,13,6,13,7,2,0.49,0,0,3,378,311,0.82,3.3,0
+Real Betis vs Getafe,Getafe,Real Betis,Getafe,4,0,4-0,3,7,15,5,8,7,12,5,2,0.51,1,0,4,390,307,0.79,1.42,0
+Athletic Club vs Espanyol,Athletic Club,Athletic Club,Espanyol,1,2,1-2,7,4,17,6,12,5,8,8,0,0.66,5,0,3,527,443,0.84,1.59,0
+Athletic Club vs Espanyol,Espanyol,Athletic Club,Espanyol,1,2,1-2,5,3,10,2,5,5,5,4,1,0.34,2,0,6,280,197,0.7,0.9,0
+Rayo Vallecano vs Getafe,Rayo Vallecano,Rayo Vallecano,Getafe,1,1,1-1,4,5,13,4,6,7,13,3,5,0.6,3,0,3,455,349,0.77,0.89,0
+Rayo Vallecano vs Getafe,Getafe,Rayo Vallecano,Getafe,1,1,1-1,4,6,12,2,8,4,10,2,2,0.4,4,0,3,296,192,0.65,0.77,0
+Celta Vigo vs Valencia,Celta Vigo,Celta Vigo,Valencia,4,1,4-1,6,5,12,1,10,2,10,2,2,0.4,1,0,4,394,338,0.86,2.7,0
+Celta Vigo vs Valencia,Valencia,Celta Vigo,Valencia,4,1,4-1,5,8,16,3,10,6,9,4,2,0.6,3,0,2,574,515,0.9,1.94,0
+Osasuna vs Athletic Club,Osasuna,Osasuna,Athletic Club,1,1,1-1,4,4,11,3,4,7,12,1,2,0.49,3,0,5,415,328,0.79,0.67,0
+Osasuna vs Athletic Club,Athletic Club,Osasuna,Athletic Club,1,1,1-1,6,6,16,4,11,5,19,9,0,0.51,3,0,3,420,336,0.8,1.46,0
+Elche vs Villarreal,Elche,Elche,Villarreal,1,3,1-3,2,7,15,6,11,4,8,6,1,0.78,3,0,1,775,707,0.91,1.31,0
+Elche vs Villarreal,Villarreal,Elche,Villarreal,1,3,1-3,4,6,12,2,10,2,11,2,2,0.22,3,0,1,220,164,0.75,1.52,0
+Espanyol vs Barcelona,Espanyol,Espanyol,Barcelona,0,2,0-2,7,1,14,6,12,2,10,5,4,0.31,1,0,4,250,181,0.72,1.43,1
+Espanyol vs Barcelona,Barcelona,Espanyol,Barcelona,0,2,0-2,6,5,15,4,11,4,14,7,2,0.69,0,0,6,559,494,0.88,1.67,1
+Sevilla vs Levante,Sevilla,Sevilla,Levante,0,3,0-3,7,3,15,5,12,3,16,5,2,0.64,3,0,1,509,439,0.86,1.7,2
+Sevilla vs Levante,Levante,Sevilla,Levante,0,3,0-3,4,1,6,1,4,2,10,1,0,0.36,4,0,7,285,203,0.71,1.03,2
+Real Madrid vs Real Betis,Real Madrid,Real Madrid,Real Betis,5,1,5-1,9,5,19,5,12,7,10,5,2,0.61,1,0,4,639,587,0.92,2.94,0
+Real Madrid vs Real Betis,Real Betis,Real Madrid,Real Betis,5,1,5-1,5,6,13,2,8,5,12,8,0,0.39,1,0,4,403,346,0.86,1.06,0
+Alaves vs Oviedo,Alaves,Alaves,Oviedo,1,1,1-1,7,8,18,3,7,11,11,6,0,0.57,3,1,5,442,363,0.82,1.72,0
+Alaves vs Oviedo,Oviedo,Alaves,Oviedo,1,1,1-1,6,7,18,5,10,8,20,7,0,0.43,3,1,6,342,258,0.75,2.44,0
+Mallorca vs Girona,Mallorca,Mallorca,Girona,1,2,1-2,2,4,9,3,7,2,10,3,2,0.49,2,0,3,442,359,0.81,1.26,0
+Mallorca vs Girona,Girona,Mallorca,Girona,1,2,1-2,4,2,9,3,7,2,14,6,0,0.51,1,0,1,473,391,0.83,1.51,0
+Real Sociedad vs Atletico Madrid,Real Sociedad,Real Sociedad,Atletico Madrid,1,1,1-1,8,5,18,5,8,10,11,6,3,0.45,3,0,1,414,343,0.83,1.73,0
+Real Sociedad vs Atletico Madrid,Atletico Madrid,Real Sociedad,Atletico Madrid,1,1,1-1,2,6,10,2,7,3,13,6,2,0.55,2,0,7,506,430,0.85,1.25,0
+Getafe vs Real Sociedad,Getafe,Getafe,Real Sociedad,1,2,1-2,3,2,6,1,3,3,17,2,4,0.43,2,0,3,330,226,0.68,0.24,0
+Getafe vs Real Sociedad,Real Sociedad,Getafe,Real Sociedad,1,2,1-2,5,5,12,2,6,6,17,4,2,0.57,1,0,2,444,356,0.8,1.11,0
+Oviedo vs Real Betis,Oviedo,Oviedo,Real Betis,1,1,1-1,3,5,13,5,8,5,15,5,2,0.42,3,0,5,393,314,0.8,1.24,0
+Oviedo vs Real Betis,Real Betis,Oviedo,Real Betis,1,1,1-1,6,7,15,2,10,5,8,2,1,0.58,1,0,2,564,480,0.85,2.24,0
+Villarreal vs Alaves,Villarreal,Villarreal,Alaves,3,1,3-1,4,5,11,2,9,2,10,1,0,0.44,0,0,4,446,350,0.78,1.5,0
+Villarreal vs Alaves,Alaves,Villarreal,Alaves,3,1,3-1,5,7,16,4,8,8,14,6,0,0.56,2,0,1,543,450,0.83,0.94,0
+Girona vs Osasuna,Girona,Girona,Osasuna,1,0,1-0,4,3,8,1,5,3,14,2,3,0.46,2,1,0,444,369,0.83,0.65,0
+Girona vs Osasuna,Osasuna,Girona,Osasuna,1,0,1-0,0,11,12,1,10,2,13,1,2,0.54,6,0,3,501,429,0.86,1.41,0
+Valencia vs Elche,Valencia,Valencia,Elche,1,1,1-1,4,9,16,3,11,5,14,8,3,0.39,2,0,0,312,240,0.77,1.96,0
+Valencia vs Elche,Elche,Valencia,Elche,1,1,1-1,1,2,5,2,3,2,14,6,5,0.61,3,0,3,510,437,0.86,0.16,0
+Rayo Vallecano vs Mallorca,Rayo Vallecano,Rayo Vallecano,Mallorca,2,1,2-1,5,7,14,2,9,5,14,6,2,0.53,1,1,1,371,284,0.77,2.37,0
+Rayo Vallecano vs Mallorca,Mallorca,Rayo Vallecano,Mallorca,2,1,2-1,2,5,9,2,7,2,14,5,1,0.47,5,0,3,321,233,0.73,0.72,0
+Levante vs Espanyol,Levante,Levante,Espanyol,1,1,1-1,2,3,8,3,6,2,10,4,2,0.49,0,0,2,423,350,0.83,1.11,0
+Levante vs Espanyol,Espanyol,Levante,Espanyol,1,1,1-1,3,10,19,6,13,6,9,3,2,0.51,1,0,1,431,364,0.84,1.36,0
+Sevilla vs Celta Vigo,Sevilla,Sevilla,Celta Vigo,0,1,0-1,2,2,7,3,3,4,16,6,4,0.59,3,0,6,451,392,0.87,0.27,0
+Sevilla vs Celta Vigo,Celta Vigo,Sevilla,Celta Vigo,0,1,0-1,7,2,9,0,7,2,16,1,0,0.41,3,0,2,336,266,0.79,1.63,0
+Espanyol vs Girona,Espanyol,Espanyol,Girona,0,2,0-2,2,9,14,3,8,6,17,5,1,0.49,5,0,2,393,319,0.81,1.07,0
+Espanyol vs Girona,Girona,Espanyol,Girona,0,2,0-2,4,2,7,1,6,1,17,4,4,0.51,5,0,2,425,351,0.83,1.95,0
+Real Madrid vs Levante,Real Madrid,Real Madrid,Levante,2,0,2-0,11,10,26,5,15,11,12,8,0,0.7,2,0,0,719,661,0.92,2.88,0
+Real Madrid vs Levante,Levante,Real Madrid,Levante,2,0,2-0,0,8,10,2,5,5,14,0,2,0.3,1,0,9,306,236,0.77,0.8,0
+Mallorca vs Athletic Club,Mallorca,Mallorca,Athletic Club,3,2,3-2,9,8,17,1,13,4,10,3,2,0.51,1,0,9,475,371,0.78,2.79,0
+Mallorca vs Athletic Club,Athletic Club,Mallorca,Athletic Club,3,2,3-2,11,5,21,5,16,5,10,7,0,0.49,5,2,6,433,337,0.78,2.11,0
+Osasuna vs Oviedo,Osasuna,Osasuna,Oviedo,3,2,3-2,5,6,16,5,12,4,14,3,0,0.51,1,1,3,339,261,0.77,1.37,0
+Osasuna vs Oviedo,Oviedo,Osasuna,Oviedo,3,2,3-2,5,6,13,2,10,3,15,6,2,0.49,4,0,2,331,264,0.8,1.34,0
+Real Betis vs Villarreal,Real Betis,Real Betis,Villarreal,2,0,2-0,6,6,15,3,4,11,14,2,4,0.6,3,0,3,543,463,0.85,1.22,0
+Real Betis vs Villarreal,Villarreal,Real Betis,Villarreal,2,0,2-0,3,5,9,1,6,3,13,3,3,0.4,2,1,4,356,276,0.78,0.99,0
+Getafe vs Valencia,Getafe,Getafe,Valencia,0,1,0-1,3,6,14,5,9,5,8,9,3,0.55,2,0,0,349,257,0.74,0.62,0
+Getafe vs Valencia,Valencia,Getafe,Valencia,0,1,0-1,1,3,7,3,5,2,18,3,2,0.45,3,1,3,305,204,0.67,0.89,0
+Atletico Madrid vs Alaves,Atletico Madrid,Atletico Madrid,Alaves,1,0,1-0,6,9,23,8,16,7,13,6,2,0.54,1,0,0,555,488,0.88,1.78,0
+Atletico Madrid vs Alaves,Alaves,Atletico Madrid,Alaves,1,0,1-0,0,6,8,2,6,2,5,6,1,0.46,1,0,4,464,383,0.83,0.85,0
+Celta Vigo vs Rayo Vallecano,Celta Vigo,Celta Vigo,Rayo Vallecano,3,0,3-0,7,1,11,3,6,5,7,5,4,0.49,4,0,3,447,385,0.86,1.87,-1
+Celta Vigo vs Rayo Vallecano,Rayo Vallecano,Celta Vigo,Rayo Vallecano,3,0,3-0,3,4,14,7,9,5,14,7,1,0.51,3,1,4,454,392,0.86,1.11,-1
+Real Sociedad vs Barcelona,Real Sociedad,Real Sociedad,Barcelona,2,1,2-1,6,1,7,1,5,2,13,6,4,0.28,3,1,8,223,148,0.66,1.01,0
+Real Sociedad vs Barcelona,Barcelona,Real Sociedad,Barcelona,2,1,2-1,9,11,25,5,18,7,8,8,3,0.72,4,0,3,604,535,0.89,3.68,0
+Elche vs Sevilla,Elche,Elche,Sevilla,2,2,2-2,5,2,10,3,7,3,11,9,0,0.5,3,0,6,334,248,0.74,1.54,0
+Elche vs Sevilla,Sevilla,Elche,Sevilla,2,2,2-2,8,11,25,6,13,12,12,7,1,0.5,1,0,3,328,260,0.79,3.0,0
+Levante vs Elche,Levante,Levante,Elche,3,2,3-2,6,7,26,13,18,8,13,9,1,0.41,2,0,1,328,248,0.76,2.61,0
+Levante vs Elche,Elche,Levante,Elche,3,2,3-2,3,2,6,1,3,3,13,1,0,0.59,3,0,2,482,401,0.83,0.65,0
+Rayo Vallecano vs Osasuna,Rayo Vallecano,Rayo Vallecano,Osasuna,1,3,1-3,4,4,11,3,6,5,12,4,2,0.67,2,0,3,456,369,0.81,0.77,0
+Rayo Vallecano vs Osasuna,Osasuna,Rayo Vallecano,Osasuna,1,3,1-3,5,6,14,3,7,7,15,3,2,0.33,2,0,3,226,142,0.63,1.22,0
+Valencia vs Espanyol,Valencia,Valencia,Espanyol,3,2,3-2,5,2,10,3,7,3,13,2,0,0.47,1,0,5,369,267,0.72,2.55,0
+Valencia vs Espanyol,Espanyol,Valencia,Espanyol,3,2,3-2,6,5,16,5,10,6,10,7,0,0.53,5,0,2,401,314,0.78,1.35,0
+Sevilla vs Athletic Club,Sevilla,Sevilla,Athletic Club,2,1,2-1,7,2,10,1,8,2,16,5,1,0.5,2,0,3,372,278,0.75,2.07,0
+Sevilla vs Athletic Club,Athletic Club,Sevilla,Athletic Club,2,1,2-1,3,7,15,5,8,7,12,5,0,0.5,1,0,5,358,245,0.68,2.14,0
+Villarreal vs Real Madrid,Villarreal,Villarreal,Real Madrid,0,2,0-2,1,4,8,3,5,3,19,6,0,0.42,3,0,2,384,311,0.81,0.58,0
+Villarreal vs Real Madrid,Real Madrid,Villarreal,Real Madrid,0,2,0-2,4,4,14,6,9,5,10,6,0,0.58,1,0,1,551,483,0.88,1.58,0
+Atletico Madrid vs Mallorca,Atletico Madrid,Atletico Madrid,Mallorca,3,0,3-0,8,6,17,3,13,4,10,10,0,0.61,2,0,1,562,484,0.86,1.48,0
+Atletico Madrid vs Mallorca,Mallorca,Atletico Madrid,Mallorca,3,0,3-0,1,4,6,1,5,1,7,3,0,0.39,1,0,7,357,283,0.79,0.46,0
+Barcelona vs Oviedo,Barcelona,Barcelona,Oviedo,3,0,3-0,7,4,15,4,14,1,8,10,3,0.73,1,0,3,678,607,0.9,2.09,0
+Barcelona vs Oviedo,Oviedo,Barcelona,Oviedo,3,0,3-0,3,4,12,5,8,4,21,1,4,0.27,2,0,4,252,187,0.74,0.48,0
+Real Sociedad vs Celta Vigo,Real Sociedad,Real Sociedad,Celta Vigo,3,1,3-1,4,1,10,5,6,4,7,2,2,0.36,1,1,2,350,291,0.83,1.61,0
+Real Sociedad vs Celta Vigo,Celta Vigo,Real Sociedad,Celta Vigo,3,1,3-1,4,6,17,7,9,8,13,9,2,0.64,1,0,1,622,554,0.89,1.6,0
+Alaves vs Real Betis,Alaves,Alaves,Real Betis,2,1,2-1,9,2,17,6,9,8,17,6,5,0.45,1,0,3,364,266,0.73,1.27,0
+Alaves vs Real Betis,Real Betis,Alaves,Real Betis,2,1,2-1,4,6,18,8,12,6,11,4,3,0.55,1,0,7,453,381,0.84,1.38,0
+Girona vs Getafe,Girona,Girona,Getafe,1,1,1-1,4,6,12,2,6,6,13,3,2,0.69,5,0,1,609,532,0.87,0.75,0
+Girona vs Getafe,Getafe,Girona,Getafe,1,1,1-1,2,1,8,5,7,1,15,4,2,0.31,3,0,3,274,195,0.71,0.8,0
+Espanyol vs Alaves,Espanyol,Espanyol,Alaves,1,2,1-2,3,5,10,2,10,0,15,4,4,0.5,0,0,5,403,317,0.79,0.69,0
+Espanyol vs Alaves,Alaves,Espanyol,Alaves,1,2,1-2,7,4,11,0,6,5,15,2,1,0.5,1,0,2,417,320,0.77,1.24,0
+Oviedo vs Girona,Oviedo,Oviedo,Girona,1,0,1-0,4,2,8,2,6,2,12,4,2,0.34,1,0,1,288,217,0.75,1.4,0
+Oviedo vs Girona,Girona,Oviedo,Girona,1,0,1-0,1,6,9,2,6,3,16,4,2,0.66,1,0,3,578,523,0.9,0.65,0
+Osasuna vs Villarreal,Osasuna,Osasuna,Villarreal,2,2,2-2,5,7,15,3,13,2,15,6,1,0.47,2,0,2,370,299,0.81,1.37,0
+Osasuna vs Villarreal,Villarreal,Osasuna,Villarreal,2,2,2-2,4,1,5,0,3,2,7,2,0,0.53,2,0,2,445,353,0.79,0.92,0
+Levante vs Atletico Madrid,Levante,Levante,Atletico Madrid,0,0,0-0,2,4,10,4,4,6,11,4,1,0.45,2,0,4,424,341,0.8,0.37,0
+Levante vs Atletico Madrid,Atletico Madrid,Levante,Atletico Madrid,0,0,0-0,4,4,10,2,8,2,12,7,3,0.55,1,0,2,512,438,0.86,0.86,0
+Elche vs Barcelona,Elche,Elche,Barcelona,1,3,1-3,3,5,9,1,7,2,15,2,5,0.39,2,0,4,353,289,0.82,1.0,0
+Elche vs Barcelona,Barcelona,Elche,Barcelona,1,3,1-3,8,15,30,7,26,4,9,8,2,0.61,1,0,2,548,473,0.86,6.44,0
+Real Madrid vs Rayo Vallecano,Real Madrid,Real Madrid,Rayo Vallecano,2,1,2-1,6,6,16,4,12,4,6,9,1,0.57,2,0,3,582,522,0.9,2.21,0
+Real Madrid vs Rayo Vallecano,Rayo Vallecano,Real Madrid,Rayo Vallecano,2,1,2-1,4,4,11,3,4,7,18,4,1,0.43,8,2,4,443,390,0.88,1.03,0
+Real Betis vs Valencia,Real Betis,Real Betis,Valencia,2,1,2-1,2,7,14,5,7,7,15,3,2,0.53,0,0,3,469,394,0.84,1.87,-1
+Real Betis vs Valencia,Valencia,Real Betis,Valencia,2,1,2-1,4,7,15,4,11,4,13,5,1,0.47,4,0,0,405,332,0.82,1.9,-1
+Getafe vs Celta Vigo,Getafe,Getafe,Celta Vigo,0,0,0-0,2,6,9,1,7,2,16,5,5,0.38,1,0,1,326,255,0.78,0.35,0
+Getafe vs Celta Vigo,Celta Vigo,Getafe,Celta Vigo,0,0,0-0,1,2,5,2,2,3,14,3,4,0.62,2,0,2,542,462,0.85,0.18,0
+Athletic Club vs Real Sociedad,Athletic Club,Athletic Club,Real Sociedad,1,1,1-1,4,6,19,9,12,7,14,6,3,0.55,4,0,4,421,333,0.79,0.97,0
+Athletic Club vs Real Sociedad,Real Sociedad,Athletic Club,Real Sociedad,1,1,1-1,6,2,8,0,6,2,14,3,5,0.45,2,1,3,360,273,0.76,1.66,0
+Mallorca vs Sevilla,Mallorca,Mallorca,Sevilla,4,1,4-1,6,2,11,3,10,1,16,4,1,0.33,1,0,4,268,188,0.7,2.63,-1
+Mallorca vs Sevilla,Sevilla,Mallorca,Sevilla,4,1,4-1,5,2,15,8,8,7,8,8,5,0.67,1,0,2,558,473,0.85,1.13,-1
+Celta Vigo vs Osasuna,Celta Vigo,Celta Vigo,Osasuna,1,2,1-2,4,9,18,5,12,6,9,7,0,0.57,2,0,0,555,502,0.9,2.16,0
+Celta Vigo vs Osasuna,Osasuna,Celta Vigo,Osasuna,1,2,1-2,2,1,8,5,6,2,14,3,2,0.43,2,0,3,409,364,0.89,0.66,0
+Barcelona vs Mallorca,Barcelona,Barcelona,Mallorca,3,0,3-0,7,6,24,11,11,13,7,12,0,0.76,0,0,4,777,706,0.91,2.63,0
+Barcelona vs Mallorca,Mallorca,Barcelona,Mallorca,3,0,3-0,4,3,9,2,6,3,9,3,3,0.24,0,0,4,237,165,0.7,0.8,0
+Real Sociedad vs Elche,Real Sociedad,Real Sociedad,Elche,3,1,3-1,3,7,11,1,8,3,14,2,2,0.34,0,0,4,296,226,0.76,2.63,0
+Real Sociedad vs Elche,Elche,Real Sociedad,Elche,3,1,3-1,5,5,11,1,7,4,8,4,0,0.66,4,0,0,592,504,0.85,1.27,0
+Alaves vs Getafe,Alaves,Alaves,Getafe,0,2,0-2,5,8,13,0,11,2,20,6,3,0.6,2,0,3,404,315,0.78,2.02,1
+Alaves vs Getafe,Getafe,Alaves,Getafe,0,2,0-2,5,6,17,6,10,7,20,3,2,0.4,4,0,5,274,180,0.66,1.91,1
+Athletic Club vs Levante,Athletic Club,Athletic Club,Levante,4,2,4-2,7,9,22,6,14,8,17,4,3,0.55,2,0,1,502,437,0.87,2.08,0
+Athletic Club vs Levante,Levante,Athletic Club,Levante,4,2,4-2,3,2,6,1,2,4,10,3,3,0.45,1,1,3,400,314,0.79,0.51,0
+Sevilla vs Girona,Sevilla,Sevilla,Girona,1,1,1-1,3,7,11,1,6,5,16,5,5,0.51,3,0,5,432,372,0.86,0.78,0
+Sevilla vs Girona,Girona,Sevilla,Girona,1,1,1-1,6,5,15,4,10,5,13,7,0,0.49,3,0,2,421,353,0.84,2.56,0
+Atletico Madrid vs Real Betis,Atletico Madrid,Atletico Madrid,Real Betis,0,1,0-1,5,4,10,1,8,2,12,7,6,0.65,3,0,3,678,605,0.89,0.67,1
+Atletico Madrid vs Real Betis,Real Betis,Atletico Madrid,Real Betis,0,1,0-1,4,3,8,1,3,5,3,3,1,0.35,1,0,5,371,304,0.82,0.7,1
+Valencia vs Real Madrid,Valencia,Valencia,Real Madrid,0,2,0-2,0,5,7,2,4,3,10,5,1,0.4,1,0,4,359,283,0.79,0.44,0
+Valencia vs Real Madrid,Real Madrid,Valencia,Real Madrid,0,2,0-2,6,4,11,1,7,4,13,8,3,0.6,1,0,0,558,495,0.89,0.96,0
+Villarreal vs Espanyol,Villarreal,Villarreal,Espanyol,4,1,4-1,3,4,10,3,7,3,18,5,1,0.49,3,0,1,426,378,0.89,0.76,-2
+Villarreal vs Espanyol,Espanyol,Villarreal,Espanyol,4,1,4-1,2,5,9,2,4,5,11,8,0,0.51,3,0,0,438,375,0.86,0.42,-2
