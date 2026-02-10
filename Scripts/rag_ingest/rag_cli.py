@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 from odds_parlay_solver import (
     OddsLeg,
     combined_odds,
-    extract_h2h_candidates,
+    extract_candidates,
     select_best_parlay,
 )
 
@@ -317,14 +317,28 @@ def generic_retrieve(user_q: str,
     return hits[:k]
 
 
-def extract_target_multiplier(user_q: str, default: float = 3.0) -> float:
-    m = re.search(r"(\d+(?:\.\d+)?)\s*x", user_q.lower())
-    if not m:
-        return default
-    try:
-        return float(m.group(1))
-    except ValueError:
-        return default
+def parse_target_request(user_q: str) -> Tuple[Optional[float], str]:
+    """
+    Returns:
+    - target multiplier if explicitly provided, else None
+    - mode: "none" | "around" | "max" | "min"
+    """
+    q = user_q.lower()
+
+    max_pat = r"(?:no more than|under|below|at most|max(?:imum)?)\s*(\d+(?:\.\d+)?)\s*x?"
+    min_pat = r"(?:at least|over|above|min(?:imum)?)\s*(\d+(?:\.\d+)?)\s*x?"
+    around_pat = r"(?:around|about|approx(?:imately)?|target(?: of)?)\s*(\d+(?:\.\d+)?)\s*x?"
+    plain_pat = r"(\d+(?:\.\d+)?)\s*x"
+
+    for pat, mode in [(max_pat, "max"), (min_pat, "min"), (around_pat, "around"), (plain_pat, "around")]:
+        m = re.search(pat, q)
+        if not m:
+            continue
+        try:
+            return float(m.group(1)), mode
+        except ValueError:
+            break
+    return None, "none"
 
 
 def extract_leg_count(user_q: str, default: int = 3) -> int:
@@ -358,6 +372,176 @@ def extract_match_count(user_q: str) -> Optional[int]:
     return None
 
 
+def query_excludes_moneyline(user_q: str) -> bool:
+    q = user_q.lower()
+    return bool(
+        re.search(r"(?:no|without|avoid|dont|don't)\s+.*(?:money\s*line|moneyline|ml|h2h|1x2)", q)
+    )
+
+
+def query_moneyline_only(user_q: str) -> bool:
+    q = user_q.lower()
+    return bool(
+        re.search(r"(?:only|just)\s+.*(?:money\s*line|moneyline|ml|h2h|1x2)", q)
+    )
+
+
+def infer_requested_odds_markets(user_q: str) -> List[str]:
+    """
+    Decide which Odds API markets to fetch based on user intent.
+    Defaults to broad set; narrows only when user asks explicitly.
+    """
+    q = user_q.lower()
+    if query_moneyline_only(q):
+        return ["h2h"]
+    if query_excludes_moneyline(q):
+        # Keep non-ML defaults broad.
+        return ["totals", "spreads", "corners", "cards"]
+
+    wants_totals = bool(
+        re.search(r"\btotal(s)?\b", q)
+        or re.search(r"\bover\b", q)
+        or re.search(r"\bunder\b", q)
+        or re.search(r"\bgoals?\s+over\b", q)
+        or re.search(r"\bgoals?\s+under\b", q)
+    )
+    wants_spreads = bool(re.search(r"\bspread(s)?\b", q) or re.search(r"\bhandicap(s)?\b", q))
+    wants_ml = bool(re.search(r"\bmoney\s*line\b", q) or re.search(r"\bml\b", q) or re.search(r"\b1x2\b", q) or re.search(r"\bh2h\b", q))
+    wants_corners = bool(re.search(r"\bcorner(s)?\b", q))
+    wants_cards = bool(re.search(r"\bcard(s)?\b", q) or re.search(r"\bbooking(s)?\b", q))
+
+    picks: List[str] = []
+    if wants_ml:
+        picks.append("h2h")
+    if wants_totals:
+        picks.append("totals")
+    if wants_spreads:
+        picks.append("spreads")
+    if wants_corners:
+        picks.append("corners")
+    if wants_cards:
+        picks.append("cards")
+    if not picks:
+        picks = ["h2h", "totals", "spreads"]
+    # Deduplicate while preserving order.
+    return list(dict.fromkeys(picks))
+
+
+def infer_unique_event_requirement(user_q: str) -> bool:
+    q = user_q.lower()
+    if any(k in q for k in ["same game parlay", "sgp", "same match", "single match"]):
+        return False
+    if any(k in q for k in ["different matches", "across matches", "one per match"]):
+        return True
+    # Default flexible behavior: allow multi-leg from same event unless user restricts it.
+    return False
+
+
+def parse_odds_constraints(user_q: str) -> Dict:
+    """
+    Parse user intent into a structured constraint object instead of hard-coded rules.
+    """
+    q = user_q.lower()
+    target_mult, target_mode = parse_target_request(user_q)
+    explicit_leg_count = re.search(r"(\d+)\s*[- ]?leg", q) is not None
+    per_match_mode = bool(
+        re.search(r"(as many legs as|for each game|for every game|one leg per game|one leg per match)", q)
+    )
+
+    wants_corners_only = bool(re.search(r"(only|just)\s+.*corner", q) or re.search(r"corner.*(only|just)", q))
+    wants_cards_only = bool(re.search(r"(only|just)\s+.*card", q) or re.search(r"card.*(only|just)", q))
+
+    constraints = {
+        "requested_markets": infer_requested_odds_markets(user_q),
+        "target_multiplier": target_mult,
+        "target_mode": target_mode,
+        "leg_count": extract_leg_count(user_q, default=3),
+        "leg_count_explicit": explicit_leg_count,
+        "leg_count_per_match_mode": per_match_mode,
+        "require_unique_events": infer_unique_event_requirement(user_q) or per_match_mode,
+        "exclude_moneyline": query_excludes_moneyline(user_q),
+        "moneyline_only": query_moneyline_only(user_q),
+        "corners_only": wants_corners_only,
+        "cards_only": wants_cards_only,
+    }
+    return constraints
+
+
+def apply_odds_constraints(constraints: Dict, events: List[Dict]) -> Dict:
+    out = dict(constraints)
+    if out.get("leg_count_per_match_mode"):
+        out["leg_count"] = max(1, len(events))
+    return out
+
+
+def summarize_constraint_results(constraints: Dict, selected_legs: List[OddsLeg]) -> Tuple[List[str], List[str]]:
+    applied: List[str] = []
+    unmet: List[str] = []
+
+    requested_markets = constraints.get("requested_markets") or []
+    if requested_markets:
+        applied.append(f"market filter={','.join(requested_markets)}")
+
+    if constraints.get("require_unique_events"):
+        applied.append("one leg per match")
+
+    if constraints.get("exclude_moneyline"):
+        if any(getattr(x, "market_key", "") == "h2h" for x in selected_legs):
+            unmet.append("user asked to avoid moneyline, but selected legs include h2h")
+        else:
+            applied.append("excluded moneyline")
+
+    if constraints.get("moneyline_only"):
+        if all(getattr(x, "market_key", "") == "h2h" for x in selected_legs):
+            applied.append("moneyline-only")
+        else:
+            unmet.append("user asked for moneyline-only, but non-h2h legs were selected")
+
+    if constraints.get("corners_only"):
+        if all("corner" in (getattr(x, "market_key", "") or "").lower() for x in selected_legs):
+            applied.append("corners-only")
+        else:
+            unmet.append("corners-only requested, but corners market not available in selected legs")
+
+    if constraints.get("cards_only"):
+        if all("card" in (getattr(x, "market_key", "") or "").lower() for x in selected_legs):
+            applied.append("cards-only")
+        else:
+            unmet.append("cards-only requested, but cards market not available in selected legs")
+
+    target = constraints.get("target_multiplier")
+    mode = constraints.get("target_mode", "none")
+    if target is not None and mode != "none":
+        combo = combined_odds(selected_legs)
+        if mode == "max":
+            if combo <= target:
+                applied.append(f"target max {target:.2f}x")
+            else:
+                unmet.append(f"target max {target:.2f}x not met (selected {combo:.2f}x)")
+        elif mode == "min":
+            if combo >= target:
+                applied.append(f"target min {target:.2f}x")
+            else:
+                unmet.append(f"target min {target:.2f}x not met (selected {combo:.2f}x)")
+        else:
+            applied.append(f"target around {target:.2f}x")
+
+    return applied, unmet
+
+
+def format_constraint_report(applied: List[str], unmet: List[str]) -> str:
+    lines = ["Constraint report:"]
+    if applied:
+        lines.append("- Applied: " + "; ".join(applied))
+    else:
+        lines.append("- Applied: none")
+    if unmet:
+        lines.append("- Unmet: " + "; ".join(unmet))
+    else:
+        lines.append("- Unmet: none")
+    return "\n".join(lines)
+
+
 def is_odds_parlay_request(user_q: str) -> bool:
     q = user_q.lower()
     has_parlay = "parlay" in q
@@ -379,39 +563,76 @@ def fetch_upcoming_odds(league: Optional[str], markets: str = "h2h", max_events:
 
     sport_key = LEAGUE_TO_ODDS_SPORT.get(league or "EPL", "soccer_epl")
     url = f"{ODDS_API_BASE}/sports/{sport_key}/odds"
-    params = {
-        "api_key": ODDS_API_KEY,
-        "regions": "uk,eu,us",
-        "markets": markets,
-        "oddsFormat": "decimal",
-        "dateFormat": "iso",
-    }
-    try:
-        r = requests.get(url, params=params, timeout=20)
-        if r.status_code != 200:
-            body = (r.text or "")[:500]
-            return [], f"Odds API HTTP {r.status_code}: {body}"
-        rows = r.json()
-    except Exception as exc:
-        return [], f"Odds API request failed: {exc}"
+    warning: Optional[str] = None
 
+    def _request(market_string: str) -> Tuple[Optional[List[Dict]], Optional[str]]:
+        params = {
+            "api_key": ODDS_API_KEY,
+            "regions": "uk,eu,us",
+            "markets": market_string,
+            "oddsFormat": "decimal",
+            "dateFormat": "iso",
+        }
+        try:
+            r = requests.get(url, params=params, timeout=20)
+            if r.status_code != 200:
+                body = (r.text or "")[:500]
+                return None, f"Odds API HTTP {r.status_code}: {body}"
+            return r.json(), None
+        except Exception as exc:
+            return None, f"Odds API request failed: {exc}"
+
+    rows, req_err = _request(markets)
+    effective_markets = markets
+    if req_err and any(x in markets for x in ["corners", "cards"]):
+        fallback = "h2h,totals,spreads"
+        fb_rows, fb_err = _request(fallback)
+        if fb_err:
+            return [], req_err
+        rows = fb_rows
+        effective_markets = fallback
+        warning = f"Requested markets '{markets}' not fully supported. Fell back to '{fallback}'."
+    elif req_err:
+        return [], req_err
+    rows = rows or []
+
+    requested_market_keys = {m.strip() for m in effective_markets.split(",") if m.strip()}
     parsed: List[Dict] = []
     for ev in rows:
+        best_market_rows: Dict[Tuple[str, str, str], Dict] = {}
         best_prices: Dict[str, Dict] = {}
         for bm in ev.get("bookmakers", []):
             bm_title = bm.get("title")
             for mk in bm.get("markets", []):
-                if mk.get("key") != "h2h":
+                mk_key = str(mk.get("key") or "")
+                if requested_market_keys and mk_key not in requested_market_keys:
                     continue
                 for out in mk.get("outcomes", []):
                     name = out.get("name")
+                    point = out.get("point")
                     price = out.get("price")
                     try:
                         price = float(price)
                     except (TypeError, ValueError):
                         continue
-                    if name not in best_prices or price > best_prices[name]["price"]:
-                        best_prices[name] = {"price": price, "bookmaker": bm_title}
+
+                    # Keep best price per event/market/outcome/point across books.
+                    point_key = "" if point is None else str(point)
+                    row_key = (mk_key, str(name), point_key)
+                    cur = best_market_rows.get(row_key)
+                    if (cur is None) or (price > float(cur.get("price", 0.0))):
+                        best_market_rows[row_key] = {
+                            "market_key": mk_key,
+                            "name": name,
+                            "point": point,
+                            "price": price,
+                            "bookmaker": bm_title,
+                        }
+
+                    # Backward-compatible best h2h summary.
+                    if mk_key == "h2h":
+                        if name not in best_prices or price > best_prices[name]["price"]:
+                            best_prices[name] = {"price": price, "bookmaker": bm_title}
 
         parsed.append({
             "id": ev.get("id"),
@@ -419,13 +640,14 @@ def fetch_upcoming_odds(league: Optional[str], markets: str = "h2h", max_events:
             "home_team": ev.get("home_team"),
             "away_team": ev.get("away_team"),
             "best_prices": best_prices,
+            "market_prices": list(best_market_rows.values()),
         })
 
     parsed.sort(key=lambda x: x.get("commence_time") or "")
     out = parsed[:max_events]
     if not out:
         return [], "Odds API returned 0 upcoming events for this league/region."
-    return out, None
+    return out, warning
 
 
 def filter_events_by_time(events: List[Dict], user_q: str, tz_name: str = "Europe/London") -> List[Dict]:
@@ -637,16 +859,31 @@ def build_odds_parlay_prompt(user_q: str,
 
 
 def format_selected_legs(legs: List[OddsLeg]) -> str:
+    def label(leg: OddsLeg) -> str:
+        if leg.market_key == "h2h":
+            return f"{leg.outcome} (h2h)"
+        if leg.market_key == "totals":
+            if leg.point is None:
+                return f"{leg.outcome} (totals)"
+            return f"{leg.outcome} {leg.point:g} (totals)"
+        if leg.market_key == "spreads":
+            if leg.point is None:
+                return f"{leg.outcome} (spread)"
+            return f"{leg.outcome} {leg.point:+g} (spread)"
+        if leg.point is None:
+            return f"{leg.outcome} ({leg.market_key})"
+        return f"{leg.outcome} {leg.point:g} ({leg.market_key})"
+
     lines = []
     for i, leg in enumerate(legs, start=1):
         bm = f" ({leg.bookmaker})" if leg.bookmaker else ""
-        lines.append(f"{i}. {leg.fixture} | {leg.outcome} @ {leg.odds:.2f}{bm}")
+        lines.append(f"{i}. {leg.fixture} | {label(leg)} @ {leg.odds:.2f}{bm}")
     return "\n".join(lines)
 
 
 def build_odds_explain_prompt(user_q: str,
                               selected_legs: List[OddsLeg],
-                              target_multiplier: float,
+                              target_multiplier: Optional[float],
                               profile_docs: List[Dict],
                               team_fixture_docs: Optional[List[Dict]] = None,
                               player_docs: Optional[List[Dict]] = None) -> List[Dict]:
@@ -672,9 +909,14 @@ def build_odds_explain_prompt(user_q: str,
         "- Target check: <how close to requested multiplier>\n"
     )
 
+    target_line = (
+        f"Target combined odds: ~{target_multiplier:.2f}x"
+        if target_multiplier is not None
+        else "Target combined odds: not explicitly specified by user."
+    )
     user_msg = (
         f"User request: {user_q}\n"
-        f"Target combined odds: ~{target_multiplier:.2f}x\n"
+        f"{target_line}\n"
         f"Selected legs (fixed):\n{legs_text}\n"
         f"Current combined odds: {combo:.2f}\n\n"
         f"Team profile context:\n{prof_text}\n\n"
@@ -1180,9 +1422,11 @@ def chat_once(user_q: str,
     # Odds schedule mode: "What matches are on today?"
     if is_schedule_request(user_q):
         events, err = fetch_upcoming_odds(league, markets="h2h", max_events=50)
-        if err:
+        if err and not events:
             print(f"Could not fetch upcoming fixtures: {err}")
             return
+        if err:
+            print(f"Odds note: {err}")
         events = filter_events_by_time(events, user_q)
         if not events:
             print("No fixtures found for the requested time window.")
@@ -1193,15 +1437,23 @@ def chat_once(user_q: str,
 
     # Odds-first mode for requests like "make me a 3x odds parlay from today's matches"
     if is_odds_parlay_request(user_q):
-        target_mult = extract_target_multiplier(user_q, default=3.0)
-        leg_count = extract_leg_count(user_q, default=3)
+        constraints = parse_odds_constraints(user_q)
         req_match_count = extract_match_count(user_q)
-        events, err = fetch_upcoming_odds(league, markets="h2h", max_events=50)
+        requested_markets = constraints["requested_markets"]
+        target_mult = constraints["target_multiplier"]
+        target_mode = constraints["target_mode"]
+        events, err = fetch_upcoming_odds(league, markets=",".join(requested_markets), max_events=50)
         if events:
+            if err:
+                print(f"Odds note: {err}")
             events = filter_events_by_time(events, user_q)
             if not events:
                 print("No fixtures found for the requested time window.")
                 return
+
+            constraints = apply_odds_constraints(constraints, events)
+            leg_count = int(constraints["leg_count"])
+            require_unique_events = bool(constraints["require_unique_events"])
 
             if req_match_count is not None and len(events) != req_match_count:
                 print(
@@ -1211,26 +1463,20 @@ def chat_once(user_q: str,
                 print(format_fixture_list(events))
                 return
 
-            candidates = extract_h2h_candidates(events)
+            candidates = extract_candidates(events, allowed_market_keys=set(requested_markets))
             chosen_legs, sel_err = select_best_parlay(
                 candidates=candidates,
                 leg_count=leg_count,
                 target_multiplier=target_mult,
-                require_unique_events=True,
+                target_mode=target_mode,
+                require_unique_events=require_unique_events,
             )
             if sel_err:
                 print(f"Could not build a valid parlay: {sel_err}")
-                print("Tip: request fewer legs or include additional markets beyond h2h.")
+                print("Tip: request fewer legs or broaden requested markets.")
                 return
 
-            combo = combined_odds(chosen_legs)
-            deviation = abs(combo - target_mult) / max(target_mult, 1e-9)
-            if deviation > 0.25:
-                print(
-                    f"Closest valid {leg_count}-leg parlay is {combo:.2f}x, which is outside ±25% of target {target_mult:.2f}x."
-                )
-                print("Try a different target multiplier or number of legs.")
-                return
+            applied_constraints, unmet_constraints = summarize_constraint_results(constraints, chosen_legs)
 
             selected_event_ids = {x.event_id for x in chosen_legs}
             selected_events = [ev for ev in events if str(ev.get("id") or "") in selected_event_ids]
@@ -1248,10 +1494,11 @@ def chat_once(user_q: str,
             resp = client.chat.completions.create(model=CHAT_MODEL, messages=messages, temperature=0.2)
             answer = resp.choices[0].message.content
             print("\n" + answer.strip())
+            print("\n" + format_constraint_report(applied_constraints, unmet_constraints))
             add_chat_turn(user_q, answer.strip())
             if show_sources:
                 print("\nSources:")
-                print("- odds_api | upcoming_h2h_board")
+                print(f"- odds_api | upcoming_board | markets={','.join(requested_markets)}")
                 for d in prof_docs[:10]:
                     m = d["meta"]
                     print("-", m.get("team"), "|", m.get("doc_type"), "|", m.get("season"))
