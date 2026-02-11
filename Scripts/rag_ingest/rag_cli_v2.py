@@ -102,7 +102,17 @@ SCORING_WEIGHTS = {
         "corners_recent_blend": 0.35,
         "corners_line_fit": 0.6,
         "corners_side_edge": 0.8,
+        "cards_rate_w": 0.50,
+        "cards_foul_driven_w": 0.30,
+        "cards_agg_w": 0.20,
+        "cards_agg_scale": 3.0,
+        "cards_season_blend": 0.60,
+        "cards_recent_blend": 0.40,
         "cards_line_fit": 0.7,
+        "cards_foul_momentum": 0.15,
+        "cards_side_edge": 0.6,
+        "corners_poss_asymmetry": 1.2,
+        "corners_poss_side_boost": 1.5,
         "long_odds_threshold": 3.0,
         "long_odds_offset": 2.5,
         "long_odds_penalty": 0.7,
@@ -1476,12 +1486,21 @@ def kb_leg_quality(leg: CandidateLeg, league: str) -> float:
         h_proj, a_proj = projected_corners(hm, am)
         h_recent_for = h_recent.get("corners_for_avg")
         a_recent_for = a_recent.get("corners_for_avg")
+        h_poss = _numeric(hm.get("possession"))
+        a_poss = _numeric(am.get("possession"))
+
         combined = None
         if h_proj is not None and a_proj is not None:
             combined = h_proj + a_proj
         if h_recent_for is not None and a_recent_for is not None:
             recent_combined = h_recent_for + a_recent_for
             combined = recent_combined if combined is None else (w["corners_season_blend"] * combined + w["corners_recent_blend"] * recent_combined)
+
+        # Possession asymmetry → more corners overall (dominant team attacks, defending team blocks/clears)
+        if combined is not None and h_poss is not None and a_poss is not None:
+            poss_gap = abs(h_poss - a_poss)
+            combined += poss_gap * w["corners_poss_asymmetry"]
+
         if combined is not None:
             direction = leg.outcome.lower()
             if leg.point is not None and "total" in leg.market_key.lower():
@@ -1492,30 +1511,92 @@ def kb_leg_quality(leg: CandidateLeg, league: str) -> float:
             if leg.point is None or "total" not in leg.market_key.lower():
                 if h_proj is not None and a_proj is not None:
                     side_edge = h_proj - a_proj
+                    # Blend side edge with recent form
+                    if h_recent_for is not None and a_recent_for is not None:
+                        recent_side = h_recent_for - a_recent_for
+                        side_edge = w["corners_season_blend"] * side_edge + w["corners_recent_blend"] * recent_side
+                    # Possession edge: dominant possession team more likely to win corners
+                    if h_poss is not None and a_poss is not None:
+                        poss_edge = h_poss - a_poss
+                        side_edge += poss_edge * w["corners_poss_side_boost"]
                     if leg.outcome.lower().startswith(leg.home_team.lower()):
                         score += side_edge * w["corners_side_edge"]
                     elif leg.outcome.lower().startswith(leg.away_team.lower()):
                         score -= side_edge * w["corners_side_edge"]
 
     if g == "cards":
+        # --- Multi-signal card projection per team ---
         h_cards = _numeric(hm.get("cards_per_90_team"))
         a_cards = _numeric(am.get("cards_per_90_team"))
+        h_fouls = _numeric(hm.get("fouls_per_90_team"))
+        a_fouls = _numeric(am.get("fouls_per_90_team"))
+        h_cpf = _numeric(hm.get("cards_per_foul_team"))
+        if h_cpf is None and h_cards is not None and h_fouls and h_fouls > 0:
+            h_cpf = h_cards / h_fouls
+        a_cpf = _numeric(am.get("cards_per_foul_team"))
+        if a_cpf is None and a_cards is not None and a_fouls and a_fouls > 0:
+            a_cpf = a_cards / a_fouls
+        h_agg = _numeric(hm.get("aggression_index_norm"))
+        a_agg = _numeric(am.get("aggression_index_norm"))
         h_recent_cards = h_recent.get("cards_avg")
         a_recent_cards = a_recent.get("cards_avg")
-        combined_cards = 0.0
-        n = 0
-        for x in [h_cards, a_cards, h_recent_cards, a_recent_cards]:
-            if x is not None:
-                combined_cards += x
-                n += 1
-        if n > 0:
-            combined_cards = combined_cards / max(1, n / 2.0)
+        h_recent_fouls = h_recent.get("fouls_avg")
+        a_recent_fouls = a_recent.get("fouls_avg")
+
+        def _proj_team_cards(cards_pm, fouls_pm, cpf, agg, recent_cards):
+            sigs, wts = [], []
+            if cards_pm is not None:
+                sigs.append(cards_pm); wts.append(w["cards_rate_w"])
+            if fouls_pm is not None and cpf is not None:
+                sigs.append(fouls_pm * cpf); wts.append(w["cards_foul_driven_w"])
+            if agg is not None:
+                sigs.append(agg * w["cards_agg_scale"]); wts.append(w["cards_agg_w"])
+            if not sigs:
+                return recent_cards
+            season = sum(s * wt for s, wt in zip(sigs, wts)) / sum(wts)
+            if recent_cards is not None:
+                return w["cards_season_blend"] * season + w["cards_recent_blend"] * recent_cards
+            return season
+
+        h_proj = _proj_team_cards(h_cards, h_fouls, h_cpf, h_agg, h_recent_cards)
+        a_proj = _proj_team_cards(a_cards, a_fouls, a_cpf, a_agg, a_recent_cards)
+
+        combined_cards = None
+        if h_proj is not None and a_proj is not None:
+            combined_cards = h_proj + a_proj
+        elif h_proj is not None or a_proj is not None:
+            combined_cards = (h_proj or a_proj) * 2.0
+
+        if combined_cards is not None:
             direction = leg.outcome.lower()
             if leg.point is not None and "total" in leg.market_key.lower():
                 if "over" in direction:
                     score += (combined_cards - leg.point) * w["cards_line_fit"]
                 elif "under" in direction:
                     score += (leg.point - combined_cards) * w["cards_line_fit"]
+
+                # Foul momentum: recent fouls trending up → cards more likely
+                foul_momentum = 0.0
+                n_mom = 0
+                if h_fouls is not None and h_recent_fouls is not None:
+                    foul_momentum += h_recent_fouls - h_fouls; n_mom += 1
+                if a_fouls is not None and a_recent_fouls is not None:
+                    foul_momentum += a_recent_fouls - a_fouls; n_mom += 1
+                if n_mom > 0:
+                    avg_mom = foul_momentum / n_mom
+                    if "over" in direction:
+                        score += avg_mom * w["cards_foul_momentum"]
+                    elif "under" in direction:
+                        score -= avg_mom * w["cards_foul_momentum"]
+
+            # Side edge for card winner markets
+            if leg.point is None or "total" not in leg.market_key.lower():
+                if h_proj is not None and a_proj is not None:
+                    side_edge = h_proj - a_proj
+                    if leg.outcome.lower().startswith(leg.home_team.lower()):
+                        score += side_edge * w["cards_side_edge"]
+                    elif leg.outcome.lower().startswith(leg.away_team.lower()):
+                        score -= side_edge * w["cards_side_edge"]
 
     if leg.odds >= w["long_odds_threshold"]:
         score -= (leg.odds - w["long_odds_offset"]) * w["long_odds_penalty"]
