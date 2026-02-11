@@ -146,6 +146,17 @@ SCORING_WEIGHTS = {
         "control": 0.25,
         "edge": 0.12,
     },
+    "comparison_sot": {
+        "proj": 0.45,
+        "season_for": 0.25,
+        "opp_allow": 0.15,
+        "recent_for": 0.25,
+        "sot_ratio": 0.20,
+    },
+    "projection_sot": {
+        "own": 0.6,
+        "opp": 0.4,
+    },
     "confidence": {
         "edge_high": 0.75,
         "edge_medium": 0.35,
@@ -153,6 +164,8 @@ SCORING_WEIGHTS = {
         "corners_gap_medium": 0.25,
         "cards_gap_high": 0.45,
         "cards_gap_medium": 0.20,
+        "sot_gap_high": 0.50,
+        "sot_gap_medium": 0.20,
     },
     "pool": {
         "default_anchor": 1.55,
@@ -1889,6 +1902,44 @@ def projected_cards(home_meta: Dict, away_meta: Dict) -> Tuple[Optional[float], 
     return proj(home_meta), proj(away_meta)
 
 
+def projected_sot(home_meta: Dict, away_meta: Dict) -> Tuple[Optional[float], Optional[float]]:
+    """Blended SoT projection: own sot_for_pm vs opponent sot_against_pm."""
+    pw = SCORING_WEIGHTS["projection_sot"]
+    h_for = safe_float(home_meta.get("sot_for_pm"))
+    h_opp_allow = safe_float(away_meta.get("sot_against_pm"))
+    a_for = safe_float(away_meta.get("sot_for_pm"))
+    a_opp_allow = safe_float(home_meta.get("sot_against_pm"))
+
+    def blend(own, opp):
+        if own is not None and opp is not None:
+            return pw["own"] * own + pw["opp"] * opp
+        return own if own is not None else opp
+
+    return blend(h_for, h_opp_allow), blend(a_for, a_opp_allow)
+
+
+def projected_total_sot(home: str, away: str, league: str) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+    pw = SCORING_WEIGHTS["projection"]
+    hm = get_team_profile_meta(home, league)
+    am = get_team_profile_meta(away, league)
+    h_proj, a_proj = projected_sot(hm, am)
+    season_total = (h_proj + a_proj) if (h_proj is not None and a_proj is not None) else None
+
+    hr = get_team_recent_stats(home, league, last_n=6)
+    ar = get_team_recent_stats(away, league, last_n=6)
+    h_recent = hr.get("sot_for_avg")
+    a_recent = ar.get("sot_for_avg")
+    recent_total = (h_recent + a_recent) if (h_recent is not None and a_recent is not None) else None
+
+    if season_total is not None and recent_total is not None:
+        return (pw["blend_season"] * season_total + pw["blend_recent"] * recent_total), season_total, recent_total
+    if season_total is not None:
+        return season_total, season_total, None
+    if recent_total is not None:
+        return recent_total, None, recent_total
+    return None, None, None
+
+
 def leg_label(leg: CandidateLeg) -> str:
     g = market_group_from_key(leg.market_key)
     if leg.point is None:
@@ -2411,12 +2462,14 @@ def requested_stat_group(user_q: str) -> Optional[str]:
         return "corners"
     if "card" in q or "booking" in q:
         return "cards"
+    if re.search(r"\b(shot|sot)\b", q) or "shots on target" in q:
+        return "sot"
     return None
 
 
 def is_totals_line_query(user_q: str) -> bool:
     q = user_q.lower()
-    has_stat = bool(re.search(r"\b(goal|xg|corner|card|booking)s?\b", q))
+    has_stat = bool(re.search(r"\b(goal|xg|corner|card|booking|shot|sot)s?\b", q) or "shots on target" in q)
     asks_total_or_line = bool(
         re.search(r"\b(how many|total|totals|line|which line|what line|should i take|take)\b", q)
         or re.search(r"\b(over|under)\b", q)
@@ -2426,17 +2479,30 @@ def is_totals_line_query(user_q: str) -> bool:
 
 def is_player_prop_query(user_q: str) -> bool:
     q = user_q.lower()
+    # "shots on target" / "sot" can be team-level (comparison / totals) or
+    # player-level.  Only treat as player prop when there is NO team-level
+    # signal (comparison or totals patterns).
+    sot_hit = bool(re.search(r"\bshots?\s+on\s+target\b|\bsot\b", q))
+    team_level_signal = bool(
+        re.search(r"\b(which team|for all|for every|for each)\b", q)
+        or re.search(r"\b(over|under|o/u|total|totals|line)\b", q)
+        or re.search(r"\b(more|higher|most|winner)\b", q)
+    )
+    if sot_hit and team_level_signal:
+        # Suppress the player-prop classification; let comparison / totals
+        # handlers pick it up instead.
+        sot_hit = False
     has_player_keyword = bool(
         re.search(
             r"\b(player|goalscorer|goal\s*scorer|anytime|first\s*scorer"
-            r"|shots?\s+on\s+target|sot|assist[s]?"
+            r"|assist[s]?"
             r"|who\s+scores|who\s+gets?\s+booked|who\s+gets?\s+carded"
             r"|player\s+prop|player\s+card|player\s+booking"
             r"|which\s+player)",
             q,
         )
     )
-    return has_player_keyword
+    return has_player_keyword or sot_hit
 
 
 def projected_total_corners(home: str, away: str, league: str) -> Tuple[Optional[float], Optional[float], Optional[float]]:
@@ -2530,6 +2596,11 @@ def extract_total_line_options(event: Dict, stat_group: str) -> List[Dict]:
                     continue
                 if "team_total" in k or "player" in k or "goalscorer" in k:
                     continue
+                if "shot" in k:
+                    continue
+            elif stat_group == "sot":
+                if ("shot" not in k) or ("total" not in k):
+                    continue
             else:
                 continue
             for outcome in mk.get("outcomes", []) or []:
@@ -2612,15 +2683,10 @@ def confidence_from_edge(edge: float) -> str:
 
 def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> str:
     group = requested_stat_group(user_q)
-    if group not in {"goals", "corners", "cards"}:
-        return "I can estimate totals lines for goals/corners/cards when the stat type is clear."
+    if group not in {"goals", "corners", "cards", "sot"}:
+        return "I can estimate totals lines for goals/corners/cards/shots-on-target when the stat type is clear."
 
-    if group == "goals":
-        title = "Goals Totals"
-    elif group == "corners":
-        title = "Corner Totals"
-    else:
-        title = "Card Totals"
+    title = {"goals": "Goals Totals", "corners": "Corner Totals", "cards": "Card Totals", "sot": "SoT Totals"}[group]
     lines: List[str] = [f"{title} advice by fixture:"]
 
     for ev in events:
@@ -2632,6 +2698,8 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
             proj_total, season_total, recent_total = projected_total_goals(home, away, league)
         elif group == "corners":
             proj_total, season_total, recent_total = projected_total_corners(home, away, league)
+        elif group == "sot":
+            proj_total, season_total, recent_total = projected_total_sot(home, away, league)
         else:
             proj_total, season_total, recent_total = projected_total_cards(home, away, league)
 
@@ -2804,17 +2872,75 @@ def comparison_signals_corners(home: str, away: str, league: str) -> Tuple[Optio
     return pick, lines[:6], h_score, a_score
 
 
+def comparison_signals_sot(home: str, away: str, league: str) -> Tuple[Optional[str], List[str], Optional[float], Optional[float]]:
+    hm = get_team_profile_meta(home, league)
+    am = get_team_profile_meta(away, league)
+    hr = get_team_recent_stats(home, league, last_n=6)
+    ar = get_team_recent_stats(away, league, last_n=6)
+
+    h_for = safe_float(hm.get("sot_for_pm"))
+    a_for = safe_float(am.get("sot_for_pm"))
+    h_against = safe_float(hm.get("sot_against_pm"))
+    a_against = safe_float(am.get("sot_against_pm"))
+    h_ratio = safe_float(hm.get("_sot_ratio_for"))
+    a_ratio = safe_float(am.get("_sot_ratio_for"))
+
+    hr_for = hr.get("sot_for_avg")
+    ar_for = ar.get("sot_for_avg")
+
+    h_proj, a_proj = projected_sot(hm, am)
+
+    sw = SCORING_WEIGHTS["comparison_sot"]
+
+    def sot_score(proj, season_for, opp_allow, recent_for, ratio) -> Optional[float]:
+        vals = [proj, season_for, opp_allow, recent_for, ratio]
+        if all(v is None for v in vals):
+            return None
+        p = proj if proj is not None else 0.0
+        sf = season_for if season_for is not None else 0.0
+        oa = opp_allow if opp_allow is not None else 0.0
+        rf = recent_for if recent_for is not None else 0.0
+        r = ratio if ratio is not None else 0.0
+        return sw["proj"] * p + sw["season_for"] * sf + sw["opp_allow"] * oa + sw["recent_for"] * rf + sw["sot_ratio"] * r
+
+    h_score = sot_score(h_proj, h_for, a_against, hr_for, h_ratio)
+    a_score = sot_score(a_proj, a_for, h_against, ar_for, a_ratio)
+
+    pick = None
+    if h_score is not None and a_score is not None:
+        pick = home if h_score >= a_score else away
+    elif h_score is not None:
+        pick = home
+    elif a_score is not None:
+        pick = away
+
+    lines: List[str] = []
+    if h_proj is not None and a_proj is not None:
+        lines.append(f"Projected SoT: {home} {h_proj:.2f} vs {away} {a_proj:.2f}.")
+    if h_for is not None and a_for is not None:
+        lines.append(f"Season SoT for/match: {home} {h_for:.2f} vs {away} {a_for:.2f}.")
+    if h_against is not None and a_against is not None:
+        lines.append(f"Season SoT against/match: {home} {h_against:.2f} vs {away} {a_against:.2f}.")
+    if hr_for is not None and ar_for is not None:
+        lines.append(f"Recent 6-match SoT for: {home} {hr_for:.2f} vs {away} {ar_for:.2f}.")
+    if h_ratio is not None and a_ratio is not None:
+        lines.append(f"SoT accuracy ratio: {home} {h_ratio:.2f} vs {away} {a_ratio:.2f}.")
+    if h_score is not None and a_score is not None:
+        lines.append(f"Composite SoT pressure score: {home} {h_score:.2f} vs {away} {a_score:.2f}.")
+    return pick, lines[:6], h_score, a_score
+
+
 def render_comparison_answer(user_q: str, league: str, events: List[Dict]) -> str:
     group = requested_stat_group(user_q)
-    if group not in {"corners", "cards"}:
+    if group not in {"corners", "cards", "sot"}:
         return (
-            "I can compare corners/cards for fixtures, but I couldn't detect which stat you want. "
+            "I can compare corners/cards/shots-on-target for fixtures, but I couldn't detect which stat you want. "
             "Try: 'for all tomorrow EPL games, which team gets more corners?'"
         )
 
     detailed = wants_deep_explanation(user_q)
     lines: List[str] = []
-    title = "Corners" if group == "corners" else "Cards/Bookings"
+    title = {"corners": "Corners", "cards": "Cards/Bookings", "sot": "Shots on Target"}[group]
     lines.append(f"{title} comparison by fixture:")
 
     for ev in events:
@@ -2823,43 +2949,36 @@ def render_comparison_answer(user_q: str, league: str, events: List[Dict]) -> st
 
         if group == "corners":
             pick, reasons, h_score, a_score = comparison_signals_corners(home, away, league)
-            if pick is None:
-                lines.append(f"- {home} vs {away}: insufficient profile stats for corners.")
-                continue
-            lines.append(f"- {home} vs {away}: {pick} likely more corners.")
-            if detailed:
-                for r in reasons[:5]:
-                    lines.append(f"  Reasoning: {r}")
-                if h_score is not None and a_score is not None:
-                    margin = abs(h_score - a_score)
-                    cfw = SCORING_WEIGHTS["confidence"]
-                    conf = "high" if margin >= cfw["corners_gap_high"] else ("medium" if margin >= cfw["corners_gap_medium"] else "low")
-                    lines.append(f"  Reasoning: Confidence={conf} (score gap {margin:.2f}).")
-            elif reasons:
-                lines.append(f"  Evidence: {reasons[0]}")
-                if len(reasons) > 1:
-                    lines.append(f"  Evidence: {reasons[1]}")
+            stat_label = "corners"
+            gap_high_key, gap_med_key = "corners_gap_high", "corners_gap_medium"
+        elif group == "sot":
+            pick, reasons, h_score, a_score = comparison_signals_sot(home, away, league)
+            stat_label = "shots on target"
+            gap_high_key, gap_med_key = "sot_gap_high", "sot_gap_medium"
         else:
             pick, reasons, h_score, a_score = comparison_signals_cards(home, away, league)
-            if pick is None:
-                lines.append(f"- {home} vs {away}: insufficient profile stats for cards.")
-                continue
-            lines.append(f"- {home} vs {away}: {pick} likely more cards.")
-            if detailed:
-                for r in reasons[:5]:
-                    lines.append(f"  Reasoning: {r}")
-                if h_score is not None and a_score is not None:
-                    margin = abs(h_score - a_score)
-                    cfw = SCORING_WEIGHTS["confidence"]
-                    conf = "high" if margin >= cfw["cards_gap_high"] else ("medium" if margin >= cfw["cards_gap_medium"] else "low")
-                    lines.append(f"  Reasoning: Confidence={conf} (score gap {margin:.2f}).")
-            elif reasons:
-                lines.append(f"  Evidence: {reasons[0]}")
-                if len(reasons) > 1:
-                    lines.append(f"  Evidence: {reasons[1]}")
+            stat_label = "cards"
+            gap_high_key, gap_med_key = "cards_gap_high", "cards_gap_medium"
 
-    method = "Method: deterministic multi-signal projection from local KB (season + recent fixtures), not bookmaker card/corner lines."
-    lines.append(method if detailed else "Method: profile-based projection from your local KB (not bookmaker corner/card line prices).")
+        if pick is None:
+            lines.append(f"- {home} vs {away}: insufficient profile stats for {stat_label}.")
+            continue
+        lines.append(f"- {home} vs {away}: {pick} likely more {stat_label}.")
+        if detailed:
+            for r in reasons[:5]:
+                lines.append(f"  Reasoning: {r}")
+            if h_score is not None and a_score is not None:
+                margin = abs(h_score - a_score)
+                cfw = SCORING_WEIGHTS["confidence"]
+                conf = "high" if margin >= cfw[gap_high_key] else ("medium" if margin >= cfw[gap_med_key] else "low")
+                lines.append(f"  Reasoning: Confidence={conf} (score gap {margin:.2f}).")
+        elif reasons:
+            lines.append(f"  Evidence: {reasons[0]}")
+            if len(reasons) > 1:
+                lines.append(f"  Evidence: {reasons[1]}")
+
+    method = "Method: deterministic multi-signal projection from local KB (season + recent fixtures), not bookmaker lines."
+    lines.append(method if detailed else "Method: profile-based projection from your local KB (not bookmaker line prices).")
     return "\n".join(lines)
 
 
