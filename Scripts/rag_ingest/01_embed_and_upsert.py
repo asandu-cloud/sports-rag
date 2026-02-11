@@ -12,12 +12,13 @@ except ImportError:
     from Scripts.rag_ingest.chroma_backend import backend_description, env_first, get_chroma_client
 
 
-# ---- CONFIG (EPL-only) ----
+# ---- CONFIG ----
 ROOT = Path(__file__).resolve().parents[2]
 INDEX_DIR = str(ROOT / "Index")
 CHROMA_DIR = str(ROOT / "Index" / "chroma")
 COLLECTION = env_first("CHROMA_COLLECTION", default="football_top5")   # keep one collection, filter by metadata
 EMBED_MODEL = "text-embedding-3-large"
+ALL_LEAGUES = ["EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1"]
 
 load_dotenv()
 client = OpenAI(api_key=env_first("OPENAI_API_KEY"))
@@ -41,8 +42,16 @@ def upsert_docs(collection, docs, batch_size=256):
         _upsert_batch(collection, buf)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Embed and upsert normalized docs into Chroma.")
     parser.add_argument("--reset", action="store_true", help="Drop and recreate the collection.")
+    parser.add_argument(
+        "--league", type=str, default="EPL",
+        help="League to upsert (e.g. EPL, LaLiga). Default: EPL.",
+    )
+    parser.add_argument(
+        "--all-leagues", action="store_true",
+        help="Upsert all discovered normalized league files.",
+    )
     args = parser.parse_args()
 
     db = get_chroma_client(CHROMA_DIR)
@@ -57,10 +66,20 @@ if __name__ == "__main__":
 
     col = db.get_or_create_collection(COLLECTION)
 
-    # only pick EPL normalized files
-    norm_paths = sorted(Path(INDEX_DIR).glob("normalized_EPL_*.json"))
+    # Discover normalized files for requested league(s)
+    if args.all_leagues:
+        leagues = ALL_LEAGUES
+    else:
+        leagues = [args.league.strip()]
+
+    norm_paths = []
+    for lg in leagues:
+        found = sorted(Path(INDEX_DIR).glob(f"normalized_{lg}_*.json"))
+        norm_paths.extend(found)
+
     if not norm_paths:
-        raise SystemExit(f"No normalized EPL files found in {INDEX_DIR}")
+        label = "all leagues" if args.all_leagues else args.league
+        raise SystemExit(f"No normalized files found for {label} in {INDEX_DIR}")
 
     total = 0
     for path in norm_paths:
@@ -75,7 +94,8 @@ if __name__ == "__main__":
     except Exception:
         pass
 
-    print(f"Done. Upserted {total} EPL docs into {COLLECTION}.")
+    league_label = "all leagues" if args.all_leagues else args.league
+    print(f"Done. Upserted {total} docs ({league_label}) into {COLLECTION}.")
     try:
         print("Vector count in collection:", col.count())
     except Exception:

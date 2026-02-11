@@ -1,11 +1,11 @@
-import os, re, json, csv, hashlib
+import argparse, os, re, json, csv, hashlib
 from pathlib import Path
 from typing import Iterable, List, Dict, Optional
 
 # --------- CONFIG ---------
-# Change output base to /Output
-OUTPUT_BASE = "/Users/sanduandrei/Desktop/Betting_RAG/Output/Prem_feature_engineering"  # where *feature_engineering folders live
-INDEX_DIR   = "/Users/sanduandrei/Desktop/Betting_RAG/Index"   # where normalized_*.json will be written
+ROOT        = Path(__file__).resolve().parents[2]
+OUTPUT_ROOT = str(ROOT / "Output")           # parent of all *_feature_engineering folders
+INDEX_DIR   = str(ROOT / "Index")            # where normalized_*.json will be written
 
 # Map folder name prefixes to canonical league names
 LEAGUE_FROM_DIR = {
@@ -529,22 +529,51 @@ def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
     return docs
 
 
+def discover_fe_dirs(output_root: str) -> List[Path]:
+    """Find all *_feature_engineering directories under output_root."""
+    root = Path(output_root)
+    return sorted(
+        d for d in root.iterdir()
+        if d.is_dir() and d.name.lower().endswith("_feature_engineering")
+    )
+
+
 def main():
+    parser = argparse.ArgumentParser(description="Normalize feature-engineering output into RAG docs.")
+    parser.add_argument(
+        "--league",
+        type=str,
+        default=None,
+        help="Canonical league name to normalize (e.g. EPL, LaLiga). Default: all discovered leagues.",
+    )
+    parser.add_argument(
+        "--all", dest="all_leagues", action="store_true",
+        help="Explicitly normalize all discovered leagues (same as omitting --league).",
+    )
+    args = parser.parse_args()
+
     os.makedirs(INDEX_DIR, exist_ok=True)
-    base = Path(OUTPUT_BASE)
 
-    # find all *_feature_engineering folders
-    # Change to fe_dirs = [d for d in base.iterdir() if d.is_dir() and d.name.lower().endswith("_feature_engineering")]
-    fe_dirs = [Path(OUTPUT_BASE)]
+    fe_dirs = discover_fe_dirs(OUTPUT_ROOT)
+    if not fe_dirs:
+        raise SystemExit(f"No *_feature_engineering directories found in {OUTPUT_ROOT}")
+
+    # Filter to requested league if specified
+    if args.league and not args.all_leagues:
+        target = args.league.strip()
+        fe_dirs = [d for d in fe_dirs if (league_from_dir(d.name) or "").lower() == target.lower()]
+        if not fe_dirs:
+            raise SystemExit(
+                f"No feature_engineering directory found for league '{target}'. "
+                f"Available: {[league_from_dir(d.name) for d in discover_fe_dirs(OUTPUT_ROOT)]}"
+            )
+
     total = 0
-
-    for d in sorted(fe_dirs):
+    for d in fe_dirs:
         league = league_from_dir(d.name) or "UNKNOWN"
         docs = normalize_feature_engineering_dir(str(d))
-        # filename token for season (safe for filenames)
         season_token = "unknown"
         if docs:
-            # try to fetch first season from metas
             s = next((x["metadata"].get("season") for x in docs if x["metadata"].get("season")), None)
             season_token = s.replace("/", "_") if isinstance(s, str) else "unknown"
         out_path = Path(INDEX_DIR) / f"normalized_{league}_{season_token}.json"

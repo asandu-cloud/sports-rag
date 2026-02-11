@@ -150,28 +150,37 @@ def run_query(prompt: str, league: str) -> str:
     return text, elapsed, stamp
 
 
-def template_prompts(target_date: str, home: str = "", away: str = "") -> Dict[str, Dict[str, str]]:
+_LEAGUE_EXAMPLE_TEAMS: Dict[str, tuple] = {
+    "EPL": ("Arsenal", "Chelsea"),
+    "LaLiga": ("Real Madrid", "Barcelona"),
+    "SerieA": ("Juventus", "Inter Milan"),
+    "Bundesliga": ("Bayern Munich", "Borussia Dortmund"),
+    "Ligue1": ("Paris Saint Germain", "Marseille"),
+}
+
+def template_prompts(target_date: str, home: str = "", away: str = "", league: str = "EPL") -> Dict[str, Dict[str, str]]:
     date_text = target_date.strip() or "10th February"
-    # For single-fixture templates: use selected teams or example defaults
-    h = home or "Arsenal"
-    a = away or "Chelsea"
+    lg = league or "EPL"
+    defaults = _LEAGUE_EXAMPLE_TEAMS.get(lg, _LEAGUE_EXAMPLE_TEAMS["EPL"])
+    h = home or defaults[0]
+    a = away or defaults[1]
     fx = f"{h} vs {a}"
     fx_at = f"{h} @ {a}"
     return {
         "Schedule & Availability": {
-            "Schedule Check": f"What EPL matches are on {date_text}?",
-            "Market Availability (corners)": f"Are corner lines available for EPL games on {date_text}?",
-            "Market Availability (cards)": f"Are booking/card markets available for EPL games on {date_text}?",
-            "Market Availability (player props)": f"Are player prop markets available for EPL games on {date_text}?",
-            "Fixture + Kickoff Times": f"Show me all EPL fixtures on {date_text} and their kickoff times.",
+            "Schedule Check": f"What {lg} matches are on {date_text}?",
+            "Market Availability (corners)": f"Are corner lines available for {lg} games on {date_text}?",
+            "Market Availability (cards)": f"Are booking/card markets available for {lg} games on {date_text}?",
+            "Market Availability (player props)": f"Are player prop markets available for {lg} games on {date_text}?",
+            "Fixture + Kickoff Times": f"Show me all {lg} fixtures on {date_text} and their kickoff times.",
             "Full Day Overview": (
-                f"Give me a full overview of all EPL action on {date_text}: "
+                f"Give me a full overview of all {lg} action on {date_text}: "
                 "fixtures, kickoff times, and which market types are open for each game."
             ),
         },
         "Comparisons": {
             "Corners Winner (all fixtures)": (
-                f"For all EPL games on {date_text}, which team will get more corners in each fixture?"
+                f"For all {lg} games on {date_text}, which team will get more corners in each fixture?"
             ),
             "Corners Winner (single fixture)": (
                 f"Who will win the corner count in {fx} on {date_text}? "
@@ -182,7 +191,7 @@ def template_prompts(target_date: str, home: str = "", away: str = "") -> Dict[s
                 "Give me a solid explanation of your reasoning."
             ),
             "Cards Winner (all fixtures)": (
-                f"For every EPL game on {date_text}, which team will get more cards? "
+                f"For every {lg} game on {date_text}, which team will get more cards? "
                 "Rate your confidence for each."
             ),
             "Goals Winner (single fixture)": (
@@ -194,7 +203,7 @@ def template_prompts(target_date: str, home: str = "", away: str = "") -> Dict[s
                 "Use recent SoT averages and form data."
             ),
             "SoT Winner (all fixtures)": (
-                f"For every EPL game on {date_text}, which team will have more shots on target? "
+                f"For every {lg} game on {date_text}, which team will have more shots on target? "
                 "Rate your confidence for each."
             ),
             "Possession & Control (single fixture)": (
@@ -206,43 +215,43 @@ def template_prompts(target_date: str, home: str = "", away: str = "") -> Dict[s
                 f"{fx} on {date_text}. What over/under goals line should I take?"
             ),
             "Goals O/U (all fixtures)": (
-                f"Give me the over/under goals line I should take for each EPL game on {date_text}."
+                f"Give me the over/under goals line I should take for each {lg} game on {date_text}."
             ),
             "Corners O/U (single fixture)": (
                 f"{fx_at} on {date_text}. Give me corner totals for this game. "
                 "Which line should I take?"
             ),
             "Corners O/U (all fixtures)": (
-                f"For every EPL game on {date_text}, recommend a corner totals line for each fixture."
+                f"For every {lg} game on {date_text}, recommend a corner totals line for each fixture."
             ),
             "Cards O/U (single fixture)": (
                 f"{fx} on {date_text}. What over/under cards line should I take?"
             ),
             "Cards O/U (all fixtures)": (
-                f"For each EPL game on {date_text}, recommend a cards over/under line."
+                f"For each {lg} game on {date_text}, recommend a cards over/under line."
             ),
             "SoT O/U (single fixture)": (
                 f"{fx} on {date_text}. What over/under shots on target line should I take? "
                 "Use recent SoT averages for both teams."
             ),
             "SoT O/U (all fixtures)": (
-                f"For every EPL game on {date_text}, recommend a shots on target over/under line for each fixture."
+                f"For every {lg} game on {date_text}, recommend a shots on target over/under line for each fixture."
             ),
             "BTTS (single fixture)": (
                 f"{fx} on {date_text}. Should I take both teams to score yes or no? "
                 "Explain your reasoning."
             ),
             "BTTS (all fixtures)": (
-                f"For all EPL games on {date_text}, which fixtures are best for BTTS Yes?"
+                f"For all {lg} games on {date_text}, which fixtures are best for BTTS Yes?"
             ),
         },
         "Parlays": {
             "4-leg Goals Totals (odds cap)": (
-                f"For all EPL games on {date_text}, make a 4-leg parlay with exactly one leg per fixture "
+                f"For all {lg} games on {date_text}, make a 4-leg parlay with exactly one leg per fixture "
                 "using only full-game over/under goals totals lines. Keep combined decimal odds at or below 4.3x."
             ),
             "3-leg Goals Totals (conservative)": (
-                f"For EPL games on {date_text}, build a 3-leg parlay using only goals over/under totals. "
+                f"For {lg} games on {date_text}, build a 3-leg parlay using only goals over/under totals. "
                 "Keep it safe — combined odds under 3.0x."
             ),
             "Single Fixture 3-leg (single fixture)": (
@@ -258,27 +267,27 @@ def template_prompts(target_date: str, home: str = "", away: str = "") -> Dict[s
                 "Give me a 1-leg parlay (single bet) for this game, odds between 1.50 and 2.10, with reasoning."
             ),
             "Corners-only Multi-fixture": (
-                f"For all EPL games on {date_text}, make a parlay with ONLY CORNER TOTALS, "
+                f"For all {lg} games on {date_text}, make a parlay with ONLY CORNER TOTALS, "
                 "one corner total per game, full-game markets only, no spreads, around 3.0x combined odds."
             ),
             "Cards-only Multi-fixture": (
-                f"For all EPL games on {date_text}, build a parlay with ONLY CARD TOTALS, "
+                f"For all {lg} games on {date_text}, build a parlay with ONLY CARD TOTALS, "
                 "one card total per game, full-game markets only, no spreads, around 3.5x combined odds."
             ),
             "SoT-only Multi-fixture": (
-                f"For all EPL games on {date_text}, build a parlay using ONLY shots on target totals, "
+                f"For all {lg} games on {date_text}, build a parlay using ONLY shots on target totals, "
                 "one SoT leg per game, full-game markets only, no spreads, around 3.0x combined odds."
             ),
             "Mixed Markets (3-leg)": (
-                f"Build a 3-leg EPL parlay for {date_text} around 2.8x. "
+                f"Build a 3-leg {lg} parlay for {date_text} around 2.8x. "
                 "Include exactly one corners leg, one cards leg, and one goals totals leg."
             ),
             "Mixed Markets (4-leg)": (
-                f"Build a 4-leg EPL parlay for {date_text} around 4.0x. "
+                f"Build a 4-leg {lg} parlay for {date_text} around 4.0x. "
                 "Mix goals, corners, and cards markets. At least two different fixtures."
             ),
             "High-odds Multi-fixture (5x+)": (
-                f"For all EPL games on {date_text}, build a parlay targeting around 5.5x combined odds. "
+                f"For all {lg} games on {date_text}, build a parlay targeting around 5.5x combined odds. "
                 "One leg per fixture, mix market types, no spreads."
             ),
         },
@@ -288,7 +297,7 @@ def template_prompts(target_date: str, home: str = "", away: str = "") -> Dict[s
                 "Use recent form, xG, and minutes data."
             ),
             "Anytime Goalscorer (all fixtures)": (
-                f"For each EPL game on {date_text}, give me one anytime goalscorer pick per fixture "
+                f"For each {lg} game on {date_text}, give me one anytime goalscorer pick per fixture "
                 "with stats-backed reasoning."
             ),
             "Shots on Target (single fixture)": (
@@ -296,11 +305,11 @@ def template_prompts(target_date: str, home: str = "", away: str = "") -> Dict[s
                 "Use recent SoT data and minutes played."
             ),
             "Shots on Target (best picks)": (
-                f"For EPL games on {date_text}, which players are best bets for over 0.5 shots on target? "
+                f"For {lg} games on {date_text}, which players are best bets for over 0.5 shots on target? "
                 "Give me your top 3 picks with reasoning."
             ),
             "Player Cards (who gets booked?)": (
-                f"Which players are most likely to receive a yellow card across all EPL games on {date_text}? "
+                f"Which players are most likely to receive a yellow card across all {lg} games on {date_text}? "
                 "Give me your top 3 picks with fouls and card history."
             ),
             "Player Assists (single fixture)": (
@@ -308,11 +317,11 @@ def template_prompts(target_date: str, home: str = "", away: str = "") -> Dict[s
                 "Use recent chance creation and assist data."
             ),
             "Player Parlay (2-leg)": (
-                f"Build a 2-leg player props parlay from EPL games on {date_text}. "
+                f"Build a 2-leg player props parlay from {lg} games on {date_text}. "
                 "Mix goalscorer and shots markets, keep odds around 3.0x."
             ),
             "Player Parlay (3-leg)": (
-                f"Build a 3-leg player props parlay from EPL games on {date_text}. "
+                f"Build a 3-leg player props parlay from {lg} games on {date_text}. "
                 "Include one goalscorer, one shots, and one cards pick. Target around 6.0x odds."
             ),
         },
@@ -356,7 +365,7 @@ def sidebar_ui() -> None:
         target_date_obj = date_options[selected_date_idx]["date"]
 
         # Build templates with example teams first (for workflow/template key navigation)
-        templates = template_prompts(target_date)
+        templates = template_prompts(target_date, league=st.session_state.league)
         selected_workflow = st.selectbox("Workflow", options=list(templates.keys()))
         selected_template = st.selectbox(
             "Prompt template",
@@ -381,7 +390,7 @@ def sidebar_ui() -> None:
 
         # Rebuild templates with real fixture teams when available
         if home and away:
-            templates = template_prompts(target_date, home=home, away=away)
+            templates = template_prompts(target_date, home=home, away=away, league=st.session_state.league)
 
         if st.button("Load template"):
             st.session_state.draft_prompt = templates[selected_workflow][selected_template]

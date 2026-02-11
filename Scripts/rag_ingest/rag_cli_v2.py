@@ -329,6 +329,76 @@ TEAM_ALIAS_MAP = {
     "wolverhampton wanderers": "Wolves",
     "wolverhampton wanderers fc": "Wolves",
     "wwfc": "Wolves",
+    # --- LaLiga ---
+    # Alaves
+    "alaves": "Alaves",
+    "deportivo alaves": "Alaves",
+    "alavés": "Alaves",
+    # Athletic Club
+    "athletic club": "Athletic Club",
+    "athletic bilbao": "Athletic Club",
+    "bilbao": "Athletic Club",
+    # Atletico Madrid
+    "atletico madrid": "Atletico Madrid",
+    "atlético madrid": "Atletico Madrid",
+    "atletico": "Atletico Madrid",
+    "atleti": "Atletico Madrid",
+    # Barcelona
+    "barcelona": "Barcelona",
+    "fc barcelona": "Barcelona",
+    "barca": "Barcelona",
+    "barça": "Barcelona",
+    # Celta Vigo
+    "celta vigo": "Celta Vigo",
+    "celta": "Celta Vigo",
+    "rc celta": "Celta Vigo",
+    # Elche
+    "elche": "Elche",
+    "elche cf": "Elche",
+    # Espanyol
+    "espanyol": "Espanyol",
+    "rcd espanyol": "Espanyol",
+    # Getafe
+    "getafe": "Getafe",
+    "getafe cf": "Getafe",
+    # Girona
+    "girona": "Girona",
+    "girona fc": "Girona",
+    # Levante
+    "levante": "Levante",
+    "levante ud": "Levante",
+    # Mallorca
+    "mallorca": "Mallorca",
+    "rcd mallorca": "Mallorca",
+    # Osasuna
+    "osasuna": "Osasuna",
+    "ca osasuna": "Osasuna",
+    # Oviedo
+    "oviedo": "Oviedo",
+    "real oviedo": "Oviedo",
+    # Rayo Vallecano
+    "rayo vallecano": "Rayo Vallecano",
+    "rayo": "Rayo Vallecano",
+    # Real Betis
+    "real betis": "Real Betis",
+    "betis": "Real Betis",
+    # Real Madrid
+    "real madrid": "Real Madrid",
+    "real madrid cf": "Real Madrid",
+    "madrid": "Real Madrid",
+    # Real Sociedad
+    "real sociedad": "Real Sociedad",
+    "sociedad": "Real Sociedad",
+    "la real": "Real Sociedad",
+    # Sevilla
+    "sevilla": "Sevilla",
+    "sevilla fc": "Sevilla",
+    # Valencia
+    "valencia": "Valencia",
+    "valencia cf": "Valencia",
+    # Villarreal
+    "villarreal": "Villarreal",
+    "villarreal cf": "Villarreal",
 }
 
 
