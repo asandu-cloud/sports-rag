@@ -399,6 +399,143 @@ TEAM_ALIAS_MAP = {
     # Villarreal
     "villarreal": "Villarreal",
     "villarreal cf": "Villarreal",
+    # --- Bundesliga ---
+    # 1. FC Heidenheim
+    "1. fc heidenheim": "1. FC Heidenheim",
+    "heidenheim": "1. FC Heidenheim",
+    # 1. FC Köln
+    "1. fc köln": "1. FC Köln",
+    "1. fc koln": "1. FC Köln",
+    "koln": "1. FC Köln",
+    "köln": "1. FC Köln",
+    "fc koln": "1. FC Köln",
+    # 1899 Hoffenheim
+    "1899 hoffenheim": "1899 Hoffenheim",
+    "hoffenheim": "1899 Hoffenheim",
+    "tsg hoffenheim": "1899 Hoffenheim",
+    # Bayer Leverkusen
+    "bayer leverkusen": "Bayer Leverkusen",
+    "leverkusen": "Bayer Leverkusen",
+    "bayer 04": "Bayer Leverkusen",
+    # Bayern München
+    "bayern münchen": "Bayern München",
+    "bayern munchen": "Bayern München",
+    "bayern munich": "Bayern München",
+    "bayern": "Bayern München",
+    "fcb": "Bayern München",
+    # Borussia Dortmund
+    "borussia dortmund": "Borussia Dortmund",
+    "dortmund": "Borussia Dortmund",
+    "bvb": "Borussia Dortmund",
+    # Borussia Mönchengladbach
+    "borussia mönchengladbach": "Borussia Mönchengladbach",
+    "borussia monchengladbach": "Borussia Mönchengladbach",
+    "monchengladbach": "Borussia Mönchengladbach",
+    "mönchengladbach": "Borussia Mönchengladbach",
+    "gladbach": "Borussia Mönchengladbach",
+    # Eintracht Frankfurt
+    "eintracht frankfurt": "Eintracht Frankfurt",
+    "frankfurt": "Eintracht Frankfurt",
+    "sge": "Eintracht Frankfurt",
+    # FC Augsburg
+    "fc augsburg": "FC Augsburg",
+    "augsburg": "FC Augsburg",
+    # FC St. Pauli
+    "fc st. pauli": "FC St. Pauli",
+    "fc st pauli": "FC St. Pauli",
+    "st. pauli": "FC St. Pauli",
+    "st pauli": "FC St. Pauli",
+    # FSV Mainz 05
+    "fsv mainz 05": "FSV Mainz 05",
+    "mainz": "FSV Mainz 05",
+    "mainz 05": "FSV Mainz 05",
+    # Hamburger SV
+    "hamburger sv": "Hamburger SV",
+    "hamburg": "Hamburger SV",
+    "hsv": "Hamburger SV",
+    # RB Leipzig
+    "rb leipzig": "RB Leipzig",
+    "leipzig": "RB Leipzig",
+    "rasenballsport leipzig": "RB Leipzig",
+    # SC Freiburg
+    "sc freiburg": "SC Freiburg",
+    "freiburg": "SC Freiburg",
+    # Union Berlin
+    "union berlin": "Union Berlin",
+    "1. fc union berlin": "Union Berlin",
+    # VfB Stuttgart
+    "vfb stuttgart": "VfB Stuttgart",
+    "stuttgart": "VfB Stuttgart",
+    # VfL Wolfsburg
+    "vfl wolfsburg": "VfL Wolfsburg",
+    "wolfsburg": "VfL Wolfsburg",
+    # Werder Bremen
+    "werder bremen": "Werder Bremen",
+    "bremen": "Werder Bremen",
+    "sv werder bremen": "Werder Bremen",
+    # --- Ligue 1 ---
+    # Angers
+    "angers": "Angers",
+    "angers sco": "Angers",
+    # Auxerre
+    "auxerre": "Auxerre",
+    "aj auxerre": "Auxerre",
+    # Le Havre
+    "le havre": "Le Havre",
+    "le havre ac": "Le Havre",
+    # Lens
+    "lens": "Lens",
+    "rc lens": "Lens",
+    # Lille
+    "lille": "Lille",
+    "losc lille": "Lille",
+    "losc": "Lille",
+    # Lorient
+    "lorient": "Lorient",
+    "fc lorient": "Lorient",
+    # Lyon
+    "lyon": "Lyon",
+    "olympique lyonnais": "Lyon",
+    "ol": "Lyon",
+    # Marseille
+    "marseille": "Marseille",
+    "olympique de marseille": "Marseille",
+    "olympique marseille": "Marseille",
+    "om": "Marseille",
+    # Metz
+    "metz": "Metz",
+    "fc metz": "Metz",
+    # Monaco
+    "monaco": "Monaco",
+    "as monaco": "Monaco",
+    # Nantes
+    "nantes": "Nantes",
+    "fc nantes": "Nantes",
+    # Nice
+    "nice": "Nice",
+    "ogc nice": "Nice",
+    # Paris FC
+    "paris fc": "Paris FC",
+    # Paris Saint Germain
+    "paris saint germain": "Paris Saint Germain",
+    "paris saint-germain": "Paris Saint Germain",
+    "paris sg": "Paris Saint Germain",
+    "psg": "Paris Saint Germain",
+    # Rennes
+    "rennes": "Rennes",
+    "stade rennais": "Rennes",
+    # Stade Brestois 29
+    "stade brestois 29": "Stade Brestois 29",
+    "stade brestois": "Stade Brestois 29",
+    "brest": "Stade Brestois 29",
+    "brestois": "Stade Brestois 29",
+    # Strasbourg
+    "strasbourg": "Strasbourg",
+    "rc strasbourg": "Strasbourg",
+    "rc strasbourg alsace": "Strasbourg",
+    # Toulouse
+    "toulouse": "Toulouse",
+    "toulouse fc": "Toulouse",
 }
 
 
