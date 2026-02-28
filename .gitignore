@@ -20,3 +20,7 @@ Index/chroma/
 /Index/chroma/**
 /Index/chroma.sqlite3
 *.sqlite3
+
+Index/
+Output/
+CLAUDE.md
