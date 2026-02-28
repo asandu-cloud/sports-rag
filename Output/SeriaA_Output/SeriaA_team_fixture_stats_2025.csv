@@ -3,20 +3,20 @@ Sassuolo vs Napoli,Sassuolo,Sassuolo,Napoli,0,2,0-2,2,4,7,1,3,4,17,1,0,0.38,3,1,
 Sassuolo vs Napoli,Napoli,Sassuolo,Napoli,0,2,0-2,4,4,13,5,7,6,17,2,0,0.62,1,0,2,606,545,0.9,1.19,0
 Genoa vs Lecce,Genoa,Genoa,Lecce,0,0,0-0,2,2,5,1,2,3,16,3,0,0.59,2,0,0,435,327,0.75,0.5,0
 Genoa vs Lecce,Lecce,Genoa,Lecce,0,0,0-0,0,3,7,4,5,2,13,7,2,0.41,3,0,2,294,207,0.7,0.37,0
-AC Milan vs Cremonese,AC Milan,AC Milan,Cremonese,1,2,1-2,6,9,24,9,16,8,10,9,1,0.64,1,0,1,608,551,0.91,1.88,0
+AC Milan vs Cremonese,AC Milan,AC Milan,Cremonese,1,2,1-2,6,9,24,9,16,8,10,9,1,0.64,1,0,1,608,551,0.91,1.92,0
 AC Milan vs Cremonese,Cremonese,AC Milan,Cremonese,1,2,1-2,3,1,4,0,4,0,14,2,1,0.36,4,0,4,340,278,0.82,0.21,0
 AS Roma vs Bologna,AS Roma,AS Roma,Bologna,1,0,1-0,4,9,14,1,8,6,15,2,1,0.51,1,0,2,414,338,0.82,1.56,0
 AS Roma vs Bologna,Bologna,AS Roma,Bologna,1,0,1-0,2,7,10,1,6,4,13,4,1,0.49,1,0,3,388,301,0.78,0.58,0
 Cagliari vs Fiorentina,Cagliari,Cagliari,Fiorentina,1,1,1-1,6,7,14,1,10,4,18,3,1,0.45,4,0,0,356,293,0.82,1.13,0
 Cagliari vs Fiorentina,Fiorentina,Cagliari,Fiorentina,1,1,1-1,1,2,4,1,2,2,14,2,4,0.55,2,0,4,439,365,0.83,0.98,0
-Como vs Lazio,Como,Como,Lazio,2,0,2-0,6,12,19,1,12,7,15,6,0,0.63,2,0,1,537,484,0.9,1.54,0
-Como vs Lazio,Lazio,Como,Lazio,2,0,2-0,1,3,5,1,3,2,12,0,1,0.37,3,0,4,309,260,0.84,0.21,0
+Como vs Lazio,Como,Como,Lazio,2,0,2-0,6,12,19,1,12,7,15,6,0,0.63,2,0,1,537,484,0.9,1.32,0
+Como vs Lazio,Lazio,Como,Lazio,2,0,2-0,1,3,5,1,3,2,12,0,1,0.37,3,0,4,309,260,0.84,0.25,0
 Juventus vs Parma,Juventus,Juventus,Parma,2,0,2-0,8,12,25,5,14,11,9,6,0,0.64,1,1,1,512,457,0.89,2.35,0
 Juventus vs Parma,Parma,Juventus,Parma,2,0,2-0,2,4,8,2,4,4,13,6,0,0.36,2,0,6,275,207,0.75,0.62,0
 Atalanta vs Pisa,Atalanta,Atalanta,Pisa,1,1,1-1,6,12,21,3,14,7,9,10,0,0.66,2,0,2,552,477,0.86,1.92,1
 Atalanta vs Pisa,Pisa,Atalanta,Pisa,1,1,1-1,2,6,11,3,7,4,10,4,2,0.34,0,0,5,289,218,0.75,0.63,1
-Udinese vs Verona,Udinese,Udinese,Verona,1,1,1-1,4,6,14,4,8,6,10,5,2,0.63,3,0,2,478,416,0.87,0.72,0
-Udinese vs Verona,Verona,Udinese,Verona,1,1,1-1,3,4,9,2,2,7,14,1,2,0.37,2,0,4,286,210,0.73,0.56,0
+Udinese vs Hellas Verona,Udinese,Udinese,Hellas Verona,1,1,1-1,4,6,14,4,8,6,10,5,2,0.63,3,0,2,478,416,0.87,0.73,0
+Udinese vs Hellas Verona,Hellas Verona,Udinese,Hellas Verona,1,1,1-1,3,4,9,2,2,7,14,1,2,0.37,2,0,4,286,210,0.73,0.56,0
 Inter vs Torino,Inter,Inter,Torino,5,0,5-0,9,8,20,3,14,6,14,6,4,0.6,0,0,4,577,530,0.92,1.59,-2
 Inter vs Torino,Torino,Inter,Torino,5,0,5-0,4,3,12,5,8,4,6,5,1,0.4,0,0,4,379,328,0.87,0.94,-2
 Cremonese vs Sassuolo,Cremonese,Cremonese,Sassuolo,3,2,3-2,6,2,11,3,8,3,12,5,0,0.42,2,0,4,359,271,0.75,3.32,0
@@ -24,7 +24,7 @@ Cremonese vs Sassuolo,Sassuolo,Cremonese,Sassuolo,3,2,3-2,6,2,9,1,6,3,17,4,2,0.5
 Lecce vs AC Milan,Lecce,Lecce,AC Milan,0,2,0-2,2,2,7,3,5,2,10,4,1,0.45,1,0,4,388,331,0.85,0.3,0
 Lecce vs AC Milan,AC Milan,Lecce,AC Milan,0,2,0-2,6,5,14,3,11,3,8,5,4,0.55,0,0,2,482,416,0.86,1.85,0
 Bologna vs Como,Bologna,Bologna,Como,1,0,1-0,2,6,15,7,10,5,13,7,3,0.36,4,0,2,242,169,0.7,1.1,0
-Bologna vs Como,Como,Bologna,Como,1,0,1-0,2,5,13,6,8,5,19,4,0,0.64,3,0,1,459,379,0.83,0.69,0
+Bologna vs Como,Como,Bologna,Como,1,0,1-0,2,5,13,6,8,5,19,4,0,0.64,4,0,1,459,379,0.83,0.69,0
 Parma vs Atalanta,Parma,Parma,Atalanta,1,1,1-1,3,3,7,1,3,4,8,1,1,0.46,2,0,2,345,269,0.78,0.68,0
 Parma vs Atalanta,Atalanta,Parma,Atalanta,1,1,1-1,3,4,11,4,8,3,15,2,4,0.54,2,0,2,420,334,0.8,0.81,0
 Napoli vs Cagliari,Napoli,Napoli,Cagliari,1,0,1-0,6,8,20,6,15,5,16,13,3,0.67,2,0,1,615,554,0.9,1.58,0
@@ -35,14 +35,14 @@ Genoa vs Juventus,Genoa,Genoa,Juventus,0,1,0-1,1,6,10,3,6,4,14,3,0,0.44,1,0,2,35
 Genoa vs Juventus,Juventus,Genoa,Juventus,0,1,0-1,3,4,13,6,8,5,15,4,2,0.56,2,0,1,449,358,0.8,1.03,0
 Torino vs Fiorentina,Torino,Torino,Fiorentina,0,0,0-0,4,2,7,1,6,1,21,7,2,0.45,2,0,3,292,225,0.77,1.02,1
 Torino vs Fiorentina,Fiorentina,Torino,Fiorentina,0,0,0-0,4,8,16,4,8,8,13,3,1,0.55,2,0,4,369,307,0.83,1.74,1
-Lazio vs Verona,Lazio,Lazio,Verona,4,0,4-0,6,8,22,8,14,8,8,8,1,0.7,0,0,4,700,643,0.92,3.85,0
-Lazio vs Verona,Verona,Lazio,Verona,4,0,4-0,4,5,12,3,8,4,19,1,1,0.3,0,0,2,300,236,0.79,0.77,0
+Lazio vs Hellas Verona,Lazio,Lazio,Hellas Verona,4,0,4-0,6,8,22,8,14,8,8,8,1,0.7,0,0,4,702,643,0.92,4.13,0
+Lazio vs Hellas Verona,Hellas Verona,Lazio,Hellas Verona,4,0,4-0,4,5,12,3,8,4,19,1,1,0.3,0,0,2,300,236,0.79,0.92,0
 Inter vs Udinese,Inter,Inter,Udinese,1,2,1-2,4,10,16,2,13,3,17,13,2,0.68,1,0,3,497,426,0.86,1.97,0
 Inter vs Udinese,Udinese,Inter,Udinese,1,2,1-2,5,4,10,1,4,6,5,2,0,0.32,3,0,2,245,179,0.73,1.21,0
 Cagliari vs Parma,Cagliari,Cagliari,Parma,2,0,2-0,5,3,12,4,8,4,15,4,3,0.51,3,0,6,396,319,0.81,1.13,0
 Cagliari vs Parma,Parma,Cagliari,Parma,2,0,2-0,5,5,17,7,11,6,18,5,0,0.49,1,0,3,375,303,0.81,1.96,0
 Juventus vs Inter,Juventus,Juventus,Inter,4,3,4-3,4,3,12,5,5,7,14,5,1,0.41,2,0,1,357,296,0.83,0.68,-2
-Juventus vs Inter,Inter,Juventus,Inter,4,3,4-3,4,8,18,6,8,10,10,9,1,0.59,1,0,0,503,452,0.9,0.96,-2
+Juventus vs Inter,Inter,Juventus,Inter,4,3,4-3,4,8,18,6,8,10,10,9,1,0.59,2,0,0,503,452,0.9,0.96,-2
 Fiorentina vs Napoli,Fiorentina,Fiorentina,Napoli,1,3,1-3,3,8,19,8,14,5,14,8,0,0.53,0,0,5,456,373,0.82,1.65,0
 Fiorentina vs Napoli,Napoli,Fiorentina,Napoli,1,3,1-3,9,2,14,3,11,3,14,5,0,0.47,0,0,2,419,346,0.83,3.29,0
 AS Roma vs Torino,AS Roma,AS Roma,Torino,0,1,0-1,5,10,22,7,12,10,11,7,1,0.73,2,0,3,590,530,0.9,1.14,0
@@ -55,16 +55,16 @@ Sassuolo vs Lazio,Sassuolo,Sassuolo,Lazio,1,0,1-0,3,5,10,2,8,2,15,3,0,0.41,6,0,3
 Sassuolo vs Lazio,Lazio,Sassuolo,Lazio,1,0,1-0,3,6,13,4,11,2,11,7,1,0.59,3,0,2,590,514,0.87,0.76,0
 AC Milan vs Bologna,AC Milan,AC Milan,Bologna,1,0,1-0,3,7,14,4,10,4,17,7,2,0.39,3,0,0,336,286,0.85,1.0,0
 AC Milan vs Bologna,Bologna,AC Milan,Bologna,1,0,1-0,0,2,5,3,3,2,16,4,1,0.61,2,0,2,521,453,0.87,0.17,0
-Verona vs Cremonese,Verona,Verona,Cremonese,0,0,0-0,9,6,20,5,12,8,18,10,4,0.46,2,0,3,413,332,0.8,1.52,1
-Verona vs Cremonese,Cremonese,Verona,Cremonese,0,0,0-0,2,2,6,2,2,4,3,1,1,0.54,1,0,9,491,399,0.81,0.24,1
+Hellas Verona vs Cremonese,Hellas Verona,Hellas Verona,Cremonese,0,0,0-0,9,6,20,5,12,8,18,10,4,0.46,2,0,3,412,332,0.81,1.46,1
+Hellas Verona vs Cremonese,Cremonese,Hellas Verona,Cremonese,0,0,0-0,2,2,6,2,2,4,3,1,1,0.54,1,0,9,492,401,0.82,0.24,1
 Como vs Genoa,Como,Como,Genoa,1,1,1-1,4,3,13,6,7,6,13,0,0,0.53,2,1,4,452,379,0.84,1.83,0
 Como vs Genoa,Genoa,Como,Genoa,1,1,1-1,6,0,12,6,9,3,17,8,0,0.47,2,0,3,396,323,0.82,2.34,0
-Lecce vs Cagliari,Lecce,Lecce,Cagliari,1,2,1-2,5,6,11,0,8,3,10,4,0,0.52,2,0,4,378,318,0.84,0.99,0
-Lecce vs Cagliari,Cagliari,Lecce,Cagliari,1,2,1-2,6,6,15,3,13,2,19,7,2,0.48,3,0,4,352,285,0.81,2.24,0
+Lecce vs Cagliari,Lecce,Lecce,Cagliari,1,2,1-2,5,6,11,0,8,3,10,4,0,0.52,2,0,4,378,319,0.84,0.99,0
+Lecce vs Cagliari,Cagliari,Lecce,Cagliari,1,2,1-2,6,6,15,3,13,2,19,7,2,0.48,3,0,4,351,284,0.81,2.24,0
 Bologna vs Genoa,Bologna,Bologna,Genoa,2,1,2-1,6,5,14,3,12,2,12,8,4,0.59,1,0,3,406,320,0.79,1.59,0
 Bologna vs Genoa,Genoa,Bologna,Genoa,2,1,2-1,4,2,7,1,5,2,15,2,1,0.41,5,0,4,290,196,0.68,0.53,0
-Verona vs Juventus,Verona,Verona,Juventus,1,1,1-1,4,8,14,2,7,7,18,5,1,0.28,3,0,3,216,146,0.68,1.53,0
-Verona vs Juventus,Juventus,Verona,Juventus,1,1,1-1,4,4,10,2,6,4,10,3,1,0.72,3,0,3,570,495,0.87,0.47,0
+Hellas Verona vs Juventus,Hellas Verona,Hellas Verona,Juventus,1,1,1-1,4,8,14,2,7,7,18,5,1,0.28,3,0,3,216,146,0.68,1.53,0
+Hellas Verona vs Juventus,Juventus,Hellas Verona,Juventus,1,1,1-1,4,4,10,2,6,4,10,3,1,0.72,3,0,3,570,495,0.87,0.47,0
 Udinese vs AC Milan,Udinese,Udinese,AC Milan,0,3,0-3,4,3,10,3,2,8,9,1,3,0.4,2,0,4,393,351,0.89,0.34,0
 Udinese vs AC Milan,AC Milan,Udinese,AC Milan,0,3,0-3,6,6,13,1,11,2,7,4,2,0.6,0,0,4,607,550,0.91,1.44,0
 Lazio vs AS Roma,Lazio,Lazio,AS Roma,0,1,0-1,2,8,10,0,6,4,14,3,0,0.49,1,2,5,390,315,0.81,1.04,0
@@ -87,8 +87,8 @@ Cagliari vs Inter,Cagliari,Cagliari,Inter,0,2,0-2,0,4,6,2,5,1,13,4,1,0.42,0,0,3,
 Cagliari vs Inter,Inter,Cagliari,Inter,0,2,0-2,5,11,20,4,15,5,14,4,2,0.58,2,0,0,537,453,0.84,2.82,0
 Sassuolo vs Udinese,Sassuolo,Sassuolo,Udinese,3,1,3-1,5,3,11,3,8,3,5,1,5,0.44,0,0,4,321,252,0.79,1.24,-1
 Sassuolo vs Udinese,Udinese,Sassuolo,Udinese,3,1,3-1,5,6,12,1,6,6,22,5,1,0.56,3,0,2,404,342,0.85,1.32,-1
-AS Roma vs Verona,AS Roma,AS Roma,Verona,2,0,2-0,5,2,10,3,6,4,11,8,0,0.57,0,0,3,432,315,0.73,0.95,0
-AS Roma vs Verona,Verona,AS Roma,Verona,2,0,2-0,3,6,12,3,6,6,19,1,2,0.43,4,0,3,320,217,0.68,1.38,0
+AS Roma vs Hellas Verona,AS Roma,AS Roma,Hellas Verona,2,0,2-0,5,2,10,3,6,4,11,8,0,0.57,0,0,3,432,315,0.73,0.95,0
+AS Roma vs Hellas Verona,Hellas Verona,AS Roma,Hellas Verona,2,0,2-0,3,6,12,3,6,6,19,1,2,0.43,4,0,3,320,217,0.68,1.38,0
 Pisa vs Fiorentina,Pisa,Pisa,Fiorentina,0,0,0-0,1,7,11,3,9,2,15,4,1,0.39,0,0,2,230,162,0.7,0.8,0
 Pisa vs Fiorentina,Fiorentina,Pisa,Fiorentina,0,0,0-0,2,7,14,5,8,6,15,6,5,0.61,1,0,1,385,315,0.82,0.89,0
 Lecce vs Bologna,Lecce,Lecce,Bologna,2,2,2-2,4,5,12,3,10,2,13,3,1,0.33,4,0,3,252,166,0.66,1.8,0
@@ -99,8 +99,8 @@ Parma vs Torino,Parma,Parma,Torino,2,1,2-1,2,7,13,4,6,7,10,4,1,0.37,3,0,3,270,19
 Parma vs Torino,Torino,Parma,Torino,2,1,2-1,4,3,15,8,8,7,12,3,1,0.63,3,0,1,442,363,0.82,0.76,-1
 Genoa vs Lazio,Genoa,Genoa,Lazio,0,3,0-3,5,8,17,4,10,7,18,6,1,0.65,5,0,2,503,431,0.86,1.63,1
 Genoa vs Lazio,Lazio,Genoa,Lazio,0,3,0-3,6,3,9,0,8,1,16,0,2,0.35,1,0,5,280,194,0.69,1.07,1
-Verona vs Sassuolo,Verona,Verona,Sassuolo,0,1,0-1,9,6,17,2,9,8,14,4,0,0.58,2,0,2,438,348,0.79,0.8,1
-Verona vs Sassuolo,Sassuolo,Verona,Sassuolo,0,1,0-1,3,4,11,4,6,5,12,2,1,0.42,3,0,9,315,238,0.76,1.67,1
+Hellas Verona vs Sassuolo,Hellas Verona,Hellas Verona,Sassuolo,0,1,0-1,9,6,17,2,9,8,14,4,0,0.58,2,0,2,438,348,0.79,0.8,1
+Hellas Verona vs Sassuolo,Sassuolo,Hellas Verona,Sassuolo,0,1,0-1,3,4,11,4,6,5,12,2,1,0.42,3,0,9,315,238,0.76,1.67,1
 Lazio vs Torino,Lazio,Lazio,Torino,3,3,3-3,4,3,9,2,4,5,13,3,1,0.49,3,0,5,411,333,0.81,1.35,-1
 Lazio vs Torino,Torino,Lazio,Torino,3,3,3-3,8,7,16,1,10,6,22,5,1,0.51,3,0,1,425,352,0.83,1.76,-1
 Parma vs Lecce,Parma,Parma,Lecce,0,1,0-1,2,6,10,2,7,3,16,4,2,0.63,1,0,2,476,388,0.82,0.59,0
@@ -119,23 +119,405 @@ Napoli vs Genoa,Napoli,Napoli,Genoa,2,1,2-1,5,4,12,3,10,2,16,7,2,0.69,1,0,0,554,
 Napoli vs Genoa,Genoa,Napoli,Genoa,2,1,2-1,1,3,6,2,1,5,15,5,2,0.31,3,0,3,245,168,0.69,0.44,0
 Juventus vs AC Milan,Juventus,Juventus,AC Milan,0,0,0-0,3,7,12,2,8,4,15,6,0,0.51,2,0,4,475,422,0.89,1.13,0
 Juventus vs AC Milan,AC Milan,Juventus,AC Milan,0,0,0-0,4,7,13,2,7,6,8,0,1,0.49,2,0,3,466,416,0.89,1.74,0
-Pisa vs Verona,Pisa,Pisa,Verona,0,0,0-0,0,5,7,2,5,2,7,3,0,0.6,4,0,3,459,377,0.82,0.65,0
-Pisa vs Verona,Verona,Pisa,Verona,0,0,0-0,3,8,15,4,12,3,15,8,2,0.4,2,0,0,290,197,0.68,1.54,0
-Lecce vs Sassuolo,Lecce,Lecce,Sassuolo,0,0,0-0,2,6,11,3,5,6,11,6,1,0.52,2,0,2,414,339,0.82,0.7,1
-Lecce vs Sassuolo,Sassuolo,Lecce,Sassuolo,0,0,0-0,2,4,9,3,5,4,9,4,1,0.48,2,0,2,394,306,0.78,0.39,1
-Torino vs Napoli,Torino,Torino,Napoli,1,0,1-0,2,8,12,2,8,4,12,3,2,0.31,1,0,5,281,214,0.76,2.0,0
-Torino vs Napoli,Napoli,Torino,Napoli,1,0,1-0,5,13,22,4,14,8,22,11,2,0.69,2,0,1,615,545,0.89,2.06,0
-AS Roma vs Inter,AS Roma,AS Roma,Inter,0,1,0-1,5,6,15,4,11,4,15,4,3,0.57,4,0,2,509,444,0.87,1.35,1
-AS Roma vs Inter,Inter,AS Roma,Inter,0,1,0-1,3,7,12,2,7,5,12,5,0,0.43,3,0,5,389,302,0.78,0.63,1
-Como vs Juventus,Como,Como,Juventus,2,0,2-0,6,3,12,3,9,3,17,4,1,0.45,3,0,4,359,290,0.81,1.47,0
-Como vs Juventus,Juventus,Como,Juventus,2,0,2-0,3,8,15,4,9,6,15,1,2,0.55,1,0,4,447,372,0.83,0.88,0
-Cagliari vs Bologna,Cagliari,Cagliari,Bologna,0,2,0-2,3,1,4,0,1,3,15,2,5,0.42,1,0,5,310,241,0.78,0.19,0
-Cagliari vs Bologna,Bologna,Cagliari,Bologna,0,2,0-2,7,2,10,1,4,6,22,7,1,0.58,3,0,3,427,363,0.85,0.77,0
-Genoa vs Parma,Genoa,Genoa,Parma,0,0,0-0,7,9,23,7,10,13,23,3,2,0.68,2,0,0,540,474,0.88,2.2,1
-Genoa vs Parma,Parma,Genoa,Parma,0,0,0-0,0,1,1,0,0,1,1,0,1,0.32,5,1,7,257,172,0.67,0.05,1
-Atalanta vs Lazio,Atalanta,Atalanta,Lazio,0,0,0-0,6,7,16,3,12,4,10,7,3,0.58,4,0,1,608,552,0.91,2.32,1
-Atalanta vs Lazio,Lazio,Atalanta,Lazio,0,0,0-0,1,2,4,1,1,3,5,1,0,0.42,0,0,6,447,386,0.86,0.25,1
+Pisa vs Hellas Verona,Pisa,Pisa,Hellas Verona,0,0,0-0,0,5,7,2,5,2,8,3,0,0.6,4,0,3,459,377,0.82,0.65,0
+Pisa vs Hellas Verona,Hellas Verona,Pisa,Hellas Verona,0,0,0-0,3,8,15,4,12,3,14,8,2,0.4,2,0,0,290,197,0.68,1.54,0
+Lecce vs Sassuolo,Lecce,Lecce,Sassuolo,0,0,0-0,2,6,11,3,5,6,16,6,1,0.52,2,0,2,414,339,0.82,0.7,1
+Lecce vs Sassuolo,Sassuolo,Lecce,Sassuolo,0,0,0-0,2,4,9,3,5,4,14,4,1,0.48,2,0,2,394,306,0.78,0.39,1
+Torino vs Napoli,Torino,Torino,Napoli,1,0,1-0,2,8,12,2,8,4,9,3,2,0.31,1,0,5,281,214,0.76,2.0,0
+Torino vs Napoli,Napoli,Torino,Napoli,1,0,1-0,5,13,22,4,14,8,9,11,2,0.69,2,0,1,615,545,0.89,2.06,0
+AS Roma vs Inter,AS Roma,AS Roma,Inter,0,1,0-1,5,6,15,4,11,4,18,4,3,0.57,4,0,2,509,444,0.87,1.35,1
+AS Roma vs Inter,Inter,AS Roma,Inter,0,1,0-1,3,7,12,2,7,5,29,5,0,0.43,3,0,5,389,302,0.78,0.63,1
+Como vs Juventus,Como,Como,Juventus,2,0,2-0,6,3,12,3,9,3,12,4,1,0.45,3,0,4,361,293,0.81,1.46,0
+Como vs Juventus,Juventus,Como,Juventus,2,0,2-0,3,8,15,4,9,6,15,1,2,0.55,1,0,4,447,373,0.83,0.88,0
+Cagliari vs Bologna,Cagliari,Cagliari,Bologna,0,2,0-2,3,1,4,0,1,3,15,2,5,0.42,1,0,5,311,242,0.78,0.22,0
+Cagliari vs Bologna,Bologna,Cagliari,Bologna,0,2,0-2,7,2,10,1,4,6,22,7,1,0.58,3,0,3,436,368,0.84,1.11,0
+Genoa vs Parma,Genoa,Genoa,Parma,0,0,0-0,7,9,23,7,10,13,15,3,2,0.69,2,0,0,543,477,0.88,2.2,1
+Genoa vs Parma,Parma,Genoa,Parma,0,0,0-0,0,1,1,0,0,1,13,0,1,0.31,5,1,7,257,172,0.67,0.05,1
+Atalanta vs Lazio,Atalanta,Atalanta,Lazio,0,0,0-0,6,7,16,3,12,4,10,7,3,0.58,4,0,1,611,553,0.91,2.18,1
+Atalanta vs Lazio,Lazio,Atalanta,Lazio,0,0,0-0,1,2,4,1,1,3,5,1,0,0.42,0,0,6,448,389,0.87,0.25,1
 AC Milan vs Fiorentina,AC Milan,AC Milan,Fiorentina,2,1,2-1,4,7,14,3,10,4,14,1,0,0.56,3,0,1,485,424,0.87,1.98,0
-AC Milan vs Fiorentina,Fiorentina,AC Milan,Fiorentina,2,1,2-1,1,3,5,1,2,3,5,3,2,0.44,3,0,2,362,306,0.85,1.08,0
-Cremonese vs Udinese,Cremonese,Cremonese,Udinese,1,1,1-1,4,5,11,2,6,5,15,5,1,0.52,4,0,0,370,285,0.77,0.91,0
-Cremonese vs Udinese,Udinese,Cremonese,Udinese,1,1,1-1,1,5,8,2,6,2,14,4,2,0.48,2,0,2,339,276,0.81,0.59,0
+AC Milan vs Fiorentina,Fiorentina,AC Milan,Fiorentina,2,1,2-1,1,3,5,1,2,3,12,3,2,0.44,3,0,2,362,306,0.85,1.08,0
+Cremonese vs Udinese,Cremonese,Cremonese,Udinese,1,1,1-1,4,5,11,2,6,5,15,5,1,0.52,4,0,0,367,283,0.77,1.07,0
+Cremonese vs Udinese,Udinese,Cremonese,Udinese,1,1,1-1,1,5,8,2,6,2,14,4,2,0.48,2,0,2,340,275,0.81,0.55,0
+AC Milan vs Pisa,AC Milan,AC Milan,Pisa,2,2,2-2,7,8,20,5,9,11,8,6,2,0.68,1,0,0,620,556,0.9,1.54,0
+AC Milan vs Pisa,Pisa,AC Milan,Pisa,2,2,2-2,2,3,8,3,3,5,21,2,1,0.32,3,0,5,291,231,0.79,1.42,0
+Udinese vs Lecce,Udinese,Udinese,Lecce,3,2,3-2,4,2,8,2,8,0,12,4,1,0.44,2,0,1,354,264,0.75,1.03,-1
+Udinese vs Lecce,Lecce,Udinese,Lecce,3,2,3-2,3,7,13,3,2,11,12,9,0,0.56,2,0,1,441,351,0.8,0.38,-1
+Parma vs Como,Parma,Parma,Como,0,0,0-0,3,4,10,3,6,4,7,3,3,0.29,0,0,2,234,177,0.76,0.57,0
+Parma vs Como,Como,Parma,Como,0,0,0-0,2,3,6,1,4,2,14,3,3,0.71,1,0,3,584,526,0.9,0.43,0
+Napoli vs Inter,Napoli,Napoli,Inter,3,1,3-1,3,1,7,3,4,3,15,1,1,0.43,2,0,2,419,336,0.8,1.25,-1
+Napoli vs Inter,Inter,Napoli,Inter,3,1,3-1,3,9,15,3,9,6,10,4,1,0.57,1,0,0,536,461,0.86,1.89,-1
+Cremonese vs Atalanta,Cremonese,Cremonese,Atalanta,1,1,1-1,5,4,9,0,4,5,6,2,3,0.35,3,0,5,277,189,0.68,1.12,0
+Cremonese vs Atalanta,Atalanta,Cremonese,Atalanta,1,1,1-1,6,6,20,8,12,8,8,10,2,0.65,1,0,4,523,441,0.84,1.15,0
+Torino vs Genoa,Torino,Torino,Genoa,2,1,2-1,6,3,13,4,9,4,14,9,1,0.59,2,0,2,484,392,0.81,1.35,0
+Torino vs Genoa,Genoa,Torino,Genoa,2,1,2-1,3,5,11,3,8,3,9,1,0,0.41,2,0,5,344,269,0.78,1.9,0
+Sassuolo vs AS Roma,Sassuolo,Sassuolo,AS Roma,0,1,0-1,1,7,11,3,7,4,18,6,1,0.41,3,0,7,334,255,0.76,1.06,0
+Sassuolo vs AS Roma,AS Roma,Sassuolo,AS Roma,0,1,0-1,8,6,15,1,11,4,16,6,1,0.59,2,0,1,483,398,0.82,1.74,0
+Hellas Verona vs Cagliari,Hellas Verona,Hellas Verona,Cagliari,2,2,2-2,6,1,10,3,7,3,16,3,1,0.37,3,0,1,355,249,0.7,2.02,0
+Hellas Verona vs Cagliari,Cagliari,Hellas Verona,Cagliari,2,2,2-2,3,2,7,2,3,4,12,2,3,0.63,4,0,4,599,505,0.84,0.44,0
+Fiorentina vs Bologna,Fiorentina,Fiorentina,Bologna,2,2,2-2,7,7,19,5,15,4,13,5,5,0.5,3,0,1,326,256,0.79,3.72,0
+Fiorentina vs Bologna,Bologna,Fiorentina,Bologna,2,2,2-2,3,2,6,1,4,2,20,6,3,0.5,5,1,4,330,252,0.76,0.55,0
+Lazio vs Juventus,Lazio,Lazio,Juventus,1,0,1-0,3,6,13,4,9,4,11,2,0,0.4,2,0,5,343,270,0.79,0.78,0
+Lazio vs Juventus,Juventus,Lazio,Juventus,1,0,1-0,5,5,14,4,11,3,18,5,2,0.6,4,0,2,498,440,0.88,1.49,0
+Lecce vs Napoli,Lecce,Lecce,Napoli,0,1,0-1,2,3,7,2,5,2,10,3,1,0.41,2,0,2,363,291,0.8,1.16,0
+Lecce vs Napoli,Napoli,Lecce,Napoli,0,1,0-1,3,5,14,6,9,5,14,5,0,0.59,1,0,2,522,452,0.87,0.83,0
+Atalanta vs AC Milan,Atalanta,Atalanta,AC Milan,1,1,1-1,3,8,17,6,11,6,9,9,0,0.56,1,0,0,509,464,0.91,1.34,0
+Atalanta vs AC Milan,AC Milan,Atalanta,AC Milan,1,1,1-1,1,2,6,3,4,2,8,4,1,0.44,3,0,2,407,342,0.84,0.36,0
+Juventus vs Udinese,Juventus,Juventus,Udinese,3,1,3-1,11,7,25,7,17,8,12,8,2,0.57,1,0,1,443,376,0.85,3.17,0
+Juventus vs Udinese,Udinese,Juventus,Udinese,3,1,3-1,2,3,8,3,7,1,13,4,0,0.43,4,0,9,345,277,0.8,0.54,0
+AS Roma vs Parma,AS Roma,AS Roma,Parma,2,1,2-1,6,8,18,4,11,7,8,9,3,0.6,0,0,4,519,439,0.85,1.01,0
+AS Roma vs Parma,Parma,AS Roma,Parma,2,1,2-1,5,2,8,1,5,3,9,2,2,0.4,4,0,4,348,261,0.75,1.21,0
+Como vs Hellas Verona,Como,Como,Hellas Verona,3,1,3-1,5,6,15,4,7,8,11,1,1,0.71,1,0,7,587,517,0.88,1.5,-1
+Como vs Hellas Verona,Hellas Verona,Como,Hellas Verona,3,1,3-1,9,2,13,2,11,2,21,3,1,0.29,4,0,2,241,150,0.62,1.52,-1
+Genoa vs Cremonese,Genoa,Genoa,Cremonese,0,2,0-2,1,8,16,7,10,6,16,7,3,0.54,3,0,2,366,265,0.72,1.31,0
+Genoa vs Cremonese,Cremonese,Genoa,Cremonese,0,2,0-2,4,7,11,0,7,4,13,3,0,0.46,1,0,1,318,206,0.65,1.39,0
+Bologna vs Torino,Bologna,Bologna,Torino,0,0,0-0,2,7,11,2,4,7,11,3,0,0.71,2,0,2,641,570,0.89,0.43,0
+Bologna vs Torino,Torino,Bologna,Torino,0,0,0-0,2,4,8,2,4,4,20,3,2,0.29,3,0,2,254,178,0.7,0.54,0
+Inter vs Fiorentina,Inter,Inter,Fiorentina,3,0,3-0,8,6,22,8,19,3,11,8,0,0.64,1,0,2,564,488,0.87,2.63,0
+Inter vs Fiorentina,Fiorentina,Inter,Fiorentina,3,0,3-0,2,3,10,5,6,4,16,5,1,0.36,2,1,5,323,258,0.8,0.72,0
+Cagliari vs Sassuolo,Cagliari,Cagliari,Sassuolo,1,2,1-2,1,3,8,4,4,4,20,3,2,0.46,4,0,2,337,264,0.78,0.72,0
+Cagliari vs Sassuolo,Sassuolo,Cagliari,Sassuolo,1,2,1-2,4,5,12,3,6,6,21,7,3,0.54,4,0,0,404,345,0.85,0.56,0
+Pisa vs Lazio,Pisa,Pisa,Lazio,0,0,0-0,2,5,10,3,7,3,16,3,1,0.39,2,0,6,367,291,0.79,0.93,0
+Pisa vs Lazio,Lazio,Pisa,Lazio,0,0,0-0,6,5,11,0,5,6,12,1,0,0.61,2,0,2,579,509,0.88,0.48,0
+Udinese vs Atalanta,Udinese,Udinese,Atalanta,1,0,1-0,5,4,11,2,3,8,14,5,0,0.4,1,0,0,341,286,0.84,0.53,0
+Udinese vs Atalanta,Atalanta,Udinese,Atalanta,1,0,1-0,0,1,5,4,3,2,11,4,3,0.6,3,0,4,519,456,0.88,0.37,0
+Napoli vs Como,Napoli,Napoli,Como,0,0,0-0,8,4,13,1,6,7,15,4,0,0.45,3,0,2,392,320,0.82,0.78,1
+Napoli vs Como,Como,Napoli,Como,0,0,0-0,2,5,13,6,4,9,16,2,0,0.55,2,0,8,484,414,0.86,1.07,1
+Cremonese vs Juventus,Cremonese,Cremonese,Juventus,1,2,1-2,2,2,9,5,5,4,10,2,0,0.51,1,0,3,470,399,0.85,0.54,0
+Cremonese vs Juventus,Juventus,Cremonese,Juventus,1,2,1-2,5,7,15,3,9,6,14,3,2,0.49,0,0,1,458,381,0.83,2.03,0
+Hellas Verona vs Inter,Hellas Verona,Hellas Verona,Inter,1,2,1-2,2,4,8,2,5,3,16,4,1,0.27,2,0,4,247,177,0.72,0.38,0
+Hellas Verona vs Inter,Inter,Hellas Verona,Inter,1,2,1-2,6,6,21,9,13,8,4,8,1,0.73,1,0,1,659,580,0.88,1.11,0
+Fiorentina vs Lecce,Fiorentina,Fiorentina,Lecce,0,1,0-1,4,7,15,4,11,4,14,4,3,0.63,4,0,3,459,383,0.83,1.46,1
+Fiorentina vs Lecce,Lecce,Fiorentina,Lecce,0,1,0-1,4,5,11,2,5,6,21,4,0,0.37,1,0,4,276,188,0.68,1.15,1
+Torino vs Pisa,Torino,Torino,Pisa,2,2,2-2,3,6,15,6,11,4,14,4,1,0.64,2,0,1,541,447,0.83,0.91,0
+Torino vs Pisa,Pisa,Torino,Pisa,2,2,2-2,3,6,11,2,8,3,8,2,1,0.36,1,0,1,300,215,0.72,1.53,0
+Parma vs Bologna,Parma,Parma,Bologna,1,3,1-3,1,3,7,3,5,2,16,1,1,0.35,4,1,3,235,148,0.63,0.51,0
+Parma vs Bologna,Bologna,Parma,Bologna,1,3,1-3,6,13,22,3,16,6,15,5,6,0.65,2,0,0,424,367,0.87,2.72,0
+AC Milan vs AS Roma,AC Milan,AC Milan,AS Roma,1,0,1-0,8,7,17,2,13,4,12,7,2,0.37,1,0,7,313,259,0.83,3.32,0
+AC Milan vs AS Roma,AS Roma,AC Milan,AS Roma,1,0,1-0,6,10,20,4,14,6,13,8,1,0.63,5,0,6,523,470,0.9,1.95,0
+Sassuolo vs Genoa,Sassuolo,Sassuolo,Genoa,1,2,1-2,4,7,13,2,8,5,13,3,3,0.61,1,0,2,520,438,0.84,1.15,0
+Sassuolo vs Genoa,Genoa,Sassuolo,Genoa,1,2,1-2,5,9,16,2,11,5,13,7,2,0.39,3,0,3,324,247,0.76,1.76,0
+Lazio vs Cagliari,Lazio,Lazio,Cagliari,2,0,2-0,3,5,8,0,6,2,8,7,0,0.51,0,0,5,443,375,0.85,0.69,0
+Lazio vs Cagliari,Cagliari,Lazio,Cagliari,2,0,2-0,5,7,17,5,9,8,18,5,0,0.49,2,0,1,428,359,0.84,1.51,0
+Pisa vs Cremonese,Pisa,Pisa,Cremonese,1,0,1-0,6,7,13,0,11,2,11,4,2,0.38,4,0,3,299,226,0.76,0.92,0
+Pisa vs Cremonese,Cremonese,Pisa,Cremonese,1,0,1-0,3,6,13,4,9,4,17,5,1,0.62,2,0,5,500,418,0.84,0.97,0
+Lecce vs Hellas Verona,Lecce,Lecce,Hellas Verona,0,0,0-0,6,1,11,4,5,6,10,7,2,0.59,1,0,2,384,281,0.73,0.49,0
+Lecce vs Hellas Verona,Hellas Verona,Lecce,Hellas Verona,0,0,0-0,2,2,5,1,4,1,18,2,2,0.41,4,0,6,270,174,0.64,0.65,0
+Como vs Cagliari,Como,Como,Cagliari,0,0,0-0,6,2,10,2,5,5,21,10,1,0.75,3,0,2,635,554,0.87,1.06,1
+Como vs Cagliari,Cagliari,Como,Cagliari,0,0,0-0,2,2,4,0,4,0,15,0,2,0.25,1,0,6,219,141,0.64,0.64,1
+Juventus vs Torino,Juventus,Juventus,Torino,0,0,0-0,6,6,22,10,16,6,9,6,1,0.72,0,0,3,768,686,0.89,1.21,1
+Juventus vs Torino,Torino,Juventus,Torino,0,0,0-0,3,3,8,2,7,1,4,2,2,0.28,1,0,6,291,222,0.76,0.54,1
+Parma vs AC Milan,Parma,Parma,AC Milan,2,2,2-2,4,6,14,4,9,5,14,4,2,0.43,1,0,3,414,355,0.86,1.88,0
+Parma vs AC Milan,AC Milan,Parma,AC Milan,2,2,2-2,5,4,9,0,6,3,10,3,3,0.57,1,0,3,554,487,0.88,1.95,0
+Atalanta vs Sassuolo,Atalanta,Atalanta,Sassuolo,0,3,0-3,2,7,14,5,7,7,9,4,2,0.68,0,0,1,654,582,0.89,0.91,0
+Atalanta vs Sassuolo,Sassuolo,Atalanta,Sassuolo,0,3,0-3,4,3,8,1,6,2,8,1,2,0.32,2,0,1,323,247,0.76,1.81,0
+Genoa vs Fiorentina,Genoa,Genoa,Fiorentina,2,2,2-2,6,3,10,1,9,1,20,3,0,0.41,2,0,1,281,214,0.76,1.58,0
+Genoa vs Fiorentina,Fiorentina,Genoa,Fiorentina,2,2,2-2,3,2,7,2,5,2,15,7,0,0.59,3,0,4,418,343,0.82,1.56,0
+Bologna vs Napoli,Bologna,Bologna,Napoli,2,0,2-0,4,4,11,3,6,5,14,5,0,0.41,1,0,1,370,297,0.8,0.92,0
+Bologna vs Napoli,Napoli,Bologna,Napoli,2,0,2-0,1,1,4,2,1,3,15,4,0,0.59,3,0,2,551,467,0.85,0.24,0
+AS Roma vs Udinese,AS Roma,AS Roma,Udinese,2,0,2-0,4,2,13,7,11,2,13,3,2,0.58,2,0,4,488,413,0.85,1.53,0
+AS Roma vs Udinese,Udinese,AS Roma,Udinese,2,0,2-0,4,1,10,5,7,3,14,4,0,0.42,1,0,2,361,282,0.78,1.08,0
+Inter vs Lazio,Inter,Inter,Lazio,2,0,2-0,3,4,8,1,7,1,26,3,2,0.54,3,0,5,559,489,0.87,1.91,0
+Inter vs Lazio,Lazio,Inter,Lazio,2,0,2-0,5,3,8,0,3,5,11,1,0,0.46,1,0,1,494,425,0.86,0.63,0
+Cagliari vs Genoa,Cagliari,Cagliari,Genoa,3,3,3-3,5,4,11,2,8,3,22,6,0,0.5,4,0,4,343,255,0.74,0.9,0
+Cagliari vs Genoa,Genoa,Cagliari,Genoa,3,3,3-3,8,4,13,1,10,3,16,2,4,0.5,3,1,2,363,305,0.84,1.42,0
+Udinese vs Bologna,Udinese,Udinese,Bologna,0,3,0-3,3,7,12,2,7,5,19,7,2,0.47,0,0,2,303,225,0.74,1.46,0
+Udinese vs Bologna,Bologna,Udinese,Bologna,0,3,0-3,5,4,10,1,8,2,16,2,3,0.53,1,0,3,346,258,0.75,2.22,0
+Fiorentina vs Juventus,Fiorentina,Fiorentina,Juventus,1,1,1-1,2,6,11,3,6,5,11,7,0,0.41,3,0,3,342,291,0.85,0.58,0
+Fiorentina vs Juventus,Juventus,Fiorentina,Juventus,1,1,1-1,4,4,17,9,10,7,18,3,0,0.59,3,0,1,507,446,0.88,1.5,0
+Napoli vs Atalanta,Napoli,Napoli,Atalanta,3,1,3-1,6,3,11,2,8,3,11,5,3,0.45,1,0,2,436,355,0.81,1.58,-1
+Napoli vs Atalanta,Atalanta,Napoli,Atalanta,3,1,3-1,3,9,14,2,6,8,12,3,1,0.55,2,0,3,533,452,0.85,0.78,-1
+Hellas Verona vs Parma,Hellas Verona,Hellas Verona,Parma,1,2,1-2,2,3,10,5,5,5,24,4,5,0.59,4,0,5,467,377,0.81,0.63,0
+Hellas Verona vs Parma,Parma,Hellas Verona,Parma,1,2,1-2,7,3,15,5,7,8,6,4,1,0.41,3,0,1,332,243,0.73,1.44,0
+Cremonese vs AS Roma,Cremonese,Cremonese,AS Roma,1,3,1-3,4,2,9,3,5,4,12,3,3,0.5,2,0,3,430,342,0.8,0.89,0
+Cremonese vs AS Roma,AS Roma,Cremonese,AS Roma,1,3,1-3,6,3,12,3,6,6,16,5,2,0.5,2,0,3,434,348,0.8,1.9,0
+Lazio vs Lecce,Lazio,Lazio,Lecce,2,0,2-0,9,6,19,4,11,8,8,8,0,0.67,1,0,2,711,642,0.9,1.89,1
+Lazio vs Lecce,Lecce,Lazio,Lecce,2,0,2-0,1,1,5,3,2,3,13,2,2,0.33,1,0,7,342,265,0.77,0.62,1
+Inter vs AC Milan,Inter,Inter,AC Milan,0,1,0-1,6,8,20,6,12,8,7,9,2,0.64,1,0,2,624,563,0.9,1.92,2
+Inter vs AC Milan,AC Milan,Inter,AC Milan,0,1,0-1,3,4,7,0,4,3,9,1,3,0.36,2,0,6,361,301,0.83,1.01,2
+Torino vs Como,Torino,Torino,Como,1,5,1-5,2,7,10,1,7,3,6,3,3,0.35,0,0,1,289,230,0.8,1.34,0
+Torino vs Como,Como,Torino,Como,1,5,1-5,7,5,15,3,13,2,9,4,0,0.65,1,0,1,555,486,0.88,2.81,0
+Sassuolo vs Pisa,Sassuolo,Sassuolo,Pisa,2,2,2-2,7,10,22,5,14,8,10,5,1,0.63,2,0,1,510,443,0.87,1.76,0
+Sassuolo vs Pisa,Pisa,Sassuolo,Pisa,2,2,2-2,3,5,10,2,10,0,10,2,2,0.37,1,0,5,307,234,0.76,1.54,0
+Como vs Sassuolo,Como,Como,Sassuolo,2,0,2-0,13,3,18,2,12,6,11,4,2,0.63,2,0,5,628,564,0.9,1.81,0
+Como vs Sassuolo,Sassuolo,Como,Sassuolo,2,0,2-0,5,3,12,4,9,3,7,4,3,0.37,1,0,11,362,307,0.85,0.78,0
+Genoa vs Hellas Verona,Genoa,Genoa,Hellas Verona,2,1,2-1,4,7,15,4,11,4,9,2,4,0.6,1,0,4,455,366,0.8,1.75,0
+Genoa vs Hellas Verona,Hellas Verona,Genoa,Hellas Verona,2,1,2-1,5,3,13,5,11,2,19,3,5,0.4,3,0,2,299,203,0.68,2.28,0
+Parma vs Udinese,Parma,Parma,Udinese,0,2,0-2,2,6,17,9,8,9,6,5,2,0.51,1,1,3,341,249,0.73,0.96,0
+Parma vs Udinese,Udinese,Parma,Udinese,0,2,0-2,5,6,14,3,10,4,19,9,1,0.49,2,0,2,348,266,0.76,1.74,0
+Juventus vs Cagliari,Juventus,Juventus,Cagliari,2,1,2-1,6,5,14,3,10,4,16,1,1,0.57,1,0,2,610,560,0.92,1.71,0
+Juventus vs Cagliari,Cagliari,Juventus,Cagliari,2,1,2-1,3,1,5,1,3,2,16,6,0,0.43,5,0,4,454,390,0.86,0.54,0
+AC Milan vs Lazio,AC Milan,AC Milan,Lazio,1,0,1-0,4,5,16,7,11,5,10,1,1,0.46,3,0,4,493,437,0.89,1.47,0
+AC Milan vs Lazio,Lazio,AC Milan,Lazio,1,0,1-0,4,4,9,1,5,4,12,4,2,0.54,4,0,3,569,498,0.88,0.68,0
+Lecce vs Torino,Lecce,Lecce,Torino,2,1,2-1,2,3,10,5,6,4,16,6,1,0.48,2,0,5,342,251,0.73,1.0,0
+Lecce vs Torino,Torino,Lecce,Torino,2,1,2-1,6,5,15,4,9,6,22,6,2,0.52,3,0,0,358,276,0.77,1.74,0
+Pisa vs Inter,Pisa,Pisa,Inter,0,2,0-2,2,5,10,3,8,2,13,4,3,0.4,2,0,1,326,256,0.79,1.72,0
+Pisa vs Inter,Inter,Pisa,Inter,0,2,0-2,3,6,14,5,10,4,15,6,2,0.6,1,0,2,506,433,0.86,2.0,0
+Atalanta vs Fiorentina,Atalanta,Atalanta,Fiorentina,2,0,2-0,9,6,21,6,14,7,15,4,2,0.48,1,0,3,431,365,0.85,1.6,0
+Atalanta vs Fiorentina,Fiorentina,Atalanta,Fiorentina,2,0,2-0,3,8,15,4,13,2,10,5,1,0.52,3,0,7,466,387,0.83,1.58,0
+AS Roma vs Napoli,AS Roma,AS Roma,Napoli,0,1,0-1,2,5,8,1,5,3,14,4,0,0.56,4,0,5,546,449,0.82,0.52,0
+AS Roma vs Napoli,Napoli,AS Roma,Napoli,0,1,0-1,5,2,7,0,3,4,13,2,4,0.44,3,0,2,434,343,0.79,1.17,0
+Bologna vs Cremonese,Bologna,Bologna,Cremonese,1,3,1-3,7,14,29,8,20,9,13,13,4,0.65,0,0,2,468,386,0.82,2.72,0
+Bologna vs Cremonese,Cremonese,Bologna,Cremonese,1,3,1-3,5,2,10,3,7,3,12,8,3,0.35,2,0,7,250,150,0.6,2.13,0
+Sassuolo vs Fiorentina,Sassuolo,Sassuolo,Fiorentina,3,1,3-1,5,4,13,4,9,4,15,7,1,0.4,2,0,0,324,260,0.8,1.0,-2
+Sassuolo vs Fiorentina,Fiorentina,Sassuolo,Fiorentina,3,1,3-1,1,5,9,3,5,4,15,1,4,0.6,3,0,2,498,423,0.85,1.21,-2
+Inter vs Como,Inter,Inter,Como,4,0,4-0,7,2,11,2,9,2,16,7,3,0.42,1,0,3,355,294,0.83,1.42,0
+Inter vs Como,Como,Inter,Como,4,0,4-0,3,10,15,2,8,7,13,4,1,0.58,2,0,3,500,440,0.88,1.02,0
+Hellas Verona vs Atalanta,Hellas Verona,Hellas Verona,Atalanta,3,1,3-1,7,1,12,4,6,6,14,5,3,0.36,2,0,3,278,195,0.7,0.99,0
+Hellas Verona vs Atalanta,Atalanta,Hellas Verona,Atalanta,3,1,3-1,5,2,12,5,9,3,7,5,1,0.64,1,0,4,488,396,0.81,1.47,0
+Cremonese vs Lecce,Cremonese,Cremonese,Lecce,2,0,2-0,4,3,11,4,8,3,15,5,0,0.49,1,0,1,339,250,0.74,2.08,0
+Cremonese vs Lecce,Lecce,Cremonese,Lecce,2,0,2-0,1,6,9,2,7,2,12,5,0,0.51,2,0,2,350,264,0.75,0.92,0
+Cagliari vs AS Roma,Cagliari,Cagliari,AS Roma,1,0,1-0,8,4,15,3,10,5,18,4,4,0.47,2,0,2,361,283,0.78,1.8,0
+Cagliari vs AS Roma,AS Roma,Cagliari,AS Roma,1,0,1-0,2,0,6,4,6,0,16,1,0,0.53,1,1,8,417,328,0.79,0.36,0
+Lazio vs Bologna,Lazio,Lazio,Bologna,1,1,1-1,9,5,16,2,11,5,13,7,1,0.47,3,1,4,407,322,0.79,1.21,2
+Lazio vs Bologna,Bologna,Lazio,Bologna,1,1,1-1,6,4,13,3,8,5,18,3,1,0.53,3,0,8,465,389,0.84,1.11,2
+Napoli vs Juventus,Napoli,Napoli,Juventus,2,1,2-1,4,4,9,1,7,2,6,9,1,0.5,2,0,1,497,414,0.83,1.66,0
+Napoli vs Juventus,Juventus,Napoli,Juventus,2,1,2-1,2,3,5,0,2,3,15,0,4,0.5,1,0,3,511,444,0.87,0.29,0
+Pisa vs Parma,Pisa,Pisa,Parma,0,1,0-1,2,9,14,3,10,4,15,6,0,0.6,2,1,1,418,337,0.81,1.52,0
+Pisa vs Parma,Parma,Pisa,Parma,0,1,0-1,2,5,9,2,6,3,7,0,1,0.4,2,0,2,295,221,0.75,1.18,0
+Udinese vs Genoa,Udinese,Udinese,Genoa,1,2,1-2,6,9,23,8,16,7,16,6,3,0.58,1,0,4,420,337,0.8,1.17,0
+Udinese vs Genoa,Genoa,Udinese,Genoa,1,2,1-2,6,5,12,1,7,5,12,2,3,0.42,0,0,5,312,241,0.77,1.57,0
+Torino vs AC Milan,Torino,Torino,AC Milan,2,3,2-3,4,2,8,2,3,5,16,2,1,0.36,2,0,3,308,242,0.79,1.03,-1
+Torino vs AC Milan,AC Milan,Torino,AC Milan,2,3,2-3,6,5,17,6,13,4,7,4,3,0.64,1,0,2,552,494,0.89,1.67,-1
+Lecce vs Pisa,Lecce,Lecce,Pisa,1,0,1-0,3,11,21,7,15,6,17,12,1,0.51,2,0,0,375,295,0.79,2.2,0
+Lecce vs Pisa,Pisa,Lecce,Pisa,1,0,1-0,0,2,5,3,5,0,6,1,3,0.49,1,0,2,368,286,0.78,0.22,0
+Torino vs Cremonese,Torino,Torino,Cremonese,1,0,1-0,6,4,18,8,15,3,20,6,1,0.46,1,0,3,398,314,0.79,1.05,0
+Torino vs Cremonese,Cremonese,Torino,Cremonese,1,0,1-0,3,4,10,3,7,3,13,6,1,0.54,2,0,5,454,361,0.8,0.69,0
+Parma vs Lazio,Parma,Parma,Lazio,0,1,0-1,5,9,19,5,13,6,14,4,2,0.47,2,0,3,367,316,0.86,1.08,0
+Parma vs Lazio,Lazio,Parma,Lazio,0,1,0-1,5,6,15,4,9,6,8,4,0,0.53,1,2,6,435,368,0.85,1.35,0
+Atalanta vs Cagliari,Atalanta,Atalanta,Cagliari,2,1,2-1,8,5,17,4,12,5,13,5,0,0.59,1,0,0,547,468,0.86,2.49,0
+Atalanta vs Cagliari,Cagliari,Atalanta,Cagliari,2,1,2-1,1,5,8,2,5,3,15,4,4,0.41,2,0,6,378,307,0.81,0.54,0
+AC Milan vs Sassuolo,AC Milan,AC Milan,Sassuolo,2,2,2-2,5,5,13,3,9,4,12,7,2,0.59,1,0,1,537,476,0.89,1.45,-1
+AC Milan vs Sassuolo,Sassuolo,AC Milan,Sassuolo,2,2,2-2,3,2,8,3,5,3,12,3,1,0.41,3,0,2,377,318,0.84,1.07,-1
+Udinese vs Napoli,Udinese,Udinese,Napoli,1,0,1-0,5,6,18,7,7,11,16,1,1,0.38,1,0,0,322,245,0.76,1.31,0
+Udinese vs Napoli,Napoli,Udinese,Napoli,1,0,1-0,0,6,7,1,5,2,9,3,1,0.62,0,0,4,518,426,0.82,0.93,0
+Fiorentina vs Hellas Verona,Fiorentina,Fiorentina,Hellas Verona,1,2,1-2,4,9,20,7,15,5,10,9,1,0.65,1,0,1,475,407,0.86,1.71,0
+Fiorentina vs Hellas Verona,Hellas Verona,Fiorentina,Hellas Verona,1,2,1-2,3,7,13,3,7,6,22,4,1,0.35,5,0,4,259,181,0.7,0.94,0
+Genoa vs Inter,Genoa,Genoa,Inter,1,2,1-2,3,2,5,0,3,2,10,1,0,0.36,2,0,6,286,217,0.76,0.97,0
+Genoa vs Inter,Inter,Genoa,Inter,1,2,1-2,8,2,18,8,9,9,20,6,1,0.64,3,0,2,532,452,0.85,1.27,0
+Bologna vs Juventus,Bologna,Bologna,Juventus,0,1,0-1,4,3,11,4,7,4,10,3,0,0.51,3,1,2,455,377,0.83,0.55,0
+Bologna vs Juventus,Juventus,Bologna,Juventus,0,1,0-1,3,5,13,5,9,4,11,4,2,0.49,1,0,4,449,371,0.83,1.68,0
+AS Roma vs Como,AS Roma,AS Roma,Como,1,0,1-0,4,4,14,6,12,2,16,6,3,0.53,3,0,1,396,321,0.81,1.15,0
+AS Roma vs Como,Como,AS Roma,Como,1,0,1-0,1,5,13,7,8,5,8,3,1,0.47,3,0,3,358,279,0.78,0.55,0
+Lazio vs Cremonese,Lazio,Lazio,Cremonese,0,0,0-0,2,5,8,1,4,4,13,3,0,0.57,4,0,2,554,478,0.86,0.41,0
+Lazio vs Cremonese,Cremonese,Lazio,Cremonese,0,0,0-0,2,4,9,3,1,8,21,0,2,0.43,3,1,2,412,334,0.81,0.69,0
+Juventus vs AS Roma,Juventus,Juventus,AS Roma,2,1,2-1,9,3,13,1,9,4,14,2,2,0.41,2,0,4,398,321,0.81,2.55,0
+Juventus vs AS Roma,AS Roma,Juventus,AS Roma,2,1,2-1,5,5,14,4,9,5,13,4,0,0.59,3,0,7,575,505,0.88,1.44,0
+Cagliari vs Pisa,Cagliari,Cagliari,Pisa,2,2,2-2,5,4,14,5,5,9,15,2,2,0.59,3,0,1,401,315,0.79,1.43,0
+Cagliari vs Pisa,Pisa,Cagliari,Pisa,2,2,2-2,3,7,15,5,14,1,20,6,0,0.41,2,0,3,264,194,0.73,2.54,0
+Sassuolo vs Torino,Sassuolo,Sassuolo,Torino,0,1,0-1,1,5,7,1,5,2,15,2,3,0.53,3,0,4,462,376,0.81,0.43,0
+Sassuolo vs Torino,Torino,Sassuolo,Torino,0,1,0-1,5,4,10,1,6,4,17,3,0,0.47,1,0,1,398,306,0.77,1.71,0
+Fiorentina vs Udinese,Fiorentina,Fiorentina,Udinese,5,1,5-1,7,10,20,3,11,9,10,1,0,0.63,3,0,3,590,532,0.9,3.2,-1
+Fiorentina vs Udinese,Udinese,Fiorentina,Udinese,5,1,5-1,4,5,11,2,8,3,8,4,2,0.37,1,1,1,334,271,0.81,0.64,-1
+Genoa vs Atalanta,Genoa,Genoa,Atalanta,0,1,0-1,3,3,6,0,6,0,11,6,1,0.29,1,1,3,220,161,0.73,0.81,0
+Genoa vs Atalanta,Atalanta,Genoa,Atalanta,0,1,0-1,4,9,16,3,12,4,19,10,0,0.71,2,0,3,542,486,0.9,1.44,0
+Parma vs Fiorentina,Parma,Parma,Fiorentina,1,0,1-0,2,8,13,3,9,4,10,5,0,0.42,2,0,4,326,261,0.8,0.95,0
+Parma vs Fiorentina,Fiorentina,Parma,Fiorentina,1,0,1-0,4,12,23,7,14,9,15,6,3,0.58,2,0,1,452,392,0.87,1.23,0
+Torino vs Cagliari,Torino,Torino,Cagliari,1,2,1-2,10,4,19,5,11,8,14,6,1,0.56,3,0,2,467,380,0.81,1.6,2
+Torino vs Cagliari,Cagliari,Torino,Cagliari,1,2,1-2,4,3,9,2,4,5,13,2,0,0.44,0,0,9,386,299,0.77,0.77,2
+Lecce vs Como,Lecce,Lecce,Como,0,3,0-3,5,4,11,2,6,5,10,4,2,0.38,2,0,3,281,207,0.74,0.76,1
+Lecce vs Como,Como,Lecce,Como,0,3,0-3,6,3,12,3,9,3,24,6,2,0.62,4,0,5,462,395,0.85,1.63,1
+Udinese vs Lazio,Udinese,Udinese,Lazio,1,1,1-1,4,7,15,4,8,7,19,5,0,0.46,3,0,1,367,300,0.82,0.87,0
+Udinese vs Lazio,Lazio,Udinese,Lazio,1,1,1-1,1,5,14,8,5,9,14,6,3,0.54,4,0,3,432,379,0.88,0.54,0
+Pisa vs Juventus,Pisa,Pisa,Juventus,0,2,0-2,0,6,8,2,6,2,10,2,1,0.41,4,0,5,337,257,0.76,0.65,0
+Pisa vs Juventus,Juventus,Pisa,Juventus,0,2,0-2,7,4,15,4,8,7,12,8,1,0.59,1,0,0,502,418,0.83,1.74,0
+AC Milan vs Hellas Verona,AC Milan,AC Milan,Hellas Verona,3,0,3-0,5,5,11,1,7,4,5,7,1,0.52,0,0,1,426,359,0.84,2.43,0
+AC Milan vs Hellas Verona,Hellas Verona,AC Milan,Hellas Verona,3,0,3-0,1,4,9,4,3,6,15,3,1,0.48,1,0,2,393,329,0.84,0.39,0
+Cremonese vs Napoli,Cremonese,Cremonese,Napoli,0,2,0-2,2,3,6,1,3,3,13,1,3,0.47,2,0,6,409,326,0.8,0.46,0
+Cremonese vs Napoli,Napoli,Cremonese,Napoli,0,2,0-2,8,9,22,5,12,10,8,10,2,0.53,2,0,2,463,390,0.84,2.54,0
+Bologna vs Sassuolo,Bologna,Bologna,Sassuolo,1,1,1-1,6,8,16,2,8,8,18,2,2,0.58,2,0,4,455,384,0.84,0.88,0
+Bologna vs Sassuolo,Sassuolo,Bologna,Sassuolo,1,1,1-1,5,3,8,0,7,1,19,3,3,0.42,3,0,4,336,254,0.76,1.62,0
+Atalanta vs Inter,Atalanta,Atalanta,Inter,0,1,0-1,0,4,7,3,3,4,8,4,3,0.45,2,0,3,424,355,0.84,0.8,0
+Atalanta vs Inter,Inter,Atalanta,Inter,0,1,0-1,4,7,15,4,11,4,12,7,2,0.55,1,0,0,529,461,0.87,1.12,0
+AS Roma vs Genoa,AS Roma,AS Roma,Genoa,3,1,3-1,8,3,16,5,14,2,13,6,1,0.61,0,0,1,563,476,0.85,1.37,0
+AS Roma vs Genoa,Genoa,AS Roma,Genoa,3,1,3-1,2,5,10,3,8,2,13,1,3,0.39,1,0,5,371,282,0.76,0.71,0
+Cagliari vs AC Milan,Cagliari,Cagliari,AC Milan,0,1,0-1,1,4,6,1,4,2,10,6,0,0.46,2,0,3,447,389,0.87,0.38,0
+Cagliari vs AC Milan,AC Milan,Cagliari,AC Milan,0,1,0-1,4,4,11,3,7,4,8,7,2,0.54,1,0,1,538,470,0.87,0.7,0
+Como vs Udinese,Como,Como,Udinese,1,0,1-0,3,7,15,5,11,4,12,3,0,0.62,1,0,0,566,474,0.84,2.24,0
+Como vs Udinese,Udinese,Como,Udinese,1,0,1-0,0,3,3,0,2,1,15,2,3,0.38,3,0,2,346,263,0.76,0.61,0
+Sassuolo vs Parma,Sassuolo,Sassuolo,Parma,1,1,1-1,3,5,11,3,6,5,12,4,2,0.53,2,0,4,503,446,0.89,0.86,0
+Sassuolo vs Parma,Parma,Sassuolo,Parma,1,1,1-1,5,4,16,7,8,8,7,7,0,0.47,1,0,2,448,381,0.85,1.2,0
+Genoa vs Pisa,Genoa,Genoa,Pisa,1,1,1-1,4,5,12,3,8,4,9,2,4,0.62,1,0,1,439,356,0.81,0.54,1
+Genoa vs Pisa,Pisa,Genoa,Pisa,1,1,1-1,2,4,10,4,6,4,17,7,1,0.38,3,0,3,259,177,0.68,0.62,1
+Juventus vs Lecce,Juventus,Juventus,Lecce,1,1,1-1,5,8,25,12,16,9,6,10,4,0.72,0,0,0,675,600,0.89,2.77,0
+Juventus vs Lecce,Lecce,Juventus,Lecce,1,1,1-1,1,3,6,2,1,5,7,1,0,0.28,3,0,4,276,208,0.75,0.26,0
+Atalanta vs AS Roma,Atalanta,Atalanta,AS Roma,1,0,1-0,2,3,13,8,8,5,16,7,2,0.45,1,0,3,384,296,0.77,1.88,0
+Atalanta vs AS Roma,AS Roma,Atalanta,AS Roma,1,0,1-0,4,3,10,3,7,3,15,5,1,0.55,2,0,1,462,376,0.81,0.78,0
+Lazio vs Napoli,Lazio,Lazio,Napoli,0,2,0-2,0,3,5,2,5,0,10,2,1,0.35,5,2,1,347,298,0.86,0.36,0
+Lazio vs Napoli,Napoli,Lazio,Napoli,0,2,0-2,3,8,14,3,11,3,13,6,0,0.65,1,1,0,650,601,0.92,1.86,0
+Fiorentina vs Cremonese,Fiorentina,Fiorentina,Cremonese,1,0,1-0,8,4,22,10,13,9,10,7,0,0.65,1,0,2,518,442,0.85,2.06,0
+Fiorentina vs Cremonese,Cremonese,Fiorentina,Cremonese,1,0,1-0,2,3,6,1,3,3,19,3,1,0.35,2,0,7,283,201,0.71,0.73,0
+Hellas Verona vs Torino,Hellas Verona,Hellas Verona,Torino,0,3,0-3,3,2,7,2,3,4,13,4,0,0.48,0,0,2,397,298,0.75,0.14,0
+Hellas Verona vs Torino,Torino,Hellas Verona,Torino,0,3,0-3,5,7,21,9,9,12,7,7,2,0.52,2,0,3,444,343,0.77,1.55,0
+Inter vs Bologna,Inter,Inter,Bologna,3,1,3-1,10,5,19,4,15,4,20,7,3,0.58,3,0,1,460,392,0.85,2.93,0
+Inter vs Bologna,Bologna,Inter,Bologna,3,1,3-1,2,3,6,1,4,2,21,1,0,0.42,3,0,7,340,266,0.78,0.85,0
+Pisa vs Como,Pisa,Pisa,Como,0,3,0-3,4,3,10,3,8,2,9,1,2,0.27,2,0,5,221,147,0.67,1.56,0
+Pisa vs Como,Como,Pisa,Como,0,3,0-3,7,7,15,1,10,5,13,5,0,0.73,2,0,4,595,526,0.88,1.73,0
+Lecce vs AS Roma,Lecce,Lecce,AS Roma,0,2,0-2,1,1,6,4,2,4,10,2,2,0.51,3,0,1,415,314,0.76,0.55,0
+Lecce vs AS Roma,AS Roma,Lecce,AS Roma,0,2,0-2,3,5,10,2,6,4,20,2,2,0.49,1,0,1,408,307,0.75,1.33,0
+Sassuolo vs Juventus,Sassuolo,Sassuolo,Juventus,0,3,0-3,2,4,6,0,2,4,3,5,1,0.44,0,0,8,482,397,0.82,0.21,0
+Sassuolo vs Juventus,Juventus,Sassuolo,Juventus,0,3,0-3,10,6,17,1,13,4,12,5,0,0.56,0,0,2,621,554,0.89,2.57,0
+Napoli vs Hellas Verona,Napoli,Napoli,Hellas Verona,2,2,2-2,4,6,15,5,11,4,7,6,2,0.7,0,0,2,679,597,0.88,1.22,0
+Napoli vs Hellas Verona,Hellas Verona,Napoli,Hellas Verona,2,2,2-2,4,5,11,2,2,9,15,1,1,0.3,3,0,2,305,227,0.74,1.82,0
+Bologna vs Atalanta,Bologna,Bologna,Atalanta,0,2,0-2,2,5,11,4,9,2,16,6,1,0.53,0,0,3,415,318,0.77,1.1,0
+Bologna vs Atalanta,Atalanta,Bologna,Atalanta,0,2,0-2,5,4,11,2,7,4,15,6,5,0.47,0,0,2,385,283,0.74,1.38,0
+Lazio vs Fiorentina,Lazio,Lazio,Fiorentina,2,2,2-2,9,2,17,6,12,5,11,8,0,0.49,3,0,3,438,374,0.85,2.74,0
+Lazio vs Fiorentina,Fiorentina,Lazio,Fiorentina,2,2,2-2,5,1,8,2,6,2,15,2,1,0.51,5,0,6,475,423,0.89,1.64,0
+Torino vs Udinese,Torino,Torino,Udinese,1,2,1-2,4,5,10,1,7,3,16,3,1,0.54,2,0,2,444,354,0.8,1.09,0
+Torino vs Udinese,Udinese,Torino,Udinese,1,2,1-2,4,3,9,2,9,0,8,6,0,0.46,1,0,3,391,298,0.76,2.15,0
+Parma vs Inter,Parma,Parma,Inter,0,2,0-2,0,3,4,1,3,1,4,1,1,0.37,0,0,6,386,298,0.77,0.33,0
+Parma vs Inter,Inter,Parma,Inter,0,2,0-2,8,11,26,7,16,10,20,3,1,0.63,3,0,0,662,591,0.89,2.57,0
+Cremonese vs Cagliari,Cremonese,Cremonese,Cagliari,2,2,2-2,5,5,12,2,8,4,16,2,0,0.44,2,0,3,405,326,0.8,1.81,0
+Cremonese vs Cagliari,Cagliari,Cremonese,Cagliari,2,2,2-2,5,9,21,7,13,8,12,4,1,0.56,2,0,3,517,453,0.88,1.8,0
+AC Milan vs Genoa,AC Milan,AC Milan,Genoa,1,1,1-1,8,9,32,15,25,7,12,12,1,0.61,4,0,1,558,499,0.89,2.45,1
+AC Milan vs Genoa,Genoa,AC Milan,Genoa,1,1,1-1,2,3,7,2,5,2,8,1,1,0.39,1,0,7,371,299,0.81,1.32,1
+Udinese vs Pisa,Udinese,Udinese,Pisa,2,2,2-2,2,7,11,2,6,5,13,3,5,0.54,1,0,5,370,288,0.78,2.23,0
+Udinese vs Pisa,Pisa,Udinese,Pisa,2,2,2-2,7,5,14,2,12,2,16,8,3,0.46,4,0,0,305,217,0.71,1.48,0
+Como vs Bologna,Como,Como,Bologna,1,1,1-1,3,9,12,0,10,2,14,4,2,0.59,3,0,1,437,365,0.84,0.84,0
+Como vs Bologna,Bologna,Como,Bologna,1,1,1-1,2,2,7,3,7,0,3,2,4,0.41,3,1,2,302,223,0.74,1.15,0
+AS Roma vs Sassuolo,AS Roma,AS Roma,Sassuolo,2,0,2-0,6,13,26,7,16,10,15,5,2,0.64,2,0,3,588,518,0.88,2.54,0
+AS Roma vs Sassuolo,Sassuolo,AS Roma,Sassuolo,2,0,2-0,3,1,5,1,4,1,16,2,1,0.36,2,0,4,329,248,0.75,0.74,0
+Atalanta vs Torino,Atalanta,Atalanta,Torino,2,0,2-0,5,4,18,9,11,7,14,5,4,0.56,1,0,3,492,418,0.85,2.61,0
+Atalanta vs Torino,Torino,Atalanta,Torino,2,0,2-0,3,5,10,2,7,3,17,4,3,0.44,2,0,4,382,301,0.79,0.82,0
+Lecce vs Parma,Lecce,Lecce,Parma,1,2,1-2,1,6,10,3,6,4,16,3,0,0.41,3,2,1,284,213,0.75,0.85,0
+Lecce vs Parma,Parma,Lecce,Parma,1,2,1-2,2,6,12,4,6,6,17,3,2,0.59,1,0,0,412,347,0.84,1.04,0
+Fiorentina vs AC Milan,Fiorentina,Fiorentina,AC Milan,1,1,1-1,7,6,20,7,16,4,10,8,1,0.52,2,0,2,429,384,0.9,1.9,1
+Fiorentina vs AC Milan,AC Milan,Fiorentina,AC Milan,1,1,1-1,3,7,13,3,9,4,14,5,0,0.48,3,0,6,401,345,0.86,1.93,1
+Hellas Verona vs Lazio,Hellas Verona,Hellas Verona,Lazio,0,1,0-1,2,6,10,2,6,4,12,2,1,0.36,2,0,2,391,298,0.76,0.53,0
+Hellas Verona vs Lazio,Lazio,Hellas Verona,Lazio,0,1,0-1,2,7,11,2,6,5,7,1,0,0.64,1,0,2,701,605,0.86,0.9,0
+Inter vs Napoli,Inter,Inter,Napoli,2,2,2-2,4,4,13,5,10,3,12,4,2,0.5,0,0,1,486,420,0.86,1.45,0
+Inter vs Napoli,Napoli,Inter,Napoli,2,2,2-2,3,3,7,1,5,2,11,1,1,0.5,1,0,2,487,406,0.83,0.74,0
+Genoa vs Cagliari,Genoa,Genoa,Cagliari,3,0,3-0,7,2,11,2,5,6,17,2,1,0.44,2,0,3,400,330,0.83,1.08,-1
+Genoa vs Cagliari,Cagliari,Genoa,Cagliari,3,0,3-0,3,6,15,6,7,8,20,3,1,0.56,5,0,4,504,439,0.87,1.26,-1
+Juventus vs Cremonese,Juventus,Juventus,Cremonese,5,0,5-0,11,3,18,4,13,5,16,4,3,0.58,0,0,2,584,528,0.9,3.4,0
+Juventus vs Cremonese,Cremonese,Juventus,Cremonese,5,0,5-0,2,3,9,4,6,3,8,5,0,0.42,1,0,6,407,341,0.84,0.9,0
+Napoli vs Parma,Napoli,Napoli,Parma,0,0,0-0,4,5,16,7,13,3,11,7,1,0.69,1,0,1,712,639,0.9,1.37,1
+Napoli vs Parma,Parma,Napoli,Parma,0,0,0-0,1,0,4,3,1,3,12,1,0,0.31,3,0,4,326,246,0.75,0.18,1
+Inter vs Lecce,Inter,Inter,Lecce,1,0,1-0,7,9,21,5,13,8,11,11,3,0.68,2,0,1,516,439,0.85,1.83,1
+Inter vs Lecce,Lecce,Inter,Lecce,1,0,1-0,1,2,10,7,6,4,14,3,1,0.32,1,0,6,253,162,0.64,0.48,1
+Hellas Verona vs Bologna,Hellas Verona,Hellas Verona,Bologna,2,3,2-3,5,4,15,6,10,5,13,4,5,0.39,1,0,2,342,253,0.74,1.2,-1
+Hellas Verona vs Bologna,Bologna,Hellas Verona,Bologna,2,3,2-3,5,7,14,2,6,8,14,5,2,0.61,2,0,3,532,436,0.82,0.79,-1
+Como vs AC Milan,Como,Como,AC Milan,1,3,1-3,8,7,18,3,10,8,7,8,0,0.68,1,0,1,659,617,0.94,1.87,1
+Como vs AC Milan,AC Milan,Como,AC Milan,1,3,1-3,4,3,7,0,4,3,5,4,3,0.32,0,0,8,320,254,0.79,1.28,1
+Pisa vs Atalanta,Pisa,Pisa,Atalanta,1,1,1-1,6,5,14,3,13,1,12,10,0,0.43,1,0,3,327,243,0.74,1.19,1
+Pisa vs Atalanta,Atalanta,Pisa,Atalanta,1,1,1-1,4,3,9,2,8,1,11,1,1,0.57,2,0,5,451,372,0.82,1.15,1
+Udinese vs Inter,Udinese,Udinese,Inter,0,1,0-1,1,2,5,2,2,3,17,2,1,0.38,0,0,4,371,302,0.81,0.22,0
+Udinese vs Inter,Inter,Udinese,Inter,0,1,0-1,5,5,14,4,11,3,11,5,2,0.62,1,0,1,616,537,0.87,1.59,0
+Napoli vs Sassuolo,Napoli,Napoli,Sassuolo,1,0,1-0,4,6,11,1,5,6,10,5,0,0.53,0,0,4,498,416,0.84,0.58,0
+Napoli vs Sassuolo,Sassuolo,Napoli,Sassuolo,1,0,1-0,4,7,21,10,9,12,11,4,2,0.47,2,0,3,439,369,0.84,0.91,0
+Cagliari vs Juventus,Cagliari,Cagliari,Juventus,1,0,1-0,1,2,3,0,3,0,16,1,0,0.22,0,0,5,195,130,0.67,0.11,0
+Cagliari vs Juventus,Juventus,Cagliari,Juventus,1,0,1-0,5,8,21,8,11,10,12,18,1,0.78,1,0,1,680,615,0.9,1.35,0
+Parma vs Genoa,Parma,Parma,Genoa,0,0,0-0,2,6,14,6,7,7,13,7,1,0.51,3,0,3,387,327,0.84,0.44,0
+Parma vs Genoa,Genoa,Parma,Genoa,0,0,0-0,3,5,11,3,8,3,18,3,1,0.49,2,0,2,375,302,0.81,1.04,0
+Bologna vs Fiorentina,Bologna,Bologna,Fiorentina,1,2,1-2,3,8,18,7,13,5,14,7,0,0.61,3,0,2,512,452,0.88,1.27,0
+Bologna vs Fiorentina,Fiorentina,Bologna,Fiorentina,1,2,1-2,4,4,11,3,9,2,13,1,3,0.39,0,0,2,346,285,0.82,1.73,0
+Torino vs AS Roma,Torino,Torino,AS Roma,0,2,0-2,4,4,8,0,4,4,13,2,1,0.37,2,0,3,307,207,0.67,0.44,0
+Torino vs AS Roma,AS Roma,Torino,AS Roma,0,2,0-2,5,5,14,4,10,4,9,1,3,0.63,1,0,4,532,433,0.81,1.86,0
+AC Milan vs Lecce,AC Milan,AC Milan,Lecce,1,0,1-0,6,8,20,6,16,4,9,10,6,0.69,1,0,0,691,633,0.92,3.4,2
+AC Milan vs Lecce,Lecce,AC Milan,Lecce,1,0,1-0,0,3,3,0,2,1,11,2,0,0.31,1,0,5,311,235,0.76,0.17,2
+Cremonese vs Hellas Verona,Cremonese,Cremonese,Hellas Verona,0,0,0-0,1,3,7,3,3,4,13,3,3,0.56,3,0,4,431,339,0.79,0.7,0
+Cremonese vs Hellas Verona,Hellas Verona,Cremonese,Hellas Verona,0,0,0-0,4,4,11,3,7,4,13,6,4,0.44,0,0,1,331,251,0.76,0.49,0
+Lazio vs Como,Lazio,Lazio,Como,0,3,0-3,4,3,8,1,2,6,14,3,1,0.34,4,0,3,384,332,0.86,0.29,0
+Lazio vs Como,Como,Lazio,Como,0,3,0-3,6,3,11,2,9,2,9,2,0,0.66,3,0,4,754,699,0.93,2.31,0
+Inter vs Pisa,Inter,Inter,Pisa,6,2,6-2,14,13,34,7,31,3,8,7,0,0.66,2,0,1,534,469,0.88,5.07,0
+Inter vs Pisa,Pisa,Inter,Pisa,6,2,6-2,3,2,8,3,5,3,11,5,2,0.34,3,0,5,274,215,0.78,0.34,0
+Como vs Torino,Como,Como,Torino,6,0,6-0,7,6,17,4,11,6,9,2,1,0.59,0,0,1,554,472,0.85,2.88,-1
+Como vs Torino,Torino,Como,Torino,6,0,6-0,1,5,7,1,5,2,15,1,7,0.41,1,0,1,372,295,0.79,0.48,-1
+Fiorentina vs Cagliari,Fiorentina,Fiorentina,Cagliari,1,2,1-2,3,6,15,6,9,6,11,8,1,0.7,2,0,4,613,547,0.89,2.03,0
+Fiorentina vs Cagliari,Cagliari,Fiorentina,Cagliari,1,2,1-2,6,1,10,3,7,3,17,3,1,0.3,3,0,2,272,204,0.75,1.28,0
+Lecce vs Lazio,Lecce,Lecce,Lazio,0,0,0-0,2,6,15,7,7,8,16,4,0,0.39,2,0,1,343,271,0.79,0.59,0
+Lecce vs Lazio,Lazio,Lecce,Lazio,0,0,0-0,1,2,6,3,5,1,6,1,0,0.61,1,0,2,559,474,0.85,0.39,0
+Sassuolo vs Cremonese,Sassuolo,Sassuolo,Cremonese,1,0,1-0,7,5,13,1,7,6,13,3,4,0.45,1,0,4,377,311,0.82,1.06,0
+Sassuolo vs Cremonese,Cremonese,Sassuolo,Cremonese,1,0,1-0,4,2,10,4,4,6,14,5,3,0.55,2,0,6,444,358,0.81,0.65,0
+Genoa vs Bologna,Genoa,Genoa,Bologna,3,2,3-2,6,1,8,1,4,4,14,5,1,0.49,2,0,2,330,252,0.76,0.54,0
+Genoa vs Bologna,Bologna,Genoa,Bologna,3,2,3-2,3,4,13,6,7,6,17,2,2,0.51,2,1,3,358,279,0.78,0.55,0
+Atalanta vs Parma,Atalanta,Atalanta,Parma,4,0,4-0,9,3,21,9,16,5,14,6,2,0.48,1,0,2,429,365,0.85,4.18,0
+Atalanta vs Parma,Parma,Atalanta,Parma,4,0,4-0,2,8,15,5,10,5,8,9,0,0.52,0,0,4,457,375,0.82,1.65,0
+Juventus vs Napoli,Juventus,Juventus,Napoli,3,0,3-0,6,3,12,3,7,5,21,2,1,0.42,1,0,1,446,374,0.84,1.49,-1
+Juventus vs Napoli,Napoli,Juventus,Napoli,3,0,3-0,1,4,9,4,2,7,11,2,1,0.58,2,0,2,612,544,0.89,0.52,-1
+AS Roma vs AC Milan,AS Roma,AS Roma,AC Milan,1,1,1-1,7,3,15,5,11,4,15,5,1,0.58,0,0,1,586,511,0.87,2.72,1
+AS Roma vs AC Milan,AC Milan,AS Roma,AC Milan,1,1,1-1,2,2,5,1,4,1,11,3,1,0.42,4,0,6,434,359,0.83,0.45,1
+Hellas Verona vs Udinese,Hellas Verona,Hellas Verona,Udinese,1,3,1-3,4,1,7,2,5,2,8,3,1,0.53,2,0,4,434,340,0.78,0.86,0
+Hellas Verona vs Udinese,Udinese,Hellas Verona,Udinese,1,3,1-3,7,6,20,7,11,9,11,8,2,0.47,0,0,3,383,322,0.84,1.69,0
+Lazio vs Genoa,Lazio,Lazio,Genoa,3,2,3-2,4,5,14,5,7,7,12,5,2,0.55,2,0,2,521,454,0.87,2.13,0
+Lazio vs Genoa,Genoa,Lazio,Genoa,3,2,3-2,4,3,16,9,9,7,12,3,1,0.45,3,0,2,412,359,0.87,1.76,0
+Pisa vs Sassuolo,Pisa,Pisa,Sassuolo,1,3,1-3,6,7,15,2,9,6,13,2,4,0.54,3,0,4,443,354,0.8,1.06,0
+Pisa vs Sassuolo,Sassuolo,Pisa,Sassuolo,1,3,1-3,5,10,21,6,18,3,8,5,1,0.46,3,0,4,371,293,0.79,2.26,0
+Napoli vs Fiorentina,Napoli,Napoli,Fiorentina,2,1,2-1,6,6,19,7,13,6,21,4,0,0.53,1,0,4,482,423,0.88,1.73,0
+Napoli vs Fiorentina,Fiorentina,Napoli,Fiorentina,2,1,2-1,5,8,15,2,12,3,13,4,2,0.47,1,0,4,419,358,0.85,1.23,0
+Cagliari vs Hellas Verona,Cagliari,Cagliari,Hellas Verona,4,0,4-0,7,2,13,4,6,7,9,6,3,0.62,0,0,2,622,536,0.86,1.74,-1
+Cagliari vs Hellas Verona,Hellas Verona,Cagliari,Hellas Verona,4,0,4-0,3,3,9,3,6,3,14,3,0,0.38,2,1,3,381,298,0.78,0.46,-1
+Torino vs Lecce,Torino,Torino,Lecce,1,0,1-0,5,7,17,5,12,5,14,3,4,0.42,2,0,2,323,240,0.74,1.81,0
+Torino vs Lecce,Lecce,Torino,Lecce,1,0,1-0,2,5,14,7,5,9,12,8,1,0.58,2,0,3,435,343,0.79,0.64,0
+Como vs Atalanta,Como,Como,Atalanta,0,0,0-0,9,12,28,7,19,9,9,7,1,0.79,4,0,2,765,698,0.91,5.05,2
+Como vs Atalanta,Atalanta,Como,Atalanta,0,0,0-0,2,2,6,2,3,3,11,1,2,0.21,3,1,9,194,121,0.62,0.52,2
+Cremonese vs Inter,Cremonese,Cremonese,Inter,0,2,0-2,3,3,9,3,7,2,19,1,1,0.31,3,0,2,283,202,0.71,0.72,0
+Cremonese vs Inter,Inter,Cremonese,Inter,0,2,0-2,4,5,15,6,11,4,14,6,1,0.69,0,0,3,638,561,0.88,1.41,0
+Parma vs Juventus,Parma,Parma,Juventus,1,4,1-4,4,3,10,3,4,6,10,5,1,0.39,1,0,3,361,303,0.84,0.62,0
+Parma vs Juventus,Juventus,Parma,Juventus,1,4,1-4,8,4,15,3,13,2,13,3,2,0.61,3,0,4,567,489,0.86,4.14,0
+Udinese vs AS Roma,Udinese,Udinese,AS Roma,1,0,1-0,4,3,7,1,1,6,18,4,0,0.36,5,0,3,294,224,0.76,0.54,0
+Udinese vs AS Roma,AS Roma,Udinese,AS Roma,1,0,1-0,3,2,10,5,7,3,17,7,2,0.64,4,0,3,507,439,0.87,0.74,0
+Bologna vs AC Milan,Bologna,Bologna,AC Milan,0,3,0-3,2,9,13,2,7,6,14,5,0,0.54,3,0,4,491,430,0.88,0.45,0
+Bologna vs AC Milan,AC Milan,Bologna,AC Milan,0,3,0-3,7,2,10,1,10,0,10,0,1,0.46,0,0,2,429,361,0.84,2.66,0
+Hellas Verona vs Pisa,Hellas Verona,Hellas Verona,Pisa,0,0,0-0,0,3,3,0,1,2,13,8,0,0.61,1,0,3,464,358,0.77,0.06,0
+Hellas Verona vs Pisa,Pisa,Hellas Verona,Pisa,0,0,0-0,3,5,11,3,9,2,16,4,1,0.39,2,0,0,294,195,0.66,0.82,0
+Genoa vs Napoli,Genoa,Genoa,Napoli,2,3,2-3,3,8,12,1,6,6,16,4,1,0.4,2,0,2,313,250,0.8,1.36,0
+Genoa vs Napoli,Napoli,Genoa,Napoli,2,3,2-3,5,7,14,2,9,5,12,3,1,0.6,4,1,1,500,421,0.84,2.48,0
+Fiorentina vs Torino,Fiorentina,Fiorentina,Torino,2,2,2-2,5,10,21,6,14,7,6,9,3,0.55,2,0,2,502,437,0.87,1.53,0
+Fiorentina vs Torino,Torino,Fiorentina,Torino,2,2,2-2,4,2,12,6,10,2,23,4,1,0.45,5,0,3,418,352,0.84,0.96,0
+Bologna vs Parma,Bologna,Bologna,Parma,0,1,0-1,2,9,16,5,10,6,10,4,3,0.52,1,1,0,392,321,0.82,1.11,0
+Bologna vs Parma,Parma,Bologna,Parma,0,1,0-1,1,1,5,3,0,5,14,5,4,0.48,3,1,3,376,315,0.84,0.18,0
+Lecce vs Udinese,Lecce,Lecce,Udinese,2,1,2-1,5,5,16,6,8,8,9,7,3,0.54,1,0,0,377,268,0.71,1.47,0
+Lecce vs Udinese,Udinese,Lecce,Udinese,2,1,2-1,1,4,6,1,2,4,21,0,2,0.46,2,0,3,339,236,0.7,0.88,0
+Sassuolo vs Inter,Sassuolo,Sassuolo,Inter,0,5,0-5,2,2,7,3,5,2,6,5,3,0.38,1,1,4,320,265,0.83,0.78,0
+Sassuolo vs Inter,Inter,Sassuolo,Inter,0,5,0-5,11,6,23,6,17,6,10,6,1,0.62,1,0,1,530,478,0.9,2.57,0
+Juventus vs Lazio,Juventus,Juventus,Lazio,2,2,2-2,8,13,34,13,20,14,10,8,7,0.63,0,0,0,630,558,0.89,2.81,0
+Juventus vs Lazio,Lazio,Juventus,Lazio,2,2,2-2,2,5,9,2,6,3,4,1,1,0.37,2,0,6,389,316,0.81,1.17,0
+Atalanta vs Cremonese,Atalanta,Atalanta,Cremonese,2,1,2-1,9,10,29,10,21,8,11,13,3,0.56,2,0,1,487,401,0.82,1.78,0
+Atalanta vs Cremonese,Cremonese,Atalanta,Cremonese,2,1,2-1,2,7,12,3,7,5,11,2,3,0.44,0,0,7,388,296,0.76,0.63,0
+AS Roma vs Cagliari,AS Roma,AS Roma,Cagliari,2,0,2-0,5,6,15,4,15,0,18,7,3,0.53,2,0,1,505,429,0.85,1.23,0
+AS Roma vs Cagliari,Cagliari,AS Roma,Cagliari,2,0,2-0,1,2,3,0,2,1,14,1,0,0.47,4,0,3,475,379,0.8,0.5,0
+Pisa vs AC Milan,Pisa,Pisa,AC Milan,1,2,1-2,2,3,7,2,3,4,14,3,1,0.34,1,0,0,338,267,0.79,0.77,0
+Pisa vs AC Milan,AC Milan,Pisa,AC Milan,1,2,1-2,2,4,7,1,7,0,9,1,2,0.66,3,1,1,681,612,0.9,2.33,0
+Como vs Fiorentina,Como,Como,Fiorentina,1,2,1-2,3,10,16,3,12,4,14,4,3,0.67,4,1,1,568,506,0.89,0.85,0
+Como vs Fiorentina,Fiorentina,Como,Fiorentina,1,2,1-2,3,2,7,2,4,3,12,2,2,0.33,2,0,3,280,214,0.76,1.53,0
+Lazio vs Atalanta,Lazio,Lazio,Atalanta,0,2,0-2,5,7,18,6,11,7,10,5,3,0.5,1,0,2,478,414,0.87,1.07,1
+Lazio vs Atalanta,Atalanta,Lazio,Atalanta,0,2,0-2,5,4,12,3,5,7,16,4,1,0.5,4,0,6,494,443,0.9,1.59,1
+Inter vs Juventus,Inter,Inter,Juventus,3,2,3-2,9,7,21,5,11,10,15,4,1,0.6,4,0,6,599,541,0.9,2.29,0
+Inter vs Juventus,Juventus,Inter,Juventus,3,2,3-2,8,2,10,1,8,2,7,1,1,0.4,2,1,5,403,333,0.83,0.92,0
+Udinese vs Sassuolo,Udinese,Udinese,Sassuolo,1,2,1-2,2,3,8,3,6,2,14,7,1,0.51,3,0,1,379,313,0.83,0.5,0
+Udinese vs Sassuolo,Sassuolo,Udinese,Sassuolo,1,2,1-2,3,4,10,3,8,2,14,6,4,0.49,3,0,2,368,317,0.86,1.33,0
+Cremonese vs Genoa,Cremonese,Cremonese,Genoa,0,0,0-0,8,4,19,7,14,5,10,6,0,0.35,2,0,6,259,181,0.7,1.88,2
+Cremonese vs Genoa,Genoa,Cremonese,Genoa,0,0,0-0,6,7,19,6,13,6,12,11,1,0.65,0,0,8,516,458,0.89,1.34,2
+Parma vs Hellas Verona,Parma,Parma,Hellas Verona,2,1,2-1,8,10,27,9,12,15,7,12,2,0.76,2,0,0,599,535,0.89,1.66,0
+Parma vs Hellas Verona,Hellas Verona,Parma,Hellas Verona,2,1,2-1,1,2,4,1,2,2,14,1,0,0.24,1,1,5,201,131,0.65,0.91,0
+Torino vs Bologna,Torino,Torino,Bologna,1,2,1-2,2,1,7,4,5,2,14,4,2,0.47,3,0,5,385,304,0.79,0.42,0
+Torino vs Bologna,Bologna,Torino,Bologna,1,2,1-2,6,6,14,2,10,4,10,2,1,0.53,1,0,1,448,371,0.83,1.32,0
+Napoli vs AS Roma,Napoli,Napoli,AS Roma,2,2,2-2,7,1,11,3,7,4,14,2,1,0.61,1,0,0,590,503,0.85,0.56,-1
+Napoli vs AS Roma,AS Roma,Napoli,AS Roma,2,2,2-2,2,4,9,3,7,2,14,1,2,0.39,1,0,5,358,300,0.84,1.79,-1
+Cagliari vs Lecce,Cagliari,Cagliari,Lecce,0,2,0-2,0,8,11,3,9,2,16,8,0,0.59,0,0,2,440,346,0.79,1.19,0
+Cagliari vs Lecce,Lecce,Cagliari,Lecce,0,2,0-2,4,3,13,6,12,1,14,2,0,0.41,0,0,0,301,217,0.72,1.38,0
+AC Milan vs Como,AC Milan,AC Milan,Como,1,1,1-1,4,2,6,0,5,1,11,4,5,0.54,2,0,3,509,461,0.91,0.77,0
+AC Milan vs Como,Como,AC Milan,Como,1,1,1-1,4,3,10,3,7,3,12,4,1,0.46,3,0,3,443,401,0.91,1.33,0
+Sassuolo vs Hellas Verona,Sassuolo,Sassuolo,Hellas Verona,3,0,3-0,4,3,8,1,7,1,12,6,1,0.47,2,0,1,426,368,0.86,2.0,0
+Sassuolo vs Hellas Verona,Hellas Verona,Sassuolo,Hellas Verona,3,0,3-0,1,5,12,6,8,4,14,5,2,0.53,3,1,1,473,407,0.86,0.71,0
+Juventus vs Como,Juventus,Juventus,Como,0,2,0-2,3,6,11,2,7,4,10,7,4,0.52,1,0,0,481,412,0.86,0.83,0
+Juventus vs Como,Como,Juventus,Como,0,2,0-2,2,7,11,2,6,5,15,2,0,0.48,0,0,3,456,392,0.86,1.38,0
+Lecce vs Inter,Lecce,Lecce,Inter,0,2,0-2,0,3,3,0,1,2,10,2,3,0.32,1,0,6,285,211,0.74,0.12,0
+Lecce vs Inter,Inter,Lecce,Inter,0,2,0-2,9,10,24,5,19,5,8,10,3,0.68,2,0,0,592,511,0.86,2.46,0
+Cagliari vs Lazio,Cagliari,Cagliari,Lazio,0,0,0-0,2,8,11,1,7,4,12,3,2,0.42,3,1,3,460,396,0.86,0.58,0
+Cagliari vs Lazio,Lazio,Cagliari,Lazio,0,0,0-0,3,4,10,3,6,4,15,6,0,0.58,2,0,2,646,587,0.91,0.64,0
+Genoa vs Torino,Genoa,Genoa,Torino,3,0,3-0,5,5,16,6,13,3,9,1,0,0.62,0,0,2,632,560,0.89,1.88,0
+Genoa vs Torino,Torino,Genoa,Torino,3,0,3-0,3,3,7,1,4,3,14,3,1,0.38,1,1,2,380,303,0.8,0.6,0
+Atalanta vs Napoli,Atalanta,Atalanta,Napoli,2,1,2-1,7,2,10,1,8,2,10,6,1,0.57,1,0,3,521,435,0.83,0.9,0
+Atalanta vs Napoli,Napoli,Atalanta,Napoli,2,1,2-1,4,4,10,2,6,4,9,1,2,0.43,1,0,5,405,320,0.79,1.08,0
+AC Milan vs Parma,AC Milan,AC Milan,Parma,0,1,0-1,6,10,25,9,17,8,13,5,1,0.67,2,0,2,626,578,0.92,1.54,0
+AC Milan vs Parma,Parma,AC Milan,Parma,0,1,0-1,3,3,9,3,5,4,10,2,1,0.33,1,0,5,315,252,0.8,0.46,0
+AS Roma vs Cremonese,AS Roma,AS Roma,Cremonese,3,0,3-0,5,12,23,6,19,4,12,9,0,0.58,1,0,0,487,412,0.85,2.01,0
+AS Roma vs Cremonese,Cremonese,AS Roma,Cremonese,3,0,3-0,0,2,2,0,1,1,11,1,3,0.42,1,0,2,362,267,0.74,0.06,0
+Fiorentina vs Pisa,Fiorentina,Fiorentina,Pisa,1,0,1-0,5,6,15,4,3,12,8,4,0,0.56,3,0,1,537,484,0.9,1.82,1
+Fiorentina vs Pisa,Pisa,Fiorentina,Pisa,1,0,1-0,1,5,7,1,5,2,19,3,2,0.44,3,0,4,402,350,0.87,0.28,1
+Bologna vs Udinese,Bologna,Bologna,Udinese,1,0,1-0,6,3,11,2,6,5,10,4,3,0.46,1,0,3,341,262,0.77,1.51,0
+Bologna vs Udinese,Udinese,Bologna,Udinese,1,0,1-0,3,3,10,4,6,4,13,7,3,0.54,1,0,4,398,320,0.8,0.6,0
+Parma vs Cagliari,Parma,Parma,Cagliari,1,1,1-1,4,6,17,7,8,9,14,6,0,0.56,2,0,4,494,431,0.87,1.25,0
+Parma vs Cagliari,Cagliari,Parma,Cagliari,1,1,1-1,5,3,11,3,6,5,8,3,2,0.44,4,0,3,399,335,0.84,0.52,0

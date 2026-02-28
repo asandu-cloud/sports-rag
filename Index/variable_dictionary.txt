@@ -17,6 +17,16 @@ fouls_per_90 (player): Player’s fouls committed per 90.
 aggression_index_norm: Normalized aggression proxy (fouls, duels, cards).
 expected_card_risk / expected_foul_pressure: Model-derived estimates for next match (0–1).
 
+opp_cards_induced_pm (team profile): Average cards opponents receive per match when playing against this team. Higher = team's style provokes more opponent bookings.
+corners_home_pm (team profile): Average corners won per match in HOME fixtures only.
+corners_away_pm (team profile): Average corners won per match in AWAY fixtures only.
+shots_for_pm (team profile): Average total shots per match (season).
+sot_for_pm (team profile): Average shots on target per match (season).
+cards_per_foul_team (team profile): Ratio of cards to fouls — card propensity per foul committed.
+cards_home_pm (team profile): Average cards received per match in HOME fixtures only.
+cards_away_pm (team profile): Average cards received per match in AWAY fixtures only.
+sot_against_pm (team profile): Average shots on target conceded per match (season). Opponent-join aggregation.
+
 Notes:
 - *_pm means per-match season averages.
 - Fixture-level 'Against' values are joined from the opponent's row for the same fixture.

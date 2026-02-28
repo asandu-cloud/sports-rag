@@ -37,12 +37,16 @@ import copy
 import difflib
 import os
 import re
+import sys
 from dataclasses import dataclass
 from datetime import date, datetime
 from itertools import combinations
 from math import comb as _comb, log
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
+
+# Ensure local modules (chroma_backend, prob_models, etc.) are importable
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import requests
 from dotenv import load_dotenv

@@ -200,6 +200,46 @@
         "form_index_team":-0.24
     },
     {
+        "fixture":"Alaves vs Girona",
+        "team":"Alaves",
+        "goals":2.0,
+        "assists":2.0,
+        "shots_total_x":14.0,
+        "shots_on_x":6.0,
+        "passes_total":417,
+        "accurate_passes":338.0,
+        "fouls_committed":18.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":1010,
+        "tackles":20.0,
+        "interceptions":8.0,
+        "shots_accuracy_for":0.4285714286,
+        "pass_accuracy_team":0.8105515588,
+        "expected_goals":1.87,
+        "goals_prevented":0,
+        "possession":0.45,
+        "corners":7,
+        "shots_total_y":17,
+        "shots_on_y":6,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.28,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6287093633,
+        "cards_total":2,
+        "fouls_per_90_team":18.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.1111111111,
+        "fouls_per_duel_team":0.6428571429,
+        "aggression_index_raw":9.7285714286,
+        "aggression_index_norm":0.6162046908,
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.14
+    },
+    {
         "fixture":"Alaves vs Levante",
         "team":"Alaves",
         "goals":2.0,
@@ -235,9 +275,9 @@
         "fouls_per_duel_team":0.6,
         "aggression_index_raw":7.62,
         "aggression_index_norm":0.4518669451,
-        "avg_goals_last_5":1.4,
+        "avg_goals_last_5":1.8,
         "avg_cards_last_5":2.4,
-        "form_index_team":-0.02
+        "form_index_team":0.18
     },
     {
         "fixture":"Alaves vs Oviedo",
@@ -275,9 +315,9 @@
         "fouls_per_duel_team":0.4583333333,
         "aggression_index_raw":6.7916666667,
         "aggression_index_norm":0.3873083389,
-        "avg_goals_last_5":1.6,
-        "avg_cards_last_5":2.8,
-        "form_index_team":-0.04
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.08
     },
     {
         "fixture":"Alaves vs Real Betis",
@@ -316,8 +356,8 @@
         "aggression_index_raw":8.90625,
         "aggression_index_norm":0.5521146401,
         "avg_goals_last_5":1.4,
-        "avg_cards_last_5":2.4,
-        "form_index_team":-0.02
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.16
     },
     {
         "fixture":"Alaves vs Real Madrid",
@@ -355,9 +395,9 @@
         "fouls_per_duel_team":0.3243243243,
         "aggression_index_raw":6.9648648649,
         "aggression_index_norm":0.4008070523,
-        "avg_goals_last_5":1.2,
+        "avg_goals_last_5":1.6,
         "avg_cards_last_5":2.0,
-        "form_index_team":0.0
+        "form_index_team":0.2
     },
     {
         "fixture":"Alaves vs Real Sociedad",
@@ -720,6 +760,46 @@
         "form_index_team":-0.26
     },
     {
+        "fixture":"Levante vs Alaves",
+        "team":"Alaves",
+        "goals":0.0,
+        "assists":0.0,
+        "shots_total_x":12.0,
+        "shots_on_x":7.0,
+        "passes_total":389,
+        "accurate_passes":309.0,
+        "fouls_committed":16.0,
+        "yellow_cards":6,
+        "red_cards":1,
+        "minutes":1051,
+        "tackles":25.0,
+        "interceptions":5.0,
+        "shots_accuracy_for":0.5833333333,
+        "pass_accuracy_team":0.794344473,
+        "expected_goals":1.28,
+        "goals_prevented":0,
+        "possession":0.51,
+        "corners":6,
+        "shots_total_y":17,
+        "shots_on_y":7,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2897142857,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6005556952,
+        "cards_total":7,
+        "fouls_per_90_team":16.0,
+        "cards_per_90_team":7,
+        "cards_per_foul_team":0.4375,
+        "fouls_per_duel_team":0.5333333333,
+        "aggression_index_raw":10.2066666667,
+        "aggression_index_norm":0.6534664561,
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":3.4,
+        "form_index_team":-0.62
+    },
+    {
         "fixture":"Mallorca vs Alaves",
         "team":"Alaves",
         "goals":0.0,
@@ -755,9 +835,9 @@
         "fouls_per_duel_team":0.6,
         "aggression_index_raw":10.02,
         "aggression_index_norm":0.6389180378,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":2.6,
-        "form_index_team":-0.38
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":3.4,
+        "form_index_team":-0.72
     },
     {
         "fixture":"Osasuna vs Alaves",
@@ -795,9 +875,9 @@
         "fouls_per_duel_team":0.44,
         "aggression_index_raw":6.188,
         "aggression_index_norm":0.3402597932,
-        "avg_goals_last_5":0.6,
-        "avg_cards_last_5":2.4,
-        "form_index_team":-0.42
+        "avg_goals_last_5":0.2,
+        "avg_cards_last_5":3.6,
+        "form_index_team":-0.98
     },
     {
         "fixture":"Rayo Vallecano vs Alaves",
@@ -835,9 +915,9 @@
         "fouls_per_duel_team":0.3928571429,
         "aggression_index_raw":6.4785714286,
         "aggression_index_norm":0.3629063362,
-        "avg_goals_last_5":0.2,
-        "avg_cards_last_5":2.8,
-        "form_index_team":-0.74
+        "avg_goals_last_5":0.0,
+        "avg_cards_last_5":3.6,
+        "form_index_team":-1.08
     },
     {
         "fixture":"Real Betis vs Alaves",
@@ -876,8 +956,48 @@
         "aggression_index_raw":9.5133333333,
         "aggression_index_norm":0.5994294738,
         "avg_goals_last_5":0.0,
-        "avg_cards_last_5":2.8,
-        "form_index_team":-0.84
+        "avg_cards_last_5":3.6,
+        "form_index_team":-1.08
+    },
+    {
+        "fixture":"Sevilla vs Alaves",
+        "team":"Alaves",
+        "goals":1.0,
+        "assists":1.0,
+        "shots_total_x":8.0,
+        "shots_on_x":1.0,
+        "passes_total":569,
+        "accurate_passes":493.0,
+        "fouls_committed":13.0,
+        "yellow_cards":0,
+        "red_cards":0,
+        "minutes":1003,
+        "tackles":7.0,
+        "interceptions":8.0,
+        "shots_accuracy_for":0.125,
+        "pass_accuracy_team":0.8664323374,
+        "expected_goals":1.13,
+        "goals_prevented":0,
+        "possession":0.74,
+        "corners":3,
+        "shots_total_y":12,
+        "shots_on_y":1,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3388571429,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6756973717,
+        "cards_total":0,
+        "fouls_per_90_team":13.0,
+        "cards_per_90_team":0,
+        "cards_per_foul_team":0.0,
+        "fouls_per_duel_team":0.8666666667,
+        "aggression_index_raw":6.6733333333,
+        "aggression_index_norm":0.3780856808,
+        "avg_goals_last_5":0.2,
+        "avg_cards_last_5":2.2,
+        "form_index_team":-0.56
     },
     {
         "fixture":"Villarreal vs Alaves",
@@ -915,9 +1035,9 @@
         "fouls_per_duel_team":0.4666666667,
         "aggression_index_raw":7.6933333333,
         "aggression_index_norm":0.4575823952,
-        "avg_goals_last_5":0.2,
-        "avg_cards_last_5":2.6,
-        "form_index_team":-0.68
+        "avg_goals_last_5":0.4,
+        "avg_cards_last_5":2.0,
+        "form_index_team":-0.4
     },
     {
         "fixture":"Athletic Club vs Alaves",
@@ -1000,6 +1120,46 @@
         "form_index_team":-0.65
     },
     {
+        "fixture":"Athletic Club vs Elche",
+        "team":"Athletic Club",
+        "goals":2.0,
+        "assists":1.0,
+        "shots_total_x":12.0,
+        "shots_on_x":8.0,
+        "passes_total":348,
+        "accurate_passes":264.0,
+        "fouls_committed":18.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":17.0,
+        "interceptions":14.0,
+        "shots_accuracy_for":0.6666666667,
+        "pass_accuracy_team":0.7586206897,
+        "expected_goals":2.97,
+        "goals_prevented":0,
+        "possession":0.46,
+        "corners":4,
+        "shots_total_y":18,
+        "shots_on_y":8,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2411428571,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5482326506,
+        "cards_total":3,
+        "fouls_per_90_team":18.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.1666666667,
+        "fouls_per_duel_team":0.5806451613,
+        "aggression_index_raw":10.0161290323,
+        "aggression_index_norm":0.6386163425,
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":3.0,
+        "form_index_team":-0.4
+    },
+    {
         "fixture":"Athletic Club vs Espanyol",
         "team":"Athletic Club",
         "goals":1.0,
@@ -1035,9 +1195,9 @@
         "fouls_per_duel_team":0.4545454545,
         "aggression_index_raw":6.5909090909,
         "aggression_index_norm":0.3716617039,
-        "avg_goals_last_5":0.6666666667,
-        "avg_cards_last_5":3.6666666667,
-        "form_index_team":-0.7666666667
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":3.5,
+        "form_index_team":-0.55
     },
     {
         "fixture":"Athletic Club vs Getafe",
@@ -1075,9 +1235,9 @@
         "fouls_per_duel_team":0.8333333333,
         "aggression_index_raw":8.2666666667,
         "aggression_index_norm":0.5022668229,
-        "avg_goals_last_5":0.5,
-        "avg_cards_last_5":3.25,
-        "form_index_team":-0.725
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":3.2,
+        "form_index_team":-0.56
     },
     {
         "fixture":"Athletic Club vs Girona",
@@ -1115,9 +1275,9 @@
         "fouls_per_duel_team":0.6785714286,
         "aggression_index_raw":9.6357142857,
         "aggression_index_norm":0.608967595,
-        "avg_goals_last_5":0.6,
+        "avg_goals_last_5":1.0,
         "avg_cards_last_5":2.6,
-        "form_index_team":-0.48
+        "form_index_team":-0.28
     },
     {
         "fixture":"Athletic Club vs Levante",
@@ -1155,9 +1315,9 @@
         "fouls_per_duel_team":0.8095238095,
         "aggression_index_raw":9.2619047619,
         "aggression_index_norm":0.579833645,
-        "avg_goals_last_5":1.4,
+        "avg_goals_last_5":1.6,
         "avg_cards_last_5":2.4,
-        "form_index_team":-0.02
+        "form_index_team":0.08
     },
     {
         "fixture":"Athletic Club vs Mallorca",
@@ -1640,6 +1800,46 @@
         "form_index_team":-0.46
     },
     {
+        "fixture":"Oviedo vs Athletic Club",
+        "team":"Athletic Club",
+        "goals":2.0,
+        "assists":1.0,
+        "shots_total_x":9.0,
+        "shots_on_x":4.0,
+        "passes_total":361,
+        "accurate_passes":270.0,
+        "fouls_committed":20.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":989,
+        "tackles":20.0,
+        "interceptions":11.0,
+        "shots_accuracy_for":0.4444444444,
+        "pass_accuracy_team":0.7479224377,
+        "expected_goals":1.29,
+        "goals_prevented":0,
+        "possession":0.46,
+        "corners":3,
+        "shots_total_y":13,
+        "shots_on_y":4,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2268571429,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5382469331,
+        "cards_total":3,
+        "fouls_per_90_team":20.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.15,
+        "fouls_per_duel_team":0.6451612903,
+        "aggression_index_raw":11.0290322581,
+        "aggression_index_norm":0.7175599488,
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":3.4,
+        "form_index_team":-0.32
+    },
+    {
         "fixture":"Real Betis vs Athletic Club",
         "team":"Athletic Club",
         "goals":1.0,
@@ -1675,9 +1875,9 @@
         "fouls_per_duel_team":0.6153846154,
         "aggression_index_raw":9.3230769231,
         "aggression_index_norm":0.5846012782,
-        "avg_goals_last_5":1.2,
+        "avg_goals_last_5":1.6,
         "avg_cards_last_5":3.6,
-        "form_index_team":-0.48
+        "form_index_team":-0.28
     },
     {
         "fixture":"Real Sociedad vs Athletic Club",
@@ -1716,8 +1916,8 @@
         "aggression_index_raw":4.9666666667,
         "aggression_index_norm":0.2450715705,
         "avg_goals_last_5":1.6,
-        "avg_cards_last_5":3.6,
-        "form_index_team":-0.28
+        "avg_cards_last_5":3.8,
+        "form_index_team":-0.34
     },
     {
         "fixture":"Sevilla vs Athletic Club",
@@ -1756,8 +1956,8 @@
         "aggression_index_raw":6.375,
         "aggression_index_norm":0.3548341908,
         "avg_goals_last_5":1.4,
-        "avg_cards_last_5":3.4,
-        "form_index_team":-0.32
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.14
     },
     {
         "fixture":"Valencia vs Athletic Club",
@@ -1795,9 +1995,9 @@
         "fouls_per_duel_team":0.2727272727,
         "aggression_index_raw":3.6545454545,
         "aggression_index_norm":0.1428075261,
-        "avg_goals_last_5":1.0,
+        "avg_goals_last_5":1.2,
         "avg_cards_last_5":2.6,
-        "form_index_team":-0.28
+        "form_index_team":-0.18
     },
     {
         "fixture":"Villarreal vs Athletic Club",
@@ -2000,6 +2200,46 @@
         "form_index_team":-0.075
     },
     {
+        "fixture":"Atletico Madrid vs Espanyol",
+        "team":"Atletico Madrid",
+        "goals":4.0,
+        "assists":4.0,
+        "shots_total_x":15.0,
+        "shots_on_x":9.0,
+        "passes_total":662,
+        "accurate_passes":571.0,
+        "fouls_committed":8.0,
+        "yellow_cards":0,
+        "red_cards":0,
+        "minutes":996,
+        "tackles":10.0,
+        "interceptions":12.0,
+        "shots_accuracy_for":0.6,
+        "pass_accuracy_team":0.8625377644,
+        "expected_goals":3.12,
+        "goals_prevented":0,
+        "possession":0.61,
+        "corners":5,
+        "shots_total_y":18,
+        "shots_on_y":9,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3154285714,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.7277601102,
+        "cards_total":0,
+        "fouls_per_90_team":8.0,
+        "cards_per_90_team":0,
+        "cards_per_foul_team":0.0,
+        "fouls_per_duel_team":0.3636363636,
+        "aggression_index_raw":4.0727272727,
+        "aggression_index_norm":0.175399762,
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.34
+    },
+    {
         "fixture":"Atletico Madrid vs Levante",
         "team":"Atletico Madrid",
         "goals":2.0,
@@ -2035,9 +2275,9 @@
         "fouls_per_duel_team":0.2272727273,
         "aggression_index_raw":3.4454545455,
         "aggression_index_norm":0.1265114082,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":1.8,
-        "form_index_team":-0.04
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.44
     },
     {
         "fixture":"Atletico Madrid vs Mallorca",
@@ -2075,9 +2315,9 @@
         "fouls_per_duel_team":0.3571428571,
         "aggression_index_raw":5.6714285714,
         "aggression_index_norm":0.2999992723,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":1.6,
-        "form_index_team":0.12
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.64
     },
     {
         "fixture":"Atletico Madrid vs Osasuna",
@@ -2115,9 +2355,9 @@
         "fouls_per_duel_team":0.3846153846,
         "aggression_index_raw":5.3769230769,
         "aggression_index_norm":0.2770461162,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.28
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.64
     },
     {
         "fixture":"Atletico Madrid vs Oviedo",
@@ -2155,9 +2395,9 @@
         "fouls_per_duel_team":0.2631578947,
         "aggression_index_raw":2.5526315789,
         "aggression_index_norm":0.0569266118,
-        "avg_goals_last_5":1.6,
+        "avg_goals_last_5":2.2,
         "avg_cards_last_5":1.2,
-        "form_index_team":0.44
+        "form_index_team":0.74
     },
     {
         "fixture":"Atletico Madrid vs Rayo Vallecano",
@@ -2680,6 +2920,46 @@
         "form_index_team":0.02
     },
     {
+        "fixture":"Rayo Vallecano vs Atletico Madrid",
+        "team":"Atletico Madrid",
+        "goals":0.0,
+        "assists":0.0,
+        "shots_total_x":5.0,
+        "shots_on_x":3.0,
+        "passes_total":486,
+        "accurate_passes":413.0,
+        "fouls_committed":13.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":11.0,
+        "interceptions":6.0,
+        "shots_accuracy_for":0.6,
+        "pass_accuracy_team":0.8497942387,
+        "expected_goals":0.7,
+        "goals_prevented":0,
+        "possession":0.59,
+        "corners":8,
+        "shots_total_y":9,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3502857143,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6837943624,
+        "cards_total":3,
+        "fouls_per_90_team":13.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.2307692308,
+        "fouls_per_duel_team":0.7647058824,
+        "aggression_index_raw":7.5529411765,
+        "aggression_index_norm":0.4466405175,
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":1.6,
+        "form_index_team":-0.08
+    },
+    {
         "fixture":"Real Betis vs Atletico Madrid",
         "team":"Atletico Madrid",
         "goals":2.0,
@@ -2755,9 +3035,9 @@
         "fouls_per_duel_team":0.7222222222,
         "aggression_index_raw":7.2444444444,
         "aggression_index_norm":0.422596913,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":1.0,
-        "form_index_team":0.4
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":1.6,
+        "form_index_team":-0.08
     },
     {
         "fixture":"Barcelona vs Alaves",
@@ -3000,6 +3280,46 @@
         "form_index_team":1.2
     },
     {
+        "fixture":"Barcelona vs Levante",
+        "team":"Barcelona",
+        "goals":3.0,
+        "assists":3.0,
+        "shots_total_x":17.0,
+        "shots_on_x":9.0,
+        "passes_total":770,
+        "accurate_passes":728.0,
+        "fouls_committed":12.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":10.0,
+        "interceptions":5.0,
+        "shots_accuracy_for":0.5294117647,
+        "pass_accuracy_team":0.9454545455,
+        "expected_goals":2.88,
+        "goals_prevented":0,
+        "possession":0.73,
+        "corners":13,
+        "shots_total_y":22,
+        "shots_on_y":9,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.4777142857,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.8860104807,
+        "cards_total":2,
+        "fouls_per_90_team":12.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.1666666667,
+        "fouls_per_duel_team":0.8,
+        "aggression_index_raw":6.76,
+        "aggression_index_norm":0.3848403036,
+        "avg_goals_last_5":2.8,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.98
+    },
+    {
         "fixture":"Barcelona vs Mallorca",
         "team":"Barcelona",
         "goals":3.0,
@@ -3036,8 +3356,8 @@
         "aggression_index_raw":3.5666666667,
         "aggression_index_norm":0.1359584331,
         "avg_goals_last_5":2.8,
-        "avg_cards_last_5":1.0,
-        "form_index_team":1.1
+        "avg_cards_last_5":1.2,
+        "form_index_team":1.04
     },
     {
         "fixture":"Barcelona vs Osasuna",
@@ -3076,8 +3396,8 @@
         "aggression_index_raw":2.5416666667,
         "aggression_index_norm":0.0560720289,
         "avg_goals_last_5":2.6,
-        "avg_cards_last_5":0.8,
-        "form_index_team":1.06
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.94
     },
     {
         "fixture":"Barcelona vs Oviedo",
@@ -3155,9 +3475,9 @@
         "fouls_per_duel_team":0.4285714286,
         "aggression_index_raw":3.3857142857,
         "aggression_index_norm":0.1218553745,
-        "avg_goals_last_5":2.4,
+        "avg_goals_last_5":2.6,
         "avg_cards_last_5":0.8,
-        "form_index_team":0.96
+        "form_index_team":1.06
     },
     {
         "fixture":"Barcelona vs Valencia",
@@ -3320,6 +3640,46 @@
         "form_index_team":1.22
     },
     {
+        "fixture":"Girona vs Barcelona",
+        "team":"Barcelona",
+        "goals":1.0,
+        "assists":1.0,
+        "shots_total_x":16.0,
+        "shots_on_x":4.0,
+        "passes_total":739,
+        "accurate_passes":667.0,
+        "fouls_committed":6.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":19.0,
+        "interceptions":9.0,
+        "shots_accuracy_for":0.25,
+        "pass_accuracy_team":0.9025710419,
+        "expected_goals":2.72,
+        "goals_prevented":1,
+        "possession":0.71,
+        "corners":7,
+        "shots_total_y":27,
+        "shots_on_y":4,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.384,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.7957717365,
+        "cards_total":3,
+        "fouls_per_90_team":6.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.5,
+        "fouls_per_duel_team":0.2142857143,
+        "aggression_index_raw":3.9428571429,
+        "aggression_index_norm":0.1652779496,
+        "avg_goals_last_5":3.2,
+        "avg_cards_last_5":2.0,
+        "form_index_team":1.0
+    },
+    {
         "fixture":"Levante vs Barcelona",
         "team":"Barcelona",
         "goals":2.0,
@@ -3355,9 +3715,9 @@
         "fouls_per_duel_team":0.5,
         "aggression_index_raw":4.4,
         "aggression_index_norm":0.2009067292,
-        "avg_goals_last_5":3.4,
-        "avg_cards_last_5":1.6,
-        "form_index_team":1.22
+        "avg_goals_last_5":2.4,
+        "avg_cards_last_5":2.2,
+        "form_index_team":0.54
     },
     {
         "fixture":"Mallorca vs Barcelona",
@@ -3395,9 +3755,9 @@
         "fouls_per_duel_team":0.7727272727,
         "aggression_index_raw":8.9545454545,
         "aggression_index_norm":0.5558786891,
-        "avg_goals_last_5":2.8,
-        "avg_cards_last_5":1.8,
-        "form_index_team":0.86
+        "avg_goals_last_5":2.2,
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.74
     },
     {
         "fixture":"Oviedo vs Barcelona",
@@ -3435,9 +3795,9 @@
         "fouls_per_duel_team":0.25,
         "aggression_index_raw":3.05,
         "aggression_index_norm":0.0956904895,
-        "avg_goals_last_5":2.6,
-        "avg_cards_last_5":0.6,
-        "form_index_team":1.12
+        "avg_goals_last_5":2.2,
+        "avg_cards_last_5":1.0,
+        "form_index_team":0.8
     },
     {
         "fixture":"Rayo Vallecano vs Barcelona",
@@ -3475,9 +3835,9 @@
         "fouls_per_duel_team":0.3076923077,
         "aggression_index_raw":4.3615384615,
         "aggression_index_norm":0.1979091155,
-        "avg_goals_last_5":2.2,
-        "avg_cards_last_5":0.6,
-        "form_index_team":0.92
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.64
     },
     {
         "fixture":"Real Betis vs Barcelona",
@@ -3960,6 +4320,46 @@
         "form_index_team":0.04
     },
     {
+        "fixture":"Celta Vigo vs Mallorca",
+        "team":"Celta Vigo",
+        "goals":2.0,
+        "assists":1.0,
+        "shots_total_x":14.0,
+        "shots_on_x":7.0,
+        "passes_total":522,
+        "accurate_passes":450.0,
+        "fouls_committed":11.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":12.0,
+        "interceptions":10.0,
+        "shots_accuracy_for":0.5,
+        "pass_accuracy_team":0.8620689655,
+        "expected_goals":2.51,
+        "goals_prevented":0,
+        "possession":0.57,
+        "corners":7,
+        "shots_total_y":20,
+        "shots_on_y":7,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.328,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6939417509,
+        "cards_total":1,
+        "fouls_per_90_team":11.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.0909090909,
+        "fouls_per_duel_team":0.5,
+        "aggression_index_raw":5.9,
+        "aggression_index_norm":0.3178136621,
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.14
+    },
+    {
         "fixture":"Celta Vigo vs Osasuna",
         "team":"Celta Vigo",
         "goals":1.0,
@@ -4035,9 +4435,9 @@
         "fouls_per_duel_team":0.3333333333,
         "aggression_index_raw":4.4666666667,
         "aggression_index_norm":0.2061025928,
-        "avg_goals_last_5":1.0,
+        "avg_goals_last_5":1.4,
         "avg_cards_last_5":1.8,
-        "form_index_team":-0.04
+        "form_index_team":0.16
     },
     {
         "fixture":"Celta Vigo vs Real Betis",
@@ -4075,9 +4475,9 @@
         "fouls_per_duel_team":0.5416666667,
         "aggression_index_raw":6.9083333333,
         "aggression_index_norm":0.3964011003,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":1.8,
-        "form_index_team":0.06
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.38
     },
     {
         "fixture":"Celta Vigo vs Real Sociedad",
@@ -4115,9 +4515,9 @@
         "fouls_per_duel_team":0.4347826087,
         "aggression_index_raw":6.5869565217,
         "aggression_index_norm":0.3713536487,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":2.2,
-        "form_index_team":0.04
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.08
     },
     {
         "fixture":"Celta Vigo vs Valencia",
@@ -4240,6 +4640,46 @@
         "form_index_team":0.14
     },
     {
+        "fixture":"Espanyol vs Celta Vigo",
+        "team":"Celta Vigo",
+        "goals":2.0,
+        "assists":2.0,
+        "shots_total_x":11.0,
+        "shots_on_x":5.0,
+        "passes_total":544,
+        "accurate_passes":481.0,
+        "fouls_committed":11.0,
+        "yellow_cards":0,
+        "red_cards":0,
+        "minutes":1008,
+        "tackles":8.0,
+        "interceptions":6.0,
+        "shots_accuracy_for":0.4545454545,
+        "pass_accuracy_team":0.8841911765,
+        "expected_goals":2.36,
+        "goals_prevented":0,
+        "possession":0.57,
+        "corners":2,
+        "shots_total_y":14,
+        "shots_on_y":5,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2565714286,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6656544855,
+        "cards_total":0,
+        "fouls_per_90_team":11.0,
+        "cards_per_90_team":0,
+        "cards_per_foul_team":0.0,
+        "fouls_per_duel_team":0.7857142857,
+        "aggression_index_raw":5.6571428571,
+        "aggression_index_norm":0.2988858729,
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.3
+    },
+    {
         "fixture":"Getafe vs Celta Vigo",
         "team":"Celta Vigo",
         "goals":0.0,
@@ -4275,9 +4715,9 @@
         "fouls_per_duel_team":1.4,
         "aggression_index_raw":7.88,
         "aggression_index_norm":0.4721308135,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":2.4,
-        "form_index_team":-0.02
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.38
     },
     {
         "fixture":"Levante vs Celta Vigo",
@@ -4315,9 +4755,9 @@
         "fouls_per_duel_team":0.48,
         "aggression_index_raw":6.996,
         "aggression_index_norm":0.403233661,
-        "avg_goals_last_5":1.6,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.2
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.06
     },
     {
         "fixture":"Mallorca vs Celta Vigo",
@@ -4355,9 +4795,9 @@
         "fouls_per_duel_team":0.7058823529,
         "aggression_index_raw":7.0411764706,
         "aggression_index_norm":0.4067546228,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":2.4,
-        "form_index_team":-0.22
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.2,
+        "form_index_team":-0.06
     },
     {
         "fixture":"Osasuna vs Celta Vigo",
@@ -4395,9 +4835,9 @@
         "fouls_per_duel_team":0.5652173913,
         "aggression_index_raw":7.8130434783,
         "aggression_index_norm":0.4669123591,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":3.0,
-        "form_index_team":-0.2
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.08
     },
     {
         "fixture":"Oviedo vs Celta Vigo",
@@ -4640,6 +5080,46 @@
         "form_index_team":-0.1
     },
     {
+        "fixture":"Athletic Club vs Elche",
+        "team":"Elche",
+        "goals":1.0,
+        "assists":0.0,
+        "shots_total_x":2.0,
+        "shots_on_x":2.0,
+        "passes_total":438,
+        "accurate_passes":338.0,
+        "fouls_committed":9.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":989,
+        "tackles":20.0,
+        "interceptions":13.0,
+        "shots_accuracy_for":1.0,
+        "pass_accuracy_team":0.7716894977,
+        "expected_goals":0.82,
+        "goals_prevented":0,
+        "possession":0.54,
+        "corners":1,
+        "shots_total_y":2,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2302857143,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5600302125,
+        "cards_total":3,
+        "fouls_per_90_team":9.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.3333333333,
+        "fouls_per_duel_team":0.2727272727,
+        "aggression_index_raw":5.4545454545,
+        "aggression_index_norm":0.2830958456,
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":2.5,
+        "form_index_team":-0.25
+    },
+    {
         "fixture":"Atletico Madrid vs Elche",
         "team":"Elche",
         "goals":1.0,
@@ -4676,8 +5156,8 @@
         "aggression_index_raw":4.4451612903,
         "aggression_index_norm":0.2044265078,
         "avg_goals_last_5":1.0,
-        "avg_cards_last_5":2.5,
-        "form_index_team":-0.25
+        "avg_cards_last_5":2.6666666667,
+        "form_index_team":-0.3
     },
     {
         "fixture":"Barcelona vs Elche",
@@ -4716,8 +5196,8 @@
         "aggression_index_raw":8.396969697,
         "aggression_index_norm":0.5124223746,
         "avg_goals_last_5":1.0,
-        "avg_cards_last_5":2.0,
-        "form_index_team":-0.1
+        "avg_cards_last_5":2.25,
+        "form_index_team":-0.175
     },
     {
         "fixture":"Elche vs Athletic Club",
@@ -4755,9 +5235,9 @@
         "fouls_per_duel_team":0.7,
         "aggression_index_raw":7.74,
         "aggression_index_norm":0.4612194998,
-        "avg_goals_last_5":0.75,
-        "avg_cards_last_5":2.0,
-        "form_index_team":-0.225
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":2.2,
+        "form_index_team":-0.26
     },
     {
         "fixture":"Elche vs Barcelona",
@@ -4796,8 +5276,8 @@
         "aggression_index_raw":8.2304347826,
         "aggression_index_norm":0.4994429839,
         "avg_goals_last_5":0.8,
-        "avg_cards_last_5":2.0,
-        "form_index_team":-0.2
+        "avg_cards_last_5":2.2,
+        "form_index_team":-0.26
     },
     {
         "fixture":"Elche vs Celta Vigo",
@@ -4920,6 +5400,46 @@
         "form_index_team":0.32
     },
     {
+        "fixture":"Elche vs Osasuna",
+        "team":"Elche",
+        "goals":0.0,
+        "assists":0.0,
+        "shots_total_x":13.0,
+        "shots_on_x":5.0,
+        "passes_total":457,
+        "accurate_passes":379.0,
+        "fouls_committed":13.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":1002,
+        "tackles":15.0,
+        "interceptions":7.0,
+        "shots_accuracy_for":0.3846153846,
+        "pass_accuracy_team":0.829321663,
+        "expected_goals":1.7,
+        "goals_prevented":1,
+        "possession":0.64,
+        "corners":10,
+        "shots_total_y":17,
+        "shots_on_y":5,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3988571429,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.681703438,
+        "cards_total":2,
+        "fouls_per_90_team":13.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.1538461538,
+        "fouls_per_duel_team":0.5909090909,
+        "aggression_index_raw":7.2181818182,
+        "aggression_index_norm":0.4205500577,
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.32
+    },
+    {
         "fixture":"Elche vs Oviedo",
         "team":"Elche",
         "goals":1.0,
@@ -4955,9 +5475,9 @@
         "fouls_per_duel_team":0.3103448276,
         "aggression_index_raw":5.1620689655,
         "aggression_index_norm":0.2603008261,
-        "avg_goals_last_5":1.8,
+        "avg_goals_last_5":1.6,
         "avg_cards_last_5":1.6,
-        "form_index_team":0.42
+        "form_index_team":0.32
     },
     {
         "fixture":"Elche vs Rayo Vallecano",
@@ -4995,9 +5515,9 @@
         "fouls_per_duel_team":0.8333333333,
         "aggression_index_raw":8.2666666667,
         "aggression_index_norm":0.5022668229,
-        "avg_goals_last_5":2.4,
-        "avg_cards_last_5":1.6,
-        "form_index_team":0.72
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.58
     },
     {
         "fixture":"Elche vs Real Betis",
@@ -5035,9 +5555,9 @@
         "fouls_per_duel_team":0.7368421053,
         "aggression_index_raw":7.1473684211,
         "aggression_index_norm":0.4150310063,
-        "avg_goals_last_5":2.2,
-        "avg_cards_last_5":1.0,
-        "form_index_team":0.8
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.38
     },
     {
         "fixture":"Elche vs Real Madrid",
@@ -5075,9 +5595,9 @@
         "fouls_per_duel_team":0.4166666667,
         "aggression_index_raw":6.5833333333,
         "aggression_index_norm":0.3710712648,
-        "avg_goals_last_5":2.0,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.4
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.2,
+        "form_index_team":0.14
     },
     {
         "fixture":"Elche vs Real Sociedad",
@@ -5600,6 +6120,46 @@
         "form_index_team":0.15
     },
     {
+        "fixture":"Atletico Madrid vs Espanyol",
+        "team":"Espanyol",
+        "goals":2.0,
+        "assists":0.0,
+        "shots_total_x":5.0,
+        "shots_on_x":2.0,
+        "passes_total":415,
+        "accurate_passes":324.0,
+        "fouls_committed":10.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":10.0,
+        "interceptions":16.0,
+        "shots_accuracy_for":0.4,
+        "pass_accuracy_team":0.7807228916,
+        "expected_goals":1.06,
+        "goals_prevented":0,
+        "possession":0.39,
+        "corners":3,
+        "shots_total_y":8,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.1988571429,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5749479119,
+        "cards_total":1,
+        "fouls_per_90_team":10.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.1,
+        "fouls_per_duel_team":0.3846153846,
+        "aggression_index_raw":5.3769230769,
+        "aggression_index_norm":0.2770461162,
+        "avg_goals_last_5":1.6666666667,
+        "avg_cards_last_5":1.6666666667,
+        "form_index_team":0.3333333333
+    },
+    {
         "fixture":"Celta Vigo vs Espanyol",
         "team":"Espanyol",
         "goals":1.0,
@@ -5635,9 +6195,9 @@
         "fouls_per_duel_team":0.5357142857,
         "aggression_index_raw":8.2071428571,
         "aggression_index_norm":0.4976276589,
-        "avg_goals_last_5":1.3333333333,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.0666666667
+        "avg_goals_last_5":1.5,
+        "avg_cards_last_5":1.75,
+        "form_index_team":0.225
     },
     {
         "fixture":"Espanyol vs Alaves",
@@ -5675,9 +6235,9 @@
         "fouls_per_duel_team":0.625,
         "aggression_index_raw":7.625,
         "aggression_index_norm":0.4522566349,
-        "avg_goals_last_5":1.25,
-        "avg_cards_last_5":1.5,
-        "form_index_team":0.175
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.28
     },
     {
         "fixture":"Espanyol vs Atletico Madrid",
@@ -5715,9 +6275,9 @@
         "fouls_per_duel_team":0.9333333333,
         "aggression_index_raw":8.0866666667,
         "aggression_index_norm":0.4882379909,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":1.8,
-        "form_index_team":0.16
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.32
     },
     {
         "fixture":"Espanyol vs Barcelona",
@@ -5756,8 +6316,48 @@
         "aggression_index_raw":5.3740740741,
         "aggression_index_norm":0.2768240708,
         "avg_goals_last_5":1.2,
-        "avg_cards_last_5":1.6,
-        "form_index_team":0.12
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.18
+    },
+    {
+        "fixture":"Espanyol vs Celta Vigo",
+        "team":"Espanyol",
+        "goals":2.0,
+        "assists":1.0,
+        "shots_total_x":6.0,
+        "shots_on_x":3.0,
+        "passes_total":393,
+        "accurate_passes":323.0,
+        "fouls_committed":9.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":999,
+        "tackles":18.0,
+        "interceptions":12.0,
+        "shots_accuracy_for":0.5,
+        "pass_accuracy_team":0.8218829517,
+        "expected_goals":0.77,
+        "goals_prevented":0,
+        "possession":0.43,
+        "corners":2,
+        "shots_total_y":9,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2005714286,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5777334558,
+        "cards_total":1,
+        "fouls_per_90_team":9.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.1111111111,
+        "fouls_per_duel_team":0.3,
+        "aggression_index_raw":4.86,
+        "aggression_index_norm":0.2367581886,
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.18
     },
     {
         "fixture":"Espanyol vs Elche",
@@ -5795,9 +6395,9 @@
         "fouls_per_duel_team":0.5185185185,
         "aggression_index_raw":8.3037037037,
         "aggression_index_norm":0.5051534138,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":2.0,
-        "form_index_team":-0.1
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.06
     },
     {
         "fixture":"Espanyol vs Girona",
@@ -5835,9 +6435,9 @@
         "fouls_per_duel_team":0.6538461538,
         "aggression_index_raw":10.1307692308,
         "aggression_index_norm":0.6475511652,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":2.6,
-        "form_index_team":-0.38
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.34
     },
     {
         "fixture":"Espanyol vs Mallorca",
@@ -5876,8 +6476,8 @@
         "aggression_index_raw":5.52,
         "aggression_index_norm":0.2881972391,
         "avg_goals_last_5":1.2,
-        "avg_cards_last_5":3.2,
-        "form_index_team":-0.36
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.24
     },
     {
         "fixture":"Espanyol vs Osasuna",
@@ -5915,9 +6515,9 @@
         "fouls_per_duel_team":0.7222222222,
         "aggression_index_raw":7.2444444444,
         "aggression_index_norm":0.422596913,
-        "avg_goals_last_5":1.0,
+        "avg_goals_last_5":1.4,
         "avg_cards_last_5":3.0,
-        "form_index_team":-0.4
+        "form_index_team":-0.2
     },
     {
         "fixture":"Espanyol vs Rayo Vallecano",
@@ -6411,12 +7011,12 @@
         "fouls_committed":11.0,
         "yellow_cards":3,
         "red_cards":0,
-        "minutes":1023,
-        "tackles":14.0,
-        "interceptions":7.0,
+        "minutes":990,
+        "tackles":13.0,
+        "interceptions":8.0,
         "shots_accuracy_for":0.2857142857,
         "pass_accuracy_team":0.8561643836,
-        "expected_goals":0.42,
+        "expected_goals":0.43,
         "goals_prevented":-2,
         "possession":0.51,
         "corners":8,
@@ -7000,6 +7600,46 @@
         "form_index_team":-0.24
     },
     {
+        "fixture":"Getafe vs Sevilla",
+        "team":"Getafe",
+        "goals":0.0,
+        "assists":0.0,
+        "shots_total_x":4.0,
+        "shots_on_x":3.0,
+        "passes_total":225,
+        "accurate_passes":132.0,
+        "fouls_committed":5.0,
+        "yellow_cards":1,
+        "red_cards":1,
+        "minutes":926,
+        "tackles":14.0,
+        "interceptions":7.0,
+        "shots_accuracy_for":0.75,
+        "pass_accuracy_team":0.5866666667,
+        "expected_goals":0.32,
+        "goals_prevented":0,
+        "possession":0.31,
+        "corners":2,
+        "shots_total_y":6,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.1525714286,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.3969674185,
+        "cards_total":2,
+        "fouls_per_90_team":5.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.4,
+        "fouls_per_duel_team":0.2380952381,
+        "aggression_index_raw":3.1476190476,
+        "aggression_index_norm":0.1032987185,
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":3.0,
+        "form_index_team":-0.5
+    },
+    {
         "fixture":"Getafe vs Valencia",
         "team":"Getafe",
         "goals":0.0,
@@ -7035,9 +7675,49 @@
         "fouls_per_duel_team":0.2857142857,
         "aggression_index_raw":4.6571428571,
         "aggression_index_norm":0.2209479177,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":3.0,
-        "form_index_team":-0.5
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.48
+    },
+    {
+        "fixture":"Getafe vs Villarreal",
+        "team":"Getafe",
+        "goals":2.0,
+        "assists":1.0,
+        "shots_total_x":4.0,
+        "shots_on_x":2.0,
+        "passes_total":266,
+        "accurate_passes":187.0,
+        "fouls_committed":20.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":997,
+        "tackles":30.0,
+        "interceptions":11.0,
+        "shots_accuracy_for":0.5,
+        "pass_accuracy_team":0.7030075188,
+        "expected_goals":1.48,
+        "goals_prevented":0,
+        "possession":0.44,
+        "corners":3,
+        "shots_total_y":5,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2188571429,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.480075188,
+        "cards_total":1,
+        "fouls_per_90_team":20.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.05,
+        "fouls_per_duel_team":0.487804878,
+        "aggression_index_raw":10.3975609756,
+        "aggression_index_norm":0.6683443682,
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":2.4,
+        "form_index_team":-0.42
     },
     {
         "fixture":"Girona vs Getafe",
@@ -7076,8 +7756,8 @@
         "aggression_index_raw":8.4833333333,
         "aggression_index_norm":0.5191533799,
         "avg_goals_last_5":0.8,
-        "avg_cards_last_5":2.8,
-        "form_index_team":-0.44
+        "avg_cards_last_5":2.0,
+        "form_index_team":-0.2
     },
     {
         "fixture":"Mallorca vs Getafe",
@@ -7115,9 +7795,9 @@
         "fouls_per_duel_team":0.3076923077,
         "aggression_index_raw":4.6615384615,
         "aggression_index_norm":0.2212905021,
-        "avg_goals_last_5":0.4,
-        "avg_cards_last_5":2.8,
-        "form_index_team":-0.64
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":2.0,
+        "form_index_team":-0.3
     },
     {
         "fixture":"Osasuna vs Getafe",
@@ -7155,9 +7835,9 @@
         "fouls_per_duel_team":0.56,
         "aggression_index_raw":8.312,
         "aggression_index_norm":0.5058000102,
-        "avg_goals_last_5":0.6,
-        "avg_cards_last_5":2.6,
-        "form_index_team":-0.48
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":2.4,
+        "form_index_team":-0.32
     },
     {
         "fixture":"Rayo Vallecano vs Getafe",
@@ -7195,9 +7875,9 @@
         "fouls_per_duel_team":0.5263157895,
         "aggression_index_raw":6.3052631579,
         "aggression_index_norm":0.3493990439,
-        "avg_goals_last_5":0.6,
-        "avg_cards_last_5":3.0,
-        "form_index_team":-0.6
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.34
     },
     {
         "fixture":"Real Betis vs Getafe",
@@ -7360,6 +8040,46 @@
         "form_index_team":-0.42
     },
     {
+        "fixture":"Alaves vs Girona",
+        "team":"Girona",
+        "goals":2.0,
+        "assists":2.0,
+        "shots_total_x":6.0,
+        "shots_on_x":5.0,
+        "passes_total":540,
+        "accurate_passes":457.0,
+        "fouls_committed":6.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":1010,
+        "tackles":18.0,
+        "interceptions":12.0,
+        "shots_accuracy_for":0.8333333333,
+        "pass_accuracy_team":0.8462962963,
+        "expected_goals":2.22,
+        "goals_prevented":0,
+        "possession":0.55,
+        "corners":6,
+        "shots_total_y":10,
+        "shots_on_y":5,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3057142857,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6832985241,
+        "cards_total":2,
+        "fouls_per_90_team":6.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.3333333333,
+        "fouls_per_duel_team":0.2,
+        "aggression_index_raw":3.64,
+        "aggression_index_norm":0.1416738831,
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.4
+    },
+    {
         "fixture":"Athletic Club vs Girona",
         "team":"Girona",
         "goals":1.0,
@@ -7395,9 +8115,9 @@
         "fouls_per_duel_team":0.7142857143,
         "aggression_index_raw":8.2428571429,
         "aggression_index_norm":0.5004111573,
-        "avg_goals_last_5":1.0,
+        "avg_goals_last_5":1.5,
         "avg_cards_last_5":2.0,
-        "form_index_team":-0.1
+        "form_index_team":0.15
     },
     {
         "fixture":"Barcelona vs Girona",
@@ -7435,9 +8155,9 @@
         "fouls_per_duel_team":0.3888888889,
         "aggression_index_raw":4.1777777778,
         "aggression_index_norm":0.1835871835,
-        "avg_goals_last_5":1.0,
+        "avg_goals_last_5":1.3333333333,
         "avg_cards_last_5":2.0,
-        "form_index_team":-0.1
+        "form_index_team":0.0666666667
     },
     {
         "fixture":"Celta Vigo vs Girona",
@@ -7475,9 +8195,9 @@
         "fouls_per_duel_team":0.2727272727,
         "aggression_index_raw":5.4545454545,
         "aggression_index_norm":0.2830958456,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":2.3333333333,
-        "form_index_team":-0.2
+        "avg_goals_last_5":1.25,
+        "avg_cards_last_5":2.25,
+        "form_index_team":-0.05
     },
     {
         "fixture":"Elche vs Girona",
@@ -7515,9 +8235,9 @@
         "fouls_per_duel_team":0.9285714286,
         "aggression_index_raw":7.5857142857,
         "aggression_index_norm":0.4491947867,
-        "avg_goals_last_5":0.75,
-        "avg_cards_last_5":2.5,
-        "form_index_team":-0.375
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":2.4,
+        "form_index_team":-0.22
     },
     {
         "fixture":"Espanyol vs Girona",
@@ -7680,6 +8400,46 @@
         "form_index_team":-0.32
     },
     {
+        "fixture":"Girona vs Barcelona",
+        "team":"Girona",
+        "goals":2.0,
+        "assists":2.0,
+        "shots_total_x":12.0,
+        "shots_on_x":9.0,
+        "passes_total":308,
+        "accurate_passes":238.0,
+        "fouls_committed":10.0,
+        "yellow_cards":1,
+        "red_cards":1,
+        "minutes":1007,
+        "tackles":19.0,
+        "interceptions":10.0,
+        "shots_accuracy_for":0.75,
+        "pass_accuracy_team":0.7727272727,
+        "expected_goals":2.86,
+        "goals_prevented":1,
+        "possession":0.29,
+        "corners":3,
+        "shots_total_y":13,
+        "shots_on_y":9,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.1588571429,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5307245386,
+        "cards_total":2,
+        "fouls_per_90_team":10.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.2,
+        "fouls_per_duel_team":0.3448275862,
+        "aggression_index_raw":5.6689655172,
+        "aggression_index_norm":0.2998073069,
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.2,
+        "form_index_team":-0.06
+    },
+    {
         "fixture":"Girona vs Espanyol",
         "team":"Girona",
         "goals":0.0,
@@ -7716,8 +8476,8 @@
         "aggression_index_raw":4.6285714286,
         "aggression_index_norm":0.2187211189,
         "avg_goals_last_5":0.8,
-        "avg_cards_last_5":1.8,
-        "form_index_team":-0.14
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.04
     },
     {
         "fixture":"Girona vs Getafe",
@@ -7755,9 +8515,9 @@
         "fouls_per_duel_team":0.7222222222,
         "aggression_index_raw":8.1444444444,
         "aggression_index_norm":0.4927410728,
-        "avg_goals_last_5":0.6,
+        "avg_goals_last_5":0.8,
         "avg_cards_last_5":1.8,
-        "form_index_team":-0.24
+        "form_index_team":-0.14
     },
     {
         "fixture":"Girona vs Levante",
@@ -7795,9 +8555,9 @@
         "fouls_per_duel_team":0.4583333333,
         "aggression_index_raw":7.3916666667,
         "aggression_index_norm":0.434071112,
-        "avg_goals_last_5":0.4,
-        "avg_cards_last_5":2.6,
-        "form_index_team":-0.58
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":3.0,
+        "form_index_team":-0.6
     },
     {
         "fixture":"Girona vs Osasuna",
@@ -7835,9 +8595,9 @@
         "fouls_per_duel_team":0.4375,
         "aggression_index_raw":7.9875,
         "aggression_index_norm":0.4805091437,
-        "avg_goals_last_5":0.4,
+        "avg_goals_last_5":0.8,
         "avg_cards_last_5":3.2,
-        "form_index_team":-0.76
+        "form_index_team":-0.56
     },
     {
         "fixture":"Girona vs Oviedo",
@@ -8400,6 +9160,46 @@
         "form_index_team":0.2666666667
     },
     {
+        "fixture":"Barcelona vs Levante",
+        "team":"Levante",
+        "goals":0.0,
+        "assists":0.0,
+        "shots_total_x":4.0,
+        "shots_on_x":2.0,
+        "passes_total":279,
+        "accurate_passes":223.0,
+        "fouls_committed":10.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":993,
+        "tackles":17.0,
+        "interceptions":9.0,
+        "shots_accuracy_for":0.5,
+        "pass_accuracy_team":0.7992831541,
+        "expected_goals":0.53,
+        "goals_prevented":0,
+        "possession":0.27,
+        "corners":6,
+        "shots_total_y":5,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.1937142857,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5616716522,
+        "cards_total":1,
+        "fouls_per_90_team":10.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.1,
+        "fouls_per_duel_team":0.3846153846,
+        "aggression_index_raw":5.3769230769,
+        "aggression_index_norm":0.2770461162,
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":1.25,
+        "form_index_team":0.125
+    },
+    {
         "fixture":"Elche vs Levante",
         "team":"Levante",
         "goals":0.0,
@@ -8435,9 +9235,9 @@
         "fouls_per_duel_team":0.9444444444,
         "aggression_index_raw":9.2888888889,
         "aggression_index_norm":0.5819367327,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":1.5,
-        "form_index_team":0.05
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":1.4,
+        "form_index_team":-0.02
     },
     {
         "fixture":"Getafe vs Levante",
@@ -8475,9 +9275,9 @@
         "fouls_per_duel_team":0.6956521739,
         "aggression_index_raw":9.0391304348,
         "aggression_index_norm":0.5624710695,
-        "avg_goals_last_5":1.0,
+        "avg_goals_last_5":0.8,
         "avg_cards_last_5":1.8,
-        "form_index_team":-0.04
+        "form_index_team":-0.14
     },
     {
         "fixture":"Girona vs Levante",
@@ -8515,9 +9315,49 @@
         "fouls_per_duel_team":1.0625,
         "aggression_index_raw":9.6125,
         "aggression_index_norm":0.607158321,
-        "avg_goals_last_5":1.6,
-        "avg_cards_last_5":2.2,
-        "form_index_team":0.14
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.0
+    },
+    {
+        "fixture":"Levante vs Alaves",
+        "team":"Levante",
+        "goals":2.0,
+        "assists":1.0,
+        "shots_total_x":13.0,
+        "shots_on_x":5.0,
+        "passes_total":363,
+        "accurate_passes":308.0,
+        "fouls_committed":14.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":1089,
+        "tackles":11.0,
+        "interceptions":17.0,
+        "shots_accuracy_for":0.3846153846,
+        "pass_accuracy_team":0.8484848485,
+        "expected_goals":2.48,
+        "goals_prevented":0,
+        "possession":0.49,
+        "corners":10,
+        "shots_total_y":22,
+        "shots_on_y":5,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3388571429,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6559466849,
+        "cards_total":1,
+        "fouls_per_90_team":14.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.0714285714,
+        "fouls_per_duel_team":0.5,
+        "aggression_index_raw":7.4,
+        "aggression_index_norm":0.434720595,
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.1
     },
     {
         "fixture":"Levante vs Athletic Club",
@@ -8555,9 +9395,9 @@
         "fouls_per_duel_team":0.3548387097,
         "aggression_index_raw":6.4709677419,
         "aggression_index_norm":0.3623137204,
-        "avg_goals_last_5":1.2,
+        "avg_goals_last_5":1.4,
         "avg_cards_last_5":2.4,
-        "form_index_team":-0.12
+        "form_index_team":-0.02
     },
     {
         "fixture":"Levante vs Atletico Madrid",
@@ -8595,9 +9435,9 @@
         "fouls_per_duel_team":0.5238095238,
         "aggression_index_raw":6.2047619048,
         "aggression_index_norm":0.3415661818,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":2.6,
-        "form_index_team":-0.28
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":2.4,
+        "form_index_team":-0.02
     },
     {
         "fixture":"Levante vs Barcelona",
@@ -8635,9 +9475,9 @@
         "fouls_per_duel_team":0.2564102564,
         "aggression_index_raw":5.9512820513,
         "aggression_index_norm":0.3218104803,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":2.8,
-        "form_index_team":-0.14
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.08
     },
     {
         "fixture":"Levante vs Celta Vigo",
@@ -8675,9 +9515,9 @@
         "fouls_per_duel_team":0.3448275862,
         "aggression_index_raw":5.9689655172,
         "aggression_index_norm":0.3231886935,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":2.8,
-        "form_index_team":-0.14
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":2.4,
+        "form_index_team":-0.22
     },
     {
         "fixture":"Levante vs Elche",
@@ -8920,6 +9760,86 @@
         "form_index_team":-0.16
     },
     {
+        "fixture":"Levante vs Valencia",
+        "team":"Levante",
+        "goals":0.0,
+        "assists":0.0,
+        "shots_total_x":8.0,
+        "shots_on_x":1.0,
+        "passes_total":383,
+        "accurate_passes":314.0,
+        "fouls_committed":11.0,
+        "yellow_cards":3,
+        "red_cards":1,
+        "minutes":990,
+        "tackles":16.0,
+        "interceptions":10.0,
+        "shots_accuracy_for":0.125,
+        "pass_accuracy_team":0.819843342,
+        "expected_goals":0.63,
+        "goals_prevented":0,
+        "possession":0.47,
+        "corners":3,
+        "shots_total_y":9,
+        "shots_on_y":1,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2308571429,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.582478062,
+        "cards_total":4,
+        "fouls_per_90_team":11.0,
+        "cards_per_90_team":4,
+        "cards_per_foul_team":0.3636363636,
+        "fouls_per_duel_team":0.4230769231,
+        "aggression_index_raw":6.7846153846,
+        "aggression_index_norm":0.3867587763,
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":3.0,
+        "form_index_team":-0.5
+    },
+    {
+        "fixture":"Levante vs Villarreal",
+        "team":"Levante",
+        "goals":0.0,
+        "assists":0.0,
+        "shots_total_x":10.0,
+        "shots_on_x":4.0,
+        "passes_total":484,
+        "accurate_passes":404.0,
+        "fouls_committed":13.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":989,
+        "tackles":16.0,
+        "interceptions":3.0,
+        "shots_accuracy_for":0.4,
+        "pass_accuracy_team":0.8347107438,
+        "expected_goals":0.92,
+        "goals_prevented":0,
+        "possession":0.59,
+        "corners":3,
+        "shots_total_y":16,
+        "shots_on_y":4,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2788571429,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6278816877,
+        "cards_total":3,
+        "fouls_per_90_team":13.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.2307692308,
+        "fouls_per_duel_team":0.6842105263,
+        "aggression_index_raw":7.5368421053,
+        "aggression_index_norm":0.4453857889,
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":3.6,
+        "form_index_team":-0.68
+    },
+    {
         "fixture":"Mallorca vs Levante",
         "team":"Levante",
         "goals":1.0,
@@ -8955,9 +9875,9 @@
         "fouls_per_duel_team":0.3823529412,
         "aggression_index_raw":7.1764705882,
         "aggression_index_norm":0.4172991697,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":2.6,
-        "form_index_team":-0.28
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":3.2,
+        "form_index_team":-0.66
     },
     {
         "fixture":"Osasuna vs Levante",
@@ -8995,9 +9915,9 @@
         "fouls_per_duel_team":0.3888888889,
         "aggression_index_raw":4.1777777778,
         "aggression_index_norm":0.1835871835,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":3.0,
-        "form_index_team":-0.4
+        "avg_goals_last_5":0.4,
+        "avg_cards_last_5":3.4,
+        "form_index_team":-0.82
     },
     {
         "fixture":"Oviedo vs Levante",
@@ -9035,9 +9955,9 @@
         "fouls_per_duel_team":0.4,
         "aggression_index_raw":5.68,
         "aggression_index_norm":0.3006673119,
-        "avg_goals_last_5":1.0,
+        "avg_goals_last_5":0.6,
         "avg_cards_last_5":2.6,
-        "form_index_team":-0.28
+        "form_index_team":-0.48
     },
     {
         "fixture":"Real Madrid vs Levante",
@@ -9075,9 +9995,9 @@
         "fouls_per_duel_team":0.4666666667,
         "aggression_index_raw":7.3933333333,
         "aggression_index_norm":0.4342010086,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":2.6,
-        "form_index_team":-0.38
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":2.0,
+        "form_index_team":-0.3
     },
     {
         "fixture":"Sevilla vs Levante",
@@ -9280,6 +10200,46 @@
         "form_index_team":-0.6333333333
     },
     {
+        "fixture":"Celta Vigo vs Mallorca",
+        "team":"Mallorca",
+        "goals":0.0,
+        "assists":0.0,
+        "shots_total_x":1.0,
+        "shots_on_x":0.0,
+        "passes_total":392,
+        "accurate_passes":315.0,
+        "fouls_committed":10.0,
+        "yellow_cards":5,
+        "red_cards":0,
+        "minutes":998,
+        "tackles":12.0,
+        "interceptions":6.0,
+        "shots_accuracy_for":0.0,
+        "pass_accuracy_team":0.8035714286,
+        "expected_goals":0.04,
+        "goals_prevented":0,
+        "possession":0.43,
+        "corners":2,
+        "shots_total_y":1,
+        "shots_on_y":0,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2005714286,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5682017544,
+        "cards_total":5,
+        "fouls_per_90_team":10.0,
+        "cards_per_90_team":5,
+        "cards_per_foul_team":0.5,
+        "fouls_per_duel_team":0.5555555556,
+        "aggression_index_raw":6.6111111111,
+        "aggression_index_norm":0.373236208,
+        "avg_goals_last_5":0.25,
+        "avg_cards_last_5":3.25,
+        "form_index_team":-0.85
+    },
+    {
         "fixture":"Espanyol vs Mallorca",
         "team":"Mallorca",
         "goals":2.0,
@@ -9315,9 +10275,9 @@
         "fouls_per_duel_team":0.6153846154,
         "aggression_index_raw":8.4230769231,
         "aggression_index_norm":0.5144571185,
-        "avg_goals_last_5":0.75,
-        "avg_cards_last_5":2.25,
-        "form_index_team":-0.3
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.54
     },
     {
         "fixture":"Mallorca vs Alaves",
@@ -9355,9 +10315,9 @@
         "fouls_per_duel_team":0.5185185185,
         "aggression_index_raw":7.7037037037,
         "aggression_index_norm":0.4583906407,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":2.2,
-        "form_index_team":-0.26
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":1.8,
+        "form_index_team":-0.24
     },
     {
         "fixture":"Mallorca vs Athletic Club",
@@ -9396,8 +10356,8 @@
         "aggression_index_raw":5.3769230769,
         "aggression_index_norm":0.2770461162,
         "avg_goals_last_5":1.2,
-        "avg_cards_last_5":1.0,
-        "form_index_team":0.3
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.06
     },
     {
         "fixture":"Mallorca vs Atletico Madrid",
@@ -9436,8 +10396,8 @@
         "aggression_index_raw":7.1166666667,
         "aggression_index_norm":0.4126381743,
         "avg_goals_last_5":1.4,
-        "avg_cards_last_5":0.8,
-        "form_index_team":0.46
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.16
     },
     {
         "fixture":"Mallorca vs Barcelona",
@@ -9720,6 +10680,46 @@
         "form_index_team":0.14
     },
     {
+        "fixture":"Mallorca vs Real Betis",
+        "team":"Mallorca",
+        "goals":1.0,
+        "assists":1.0,
+        "shots_total_x":11.0,
+        "shots_on_x":3.0,
+        "passes_total":616,
+        "accurate_passes":537.0,
+        "fouls_committed":16.0,
+        "yellow_cards":4,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":8.0,
+        "interceptions":4.0,
+        "shots_accuracy_for":0.2727272727,
+        "pass_accuracy_team":0.8717532468,
+        "expected_goals":1.01,
+        "goals_prevented":0,
+        "possession":0.65,
+        "corners":7,
+        "shots_total_y":14,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.36,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.7341222374,
+        "cards_total":4,
+        "fouls_per_90_team":16.0,
+        "cards_per_90_team":4,
+        "cards_per_foul_team":0.25,
+        "fouls_per_duel_team":1.3333333333,
+        "aggression_index_raw":9.4666666667,
+        "aggression_index_norm":0.5957923692,
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.4,
+        "form_index_team":-0.12
+    },
+    {
         "fixture":"Mallorca vs Sevilla",
         "team":"Mallorca",
         "goals":4.0,
@@ -9756,8 +10756,8 @@
         "aggression_index_raw":8.4,
         "aggression_index_norm":0.5126585503,
         "avg_goals_last_5":1.8,
-        "avg_cards_last_5":1.8,
-        "form_index_team":0.36
+        "avg_cards_last_5":2.6,
+        "form_index_team":0.12
     },
     {
         "fixture":"Oviedo vs Mallorca",
@@ -9796,8 +10796,8 @@
         "aggression_index_raw":6.6428571429,
         "aggression_index_norm":0.3757104288,
         "avg_goals_last_5":1.6,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.2
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.08
     },
     {
         "fixture":"Rayo Vallecano vs Mallorca",
@@ -9836,8 +10836,8 @@
         "aggression_index_raw":8.6647058824,
         "aggression_index_norm":0.5332891855,
         "avg_goals_last_5":1.6,
-        "avg_cards_last_5":2.6,
-        "form_index_team":0.02
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.04
     },
     {
         "fixture":"Real Betis vs Mallorca",
@@ -9875,9 +10875,9 @@
         "fouls_per_duel_team":0.3333333333,
         "aggression_index_raw":4.9666666667,
         "aggression_index_norm":0.2450715705,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":2.6,
-        "form_index_team":-0.08
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.24
     },
     {
         "fixture":"Real Madrid vs Mallorca",
@@ -10200,6 +11200,46 @@
         "form_index_team":-0.4666666667
     },
     {
+        "fixture":"Elche vs Osasuna",
+        "team":"Osasuna",
+        "goals":0.0,
+        "assists":0.0,
+        "shots_total_x":3.0,
+        "shots_on_x":2.0,
+        "passes_total":258,
+        "accurate_passes":178.0,
+        "fouls_committed":18.0,
+        "yellow_cards":4,
+        "red_cards":0,
+        "minutes":995,
+        "tackles":18.0,
+        "interceptions":18.0,
+        "shots_accuracy_for":0.6666666667,
+        "pass_accuracy_team":0.6899224806,
+        "expected_goals":0.77,
+        "goals_prevented":1,
+        "possession":0.36,
+        "corners":3,
+        "shots_total_y":6,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.1868571429,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.4705251501,
+        "cards_total":4,
+        "fouls_per_90_team":18.0,
+        "cards_per_90_team":4,
+        "cards_per_foul_team":0.2222222222,
+        "fouls_per_duel_team":0.5,
+        "aggression_index_raw":10.3,
+        "aggression_index_norm":0.6607406653,
+        "avg_goals_last_5":0.5,
+        "avg_cards_last_5":3.0,
+        "form_index_team":-0.65
+    },
+    {
         "fixture":"Espanyol vs Osasuna",
         "team":"Osasuna",
         "goals":0.0,
@@ -10235,9 +11275,9 @@
         "fouls_per_duel_team":0.5833333333,
         "aggression_index_raw":8.0166666667,
         "aggression_index_norm":0.4827823341,
-        "avg_goals_last_5":0.5,
-        "avg_cards_last_5":2.75,
-        "form_index_team":-0.575
+        "avg_goals_last_5":0.4,
+        "avg_cards_last_5":3.0,
+        "form_index_team":-0.7
     },
     {
         "fixture":"Girona vs Osasuna",
@@ -10276,8 +11316,8 @@
         "aggression_index_raw":8.2166666667,
         "aggression_index_norm":0.4983699251,
         "avg_goals_last_5":0.4,
-        "avg_cards_last_5":3.2,
-        "form_index_team":-0.76
+        "avg_cards_last_5":3.4,
+        "form_index_team":-0.82
     },
     {
         "fixture":"Mallorca vs Osasuna",
@@ -10316,8 +11356,8 @@
         "aggression_index_raw":8.8578947368,
         "aggression_index_norm":0.5483459298,
         "avg_goals_last_5":0.8,
-        "avg_cards_last_5":3.4,
-        "form_index_team":-0.62
+        "avg_cards_last_5":3.6,
+        "form_index_team":-0.68
     },
     {
         "fixture":"Osasuna vs Alaves",
@@ -10355,9 +11395,9 @@
         "fouls_per_duel_team":0.64,
         "aggression_index_raw":8.728,
         "aggression_index_norm":0.5382221996,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":3.2,
-        "form_index_team":-0.26
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":3.6,
+        "form_index_team":-0.58
     },
     {
         "fixture":"Osasuna vs Athletic Club",
@@ -10640,6 +11680,46 @@
         "form_index_team":0.4
     },
     {
+        "fixture":"Osasuna vs Real Madrid",
+        "team":"Osasuna",
+        "goals":2.0,
+        "assists":1.0,
+        "shots_total_x":8.0,
+        "shots_on_x":2.0,
+        "passes_total":353,
+        "accurate_passes":293.0,
+        "fouls_committed":19.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":1002,
+        "tackles":8.0,
+        "interceptions":9.0,
+        "shots_accuracy_for":0.25,
+        "pass_accuracy_team":0.8300283286,
+        "expected_goals":2.29,
+        "goals_prevented":0,
+        "possession":0.39,
+        "corners":3,
+        "shots_total_y":13,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.1988571429,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5762923598,
+        "cards_total":2,
+        "fouls_per_90_team":19.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.1052631579,
+        "fouls_per_duel_team":1.1176470588,
+        "aggression_index_raw":10.3235294118,
+        "aggression_index_norm":0.6625744995,
+        "avg_goals_last_5":2.2,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.5
+    },
+    {
         "fixture":"Osasuna vs Real Sociedad",
         "team":"Osasuna",
         "goals":1.0,
@@ -10676,8 +11756,8 @@
         "aggression_index_raw":7.5625,
         "aggression_index_norm":0.4473855127,
         "avg_goals_last_5":2.0,
-        "avg_cards_last_5":2.2,
-        "form_index_team":0.34
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.28
     },
     {
         "fixture":"Osasuna vs Valencia",
@@ -10755,9 +11835,9 @@
         "fouls_per_duel_team":0.5172413793,
         "aggression_index_raw":8.2034482759,
         "aggression_index_norm":0.4973397108,
-        "avg_goals_last_5":1.8,
+        "avg_goals_last_5":1.6,
         "avg_cards_last_5":2.4,
-        "form_index_team":0.18
+        "form_index_team":0.08
     },
     {
         "fixture":"Oviedo vs Osasuna",
@@ -10796,8 +11876,8 @@
         "aggression_index_raw":8.9619047619,
         "aggression_index_norm":0.5564522585,
         "avg_goals_last_5":1.2,
-        "avg_cards_last_5":2.2,
-        "form_index_team":-0.06
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.0
     },
     {
         "fixture":"Rayo Vallecano vs Osasuna",
@@ -11320,6 +12400,46 @@
         "form_index_team":-0.52
     },
     {
+        "fixture":"Oviedo vs Athletic Club",
+        "team":"Oviedo",
+        "goals":1.0,
+        "assists":1.0,
+        "shots_total_x":7.0,
+        "shots_on_x":1.0,
+        "passes_total":444,
+        "accurate_passes":336.0,
+        "fouls_committed":8.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":22.0,
+        "interceptions":15.0,
+        "shots_accuracy_for":0.1428571429,
+        "pass_accuracy_team":0.7567567568,
+        "expected_goals":0.34,
+        "goals_prevented":0,
+        "possession":0.54,
+        "corners":2,
+        "shots_total_y":7,
+        "shots_on_y":1,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2445714286,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5643432907,
+        "cards_total":2,
+        "fouls_per_90_team":8.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.25,
+        "fouls_per_duel_team":0.2162162162,
+        "aggression_index_raw":4.6432432432,
+        "aggression_index_norm":0.2198646102,
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":3.4,
+        "form_index_team":-0.42
+    },
+    {
         "fixture":"Oviedo vs Barcelona",
         "team":"Oviedo",
         "goals":1.0,
@@ -11355,9 +12475,9 @@
         "fouls_per_duel_team":0.36,
         "aggression_index_raw":4.872,
         "aggression_index_norm":0.237693444,
-        "avg_goals_last_5":1.2,
+        "avg_goals_last_5":1.4,
         "avg_cards_last_5":3.2,
-        "form_index_team":-0.36
+        "form_index_team":-0.26
     },
     {
         "fixture":"Oviedo vs Celta Vigo",
@@ -11395,9 +12515,9 @@
         "fouls_per_duel_team":0.6086956522,
         "aggression_index_raw":7.7217391304,
         "aggression_index_norm":0.4597962849,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":3.2,
-        "form_index_team":-0.36
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":2.4,
+        "form_index_team":-0.02
     },
     {
         "fixture":"Oviedo vs Espanyol",
@@ -11435,9 +12555,9 @@
         "fouls_per_duel_team":0.375,
         "aggression_index_raw":5.175,
         "aggression_index_norm":0.2613086445,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":2.4,
-        "form_index_team":-0.12
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":2.2,
+        "form_index_team":-0.26
     },
     {
         "fixture":"Oviedo vs Girona",
@@ -11475,9 +12595,9 @@
         "fouls_per_duel_team":0.6,
         "aggression_index_raw":6.42,
         "aggression_index_norm":0.3583413988,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":2.0,
-        "form_index_team":-0.2
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":1.6,
+        "form_index_team":-0.18
     },
     {
         "fixture":"Oviedo vs Levante",
@@ -11760,6 +12880,46 @@
         "form_index_team":-0.52
     },
     {
+        "fixture":"Real Sociedad vs Oviedo",
+        "team":"Oviedo",
+        "goals":3.0,
+        "assists":2.0,
+        "shots_total_x":10.0,
+        "shots_on_x":6.0,
+        "passes_total":301,
+        "accurate_passes":225.0,
+        "fouls_committed":16.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":998,
+        "tackles":27.0,
+        "interceptions":8.0,
+        "shots_accuracy_for":0.6,
+        "pass_accuracy_team":0.7475083056,
+        "expected_goals":1.68,
+        "goals_prevented":-1,
+        "possession":0.38,
+        "corners":6,
+        "shots_total_y":14,
+        "shots_on_y":6,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2377142857,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5440549047,
+        "cards_total":1,
+        "fouls_per_90_team":16.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.0625,
+        "fouls_per_duel_team":0.4571428571,
+        "aggression_index_raw":8.3914285714,
+        "aggression_index_norm":0.5119905106,
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":2.0,
+        "form_index_team":-0.1
+    },
+    {
         "fixture":"Sevilla vs Oviedo",
         "team":"Oviedo",
         "goals":0.0,
@@ -11795,9 +12955,9 @@
         "fouls_per_duel_team":0.48,
         "aggression_index_raw":6.996,
         "aggression_index_norm":0.403233661,
-        "avg_goals_last_5":0.4,
-        "avg_cards_last_5":2.4,
-        "form_index_team":-0.52
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":2.2,
+        "form_index_team":-0.16
     },
     {
         "fixture":"Valencia vs Oviedo",
@@ -11835,9 +12995,9 @@
         "fouls_per_duel_team":0.48,
         "aggression_index_raw":7.596,
         "aggression_index_norm":0.4499964342,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":3.0,
-        "form_index_team":-0.5
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.18
     },
     {
         "fixture":"Villarreal vs Oviedo",
@@ -11875,9 +13035,9 @@
         "fouls_per_duel_team":0.5,
         "aggression_index_raw":5.0,
         "aggression_index_norm":0.2476695023,
-        "avg_goals_last_5":0.6,
-        "avg_cards_last_5":3.0,
-        "form_index_team":-0.6
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.24
     },
     {
         "fixture":"Athletic Club vs Rayo Vallecano",
@@ -12280,6 +13440,46 @@
         "form_index_team":0.22
     },
     {
+        "fixture":"Rayo Vallecano vs Atletico Madrid",
+        "team":"Rayo Vallecano",
+        "goals":3.0,
+        "assists":2.0,
+        "shots_total_x":10.0,
+        "shots_on_x":9.0,
+        "passes_total":354,
+        "accurate_passes":286.0,
+        "fouls_committed":10.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":995,
+        "tackles":12.0,
+        "interceptions":10.0,
+        "shots_accuracy_for":0.9,
+        "pass_accuracy_team":0.8079096045,
+        "expected_goals":1.61,
+        "goals_prevented":0,
+        "possession":0.41,
+        "corners":4,
+        "shots_total_y":13,
+        "shots_on_y":9,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2211428571,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5751327471,
+        "cards_total":1,
+        "fouls_per_90_team":10.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.1,
+        "fouls_per_duel_team":0.4545454545,
+        "aggression_index_raw":5.3909090909,
+        "aggression_index_norm":0.2781361576,
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.22
+    },
+    {
         "fixture":"Rayo Vallecano vs Barcelona",
         "team":"Rayo Vallecano",
         "goals":1.0,
@@ -12355,9 +13555,9 @@
         "fouls_per_duel_team":0.4444444444,
         "aggression_index_raw":4.3888888889,
         "aggression_index_norm":0.2000407519,
-        "avg_goals_last_5":0.6,
-        "avg_cards_last_5":2.0,
-        "form_index_team":-0.3
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.06
     },
     {
         "fixture":"Rayo Vallecano vs Getafe",
@@ -12395,9 +13595,9 @@
         "fouls_per_duel_team":0.52,
         "aggression_index_raw":7.504,
         "aggression_index_norm":0.4428261423,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":2.2,
-        "form_index_team":-0.26
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.16
     },
     {
         "fixture":"Rayo Vallecano vs Mallorca",
@@ -12435,9 +13635,9 @@
         "fouls_per_duel_team":0.5185185185,
         "aggression_index_raw":7.7037037037,
         "aggression_index_norm":0.4583906407,
-        "avg_goals_last_5":1.2,
+        "avg_goals_last_5":1.6,
         "avg_cards_last_5":2.0,
-        "form_index_team":0.0
+        "form_index_team":0.2
     },
     {
         "fixture":"Rayo Vallecano vs Osasuna",
@@ -12640,6 +13840,46 @@
         "form_index_team":-0.64
     },
     {
+        "fixture":"Real Betis vs Rayo Vallecano",
+        "team":"Rayo Vallecano",
+        "goals":1.0,
+        "assists":1.0,
+        "shots_total_x":7.0,
+        "shots_on_x":3.0,
+        "passes_total":465,
+        "accurate_passes":399.0,
+        "fouls_committed":13.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":1004,
+        "tackles":14.0,
+        "interceptions":12.0,
+        "shots_accuracy_for":0.4285714286,
+        "pass_accuracy_team":0.8580645161,
+        "expected_goals":0.88,
+        "goals_prevented":0,
+        "possession":0.53,
+        "corners":5,
+        "shots_total_y":12,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2834285714,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6514633358,
+        "cards_total":3,
+        "fouls_per_90_team":13.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.2307692308,
+        "fouls_per_duel_team":0.5,
+        "aggression_index_raw":7.5,
+        "aggression_index_norm":0.4425143905,
+        "avg_goals_last_5":0.4,
+        "avg_cards_last_5":3.0,
+        "form_index_team":-0.7
+    },
+    {
         "fixture":"Real Madrid vs Rayo Vallecano",
         "team":"Rayo Vallecano",
         "goals":1.0,
@@ -12675,9 +13915,9 @@
         "fouls_per_duel_team":0.5294117647,
         "aggression_index_raw":12.1058823529,
         "aggression_index_norm":0.8014874433,
-        "avg_goals_last_5":0.4,
-        "avg_cards_last_5":4.4,
-        "form_index_team":-1.12
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":4.2,
+        "form_index_team":-0.96
     },
     {
         "fixture":"Real Sociedad vs Rayo Vallecano",
@@ -12715,9 +13955,9 @@
         "fouls_per_duel_team":0.875,
         "aggression_index_raw":11.275,
         "aggression_index_norm":0.7367301717,
-        "avg_goals_last_5":0.6,
+        "avg_goals_last_5":0.8,
         "avg_cards_last_5":4.0,
-        "form_index_team":-0.9
+        "form_index_team":-0.8
     },
     {
         "fixture":"Villarreal vs Rayo Vallecano",
@@ -12755,9 +13995,9 @@
         "fouls_per_duel_team":0.4583333333,
         "aggression_index_raw":5.8916666667,
         "aggression_index_norm":0.3171641791,
-        "avg_goals_last_5":0.6,
-        "avg_cards_last_5":3.6,
-        "form_index_team":-0.78
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":3.4,
+        "form_index_team":-0.62
     },
     {
         "fixture":"Alaves vs Real Betis",
@@ -13000,6 +14240,46 @@
         "form_index_team":0.04
     },
     {
+        "fixture":"Mallorca vs Real Betis",
+        "team":"Real Betis",
+        "goals":2.0,
+        "assists":1.0,
+        "shots_total_x":12.0,
+        "shots_on_x":8.0,
+        "passes_total":341,
+        "accurate_passes":279.0,
+        "fouls_committed":10.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":989,
+        "tackles":11.0,
+        "interceptions":6.0,
+        "shots_accuracy_for":0.6666666667,
+        "pass_accuracy_team":0.8181818182,
+        "expected_goals":2.12,
+        "goals_prevented":0,
+        "possession":0.35,
+        "corners":3,
+        "shots_total_y":17,
+        "shots_on_y":8,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.1828571429,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5658578264,
+        "cards_total":3,
+        "fouls_per_90_team":10.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.3,
+        "fouls_per_duel_team":0.5882352941,
+        "aggression_index_raw":6.0176470588,
+        "aggression_index_norm":0.3269828333,
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.6,
+        "form_index_team":0.02
+    },
+    {
         "fixture":"Oviedo vs Real Betis",
         "team":"Real Betis",
         "goals":1.0,
@@ -13035,9 +14315,9 @@
         "fouls_per_duel_team":0.2857142857,
         "aggression_index_raw":4.3571428571,
         "aggression_index_norm":0.1975665311,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":2.2,
-        "form_index_team":0.04
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.08
     },
     {
         "fixture":"Rayo Vallecano vs Real Betis",
@@ -13075,9 +14355,9 @@
         "fouls_per_duel_team":0.3043478261,
         "aggression_index_raw":3.8608695652,
         "aggression_index_norm":0.1588880054,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.0
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":2.4,
+        "form_index_team":-0.02
     },
     {
         "fixture":"Real Betis vs Alaves",
@@ -13116,8 +14396,8 @@
         "aggression_index_raw":5.6909090909,
         "aggression_index_norm":0.3015175441,
         "avg_goals_last_5":1.2,
-        "avg_cards_last_5":2.2,
-        "form_index_team":-0.06
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.06
     },
     {
         "fixture":"Real Betis vs Athletic Club",
@@ -13156,8 +14436,8 @@
         "aggression_index_raw":4.8486486486,
         "aggression_index_norm":0.2358734875,
         "avg_goals_last_5":1.0,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.08
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.02
     },
     {
         "fixture":"Real Betis vs Atletico Madrid",
@@ -13400,6 +14680,46 @@
         "form_index_team":0.82
     },
     {
+        "fixture":"Real Betis vs Rayo Vallecano",
+        "team":"Real Betis",
+        "goals":1.0,
+        "assists":0.0,
+        "shots_total_x":9.0,
+        "shots_on_x":3.0,
+        "passes_total":411,
+        "accurate_passes":353.0,
+        "fouls_committed":14.0,
+        "yellow_cards":4,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":17.0,
+        "interceptions":9.0,
+        "shots_accuracy_for":0.3333333333,
+        "pass_accuracy_team":0.8588807786,
+        "expected_goals":1.86,
+        "goals_prevented":0,
+        "possession":0.47,
+        "corners":3,
+        "shots_total_y":14,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2308571429,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6125230961,
+        "cards_total":4,
+        "fouls_per_90_team":14.0,
+        "cards_per_90_team":4,
+        "cards_per_foul_team":0.2857142857,
+        "fouls_per_duel_team":0.5384615385,
+        "aggression_index_raw":8.3076923077,
+        "aggression_index_norm":0.5054642775,
+        "avg_goals_last_5":2.2,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.62
+    },
+    {
         "fixture":"Real Betis vs Real Sociedad",
         "team":"Real Betis",
         "goals":2.0,
@@ -13435,9 +14755,9 @@
         "fouls_per_duel_team":0.1627906977,
         "aggression_index_raw":4.4325581395,
         "aggression_index_norm":0.203444244,
-        "avg_goals_last_5":2.4,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.78
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":2.2,
+        "form_index_team":0.24
     },
     {
         "fixture":"Real Betis vs Valencia",
@@ -13515,9 +14835,9 @@
         "fouls_per_duel_team":0.5,
         "aggression_index_raw":8.0,
         "aggression_index_norm":0.4814833681,
-        "avg_goals_last_5":2.2,
-        "avg_cards_last_5":1.2,
-        "form_index_team":0.74
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.3
     },
     {
         "fixture":"Real Madrid vs Real Betis",
@@ -13555,9 +14875,9 @@
         "fouls_per_duel_team":0.48,
         "aggression_index_raw":6.396,
         "aggression_index_norm":0.3564708879,
-        "avg_goals_last_5":1.8,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.48
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.2,
+        "form_index_team":0.14
     },
     {
         "fixture":"Sevilla vs Real Betis",
@@ -13960,6 +15280,46 @@
         "form_index_team":0.58
     },
     {
+        "fixture":"Osasuna vs Real Madrid",
+        "team":"Real Madrid",
+        "goals":1.0,
+        "assists":1.0,
+        "shots_total_x":10.0,
+        "shots_on_x":5.0,
+        "passes_total":570,
+        "accurate_passes":511.0,
+        "fouls_committed":10.0,
+        "yellow_cards":4,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":13.0,
+        "interceptions":8.0,
+        "shots_accuracy_for":0.5,
+        "pass_accuracy_team":0.8964912281,
+        "expected_goals":1.7,
+        "goals_prevented":0,
+        "possession":0.61,
+        "corners":7,
+        "shots_total_y":15,
+        "shots_on_y":5,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.344,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.729197995,
+        "cards_total":4,
+        "fouls_per_90_team":10.0,
+        "cards_per_90_team":4,
+        "cards_per_foul_team":0.4,
+        "fouls_per_duel_team":0.4761904762,
+        "aggression_index_raw":6.2952380952,
+        "aggression_index_norm":0.3486177111,
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.48
+    },
+    {
         "fixture":"Oviedo vs Real Madrid",
         "team":"Real Madrid",
         "goals":3.0,
@@ -13995,9 +15355,9 @@
         "fouls_per_duel_team":0.21875,
         "aggression_index_raw":3.84375,
         "aggression_index_norm":0.1575537415,
-        "avg_goals_last_5":2.2,
-        "avg_cards_last_5":0.8,
-        "form_index_team":0.86
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.58
     },
     {
         "fixture":"Rayo Vallecano vs Real Madrid",
@@ -14036,8 +15396,8 @@
         "aggression_index_raw":4.17,
         "aggression_index_norm":0.1829809994,
         "avg_goals_last_5":1.8,
-        "avg_cards_last_5":1.0,
-        "form_index_team":0.6
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.42
     },
     {
         "fixture":"Real Madrid vs Barcelona",
@@ -14076,8 +15436,8 @@
         "aggression_index_raw":7.58,
         "aggression_index_norm":0.4487494269,
         "avg_goals_last_5":2.0,
-        "avg_cards_last_5":1.8,
-        "form_index_team":0.46
+        "avg_cards_last_5":2.6,
+        "form_index_team":0.22
     },
     {
         "fixture":"Real Madrid vs Celta Vigo",
@@ -14115,9 +15475,9 @@
         "fouls_per_duel_team":0.3157894737,
         "aggression_index_raw":5.4631578947,
         "aggression_index_norm":0.2837670816,
-        "avg_goals_last_5":1.8,
-        "avg_cards_last_5":3.4,
-        "form_index_team":-0.12
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":4.0,
+        "form_index_team":-0.6
     },
     {
         "fixture":"Real Madrid vs Espanyol",
@@ -14360,6 +15720,46 @@
         "form_index_team":0.72
     },
     {
+        "fixture":"Real Madrid vs Real Sociedad",
+        "team":"Real Madrid",
+        "goals":4.0,
+        "assists":2.0,
+        "shots_total_x":8.0,
+        "shots_on_x":5.0,
+        "passes_total":585,
+        "accurate_passes":533.0,
+        "fouls_committed":10.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":14.0,
+        "interceptions":12.0,
+        "shots_accuracy_for":0.625,
+        "pass_accuracy_team":0.9111111111,
+        "expected_goals":3.12,
+        "goals_prevented":-1,
+        "possession":0.52,
+        "corners":4,
+        "shots_total_y":11,
+        "shots_on_y":5,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2651428571,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.7135756057,
+        "cards_total":1,
+        "fouls_per_90_team":10.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.1,
+        "fouls_per_duel_team":0.3846153846,
+        "aggression_index_raw":5.3769230769,
+        "aggression_index_norm":0.2770461162,
+        "avg_goals_last_5":2.8,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.98
+    },
+    {
         "fixture":"Real Madrid vs Sevilla",
         "team":"Real Madrid",
         "goals":2.0,
@@ -14395,9 +15795,9 @@
         "fouls_per_duel_team":0.7647058824,
         "aggression_index_raw":7.2529411765,
         "aggression_index_norm":0.423259131,
-        "avg_goals_last_5":2.4,
-        "avg_cards_last_5":1.6,
-        "form_index_team":0.72
+        "avg_goals_last_5":2.8,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.98
     },
     {
         "fixture":"Real Madrid vs Valencia",
@@ -14435,9 +15835,9 @@
         "fouls_per_duel_team":0.5,
         "aggression_index_raw":7.4,
         "aggression_index_norm":0.434720595,
-        "avg_goals_last_5":2.8,
+        "avg_goals_last_5":3.4,
         "avg_cards_last_5":1.4,
-        "form_index_team":0.98
+        "form_index_team":1.28
     },
     {
         "fixture":"Real Madrid vs Villarreal",
@@ -14475,9 +15875,9 @@
         "fouls_per_duel_team":0.3,
         "aggression_index_raw":5.16,
         "aggression_index_norm":0.2601395752,
-        "avg_goals_last_5":3.2,
-        "avg_cards_last_5":1.6,
-        "form_index_team":1.12
+        "avg_goals_last_5":3.6,
+        "avg_cards_last_5":1.4,
+        "form_index_team":1.38
     },
     {
         "fixture":"Real Sociedad vs Real Madrid",
@@ -14515,9 +15915,9 @@
         "fouls_per_duel_team":0.3684210526,
         "aggression_index_raw":4.1736842105,
         "aggression_index_norm":0.1832681393,
-        "avg_goals_last_5":3.2,
+        "avg_goals_last_5":3.0,
         "avg_cards_last_5":1.6,
-        "form_index_team":1.12
+        "form_index_team":1.02
     },
     {
         "fixture":"Valencia vs Real Madrid",
@@ -15000,6 +16400,46 @@
         "form_index_team":-0.02
     },
     {
+        "fixture":"Real Madrid vs Real Sociedad",
+        "team":"Real Sociedad",
+        "goals":1.0,
+        "assists":0.0,
+        "shots_total_x":8.0,
+        "shots_on_x":3.0,
+        "passes_total":534,
+        "accurate_passes":488.0,
+        "fouls_committed":9.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":13.0,
+        "interceptions":9.0,
+        "shots_accuracy_for":0.375,
+        "pass_accuracy_team":0.9138576779,
+        "expected_goals":1.73,
+        "goals_prevented":-1,
+        "possession":0.48,
+        "corners":6,
+        "shots_total_y":13,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2777142857,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.7148235758,
+        "cards_total":1,
+        "fouls_per_90_team":9.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.1111111111,
+        "fouls_per_duel_team":0.4090909091,
+        "aggression_index_raw":4.8818181818,
+        "aggression_index_norm":0.2384586531,
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.4,
+        "form_index_team":-0.12
+    },
+    {
         "fixture":"Real Sociedad vs Athletic Club",
         "team":"Real Sociedad",
         "goals":3.0,
@@ -15036,8 +16476,8 @@
         "aggression_index_raw":10.76,
         "aggression_index_norm":0.6965921247,
         "avg_goals_last_5":1.6,
-        "avg_cards_last_5":2.6,
-        "form_index_team":0.02
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.08
     },
     {
         "fixture":"Real Sociedad vs Atletico Madrid",
@@ -15075,9 +16515,9 @@
         "fouls_per_duel_team":0.3333333333,
         "aggression_index_raw":6.4666666667,
         "aggression_index_norm":0.3619785034,
-        "avg_goals_last_5":1.6,
-        "avg_cards_last_5":2.8,
-        "form_index_team":-0.04
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.18
     },
     {
         "fixture":"Real Sociedad vs Barcelona",
@@ -15115,9 +16555,9 @@
         "fouls_per_duel_team":0.4482758621,
         "aggression_index_raw":7.7896551724,
         "aggression_index_norm":0.4650895224,
-        "avg_goals_last_5":1.4,
+        "avg_goals_last_5":1.6,
         "avg_cards_last_5":3.2,
-        "form_index_team":-0.26
+        "form_index_team":-0.16
     },
     {
         "fixture":"Real Sociedad vs Celta Vigo",
@@ -15156,8 +16596,8 @@
         "aggression_index_raw":4.1538461538,
         "aggression_index_norm":0.1817220017,
         "avg_goals_last_5":2.0,
-        "avg_cards_last_5":3.4,
-        "form_index_team":-0.02
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.28
     },
     {
         "fixture":"Real Sociedad vs Elche",
@@ -15320,6 +16760,46 @@
         "form_index_team":0.58
     },
     {
+        "fixture":"Real Sociedad vs Oviedo",
+        "team":"Real Sociedad",
+        "goals":3.0,
+        "assists":2.0,
+        "shots_total_x":11.0,
+        "shots_on_x":8.0,
+        "passes_total":501,
+        "accurate_passes":423.0,
+        "fouls_committed":13.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":15.0,
+        "interceptions":8.0,
+        "shots_accuracy_for":0.7272727273,
+        "pass_accuracy_team":0.8443113772,
+        "expected_goals":2.0,
+        "goals_prevented":-1,
+        "possession":0.62,
+        "corners":7,
+        "shots_total_y":15,
+        "shots_on_y":8,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.348,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.67716822,
+        "cards_total":2,
+        "fouls_per_90_team":13.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.1538461538,
+        "fouls_per_duel_team":0.5652173913,
+        "aggression_index_raw":7.2130434783,
+        "aggression_index_norm":0.4201495859,
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.58
+    },
+    {
         "fixture":"Real Sociedad vs Rayo Vallecano",
         "team":"Real Sociedad",
         "goals":0.0,
@@ -15356,8 +16836,8 @@
         "aggression_index_raw":6.9368421053,
         "aggression_index_norm":0.3986230157,
         "avg_goals_last_5":1.4,
-        "avg_cards_last_5":1.2,
-        "form_index_team":0.34
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.22
     },
     {
         "fixture":"Real Sociedad vs Real Madrid",
@@ -15395,9 +16875,9 @@
         "fouls_per_duel_team":0.8947368421,
         "aggression_index_raw":9.2789473684,
         "aggression_index_norm":0.5811619109,
-        "avg_goals_last_5":1.0,
+        "avg_goals_last_5":1.2,
         "avg_cards_last_5":1.6,
-        "form_index_team":0.02
+        "form_index_team":0.12
     },
     {
         "fixture":"Real Sociedad vs Sevilla",
@@ -15435,9 +16915,9 @@
         "fouls_per_duel_team":0.5588235294,
         "aggression_index_raw":9.9117647059,
         "aggression_index_norm":0.6304824003,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.08
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.22
     },
     {
         "fixture":"Real Sociedad vs Villarreal",
@@ -15475,9 +16955,9 @@
         "fouls_per_duel_team":0.5357142857,
         "aggression_index_raw":8.8071428571,
         "aggression_index_norm":0.544390432,
-        "avg_goals_last_5":1.2,
+        "avg_goals_last_5":1.6,
         "avg_cards_last_5":2.0,
-        "form_index_team":0.0
+        "form_index_team":0.2
     },
     {
         "fixture":"Valencia vs Real Sociedad",
@@ -15720,6 +17200,46 @@
         "form_index_team":-0.24
     },
     {
+        "fixture":"Getafe vs Sevilla",
+        "team":"Sevilla",
+        "goals":1.0,
+        "assists":1.0,
+        "shots_total_x":5.0,
+        "shots_on_x":1.0,
+        "passes_total":534,
+        "accurate_passes":447.0,
+        "fouls_committed":18.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":998,
+        "tackles":11.0,
+        "interceptions":10.0,
+        "shots_accuracy_for":0.2,
+        "pass_accuracy_team":0.8370786517,
+        "expected_goals":0.32,
+        "goals_prevented":0,
+        "possession":0.69,
+        "corners":2,
+        "shots_total_y":6,
+        "shots_on_y":1,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3045714286,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6383388246,
+        "cards_total":1,
+        "fouls_per_90_team":18.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.0555555556,
+        "fouls_per_duel_team":0.8571428571,
+        "aggression_index_raw":9.4714285714,
+        "aggression_index_norm":0.5961635023,
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.02
+    },
+    {
         "fixture":"Girona vs Sevilla",
         "team":"Sevilla",
         "goals":2.0,
@@ -15755,9 +17275,9 @@
         "fouls_per_duel_team":0.7,
         "aggression_index_raw":7.44,
         "aggression_index_norm":0.4378381132,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":1.6,
-        "form_index_team":0.12
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.08
     },
     {
         "fixture":"Mallorca vs Sevilla",
@@ -15795,9 +17315,9 @@
         "fouls_per_duel_team":0.380952381,
         "aggression_index_raw":4.3761904762,
         "aggression_index_norm":0.1990510636,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.08
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":1.0,
+        "form_index_team":0.3
     },
     {
         "fixture":"Rayo Vallecano vs Sevilla",
@@ -15835,9 +17355,9 @@
         "fouls_per_duel_team":0.652173913,
         "aggression_index_raw":7.9304347826,
         "aggression_index_norm":0.4760615973,
-        "avg_goals_last_5":1.2,
+        "avg_goals_last_5":1.0,
         "avg_cards_last_5":1.0,
-        "form_index_team":0.3
+        "form_index_team":0.2
     },
     {
         "fixture":"Real Madrid vs Sevilla",
@@ -15875,9 +17395,9 @@
         "fouls_per_duel_team":0.7916666667,
         "aggression_index_raw":11.4583333333,
         "aggression_index_norm":0.7510187968,
-        "avg_goals_last_5":0.8,
+        "avg_goals_last_5":1.0,
         "avg_cards_last_5":2.0,
-        "form_index_team":-0.2
+        "form_index_team":-0.1
     },
     {
         "fixture":"Real Sociedad vs Sevilla",
@@ -15920,6 +17440,46 @@
         "form_index_team":-0.22
     },
     {
+        "fixture":"Sevilla vs Alaves",
+        "team":"Sevilla",
+        "goals":1.0,
+        "assists":0.0,
+        "shots_total_x":3.0,
+        "shots_on_x":2.0,
+        "passes_total":197,
+        "accurate_passes":122.0,
+        "fouls_committed":16.0,
+        "yellow_cards":5,
+        "red_cards":1,
+        "minutes":916,
+        "tackles":13.0,
+        "interceptions":15.0,
+        "shots_accuracy_for":0.6666666667,
+        "pass_accuracy_team":0.6192893401,
+        "expected_goals":0.27,
+        "goals_prevented":0,
+        "possession":0.26,
+        "corners":0,
+        "shots_total_y":4,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.104,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.3837048204,
+        "cards_total":6,
+        "fouls_per_90_team":16.0,
+        "cards_per_90_team":6,
+        "cards_per_foul_team":0.375,
+        "fouls_per_duel_team":0.5714285714,
+        "aggression_index_raw":9.9142857143,
+        "aggression_index_norm":0.6306788825,
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":3.4,
+        "form_index_team":-0.62
+    },
+    {
         "fixture":"Sevilla vs Athletic Club",
         "team":"Sevilla",
         "goals":2.0,
@@ -15956,8 +17516,8 @@
         "aggression_index_raw":8.696969697,
         "aggression_index_norm":0.5358037612,
         "avg_goals_last_5":1.0,
-        "avg_cards_last_5":2.6,
-        "form_index_team":-0.28
+        "avg_cards_last_5":3.6,
+        "form_index_team":-0.58
     },
     {
         "fixture":"Sevilla vs Barcelona",
@@ -15996,8 +17556,8 @@
         "aggression_index_raw":11.2384615385,
         "aggression_index_norm":0.7338824387,
         "avg_goals_last_5":1.6,
-        "avg_cards_last_5":3.8,
-        "form_index_team":-0.34
+        "avg_cards_last_5":4.8,
+        "form_index_team":-0.64
     },
     {
         "fixture":"Sevilla vs Celta Vigo",
@@ -16035,9 +17595,9 @@
         "fouls_per_duel_team":0.5714285714,
         "aggression_index_raw":9.0142857143,
         "aggression_index_norm":0.5605347228,
-        "avg_goals_last_5":1.4,
+        "avg_goals_last_5":1.6,
         "avg_cards_last_5":4.2,
-        "form_index_team":-0.56
+        "form_index_team":-0.46
     },
     {
         "fixture":"Sevilla vs Elche",
@@ -16076,8 +17636,8 @@
         "aggression_index_raw":12.8483870968,
         "aggression_index_norm":0.8593567448,
         "avg_goals_last_5":1.8,
-        "avg_cards_last_5":3.8,
-        "form_index_team":-0.24
+        "avg_cards_last_5":4.4,
+        "form_index_team":-0.42
     },
     {
         "fixture":"Sevilla vs Getafe",
@@ -16720,6 +18280,46 @@
         "form_index_team":-0.22
     },
     {
+        "fixture":"Levante vs Valencia",
+        "team":"Valencia",
+        "goals":2.0,
+        "assists":2.0,
+        "shots_total_x":4.0,
+        "shots_on_x":2.0,
+        "passes_total":442,
+        "accurate_passes":374.0,
+        "fouls_committed":10.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":1006,
+        "tackles":17.0,
+        "interceptions":9.0,
+        "shots_accuracy_for":0.5,
+        "pass_accuracy_team":0.8461538462,
+        "expected_goals":0.68,
+        "goals_prevented":0,
+        "possession":0.53,
+        "corners":2,
+        "shots_total_y":5,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2405714286,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6082899557,
+        "cards_total":2,
+        "fouls_per_90_team":10.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.2,
+        "fouls_per_duel_team":0.3846153846,
+        "aggression_index_raw":5.6769230769,
+        "aggression_index_norm":0.3004275028,
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.08
+    },
+    {
         "fixture":"Osasuna vs Valencia",
         "team":"Valencia",
         "goals":0.0,
@@ -16755,9 +18355,9 @@
         "fouls_per_duel_team":0.7647058824,
         "aggression_index_raw":7.2529411765,
         "aggression_index_norm":0.423259131,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":2.6,
-        "form_index_team":-0.28
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.4,
+        "form_index_team":-0.12
     },
     {
         "fixture":"Rayo Vallecano vs Valencia",
@@ -16796,8 +18396,8 @@
         "aggression_index_raw":4.92,
         "aggression_index_norm":0.2414344659,
         "avg_goals_last_5":1.0,
-        "avg_cards_last_5":2.2,
-        "form_index_team":-0.16
+        "avg_cards_last_5":1.8,
+        "form_index_team":-0.04
     },
     {
         "fixture":"Real Betis vs Valencia",
@@ -16835,9 +18435,9 @@
         "fouls_per_duel_team":0.52,
         "aggression_index_raw":7.804,
         "aggression_index_norm":0.4662075289,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":2.2,
-        "form_index_team":-0.26
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":2.0,
+        "form_index_team":-0.1
     },
     {
         "fixture":"Real Madrid vs Valencia",
@@ -16875,9 +18475,9 @@
         "fouls_per_duel_team":0.2,
         "aggression_index_raw":3.84,
         "aggression_index_norm":0.1572614742,
-        "avg_goals_last_5":0.6,
-        "avg_cards_last_5":1.8,
-        "form_index_team":-0.24
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":2.0,
+        "form_index_team":-0.2
     },
     {
         "fixture":"Valencia vs Athletic Club",
@@ -17360,6 +18960,46 @@
         "form_index_team":-0.36
     },
     {
+        "fixture":"Villarreal vs Valencia",
+        "team":"Valencia",
+        "goals":1.0,
+        "assists":0.0,
+        "shots_total_x":5.0,
+        "shots_on_x":3.0,
+        "passes_total":493,
+        "accurate_passes":421.0,
+        "fouls_committed":16.0,
+        "yellow_cards":4,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":18.0,
+        "interceptions":5.0,
+        "shots_accuracy_for":0.6,
+        "pass_accuracy_team":0.8539553753,
+        "expected_goals":1.55,
+        "goals_prevented":0,
+        "possession":0.57,
+        "corners":4,
+        "shots_total_y":8,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2851428571,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6504112716,
+        "cards_total":4,
+        "fouls_per_90_team":16.0,
+        "cards_per_90_team":4,
+        "cards_per_foul_team":0.25,
+        "fouls_per_duel_team":0.6956521739,
+        "aggression_index_raw":9.3391304348,
+        "aggression_index_norm":0.5858524561,
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":2.2,
+        "form_index_team":-0.36
+    },
+    {
         "fixture":"Atletico Madrid vs Villarreal",
         "team":"Villarreal",
         "goals":0.0,
@@ -17520,6 +19160,86 @@
         "form_index_team":0.0
     },
     {
+        "fixture":"Getafe vs Villarreal",
+        "team":"Villarreal",
+        "goals":1.0,
+        "assists":0.0,
+        "shots_total_x":6.0,
+        "shots_on_x":2.0,
+        "passes_total":358,
+        "accurate_passes":269.0,
+        "fouls_committed":17.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":14.0,
+        "interceptions":7.0,
+        "shots_accuracy_for":0.3333333333,
+        "pass_accuracy_team":0.751396648,
+        "expected_goals":0.6,
+        "goals_prevented":0,
+        "possession":0.56,
+        "corners":4,
+        "shots_total_y":8,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2811428571,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5483800283,
+        "cards_total":3,
+        "fouls_per_90_team":17.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.1764705882,
+        "fouls_per_duel_team":0.8095238095,
+        "aggression_index_raw":9.5619047619,
+        "aggression_index_norm":0.6032150316,
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.08
+    },
+    {
+        "fixture":"Levante vs Villarreal",
+        "team":"Villarreal",
+        "goals":1.0,
+        "assists":1.0,
+        "shots_total_x":13.0,
+        "shots_on_x":6.0,
+        "passes_total":344,
+        "accurate_passes":274.0,
+        "fouls_committed":20.0,
+        "yellow_cards":4,
+        "red_cards":0,
+        "minutes":995,
+        "tackles":22.0,
+        "interceptions":7.0,
+        "shots_accuracy_for":0.4615384615,
+        "pass_accuracy_team":0.7965116279,
+        "expected_goals":2.4,
+        "goals_prevented":0,
+        "possession":0.41,
+        "corners":2,
+        "shots_total_y":15,
+        "shots_on_y":6,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.1925714286,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5466267413,
+        "cards_total":4,
+        "fouls_per_90_team":20.0,
+        "cards_per_90_team":4,
+        "cards_per_foul_team":0.2,
+        "fouls_per_duel_team":0.6896551724,
+        "aggression_index_raw":11.3379310345,
+        "aggression_index_norm":0.7416348878,
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.6,
+        "form_index_team":0.02
+    },
+    {
         "fixture":"Osasuna vs Villarreal",
         "team":"Villarreal",
         "goals":2.0,
@@ -17555,9 +19275,9 @@
         "fouls_per_duel_team":0.3181818182,
         "aggression_index_raw":4.1636363636,
         "aggression_index_norm":0.1824850306,
-        "avg_goals_last_5":1.6,
-        "avg_cards_last_5":2.4,
-        "form_index_team":0.08
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":2.8,
+        "form_index_team":0.06
     },
     {
         "fixture":"Real Betis vs Villarreal",
@@ -17595,9 +19315,9 @@
         "fouls_per_duel_team":0.4193548387,
         "aggression_index_raw":7.4838709677,
         "aggression_index_norm":0.4412573267,
-        "avg_goals_last_5":1.6,
-        "avg_cards_last_5":2.2,
-        "form_index_team":0.14
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.24
     },
     {
         "fixture":"Real Madrid vs Villarreal",
@@ -17635,9 +19355,9 @@
         "fouls_per_duel_team":0.4,
         "aggression_index_raw":8.58,
         "aggression_index_norm":0.5266873822,
-        "avg_goals_last_5":1.6,
-        "avg_cards_last_5":3.0,
-        "form_index_team":-0.1
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":3.4,
+        "form_index_team":-0.52
     },
     {
         "fixture":"Real Sociedad vs Villarreal",
@@ -17675,9 +19395,9 @@
         "fouls_per_duel_team":0.4864864865,
         "aggression_index_raw":11.4972972973,
         "aggression_index_norm":0.7540555685,
-        "avg_goals_last_5":1.6,
-        "avg_cards_last_5":4.0,
-        "form_index_team":-0.4
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":4.4,
+        "form_index_team":-0.62
     },
     {
         "fixture":"Sevilla vs Villarreal",
@@ -17886,16 +19606,16 @@
         "assists":3.0,
         "shots_total_x":7.0,
         "shots_on_x":3.0,
-        "passes_total":426,
+        "passes_total":428,
         "accurate_passes":378.0,
         "fouls_committed":18.0,
         "yellow_cards":3,
         "red_cards":0,
-        "minutes":1023,
+        "minutes":990,
         "tackles":10.0,
         "interceptions":9.0,
         "shots_accuracy_for":0.4285714286,
-        "pass_accuracy_team":0.8873239437,
+        "pass_accuracy_team":0.8831775701,
         "expected_goals":0.76,
         "goals_prevented":-2,
         "possession":0.49,
@@ -17907,7 +19627,7 @@
         "dominance_index":0.2674285714,
         "goal_conversion_rate":0,
         "shot_on_target_ratio":0,
-        "control_index":0.6514313954,
+        "control_index":0.6501100883,
         "cards_total":3,
         "fouls_per_90_team":18.0,
         "cards_per_90_team":3,
@@ -18235,6 +19955,46 @@
         "fouls_per_duel_team":0.4130434783,
         "aggression_index_raw":10.4826086957,
         "aggression_index_norm":0.6749728136,
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.52
+    },
+    {
+        "fixture":"Villarreal vs Valencia",
+        "team":"Villarreal",
+        "goals":2.0,
+        "assists":0.0,
+        "shots_total_x":11.0,
+        "shots_on_x":5.0,
+        "passes_total":362,
+        "accurate_passes":286.0,
+        "fouls_committed":7.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":998,
+        "tackles":11.0,
+        "interceptions":11.0,
+        "shots_accuracy_for":0.4545454545,
+        "pass_accuracy_team":0.7900552486,
+        "expected_goals":2.06,
+        "goals_prevented":0,
+        "possession":0.43,
+        "corners":5,
+        "shots_total_y":12,
+        "shots_on_y":5,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2434285714,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5787368975,
+        "cards_total":2,
+        "fouls_per_90_team":7.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.2857142857,
+        "fouls_per_duel_team":0.3181818182,
+        "aggression_index_raw":4.1636363636,
+        "aggression_index_norm":0.1824850306,
         "avg_goals_last_5":2.0,
         "avg_cards_last_5":1.6,
         "form_index_team":0.52

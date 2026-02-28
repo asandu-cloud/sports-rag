@@ -360,6 +360,46 @@
         "form_index_team":0.26
     },
     {
+        "fixture":"1. FC Heidenheim vs VfB Stuttgart",
+        "team":"1. FC Heidenheim",
+        "goals":3.0,
+        "assists":0,
+        "shots_total_x":9.0,
+        "shots_on_x":6.0,
+        "passes_total":308,
+        "accurate_passes":209.0,
+        "fouls_committed":13.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":9.0,
+        "interceptions":11.0,
+        "shots_accuracy_for":0.6666666667,
+        "pass_accuracy_team":0.6785714286,
+        "expected_goals":2.13,
+        "goals_prevented":0,
+        "possession":0.34,
+        "corners":3,
+        "shots_total_y":10,
+        "shots_on_y":6,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.1889411765,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.4674441535,
+        "cards_total":1,
+        "fouls_per_90_team":13.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.0769230769,
+        "fouls_per_duel_team":0.65,
+        "aggression_index_raw":6.93,
+        "aggression_index_norm":0.5067290665,
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":1.0,
+        "form_index_team":0.4
+    },
+    {
         "fixture":"1. FC Heidenheim vs VfL Wolfsburg",
         "team":"1. FC Heidenheim",
         "goals":1.0,
@@ -395,9 +435,9 @@
         "fouls_per_duel_team":0.6315789474,
         "aggression_index_raw":6.7263157895,
         "aggression_index_norm":0.4876642656,
-        "avg_goals_last_5":1.0,
+        "avg_goals_last_5":1.2,
         "avg_cards_last_5":1.2,
-        "form_index_team":0.14
+        "form_index_team":0.24
     },
     {
         "fixture":"1. FC Heidenheim vs Werder Bremen",
@@ -435,9 +475,9 @@
         "fouls_per_duel_team":0.45,
         "aggression_index_raw":4.89,
         "aggression_index_norm":0.3157854794,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":1.2,
-        "form_index_team":0.14
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.38
     },
     {
         "fixture":"1899 Hoffenheim vs 1. FC Heidenheim",
@@ -475,9 +515,9 @@
         "fouls_per_duel_team":0.5,
         "aggression_index_raw":6.9,
         "aggression_index_norm":0.5039210726,
-        "avg_goals_last_5":1.2,
+        "avg_goals_last_5":1.8,
         "avg_cards_last_5":1.4,
-        "form_index_team":0.18
+        "form_index_team":0.48
     },
     {
         "fixture":"Bayer Leverkusen vs 1. FC Heidenheim",
@@ -515,9 +555,9 @@
         "fouls_per_duel_team":0.28,
         "aggression_index_raw":3.856,
         "aggression_index_norm":0.2190032886,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.18
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.34
     },
     {
         "fixture":"Borussia Dortmund vs 1. FC Heidenheim",
@@ -560,6 +600,46 @@
         "form_index_team":0.18
     },
     {
+        "fixture":"FC Augsburg vs 1. FC Heidenheim",
+        "team":"1. FC Heidenheim",
+        "goals":0.0,
+        "assists":0,
+        "shots_total_x":8.0,
+        "shots_on_x":2.0,
+        "passes_total":470,
+        "accurate_passes":385.0,
+        "fouls_committed":9.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":1000,
+        "tackles":12.0,
+        "interceptions":15.0,
+        "shots_accuracy_for":0.25,
+        "pass_accuracy_team":0.8191489362,
+        "expected_goals":1.09,
+        "goals_prevented":0,
+        "possession":0.51,
+        "corners":5,
+        "shots_total_y":16,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2922352941,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6101065402,
+        "cards_total":2,
+        "fouls_per_90_team":9.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.2222222222,
+        "fouls_per_duel_team":0.3333333333,
+        "aggression_index_raw":5.1666666667,
+        "aggression_index_norm":0.3416814234,
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.08
+    },
+    {
         "fixture":"FC St. Pauli vs 1. FC Heidenheim",
         "team":"1. FC Heidenheim",
         "goals":1.0,
@@ -595,9 +675,9 @@
         "fouls_per_duel_team":1.0714285714,
         "aggression_index_raw":8.6142857143,
         "aggression_index_norm":0.6643778685,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":1.6,
-        "form_index_team":0.12
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":1.8,
+        "form_index_team":-0.14
     },
     {
         "fixture":"FSV Mainz 05 vs 1. FC Heidenheim",
@@ -635,9 +715,9 @@
         "fouls_per_duel_team":0.3225806452,
         "aggression_index_raw":5.664516129,
         "aggression_index_norm":0.3882800323,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":1.8,
-        "form_index_team":-0.04
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":2.0,
+        "form_index_team":-0.2
     },
     {
         "fixture":"Hamburger SV vs 1. FC Heidenheim",
@@ -676,8 +756,8 @@
         "aggression_index_raw":5.3909090909,
         "aggression_index_norm":0.3626704689,
         "avg_goals_last_5":1.0,
-        "avg_cards_last_5":1.8,
-        "form_index_team":-0.04
+        "avg_cards_last_5":2.0,
+        "form_index_team":-0.1
     },
     {
         "fixture":"RB Leipzig vs 1. FC Heidenheim",
@@ -715,9 +795,9 @@
         "fouls_per_duel_team":0.5652173913,
         "aggression_index_raw":8.1130434783,
         "aggression_index_norm":0.6174616967,
-        "avg_goals_last_5":1.0,
+        "avg_goals_last_5":0.6,
         "avg_cards_last_5":2.6,
-        "form_index_team":-0.28
+        "form_index_team":-0.48
     },
     {
         "fixture":"Union Berlin vs 1. FC Heidenheim",
@@ -880,6 +960,46 @@
         "form_index_team":0.7
     },
     {
+        "fixture":"1. FC K\u00f6ln vs 1899 Hoffenheim",
+        "team":"1. FC K\u00f6ln",
+        "goals":2.0,
+        "assists":2,
+        "shots_total_x":6.0,
+        "shots_on_x":4.0,
+        "passes_total":268,
+        "accurate_passes":188.0,
+        "fouls_committed":5.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":1000,
+        "tackles":18.0,
+        "interceptions":10.0,
+        "shots_accuracy_for":0.6666666667,
+        "pass_accuracy_team":0.7014925373,
+        "expected_goals":1.09,
+        "goals_prevented":0,
+        "possession":0.36,
+        "corners":3,
+        "shots_total_y":9,
+        "shots_on_y":4,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.1969411765,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.4668444064,
+        "cards_total":1,
+        "fouls_per_90_team":5.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.2,
+        "fouls_per_duel_team":0.1785714286,
+        "aggression_index_raw":2.8357142857,
+        "aggression_index_norm":0.1235047523,
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":1.0,
+        "form_index_team":0.7
+    },
+    {
         "fixture":"1. FC K\u00f6ln vs Bayern M\u00fcnchen",
         "team":"1. FC K\u00f6ln",
         "goals":1.0,
@@ -915,9 +1035,9 @@
         "fouls_per_duel_team":0.0810810811,
         "aggression_index_raw":1.5162162162,
         "aggression_index_norm":0.0,
-        "avg_goals_last_5":1.5,
-        "avg_cards_last_5":0.5,
-        "form_index_team":0.6
+        "avg_goals_last_5":1.6666666667,
+        "avg_cards_last_5":0.6666666667,
+        "form_index_team":0.6333333333
     },
     {
         "fixture":"1. FC K\u00f6ln vs Eintracht Frankfurt",
@@ -956,8 +1076,8 @@
         "aggression_index_raw":3.0444444444,
         "aggression_index_norm":0.1430418529,
         "avg_goals_last_5":2.0,
-        "avg_cards_last_5":0.3333333333,
-        "form_index_team":0.9
+        "avg_cards_last_5":0.5,
+        "form_index_team":0.85
     },
     {
         "fixture":"1. FC K\u00f6ln vs FC Augsburg",
@@ -995,9 +1115,9 @@
         "fouls_per_duel_team":0.3448275862,
         "aggression_index_raw":5.6689655172,
         "aggression_index_norm":0.3886964942,
-        "avg_goals_last_5":1.75,
-        "avg_cards_last_5":0.75,
-        "form_index_team":0.65
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":0.8,
+        "form_index_team":0.66
     },
     {
         "fixture":"1. FC K\u00f6ln vs FC St. Pauli",
@@ -1480,6 +1600,46 @@
         "form_index_team":-0.18
     },
     {
+        "fixture":"FC Augsburg vs 1. FC K\u00f6ln",
+        "team":"1. FC K\u00f6ln",
+        "goals":0.0,
+        "assists":0,
+        "shots_total_x":7.0,
+        "shots_on_x":3.0,
+        "passes_total":440,
+        "accurate_passes":360.0,
+        "fouls_committed":4.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":996,
+        "tackles":17.0,
+        "interceptions":7.0,
+        "shots_accuracy_for":0.4285714286,
+        "pass_accuracy_team":0.8181818182,
+        "expected_goals":0.48,
+        "goals_prevented":0,
+        "possession":0.54,
+        "corners":9,
+        "shots_total_y":10,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3748235294,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6476365786,
+        "cards_total":1,
+        "fouls_per_90_team":4.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.25,
+        "fouls_per_duel_team":0.1666666667,
+        "aggression_index_raw":2.3333333333,
+        "aggression_index_norm":0.0764819968,
+        "avg_goals_last_5":0.4,
+        "avg_cards_last_5":1.6,
+        "form_index_team":-0.28
+    },
+    {
         "fixture":"FSV Mainz 05 vs 1. FC K\u00f6ln",
         "team":"1. FC K\u00f6ln",
         "goals":1.0,
@@ -1515,9 +1675,9 @@
         "fouls_per_duel_team":0.6428571429,
         "aggression_index_raw":5.2285714286,
         "aggression_index_norm":0.3474756966,
-        "avg_goals_last_5":0.6,
+        "avg_goals_last_5":0.4,
         "avg_cards_last_5":1.8,
-        "form_index_team":-0.24
+        "form_index_team":-0.34
     },
     {
         "fixture":"RB Leipzig vs 1. FC K\u00f6ln",
@@ -1596,8 +1756,48 @@
         "aggression_index_raw":5.172,
         "aggression_index_norm":0.3421806223,
         "avg_goals_last_5":0.6,
-        "avg_cards_last_5":2.0,
-        "form_index_team":-0.3
+        "avg_cards_last_5":1.8,
+        "form_index_team":-0.24
+    },
+    {
+        "fixture":"VfB Stuttgart vs 1. FC K\u00f6ln",
+        "team":"1. FC K\u00f6ln",
+        "goals":1.0,
+        "assists":1,
+        "shots_total_x":8.0,
+        "shots_on_x":3.0,
+        "passes_total":333,
+        "accurate_passes":256.0,
+        "fouls_committed":9.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":994,
+        "tackles":11.0,
+        "interceptions":10.0,
+        "shots_accuracy_for":0.375,
+        "pass_accuracy_team":0.7687687688,
+        "expected_goals":1.58,
+        "goals_prevented":0,
+        "possession":0.43,
+        "corners":5,
+        "shots_total_y":10,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2602352941,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5436099238,
+        "cards_total":1,
+        "fouls_per_90_team":9.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.1111111111,
+        "fouls_per_duel_team":0.4285714286,
+        "aggression_index_raw":4.8857142857,
+        "aggression_index_norm":0.3153843374,
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":1.4,
+        "form_index_team":-0.12
     },
     {
         "fixture":"VfL Wolfsburg vs 1. FC K\u00f6ln",
@@ -1636,8 +1836,8 @@
         "aggression_index_raw":6.2157894737,
         "aggression_index_norm":0.4398791058,
         "avg_goals_last_5":1.2,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.0
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.12
     },
     {
         "fixture":"Werder Bremen vs 1. FC K\u00f6ln",
@@ -1676,8 +1876,48 @@
         "aggression_index_raw":6.7846153846,
         "aggression_index_norm":0.493121096,
         "avg_goals_last_5":1.2,
-        "avg_cards_last_5":2.2,
-        "form_index_team":-0.06
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.0
+    },
+    {
+        "fixture":"1. FC K\u00f6ln vs 1899 Hoffenheim",
+        "team":"1899 Hoffenheim",
+        "goals":2.0,
+        "assists":1,
+        "shots_total_x":15.0,
+        "shots_on_x":6.0,
+        "passes_total":481,
+        "accurate_passes":388.0,
+        "fouls_committed":11.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":987,
+        "tackles":13.0,
+        "interceptions":5.0,
+        "shots_accuracy_for":0.4,
+        "pass_accuracy_team":0.8066528067,
+        "expected_goals":1.7,
+        "goals_prevented":0,
+        "possession":0.64,
+        "corners":10,
+        "shots_total_y":18,
+        "shots_on_y":6,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.4324705882,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6659985878,
+        "cards_total":2,
+        "fouls_per_90_team":11.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.1818181818,
+        "fouls_per_duel_team":0.6111111111,
+        "aggression_index_raw":6.2222222222,
+        "aggression_index_norm":0.4404812098,
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.4
     },
     {
         "fixture":"1899 Hoffenheim vs 1. FC Heidenheim",
@@ -1715,9 +1955,9 @@
         "fouls_per_duel_team":0.9333333333,
         "aggression_index_raw":7.4866666667,
         "aggression_index_norm":0.5588329539,
-        "avg_goals_last_5":3.0,
-        "avg_cards_last_5":1.0,
-        "form_index_team":1.2
+        "avg_goals_last_5":2.5,
+        "avg_cards_last_5":1.5,
+        "form_index_team":0.8
     },
     {
         "fixture":"1899 Hoffenheim vs 1. FC K\u00f6ln",
@@ -1755,9 +1995,9 @@
         "fouls_per_duel_team":0.6818181818,
         "aggression_index_raw":8.5363636364,
         "aggression_index_norm":0.6570843778,
-        "avg_goals_last_5":1.5,
+        "avg_goals_last_5":1.6666666667,
         "avg_cards_last_5":2.0,
-        "form_index_team":0.15
+        "form_index_team":0.2333333333
     },
     {
         "fixture":"1899 Hoffenheim vs Bayer Leverkusen",
@@ -1795,9 +2035,9 @@
         "fouls_per_duel_team":0.53125,
         "aggression_index_raw":9.20625,
         "aggression_index_norm":0.7197856059,
-        "avg_goals_last_5":1.3333333333,
+        "avg_goals_last_5":1.5,
         "avg_cards_last_5":2.0,
-        "form_index_team":0.0666666667
+        "form_index_team":0.15
     },
     {
         "fixture":"1899 Hoffenheim vs Bayern M\u00fcnchen",
@@ -1835,9 +2075,9 @@
         "fouls_per_duel_team":0.5151515152,
         "aggression_index_raw":8.903030303,
         "aggression_index_norm":0.6914043036,
-        "avg_goals_last_5":1.25,
-        "avg_cards_last_5":1.75,
-        "form_index_team":0.1
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.16
     },
     {
         "fixture":"1899 Hoffenheim vs Borussia M\u00f6nchengladbach",
@@ -2040,6 +2280,46 @@
         "form_index_team":1.02
     },
     {
+        "fixture":"1899 Hoffenheim vs SC Freiburg",
+        "team":"1899 Hoffenheim",
+        "goals":3.0,
+        "assists":3,
+        "shots_total_x":16.0,
+        "shots_on_x":7.0,
+        "passes_total":523,
+        "accurate_passes":440.0,
+        "fouls_committed":8.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":999,
+        "tackles":17.0,
+        "interceptions":7.0,
+        "shots_accuracy_for":0.4375,
+        "pass_accuracy_team":0.8413001912,
+        "expected_goals":1.71,
+        "goals_prevented":0,
+        "possession":0.61,
+        "corners":6,
+        "shots_total_y":25,
+        "shots_on_y":7,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3498823529,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6489267731,
+        "cards_total":3,
+        "fouls_per_90_team":8.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.375,
+        "fouls_per_duel_team":0.3333333333,
+        "aggression_index_raw":4.9666666667,
+        "aggression_index_norm":0.3229614639,
+        "avg_goals_last_5":2.6,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.7
+    },
+    {
         "fixture":"1899 Hoffenheim vs Union Berlin",
         "team":"1899 Hoffenheim",
         "goals":2.0,
@@ -2075,9 +2355,9 @@
         "fouls_per_duel_team":0.5,
         "aggression_index_raw":6.2,
         "aggression_index_norm":0.4384012143,
-        "avg_goals_last_5":2.4,
-        "avg_cards_last_5":1.8,
-        "form_index_team":0.66
+        "avg_goals_last_5":2.8,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.8
     },
     {
         "fixture":"Bayer Leverkusen vs 1899 Hoffenheim",
@@ -2115,9 +2395,9 @@
         "fouls_per_duel_team":0.68,
         "aggression_index_raw":9.836,
         "aggression_index_norm":0.7787300784,
-        "avg_goals_last_5":2.6,
-        "avg_cards_last_5":2.2,
-        "form_index_team":0.64
+        "avg_goals_last_5":2.8,
+        "avg_cards_last_5":2.6,
+        "form_index_team":0.62
     },
     {
         "fixture":"Bayern M\u00fcnchen vs 1899 Hoffenheim",
@@ -2155,9 +2435,9 @@
         "fouls_per_duel_team":0.3913043478,
         "aggression_index_raw":5.4782608696,
         "aggression_index_norm":0.3708465777,
-        "avg_goals_last_5":2.4,
-        "avg_cards_last_5":2.6,
-        "form_index_team":0.42
+        "avg_goals_last_5":2.2,
+        "avg_cards_last_5":3.0,
+        "form_index_team":0.2
     },
     {
         "fixture":"Borussia Dortmund vs 1899 Hoffenheim",
@@ -2800,6 +3080,46 @@
         "form_index_team":-0.22
     },
     {
+        "fixture":"Bayer Leverkusen vs FC St. Pauli",
+        "team":"Bayer Leverkusen",
+        "goals":4.0,
+        "assists":4,
+        "shots_total_x":12.0,
+        "shots_on_x":7.0,
+        "passes_total":846,
+        "accurate_passes":754.0,
+        "fouls_committed":7.0,
+        "yellow_cards":0,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":8.0,
+        "interceptions":7.0,
+        "shots_accuracy_for":0.5833333333,
+        "pass_accuracy_team":0.8912529551,
+        "expected_goals":1.58,
+        "goals_prevented":-2,
+        "possession":0.68,
+        "corners":8,
+        "shots_total_y":12,
+        "shots_on_y":7,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.4131764706,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.7948195015,
+        "cards_total":0,
+        "fouls_per_90_team":7.0,
+        "cards_per_90_team":0,
+        "cards_per_foul_team":0.0,
+        "fouls_per_duel_team":0.4666666667,
+        "aggression_index_raw":3.5933333333,
+        "aggression_index_norm":0.1944177418,
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":3.0,
+        "form_index_team":0.1
+    },
+    {
         "fixture":"Bayer Leverkusen vs SC Freiburg",
         "team":"Bayer Leverkusen",
         "goals":2.0,
@@ -2835,9 +3155,9 @@
         "fouls_per_duel_team":0.6923076923,
         "aggression_index_raw":4.9384615385,
         "aggression_index_norm":0.3203214696,
-        "avg_goals_last_5":1.6,
+        "avg_goals_last_5":2.2,
         "avg_cards_last_5":3.2,
-        "form_index_team":-0.16
+        "form_index_team":0.14
     },
     {
         "fixture":"Bayer Leverkusen vs Union Berlin",
@@ -2875,9 +3195,9 @@
         "fouls_per_duel_team":0.5238095238,
         "aggression_index_raw":5.9047619048,
         "aggression_index_norm":0.4107669883,
-        "avg_goals_last_5":1.8,
-        "avg_cards_last_5":3.4,
-        "form_index_team":-0.12
+        "avg_goals_last_5":2.4,
+        "avg_cards_last_5":2.8,
+        "form_index_team":0.36
     },
     {
         "fixture":"Bayer Leverkusen vs VfB Stuttgart",
@@ -2915,9 +3235,9 @@
         "fouls_per_duel_team":0.4482758621,
         "aggression_index_raw":7.7896551724,
         "aggression_index_norm":0.5871926167,
-        "avg_goals_last_5":1.8,
-        "avg_cards_last_5":3.6,
-        "form_index_team":-0.18
+        "avg_goals_last_5":2.4,
+        "avg_cards_last_5":2.6,
+        "form_index_team":0.42
     },
     {
         "fixture":"Bayer Leverkusen vs Werder Bremen",
@@ -2955,9 +3275,9 @@
         "fouls_per_duel_team":0.2142857143,
         "aggression_index_raw":3.6428571429,
         "aggression_index_norm":0.1990531603,
-        "avg_goals_last_5":1.8,
-        "avg_cards_last_5":3.0,
-        "form_index_team":1.110223025e-16
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.52
     },
     {
         "fixture":"Bayern M\u00fcnchen vs Bayer Leverkusen",
@@ -3240,6 +3560,46 @@
         "form_index_team":0.3
     },
     {
+        "fixture":"Union Berlin vs Bayer Leverkusen",
+        "team":"Bayer Leverkusen",
+        "goals":0.0,
+        "assists":0,
+        "shots_total_x":11.0,
+        "shots_on_x":1.0,
+        "passes_total":549,
+        "accurate_passes":471.0,
+        "fouls_committed":7.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":10.0,
+        "interceptions":6.0,
+        "shots_accuracy_for":0.0909090909,
+        "pass_accuracy_team":0.8579234973,
+        "expected_goals":0.94,
+        "goals_prevented":0,
+        "possession":0.65,
+        "corners":5,
+        "shots_total_y":16,
+        "shots_on_y":1,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3482352941,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6533129162,
+        "cards_total":2,
+        "fouls_per_90_team":7.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.2857142857,
+        "fouls_per_duel_team":0.4375,
+        "aggression_index_raw":4.1875,
+        "aggression_index_norm":0.2500316216,
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":3.2,
+        "form_index_team":-0.06
+    },
+    {
         "fixture":"VfL Wolfsburg vs Bayer Leverkusen",
         "team":"Bayer Leverkusen",
         "goals":3.0,
@@ -3276,8 +3636,8 @@
         "aggression_index_raw":3.8933333333,
         "aggression_index_norm":0.2224976811,
         "avg_goals_last_5":2.4,
-        "avg_cards_last_5":3.0,
-        "form_index_team":0.3
+        "avg_cards_last_5":2.8,
+        "form_index_team":0.36
     },
     {
         "fixture":"Werder Bremen vs Bayer Leverkusen",
@@ -3315,9 +3675,9 @@
         "fouls_per_duel_team":0.5263157895,
         "aggression_index_raw":6.0052631579,
         "aggression_index_norm":0.4201738853,
-        "avg_goals_last_5":3.0,
-        "avg_cards_last_5":3.0,
-        "form_index_team":0.6
+        "avg_goals_last_5":2.6,
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.58
     },
     {
         "fixture":"1. FC Heidenheim vs Bayern M\u00fcnchen",
@@ -3560,6 +3920,46 @@
         "form_index_team":1.24
     },
     {
+        "fixture":"Bayern M\u00fcnchen vs Eintracht Frankfurt",
+        "team":"Bayern M\u00fcnchen",
+        "goals":3.0,
+        "assists":2,
+        "shots_total_x":18.0,
+        "shots_on_x":11.0,
+        "passes_total":509,
+        "accurate_passes":465.0,
+        "fouls_committed":9.0,
+        "yellow_cards":0,
+        "red_cards":0,
+        "minutes":988,
+        "tackles":15.0,
+        "interceptions":6.0,
+        "shots_accuracy_for":0.6111111111,
+        "pass_accuracy_team":0.9135559921,
+        "expected_goals":2.79,
+        "goals_prevented":0,
+        "possession":0.51,
+        "corners":8,
+        "shots_total_y":24,
+        "shots_on_y":11,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3451764706,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.7043629798,
+        "cards_total":0,
+        "fouls_per_90_team":9.0,
+        "cards_per_90_team":0,
+        "cards_per_foul_team":0.0,
+        "fouls_per_duel_team":0.4285714286,
+        "aggression_index_raw":4.5857142857,
+        "aggression_index_norm":0.2873043981,
+        "avg_goals_last_5":3.2,
+        "avg_cards_last_5":1.2,
+        "form_index_team":1.24
+    },
+    {
         "fixture":"Bayern M\u00fcnchen vs FC Augsburg",
         "team":"Bayern M\u00fcnchen",
         "goals":1.0,
@@ -3595,9 +3995,9 @@
         "fouls_per_duel_team":0.4545454545,
         "aggression_index_raw":5.3909090909,
         "aggression_index_norm":0.3626704689,
-        "avg_goals_last_5":2.8,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.98
+        "avg_goals_last_5":2.6,
+        "avg_cards_last_5":1.0,
+        "form_index_team":1.0
     },
     {
         "fixture":"Bayern M\u00fcnchen vs FC St. Pauli",
@@ -3635,9 +4035,9 @@
         "fouls_per_duel_team":0.3333333333,
         "aggression_index_raw":2.8666666667,
         "aggression_index_norm":0.1264018889,
-        "avg_goals_last_5":2.6,
-        "avg_cards_last_5":1.2,
-        "form_index_team":0.94
+        "avg_goals_last_5":2.2,
+        "avg_cards_last_5":0.8,
+        "form_index_team":0.86
     },
     {
         "fixture":"Bayern M\u00fcnchen vs FSV Mainz 05",
@@ -3675,9 +4075,9 @@
         "fouls_per_duel_team":0.6363636364,
         "aggression_index_raw":4.2272727273,
         "aggression_index_norm":0.2537543408,
-        "avg_goals_last_5":2.0,
-        "avg_cards_last_5":1.2,
-        "form_index_team":0.64
+        "avg_goals_last_5":2.2,
+        "avg_cards_last_5":1.0,
+        "form_index_team":0.8
     },
     {
         "fixture":"Bayern M\u00fcnchen vs Hamburger SV",
@@ -3715,9 +4115,9 @@
         "fouls_per_duel_team":0.7333333333,
         "aggression_index_raw":6.2466666667,
         "aggression_index_norm":0.4427692048,
-        "avg_goals_last_5":2.6,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.88
+        "avg_goals_last_5":2.8,
+        "avg_cards_last_5":1.2,
+        "form_index_team":1.04
     },
     {
         "fixture":"Bayern M\u00fcnchen vs RB Leipzig",
@@ -4160,6 +4560,46 @@
         "form_index_team":0.74
     },
     {
+        "fixture":"Werder Bremen vs Bayern M\u00fcnchen",
+        "team":"Bayern M\u00fcnchen",
+        "goals":3.0,
+        "assists":2,
+        "shots_total_x":9.0,
+        "shots_on_x":8.0,
+        "passes_total":717,
+        "accurate_passes":636.0,
+        "fouls_committed":6.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":996,
+        "tackles":12.0,
+        "interceptions":12.0,
+        "shots_accuracy_for":0.8888888889,
+        "pass_accuracy_team":0.8870292887,
+        "expected_goals":1.95,
+        "goals_prevented":0,
+        "possession":0.65,
+        "corners":4,
+        "shots_total_y":11,
+        "shots_on_y":8,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3305882353,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.7067543724,
+        "cards_total":1,
+        "fouls_per_90_team":6.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.1666666667,
+        "fouls_per_duel_team":0.25,
+        "aggression_index_raw":3.35,
+        "aggression_index_norm":0.171641791,
+        "avg_goals_last_5":3.4,
+        "avg_cards_last_5":2.6,
+        "form_index_team":0.92
+    },
+    {
         "fixture":"1. FC Heidenheim vs Borussia Dortmund",
         "team":"Borussia Dortmund",
         "goals":2.0,
@@ -4480,6 +4920,46 @@
         "form_index_team":0.56
     },
     {
+        "fixture":"Borussia Dortmund vs FSV Mainz 05",
+        "team":"Borussia Dortmund",
+        "goals":4.0,
+        "assists":4,
+        "shots_total_x":11.0,
+        "shots_on_x":8.0,
+        "passes_total":507,
+        "accurate_passes":422.0,
+        "fouls_committed":10.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":8.0,
+        "interceptions":10.0,
+        "shots_accuracy_for":0.7272727273,
+        "pass_accuracy_team":0.83234714,
+        "expected_goals":2.32,
+        "goals_prevented":0,
+        "possession":0.55,
+        "corners":7,
+        "shots_total_y":14,
+        "shots_on_y":8,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3435294118,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6513908328,
+        "cards_total":3,
+        "fouls_per_90_team":10.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.3,
+        "fouls_per_duel_team":0.5555555556,
+        "aggression_index_raw":6.0111111111,
+        "aggression_index_norm":0.4207212525,
+        "avg_goals_last_5":2.4,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.6
+    },
+    {
         "fixture":"Borussia Dortmund vs RB Leipzig",
         "team":"Borussia Dortmund",
         "goals":1.0,
@@ -4515,9 +4995,9 @@
         "fouls_per_duel_team":0.5909090909,
         "aggression_index_raw":6.9181818182,
         "aggression_index_norm":0.5056228871,
-        "avg_goals_last_5":1.8,
-        "avg_cards_last_5":1.6,
-        "form_index_team":0.42
+        "avg_goals_last_5":2.4,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.66
     },
     {
         "fixture":"Borussia Dortmund vs Union Berlin",
@@ -4555,9 +5035,9 @@
         "fouls_per_duel_team":1.0,
         "aggression_index_raw":7.2,
         "aggression_index_norm":0.5320010119,
-        "avg_goals_last_5":2.2,
-        "avg_cards_last_5":1.2,
-        "form_index_team":0.74
+        "avg_goals_last_5":2.6,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.76
     },
     {
         "fixture":"Borussia Dortmund vs VfB Stuttgart",
@@ -4595,9 +5075,9 @@
         "fouls_per_duel_team":0.3870967742,
         "aggression_index_raw":6.3774193548,
         "aggression_index_norm":0.45500763,
-        "avg_goals_last_5":2.4,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.78
+        "avg_goals_last_5":2.8,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.92
     },
     {
         "fixture":"Borussia Dortmund vs VfL Wolfsburg",
@@ -4635,9 +5115,9 @@
         "fouls_per_duel_team":0.5555555556,
         "aggression_index_raw":5.4111111111,
         "aggression_index_norm":0.3645613739,
-        "avg_goals_last_5":2.2,
+        "avg_goals_last_5":2.4,
         "avg_cards_last_5":1.2,
-        "form_index_team":0.74
+        "form_index_team":0.84
     },
     {
         "fixture":"Borussia Dortmund vs Werder Bremen",
@@ -4880,6 +5360,46 @@
         "form_index_team":0.4
     },
     {
+        "fixture":"RB Leipzig vs Borussia Dortmund",
+        "team":"Borussia Dortmund",
+        "goals":1.0,
+        "assists":1,
+        "shots_total_x":7.0,
+        "shots_on_x":5.0,
+        "passes_total":366,
+        "accurate_passes":279.0,
+        "fouls_committed":17.0,
+        "yellow_cards":4,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":13.0,
+        "interceptions":2.0,
+        "shots_accuracy_for":0.7142857143,
+        "pass_accuracy_team":0.762295082,
+        "expected_goals":1.61,
+        "goals_prevented":0,
+        "possession":0.45,
+        "corners":2,
+        "shots_total_y":11,
+        "shots_on_y":5,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2152941176,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5150287115,
+        "cards_total":4,
+        "fouls_per_90_team":17.0,
+        "cards_per_90_team":4,
+        "cards_per_foul_team":0.2352941176,
+        "fouls_per_duel_team":1.1333333333,
+        "aggression_index_raw":9.9266666667,
+        "aggression_index_norm":0.7872164601,
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.2,
+        "form_index_team":0.14
+    },
+    {
         "fixture":"SC Freiburg vs Borussia Dortmund",
         "team":"Borussia Dortmund",
         "goals":1.0,
@@ -4916,8 +5436,8 @@
         "aggression_index_raw":5.9952380952,
         "aggression_index_norm":0.4192355414,
         "avg_goals_last_5":1.6,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.2
+        "avg_cards_last_5":2.6,
+        "form_index_team":0.02
     },
     {
         "fixture":"Union Berlin vs Borussia Dortmund",
@@ -4955,9 +5475,9 @@
         "fouls_per_duel_team":0.64,
         "aggression_index_raw":8.428,
         "aggression_index_norm":0.6469415634,
-        "avg_goals_last_5":2.0,
+        "avg_goals_last_5":1.6,
         "avg_cards_last_5":2.0,
-        "form_index_team":0.4
+        "form_index_team":0.2
     },
     {
         "fixture":"VfL Wolfsburg vs Borussia Dortmund",
@@ -4995,9 +5515,9 @@
         "fouls_per_duel_team":0.4545454545,
         "aggression_index_raw":5.3909090909,
         "aggression_index_norm":0.3626704689,
-        "avg_goals_last_5":1.8,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.48
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.2
     },
     {
         "fixture":"1. FC Heidenheim vs Borussia M\u00f6nchengladbach",
@@ -5600,6 +6120,46 @@
         "form_index_team":-0.3
     },
     {
+        "fixture":"Eintracht Frankfurt vs Borussia M\u00f6nchengladbach",
+        "team":"Borussia M\u00f6nchengladbach",
+        "goals":0.0,
+        "assists":0,
+        "shots_total_x":12.0,
+        "shots_on_x":3.0,
+        "passes_total":463,
+        "accurate_passes":416.0,
+        "fouls_committed":11.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":11.0,
+        "interceptions":6.0,
+        "shots_accuracy_for":0.25,
+        "pass_accuracy_team":0.898488121,
+        "expected_goals":1.19,
+        "goals_prevented":0,
+        "possession":0.56,
+        "corners":8,
+        "shots_total_y":20,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3651764706,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6829596975,
+        "cards_total":2,
+        "fouls_per_90_team":11.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.1818181818,
+        "fouls_per_duel_team":0.6470588235,
+        "aggression_index_raw":6.2294117647,
+        "aggression_index_norm":0.4411541495,
+        "avg_goals_last_5":0.0,
+        "avg_cards_last_5":1.4,
+        "form_index_team":-0.42
+    },
+    {
         "fixture":"FC St. Pauli vs Borussia M\u00f6nchengladbach",
         "team":"Borussia M\u00f6nchengladbach",
         "goals":4.0,
@@ -5636,8 +6196,8 @@
         "aggression_index_raw":4.0666666667,
         "aggression_index_norm":0.238721646,
         "avg_goals_last_5":0.8,
-        "avg_cards_last_5":1.0,
-        "form_index_team":0.1
+        "avg_cards_last_5":0.8,
+        "form_index_team":0.16
     },
     {
         "fixture":"FSV Mainz 05 vs Borussia M\u00f6nchengladbach",
@@ -5676,8 +6236,8 @@
         "aggression_index_raw":2.325,
         "aggression_index_norm":0.0757019985,
         "avg_goals_last_5":0.8,
-        "avg_cards_last_5":0.6,
-        "form_index_team":0.22
+        "avg_cards_last_5":0.8,
+        "form_index_team":0.16
     },
     {
         "fixture":"Hamburger SV vs Borussia M\u00f6nchengladbach",
@@ -5716,8 +6276,48 @@
         "aggression_index_raw":9.78,
         "aggression_index_norm":0.7734884898,
         "avg_goals_last_5":0.8,
-        "avg_cards_last_5":0.8,
-        "form_index_team":0.16
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.04
+    },
+    {
+        "fixture":"SC Freiburg vs Borussia M\u00f6nchengladbach",
+        "team":"Borussia M\u00f6nchengladbach",
+        "goals":1.0,
+        "assists":1,
+        "shots_total_x":7.0,
+        "shots_on_x":2.0,
+        "passes_total":518,
+        "accurate_passes":435.0,
+        "fouls_committed":8.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":996,
+        "tackles":14.0,
+        "interceptions":5.0,
+        "shots_accuracy_for":0.2857142857,
+        "pass_accuracy_team":0.8397683398,
+        "expected_goals":0.72,
+        "goals_prevented":0,
+        "possession":0.63,
+        "corners":3,
+        "shots_total_y":12,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3049411765,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6113591921,
+        "cards_total":2,
+        "fouls_per_90_team":8.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.25,
+        "fouls_per_duel_team":0.4210526316,
+        "aggression_index_raw":4.6842105263,
+        "aggression_index_norm":0.2965236263,
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.08
     },
     {
         "fixture":"Union Berlin vs Borussia M\u00f6nchengladbach",
@@ -5755,9 +6355,9 @@
         "fouls_per_duel_team":0.652173913,
         "aggression_index_raw":8.5304347826,
         "aggression_index_norm":0.6565294383,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.08
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.12
     },
     {
         "fixture":"VfB Stuttgart vs Borussia M\u00f6nchengladbach",
@@ -5795,9 +6395,9 @@
         "fouls_per_duel_team":0.4482758621,
         "aggression_index_raw":6.8896551724,
         "aggression_index_norm":0.5029527988,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.08
+        "avg_goals_last_5":0.4,
+        "avg_cards_last_5":1.8,
+        "form_index_team":-0.34
     },
     {
         "fixture":"Werder Bremen vs Borussia M\u00f6nchengladbach",
@@ -5835,9 +6435,9 @@
         "fouls_per_duel_team":0.4375,
         "aggression_index_raw":7.3875,
         "aggression_index_norm":0.5495509739,
-        "avg_goals_last_5":0.4,
-        "avg_cards_last_5":1.6,
-        "form_index_team":-0.28
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":1.8,
+        "form_index_team":-0.24
     },
     {
         "fixture":"1. FC Heidenheim vs Eintracht Frankfurt",
@@ -6000,6 +6600,46 @@
         "form_index_team":0.525
     },
     {
+        "fixture":"Bayern M\u00fcnchen vs Eintracht Frankfurt",
+        "team":"Eintracht Frankfurt",
+        "goals":2.0,
+        "assists":0,
+        "shots_total_x":8.0,
+        "shots_on_x":3.0,
+        "passes_total":499,
+        "accurate_passes":438.0,
+        "fouls_committed":10.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":11.0,
+        "interceptions":6.0,
+        "shots_accuracy_for":0.375,
+        "pass_accuracy_team":0.877755511,
+        "expected_goals":2.35,
+        "goals_prevented":0,
+        "possession":0.49,
+        "corners":2,
+        "shots_total_y":9,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2312941176,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6128594286,
+        "cards_total":3,
+        "fouls_per_90_team":10.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.3,
+        "fouls_per_duel_team":0.5882352941,
+        "aggression_index_raw":6.0176470588,
+        "aggression_index_norm":0.4213330159,
+        "avg_goals_last_5":2.2,
+        "avg_cards_last_5":2.2,
+        "form_index_team":0.44
+    },
+    {
         "fixture":"Borussia M\u00f6nchengladbach vs Eintracht Frankfurt",
         "team":"Eintracht Frankfurt",
         "goals":6.0,
@@ -6035,9 +6675,9 @@
         "fouls_per_duel_team":0.4,
         "aggression_index_raw":4.68,
         "aggression_index_norm":0.2961295219,
-        "avg_goals_last_5":3.0,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.9
+        "avg_goals_last_5":3.2,
+        "avg_cards_last_5":2.2,
+        "form_index_team":0.94
     },
     {
         "fixture":"Eintracht Frankfurt vs 1899 Hoffenheim",
@@ -6075,9 +6715,9 @@
         "fouls_per_duel_team":0.2857142857,
         "aggression_index_raw":4.0571428571,
         "aggression_index_norm":0.2378302194,
-        "avg_goals_last_5":3.0,
-        "avg_cards_last_5":1.6,
-        "form_index_team":1.02
+        "avg_goals_last_5":2.6,
+        "avg_cards_last_5":2.2,
+        "form_index_team":0.64
     },
     {
         "fixture":"Eintracht Frankfurt vs Bayer Leverkusen",
@@ -6115,9 +6755,9 @@
         "fouls_per_duel_team":0.4583333333,
         "aggression_index_raw":6.7916666667,
         "aggression_index_norm":0.4937810945,
-        "avg_goals_last_5":2.4,
+        "avg_goals_last_5":2.2,
         "avg_cards_last_5":2.4,
-        "form_index_team":0.48
+        "form_index_team":0.38
     },
     {
         "fixture":"Eintracht Frankfurt vs Bayern M\u00fcnchen",
@@ -6155,9 +6795,9 @@
         "fouls_per_duel_team":0.3235294118,
         "aggression_index_raw":5.8647058824,
         "aggression_index_norm":0.4070177527,
-        "avg_goals_last_5":1.8,
+        "avg_goals_last_5":2.0,
         "avg_cards_last_5":2.0,
-        "form_index_team":0.3
+        "form_index_team":0.4
     },
     {
         "fixture":"Eintracht Frankfurt vs Borussia Dortmund",
@@ -6200,6 +6840,46 @@
         "form_index_team":0.5
     },
     {
+        "fixture":"Eintracht Frankfurt vs Borussia M\u00f6nchengladbach",
+        "team":"Eintracht Frankfurt",
+        "goals":3.0,
+        "assists":2,
+        "shots_total_x":10.0,
+        "shots_on_x":9.0,
+        "passes_total":379,
+        "accurate_passes":324.0,
+        "fouls_committed":11.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":19.0,
+        "interceptions":9.0,
+        "shots_accuracy_for":0.9,
+        "pass_accuracy_team":0.8548812665,
+        "expected_goals":1.64,
+        "goals_prevented":0,
+        "possession":0.44,
+        "corners":2,
+        "shots_total_y":12,
+        "shots_on_y":9,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2112941176,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5652414018,
+        "cards_total":3,
+        "fouls_per_90_team":11.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.2727272727,
+        "fouls_per_duel_team":0.3928571429,
+        "aggression_index_raw":6.4785714286,
+        "aggression_index_norm":0.4644754436,
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.2,
+        "form_index_team":0.14
+    },
+    {
         "fixture":"Eintracht Frankfurt vs FC Augsburg",
         "team":"Eintracht Frankfurt",
         "goals":1.0,
@@ -6235,9 +6915,9 @@
         "fouls_per_duel_team":0.4827586207,
         "aggression_index_raw":7.6965517241,
         "aggression_index_norm":0.5784781528,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.0
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.6,
+        "form_index_team":0.02
     },
     {
         "fixture":"Eintracht Frankfurt vs FC St. Pauli",
@@ -6275,9 +6955,9 @@
         "fouls_per_duel_team":0.44,
         "aggression_index_raw":5.588,
         "aggression_index_norm":0.3811181381,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.1
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.36
     },
     {
         "fixture":"Eintracht Frankfurt vs FSV Mainz 05",
@@ -6315,9 +6995,9 @@
         "fouls_per_duel_team":0.2857142857,
         "aggression_index_raw":4.0571428571,
         "aggression_index_norm":0.2378302194,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":1.2,
-        "form_index_team":0.34
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.52
     },
     {
         "fixture":"Eintracht Frankfurt vs Union Berlin",
@@ -6920,6 +7600,86 @@
         "form_index_team":-0.06
     },
     {
+        "fixture":"FC Augsburg vs 1. FC Heidenheim",
+        "team":"FC Augsburg",
+        "goals":1.0,
+        "assists":0,
+        "shots_total_x":10.0,
+        "shots_on_x":4.0,
+        "passes_total":459,
+        "accurate_passes":359.0,
+        "fouls_committed":8.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":989,
+        "tackles":14.0,
+        "interceptions":5.0,
+        "shots_accuracy_for":0.4,
+        "pass_accuracy_team":0.7821350763,
+        "expected_goals":1.94,
+        "goals_prevented":0,
+        "possession":0.49,
+        "corners":4,
+        "shots_total_y":12,
+        "shots_on_y":4,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2665882353,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5765183215,
+        "cards_total":1,
+        "fouls_per_90_team":8.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.125,
+        "fouls_per_duel_team":0.4210526316,
+        "aggression_index_raw":4.3842105263,
+        "aggression_index_norm":0.268443687,
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":1.0,
+        "form_index_team":0.0
+    },
+    {
+        "fixture":"FC Augsburg vs 1. FC K\u00f6ln",
+        "team":"FC Augsburg",
+        "goals":2.0,
+        "assists":2,
+        "shots_total_x":10.0,
+        "shots_on_x":4.0,
+        "passes_total":391,
+        "accurate_passes":308.0,
+        "fouls_committed":15.0,
+        "yellow_cards":4,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":21.0,
+        "interceptions":8.0,
+        "shots_accuracy_for":0.4,
+        "pass_accuracy_team":0.7877237852,
+        "expected_goals":1.65,
+        "goals_prevented":0,
+        "possession":0.46,
+        "corners":6,
+        "shots_total_y":14,
+        "shots_on_y":4,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2898823529,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5823395751,
+        "cards_total":4,
+        "fouls_per_90_team":15.0,
+        "cards_per_90_team":4,
+        "cards_per_foul_team":0.2666666667,
+        "fouls_per_duel_team":0.5172413793,
+        "aggression_index_raw":8.8034482759,
+        "aggression_index_norm":0.682083446,
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":1.8,
+        "form_index_team":-0.04
+    },
+    {
         "fixture":"FC Augsburg vs Bayer Leverkusen",
         "team":"FC Augsburg",
         "goals":2.0,
@@ -6955,9 +7715,9 @@
         "fouls_per_duel_team":0.3703703704,
         "aggression_index_raw":5.9740740741,
         "aggression_index_norm":0.4172545933,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":1.4,
-        "form_index_team":-0.02
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":2.2,
+        "form_index_team":-0.16
     },
     {
         "fixture":"FC Augsburg vs Bayern M\u00fcnchen",
@@ -6995,9 +7755,9 @@
         "fouls_per_duel_team":0.4375,
         "aggression_index_raw":7.6875,
         "aggression_index_norm":0.5776309132,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":1.8,
-        "form_index_team":0.06
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":2.4,
+        "form_index_team":-0.02
     },
     {
         "fixture":"FC Augsburg vs Borussia Dortmund",
@@ -7035,9 +7795,9 @@
         "fouls_per_duel_team":0.56,
         "aggression_index_raw":8.312,
         "aggression_index_norm":0.6360839868,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":2.4,
-        "form_index_team":-0.32
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.14
     },
     {
         "fixture":"FC Augsburg vs FC St. Pauli",
@@ -7075,9 +7835,9 @@
         "fouls_per_duel_team":0.652173913,
         "aggression_index_raw":8.5304347826,
         "aggression_index_norm":0.6565294383,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":2.8,
-        "form_index_team":-0.24
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":3.2,
+        "form_index_team":-0.16
     },
     {
         "fixture":"FC Augsburg vs FSV Mainz 05",
@@ -7520,6 +8280,46 @@
         "form_index_team":-0.42
     },
     {
+        "fixture":"VfL Wolfsburg vs FC Augsburg",
+        "team":"FC Augsburg",
+        "goals":3.0,
+        "assists":2,
+        "shots_total_x":10.0,
+        "shots_on_x":6.0,
+        "passes_total":448,
+        "accurate_passes":374.0,
+        "fouls_committed":16.0,
+        "yellow_cards":4,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":15.0,
+        "interceptions":3.0,
+        "shots_accuracy_for":0.6,
+        "pass_accuracy_team":0.8348214286,
+        "expected_goals":1.79,
+        "goals_prevented":0,
+        "possession":0.5,
+        "corners":10,
+        "shots_total_y":15,
+        "shots_on_y":6,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3764705882,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.67013315,
+        "cards_total":4,
+        "fouls_per_90_team":16.0,
+        "cards_per_90_team":4,
+        "cards_per_foul_team":0.25,
+        "fouls_per_duel_team":0.8888888889,
+        "aggression_index_raw":9.3777777778,
+        "aggression_index_norm":0.7358405712,
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":3.6,
+        "form_index_team":-0.18
+    },
+    {
         "fixture":"1. FC K\u00f6ln vs FC St. Pauli",
         "team":"FC St. Pauli",
         "goals":1.0,
@@ -7560,6 +8360,46 @@
         "form_index_team":0.2
     },
     {
+        "fixture":"Bayer Leverkusen vs FC St. Pauli",
+        "team":"FC St. Pauli",
+        "goals":0.0,
+        "assists":0,
+        "shots_total_x":6.0,
+        "shots_on_x":1.0,
+        "passes_total":383,
+        "accurate_passes":302.0,
+        "fouls_committed":11.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":19.0,
+        "interceptions":18.0,
+        "shots_accuracy_for":0.1666666667,
+        "pass_accuracy_team":0.7885117493,
+        "expected_goals":0.52,
+        "goals_prevented":-2,
+        "possession":0.32,
+        "corners":3,
+        "shots_total_y":11,
+        "shots_on_y":1,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.1809411765,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5450273793,
+        "cards_total":1,
+        "fouls_per_90_team":11.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.0909090909,
+        "fouls_per_duel_team":0.2972972973,
+        "aggression_index_raw":5.8594594595,
+        "aggression_index_norm":0.4065266886,
+        "avg_goals_last_5":0.5,
+        "avg_cards_last_5":1.0,
+        "form_index_team":-0.05
+    },
+    {
         "fixture":"Bayern M\u00fcnchen vs FC St. Pauli",
         "team":"FC St. Pauli",
         "goals":1.0,
@@ -7595,9 +8435,9 @@
         "fouls_per_duel_team":0.2352941176,
         "aggression_index_raw":4.3470588235,
         "aggression_index_norm":0.2649662951,
-        "avg_goals_last_5":1.0,
+        "avg_goals_last_5":0.6666666667,
         "avg_cards_last_5":1.0,
-        "form_index_team":0.2
+        "form_index_team":0.0333333333
     },
     {
         "fixture":"Borussia Dortmund vs FC St. Pauli",
@@ -7635,9 +8475,9 @@
         "fouls_per_duel_team":0.3235294118,
         "aggression_index_raw":5.8647058824,
         "aggression_index_norm":0.4070177527,
-        "avg_goals_last_5":1.3333333333,
+        "avg_goals_last_5":1.0,
         "avg_cards_last_5":1.0,
-        "form_index_team":0.3666666667
+        "form_index_team":0.2
     },
     {
         "fixture":"Eintracht Frankfurt vs FC St. Pauli",
@@ -7675,9 +8515,9 @@
         "fouls_per_duel_team":0.25,
         "aggression_index_raw":3.35,
         "aggression_index_norm":0.171641791,
-        "avg_goals_last_5":1.0,
+        "avg_goals_last_5":0.8,
         "avg_cards_last_5":1.0,
-        "form_index_team":0.2
+        "form_index_team":0.1
     },
     {
         "fixture":"FC Augsburg vs FC St. Pauli",
@@ -7715,9 +8555,9 @@
         "fouls_per_duel_team":0.4814814815,
         "aggression_index_raw":6.8962962963,
         "aggression_index_norm":0.5035744067,
-        "avg_goals_last_5":1.0,
+        "avg_goals_last_5":0.8,
         "avg_cards_last_5":1.0,
-        "form_index_team":0.2
+        "form_index_team":0.1
     },
     {
         "fixture":"FC St. Pauli vs 1. FC Heidenheim",
@@ -8120,6 +8960,46 @@
         "form_index_team":0.32
     },
     {
+        "fixture":"FC St. Pauli vs Werder Bremen",
+        "team":"FC St. Pauli",
+        "goals":2.0,
+        "assists":2,
+        "shots_total_x":4.0,
+        "shots_on_x":4.0,
+        "passes_total":408,
+        "accurate_passes":312.0,
+        "fouls_committed":6.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":997,
+        "tackles":15.0,
+        "interceptions":13.0,
+        "shots_accuracy_for":1.0,
+        "pass_accuracy_team":0.7647058824,
+        "expected_goals":0.2,
+        "goals_prevented":-1,
+        "possession":0.42,
+        "corners":1,
+        "shots_total_y":4,
+        "shots_on_y":4,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.1856470588,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5171327224,
+        "cards_total":2,
+        "fouls_per_90_team":6.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.3333333333,
+        "fouls_per_duel_team":0.2142857143,
+        "aggression_index_raw":3.6428571429,
+        "aggression_index_norm":0.1990531603,
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":0.8,
+        "form_index_team":0.26
+    },
+    {
         "fixture":"FSV Mainz 05 vs FC St. Pauli",
         "team":"FC St. Pauli",
         "goals":0.0,
@@ -8155,9 +9035,9 @@
         "fouls_per_duel_team":0.3214285714,
         "aggression_index_raw":4.8642857143,
         "aggression_index_norm":0.3133786274,
-        "avg_goals_last_5":0.6,
-        "avg_cards_last_5":0.6,
-        "form_index_team":0.12
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":0.8,
+        "form_index_team":0.26
     },
     {
         "fixture":"Hamburger SV vs FC St. Pauli",
@@ -8195,9 +9075,9 @@
         "fouls_per_duel_team":0.5757575758,
         "aggression_index_raw":10.5151515152,
         "aggression_index_norm":0.8422985228,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":1.0,
-        "form_index_team":0.2
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.18
     },
     {
         "fixture":"SC Freiburg vs FC St. Pauli",
@@ -8235,9 +9115,9 @@
         "fouls_per_duel_team":0.5454545455,
         "aggression_index_raw":6.7090909091,
         "aggression_index_norm":0.4860520203,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.08
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.22
     },
     {
         "fixture":"VfB Stuttgart vs FC St. Pauli",
@@ -8276,8 +9156,8 @@
         "aggression_index_raw":8.2363636364,
         "aggression_index_norm":0.6290044385,
         "avg_goals_last_5":1.0,
-        "avg_cards_last_5":1.6,
-        "form_index_team":0.02
+        "avg_cards_last_5":2.0,
+        "form_index_team":-0.1
     },
     {
         "fixture":"VfL Wolfsburg vs FC St. Pauli",
@@ -8440,6 +9320,46 @@
         "form_index_team":-0.15
     },
     {
+        "fixture":"Borussia Dortmund vs FSV Mainz 05",
+        "team":"FSV Mainz 05",
+        "goals":0.0,
+        "assists":0,
+        "shots_total_x":7.0,
+        "shots_on_x":5.0,
+        "passes_total":432,
+        "accurate_passes":348.0,
+        "fouls_committed":5.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":16.0,
+        "interceptions":10.0,
+        "shots_accuracy_for":0.7142857143,
+        "pass_accuracy_team":0.8055555556,
+        "expected_goals":1.51,
+        "goals_prevented":0,
+        "possession":0.45,
+        "corners":2,
+        "shots_total_y":10,
+        "shots_on_y":5,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2152941176,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5565584458,
+        "cards_total":2,
+        "fouls_per_90_team":5.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.4,
+        "fouls_per_duel_team":0.1923076923,
+        "aggression_index_raw":3.1384615385,
+        "aggression_index_norm":0.1518418339,
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":2.6666666667,
+        "form_index_team":-0.3
+    },
+    {
         "fixture":"Eintracht Frankfurt vs FSV Mainz 05",
         "team":"FSV Mainz 05",
         "goals":0.0,
@@ -8475,8 +9395,8 @@
         "fouls_per_duel_team":0.4117647059,
         "aggression_index_raw":8.5823529412,
         "aggression_index_norm":0.6613889674,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":3.6666666667,
+        "avg_goals_last_5":0.75,
+        "avg_cards_last_5":3.25,
         "form_index_team":-0.6
     },
     {
@@ -8515,9 +9435,9 @@
         "fouls_per_duel_team":0.4545454545,
         "aggression_index_raw":5.9909090909,
         "aggression_index_norm":0.4188303475,
-        "avg_goals_last_5":1.75,
-        "avg_cards_last_5":3.5,
-        "form_index_team":-0.175
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":3.2,
+        "form_index_team":-0.26
     },
     {
         "fixture":"FSV Mainz 05 vs 1. FC Heidenheim",
@@ -8555,9 +9475,9 @@
         "fouls_per_duel_team":0.4782608696,
         "aggression_index_raw":6.1956521739,
         "aggression_index_norm":0.4379942586,
-        "avg_goals_last_5":1.8,
-        "avg_cards_last_5":3.2,
-        "form_index_team":-0.06
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.04
     },
     {
         "fixture":"FSV Mainz 05 vs 1. FC K\u00f6ln",
@@ -8595,9 +9515,9 @@
         "fouls_per_duel_team":0.5384615385,
         "aggression_index_raw":3.9076923077,
         "aggression_index_norm":0.2238416782,
-        "avg_goals_last_5":1.6,
+        "avg_goals_last_5":1.2,
         "avg_cards_last_5":2.6,
-        "form_index_team":0.02
+        "form_index_team":-0.18
     },
     {
         "fixture":"FSV Mainz 05 vs 1899 Hoffenheim",
@@ -8840,6 +9760,46 @@
         "form_index_team":-0.22
     },
     {
+        "fixture":"FSV Mainz 05 vs Hamburger SV",
+        "team":"FSV Mainz 05",
+        "goals":1.0,
+        "assists":1,
+        "shots_total_x":12.0,
+        "shots_on_x":3.0,
+        "passes_total":315,
+        "accurate_passes":232.0,
+        "fouls_committed":16.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":995,
+        "tackles":19.0,
+        "interceptions":6.0,
+        "shots_accuracy_for":0.25,
+        "pass_accuracy_team":0.7365079365,
+        "expected_goals":1.53,
+        "goals_prevented":0,
+        "possession":0.45,
+        "corners":7,
+        "shots_total_y":17,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3035294118,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5455817838,
+        "cards_total":3,
+        "fouls_per_90_team":16.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.1875,
+        "fouls_per_duel_team":0.64,
+        "aggression_index_raw":9.028,
+        "aggression_index_norm":0.7031014419,
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":2.2,
+        "form_index_team":-0.36
+    },
+    {
         "fixture":"FSV Mainz 05 vs RB Leipzig",
         "team":"FSV Mainz 05",
         "goals":0.0,
@@ -8875,9 +9835,9 @@
         "fouls_per_duel_team":0.4444444444,
         "aggression_index_raw":6.3888888889,
         "aggression_index_norm":0.456081176,
-        "avg_goals_last_5":0.4,
+        "avg_goals_last_5":0.6,
         "avg_cards_last_5":1.8,
-        "form_index_team":-0.34
+        "form_index_team":-0.24
     },
     {
         "fixture":"FSV Mainz 05 vs VfL Wolfsburg",
@@ -8915,9 +9875,9 @@
         "fouls_per_duel_team":0.32,
         "aggression_index_raw":4.964,
         "aggression_index_norm":0.3227118644,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":1.8,
-        "form_index_team":-0.04
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.0
     },
     {
         "fixture":"FSV Mainz 05 vs Werder Bremen",
@@ -8955,9 +9915,9 @@
         "fouls_per_duel_team":0.6785714286,
         "aggression_index_raw":9.9357142857,
         "aggression_index_norm":0.7880633154,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":1.6,
-        "form_index_team":0.12
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":1.8,
+        "form_index_team":-0.04
     },
     {
         "fixture":"Hamburger SV vs FSV Mainz 05",
@@ -8995,9 +9955,9 @@
         "fouls_per_duel_team":0.5,
         "aggression_index_raw":7.5,
         "aggression_index_norm":0.5600809512,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":1.8,
-        "form_index_team":-0.14
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":2.2,
+        "form_index_team":-0.16
     },
     {
         "fixture":"RB Leipzig vs FSV Mainz 05",
@@ -9480,6 +10440,46 @@
         "form_index_team":-0.5
     },
     {
+        "fixture":"FSV Mainz 05 vs Hamburger SV",
+        "team":"Hamburger SV",
+        "goals":1.0,
+        "assists":0,
+        "shots_total_x":12.0,
+        "shots_on_x":5.0,
+        "passes_total":406,
+        "accurate_passes":337.0,
+        "fouls_committed":13.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":995,
+        "tackles":12.0,
+        "interceptions":7.0,
+        "shots_accuracy_for":0.4166666667,
+        "pass_accuracy_team":0.8300492611,
+        "expected_goals":0.7,
+        "goals_prevented":0,
+        "possession":0.55,
+        "corners":2,
+        "shots_total_y":14,
+        "shots_on_y":5,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2552941176,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5609661026,
+        "cards_total":2,
+        "fouls_per_90_team":13.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.1538461538,
+        "fouls_per_duel_team":0.6842105263,
+        "aggression_index_raw":7.2368421053,
+        "aggression_index_norm":0.5354494255,
+        "avg_goals_last_5":0.2,
+        "avg_cards_last_5":1.8,
+        "form_index_team":-0.44
+    },
+    {
         "fixture":"Hamburger SV vs 1. FC Heidenheim",
         "team":"Hamburger SV",
         "goals":2.0,
@@ -9515,9 +10515,9 @@
         "fouls_per_duel_team":1.0714285714,
         "aggression_index_raw":9.2142857143,
         "aggression_index_norm":0.7205377471,
-        "avg_goals_last_5":0.4,
+        "avg_goals_last_5":0.6,
         "avg_cards_last_5":2.4,
-        "form_index_team":-0.52
+        "form_index_team":-0.42
     },
     {
         "fixture":"Hamburger SV vs Bayern M\u00fcnchen",
@@ -9555,9 +10555,9 @@
         "fouls_per_duel_team":0.3529411765,
         "aggression_index_raw":7.8705882353,
         "aggression_index_norm":0.594767935,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":3.2,
-        "form_index_team":-0.56
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":3.4,
+        "form_index_team":-0.52
     },
     {
         "fixture":"Hamburger SV vs Borussia Dortmund",
@@ -9595,9 +10595,9 @@
         "fouls_per_duel_team":0.4666666667,
         "aggression_index_raw":7.3933333333,
         "aggression_index_norm":0.5500969728,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":3.2,
-        "form_index_team":-0.46
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":3.0,
+        "form_index_team":-0.3
     },
     {
         "fixture":"Hamburger SV vs Borussia M\u00f6nchengladbach",
@@ -9635,9 +10635,9 @@
         "fouls_per_duel_team":0.9411764706,
         "aggression_index_raw":8.4882352941,
         "aggression_index_norm":0.6525795747,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":2.8,
-        "form_index_team":-0.34
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":3.0,
+        "form_index_team":-0.3
     },
     {
         "fixture":"Hamburger SV vs Eintracht Frankfurt",
@@ -9760,6 +10760,46 @@
         "form_index_team":0.12
     },
     {
+        "fixture":"Hamburger SV vs Union Berlin",
+        "team":"Hamburger SV",
+        "goals":3.0,
+        "assists":3,
+        "shots_total_x":9.0,
+        "shots_on_x":4.0,
+        "passes_total":442,
+        "accurate_passes":345.0,
+        "fouls_committed":12.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":1006,
+        "tackles":13.0,
+        "interceptions":12.0,
+        "shots_accuracy_for":0.4444444444,
+        "pass_accuracy_team":0.7805429864,
+        "expected_goals":2.06,
+        "goals_prevented":0,
+        "possession":0.56,
+        "corners":6,
+        "shots_total_y":13,
+        "shots_on_y":4,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3298823529,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5941260602,
+        "cards_total":3,
+        "fouls_per_90_team":12.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.25,
+        "fouls_per_duel_team":0.48,
+        "aggression_index_raw":6.996,
+        "aggression_index_norm":0.5129066532,
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.2
+    },
+    {
         "fixture":"Hamburger SV vs VfB Stuttgart",
         "team":"Hamburger SV",
         "goals":2.0,
@@ -9795,9 +10835,9 @@
         "fouls_per_duel_team":0.4705882353,
         "aggression_index_raw":8.9941176471,
         "aggression_index_norm":0.6999300606,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.1
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.28
     },
     {
         "fixture":"Hamburger SV vs VfL Wolfsburg",
@@ -9835,9 +10875,9 @@
         "fouls_per_duel_team":0.4210526316,
         "aggression_index_raw":4.3842105263,
         "aggression_index_norm":0.268443687,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.1
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":2.6,
+        "form_index_team":0.12
     },
     {
         "fixture":"Hamburger SV vs Werder Bremen",
@@ -9875,9 +10915,9 @@
         "fouls_per_duel_team":0.25,
         "aggression_index_raw":4.65,
         "aggression_index_norm":0.293321528,
-        "avg_goals_last_5":1.8,
-        "avg_cards_last_5":2.4,
-        "form_index_team":0.18
+        "avg_goals_last_5":2.4,
+        "avg_cards_last_5":2.2,
+        "form_index_team":0.54
     },
     {
         "fixture":"RB Leipzig vs Hamburger SV",
@@ -9915,9 +10955,9 @@
         "fouls_per_duel_team":0.5,
         "aggression_index_raw":6.4,
         "aggression_index_norm":0.4571211738,
-        "avg_goals_last_5":2.0,
-        "avg_cards_last_5":1.8,
-        "form_index_team":0.46
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.3
     },
     {
         "fixture":"SC Freiburg vs Hamburger SV",
@@ -10520,6 +11560,46 @@
         "form_index_team":0.5
     },
     {
+        "fixture":"RB Leipzig vs Borussia Dortmund",
+        "team":"RB Leipzig",
+        "goals":2.0,
+        "assists":2,
+        "shots_total_x":9.0,
+        "shots_on_x":3.0,
+        "passes_total":449,
+        "accurate_passes":374.0,
+        "fouls_committed":11.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":989,
+        "tackles":11.0,
+        "interceptions":12.0,
+        "shots_accuracy_for":0.3333333333,
+        "pass_accuracy_team":0.8329621381,
+        "expected_goals":1.9,
+        "goals_prevented":0,
+        "possession":0.55,
+        "corners":6,
+        "shots_total_y":13,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3258823529,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6224461888,
+        "cards_total":3,
+        "fouls_per_90_team":11.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.2727272727,
+        "fouls_per_duel_team":0.4782608696,
+        "aggression_index_raw":6.4956521739,
+        "aggression_index_norm":0.4660741979,
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.42
+    },
+    {
         "fixture":"RB Leipzig vs Eintracht Frankfurt",
         "team":"RB Leipzig",
         "goals":6.0,
@@ -10556,8 +11636,8 @@
         "aggression_index_raw":4.8692307692,
         "aggression_index_norm":0.3138414836,
         "avg_goals_last_5":2.6,
-        "avg_cards_last_5":1.2,
-        "form_index_team":0.94
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.88
     },
     {
         "fixture":"RB Leipzig vs FSV Mainz 05",
@@ -10595,9 +11675,9 @@
         "fouls_per_duel_team":0.2105263158,
         "aggression_index_raw":2.0421052632,
         "aggression_index_norm":0.0492231084,
-        "avg_goals_last_5":2.4,
-        "avg_cards_last_5":0.8,
-        "form_index_team":0.96
+        "avg_goals_last_5":2.2,
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.74
     },
     {
         "fixture":"RB Leipzig vs Hamburger SV",
@@ -10635,9 +11715,9 @@
         "fouls_per_duel_team":0.4814814815,
         "aggression_index_raw":7.1962962963,
         "aggression_index_norm":0.531654346,
-        "avg_goals_last_5":2.2,
-        "avg_cards_last_5":1.0,
-        "form_index_team":0.8
+        "avg_goals_last_5":2.4,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.78
     },
     {
         "fixture":"RB Leipzig vs SC Freiburg",
@@ -10675,9 +11755,9 @@
         "fouls_per_duel_team":0.5217391304,
         "aggression_index_raw":6.1043478261,
         "aggression_index_norm":0.4294481901,
-        "avg_goals_last_5":2.4,
-        "avg_cards_last_5":0.8,
-        "form_index_team":0.96
+        "avg_goals_last_5":2.6,
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.94
     },
     {
         "fixture":"RB Leipzig vs VfB Stuttgart",
@@ -10720,6 +11800,46 @@
         "form_index_team":1.06
     },
     {
+        "fixture":"RB Leipzig vs VfL Wolfsburg",
+        "team":"RB Leipzig",
+        "goals":2.0,
+        "assists":1,
+        "shots_total_x":16.0,
+        "shots_on_x":10.0,
+        "passes_total":692,
+        "accurate_passes":605.0,
+        "fouls_committed":6.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":10.0,
+        "interceptions":7.0,
+        "shots_accuracy_for":0.625,
+        "pass_accuracy_team":0.8742774566,
+        "expected_goals":2.94,
+        "goals_prevented":1,
+        "possession":0.68,
+        "corners":6,
+        "shots_total_y":20,
+        "shots_on_y":10,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3778823529,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.7163701797,
+        "cards_total":1,
+        "fouls_per_90_team":6.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.1666666667,
+        "fouls_per_duel_team":0.3529411765,
+        "aggression_index_raw":3.3705882353,
+        "aggression_index_norm":0.1735688457,
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":0.8,
+        "form_index_team":0.66
+    },
+    {
         "fixture":"RB Leipzig vs Werder Bremen",
         "team":"RB Leipzig",
         "goals":2.0,
@@ -10755,9 +11875,9 @@
         "fouls_per_duel_team":0.2083333333,
         "aggression_index_raw":2.8416666667,
         "aggression_index_norm":0.1240618939,
-        "avg_goals_last_5":1.8,
-        "avg_cards_last_5":0.8,
-        "form_index_team":0.66
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":1.0,
+        "form_index_team":0.7
     },
     {
         "fixture":"Union Berlin vs RB Leipzig",
@@ -10796,8 +11916,8 @@
         "aggression_index_raw":4.6842105263,
         "aggression_index_norm":0.2965236263,
         "avg_goals_last_5":1.8,
-        "avg_cards_last_5":1.2,
-        "form_index_team":0.54
+        "avg_cards_last_5":1.0,
+        "form_index_team":0.6
     },
     {
         "fixture":"VfL Wolfsburg vs RB Leipzig",
@@ -10836,8 +11956,8 @@
         "aggression_index_raw":5.1666666667,
         "aggression_index_norm":0.3416814234,
         "avg_goals_last_5":1.6,
-        "avg_cards_last_5":1.2,
-        "form_index_team":0.44
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.38
     },
     {
         "fixture":"1. FC Heidenheim vs SC Freiburg",
@@ -10920,6 +12040,46 @@
         "form_index_team":0.2
     },
     {
+        "fixture":"1899 Hoffenheim vs SC Freiburg",
+        "team":"SC Freiburg",
+        "goals":0.0,
+        "assists":0,
+        "shots_total_x":9.0,
+        "shots_on_x":3.0,
+        "passes_total":331,
+        "accurate_passes":235.0,
+        "fouls_committed":6.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":997,
+        "tackles":6.0,
+        "interceptions":4.0,
+        "shots_accuracy_for":0.3333333333,
+        "pass_accuracy_team":0.7099697885,
+        "expected_goals":0.77,
+        "goals_prevented":0,
+        "possession":0.39,
+        "corners":6,
+        "shots_total_y":13,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2618823529,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5253721245,
+        "cards_total":1,
+        "fouls_per_90_team":6.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.1666666667,
+        "fouls_per_duel_team":0.6,
+        "aggression_index_raw":3.42,
+        "aggression_index_norm":0.1781937769,
+        "avg_goals_last_5":0.6666666667,
+        "avg_cards_last_5":1.0,
+        "form_index_team":0.0333333333
+    },
+    {
         "fixture":"Bayer Leverkusen vs SC Freiburg",
         "team":"SC Freiburg",
         "goals":0.0,
@@ -10955,9 +12115,9 @@
         "fouls_per_duel_team":0.2962962963,
         "aggression_index_raw":4.9592592593,
         "aggression_index_norm":0.322268132,
-        "avg_goals_last_5":0.6666666667,
-        "avg_cards_last_5":1.6666666667,
-        "form_index_team":-0.1666666667
+        "avg_goals_last_5":0.5,
+        "avg_cards_last_5":1.5,
+        "form_index_team":-0.2
     },
     {
         "fixture":"Bayern M\u00fcnchen vs SC Freiburg",
@@ -10995,9 +12155,9 @@
         "fouls_per_duel_team":0.2916666667,
         "aggression_index_raw":3.5583333333,
         "aggression_index_norm":0.1911417489,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":1.25,
-        "form_index_team":0.125
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.04
     },
     {
         "fixture":"Borussia M\u00f6nchengladbach vs SC Freiburg",
@@ -11035,9 +12195,9 @@
         "fouls_per_duel_team":0.3043478261,
         "aggression_index_raw":3.8608695652,
         "aggression_index_norm":0.219459079,
-        "avg_goals_last_5":0.8,
+        "avg_goals_last_5":0.6,
         "avg_cards_last_5":1.2,
-        "form_index_team":0.04
+        "form_index_team":-0.06
     },
     {
         "fixture":"FC Augsburg vs SC Freiburg",
@@ -11075,9 +12235,9 @@
         "fouls_per_duel_team":0.56,
         "aggression_index_raw":7.712,
         "aggression_index_norm":0.5799241083,
-        "avg_goals_last_5":1.0,
+        "avg_goals_last_5":0.8,
         "avg_cards_last_5":1.4,
-        "form_index_team":0.08
+        "form_index_team":-0.02
     },
     {
         "fixture":"RB Leipzig vs SC Freiburg",
@@ -11240,6 +12400,46 @@
         "form_index_team":-0.12
     },
     {
+        "fixture":"SC Freiburg vs Borussia M\u00f6nchengladbach",
+        "team":"SC Freiburg",
+        "goals":2.0,
+        "assists":0,
+        "shots_total_x":7.0,
+        "shots_on_x":6.0,
+        "passes_total":310,
+        "accurate_passes":225.0,
+        "fouls_committed":9.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":13.0,
+        "interceptions":8.0,
+        "shots_accuracy_for":0.8571428571,
+        "pass_accuracy_team":0.7258064516,
+        "expected_goals":1.73,
+        "goals_prevented":0,
+        "possession":0.37,
+        "corners":3,
+        "shots_total_y":10,
+        "shots_on_y":6,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2009411765,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.4916646801,
+        "cards_total":1,
+        "fouls_per_90_team":9.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.1111111111,
+        "fouls_per_duel_team":0.4285714286,
+        "aggression_index_raw":4.8857142857,
+        "aggression_index_norm":0.3153843374,
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.2,
+        "form_index_team":-0.06
+    },
+    {
         "fixture":"SC Freiburg vs Eintracht Frankfurt",
         "team":"SC Freiburg",
         "goals":2.0,
@@ -11275,9 +12475,9 @@
         "fouls_per_duel_team":0.2142857143,
         "aggression_index_raw":3.6428571429,
         "aggression_index_norm":0.1990531603,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":2.4,
-        "form_index_team":-0.12
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.26
     },
     {
         "fixture":"SC Freiburg vs FC Augsburg",
@@ -11355,9 +12555,9 @@
         "fouls_per_duel_team":0.4705882353,
         "aggression_index_raw":4.6941176471,
         "aggression_index_norm":0.2974509308,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":2.6,
-        "form_index_team":-0.08
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.08
     },
     {
         "fixture":"SC Freiburg vs FSV Mainz 05",
@@ -11395,9 +12595,9 @@
         "fouls_per_duel_team":0.3461538462,
         "aggression_index_raw":4.5692307692,
         "aggression_index_norm":0.2857615443,
-        "avg_goals_last_5":2.0,
-        "avg_cards_last_5":2.2,
-        "form_index_team":0.34
+        "avg_goals_last_5":2.2,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.56
     },
     {
         "fixture":"SC Freiburg vs Hamburger SV",
@@ -11960,6 +13160,46 @@
         "form_index_team":0.18
     },
     {
+        "fixture":"Hamburger SV vs Union Berlin",
+        "team":"Union Berlin",
+        "goals":2.0,
+        "assists":1,
+        "shots_total_x":10.0,
+        "shots_on_x":5.0,
+        "passes_total":336,
+        "accurate_passes":240.0,
+        "fouls_committed":7.0,
+        "yellow_cards":0,
+        "red_cards":0,
+        "minutes":1006,
+        "tackles":13.0,
+        "interceptions":15.0,
+        "shots_accuracy_for":0.5,
+        "pass_accuracy_team":0.7142857143,
+        "expected_goals":2.13,
+        "goals_prevented":0,
+        "possession":0.44,
+        "corners":3,
+        "shots_total_y":12,
+        "shots_on_y":5,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2289411765,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.4937435075,
+        "cards_total":0,
+        "fouls_per_90_team":7.0,
+        "cards_per_90_team":0,
+        "cards_per_foul_team":0.0,
+        "fouls_per_duel_team":0.25,
+        "aggression_index_raw":3.55,
+        "aggression_index_norm":0.1903617506,
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":0.8,
+        "form_index_team":0.56
+    },
+    {
         "fixture":"Union Berlin vs 1. FC Heidenheim",
         "team":"Union Berlin",
         "goals":1.0,
@@ -11995,9 +13235,9 @@
         "fouls_per_duel_team":0.7222222222,
         "aggression_index_raw":7.5444444444,
         "aggression_index_norm":0.5642409422,
-        "avg_goals_last_5":1.4,
+        "avg_goals_last_5":1.8,
         "avg_cards_last_5":1.4,
-        "form_index_team":0.28
+        "form_index_team":0.48
     },
     {
         "fixture":"Union Berlin vs 1899 Hoffenheim",
@@ -12035,9 +13275,49 @@
         "fouls_per_duel_team":0.4642857143,
         "aggression_index_raw":6.8928571429,
         "aggression_index_norm":0.5032525026,
-        "avg_goals_last_5":1.8,
-        "avg_cards_last_5":1.6,
-        "form_index_team":0.42
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.34
+    },
+    {
+        "fixture":"Union Berlin vs Bayer Leverkusen",
+        "team":"Union Berlin",
+        "goals":1.0,
+        "assists":1,
+        "shots_total_x":5.0,
+        "shots_on_x":4.0,
+        "passes_total":303,
+        "accurate_passes":210.0,
+        "fouls_committed":15.0,
+        "yellow_cards":5,
+        "red_cards":0,
+        "minutes":1004,
+        "tackles":14.0,
+        "interceptions":8.0,
+        "shots_accuracy_for":0.8,
+        "pass_accuracy_team":0.6930693069,
+        "expected_goals":0.55,
+        "goals_prevented":0,
+        "possession":0.35,
+        "corners":4,
+        "shots_total_y":8,
+        "shots_on_y":4,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2105882353,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.4849502609,
+        "cards_total":5,
+        "fouls_per_90_team":15.0,
+        "cards_per_90_team":5,
+        "cards_per_foul_team":0.3333333333,
+        "fouls_per_duel_team":0.6818181818,
+        "aggression_index_raw":9.1363636364,
+        "aggression_index_norm":0.7132442564,
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.1
     },
     {
         "fixture":"Union Berlin vs Bayern M\u00fcnchen",
@@ -12075,9 +13355,9 @@
         "fouls_per_duel_team":0.2857142857,
         "aggression_index_raw":4.6571428571,
         "aggression_index_norm":0.2939900979,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":1.6,
-        "form_index_team":0.22
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.2,
+        "form_index_team":0.14
     },
     {
         "fixture":"Union Berlin vs Borussia Dortmund",
@@ -12116,8 +13396,8 @@
         "aggression_index_raw":5.0689655172,
         "aggression_index_norm":0.3325366156,
         "avg_goals_last_5":1.2,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.18
+        "avg_cards_last_5":2.2,
+        "form_index_team":-0.06
     },
     {
         "fixture":"Union Berlin vs Borussia M\u00f6nchengladbach",
@@ -12156,8 +13436,8 @@
         "aggression_index_raw":12.2,
         "aggression_index_norm":1.0,
         "avg_goals_last_5":1.6,
-        "avg_cards_last_5":2.2,
-        "form_index_team":0.14
+        "avg_cards_last_5":2.6,
+        "form_index_team":0.02
     },
     {
         "fixture":"Union Berlin vs Eintracht Frankfurt",
@@ -12195,9 +13475,9 @@
         "fouls_per_duel_team":0.3913043478,
         "aggression_index_raw":5.7782608696,
         "aggression_index_norm":0.398926517,
-        "avg_goals_last_5":1.6,
-        "avg_cards_last_5":2.4,
-        "form_index_team":0.08
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":3.2,
+        "form_index_team":-0.26
     },
     {
         "fixture":"Union Berlin vs FSV Mainz 05",
@@ -12520,6 +13800,46 @@
         "form_index_team":-0.32
     },
     {
+        "fixture":"1. FC Heidenheim vs VfB Stuttgart",
+        "team":"VfB Stuttgart",
+        "goals":3.0,
+        "assists":1,
+        "shots_total_x":11.0,
+        "shots_on_x":8.0,
+        "passes_total":604,
+        "accurate_passes":496.0,
+        "fouls_committed":7.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":12.0,
+        "interceptions":10.0,
+        "shots_accuracy_for":0.7272727273,
+        "pass_accuracy_team":0.821192053,
+        "expected_goals":2.23,
+        "goals_prevented":0,
+        "possession":0.66,
+        "corners":4,
+        "shots_total_y":12,
+        "shots_on_y":8,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3345882353,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6397654028,
+        "cards_total":2,
+        "fouls_per_90_team":7.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.2857142857,
+        "fouls_per_duel_team":0.3181818182,
+        "aggression_index_raw":4.1636363636,
+        "aggression_index_norm":0.24779799,
+        "avg_goals_last_5":3.0,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.9
+    },
+    {
         "fixture":"1. FC K\u00f6ln vs VfB Stuttgart",
         "team":"VfB Stuttgart",
         "goals":2.0,
@@ -12555,9 +13875,9 @@
         "fouls_per_duel_team":0.6666666667,
         "aggression_index_raw":6.7333333333,
         "aggression_index_norm":0.4883211063,
-        "avg_goals_last_5":2.0,
+        "avg_goals_last_5":2.5,
         "avg_cards_last_5":2.0,
-        "form_index_team":0.4
+        "form_index_team":0.65
     },
     {
         "fixture":"Bayer Leverkusen vs VfB Stuttgart",
@@ -12636,8 +13956,8 @@
         "aggression_index_raw":5.3714285714,
         "aggression_index_norm":0.3608470962,
         "avg_goals_last_5":3.0,
-        "avg_cards_last_5":1.6666666667,
-        "form_index_team":1.0
+        "avg_cards_last_5":1.75,
+        "form_index_team":0.975
     },
     {
         "fixture":"Borussia M\u00f6nchengladbach vs VfB Stuttgart",
@@ -12675,9 +13995,9 @@
         "fouls_per_duel_team":0.28,
         "aggression_index_raw":3.856,
         "aggression_index_norm":0.2190032886,
-        "avg_goals_last_5":2.75,
-        "avg_cards_last_5":1.5,
-        "form_index_team":0.925
+        "avg_goals_last_5":2.8,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.92
     },
     {
         "fixture":"FC St. Pauli vs VfB Stuttgart",
@@ -12920,6 +14240,46 @@
         "form_index_team":-0.22
     },
     {
+        "fixture":"VfB Stuttgart vs 1. FC K\u00f6ln",
+        "team":"VfB Stuttgart",
+        "goals":3.0,
+        "assists":3,
+        "shots_total_x":9.0,
+        "shots_on_x":4.0,
+        "passes_total":475,
+        "accurate_passes":403.0,
+        "fouls_committed":10.0,
+        "yellow_cards":4,
+        "red_cards":0,
+        "minutes":1002,
+        "tackles":22.0,
+        "interceptions":2.0,
+        "shots_accuracy_for":0.4444444444,
+        "pass_accuracy_team":0.8484210526,
+        "expected_goals":2.25,
+        "goals_prevented":0,
+        "possession":0.57,
+        "corners":2,
+        "shots_total_y":13,
+        "shots_on_y":4,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2632941176,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5909560185,
+        "cards_total":4,
+        "fouls_per_90_team":10.0,
+        "cards_per_90_team":4,
+        "cards_per_foul_team":0.4,
+        "fouls_per_duel_team":0.4166666667,
+        "aggression_index_raw":6.2833333333,
+        "aggression_index_norm":0.4462011974,
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":2.4,
+        "form_index_team":-0.02
+    },
+    {
         "fixture":"VfB Stuttgart vs 1899 Hoffenheim",
         "team":"VfB Stuttgart",
         "goals":0.0,
@@ -12955,9 +14315,9 @@
         "fouls_per_duel_team":0.4761904762,
         "aggression_index_raw":5.9952380952,
         "aggression_index_norm":0.4192355414,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":2.2,
-        "form_index_team":-0.26
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.18
     },
     {
         "fixture":"VfB Stuttgart vs Bayern M\u00fcnchen",
@@ -12995,9 +14355,9 @@
         "fouls_per_duel_team":0.3,
         "aggression_index_raw":3.96,
         "aggression_index_norm":0.2287376676,
-        "avg_goals_last_5":0.6,
-        "avg_cards_last_5":2.4,
-        "form_index_team":-0.42
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":3.0,
+        "form_index_team":-0.4
     },
     {
         "fixture":"VfB Stuttgart vs Borussia M\u00f6nchengladbach",
@@ -13035,9 +14395,9 @@
         "fouls_per_duel_team":0.2272727273,
         "aggression_index_raw":3.1454545455,
         "aggression_index_norm":0.1524963779,
-        "avg_goals_last_5":0.6,
+        "avg_goals_last_5":1.0,
         "avg_cards_last_5":2.6,
-        "form_index_team":-0.48
+        "form_index_team":-0.28
     },
     {
         "fixture":"VfB Stuttgart vs Eintracht Frankfurt",
@@ -13075,9 +14435,9 @@
         "fouls_per_duel_team":0.2962962963,
         "aggression_index_raw":4.6592592593,
         "aggression_index_norm":0.2941881927,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":2.2,
-        "form_index_team":-0.16
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.14
     },
     {
         "fixture":"VfB Stuttgart vs FC Augsburg",
@@ -13720,6 +15080,46 @@
         "form_index_team":-0.08
     },
     {
+        "fixture":"RB Leipzig vs VfL Wolfsburg",
+        "team":"VfL Wolfsburg",
+        "goals":2.0,
+        "assists":2,
+        "shots_total_x":9.0,
+        "shots_on_x":3.0,
+        "passes_total":328,
+        "accurate_passes":254.0,
+        "fouls_committed":10.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":1004,
+        "tackles":20.0,
+        "interceptions":9.0,
+        "shots_accuracy_for":0.3333333333,
+        "pass_accuracy_team":0.7743902439,
+        "expected_goals":0.62,
+        "goals_prevented":1,
+        "possession":0.32,
+        "corners":2,
+        "shots_total_y":10,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.1632941176,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5096190061,
+        "cards_total":1,
+        "fouls_per_90_team":10.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.1,
+        "fouls_per_duel_team":0.3448275862,
+        "aggression_index_raw":5.3689655172,
+        "aggression_index_norm":0.3606165549,
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.18
+    },
+    {
         "fixture":"VfL Wolfsburg vs 1. FC Heidenheim",
         "team":"VfL Wolfsburg",
         "goals":1.0,
@@ -13755,9 +15155,9 @@
         "fouls_per_duel_team":0.6666666667,
         "aggression_index_raw":6.3333333333,
         "aggression_index_norm":0.4508811873,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":3.2,
-        "form_index_team":-0.46
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.18
     },
     {
         "fixture":"VfL Wolfsburg vs 1. FC K\u00f6ln",
@@ -13795,9 +15195,9 @@
         "fouls_per_duel_team":0.8823529412,
         "aggression_index_raw":8.2764705882,
         "aggression_index_norm":0.6327584411,
-        "avg_goals_last_5":1.4,
+        "avg_goals_last_5":1.6,
         "avg_cards_last_5":2.8,
-        "form_index_team":-0.14
+        "form_index_team":-0.04
     },
     {
         "fixture":"VfL Wolfsburg vs 1899 Hoffenheim",
@@ -13835,9 +15235,9 @@
         "fouls_per_duel_team":0.4166666667,
         "aggression_index_raw":5.0833333333,
         "aggression_index_norm":0.3338814403,
-        "avg_goals_last_5":1.6,
-        "avg_cards_last_5":2.6,
-        "form_index_team":0.02
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.18
     },
     {
         "fixture":"VfL Wolfsburg vs Bayer Leverkusen",
@@ -13875,9 +15275,9 @@
         "fouls_per_duel_team":0.5454545455,
         "aggression_index_raw":6.7090909091,
         "aggression_index_norm":0.4860520203,
-        "avg_goals_last_5":1.6,
-        "avg_cards_last_5":2.6,
-        "form_index_team":0.02
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.36
     },
     {
         "fixture":"VfL Wolfsburg vs Borussia Dortmund",
@@ -13920,6 +15320,46 @@
         "form_index_team":0.26
     },
     {
+        "fixture":"VfL Wolfsburg vs FC Augsburg",
+        "team":"VfL Wolfsburg",
+        "goals":2.0,
+        "assists":2,
+        "shots_total_x":9.0,
+        "shots_on_x":4.0,
+        "passes_total":451,
+        "accurate_passes":390.0,
+        "fouls_committed":10.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":988,
+        "tackles":12.0,
+        "interceptions":6.0,
+        "shots_accuracy_for":0.4444444444,
+        "pass_accuracy_team":0.8647450111,
+        "expected_goals":1.6,
+        "goals_prevented":0,
+        "possession":0.5,
+        "corners":4,
+        "shots_total_y":10,
+        "shots_on_y":4,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2705882353,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6154112286,
+        "cards_total":3,
+        "fouls_per_90_team":10.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.3,
+        "fouls_per_duel_team":0.5555555556,
+        "aggression_index_raw":6.0111111111,
+        "aggression_index_norm":0.4207212525,
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.42
+    },
+    {
         "fixture":"VfL Wolfsburg vs FC St. Pauli",
         "team":"VfL Wolfsburg",
         "goals":2.0,
@@ -13955,9 +15395,9 @@
         "fouls_per_duel_team":0.5555555556,
         "aggression_index_raw":5.4111111111,
         "aggression_index_norm":0.3645613739,
-        "avg_goals_last_5":1.8,
-        "avg_cards_last_5":1.2,
-        "form_index_team":0.54
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.38
     },
     {
         "fixture":"VfL Wolfsburg vs FSV Mainz 05",
@@ -13996,8 +15436,8 @@
         "aggression_index_raw":8.8304347826,
         "aggression_index_norm":0.6846093776,
         "avg_goals_last_5":1.4,
-        "avg_cards_last_5":1.6,
-        "form_index_team":0.22
+        "avg_cards_last_5":2.2,
+        "form_index_team":0.04
     },
     {
         "fixture":"VfL Wolfsburg vs RB Leipzig",
@@ -14035,9 +15475,9 @@
         "fouls_per_duel_team":0.2692307692,
         "aggression_index_raw":4.1538461538,
         "aggression_index_norm":0.2468816284,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":2.0,
-        "form_index_team":-0.1
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.2,
+        "form_index_team":-0.06
     },
     {
         "fixture":"VfL Wolfsburg vs SC Freiburg",
@@ -14075,9 +15515,9 @@
         "fouls_per_duel_team":0.7619047619,
         "aggression_index_raw":8.4523809524,
         "aggression_index_norm":0.6492236156,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":1.8,
-        "form_index_team":0.16
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.2,
+        "form_index_team":0.14
     },
     {
         "fixture":"VfL Wolfsburg vs Union Berlin",
@@ -14480,6 +15920,46 @@
         "form_index_team":0.08
     },
     {
+        "fixture":"FC St. Pauli vs Werder Bremen",
+        "team":"Werder Bremen",
+        "goals":1.0,
+        "assists":0,
+        "shots_total_x":9.0,
+        "shots_on_x":4.0,
+        "passes_total":562,
+        "accurate_passes":460.0,
+        "fouls_committed":10.0,
+        "yellow_cards":6,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":15.0,
+        "interceptions":11.0,
+        "shots_accuracy_for":0.4444444444,
+        "pass_accuracy_team":0.8185053381,
+        "expected_goals":1.55,
+        "goals_prevented":-1,
+        "possession":0.58,
+        "corners":5,
+        "shots_total_y":13,
+        "shots_on_y":4,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3202352941,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6375234346,
+        "cards_total":6,
+        "fouls_per_90_team":10.0,
+        "cards_per_90_team":6,
+        "cards_per_foul_team":0.6,
+        "fouls_per_duel_team":0.3846153846,
+        "aggression_index_raw":6.8769230769,
+        "aggression_index_norm":0.5017610773,
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.18
+    },
+    {
         "fixture":"FSV Mainz 05 vs Werder Bremen",
         "team":"Werder Bremen",
         "goals":1.0,
@@ -14515,9 +15995,9 @@
         "fouls_per_duel_team":0.4583333333,
         "aggression_index_raw":6.4916666667,
         "aggression_index_norm":0.4657011552,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.0
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":3.2,
+        "form_index_team":-0.26
     },
     {
         "fixture":"Hamburger SV vs Werder Bremen",
@@ -14555,9 +16035,9 @@
         "fouls_per_duel_team":0.52,
         "aggression_index_raw":8.404,
         "aggression_index_norm":0.6446951682,
-        "avg_goals_last_5":1.6,
-        "avg_cards_last_5":3.2,
-        "form_index_team":-0.16
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":4.4,
+        "form_index_team":-0.82
     },
     {
         "fixture":"RB Leipzig vs Werder Bremen",
@@ -14596,8 +16076,8 @@
         "aggression_index_raw":4.1424242424,
         "aggression_index_norm":0.2458125398,
         "avg_goals_last_5":0.8,
-        "avg_cards_last_5":3.6,
-        "form_index_team":-0.68
+        "avg_cards_last_5":4.2,
+        "form_index_team":-0.86
     },
     {
         "fixture":"SC Freiburg vs Werder Bremen",
@@ -14635,9 +16115,9 @@
         "fouls_per_duel_team":0.4137931034,
         "aggression_index_raw":6.3827586207,
         "aggression_index_norm":0.4555073842,
-        "avg_goals_last_5":0.6,
-        "avg_cards_last_5":3.2,
-        "form_index_team":-0.66
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":3.6,
+        "form_index_team":-0.68
     },
     {
         "fixture":"Werder Bremen vs 1. FC K\u00f6ln",
@@ -14760,6 +16240,46 @@
         "form_index_team":-0.38
     },
     {
+        "fixture":"Werder Bremen vs Bayern M\u00fcnchen",
+        "team":"Werder Bremen",
+        "goals":0.0,
+        "assists":0,
+        "shots_total_x":10.0,
+        "shots_on_x":3.0,
+        "passes_total":387,
+        "accurate_passes":296.0,
+        "fouls_committed":10.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":31.0,
+        "interceptions":17.0,
+        "shots_accuracy_for":0.3,
+        "pass_accuracy_team":0.7648578811,
+        "expected_goals":0.81,
+        "goals_prevented":0,
+        "possession":0.35,
+        "corners":2,
+        "shots_total_y":14,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.1752941176,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5226417694,
+        "cards_total":3,
+        "fouls_per_90_team":10.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.3,
+        "fouls_per_duel_team":0.2083333333,
+        "aggression_index_raw":5.9416666667,
+        "aggression_index_norm":0.4142212665,
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.44
+    },
+    {
         "fixture":"Werder Bremen vs Borussia M\u00f6nchengladbach",
         "team":"Werder Bremen",
         "goals":1.0,
@@ -14796,8 +16316,8 @@
         "aggression_index_raw":5.0833333333,
         "aggression_index_norm":0.3338814403,
         "avg_goals_last_5":1.0,
-        "avg_cards_last_5":2.2,
-        "form_index_team":-0.16
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.28
     },
     {
         "fixture":"Werder Bremen vs Eintracht Frankfurt",
@@ -14835,9 +16355,9 @@
         "fouls_per_duel_team":0.4,
         "aggression_index_raw":4.38,
         "aggression_index_norm":0.2680495826,
-        "avg_goals_last_5":1.6,
+        "avg_goals_last_5":1.4,
         "avg_cards_last_5":2.2,
-        "form_index_team":0.14
+        "form_index_team":0.04
     },
     {
         "fixture":"Werder Bremen vs FC St. Pauli",
@@ -14876,8 +16396,8 @@
         "aggression_index_raw":4.9457142857,
         "aggression_index_norm":0.3210003253,
         "avg_goals_last_5":1.6,
-        "avg_cards_last_5":2.2,
-        "form_index_team":0.14
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.08
     },
     {
         "fixture":"Werder Bremen vs SC Freiburg",
@@ -14915,9 +16435,9 @@
         "fouls_per_duel_team":0.6842105263,
         "aggression_index_raw":8.1368421053,
         "aggression_index_norm":0.6196892433,
-        "avg_goals_last_5":1.6,
-        "avg_cards_last_5":2.8,
-        "form_index_team":-0.04
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":2.4,
+        "form_index_team":-0.22
     },
     {
         "fixture":"Werder Bremen vs Union Berlin",

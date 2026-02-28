@@ -1,0 +1,347 @@
+{
+  "anthony taylor": {
+    "name": "anthony taylor",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 22,
+    "avg_cards_per_match": 3.909,
+    "avg_fouls_per_match": 20.182,
+    "avg_yellows_per_match": 3.818,
+    "avg_reds_per_match": 0.091,
+    "strictness_ratio": 1.0012,
+    "cards_per_foul": 0.1937,
+    "last_updated": "2026-02-28"
+  },
+  "craig pawson": {
+    "name": "craig pawson",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 16,
+    "avg_cards_per_match": 2.562,
+    "avg_fouls_per_match": 21.438,
+    "avg_yellows_per_match": 2.438,
+    "avg_reds_per_match": 0.125,
+    "strictness_ratio": 0.6563,
+    "cards_per_foul": 0.1195,
+    "last_updated": "2026-02-28"
+  },
+  "michael oliver": {
+    "name": "michael oliver",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 21,
+    "avg_cards_per_match": 3.0,
+    "avg_fouls_per_match": 21.476,
+    "avg_yellows_per_match": 2.905,
+    "avg_reds_per_match": 0.095,
+    "strictness_ratio": 0.7684,
+    "cards_per_foul": 0.1397,
+    "last_updated": "2026-02-28"
+  },
+  "samuel barrott": {
+    "name": "samuel barrott",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 16,
+    "avg_cards_per_match": 3.688,
+    "avg_fouls_per_match": 19.688,
+    "avg_yellows_per_match": 3.625,
+    "avg_reds_per_match": 0.062,
+    "strictness_ratio": 0.9444,
+    "cards_per_foul": 0.1873,
+    "last_updated": "2026-02-28"
+  },
+  "robert jones": {
+    "name": "robert jones",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 15,
+    "avg_cards_per_match": 4.2,
+    "avg_fouls_per_match": 20.667,
+    "avg_yellows_per_match": 4.2,
+    "avg_reds_per_match": 0.0,
+    "strictness_ratio": 1.0757,
+    "cards_per_foul": 0.2032,
+    "last_updated": "2026-02-28"
+  },
+  "jarred gillett": {
+    "name": "jarred gillett",
+    "country": "Australia",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 15,
+    "avg_cards_per_match": 3.6,
+    "avg_fouls_per_match": 19.933,
+    "avg_yellows_per_match": 3.533,
+    "avg_reds_per_match": 0.067,
+    "strictness_ratio": 0.922,
+    "cards_per_foul": 0.1806,
+    "last_updated": "2026-02-28"
+  },
+  "darren england": {
+    "name": "darren england",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 16,
+    "avg_cards_per_match": 4.25,
+    "avg_fouls_per_match": 21.875,
+    "avg_yellows_per_match": 4.125,
+    "avg_reds_per_match": 0.125,
+    "strictness_ratio": 1.0885,
+    "cards_per_foul": 0.1943,
+    "last_updated": "2026-02-28"
+  },
+  "peter bankes": {
+    "name": "peter bankes",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 19,
+    "avg_cards_per_match": 4.158,
+    "avg_fouls_per_match": 22.053,
+    "avg_yellows_per_match": 4.0,
+    "avg_reds_per_match": 0.158,
+    "strictness_ratio": 1.0649,
+    "cards_per_foul": 0.1885,
+    "last_updated": "2026-02-28"
+  },
+  "simon hooper": {
+    "name": "simon hooper",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 15,
+    "avg_cards_per_match": 4.133,
+    "avg_fouls_per_match": 23.333,
+    "avg_yellows_per_match": 4.0,
+    "avg_reds_per_match": 0.133,
+    "strictness_ratio": 1.0586,
+    "cards_per_foul": 0.1771,
+    "last_updated": "2026-02-28"
+  },
+  "chris kavanagh": {
+    "name": "chris kavanagh",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 18,
+    "avg_cards_per_match": 3.833,
+    "avg_fouls_per_match": 22.611,
+    "avg_yellows_per_match": 3.778,
+    "avg_reds_per_match": 0.056,
+    "strictness_ratio": 0.9818,
+    "cards_per_foul": 0.1695,
+    "last_updated": "2026-02-28"
+  },
+  "thomas bramall": {
+    "name": "thomas bramall",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 15,
+    "avg_cards_per_match": 4.0,
+    "avg_fouls_per_match": 21.333,
+    "avg_yellows_per_match": 3.933,
+    "avg_reds_per_match": 0.067,
+    "strictness_ratio": 1.0245,
+    "cards_per_foul": 0.1875,
+    "last_updated": "2026-02-28"
+  },
+  "michael salisbury": {
+    "name": "michael salisbury",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 10,
+    "avg_cards_per_match": 4.6,
+    "avg_fouls_per_match": 22.8,
+    "avg_yellows_per_match": 4.5,
+    "avg_reds_per_match": 0.1,
+    "strictness_ratio": 1.1782,
+    "cards_per_foul": 0.2018,
+    "last_updated": "2026-02-28"
+  },
+  "tony harrington": {
+    "name": "tony harrington",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 11,
+    "avg_cards_per_match": 3.182,
+    "avg_fouls_per_match": 20.909,
+    "avg_yellows_per_match": 3.091,
+    "avg_reds_per_match": 0.091,
+    "strictness_ratio": 0.8149,
+    "cards_per_foul": 0.1522,
+    "last_updated": "2026-02-28"
+  },
+  "stuart attwell": {
+    "name": "stuart attwell",
+    "country": null,
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 16,
+    "avg_cards_per_match": 4.812,
+    "avg_fouls_per_match": 20.5,
+    "avg_yellows_per_match": 4.688,
+    "avg_reds_per_match": 0.125,
+    "strictness_ratio": 1.2326,
+    "cards_per_foul": 0.2348,
+    "last_updated": "2026-02-28"
+  },
+  "andy madley": {
+    "name": "andy madley",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 13,
+    "avg_cards_per_match": 3.615,
+    "avg_fouls_per_match": 22.154,
+    "avg_yellows_per_match": 3.462,
+    "avg_reds_per_match": 0.154,
+    "strictness_ratio": 0.926,
+    "cards_per_foul": 0.1632,
+    "last_updated": "2026-02-28"
+  },
+  "john brooks": {
+    "name": "john brooks",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 11,
+    "avg_cards_per_match": 4.455,
+    "avg_fouls_per_match": 20.0,
+    "avg_yellows_per_match": 4.182,
+    "avg_reds_per_match": 0.273,
+    "strictness_ratio": 1.1409,
+    "cards_per_foul": 0.2227,
+    "last_updated": "2026-02-28"
+  },
+  "andrew kitchen": {
+    "name": "andrew kitchen",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 3,
+    "avg_cards_per_match": 3.667,
+    "avg_fouls_per_match": 24.0,
+    "avg_yellows_per_match": 3.667,
+    "avg_reds_per_match": 0.0,
+    "strictness_ratio": 0.9391,
+    "cards_per_foul": 0.1528,
+    "last_updated": "2026-02-28"
+  },
+  "tim robinson": {
+    "name": "tim robinson",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 7,
+    "avg_cards_per_match": 4.857,
+    "avg_fouls_per_match": 23.0,
+    "avg_yellows_per_match": 4.571,
+    "avg_reds_per_match": 0.286,
+    "strictness_ratio": 1.244,
+    "cards_per_foul": 0.2112,
+    "last_updated": "2026-02-28"
+  },
+  "thomas kirk": {
+    "name": "thomas kirk",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 3,
+    "avg_cards_per_match": 5.667,
+    "avg_fouls_per_match": 26.0,
+    "avg_yellows_per_match": 4.667,
+    "avg_reds_per_match": 1.0,
+    "strictness_ratio": 1.4513,
+    "cards_per_foul": 0.2179,
+    "last_updated": "2026-02-28"
+  },
+  "matt donohue": {
+    "name": "matt donohue",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 2,
+    "avg_cards_per_match": 4.5,
+    "avg_fouls_per_match": 26.5,
+    "avg_yellows_per_match": 4.5,
+    "avg_reds_per_match": 0.0,
+    "strictness_ratio": 1.1525,
+    "cards_per_foul": 0.1698,
+    "last_updated": "2026-02-28"
+  },
+  "paul tierney": {
+    "name": "paul tierney",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 5,
+    "avg_cards_per_match": 3.8,
+    "avg_fouls_per_match": 18.6,
+    "avg_yellows_per_match": 3.8,
+    "avg_reds_per_match": 0.0,
+    "strictness_ratio": 0.9733,
+    "cards_per_foul": 0.2043,
+    "last_updated": "2026-02-28"
+  },
+  "farai hallam": {
+    "name": "farai hallam",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 2,
+    "avg_cards_per_match": 3.5,
+    "avg_fouls_per_match": 24.5,
+    "avg_yellows_per_match": 3.5,
+    "avg_reds_per_match": 0.0,
+    "strictness_ratio": 0.8964,
+    "cards_per_foul": 0.1429,
+    "last_updated": "2026-02-28"
+  },
+  "lewis smith": {
+    "name": "lewis smith",
+    "country": "England",
+    "leagues": [
+      "EPL"
+    ],
+    "total_matches": 1,
+    "avg_cards_per_match": 7.0,
+    "avg_fouls_per_match": 24.0,
+    "avg_yellows_per_match": 6.0,
+    "avg_reds_per_match": 1.0,
+    "strictness_ratio": 1.7928,
+    "cards_per_foul": 0.2917,
+    "last_updated": "2026-02-28"
+  }
+}

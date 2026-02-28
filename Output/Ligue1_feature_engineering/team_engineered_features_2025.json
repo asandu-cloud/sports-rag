@@ -80,6 +80,46 @@
         "form_index_team":0.05
     },
     {
+        "fixture":"Angers vs Lille",
+        "team":"Angers",
+        "goals":0.0,
+        "assists":0.0,
+        "shots_total_x":5.0,
+        "shots_on_x":2.0,
+        "passes_total":455,
+        "accurate_passes":374.0,
+        "fouls_committed":14.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":16.0,
+        "interceptions":9.0,
+        "shots_accuracy_for":0.4,
+        "pass_accuracy_team":0.821978022,
+        "expected_goals":0.39,
+        "goals_prevented":0,
+        "possession":0.45,
+        "corners":1,
+        "shots_total_y":5,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.19875,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5626327419,
+        "cards_total":3,
+        "fouls_per_90_team":14.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.2142857143,
+        "fouls_per_duel_team":0.56,
+        "aggression_index_raw":8.012,
+        "aggression_index_norm":0.5439694133,
+        "avg_goals_last_5":0.6666666667,
+        "avg_cards_last_5":2.0,
+        "form_index_team":-0.2666666667
+    },
+    {
         "fixture":"Angers vs Lorient",
         "team":"Angers",
         "goals":2.0,
@@ -115,9 +155,9 @@
         "fouls_per_duel_team":0.56,
         "aggression_index_raw":7.412,
         "aggression_index_norm":0.4936777609,
-        "avg_goals_last_5":1.3333333333,
-        "avg_cards_last_5":1.3333333333,
-        "form_index_team":0.2666666667
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":1.75,
+        "form_index_team":-0.025
     },
     {
         "fixture":"Angers vs Marseille",
@@ -155,9 +195,9 @@
         "fouls_per_duel_team":0.375,
         "aggression_index_raw":4.875,
         "aggression_index_norm":0.2810278908,
-        "avg_goals_last_5":1.5,
-        "avg_cards_last_5":1.25,
-        "form_index_team":0.375
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.12
     },
     {
         "fixture":"Angers vs Metz",
@@ -195,9 +235,9 @@
         "fouls_per_duel_team":0.4230769231,
         "aggression_index_raw":6.1846153846,
         "aggression_index_norm":0.3907990936,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.28
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.12
     },
     {
         "fixture":"Angers vs Monaco",
@@ -235,9 +275,9 @@
         "fouls_per_duel_team":0.5172413793,
         "aggression_index_raw":8.2034482759,
         "aggression_index_norm":0.5600164968,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.28
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.06
     },
     {
         "fixture":"Angers vs Nantes",
@@ -520,6 +560,46 @@
         "form_index_team":-0.12
     },
     {
+        "fixture":"Lorient vs Angers",
+        "team":"Angers",
+        "goals":0.0,
+        "assists":0.0,
+        "shots_total_x":6.0,
+        "shots_on_x":3.0,
+        "passes_total":453,
+        "accurate_passes":392.0,
+        "fouls_committed":8.0,
+        "yellow_cards":0,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":13.0,
+        "interceptions":11.0,
+        "shots_accuracy_for":0.5,
+        "pass_accuracy_team":0.8653421634,
+        "expected_goals":0.42,
+        "goals_prevented":-1,
+        "possession":0.41,
+        "corners":2,
+        "shots_total_y":10,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2015,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5962031918,
+        "cards_total":0,
+        "fouls_per_90_team":8.0,
+        "cards_per_90_team":0,
+        "cards_per_foul_team":0.0,
+        "fouls_per_duel_team":0.3333333333,
+        "aggression_index_raw":4.0666666667,
+        "aggression_index_norm":0.2132738591,
+        "avg_goals_last_5":0.4,
+        "avg_cards_last_5":1.0,
+        "form_index_team":-0.1
+    },
+    {
         "fixture":"Lyon vs Angers",
         "team":"Angers",
         "goals":0.0,
@@ -556,8 +636,8 @@
         "aggression_index_raw":5.7,
         "aggression_index_norm":0.3501789128,
         "avg_goals_last_5":0.4,
-        "avg_cards_last_5":1.4,
-        "form_index_team":-0.22
+        "avg_cards_last_5":1.2,
+        "form_index_team":-0.16
     },
     {
         "fixture":"Marseille vs Angers",
@@ -595,9 +675,9 @@
         "fouls_per_duel_team":0.3181818182,
         "aggression_index_raw":3.8636363636,
         "aggression_index_norm":0.1962559768,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":1.4,
-        "form_index_team":-0.02
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":0.8,
+        "form_index_team":0.06
     },
     {
         "fixture":"Metz vs Angers",
@@ -635,9 +715,9 @@
         "fouls_per_duel_team":0.2333333333,
         "aggression_index_raw":3.8466666667,
         "aggression_index_norm":0.1948335866,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":1.0,
-        "form_index_team":0.1
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":0.8,
+        "form_index_team":0.06
     },
     {
         "fixture":"Nice vs Angers",
@@ -1280,6 +1360,46 @@
         "form_index_team":-0.36
     },
     {
+        "fixture":"Auxerre vs Rennes",
+        "team":"Auxerre",
+        "goals":0.0,
+        "assists":0.0,
+        "shots_total_x":9.0,
+        "shots_on_x":2.0,
+        "passes_total":347,
+        "accurate_passes":253.0,
+        "fouls_committed":17.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":995,
+        "tackles":26.0,
+        "interceptions":16.0,
+        "shots_accuracy_for":0.2222222222,
+        "pass_accuracy_team":0.7291066282,
+        "expected_goals":0.68,
+        "goals_prevented":0,
+        "possession":0.43,
+        "corners":4,
+        "shots_total_y":11,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.247,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5206695221,
+        "cards_total":1,
+        "fouls_per_90_team":17.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.0588235294,
+        "fouls_per_duel_team":0.4047619048,
+        "aggression_index_raw":8.880952381,
+        "aggression_index_norm":0.6168044984,
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":1.6,
+        "form_index_team":-0.18
+    },
+    {
         "fixture":"Auxerre vs Toulouse",
         "team":"Auxerre",
         "goals":1.0,
@@ -1315,9 +1435,9 @@
         "fouls_per_duel_team":0.3636363636,
         "aggression_index_raw":6.6727272727,
         "aggression_index_norm":0.4317123492,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":1.8,
-        "form_index_team":-0.14
+        "avg_goals_last_5":0.2,
+        "avg_cards_last_5":1.6,
+        "form_index_team":-0.38
     },
     {
         "fixture":"Lens vs Auxerre",
@@ -1356,8 +1476,48 @@
         "aggression_index_raw":11.5930232558,
         "aggression_index_norm":0.8441287078,
         "avg_goals_last_5":0.2,
-        "avg_cards_last_5":2.4,
-        "form_index_team":-0.62
+        "avg_cards_last_5":1.8,
+        "form_index_team":-0.44
+    },
+    {
+        "fixture":"Metz vs Auxerre",
+        "team":"Auxerre",
+        "goals":1.0,
+        "assists":1.0,
+        "shots_total_x":9.0,
+        "shots_on_x":3.0,
+        "passes_total":334,
+        "accurate_passes":273.0,
+        "fouls_committed":12.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":989,
+        "tackles":22.0,
+        "interceptions":14.0,
+        "shots_accuracy_for":0.3333333333,
+        "pass_accuracy_team":0.8173652695,
+        "expected_goals":0.8,
+        "goals_prevented":0,
+        "possession":0.38,
+        "corners":3,
+        "shots_total_y":14,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.20825,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5483233075,
+        "cards_total":3,
+        "fouls_per_90_team":12.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.25,
+        "fouls_per_duel_team":0.3333333333,
+        "aggression_index_raw":6.9666666667,
+        "aggression_index_norm":0.4563501789,
+        "avg_goals_last_5":0.4,
+        "avg_cards_last_5":2.2,
+        "form_index_team":-0.46
     },
     {
         "fixture":"Nantes vs Auxerre",
@@ -1395,9 +1555,9 @@
         "fouls_per_duel_team":0.6111111111,
         "aggression_index_raw":6.5222222222,
         "aggression_index_norm":0.4190971031,
-        "avg_goals_last_5":0.2,
-        "avg_cards_last_5":2.2,
-        "form_index_team":-0.56
+        "avg_goals_last_5":0.4,
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.64
     },
     {
         "fixture":"Nice vs Auxerre",
@@ -1435,9 +1595,9 @@
         "fouls_per_duel_team":0.625,
         "aggression_index_raw":8.525,
         "aggression_index_norm":0.586968776,
-        "avg_goals_last_5":0.4,
-        "avg_cards_last_5":2.6,
-        "form_index_team":-0.58
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":3.2,
+        "form_index_team":-0.66
     },
     {
         "fixture":"Paris FC vs Auxerre",
@@ -1476,8 +1636,8 @@
         "aggression_index_raw":8.9259259259,
         "aggression_index_norm":0.6205741549,
         "avg_goals_last_5":0.6,
-        "avg_cards_last_5":2.8,
-        "form_index_team":-0.54
+        "avg_cards_last_5":3.0,
+        "form_index_team":-0.6
     },
     {
         "fixture":"Paris Saint Germain vs Auxerre",
@@ -1515,9 +1675,9 @@
         "fouls_per_duel_team":0.2777777778,
         "aggression_index_raw":5.6555555556,
         "aggression_index_norm":0.3464536052,
-        "avg_goals_last_5":0.4,
-        "avg_cards_last_5":2.8,
-        "form_index_team":-0.64
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":2.4,
+        "form_index_team":-0.42
     },
     {
         "fixture":"Rennes vs Auxerre",
@@ -2160,6 +2320,46 @@
         "form_index_team":0.5
     },
     {
+        "fixture":"Le Havre vs Toulouse",
+        "team":"Le Havre",
+        "goals":2.0,
+        "assists":1.0,
+        "shots_total_x":4.0,
+        "shots_on_x":2.0,
+        "passes_total":279,
+        "accurate_passes":203.0,
+        "fouls_committed":7.0,
+        "yellow_cards":1,
+        "red_cards":1,
+        "minutes":909,
+        "tackles":22.0,
+        "interceptions":7.0,
+        "shots_accuracy_for":0.5,
+        "pass_accuracy_team":0.7275985663,
+        "expected_goals":1.16,
+        "goals_prevented":0,
+        "possession":0.33,
+        "corners":1,
+        "shots_total_y":5,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.15075,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.4616203841,
+        "cards_total":2,
+        "fouls_per_90_team":7.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.2857142857,
+        "fouls_per_duel_team":0.2413793103,
+        "aggression_index_raw":4.1482758621,
+        "aggression_index_norm":0.2201142946,
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.34
+    },
+    {
         "fixture":"Lens vs Le Havre",
         "team":"Le Havre",
         "goals":0.0,
@@ -2195,9 +2395,9 @@
         "fouls_per_duel_team":0.3571428571,
         "aggression_index_raw":5.6714285714,
         "aggression_index_norm":0.3477840722,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":1.2,
-        "form_index_team":0.14
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.22
     },
     {
         "fixture":"Lyon vs Le Havre",
@@ -2236,8 +2436,8 @@
         "aggression_index_raw":10.3894736842,
         "aggression_index_norm":0.74324788,
         "avg_goals_last_5":1.0,
-        "avg_cards_last_5":2.0,
-        "form_index_team":-0.1
+        "avg_cards_last_5":2.2,
+        "form_index_team":-0.16
     },
     {
         "fixture":"Marseille vs Le Havre",
@@ -2275,9 +2475,9 @@
         "fouls_per_duel_team":0.8666666667,
         "aggression_index_raw":7.5733333333,
         "aggression_index_norm":0.5072006274,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":2.4,
-        "form_index_team":-0.22
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.18
     },
     {
         "fixture":"Metz vs Le Havre",
@@ -2360,6 +2560,46 @@
         "form_index_team":-0.42
     },
     {
+        "fixture":"Nantes vs Le Havre",
+        "team":"Le Havre",
+        "goals":0.0,
+        "assists":0.0,
+        "shots_total_x":4.0,
+        "shots_on_x":1.0,
+        "passes_total":526,
+        "accurate_passes":445.0,
+        "fouls_committed":13.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":13.0,
+        "interceptions":6.0,
+        "shots_accuracy_for":0.25,
+        "pass_accuracy_team":0.8460076046,
+        "expected_goals":0.7,
+        "goals_prevented":-1,
+        "possession":0.71,
+        "corners":6,
+        "shots_total_y":6,
+        "shots_on_y":1,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3965,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6588600714,
+        "cards_total":3,
+        "fouls_per_90_team":13.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.2307692308,
+        "fouls_per_duel_team":0.6842105263,
+        "aggression_index_raw":7.5368421053,
+        "aggression_index_norm":0.5041419538,
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.48
+    },
+    {
         "fixture":"Paris Saint Germain vs Le Havre",
         "team":"Le Havre",
         "goals":0.0,
@@ -2396,8 +2636,8 @@
         "aggression_index_raw":4.3444444444,
         "aggression_index_norm":0.2365570315,
         "avg_goals_last_5":0.6,
-        "avg_cards_last_5":2.2,
-        "form_index_team":-0.36
+        "avg_cards_last_5":2.0,
+        "form_index_team":-0.3
     },
     {
         "fixture":"Rennes vs Le Havre",
@@ -2435,9 +2675,9 @@
         "fouls_per_duel_team":0.3783783784,
         "aggression_index_raw":8.2756756757,
         "aggression_index_norm":0.5660705556,
-        "avg_goals_last_5":0.8,
+        "avg_goals_last_5":0.4,
         "avg_cards_last_5":2.2,
-        "form_index_team":-0.26
+        "form_index_team":-0.46
     },
     {
         "fixture":"Strasbourg vs Le Havre",
@@ -2476,8 +2716,8 @@
         "aggression_index_raw":8.696969697,
         "aggression_index_norm":0.6013831764,
         "avg_goals_last_5":0.4,
-        "avg_cards_last_5":2.0,
-        "form_index_team":-0.4
+        "avg_cards_last_5":2.2,
+        "form_index_team":-0.46
     },
     {
         "fixture":"Toulouse vs Le Havre",
@@ -2515,9 +2755,9 @@
         "fouls_per_duel_team":0.3414634146,
         "aggression_index_raw":7.6682926829,
         "aggression_index_norm":0.5151600651,
-        "avg_goals_last_5":0.4,
-        "avg_cards_last_5":2.0,
-        "form_index_team":-0.4
+        "avg_goals_last_5":0.2,
+        "avg_cards_last_5":2.4,
+        "form_index_team":-0.62
     },
     {
         "fixture":"Angers vs Lens",
@@ -2880,6 +3120,46 @@
         "form_index_team":0.26
     },
     {
+        "fixture":"Lens vs Monaco",
+        "team":"Lens",
+        "goals":2.0,
+        "assists":1.0,
+        "shots_total_x":13.0,
+        "shots_on_x":7.0,
+        "passes_total":450,
+        "accurate_passes":385.0,
+        "fouls_committed":13.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":1002,
+        "tackles":17.0,
+        "interceptions":10.0,
+        "shots_accuracy_for":0.5384615385,
+        "pass_accuracy_team":0.8555555556,
+        "expected_goals":1.79,
+        "goals_prevented":0,
+        "possession":0.52,
+        "corners":7,
+        "shots_total_y":18,
+        "shots_on_y":7,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.33925,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6528924567,
+        "cards_total":2,
+        "fouls_per_90_team":13.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.1538461538,
+        "fouls_per_duel_team":0.4814814815,
+        "aggression_index_raw":7.1962962963,
+        "aggression_index_norm":0.4755976014,
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.3
+    },
+    {
         "fixture":"Lens vs Nice",
         "team":"Lens",
         "goals":2.0,
@@ -2915,9 +3195,9 @@
         "fouls_per_duel_team":0.5666666667,
         "aggression_index_raw":8.6133333333,
         "aggression_index_norm":0.5943728249,
-        "avg_goals_last_5":1.8,
-        "avg_cards_last_5":1.6,
-        "form_index_team":0.42
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.26
     },
     {
         "fixture":"Lens vs Paris FC",
@@ -2955,9 +3235,9 @@
         "fouls_per_duel_team":0.3548387097,
         "aggression_index_raw":6.1709677419,
         "aggression_index_norm":0.3896551561,
-        "avg_goals_last_5":1.6,
+        "avg_goals_last_5":1.4,
         "avg_cards_last_5":1.8,
-        "form_index_team":0.26
+        "form_index_team":0.16
     },
     {
         "fixture":"Lens vs Rennes",
@@ -2995,9 +3275,9 @@
         "fouls_per_duel_team":0.4444444444,
         "aggression_index_raw":7.5888888889,
         "aggression_index_norm":0.5085044851,
-        "avg_goals_last_5":1.6,
+        "avg_goals_last_5":2.0,
         "avg_cards_last_5":2.4,
-        "form_index_team":0.08
+        "form_index_team":0.28
     },
     {
         "fixture":"Lens vs Stade Brestois 29",
@@ -3035,9 +3315,9 @@
         "fouls_per_duel_team":0.3333333333,
         "aggression_index_raw":3.8666666667,
         "aggression_index_norm":0.196509975,
-        "avg_goals_last_5":2.2,
-        "avg_cards_last_5":2.2,
-        "form_index_team":0.44
+        "avg_goals_last_5":2.4,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.6
     },
     {
         "fixture":"Lens vs Strasbourg",
@@ -3240,6 +3520,46 @@
         "form_index_team":0.2
     },
     {
+        "fixture":"Paris FC vs Lens",
+        "team":"Lens",
+        "goals":5.0,
+        "assists":4.0,
+        "shots_total_x":11.0,
+        "shots_on_x":6.0,
+        "passes_total":414,
+        "accurate_passes":351.0,
+        "fouls_committed":9.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":988,
+        "tackles":19.0,
+        "interceptions":12.0,
+        "shots_accuracy_for":0.5454545455,
+        "pass_accuracy_team":0.847826087,
+        "expected_goals":3.76,
+        "goals_prevented":1,
+        "possession":0.42,
+        "corners":5,
+        "shots_total_y":17,
+        "shots_on_y":6,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.26175,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6130185481,
+        "cards_total":1,
+        "fouls_per_90_team":9.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.1111111111,
+        "fouls_per_duel_team":0.2903225806,
+        "aggression_index_raw":4.8580645161,
+        "aggression_index_norm":0.2796083683,
+        "avg_goals_last_5":2.4,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.72
+    },
+    {
         "fixture":"Paris Saint Germain vs Lens",
         "team":"Lens",
         "goals":0.0,
@@ -3275,9 +3595,9 @@
         "fouls_per_duel_team":0.2222222222,
         "aggression_index_raw":4.6444444444,
         "aggression_index_norm":0.2617028577,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":1.8,
-        "form_index_team":0.16
+        "avg_goals_last_5":2.2,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.68
     },
     {
         "fixture":"Rennes vs Lens",
@@ -3315,9 +3635,49 @@
         "fouls_per_duel_team":0.2162162162,
         "aggression_index_raw":4.6432432432,
         "aggression_index_norm":0.2616021737,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":1.6,
-        "form_index_team":0.12
+        "avg_goals_last_5":2.2,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.68
+    },
+    {
+        "fixture":"Strasbourg vs Lens",
+        "team":"Lens",
+        "goals":1.0,
+        "assists":0.0,
+        "shots_total_x":21.0,
+        "shots_on_x":5.0,
+        "passes_total":407,
+        "accurate_passes":339.0,
+        "fouls_committed":7.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":20.0,
+        "interceptions":17.0,
+        "shots_accuracy_for":0.2380952381,
+        "pass_accuracy_team":0.8329238329,
+        "expected_goals":1.7,
+        "goals_prevented":0,
+        "possession":0.45,
+        "corners":8,
+        "shots_total_y":25,
+        "shots_on_y":5,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.33,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6409267483,
+        "cards_total":2,
+        "fouls_per_90_team":7.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.2857142857,
+        "fouls_per_duel_team":0.1891891892,
+        "aggression_index_raw":4.1378378378,
+        "aggression_index_norm":0.2192393855,
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.38
     },
     {
         "fixture":"Toulouse vs Lens",
@@ -3356,8 +3716,48 @@
         "aggression_index_raw":9.0391304348,
         "aggression_index_norm":0.6300628912,
         "avg_goals_last_5":1.8,
-        "avg_cards_last_5":1.8,
-        "form_index_team":0.36
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.3
+    },
+    {
+        "fixture":"Angers vs Lille",
+        "team":"Lille",
+        "goals":1.0,
+        "assists":0.0,
+        "shots_total_x":11.0,
+        "shots_on_x":5.0,
+        "passes_total":542,
+        "accurate_passes":475.0,
+        "fouls_committed":11.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":995,
+        "tackles":20.0,
+        "interceptions":19.0,
+        "shots_accuracy_for":0.4545454545,
+        "pass_accuracy_team":0.8763837638,
+        "expected_goals":2.33,
+        "goals_prevented":0,
+        "possession":0.55,
+        "corners":7,
+        "shots_total_y":14,
+        "shots_on_y":5,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.35125,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6914411174,
+        "cards_total":1,
+        "fouls_per_90_team":11.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.0909090909,
+        "fouls_per_duel_team":0.2820512821,
+        "aggression_index_raw":5.8564102564,
+        "aggression_index_norm":0.3632891299,
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":1.0,
+        "form_index_team":0.2
     },
     {
         "fixture":"Auxerre vs Lille",
@@ -3395,9 +3795,9 @@
         "fouls_per_duel_team":0.7142857143,
         "aggression_index_raw":6.3428571429,
         "aggression_index_norm":0.4040628261,
-        "avg_goals_last_5":4.0,
-        "avg_cards_last_5":4.0,
-        "form_index_team":0.8
+        "avg_goals_last_5":2.5,
+        "avg_cards_last_5":2.5,
+        "form_index_team":0.5
     },
     {
         "fixture":"Le Havre vs Lille",
@@ -3435,9 +3835,9 @@
         "fouls_per_duel_team":0.9285714286,
         "aggression_index_raw":7.8857142857,
         "aggression_index_norm":0.5333842179,
-        "avg_goals_last_5":2.5,
-        "avg_cards_last_5":4.0,
-        "form_index_team":0.05
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":3.0,
+        "form_index_team":0.1
     },
     {
         "fixture":"Lens vs Lille",
@@ -3475,9 +3875,9 @@
         "fouls_per_duel_team":0.4583333333,
         "aggression_index_raw":6.4916666667,
         "aggression_index_norm":0.4165359541,
-        "avg_goals_last_5":1.6666666667,
-        "avg_cards_last_5":3.6666666667,
-        "form_index_team":-0.2666666667
+        "avg_goals_last_5":1.5,
+        "avg_cards_last_5":3.0,
+        "form_index_team":-0.15
     },
     {
         "fixture":"Lille vs Angers",
@@ -3515,9 +3915,9 @@
         "fouls_per_duel_team":0.4,
         "aggression_index_raw":5.38,
         "aggression_index_norm":0.3233566982,
-        "avg_goals_last_5":1.5,
-        "avg_cards_last_5":3.0,
-        "form_index_team":-0.15
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.08
     },
     {
         "fixture":"Lille vs Lyon",
@@ -3800,6 +4200,46 @@
         "form_index_team":0.72
     },
     {
+        "fixture":"Lille vs Stade Brestois 29",
+        "team":"Lille",
+        "goals":1.0,
+        "assists":1.0,
+        "shots_total_x":12.0,
+        "shots_on_x":5.0,
+        "passes_total":614,
+        "accurate_passes":534.0,
+        "fouls_committed":6.0,
+        "yellow_cards":0,
+        "red_cards":0,
+        "minutes":995,
+        "tackles":15.0,
+        "interceptions":11.0,
+        "shots_accuracy_for":0.4166666667,
+        "pass_accuracy_team":0.8697068404,
+        "expected_goals":1.65,
+        "goals_prevented":0,
+        "possession":0.69,
+        "corners":13,
+        "shots_total_y":20,
+        "shots_on_y":5,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.51975,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.7851210043,
+        "cards_total":0,
+        "fouls_per_90_team":6.0,
+        "cards_per_90_team":0,
+        "cards_per_foul_team":0.0,
+        "fouls_per_duel_team":0.2307692308,
+        "aggression_index_raw":3.0461538462,
+        "aggression_index_norm":0.1277350658,
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":1.0,
+        "form_index_team":0.4
+    },
+    {
         "fixture":"Lille vs Strasbourg",
         "team":"Lille",
         "goals":1.0,
@@ -3836,8 +4276,8 @@
         "aggression_index_raw":6.1956521739,
         "aggression_index_norm":0.3917241908,
         "avg_goals_last_5":1.4,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.28
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.34
     },
     {
         "fixture":"Lille vs Toulouse",
@@ -3875,9 +4315,9 @@
         "fouls_per_duel_team":0.4615384615,
         "aggression_index_raw":6.6923076923,
         "aggression_index_norm":0.4333535686,
-        "avg_goals_last_5":1.6,
-        "avg_cards_last_5":1.6,
-        "form_index_team":0.32
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.08
     },
     {
         "fixture":"Lorient vs Lille",
@@ -3916,8 +4356,8 @@
         "aggression_index_raw":10.0565217391,
         "aggression_index_norm":0.7153400409,
         "avg_goals_last_5":2.2,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.5
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.56
     },
     {
         "fixture":"Lyon vs Lille",
@@ -3955,9 +4395,9 @@
         "fouls_per_duel_team":0.34375,
         "aggression_index_raw":6.76875,
         "aggression_index_norm":0.4397609186,
-        "avg_goals_last_5":2.0,
-        "avg_cards_last_5":2.6,
-        "form_index_team":0.22
+        "avg_goals_last_5":2.2,
+        "avg_cards_last_5":2.2,
+        "form_index_team":0.44
     },
     {
         "fixture":"Metz vs Lille",
@@ -4360,6 +4800,46 @@
         "form_index_team":-0.625
     },
     {
+        "fixture":"Lorient vs Angers",
+        "team":"Lorient",
+        "goals":2.0,
+        "assists":1.0,
+        "shots_total_x":7.0,
+        "shots_on_x":2.0,
+        "passes_total":641,
+        "accurate_passes":573.0,
+        "fouls_committed":7.0,
+        "yellow_cards":0,
+        "red_cards":0,
+        "minutes":998,
+        "tackles":16.0,
+        "interceptions":7.0,
+        "shots_accuracy_for":0.2857142857,
+        "pass_accuracy_team":0.8939157566,
+        "expected_goals":0.95,
+        "goals_prevented":-1,
+        "possession":0.59,
+        "corners":3,
+        "shots_total_y":8,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.29225,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6804823431,
+        "cards_total":0,
+        "fouls_per_90_team":7.0,
+        "cards_per_90_team":0,
+        "cards_per_foul_team":0.0,
+        "fouls_per_duel_team":0.3043478261,
+        "aggression_index_raw":3.5608695652,
+        "aggression_index_norm":0.1708782391,
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":2.0,
+        "form_index_team":-0.3
+    },
+    {
         "fixture":"Lorient vs Lille",
         "team":"Lorient",
         "goals":1.0,
@@ -4395,9 +4875,9 @@
         "fouls_per_duel_team":0.5,
         "aggression_index_raw":8.0,
         "aggression_index_norm":0.5429635802,
-        "avg_goals_last_5":0.4,
+        "avg_goals_last_5":0.8,
         "avg_cards_last_5":2.6,
-        "form_index_team":-0.58
+        "form_index_team":-0.38
     },
     {
         "fixture":"Lorient vs Lyon",
@@ -4435,9 +4915,9 @@
         "fouls_per_duel_team":0.5454545455,
         "aggression_index_raw":6.7090909091,
         "aggression_index_norm":0.4347603281,
-        "avg_goals_last_5":0.6,
-        "avg_cards_last_5":3.0,
-        "form_index_team":-0.6
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.28
     },
     {
         "fixture":"Lorient vs Metz",
@@ -4475,9 +4955,9 @@
         "fouls_per_duel_team":0.375,
         "aggression_index_raw":4.875,
         "aggression_index_norm":0.2810278908,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":2.8,
-        "form_index_team":-0.44
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.02
     },
     {
         "fixture":"Lorient vs Monaco",
@@ -4515,9 +4995,9 @@
         "fouls_per_duel_team":0.4,
         "aggression_index_raw":5.68,
         "aggression_index_norm":0.3485025244,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.0
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.32
     },
     {
         "fixture":"Lorient vs Nantes",
@@ -4880,6 +5360,46 @@
         "form_index_team":0.28
     },
     {
+        "fixture":"Nice vs Lorient",
+        "team":"Lorient",
+        "goals":3.0,
+        "assists":1.0,
+        "shots_total_x":14.0,
+        "shots_on_x":5.0,
+        "passes_total":544,
+        "accurate_passes":464.0,
+        "fouls_committed":4.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":11.0,
+        "interceptions":5.0,
+        "shots_accuracy_for":0.3571428571,
+        "pass_accuracy_team":0.8529411765,
+        "expected_goals":2.22,
+        "goals_prevented":0,
+        "possession":0.61,
+        "corners":7,
+        "shots_total_y":17,
+        "shots_on_y":5,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.37525,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6803314445,
+        "cards_total":3,
+        "fouls_per_90_team":4.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.75,
+        "fouls_per_duel_team":0.25,
+        "aggression_index_raw":2.95,
+        "aggression_index_norm":0.1196755061,
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.28
+    },
+    {
         "fixture":"Paris FC vs Lorient",
         "team":"Lorient",
         "goals":0.0,
@@ -4915,9 +5435,9 @@
         "fouls_per_duel_team":0.4545454545,
         "aggression_index_raw":5.9909090909,
         "aggression_index_norm":0.3745627443,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":1.4,
-        "form_index_team":-0.02
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.0
     },
     {
         "fixture":"Rennes vs Lorient",
@@ -4955,9 +5475,9 @@
         "fouls_per_duel_team":0.3888888889,
         "aggression_index_raw":3.5777777778,
         "aggression_index_norm":0.1722954757,
-        "avg_goals_last_5":1.0,
+        "avg_goals_last_5":1.6,
         "avg_cards_last_5":1.4,
-        "form_index_team":0.08
+        "form_index_team":0.38
     },
     {
         "fixture":"Stade Brestois 29 vs Lorient",
@@ -4996,8 +5516,8 @@
         "aggression_index_raw":5.0833333333,
         "aggression_index_norm":0.2984902701,
         "avg_goals_last_5":1.0,
-        "avg_cards_last_5":0.8,
-        "form_index_team":0.26
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.08
     },
     {
         "fixture":"Strasbourg vs Lorient",
@@ -5035,9 +5555,9 @@
         "fouls_per_duel_team":0.1111111111,
         "aggression_index_raw":1.5222222222,
         "aggression_index_norm":0.0,
-        "avg_goals_last_5":0.4,
-        "avg_cards_last_5":0.8,
-        "form_index_team":-0.04
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.14
     },
     {
         "fixture":"Auxerre vs Lyon",
@@ -5440,6 +5960,46 @@
         "form_index_team":0.54
     },
     {
+        "fixture":"Lyon vs Nice",
+        "team":"Lyon",
+        "goals":2.0,
+        "assists":1.0,
+        "shots_total_x":6.0,
+        "shots_on_x":2.0,
+        "passes_total":614,
+        "accurate_passes":544.0,
+        "fouls_committed":16.0,
+        "yellow_cards":3,
+        "red_cards":0,
+        "minutes":989,
+        "tackles":10.0,
+        "interceptions":8.0,
+        "shots_accuracy_for":0.3333333333,
+        "pass_accuracy_team":0.8859934853,
+        "expected_goals":1.52,
+        "goals_prevented":0,
+        "possession":0.57,
+        "corners":8,
+        "shots_total_y":9,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.378,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.7307643268,
+        "cards_total":3,
+        "fouls_per_90_team":16.0,
+        "cards_per_90_team":3,
+        "cards_per_foul_team":0.1875,
+        "fouls_per_duel_team":0.8888888889,
+        "aggression_index_raw":9.0777777778,
+        "aggression_index_norm":0.6333022891,
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.58
+    },
+    {
         "fixture":"Lyon vs Paris Saint Germain",
         "team":"Lyon",
         "goals":2.0,
@@ -5475,9 +6035,9 @@
         "fouls_per_duel_team":0.4166666667,
         "aggression_index_raw":6.8833333333,
         "aggression_index_norm":0.4493652272,
-        "avg_goals_last_5":2.0,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.4
+        "avg_goals_last_5":2.2,
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.38
     },
     {
         "fixture":"Lyon vs Stade Brestois 29",
@@ -5515,9 +6075,9 @@
         "fouls_per_duel_team":0.6206896552,
         "aggression_index_raw":9.724137931,
         "aggression_index_norm":0.6874798227,
-        "avg_goals_last_5":2.2,
-        "avg_cards_last_5":2.2,
-        "form_index_team":0.44
+        "avg_goals_last_5":2.4,
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.48
     },
     {
         "fixture":"Lyon vs Strasbourg",
@@ -5555,9 +6115,9 @@
         "fouls_per_duel_team":0.6818181818,
         "aggression_index_raw":7.6363636364,
         "aggression_index_norm":0.5124837909,
-        "avg_goals_last_5":2.2,
-        "avg_cards_last_5":1.8,
-        "form_index_team":0.56
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.28
     },
     {
         "fixture":"Lyon vs Toulouse",
@@ -5595,9 +6155,9 @@
         "fouls_per_duel_team":0.7222222222,
         "aggression_index_raw":6.9444444444,
         "aggression_index_norm":0.4544875251,
-        "avg_goals_last_5":1.8,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.3
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.08
     },
     {
         "fixture":"Metz vs Lyon",
@@ -5878,6 +6438,46 @@
         "avg_goals_last_5":1.4,
         "avg_cards_last_5":2.4,
         "form_index_team":-0.02
+    },
+    {
+        "fixture":"Strasbourg vs Lyon",
+        "team":"Lyon",
+        "goals":1.0,
+        "assists":1.0,
+        "shots_total_x":3.0,
+        "shots_on_x":2.0,
+        "passes_total":458,
+        "accurate_passes":383.0,
+        "fouls_committed":12.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":1010,
+        "tackles":17.0,
+        "interceptions":3.0,
+        "shots_accuracy_for":0.6666666667,
+        "pass_accuracy_team":0.8362445415,
+        "expected_goals":0.34,
+        "goals_prevented":0,
+        "possession":0.5,
+        "corners":2,
+        "shots_total_y":4,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2375,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5831834328,
+        "cards_total":2,
+        "fouls_per_90_team":12.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.1666666667,
+        "fouls_per_duel_team":0.6,
+        "aggression_index_raw":6.72,
+        "aggression_index_norm":0.4356747218,
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":2.2,
+        "form_index_team":0.04
     },
     {
         "fixture":"Angers vs Marseille",
@@ -6440,6 +7040,46 @@
         "form_index_team":0.3
     },
     {
+        "fixture":"Marseille vs Strasbourg",
+        "team":"Marseille",
+        "goals":2.0,
+        "assists":1.0,
+        "shots_total_x":10.0,
+        "shots_on_x":6.0,
+        "passes_total":429,
+        "accurate_passes":362.0,
+        "fouls_committed":11.0,
+        "yellow_cards":4,
+        "red_cards":0,
+        "minutes":1000,
+        "tackles":25.0,
+        "interceptions":14.0,
+        "shots_accuracy_for":0.6,
+        "pass_accuracy_team":0.8438228438,
+        "expected_goals":1.32,
+        "goals_prevented":0,
+        "possession":0.44,
+        "corners":5,
+        "shots_total_y":10,
+        "shots_on_y":6,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.26975,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6156040825,
+        "cards_total":4,
+        "fouls_per_90_team":11.0,
+        "cards_per_90_team":4,
+        "cards_per_foul_team":0.3636363636,
+        "fouls_per_duel_team":0.2820512821,
+        "aggression_index_raw":6.7564102564,
+        "aggression_index_norm":0.4387266084,
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.28
+    },
+    {
         "fixture":"Marseille vs Toulouse",
         "team":"Marseille",
         "goals":2.0,
@@ -6475,9 +7115,9 @@
         "fouls_per_duel_team":0.25,
         "aggression_index_raw":4.15,
         "aggression_index_norm":0.2202588108,
-        "avg_goals_last_5":2.0,
+        "avg_goals_last_5":2.4,
         "avg_cards_last_5":2.0,
-        "form_index_team":0.4
+        "form_index_team":0.6
     },
     {
         "fixture":"Metz vs Marseille",
@@ -6515,9 +7155,9 @@
         "fouls_per_duel_team":0.3043478261,
         "aggression_index_raw":3.5608695652,
         "aggression_index_norm":0.1708782391,
-        "avg_goals_last_5":2.6,
-        "avg_cards_last_5":1.2,
-        "form_index_team":0.94
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.46
     },
     {
         "fixture":"Nice vs Marseille",
@@ -6555,9 +7195,9 @@
         "fouls_per_duel_team":0.4,
         "aggression_index_raw":5.38,
         "aggression_index_norm":0.3233566982,
-        "avg_goals_last_5":2.6,
-        "avg_cards_last_5":1.2,
-        "form_index_team":0.94
+        "avg_goals_last_5":3.0,
+        "avg_cards_last_5":1.4,
+        "form_index_team":1.08
     },
     {
         "fixture":"Paris FC vs Marseille",
@@ -6595,9 +7235,9 @@
         "fouls_per_duel_team":0.75,
         "aggression_index_raw":8.85,
         "aggression_index_norm":0.6142100877,
-        "avg_goals_last_5":3.0,
-        "avg_cards_last_5":1.4,
-        "form_index_team":1.08
+        "avg_goals_last_5":2.8,
+        "avg_cards_last_5":2.2,
+        "form_index_team":0.74
     },
     {
         "fixture":"Paris Saint Germain vs Marseille",
@@ -6680,6 +7320,46 @@
         "form_index_team":0.4
     },
     {
+        "fixture":"Stade Brestois 29 vs Marseille",
+        "team":"Marseille",
+        "goals":0.0,
+        "assists":0.0,
+        "shots_total_x":13.0,
+        "shots_on_x":4.0,
+        "passes_total":637,
+        "accurate_passes":570.0,
+        "fouls_committed":17.0,
+        "yellow_cards":4,
+        "red_cards":0,
+        "minutes":996,
+        "tackles":15.0,
+        "interceptions":4.0,
+        "shots_accuracy_for":0.3076923077,
+        "pass_accuracy_team":0.8948194662,
+        "expected_goals":1.69,
+        "goals_prevented":-1,
+        "possession":0.68,
+        "corners":2,
+        "shots_total_y":17,
+        "shots_on_y":4,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.3095,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6672109564,
+        "cards_total":4,
+        "fouls_per_90_team":17.0,
+        "cards_per_90_team":4,
+        "cards_per_foul_team":0.2352941176,
+        "fouls_per_duel_team":0.8947368421,
+        "aggression_index_raw":9.8789473684,
+        "aggression_index_norm":0.70045586,
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.14
+    },
+    {
         "fixture":"Strasbourg vs Marseille",
         "team":"Marseille",
         "goals":2.0,
@@ -6715,9 +7395,9 @@
         "fouls_per_duel_team":0.75,
         "aggression_index_raw":8.85,
         "aggression_index_norm":0.6142100877,
-        "avg_goals_last_5":1.8,
-        "avg_cards_last_5":2.8,
-        "form_index_team":0.06
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":3.4,
+        "form_index_team":-0.62
     },
     {
         "fixture":"Angers vs Metz",
@@ -6960,6 +7640,46 @@
         "form_index_team":-0.02
     },
     {
+        "fixture":"Metz vs Auxerre",
+        "team":"Metz",
+        "goals":1.0,
+        "assists":1.0,
+        "shots_total_x":9.0,
+        "shots_on_x":4.0,
+        "passes_total":553,
+        "accurate_passes":481.0,
+        "fouls_committed":13.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":17.0,
+        "interceptions":8.0,
+        "shots_accuracy_for":0.4444444444,
+        "pass_accuracy_team":0.869801085,
+        "expected_goals":0.81,
+        "goals_prevented":0,
+        "possession":0.62,
+        "corners":4,
+        "shots_total_y":13,
+        "shots_on_y":4,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.323,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6540136923,
+        "cards_total":2,
+        "fouls_per_90_team":13.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.1538461538,
+        "fouls_per_duel_team":0.52,
+        "aggression_index_raw":7.204,
+        "aggression_index_norm":0.4762433214,
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":1.6,
+        "form_index_team":-0.08
+    },
+    {
         "fixture":"Metz vs Le Havre",
         "team":"Metz",
         "goals":0.0,
@@ -7075,9 +7795,9 @@
         "fouls_per_duel_team":0.4285714286,
         "aggression_index_raw":6.3857142857,
         "aggression_index_norm":0.4076550869,
-        "avg_goals_last_5":0.6,
+        "avg_goals_last_5":0.8,
         "avg_cards_last_5":1.8,
-        "form_index_team":-0.24
+        "form_index_team":-0.14
     },
     {
         "fixture":"Metz vs Lyon",
@@ -7116,8 +7836,8 @@
         "aggression_index_raw":5.4333333333,
         "aggression_index_norm":0.3278270673,
         "avg_goals_last_5":1.0,
-        "avg_cards_last_5":1.6,
-        "form_index_team":0.02
+        "avg_cards_last_5":2.0,
+        "form_index_team":-0.1
     },
     {
         "fixture":"Metz vs Marseille",
@@ -7440,6 +8160,46 @@
         "form_index_team":0.18
     },
     {
+        "fixture":"Paris Saint Germain vs Metz",
+        "team":"Metz",
+        "goals":0.0,
+        "assists":0.0,
+        "shots_total_x":2.0,
+        "shots_on_x":0.0,
+        "passes_total":333,
+        "accurate_passes":276.0,
+        "fouls_committed":15.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":16.0,
+        "interceptions":4.0,
+        "shots_accuracy_for":0.0,
+        "pass_accuracy_team":0.8288288288,
+        "expected_goals":0.09,
+        "goals_prevented":0,
+        "possession":0.33,
+        "corners":1,
+        "shots_total_y":3,
+        "shots_on_y":0,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.15075,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5287492768,
+        "cards_total":2,
+        "fouls_per_90_team":15.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.1333333333,
+        "fouls_per_duel_team":0.75,
+        "aggression_index_raw":8.25,
+        "aggression_index_norm":0.5639184354,
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.06
+    },
+    {
         "fixture":"Stade Brestois 29 vs Metz",
         "team":"Metz",
         "goals":1.0,
@@ -7515,9 +8275,9 @@
         "fouls_per_duel_team":0.4615384615,
         "aggression_index_raw":6.9923076923,
         "aggression_index_norm":0.4584993948,
-        "avg_goals_last_5":1.6,
-        "avg_cards_last_5":2.2,
-        "form_index_team":0.14
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.18
     },
     {
         "fixture":"Toulouse vs Metz",
@@ -7555,9 +8315,9 @@
         "fouls_per_duel_team":0.4583333333,
         "aggression_index_raw":6.1916666667,
         "aggression_index_norm":0.3913901279,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":2.6,
-        "form_index_team":-0.18
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":2.4,
+        "form_index_team":-0.32
     },
     {
         "fixture":"Angers vs Monaco",
@@ -7680,6 +8440,46 @@
         "form_index_team":-0.6
     },
     {
+        "fixture":"Lens vs Monaco",
+        "team":"Monaco",
+        "goals":3.0,
+        "assists":2.0,
+        "shots_total_x":9.0,
+        "shots_on_x":5.0,
+        "passes_total":422,
+        "accurate_passes":344.0,
+        "fouls_committed":12.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":996,
+        "tackles":19.0,
+        "interceptions":7.0,
+        "shots_accuracy_for":0.5555555556,
+        "pass_accuracy_team":0.8151658768,
+        "expected_goals":1.7,
+        "goals_prevented":0,
+        "possession":0.48,
+        "corners":2,
+        "shots_total_y":10,
+        "shots_on_y":5,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2295,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5616349262,
+        "cards_total":1,
+        "fouls_per_90_team":12.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.0833333333,
+        "fouls_per_duel_team":0.4615384615,
+        "aggression_index_raw":6.3923076923,
+        "aggression_index_norm":0.4082077425,
+        "avg_goals_last_5":1.5,
+        "avg_cards_last_5":3.0,
+        "form_index_team":-0.15
+    },
+    {
         "fixture":"Lille vs Monaco",
         "team":"Monaco",
         "goals":0.0,
@@ -7715,9 +8515,9 @@
         "fouls_per_duel_team":0.56,
         "aggression_index_raw":7.712,
         "aggression_index_norm":0.5188235871,
-        "avg_goals_last_5":0.75,
-        "avg_cards_last_5":3.25,
-        "form_index_team":-0.6
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.24
     },
     {
         "fixture":"Lorient vs Monaco",
@@ -7755,9 +8555,9 @@
         "fouls_per_duel_team":0.4782608696,
         "aggression_index_raw":6.7956521739,
         "aggression_index_norm":0.4420158432,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":3.4,
-        "form_index_team":-0.62
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":3.2,
+        "form_index_team":-0.36
     },
     {
         "fixture":"Marseille vs Monaco",
@@ -7795,9 +8595,9 @@
         "fouls_per_duel_team":0.3548387097,
         "aggression_index_raw":5.8709677419,
         "aggression_index_norm":0.3645093299,
-        "avg_goals_last_5":0.6,
-        "avg_cards_last_5":3.2,
-        "form_index_team":-0.66
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":2.2,
+        "form_index_team":-0.26
     },
     {
         "fixture":"Monaco vs Le Havre",
@@ -7835,9 +8635,9 @@
         "fouls_per_duel_team":0.2631578947,
         "aggression_index_raw":2.5526315789,
         "aggression_index_norm":0.0863683153,
-        "avg_goals_last_5":0.6,
-        "avg_cards_last_5":2.0,
-        "form_index_team":-0.3
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.12
     },
     {
         "fixture":"Monaco vs Lens",
@@ -8000,6 +8800,46 @@
         "form_index_team":0.48
     },
     {
+        "fixture":"Monaco vs Nantes",
+        "team":"Monaco",
+        "goals":3.0,
+        "assists":2.0,
+        "shots_total_x":9.0,
+        "shots_on_x":6.0,
+        "passes_total":407,
+        "accurate_passes":326.0,
+        "fouls_committed":15.0,
+        "yellow_cards":5,
+        "red_cards":1,
+        "minutes":965,
+        "tackles":22.0,
+        "interceptions":11.0,
+        "shots_accuracy_for":0.6666666667,
+        "pass_accuracy_team":0.800982801,
+        "expected_goals":1.78,
+        "goals_prevented":0,
+        "possession":0.47,
+        "corners":9,
+        "shots_total_y":12,
+        "shots_on_y":6,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.35675,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6374562323,
+        "cards_total":6,
+        "fouls_per_90_team":15.0,
+        "cards_per_90_team":6,
+        "cards_per_foul_team":0.4,
+        "fouls_per_duel_team":0.4545454545,
+        "aggression_index_raw":9.3909090909,
+        "aggression_index_norm":0.6595487743,
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":2.6,
+        "form_index_team":0.22
+    },
+    {
         "fixture":"Monaco vs Nice",
         "team":"Monaco",
         "goals":2.0,
@@ -8035,9 +8875,9 @@
         "fouls_per_duel_team":0.5882352941,
         "aggression_index_raw":5.4176470588,
         "aggression_index_norm":0.3265122529,
-        "avg_goals_last_5":1.8,
-        "avg_cards_last_5":1.6,
-        "form_index_team":0.42
+        "avg_goals_last_5":2.2,
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.38
     },
     {
         "fixture":"Monaco vs Paris FC",
@@ -8075,9 +8915,9 @@
         "fouls_per_duel_team":0.3225806452,
         "aggression_index_raw":5.964516129,
         "aggression_index_norm":0.3723505015,
-        "avg_goals_last_5":1.6,
-        "avg_cards_last_5":1.8,
-        "form_index_team":0.26
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":2.8,
+        "form_index_team":0.16
     },
     {
         "fixture":"Monaco vs Paris Saint Germain",
@@ -8115,9 +8955,9 @@
         "fouls_per_duel_team":0.3225806452,
         "aggression_index_raw":6.264516129,
         "aggression_index_norm":0.3974963277,
-        "avg_goals_last_5":1.6,
-        "avg_cards_last_5":2.4,
-        "form_index_team":0.08
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":3.0,
+        "form_index_team":0.1
     },
     {
         "fixture":"Monaco vs Rennes",
@@ -8155,9 +8995,9 @@
         "fouls_per_duel_team":0.46875,
         "aggression_index_raw":7.89375,
         "aggression_index_norm":0.5340577668,
-        "avg_goals_last_5":2.2,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.5
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":3.0,
+        "form_index_team":0.1
     },
     {
         "fixture":"Monaco vs Strasbourg",
@@ -8600,6 +9440,46 @@
         "form_index_team":-0.46
     },
     {
+        "fixture":"Monaco vs Nantes",
+        "team":"Nantes",
+        "goals":1.0,
+        "assists":1.0,
+        "shots_total_x":7.0,
+        "shots_on_x":2.0,
+        "passes_total":462,
+        "accurate_passes":385.0,
+        "fouls_committed":8.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":20.0,
+        "interceptions":7.0,
+        "shots_accuracy_for":0.2857142857,
+        "pass_accuracy_team":0.8333333333,
+        "expected_goals":1.14,
+        "goals_prevented":0,
+        "possession":0.53,
+        "corners":3,
+        "shots_total_y":13,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.26825,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5954510703,
+        "cards_total":2,
+        "fouls_per_90_team":8.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.25,
+        "fouls_per_duel_team":0.2962962963,
+        "aggression_index_raw":4.6592592593,
+        "aggression_index_norm":0.2629446269,
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":3.2,
+        "form_index_team":-0.46
+    },
+    {
         "fixture":"Nantes vs Auxerre",
         "team":"Nantes",
         "goals":1.0,
@@ -8636,8 +9516,48 @@
         "aggression_index_raw":6.9181818182,
         "aggression_index_norm":0.452286207,
         "avg_goals_last_5":1.0,
-        "avg_cards_last_5":3.0,
-        "form_index_team":-0.4
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.34
+    },
+    {
+        "fixture":"Nantes vs Le Havre",
+        "team":"Nantes",
+        "goals":1.0,
+        "assists":0.0,
+        "shots_total_x":4.0,
+        "shots_on_x":2.0,
+        "passes_total":207,
+        "accurate_passes":132.0,
+        "fouls_committed":17.0,
+        "yellow_cards":4,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":24.0,
+        "interceptions":7.0,
+        "shots_accuracy_for":0.5,
+        "pass_accuracy_team":0.6376811594,
+        "expected_goals":1.26,
+        "goals_prevented":-1,
+        "possession":0.29,
+        "corners":5,
+        "shots_total_y":9,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.20975,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.444643332,
+        "cards_total":4,
+        "fouls_per_90_team":17.0,
+        "cards_per_90_team":4,
+        "cards_per_foul_team":0.2352941176,
+        "fouls_per_duel_team":0.5483870968,
+        "aggression_index_raw":9.8096774194,
+        "aggression_index_norm":0.694649693,
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.28
     },
     {
         "fixture":"Nantes vs Lens",
@@ -8675,9 +9595,9 @@
         "fouls_per_duel_team":0.2962962963,
         "aggression_index_raw":4.6592592593,
         "aggression_index_norm":0.2629446269,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":2.8,
-        "form_index_team":-0.34
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.4,
+        "form_index_team":-0.12
     },
     {
         "fixture":"Nantes vs Lille",
@@ -8755,9 +9675,9 @@
         "fouls_per_duel_team":1.0625,
         "aggression_index_raw":9.0125,
         "aggression_index_norm":0.6278307436,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":1.6,
-        "form_index_team":0.02
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":1.8,
+        "form_index_team":-0.14
     },
     {
         "fixture":"Nantes vs Lyon",
@@ -8796,8 +9716,8 @@
         "aggression_index_raw":7.7742857143,
         "aggression_index_norm":0.5240443396,
         "avg_goals_last_5":0.6,
-        "avg_cards_last_5":1.8,
-        "form_index_team":-0.24
+        "avg_cards_last_5":2.4,
+        "form_index_team":-0.42
     },
     {
         "fixture":"Nantes vs Metz",
@@ -9360,6 +10280,46 @@
         "form_index_team":-0.6333333333
     },
     {
+        "fixture":"Lyon vs Nice",
+        "team":"Nice",
+        "goals":0.0,
+        "assists":0.0,
+        "shots_total_x":7.0,
+        "shots_on_x":3.0,
+        "passes_total":457,
+        "accurate_passes":382.0,
+        "fouls_committed":12.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":996,
+        "tackles":12.0,
+        "interceptions":4.0,
+        "shots_accuracy_for":0.4285714286,
+        "pass_accuracy_team":0.8358862144,
+        "expected_goals":1.46,
+        "goals_prevented":0,
+        "possession":0.43,
+        "corners":5,
+        "shots_total_y":10,
+        "shots_on_y":3,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.26575,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6201984589,
+        "cards_total":1,
+        "fouls_per_90_team":12.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.0833333333,
+        "fouls_per_duel_team":0.75,
+        "aggression_index_raw":6.45,
+        "aggression_index_norm":0.4130434783,
+        "avg_goals_last_5":0.25,
+        "avg_cards_last_5":2.25,
+        "form_index_team":-0.55
+    },
+    {
         "fixture":"Metz vs Nice",
         "team":"Nice",
         "goals":1.0,
@@ -9395,9 +10355,9 @@
         "fouls_per_duel_team":0.7916666667,
         "aggression_index_raw":10.8583333333,
         "aggression_index_norm":0.7825474241,
-        "avg_goals_last_5":0.5,
-        "avg_cards_last_5":3.0,
-        "form_index_team":-0.65
+        "avg_goals_last_5":0.4,
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.58
     },
     {
         "fixture":"Monaco vs Nice",
@@ -9435,9 +10395,9 @@
         "fouls_per_duel_team":0.375,
         "aggression_index_raw":5.775,
         "aggression_index_norm":0.3564653693,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":3.2,
-        "form_index_team":-0.56
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.48
     },
     {
         "fixture":"Nantes vs Nice",
@@ -9476,8 +10436,8 @@
         "aggression_index_raw":8.4714285714,
         "aggression_index_norm":0.5824784499,
         "avg_goals_last_5":1.4,
-        "avg_cards_last_5":3.0,
-        "form_index_team":-0.2
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.14
     },
     {
         "fixture":"Nice vs Angers",
@@ -9516,8 +10476,8 @@
         "aggression_index_raw":6.1916666667,
         "aggression_index_norm":0.3913901279,
         "avg_goals_last_5":1.4,
-        "avg_cards_last_5":3.0,
-        "form_index_team":-0.2
+        "avg_cards_last_5":2.8,
+        "form_index_team":-0.14
     },
     {
         "fixture":"Nice vs Auxerre",
@@ -9600,6 +10560,46 @@
         "form_index_team":0.16
     },
     {
+        "fixture":"Nice vs Lorient",
+        "team":"Nice",
+        "goals":3.0,
+        "assists":2.0,
+        "shots_total_x":6.0,
+        "shots_on_x":4.0,
+        "passes_total":360,
+        "accurate_passes":287.0,
+        "fouls_committed":15.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":997,
+        "tackles":22.0,
+        "interceptions":14.0,
+        "shots_accuracy_for":0.6666666667,
+        "pass_accuracy_team":0.7972222222,
+        "expected_goals":3.24,
+        "goals_prevented":0,
+        "possession":0.39,
+        "corners":3,
+        "shots_total_y":8,
+        "shots_on_y":4,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.21225,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5462028542,
+        "cards_total":2,
+        "fouls_per_90_team":15.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.1333333333,
+        "fouls_per_duel_team":0.4166666667,
+        "aggression_index_raw":8.1833333333,
+        "aggression_index_norm":0.558330474,
+        "avg_goals_last_5":2.2,
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.38
+    },
+    {
         "fixture":"Nice vs Lyon",
         "team":"Nice",
         "goals":3.0,
@@ -9635,9 +10635,9 @@
         "fouls_per_duel_team":0.3846153846,
         "aggression_index_raw":5.3769230769,
         "aggression_index_norm":0.3230987923,
-        "avg_goals_last_5":2.2,
-        "avg_cards_last_5":2.2,
-        "form_index_team":0.44
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.4
     },
     {
         "fixture":"Nice vs Marseille",
@@ -9675,9 +10675,9 @@
         "fouls_per_duel_team":0.6,
         "aggression_index_raw":5.22,
         "aggression_index_norm":0.3099455909,
-        "avg_goals_last_5":1.6,
+        "avg_goals_last_5":2.2,
         "avg_cards_last_5":2.0,
-        "form_index_team":0.2
+        "form_index_team":0.5
     },
     {
         "fixture":"Nice vs Monaco",
@@ -9715,9 +10715,9 @@
         "fouls_per_duel_team":0.3703703704,
         "aggression_index_raw":5.6740740741,
         "aggression_index_norm":0.3480058167,
-        "avg_goals_last_5":1.6,
+        "avg_goals_last_5":1.8,
         "avg_cards_last_5":2.0,
-        "form_index_team":0.2
+        "form_index_team":0.3
     },
     {
         "fixture":"Nice vs Nantes",
@@ -9755,9 +10755,9 @@
         "fouls_per_duel_team":0.6956521739,
         "aggression_index_raw":8.7391304348,
         "aggression_index_norm":0.604917065,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.1
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.26
     },
     {
         "fixture":"Nice vs Paris FC",
@@ -10520,6 +11520,46 @@
         "form_index_team":-0.04
     },
     {
+        "fixture":"Paris FC vs Lens",
+        "team":"Paris FC",
+        "goals":0.0,
+        "assists":0.0,
+        "shots_total_x":8.0,
+        "shots_on_x":6.0,
+        "passes_total":588,
+        "accurate_passes":501.0,
+        "fouls_committed":13.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":20.0,
+        "interceptions":4.0,
+        "shots_accuracy_for":0.75,
+        "pass_accuracy_team":0.8520408163,
+        "expected_goals":0.61,
+        "goals_prevented":1,
+        "possession":0.58,
+        "corners":3,
+        "shots_total_y":11,
+        "shots_on_y":6,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.28825,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6433369219,
+        "cards_total":2,
+        "fouls_per_90_team":13.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.1538461538,
+        "fouls_per_duel_team":0.5416666667,
+        "aggression_index_raw":7.2083333333,
+        "aggression_index_norm":0.4766065389,
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":1.8,
+        "form_index_team":-0.14
+    },
+    {
         "fixture":"Paris FC vs Lorient",
         "team":"Paris FC",
         "goals":2.0,
@@ -10555,9 +11595,9 @@
         "fouls_per_duel_team":0.8636363636,
         "aggression_index_raw":9.6727272727,
         "aggression_index_norm":0.6831706111,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.18
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.04
     },
     {
         "fixture":"Paris FC vs Lyon",
@@ -10595,9 +11635,9 @@
         "fouls_per_duel_team":0.75,
         "aggression_index_raw":11.25,
         "aggression_index_norm":0.8153766972,
-        "avg_goals_last_5":1.4,
-        "avg_cards_last_5":2.2,
-        "form_index_team":0.04
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.4,
+        "form_index_team":-0.12
     },
     {
         "fixture":"Paris FC vs Marseille",
@@ -10636,8 +11676,8 @@
         "aggression_index_raw":6.4142857143,
         "aggression_index_norm":0.4100499275,
         "avg_goals_last_5":1.6,
-        "avg_cards_last_5":2.2,
-        "form_index_team":0.14
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.08
     },
     {
         "fixture":"Paris FC vs Metz",
@@ -10675,9 +11715,9 @@
         "fouls_per_duel_team":0.3076923077,
         "aggression_index_raw":2.3615384615,
         "aggression_index_norm":0.0703510009,
-        "avg_goals_last_5":2.2,
+        "avg_goals_last_5":2.0,
         "avg_cards_last_5":2.2,
-        "form_index_team":0.44
+        "form_index_team":0.34
     },
     {
         "fixture":"Paris FC vs Nantes",
@@ -10918,6 +11958,46 @@
         "avg_goals_last_5":1.0,
         "avg_cards_last_5":2.4,
         "form_index_team":-0.22
+    },
+    {
+        "fixture":"Toulouse vs Paris FC",
+        "team":"Paris FC",
+        "goals":1.0,
+        "assists":1.0,
+        "shots_total_x":3.0,
+        "shots_on_x":2.0,
+        "passes_total":387,
+        "accurate_passes":310.0,
+        "fouls_committed":7.0,
+        "yellow_cards":5,
+        "red_cards":0,
+        "minutes":997,
+        "tackles":20.0,
+        "interceptions":8.0,
+        "shots_accuracy_for":0.6666666667,
+        "pass_accuracy_team":0.8010335917,
+        "expected_goals":0.88,
+        "goals_prevented":1,
+        "possession":0.45,
+        "corners":3,
+        "shots_total_y":5,
+        "shots_on_y":2,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.23625,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5563654197,
+        "cards_total":5,
+        "fouls_per_90_team":7.0,
+        "cards_per_90_team":5,
+        "cards_per_foul_team":0.7142857143,
+        "fouls_per_duel_team":0.25,
+        "aggression_index_raw":5.05,
+        "aggression_index_norm":0.2956962894,
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.6,
+        "form_index_team":-0.18
     },
     {
         "fixture":"Auxerre vs Paris Saint Germain",
@@ -11480,6 +12560,46 @@
         "form_index_team":1.04
     },
     {
+        "fixture":"Paris Saint Germain vs Metz",
+        "team":"Paris Saint Germain",
+        "goals":3.0,
+        "assists":3.0,
+        "shots_total_x":12.0,
+        "shots_on_x":7.0,
+        "passes_total":695,
+        "accurate_passes":647.0,
+        "fouls_committed":9.0,
+        "yellow_cards":0,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":11.0,
+        "interceptions":8.0,
+        "shots_accuracy_for":0.5833333333,
+        "pass_accuracy_team":0.9309352518,
+        "expected_goals":2.41,
+        "goals_prevented":0,
+        "possession":0.67,
+        "corners":4,
+        "shots_total_y":17,
+        "shots_on_y":7,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.343,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.7280058522,
+        "cards_total":0,
+        "fouls_per_90_team":9.0,
+        "cards_per_90_team":0,
+        "cards_per_foul_team":0.0,
+        "fouls_per_duel_team":0.4736842105,
+        "aggression_index_raw":4.5947368421,
+        "aggression_index_norm":0.2575363953,
+        "avg_goals_last_5":3.0,
+        "avg_cards_last_5":1.0,
+        "form_index_team":1.2
+    },
+    {
         "fixture":"Paris Saint Germain vs Nice",
         "team":"Paris Saint Germain",
         "goals":1.0,
@@ -11516,8 +12636,8 @@
         "aggression_index_raw":7.0411764706,
         "aggression_index_norm":0.4625955475,
         "avg_goals_last_5":2.6,
-        "avg_cards_last_5":1.6,
-        "form_index_team":0.82
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.94
     },
     {
         "fixture":"Paris Saint Germain vs Paris FC",
@@ -11555,9 +12675,9 @@
         "fouls_per_duel_team":0.3043478261,
         "aggression_index_raw":3.8608695652,
         "aggression_index_norm":0.1960240653,
-        "avg_goals_last_5":2.4,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.78
+        "avg_goals_last_5":2.6,
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.94
     },
     {
         "fixture":"Paris Saint Germain vs Rennes",
@@ -11635,9 +12755,49 @@
         "fouls_per_duel_team":0.4615384615,
         "aggression_index_raw":6.6923076923,
         "aggression_index_norm":0.4333535686,
-        "avg_goals_last_5":3.0,
-        "avg_cards_last_5":1.6,
-        "form_index_team":1.02
+        "avg_goals_last_5":2.8,
+        "avg_cards_last_5":1.2,
+        "form_index_team":1.04
+    },
+    {
+        "fixture":"Rennes vs Paris Saint Germain",
+        "team":"Paris Saint Germain",
+        "goals":1.0,
+        "assists":0.0,
+        "shots_total_x":14.0,
+        "shots_on_x":7.0,
+        "passes_total":631,
+        "accurate_passes":567.0,
+        "fouls_committed":9.0,
+        "yellow_cards":0,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":21.0,
+        "interceptions":4.0,
+        "shots_accuracy_for":0.5,
+        "pass_accuracy_team":0.8985736926,
+        "expected_goals":3.58,
+        "goals_prevented":0,
+        "possession":0.67,
+        "corners":8,
+        "shots_total_y":22,
+        "shots_on_y":7,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.418,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.7422532071,
+        "cards_total":0,
+        "fouls_per_90_team":9.0,
+        "cards_per_90_team":0,
+        "cards_per_foul_team":0.0,
+        "fouls_per_duel_team":0.36,
+        "aggression_index_raw":4.572,
+        "aggression_index_norm":0.2556306063,
+        "avg_goals_last_5":2.4,
+        "avg_cards_last_5":1.2,
+        "form_index_team":0.84
     },
     {
         "fixture":"Stade Brestois 29 vs Paris Saint Germain",
@@ -11676,8 +12836,8 @@
         "aggression_index_raw":5.4538461538,
         "aggression_index_norm":0.32954644,
         "avg_goals_last_5":2.8,
-        "avg_cards_last_5":1.4,
-        "form_index_team":0.98
+        "avg_cards_last_5":0.8,
+        "form_index_team":1.16
     },
     {
         "fixture":"Strasbourg vs Paris Saint Germain",
@@ -11715,9 +12875,9 @@
         "fouls_per_duel_team":0.24,
         "aggression_index_raw":3.348,
         "aggression_index_norm":0.1530356355,
-        "avg_goals_last_5":3.0,
-        "avg_cards_last_5":1.0,
-        "form_index_team":1.2
+        "avg_goals_last_5":2.8,
+        "avg_cards_last_5":0.8,
+        "form_index_team":1.16
     },
     {
         "fixture":"Toulouse vs Paris Saint Germain",
@@ -11755,9 +12915,9 @@
         "fouls_per_duel_team":0.5238095238,
         "aggression_index_raw":5.6047619048,
         "aggression_index_norm":0.3421961108,
-        "avg_goals_last_5":3.8,
+        "avg_goals_last_5":3.0,
         "avg_cards_last_5":0.8,
-        "form_index_team":1.66
+        "form_index_team":1.26
     },
     {
         "fixture":"Angers vs Rennes",
@@ -11800,6 +12960,46 @@
         "form_index_team":-0.1
     },
     {
+        "fixture":"Auxerre vs Rennes",
+        "team":"Rennes",
+        "goals":3.0,
+        "assists":2.0,
+        "shots_total_x":10.0,
+        "shots_on_x":7.0,
+        "passes_total":471,
+        "accurate_passes":378.0,
+        "fouls_committed":22.0,
+        "yellow_cards":4,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":25.0,
+        "interceptions":9.0,
+        "shots_accuracy_for":0.7,
+        "pass_accuracy_team":0.8025477707,
+        "expected_goals":1.13,
+        "goals_prevented":0,
+        "possession":0.57,
+        "corners":5,
+        "shots_total_y":12,
+        "shots_on_y":7,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.32175,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6078105826,
+        "cards_total":4,
+        "fouls_per_90_team":22.0,
+        "cards_per_90_team":4,
+        "cards_per_foul_team":0.1818181818,
+        "fouls_per_duel_team":0.6470588235,
+        "aggression_index_raw":12.3294117647,
+        "aggression_index_norm":0.9058523659,
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":3.0,
+        "form_index_team":0.1
+    },
+    {
         "fixture":"Le Havre vs Rennes",
         "team":"Rennes",
         "goals":2.0,
@@ -11835,9 +13035,9 @@
         "fouls_per_duel_team":0.375,
         "aggression_index_raw":5.175,
         "aggression_index_norm":0.306173717,
-        "avg_goals_last_5":1.5,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.15
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":2.6666666667,
+        "form_index_team":0.2
     },
     {
         "fixture":"Lens vs Rennes",
@@ -11875,9 +13075,9 @@
         "fouls_per_duel_team":0.6296296296,
         "aggression_index_raw":9.2259259259,
         "aggression_index_norm":0.645719981,
-        "avg_goals_last_5":1.3333333333,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.0666666667
+        "avg_goals_last_5":1.75,
+        "avg_cards_last_5":2.5,
+        "form_index_team":0.125
     },
     {
         "fixture":"Lille vs Rennes",
@@ -11915,9 +13115,9 @@
         "fouls_per_duel_team":0.7368421053,
         "aggression_index_raw":7.4473684211,
         "aggression_index_norm":0.4966423215,
-        "avg_goals_last_5":1.5,
-        "avg_cards_last_5":1.75,
-        "form_index_team":0.225
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":2.2,
+        "form_index_team":0.24
     },
     {
         "fixture":"Lorient vs Rennes",
@@ -11955,9 +13155,9 @@
         "fouls_per_duel_team":0.3684210526,
         "aggression_index_raw":4.1736842105,
         "aggression_index_norm":0.2222440076,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":1.8,
-        "form_index_team":0.06
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.2,
+        "form_index_team":0.14
     },
     {
         "fixture":"Metz vs Rennes",
@@ -12480,6 +13680,46 @@
         "form_index_team":0.08
     },
     {
+        "fixture":"Rennes vs Paris Saint Germain",
+        "team":"Rennes",
+        "goals":3.0,
+        "assists":2.0,
+        "shots_total_x":8.0,
+        "shots_on_x":4.0,
+        "passes_total":302,
+        "accurate_passes":230.0,
+        "fouls_committed":10.0,
+        "yellow_cards":0,
+        "red_cards":0,
+        "minutes":989,
+        "tackles":16.0,
+        "interceptions":6.0,
+        "shots_accuracy_for":0.5,
+        "pass_accuracy_team":0.761589404,
+        "expected_goals":1.36,
+        "goals_prevented":0,
+        "possession":0.33,
+        "corners":5,
+        "shots_total_y":13,
+        "shots_on_y":4,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.22575,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.535649442,
+        "cards_total":0,
+        "fouls_per_90_team":10.0,
+        "cards_per_90_team":0,
+        "cards_per_foul_team":0.0,
+        "fouls_per_duel_team":0.4545454545,
+        "aggression_index_raw":5.0909090909,
+        "aggression_index_norm":0.2991252657,
+        "avg_goals_last_5":2.2,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.5
+    },
+    {
         "fixture":"Rennes vs Stade Brestois 29",
         "team":"Rennes",
         "goals":3.0,
@@ -12515,9 +13755,9 @@
         "fouls_per_duel_team":0.4571428571,
         "aggression_index_raw":8.6914285714,
         "aggression_index_norm":0.6009187225,
-        "avg_goals_last_5":2.2,
-        "avg_cards_last_5":2.4,
-        "form_index_team":0.38
+        "avg_goals_last_5":2.4,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.6
     },
     {
         "fixture":"Rennes vs Strasbourg",
@@ -12555,9 +13795,9 @@
         "fouls_per_duel_team":0.5357142857,
         "aggression_index_raw":7.9071428571,
         "aggression_index_norm":0.5351803483,
-        "avg_goals_last_5":2.6,
-        "avg_cards_last_5":2.2,
-        "form_index_team":0.64
+        "avg_goals_last_5":3.0,
+        "avg_cards_last_5":1.6,
+        "form_index_team":1.02
     },
     {
         "fixture":"Toulouse vs Rennes",
@@ -12595,9 +13835,9 @@
         "fouls_per_duel_team":0.5217391304,
         "aggression_index_raw":7.0043478261,
         "aggression_index_norm":0.4595085919,
-        "avg_goals_last_5":2.8,
+        "avg_goals_last_5":2.6,
         "avg_cards_last_5":2.2,
-        "form_index_team":0.74
+        "form_index_team":0.64
     },
     {
         "fixture":"Angers vs Stade Brestois 29",
@@ -12720,6 +13960,46 @@
         "form_index_team":-0.3
     },
     {
+        "fixture":"Lille vs Stade Brestois 29",
+        "team":"Stade Brestois 29",
+        "goals":1.0,
+        "assists":1.0,
+        "shots_total_x":7.0,
+        "shots_on_x":4.0,
+        "passes_total":274,
+        "accurate_passes":189.0,
+        "fouls_committed":12.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":990,
+        "tackles":21.0,
+        "interceptions":20.0,
+        "shots_accuracy_for":0.5714285714,
+        "pass_accuracy_team":0.6897810219,
+        "expected_goals":0.7,
+        "goals_prevented":0,
+        "possession":0.31,
+        "corners":1,
+        "shots_total_y":11,
+        "shots_on_y":4,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.14275,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.4411825599,
+        "cards_total":1,
+        "fouls_per_90_team":12.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.0833333333,
+        "fouls_per_duel_team":0.2926829268,
+        "aggression_index_raw":6.3585365854,
+        "aggression_index_norm":0.4053770678,
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":2.25,
+        "form_index_team":-0.175
+    },
+    {
         "fixture":"Lorient vs Stade Brestois 29",
         "team":"Stade Brestois 29",
         "goals":2.0,
@@ -12755,9 +14035,9 @@
         "fouls_per_duel_team":0.6153846154,
         "aggression_index_raw":8.7230769231,
         "aggression_index_norm":0.603571469,
-        "avg_goals_last_5":1.25,
-        "avg_cards_last_5":2.5,
-        "form_index_team":-0.125
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":2.2,
+        "form_index_team":-0.06
     },
     {
         "fixture":"Lyon vs Stade Brestois 29",
@@ -12795,9 +14075,9 @@
         "fouls_per_duel_team":0.2666666667,
         "aggression_index_raw":4.3533333333,
         "aggression_index_norm":0.237302093,
-        "avg_goals_last_5":1.2,
+        "avg_goals_last_5":1.0,
         "avg_cards_last_5":2.2,
-        "form_index_team":-0.06
+        "form_index_team":-0.16
     },
     {
         "fixture":"Marseille vs Stade Brestois 29",
@@ -12835,9 +14115,9 @@
         "fouls_per_duel_team":0.4761904762,
         "aggression_index_raw":5.3952380952,
         "aggression_index_norm":0.3246339465,
-        "avg_goals_last_5":0.8,
-        "avg_cards_last_5":2.2,
-        "form_index_team":-0.26
+        "avg_goals_last_5":1.0,
+        "avg_cards_last_5":1.8,
+        "form_index_team":-0.04
     },
     {
         "fixture":"Nice vs Stade Brestois 29",
@@ -12876,8 +14156,8 @@
         "aggression_index_raw":11.5076923077,
         "aggression_index_norm":0.8369763171,
         "avg_goals_last_5":1.2,
-        "avg_cards_last_5":2.2,
-        "form_index_team":-0.06
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.12
     },
     {
         "fixture":"Rennes vs Stade Brestois 29",
@@ -13080,6 +14360,46 @@
         "form_index_team":0.14
     },
     {
+        "fixture":"Stade Brestois 29 vs Marseille",
+        "team":"Stade Brestois 29",
+        "goals":2.0,
+        "assists":1.0,
+        "shots_total_x":10.0,
+        "shots_on_x":4.0,
+        "passes_total":304,
+        "accurate_passes":226.0,
+        "fouls_committed":10.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":996,
+        "tackles":20.0,
+        "interceptions":13.0,
+        "shots_accuracy_for":0.4,
+        "pass_accuracy_team":0.7434210526,
+        "expected_goals":1.26,
+        "goals_prevented":-1,
+        "possession":0.32,
+        "corners":3,
+        "shots_total_y":12,
+        "shots_on_y":4,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.18425,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.5021768872,
+        "cards_total":1,
+        "fouls_per_90_team":10.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.1,
+        "fouls_per_duel_team":0.303030303,
+        "aggression_index_raw":5.3606060606,
+        "aggression_index_norm":0.3217311094,
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.36
+    },
+    {
         "fixture":"Stade Brestois 29 vs Metz",
         "team":"Stade Brestois 29",
         "goals":3.0,
@@ -13116,8 +14436,8 @@
         "aggression_index_raw":6.1956521739,
         "aggression_index_norm":0.3917241908,
         "avg_goals_last_5":2.0,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.4
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.52
     },
     {
         "fixture":"Stade Brestois 29 vs Monaco",
@@ -13155,9 +14475,9 @@
         "fouls_per_duel_team":0.6071428571,
         "aggression_index_raw":9.5214285714,
         "aggression_index_norm":0.6704888416,
-        "avg_goals_last_5":1.8,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.3
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.26
     },
     {
         "fixture":"Stade Brestois 29 vs Nantes",
@@ -13196,8 +14516,8 @@
         "aggression_index_raw":6.1814814815,
         "aggression_index_norm":0.3905364116,
         "avg_goals_last_5":1.2,
-        "avg_cards_last_5":2.0,
-        "form_index_team":0.0
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.06
     },
     {
         "fixture":"Stade Brestois 29 vs Nice",
@@ -13235,9 +14555,9 @@
         "fouls_per_duel_team":0.53125,
         "aggression_index_raw":8.90625,
         "aggression_index_norm":0.6189249302,
-        "avg_goals_last_5":1.6,
+        "avg_goals_last_5":2.0,
         "avg_cards_last_5":1.8,
-        "form_index_team":0.26
+        "form_index_team":0.46
     },
     {
         "fixture":"Stade Brestois 29 vs Paris FC",
@@ -13600,6 +14920,46 @@
         "form_index_team":-0.225
     },
     {
+        "fixture":"Marseille vs Strasbourg",
+        "team":"Strasbourg",
+        "goals":2.0,
+        "assists":1.0,
+        "shots_total_x":11.0,
+        "shots_on_x":4.0,
+        "passes_total":549,
+        "accurate_passes":490.0,
+        "fouls_committed":10.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":999,
+        "tackles":17.0,
+        "interceptions":9.0,
+        "shots_accuracy_for":0.3636363636,
+        "pass_accuracy_team":0.8925318761,
+        "expected_goals":1.92,
+        "goals_prevented":0,
+        "possession":0.56,
+        "corners":5,
+        "shots_total_y":12,
+        "shots_on_y":4,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.31775,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6766558463,
+        "cards_total":2,
+        "fouls_per_90_team":10.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.2,
+        "fouls_per_duel_team":0.3846153846,
+        "aggression_index_raw":5.6769230769,
+        "aggression_index_norm":0.3482446185,
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":3.0,
+        "form_index_team":-0.1
+    },
+    {
         "fixture":"Metz vs Strasbourg",
         "team":"Strasbourg",
         "goals":1.0,
@@ -13635,9 +14995,9 @@
         "fouls_per_duel_team":0.4642857143,
         "aggression_index_raw":7.1928571429,
         "aggression_index_norm":0.4753093336,
-        "avg_goals_last_5":1.4,
+        "avg_goals_last_5":1.6,
         "avg_cards_last_5":3.0,
-        "form_index_team":-0.2
+        "form_index_team":-0.1
     },
     {
         "fixture":"Monaco vs Strasbourg",
@@ -13675,9 +15035,9 @@
         "fouls_per_duel_team":0.5454545455,
         "aggression_index_raw":6.7090909091,
         "aggression_index_norm":0.4347603281,
-        "avg_goals_last_5":1.6,
-        "avg_cards_last_5":3.0,
-        "form_index_team":-0.1
+        "avg_goals_last_5":2.0,
+        "avg_cards_last_5":2.6,
+        "form_index_team":0.22
     },
     {
         "fixture":"Nice vs Strasbourg",
@@ -13715,9 +15075,9 @@
         "fouls_per_duel_team":0.5217391304,
         "aggression_index_raw":6.7043478261,
         "aggression_index_norm":0.4343627657,
-        "avg_goals_last_5":1.8,
+        "avg_goals_last_5":1.4,
         "avg_cards_last_5":2.6,
-        "form_index_team":0.12
+        "form_index_team":-0.08
     },
     {
         "fixture":"Paris FC vs Strasbourg",
@@ -13755,9 +15115,9 @@
         "fouls_per_duel_team":0.625,
         "aggression_index_raw":6.625,
         "aggression_index_norm":0.4277118769,
-        "avg_goals_last_5":1.6,
-        "avg_cards_last_5":3.2,
-        "form_index_team":-0.16
+        "avg_goals_last_5":1.8,
+        "avg_cards_last_5":2.6,
+        "form_index_team":0.12
     },
     {
         "fixture":"Paris Saint Germain vs Strasbourg",
@@ -13960,6 +15320,46 @@
         "form_index_team":0.82
     },
     {
+        "fixture":"Strasbourg vs Lens",
+        "team":"Strasbourg",
+        "goals":1.0,
+        "assists":0.0,
+        "shots_total_x":6.0,
+        "shots_on_x":5.0,
+        "passes_total":526,
+        "accurate_passes":454.0,
+        "fouls_committed":9.0,
+        "yellow_cards":2,
+        "red_cards":0,
+        "minutes":989,
+        "tackles":18.0,
+        "interceptions":9.0,
+        "shots_accuracy_for":0.8333333333,
+        "pass_accuracy_team":0.8631178707,
+        "expected_goals":0.75,
+        "goals_prevented":0,
+        "possession":0.55,
+        "corners":2,
+        "shots_total_y":8,
+        "shots_on_y":5,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.2575,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6174152045,
+        "cards_total":2,
+        "fouls_per_90_team":9.0,
+        "cards_per_90_team":2,
+        "cards_per_foul_team":0.2222222222,
+        "fouls_per_duel_team":0.3333333333,
+        "aggression_index_raw":5.1666666667,
+        "aggression_index_norm":0.3054752218,
+        "avg_goals_last_5":2.2,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.56
+    },
+    {
         "fixture":"Strasbourg vs Lille",
         "team":"Strasbourg",
         "goals":2.0,
@@ -13996,8 +15396,8 @@
         "aggression_index_raw":5.7620689655,
         "aggression_index_norm":0.3553814975,
         "avg_goals_last_5":2.4,
-        "avg_cards_last_5":2.2,
-        "form_index_team":0.54
+        "avg_cards_last_5":2.4,
+        "form_index_team":0.48
     },
     {
         "fixture":"Strasbourg vs Lorient",
@@ -14035,9 +15435,49 @@
         "fouls_per_duel_team":0.25,
         "aggression_index_raw":3.35,
         "aggression_index_norm":0.1532032743,
-        "avg_goals_last_5":2.2,
+        "avg_goals_last_5":1.4,
         "avg_cards_last_5":2.2,
-        "form_index_team":0.44
+        "form_index_team":0.04
+    },
+    {
+        "fixture":"Strasbourg vs Lyon",
+        "team":"Strasbourg",
+        "goals":3.0,
+        "assists":2.0,
+        "shots_total_x":11.0,
+        "shots_on_x":7.0,
+        "passes_total":448,
+        "accurate_passes":396.0,
+        "fouls_committed":11.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":1017,
+        "tackles":11.0,
+        "interceptions":6.0,
+        "shots_accuracy_for":0.6363636364,
+        "pass_accuracy_team":0.8839285714,
+        "expected_goals":2.15,
+        "goals_prevented":0,
+        "possession":0.5,
+        "corners":4,
+        "shots_total_y":13,
+        "shots_on_y":7,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.275,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.6289673438,
+        "cards_total":1,
+        "fouls_per_90_team":11.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.0909090909,
+        "fouls_per_duel_team":0.6470588235,
+        "aggression_index_raw":5.9294117647,
+        "aggression_index_norm":0.369408074,
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":2.2,
+        "form_index_team":0.04
     },
     {
         "fixture":"Strasbourg vs Marseille",
@@ -14076,8 +15516,8 @@
         "aggression_index_raw":7.2238095238,
         "aggression_index_norm":0.4779037442,
         "avg_goals_last_5":1.4,
-        "avg_cards_last_5":2.2,
-        "form_index_team":0.04
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.1
     },
     {
         "fixture":"Strasbourg vs Metz",
@@ -14115,9 +15555,9 @@
         "fouls_per_duel_team":0.375,
         "aggression_index_raw":6.675,
         "aggression_index_norm":0.4319028479,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":2.4,
-        "form_index_team":-0.12
+        "avg_goals_last_5":1.6,
+        "avg_cards_last_5":2.0,
+        "form_index_team":0.2
     },
     {
         "fixture":"Strasbourg vs Nantes",
@@ -14155,9 +15595,9 @@
         "fouls_per_duel_team":0.4230769231,
         "aggression_index_raw":6.1846153846,
         "aggression_index_norm":0.3907990936,
-        "avg_goals_last_5":1.2,
-        "avg_cards_last_5":2.2,
-        "form_index_team":-0.06
+        "avg_goals_last_5":1.4,
+        "avg_cards_last_5":1.6,
+        "form_index_team":0.22
     },
     {
         "fixture":"Strasbourg vs Paris Saint Germain",
@@ -14195,9 +15635,9 @@
         "fouls_per_duel_team":0.4,
         "aggression_index_raw":4.38,
         "aggression_index_norm":0.2395372776,
-        "avg_goals_last_5":1.0,
+        "avg_goals_last_5":1.6,
         "avg_cards_last_5":1.6,
-        "form_index_team":0.02
+        "form_index_team":0.32
     },
     {
         "fixture":"Strasbourg vs Stade Brestois 29",
@@ -14360,6 +15800,46 @@
         "form_index_team":-1.2
     },
     {
+        "fixture":"Le Havre vs Toulouse",
+        "team":"Toulouse",
+        "goals":1.0,
+        "assists":1.0,
+        "shots_total_x":16.0,
+        "shots_on_x":9.0,
+        "passes_total":556,
+        "accurate_passes":486.0,
+        "fouls_committed":16.0,
+        "yellow_cards":4,
+        "red_cards":0,
+        "minutes":998,
+        "tackles":22.0,
+        "interceptions":5.0,
+        "shots_accuracy_for":0.5625,
+        "pass_accuracy_team":0.8741007194,
+        "expected_goals":2.36,
+        "goals_prevented":0,
+        "possession":0.67,
+        "corners":10,
+        "shots_total_y":25,
+        "shots_on_y":9,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.4555,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.7320809408,
+        "cards_total":4,
+        "fouls_per_90_team":16.0,
+        "cards_per_90_team":4,
+        "cards_per_foul_team":0.25,
+        "fouls_per_duel_team":0.5925925926,
+        "aggression_index_raw":9.3185185185,
+        "aggression_index_norm":0.6534810385,
+        "avg_goals_last_5":0.3333333333,
+        "avg_cards_last_5":4.0,
+        "form_index_team":-1.0333333333
+    },
+    {
         "fixture":"Lille vs Toulouse",
         "team":"Toulouse",
         "goals":1.0,
@@ -14395,9 +15875,9 @@
         "fouls_per_duel_team":0.3225806452,
         "aggression_index_raw":6.564516129,
         "aggression_index_norm":0.4226421538,
-        "avg_goals_last_5":0.3333333333,
-        "avg_cards_last_5":4.3333333333,
-        "form_index_team":-1.1333333333
+        "avg_goals_last_5":0.5,
+        "avg_cards_last_5":4.25,
+        "form_index_team":-1.025
     },
     {
         "fixture":"Lorient vs Toulouse",
@@ -14435,9 +15915,9 @@
         "fouls_per_duel_team":0.5454545455,
         "aggression_index_raw":10.3090909091,
         "aggression_index_norm":0.7365102424,
-        "avg_goals_last_5":0.5,
-        "avg_cards_last_5":4.25,
-        "form_index_team":-1.025
+        "avg_goals_last_5":0.6,
+        "avg_cards_last_5":4.2,
+        "form_index_team":-0.96
     },
     {
         "fixture":"Lyon vs Toulouse",
@@ -14475,9 +15955,9 @@
         "fouls_per_duel_team":0.6296296296,
         "aggression_index_raw":9.5259259259,
         "aggression_index_norm":0.6708658072,
-        "avg_goals_last_5":0.6,
-        "avg_cards_last_5":4.0,
-        "form_index_team":-0.9
+        "avg_goals_last_5":0.8,
+        "avg_cards_last_5":4.4,
+        "form_index_team":-0.92
     },
     {
         "fixture":"Marseille vs Toulouse",
@@ -14515,9 +15995,9 @@
         "fouls_per_duel_team":0.3703703704,
         "aggression_index_raw":5.3740740741,
         "aggression_index_norm":0.3228599905,
-        "avg_goals_last_5":1.0,
-        "avg_cards_last_5":3.8,
-        "form_index_team":-0.64
+        "avg_goals_last_5":1.2,
+        "avg_cards_last_5":3.4,
+        "form_index_team":-0.42
     },
     {
         "fixture":"Monaco vs Toulouse",
@@ -14960,6 +16440,46 @@
         "form_index_team":0.56
     },
     {
+        "fixture":"Toulouse vs Paris FC",
+        "team":"Toulouse",
+        "goals":1.0,
+        "assists":1.0,
+        "shots_total_x":15.0,
+        "shots_on_x":10.0,
+        "passes_total":471,
+        "accurate_passes":400.0,
+        "fouls_committed":13.0,
+        "yellow_cards":1,
+        "red_cards":0,
+        "minutes":997,
+        "tackles":17.0,
+        "interceptions":8.0,
+        "shots_accuracy_for":0.6666666667,
+        "pass_accuracy_team":0.8492569002,
+        "expected_goals":2.93,
+        "goals_prevented":1,
+        "possession":0.55,
+        "corners":12,
+        "shots_total_y":23,
+        "shots_on_y":10,
+        "shots_on":0,
+        "shots_total":0,
+        "dominance_index":0.445,
+        "goal_conversion_rate":0,
+        "shot_on_target_ratio":0,
+        "control_index":0.7186651474,
+        "cards_total":1,
+        "fouls_per_90_team":13.0,
+        "cards_per_90_team":1,
+        "cards_per_foul_team":0.0769230769,
+        "fouls_per_duel_team":0.52,
+        "aggression_index_raw":6.904,
+        "aggression_index_norm":0.4510974952,
+        "avg_goals_last_5":2.4,
+        "avg_cards_last_5":1.8,
+        "form_index_team":0.66
+    },
+    {
         "fixture":"Toulouse vs Paris Saint Germain",
         "team":"Toulouse",
         "goals":3.0,
@@ -14995,9 +16515,9 @@
         "fouls_per_duel_team":0.2333333333,
         "aggression_index_raw":3.8466666667,
         "aggression_index_norm":0.1948335866,
-        "avg_goals_last_5":2.8,
-        "avg_cards_last_5":1.8,
-        "form_index_team":0.86
+        "avg_goals_last_5":3.0,
+        "avg_cards_last_5":1.4,
+        "form_index_team":1.08
     },
     {
         "fixture":"Toulouse vs Rennes",
@@ -15035,9 +16555,9 @@
         "fouls_per_duel_team":0.36,
         "aggression_index_raw":5.172,
         "aggression_index_norm":0.3059222587,
-        "avg_goals_last_5":3.2,
-        "avg_cards_last_5":1.6,
-        "form_index_team":1.12
+        "avg_goals_last_5":2.6,
+        "avg_cards_last_5":1.4,
+        "form_index_team":0.88
     },
     {
         "fixture":"Toulouse vs Stade Brestois 29",
@@ -15075,9 +16595,9 @@
         "fouls_per_duel_team":0.6086956522,
         "aggression_index_raw":7.1217391304,
         "aggression_index_norm":0.469348263,
-        "avg_goals_last_5":2.8,
-        "avg_cards_last_5":1.2,
-        "form_index_team":1.04
+        "avg_goals_last_5":2.6,
+        "avg_cards_last_5":1.0,
+        "form_index_team":1.0
     },
     {
         "fixture":"Toulouse vs Strasbourg",
@@ -15115,8 +16635,8 @@
         "fouls_per_duel_team":1.0,
         "aggression_index_raw":11.6,
         "aggression_index_norm":0.8447134944,
-        "avg_goals_last_5":2.6,
+        "avg_goals_last_5":1.8,
         "avg_cards_last_5":1.4,
-        "form_index_team":0.88
+        "form_index_team":0.48
     }
 ]
