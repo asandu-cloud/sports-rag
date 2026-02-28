@@ -245,6 +245,22 @@ def template_prompts(target_date: str, home: str = "", away: str = "", league: s
                 f"For all {lg} games on {date_text}, which fixtures are best for BTTS Yes?"
             ),
         },
+        "Handicap Lines": {
+            "Handicap Pick (single fixture)": (
+                f"What handicap should I take for {fx} on {date_text}? "
+                "Give me the best spread line with reasoning."
+            ),
+            "Handicap Pick (all fixtures)": (
+                f"For every {lg} game on {date_text}, recommend a handicap line for each fixture."
+            ),
+            "Spread Advice (single fixture)": (
+                f"{fx} on {date_text}. Which spread should I take? "
+                "Show me projected goal difference and the best line."
+            ),
+            "Spread Advice (all fixtures)": (
+                f"For every {lg} game on {date_text}, give me spread advice for each fixture."
+            ),
+        },
         "Parlays": {
             "4-leg Goals Totals (odds cap)": (
                 f"For all {lg} games on {date_text}, make a 4-leg parlay with exactly one leg per fixture "

@@ -32,8 +32,12 @@ def _upsert_batch(collection, batch):
     collection.upsert(ids=ids, embeddings=vecs, documents=docs, metadatas=metas)
 
 def upsert_docs(collection, docs, batch_size=256):
+    seen = set()
     buf = []
     for d in docs:
+        if d["id"] in seen:
+            continue
+        seen.add(d["id"])
         buf.append(d)
         if len(buf) >= batch_size:
             _upsert_batch(collection, buf)
