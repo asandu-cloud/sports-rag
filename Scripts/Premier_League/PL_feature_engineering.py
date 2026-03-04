@@ -1,14 +1,19 @@
 # Premier League feature engineering
 
+import argparse
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
 
 LEAGUE = "Premier League"
-SEASON = 2025
 
-PLAYER_PATH = Path("/Users/sanduandrei/Desktop/Betting_RAG/Output/Prem_output/player_fixture_stats_2025.json")
-FIXTURE_PATH = Path("/Users/sanduandrei/Desktop/Betting_RAG/Output/Prem_teams/team_fixture_stats_2025.json")
+_parser = argparse.ArgumentParser()
+_parser.add_argument("--season", type=int, default=2025,
+                     help="API-Football season year (e.g. 2025 for 2025/26)")
+SEASON = _parser.parse_args().season
+
+PLAYER_PATH = Path(f"/Users/sanduandrei/Desktop/Betting_RAG/Output/Prem_output/player_fixture_stats_{SEASON}.json")
+FIXTURE_PATH = Path(f"/Users/sanduandrei/Desktop/Betting_RAG/Output/Prem_teams/team_fixture_stats_{SEASON}.json")
 
 OUTPUT_PATH = Path("/Users/sanduandrei/Desktop/Betting_RAG/Output/Prem_feature_engineering")
 OUTPUT_PATH.mkdir(parents=True, exist_ok=True)

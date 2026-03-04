@@ -1,5 +1,6 @@
 # Ligue1 stats for teams
 
+import argparse
 import requests
 import json
 import pandas as pd
@@ -12,8 +13,12 @@ import os
 # --- CONFIGURATION ---
 load_dotenv()
 API_KEY = os.getenv('API-FOOTBALL-KEY')
-LEAGUE_ID = 61  # Premier League
-SEASON = 2025
+LEAGUE_ID = 61  # Ligue 1
+
+_parser = argparse.ArgumentParser()
+_parser.add_argument("--season", type=int, default=2025,
+                     help="API-Football season year (e.g. 2025 for 2025/26)")
+SEASON = _parser.parse_args().season
 OUTPUT_DIR = Path('/Users/sanduandrei/Desktop/Betting_RAG/Output/Ligue1_Output')
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -38,15 +43,19 @@ def get_fixture_info():
         away_goals = f["goals"]["away"]
 
         fixture_map[fid] = {
+            "fixture_id": fid,
             "fixture_name": f"{home} vs {away}",
             "home_team": home,
             "away_team": away,
             "home_goals": home_goals,
             "away_goals": away_goals,
-            "final_score": f"{home_goals}-{away_goals}"
+            "final_score": f"{home_goals}-{away_goals}",
+            "final_score_string": f"{home} {home_goals} - {away_goals} {away}",
+            "fixture_date_utc": f["fixture"]["date"],
+            "fixture_date": f["fixture"]["date"][:10],
         }
 
-    print(f"✅ Retrieved {len(fixture_map)} fixtures with names and scores.")
+    print(f"✅ Retrieved {len(fixture_map)} fixtures with names, scores, and dates.")
     return fixture_map
 
 
@@ -64,15 +73,19 @@ def fetch_fixture_team_stats(fixture_id, fixture_info):
         team_name = entry.get("team", {}).get("name")
         stats_list = entry.get("statistics", [])
 
-        # ✅ Start with fixture context (score, teams, etc.)
+        # ✅ Start with fixture context (score, teams, date, etc.)
         team_stats = {
+            "fixture_id": fixture_info.get("fixture_id"),
             "fixture": fixture_info.get("fixture_name"),
+            "fixture_date_utc": fixture_info.get("fixture_date_utc"),
+            "fixture_date": fixture_info.get("fixture_date"),
             "team": team_name,
             "home_team": fixture_info.get("home_team"),
             "away_team": fixture_info.get("away_team"),
             "home_goals": fixture_info.get("home_goals"),
             "away_goals": fixture_info.get("away_goals"),
             "final_score": fixture_info.get("final_score"),
+            "final_score_string": fixture_info.get("final_score_string"),
         }
 
         for stat in stats_list:

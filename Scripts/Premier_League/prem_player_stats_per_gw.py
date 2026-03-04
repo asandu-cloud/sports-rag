@@ -1,18 +1,23 @@
 # Prem players per gw
 
+import argparse
 import requests
 import json
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
-import time 
+import time
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
 API_KEY = os.getenv('API-FOOTBALL-KEY')
 LEAGUE_ID = 39   # Premier League
-SEASON = 2025
+
+_parser = argparse.ArgumentParser()
+_parser.add_argument("--season", type=int, default=2025,
+                     help="API-Football season year (e.g. 2025 for 2025/26)")
+SEASON = _parser.parse_args().season
 OUTPUT_DIR = Path('/Users/sanduandrei/Desktop/Betting_RAG/Output/Prem_output')
 MIN_MINUTES = 1 
 

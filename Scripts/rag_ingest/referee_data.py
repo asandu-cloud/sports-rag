@@ -89,6 +89,7 @@ class RefereeModifier:
     sample_size: int = 0
     confidence: float = 0.0
     strictness_ratio: float = 1.0
+    avg_cards_per_match: float = 0.0
     source: str = "unavailable"  # "profile" | "fallback" | "unavailable"
 
 
@@ -147,15 +148,36 @@ def _parse_ref_country(ref_str: Optional[str]) -> Optional[str]:
 # ---------------------------------------------------------------------------
 
 def _load_team_fixture_stats(league: str) -> List[dict]:
-    """Load team_engineered_features JSON for a league."""
+    """Load team_engineered_features JSON for a league (all available seasons)."""
     fe_dir = LEAGUE_TO_FE_DIR.get(league)
     if not fe_dir:
         return []
-    path = OUTPUT_DIR / fe_dir / f"team_engineered_features_{SEASON}.json"
-    if not path.exists():
-        print(f"[referee_data] Missing: {path}")
-        return []
-    return json.loads(path.read_text())
+    base = OUTPUT_DIR / fe_dir
+    rows: List[dict] = []
+    for path in sorted(base.glob("team_engineered_features_*.json")):
+        rows.extend(json.loads(path.read_text()))
+    if not rows:
+        print(f"[referee_data] No team_engineered_features_*.json found in {base}")
+    return rows
+
+
+def _sum_card_entry(entry: dict, r: dict) -> None:
+    """Accumulate card/foul totals from a team fixture row into an entry dict."""
+    yc = r.get("yellow_cards") or 0
+    rc = r.get("red_cards") or 0
+    cards = r.get("cards_total") or 0
+    fouls = r.get("fouls_committed") or 0
+    try:
+        entry["total_yellows"] += int(float(yc))
+        entry["total_reds"] += int(float(rc))
+        entry["total_cards"] += int(float(cards))
+        entry["total_fouls"] += int(float(fouls))
+    except (TypeError, ValueError):
+        pass
+
+
+def _new_card_entry() -> dict:
+    return {"total_cards": 0, "total_fouls": 0, "total_yellows": 0, "total_reds": 0}
 
 
 def _build_fixture_card_map(team_rows: List[dict]) -> Dict[int, dict]:
@@ -170,22 +192,38 @@ def _build_fixture_card_map(team_rows: List[dict]) -> Dict[int, dict]:
             continue
         fid = int(fid)
         if fid not in fixtures:
-            fixtures[fid] = {
-                "total_cards": 0, "total_fouls": 0,
-                "total_yellows": 0, "total_reds": 0,
-            }
-        entry = fixtures[fid]
-        yc = r.get("yellow_cards") or 0
-        rc = r.get("red_cards") or 0
-        cards = r.get("cards_total") or 0
-        fouls = r.get("fouls_committed") or 0
-        try:
-            entry["total_yellows"] += int(float(yc))
-            entry["total_reds"] += int(float(rc))
-            entry["total_cards"] += int(float(cards))
-            entry["total_fouls"] += int(float(fouls))
-        except (TypeError, ValueError):
-            pass
+            fixtures[fid] = _new_card_entry()
+        _sum_card_entry(fixtures[fid], r)
+    return fixtures
+
+
+def _normalize_team(name: str) -> str:
+    """Lowercase, strip whitespace, remove common suffixes for fuzzy matching."""
+    return name.lower().strip()
+
+
+def _build_fixture_card_map_by_name(team_rows: List[dict]) -> Dict[frozenset, dict]:
+    """Group team_fixture rows by fixture name (pair of teams).
+
+    Fallback for leagues without fixture_id. Groups rows by the 'fixture' field
+    (e.g. 'Alaves vs Atletico Madrid'), summing card/foul data.
+
+    Returns { frozenset({team_a_lower, team_b_lower}): card_data }.
+    """
+    fixtures: Dict[frozenset, dict] = {}
+    for r in team_rows:
+        fixture_str = r.get("fixture", "")
+        team = _normalize_team(r.get("team", ""))
+        if not fixture_str or not team:
+            continue
+        # Parse "TeamA vs TeamB" from fixture string
+        parts = fixture_str.split(" vs ")
+        if len(parts) != 2:
+            continue
+        key = frozenset(_normalize_team(p) for p in parts)
+        if key not in fixtures:
+            fixtures[key] = _new_card_entry()
+        _sum_card_entry(fixtures[key], r)
     return fixtures
 
 
@@ -211,43 +249,51 @@ def build_referee_profiles_for_league(
     if league_id is None:
         return {}, 0.0, 0
 
-    # Step 1: fetch fixtures from API-Football → get referee per fixture_id
+    # Step 1: fetch fixtures from API-Football → get referee per fixture
     fixtures = fetch_completed_fixtures(league_id, season)
     if not fixtures:
         print(f"[referee_data] No completed fixtures from API-Football for {league}")
         return {}, 0.0, 0
 
-    fixture_ref_map: Dict[int, Tuple[str, Optional[str]]] = {}
+    # Build two maps from API data: by fixture_id and by team-name pair
+    fixture_ref_by_id: Dict[int, Tuple[str, Optional[str]]] = {}
+    fixture_ref_by_name: Dict[frozenset, List[Tuple[str, Optional[str]]]] = {}
     for f in fixtures:
         fid = f.get("fixture", {}).get("id")
         ref_str = f.get("fixture", {}).get("referee")
-        if fid is None:
-            continue
         norm = _normalize_ref_name(ref_str)
-        if norm:
-            country = _parse_ref_country(ref_str)
-            fixture_ref_map[int(fid)] = (norm, country)
+        if not norm:
+            continue
+        country = _parse_ref_country(ref_str)
+        if fid is not None:
+            fixture_ref_by_id[int(fid)] = (norm, country)
+        home = _normalize_team(f.get("teams", {}).get("home", {}).get("name", ""))
+        away = _normalize_team(f.get("teams", {}).get("away", {}).get("name", ""))
+        if home and away:
+            name_key = frozenset({home, away})
+            # Multiple matches between same teams → keep all via list
+            fixture_ref_by_name.setdefault(name_key, []).append((norm, country))
 
-    print(f"  [{league}] {len(fixtures)} fixtures from API, {len(fixture_ref_map)} with referee data")
+    print(f"  [{league}] {len(fixtures)} fixtures from API, "
+          f"{len(fixture_ref_by_id)} with fixture_id referee data, "
+          f"{len(fixture_ref_by_name)} with name-based referee data")
 
-    # Step 2: load our team fixture stats → build card totals per fixture_id
+    # Step 2: load our team fixture stats → build card maps
     team_rows = _load_team_fixture_stats(league)
     if not team_rows:
         return {}, 0.0, 0
-    card_map = _build_fixture_card_map(team_rows)
+    card_map_by_id = _build_fixture_card_map(team_rows)
+    card_map_by_name = _build_fixture_card_map_by_name(team_rows) if not card_map_by_id else {}
 
-    # Step 3: cross-reference
+    # Step 3: cross-reference (prefer fixture_id, fall back to name matching)
     ref_accum: Dict[str, dict] = {}
     all_match_cards = 0
     matched = 0
 
-    for fid, (ref_name, ref_country) in fixture_ref_map.items():
-        card_data = card_map.get(fid)
-        if card_data is None:
-            continue
+    def _accum_match(ref_name: str, ref_country: Optional[str], card_data: dict) -> None:
+        nonlocal matched, all_match_cards
         matched += 1
         all_match_cards += card_data["total_cards"]
-
         if ref_name not in ref_accum:
             ref_accum[ref_name] = {
                 "name": ref_name,
@@ -264,8 +310,26 @@ def build_referee_profiles_for_league(
         acc["reds"] += card_data["total_reds"]
         acc["matches"] += 1
 
+    if card_map_by_id:
+        # Primary path: match by fixture_id (EPL and leagues with fixture_id)
+        for fid, (ref_name, ref_country) in fixture_ref_by_id.items():
+            card_data = card_map_by_id.get(fid)
+            if card_data is not None:
+                _accum_match(ref_name, ref_country, card_data)
+    else:
+        # Fallback path: match by team names (LaLiga, Bundesliga, Ligue1, etc.)
+        for name_key, ref_list in fixture_ref_by_name.items():
+            card_data = card_map_by_name.get(name_key)
+            if card_data is None:
+                continue
+            # Divide card totals evenly across the number of matches between same teams
+            n_matches = len(ref_list)
+            per_match = {k: v / n_matches for k, v in card_data.items()} if n_matches > 1 else card_data
+            for ref_name, ref_country in ref_list:
+                _accum_match(ref_name, ref_country, per_match)
+
     league_avg = all_match_cards / matched if matched > 0 else 0.0
-    print(f"  [{league}] Matched {matched}/{len(fixture_ref_map)} fixtures, "
+    print(f"  [{league}] Matched {matched}/{len(fixture_ref_by_id) or len(fixture_ref_by_name)} fixtures, "
           f"{len(ref_accum)} referees, league avg {league_avg:.2f} cards/match")
 
     return ref_accum, league_avg, matched
@@ -426,14 +490,16 @@ def _match_event_to_ref(
     h = home_team.lower().strip()
     a = away_team.lower().strip()
 
-    # Exact match first
-    ref = assignments.get((h, a))
+    # Exact match first (both orderings — Odds API and API-Football may swap home/away)
+    ref = assignments.get((h, a)) or assignments.get((a, h))
     if ref:
         return ref
 
-    # Substring containment fallback
+    # Substring containment fallback (both orderings)
     for (ah, aa), ref_name in assignments.items():
         if (ah in h or h in ah) and (aa in a or a in aa):
+            return ref_name
+        if (ah in a or a in ah) and (aa in h or h in aa):
             return ref_name
 
     return None
@@ -453,6 +519,58 @@ def _ensure_profiles_loaded() -> Dict[str, RefereeProfile]:
     return _profiles_cache
 
 
+def _fuzzy_profile_lookup(
+    norm: str, profiles: Dict[str, "RefereeProfile"]
+) -> Optional["RefereeProfile"]:
+    """Fallback match when exact key misses.
+
+    API-Football often returns abbreviated names like 'D. England' while
+    profile keys use full names like 'darren england'.  Strategy:
+    1. Extract the last name and optional first initial from the query.
+    2. Find profiles whose last name matches AND first initial matches (if present).
+    3. Return the match only if exactly one candidate is found (avoids ambiguity).
+    4. For multi-word names, also try matching all non-initial words as a set.
+    """
+    parts = norm.split()
+    if len(parts) < 2:
+        return None
+    initial = parts[0].rstrip(".")[:1]   # e.g. "d" from "d. england"
+    last = parts[-1]                       # e.g. "england"
+
+    candidates = []
+    for key, prof in profiles.items():
+        key_parts = key.split()
+        if not key_parts:
+            continue
+        if key_parts[-1] == last:
+            if initial and key_parts[0][:1] == initial:
+                candidates.append(prof)
+            elif not initial:
+                candidates.append(prof)
+
+    if len(candidates) == 1:
+        return candidates[0]
+
+    # Multi-word fallback: match by shared non-initial words + initial
+    if len(parts) >= 3 and initial:
+        query_words = set(p.rstrip(".") for p in parts[1:])  # all words except initial
+        candidates = []
+        for key, prof in profiles.items():
+            key_parts = key.split()
+            if len(key_parts) < 2:
+                continue
+            if key_parts[0][:1] != initial:
+                continue
+            key_words = set(key_parts[1:])
+            # All query words must appear in the profile key (order-independent)
+            if query_words <= key_words or key_words <= query_words:
+                candidates.append(prof)
+        if len(candidates) == 1:
+            return candidates[0]
+
+    return None
+
+
 def compute_referee_modifier(
     referee_name: Optional[str],
     weight: float = DEFAULT_WEIGHT,
@@ -468,6 +586,8 @@ def compute_referee_modifier(
 
     profile = profiles.get(norm)
     if profile is None:
+        profile = _fuzzy_profile_lookup(norm, profiles)
+    if profile is None:
         return RefereeModifier(
             referee_name=referee_name,
             source="unavailable",
@@ -479,6 +599,7 @@ def compute_referee_modifier(
             referee_name=profile.name,
             sample_size=n,
             strictness_ratio=profile.strictness_ratio,
+            avg_cards_per_match=profile.avg_cards_per_match,
             source="profile",
         )
 
@@ -493,6 +614,7 @@ def compute_referee_modifier(
         sample_size=n,
         confidence=confidence,
         strictness_ratio=profile.strictness_ratio,
+        avg_cards_per_match=profile.avg_cards_per_match,
         source="profile",
     )
 

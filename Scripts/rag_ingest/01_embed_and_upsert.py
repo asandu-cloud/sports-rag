@@ -31,12 +31,20 @@ def _upsert_batch(collection, batch):
     vecs = [e.embedding for e in embs]
     collection.upsert(ids=ids, embeddings=vecs, documents=docs, metadatas=metas)
 
-def upsert_docs(collection, docs, batch_size=256):
+def upsert_docs(collection, docs, batch_size=256, skip_ids=None):
     seen = set()
     buf = []
+    skipped = 0
     for d in docs:
         if d["id"] in seen:
             continue
+        # In skip mode: skip immutable doc types (fixtures/players) if already embedded.
+        # team_profile always re-embeds because averages shift each gameweek.
+        if skip_ids and d["id"] in skip_ids:
+            doc_type = (d.get("metadata") or {}).get("doc_type", "")
+            if doc_type in ("team_fixture", "player_fixture", "player_profile"):
+                skipped += 1
+                continue
         seen.add(d["id"])
         buf.append(d)
         if len(buf) >= batch_size:
@@ -44,6 +52,8 @@ def upsert_docs(collection, docs, batch_size=256):
             buf = []
     if buf:
         _upsert_batch(collection, buf)
+    if skipped:
+        print(f"  Skipped {skipped} existing docs")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Embed and upsert normalized docs into Chroma.")
@@ -55,6 +65,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--all-leagues", action="store_true",
         help="Upsert all discovered normalized league files.",
+    )
+    parser.add_argument(
+        "--skip-existing", action="store_true",
+        help="Skip fixture/player docs already in Chroma (only embed new + updated profiles).",
     )
     args = parser.parse_args()
 
@@ -69,6 +83,15 @@ if __name__ == "__main__":
             pass
 
     col = db.get_or_create_collection(COLLECTION)
+
+    # Build set of existing IDs for incremental mode
+    existing_ids = set()
+    if args.skip_existing:
+        try:
+            existing_ids = set(col.get(include=[])["ids"])
+            print(f"Found {len(existing_ids)} existing docs in collection — will skip unchanged fixtures/players.")
+        except Exception:
+            pass
 
     # Discover normalized files for requested league(s)
     if args.all_leagues:
@@ -89,7 +112,7 @@ if __name__ == "__main__":
     for path in norm_paths:
         docs = json.loads(path.read_text())
         print(f"Upserting {len(docs)} docs from {path.name}")
-        upsert_docs(col, docs)
+        upsert_docs(col, docs, skip_ids=existing_ids if args.skip_existing else None)
         total += len(docs)
 
     # Persist (safe no-op on newer versions)

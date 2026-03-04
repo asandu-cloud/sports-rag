@@ -162,6 +162,7 @@ def doc_from_player_engineered(row: dict, league: str, season: str, source_file:
         "player_id": _maybe_int(row.get("player_id")),
         "player_name": row.get("name"),
         "position": row.get("position"),
+        "minutes": _maybe_int(row.get("minutes")),
         "source_file": source_file,
     }
     uid = make_doc_id([league, season, "player_fixture", meta["player_id"], row.get("fixture")])
@@ -290,6 +291,7 @@ def doc_from_team_profile(
     sot_against_pm_map: Optional[dict] = None,
     cards_ha_pm_map: Optional[dict] = None,
     stat_var_map: Optional[dict] = None,
+    goals_against_pm_map: Optional[dict] = None,
 ) -> dict:
     league = row.get("league")
     season = row.get("season") or season_hint
@@ -301,6 +303,7 @@ def doc_from_team_profile(
     corners_home_pm = corners_ha.get("home") if corners_ha else None
     corners_away_pm = corners_ha.get("away") if corners_ha else None
     sot_against_pm = (sot_against_pm_map or {}).get(tkey)
+    goals_against_pm = (goals_against_pm_map or {}).get(tkey)
     cards_ha = (cards_ha_pm_map or {}).get(tkey, {})
     cards_home_pm = cards_ha.get("home") if cards_ha else None
     cards_away_pm = cards_ha.get("away") if cards_ha else None
@@ -321,6 +324,7 @@ def doc_from_team_profile(
         f"{league} {season} | Team Profile\n"
         f"{team} | MP:{row.get('matches_played')} G:{row.get('goals')} A:{row.get('assists')}\n"
         f"G/Match:{row.get('goals_for_pm')} xG/Match:{row.get('expected_goals')} Poss:{row.get('possession')}\n"
+        f"Goals Against/Match:{goals_against_pm}\n"
         f"Shots For/Match:{row.get('shots_for_pm')} | SoT For/Match:{row.get('sot_for_pm')} | SoT Against/Match:{sot_against_pm}\n"
         f"Corners For/Match:{row.get('corners_pm')} | Corners Against/Match:{c_against_pm}\n"
         f"Corners Home/Match:{corners_home_pm} | Corners Away/Match:{corners_away_pm}\n"
@@ -343,7 +347,7 @@ def doc_from_team_profile(
         "aggression_index_norm": row.get("aggression_index_norm"),
         "form_index_team": row.get("form_index_team"),
         "goals_for_pm": row.get("goals_for_pm"),
-        "goals_against_pm": row.get("shots_against_pm"),  # proxy if no explicit GA
+        "goals_against_pm": goals_against_pm,  # actual goals conceded (opponent-join)
         "corners_pm": row.get("corners_pm"),
         "corners_home_pm": corners_home_pm,
         "corners_away_pm": corners_away_pm,
@@ -619,6 +623,43 @@ def compute_stat_variance(team_rows: list[dict]) -> dict:
     return out
 
 
+# --- aggregate goals conceded per match (season-level, opponent-join) ---
+def compute_goals_against_pm(team_rows: list[dict]) -> dict:
+    """
+    Returns { team_lower: avg_goals_conceded_per_match }.
+    For each of team X's fixtures, look up the opponent's goals scored
+    and average across all matches.
+    """
+    fx_map = build_fixture_team_map(team_rows)
+    sum_ga: dict[str, float] = {}
+    cnt: dict[str, int] = {}
+
+    for r in team_rows:
+        fx   = (r.get("fixture") or "").lower().strip()
+        team = (r.get("team") or "").lower().strip()
+        if not fx or not team:
+            continue
+        _hm, opp_name = infer_home_away(r.get("fixture", ""), r.get("team", ""))
+        opp_row = None
+        if opp_name:
+            opp_row = fx_map.get(fx, {}).get(opp_name.lower().strip())
+
+        opp_goals = None
+        if opp_row:
+            v = opp_row.get("goals")
+            if v is not None:
+                try:
+                    opp_goals = float(v)
+                except (TypeError, ValueError):
+                    opp_goals = None
+
+        if opp_goals is not None:
+            sum_ga[team] = sum_ga.get(team, 0.0) + opp_goals
+            cnt[team] = cnt.get(team, 0) + 1
+
+    return {t: sum_ga[t] / cnt[t] for t in sum_ga if cnt.get(t, 0) > 0}
+
+
 # --- aggregate opponent SoT conceded per match (season-level) ---
 def compute_sot_against_pm(team_rows: list[dict]) -> dict:
     """
@@ -734,6 +775,7 @@ def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
     sot_against_pm_map = compute_sot_against_pm(team_rows) if team_rows else {}
     cards_ha_pm_map = compute_cards_home_away_pm(team_rows) if team_rows else {}
     stat_var_map = compute_stat_variance(team_rows) if team_rows else {}
+    goals_against_pm_map = compute_goals_against_pm(team_rows) if team_rows else {}
 
     # Emit team fixture docs with opponent join (corners_against, shots_against, etc.)
     if team_rows:
@@ -755,8 +797,10 @@ def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
     # -----------------------------
     # PLAYER ENGINEERED
     # -----------------------------
+    MIN_PLAYER_MINUTES = 15  # skip sub appearances < 15 min (statistically meaningless)
     if f_player_eng:
         rows = read_json(str(f_player_eng)) if f_player_eng.suffix == ".json" else read_csv_rows(str(f_player_eng))
+        skipped_low_min = 0
         for r in rows:
             for k in ["yellow_cards", "red_cards", "cards_per_90", "fouls_per_90",
                       "shots_on_target_ratio", "goal_conversion_rate", "shots_on", "shots_total"]:
@@ -765,6 +809,13 @@ def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
                         r[k] = float(r[k])
                     except Exception:
                         pass
+            try:
+                mins = int(r.get("minutes") or 0)
+            except (TypeError, ValueError):
+                mins = 0
+            if mins < MIN_PLAYER_MINUTES:
+                skipped_low_min += 1
+                continue
             docs.append(
                 doc_from_player_engineered(
                     r,
@@ -773,6 +824,8 @@ def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
                     source_file=str(f_player_eng),
                 )
             )
+        if skipped_low_min:
+            print(f"  Skipped {skipped_low_min} player fixtures with <{MIN_PLAYER_MINUTES} min.")
 
     # -----------------------------
     # PLAYER PROFILES
@@ -815,6 +868,7 @@ def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
                     sot_against_pm_map=sot_against_pm_map,
                     cards_ha_pm_map=cards_ha_pm_map,
                     stat_var_map=stat_var_map,
+                    goals_against_pm_map=goals_against_pm_map,
                 )
             )
 

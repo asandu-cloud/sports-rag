@@ -1,16 +1,21 @@
-# La Liga feature engineering 
+# La Liga feature engineering
 
+import argparse
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
 import re
 
 LEAGUE = "LaLiga"
-SEASON = 2025
+
+_parser = argparse.ArgumentParser()
+_parser.add_argument("--season", type=int, default=2025,
+                     help="API-Football season year (e.g. 2025 for 2025/26)")
+SEASON = _parser.parse_args().season
 
 # Input data
-PLAYER_PATH = Path("/Users/sanduandrei/Desktop/Betting_RAG/Output/LaLiga_Output/LaLiga_player_fixture_stats_2025.json")
-FIXTURE_PATH = Path("/Users/sanduandrei/Desktop/Betting_RAG/Output/LaLiga_Output/LaLiga_team_fixture_stats_2025.json")
+PLAYER_PATH = Path(f"/Users/sanduandrei/Desktop/Betting_RAG/Output/LaLiga_Output/LaLiga_player_fixture_stats_{SEASON}.json")
+FIXTURE_PATH = Path(f"/Users/sanduandrei/Desktop/Betting_RAG/Output/LaLiga_Output/LaLiga_team_fixture_stats_{SEASON}.json")
 
 # Output dir
 OUTPUT_PATH = Path("/Users/sanduandrei/Desktop/Betting_RAG/Output/LaLiga_feature_engineering")
