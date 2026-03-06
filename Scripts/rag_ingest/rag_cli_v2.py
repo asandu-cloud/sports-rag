@@ -89,6 +89,8 @@ except ImportError:
             confidence: float = 0.0
             strictness_ratio: float = 1.0
             avg_cards_per_match: float = 0.0
+            avg_fouls_per_match: float = 0.0
+            cards_per_foul: float = 0.0
             source: str = "unavailable"
 
         def get_referee_modifier(*args, **kwargs) -> "RefereeModifier":
@@ -131,6 +133,7 @@ LEAGUE_TO_ODDS_SPORT = {
     "Bundesliga": "soccer_germany_bundesliga",
     "Ligue1": "soccer_france_ligue_one",
 }
+ALL_LEAGUES = list(LEAGUE_TO_ODDS_SPORT.keys())
 
 # Provider-safe defaults. Some subscriptions do not expose extra market families.
 DEFAULT_MARKETS = ["h2h", "totals", "spreads"]
@@ -253,6 +256,7 @@ SCORING_WEIGHTS = {
         "venue_blend": 0.30,
         "agg_nudge": 0.10,
         "agg_scale": 3.0,
+        "foul_card_blend": 0.15,
     },
     "projection_spreads": {
         "form_w": 0.10,
@@ -319,6 +323,8 @@ SCORING_WEIGHTS = {
         "unique_group_bonus": 0.6,
         "max_same_group": 2,
         "excess_same_penalty": 4.0,
+        "unique_league_bonus": 0.3,
+        "league_concentration_penalty": 2.0,
     },
     "ml": {
         "blend_weight": 0.30,
@@ -371,6 +377,7 @@ class CandidateLeg:
     odds: float
     point: Optional[float]
     bookmaker: Optional[str]
+    league: str = ""
 
 
 @dataclass
@@ -389,6 +396,14 @@ class ConstraintSpec:
     require_unique_events: bool
     time_window: str  # today | tomorrow | upcoming
     league: str
+    leagues: List[str] = None       # cross-league mode: list of leagues to fetch
+    target_min: Optional[float] = None   # odds range lower bound
+    target_max: Optional[float] = None   # odds range upper bound
+
+
+def _leg_league(leg: CandidateLeg, fallback: str) -> str:
+    """Return the league for a leg, falling back to constraint league."""
+    return leg.league if leg.league else fallback
 
 
 TEAM_ALIAS_MAP = {
@@ -697,19 +712,47 @@ TEAM_ALIAS_MAP = {
 }
 
 
+LEAGUE_HINTS = {
+    "EPL": ["epl", "premier league", "england"],
+    "LaLiga": ["laliga", "la liga", "spain"],
+    "SerieA": ["serie a", "italy"],
+    "Bundesliga": ["bundesliga", "germany"],
+    "Ligue1": ["ligue 1", "france"],
+}
+
+_CROSS_LEAGUE_PATTERNS = [
+    r"all\s+(?:5\s+)?leagues?",
+    r"top\s+5\s+leagues?",
+    r"cross[- ]league",
+    r"any\s+league",
+    r"mix\s+leagues",
+    r"from\s+all\s+leagues",
+    r"across\s+(?:all\s+)?leagues",
+    r"multiple\s+leagues",
+    r"every\s+league",
+    r"all\s+(?:european\s+)?leagues",
+]
+
+
 def resolve_league(user_q: str, default: str = "EPL") -> str:
     q = user_q.lower()
-    hints = {
-        "EPL": ["epl", "premier league", "england"],
-        "LaLiga": ["laliga", "la liga", "spain"],
-        "SerieA": ["serie a", "italy"],
-        "Bundesliga": ["bundesliga", "germany"],
-        "Ligue1": ["ligue 1", "france"],
-    }
-    for lg, keys in hints.items():
+    for lg, keys in LEAGUE_HINTS.items():
         if any(k in q for k in keys):
             return lg
     return default
+
+
+def _detect_cross_league(user_q: str) -> List[str]:
+    """Detect cross-league intent. Returns list of leagues (empty = single league)."""
+    q = user_q.lower()
+    is_cross = any(re.search(p, q) for p in _CROSS_LEAGUE_PATTERNS)
+    # Also detect explicit multi-league mentions (e.g. "EPL and LaLiga")
+    mentioned = [lg for lg, keys in LEAGUE_HINTS.items() if any(k in q for k in keys)]
+    if len(mentioned) >= 2:
+        is_cross = True
+    if not is_cross:
+        return []
+    return mentioned if len(mentioned) >= 2 else list(ALL_LEAGUES)
 
 
 def parse_time_window(user_q: str) -> str:
@@ -825,6 +868,29 @@ def parse_target(user_q: str) -> Tuple[Optional[float], str]:
         except ValueError:
             break
     return None, "none"
+
+
+def parse_target_range(user_q: str) -> Tuple[Optional[float], Optional[float]]:
+    """Parse an odds range like 'between 3x and 8x', 'odds 5-10', '3x to 8x'."""
+    q = user_q.lower()
+    patterns = [
+        r"between\s+(\d+(?:\.\d+)?)\s*x?\s+and\s+(\d+(?:\.\d+)?)\s*x?",
+        r"(?:odds?\s+)?range\s+(\d+(?:\.\d+)?)\s*x?\s*[-\u2013]\s*(\d+(?:\.\d+)?)\s*x?",
+        r"from\s+(\d+(?:\.\d+)?)\s*x?\s+to\s+(\d+(?:\.\d+)?)\s*x?",
+        r"(\d+(?:\.\d+)?)\s*x?\s+to\s+(\d+(?:\.\d+)?)\s*x?",
+        r"(\d+(?:\.\d+)?)\s*x?\s*[-\u2013]\s*(\d+(?:\.\d+)?)\s*x?\s*(?:odds|combined|parlay)",
+    ]
+    for pat in patterns:
+        m = re.search(pat, q)
+        if m:
+            try:
+                lo, hi = float(m.group(1)), float(m.group(2))
+                if lo > hi:
+                    lo, hi = hi, lo
+                return lo, hi
+            except ValueError:
+                pass
+    return None, None
 
 
 def parse_leg_count(user_q: str) -> Optional[int]:
@@ -1018,7 +1084,9 @@ def kb_healthcheck() -> Tuple[bool, str]:
 def parse_constraints(user_q: str, default_league: str = "EPL") -> ConstraintSpec:
     q = user_q.lower()
     target_multiplier, target_mode = parse_target(user_q)
+    target_min, target_max = parse_target_range(user_q)
     explicit_leg_count = parse_leg_count(user_q)
+    cross_leagues = _detect_cross_league(user_q)
     per_match_mode = bool(
         re.search(
             r"(as many legs as|for each game|for every game|for each fixture|for every fixture"
@@ -1136,6 +1204,9 @@ def parse_constraints(user_q: str, default_league: str = "EPL") -> ConstraintSpe
         require_unique_events=require_unique,
         time_window=parse_time_window(user_q),
         league=resolve_league(user_q, default=default_league),
+        leagues=cross_leagues or None,
+        target_min=target_min,
+        target_max=target_max,
     )
 
 
@@ -1191,6 +1262,19 @@ def fetch_events(league: str, markets: Set[str]) -> Tuple[List[Dict], List[str]]
         notes.append("Unexpected odds payload shape.")
         return [], notes
     return rows, notes
+
+
+def fetch_events_multi(leagues: List[str], markets: Set[str]) -> Tuple[List[Dict], List[str]]:
+    """Fetch events from multiple leagues, tagging each event with its league."""
+    all_events: List[Dict] = []
+    all_notes: List[str] = []
+    for league in leagues:
+        events, notes = fetch_events(league, markets)
+        for ev in events:
+            ev["_league"] = league
+        all_events.extend(events)
+        all_notes.extend(notes)
+    return all_events, all_notes
 
 
 def extract_market_keys(payload: object) -> Set[str]:
@@ -1471,6 +1555,7 @@ def build_candidates(events: List[Dict]) -> List[CandidateLeg]:
         home = str(ev.get("home_team") or "Home")
         away = str(ev.get("away_team") or "Away")
         fixture = f"{home} vs {away}"
+        ev_league = ev.get("_league", "")
         for bm in ev.get("bookmakers", []) or []:
             bm_title = bm.get("title")
             for mk in bm.get("markets", []) or []:
@@ -1506,6 +1591,7 @@ def build_candidates(events: List[Dict]) -> List[CandidateLeg]:
                         odds=odds,
                         point=point,
                         bookmaker=bm_title,
+                        league=ev_league,
                     )
                     k = (event_id, market_key, name, "" if point is None else str(point))
                     cur = best_rows.get(k)
@@ -1876,6 +1962,17 @@ def score_combo(combo: List[CandidateLeg], c: ConstraintSpec, leg_quality: Dict[
             if c.target_mode in {"around", "min"} and leg.odds < desired_leg * w["desired_leg_floor_ratio"]:
                 score += (desired_leg * w["desired_leg_floor_ratio"] - leg.odds) * w["desired_leg_under_penalty"]
 
+    # --- Odds range constraint ---
+    if c.target_min is not None and c.target_max is not None:
+        if not c.target_multiplier:
+            # Use range midpoint as soft anchor (half-strength penalty within range)
+            range_mid = (c.target_min + c.target_max) / 2.0
+            score = abs(log(combo_odds) - log(range_mid)) * w["around_target_log_penalty"] * 0.5
+        if combo_odds < c.target_min:
+            score += (c.target_min - combo_odds) * w["target_over_limit_penalty"]
+        elif combo_odds > c.target_max:
+            score += (combo_odds - c.target_max) * w["target_over_limit_penalty"]
+
     # Soft preferences
     if c.soft_prefer_groups:
         for leg in combo:
@@ -1899,11 +1996,12 @@ def score_combo(combo: List[CandidateLeg], c: ConstraintSpec, leg_quality: Dict[
     for leg in combo:
         g = market_group_from_key(leg.market_key)
         if leg.point is not None and g in ("corners", "cards", "sot", "totals"):
+            leg_lg = _leg_league(leg, c.league)
             proj_funcs = {
-                "corners": lambda l=leg: projected_total_corners(l.home_team, l.away_team, c.league),
-                "cards": lambda l=leg: projected_total_cards(l.home_team, l.away_team, c.league),
-                "sot": lambda l=leg: projected_total_sot(l.home_team, l.away_team, c.league),
-                "totals": lambda l=leg: projected_total_goals(l.home_team, l.away_team, c.league),
+                "corners": lambda l=leg, lg=leg_lg: projected_total_corners(l.home_team, l.away_team, lg),
+                "cards": lambda l=leg, lg=leg_lg: projected_total_cards(l.home_team, l.away_team, lg),
+                "sot": lambda l=leg, lg=leg_lg: projected_total_sot(l.home_team, l.away_team, lg),
+                "totals": lambda l=leg, lg=leg_lg: projected_total_goals(l.home_team, l.away_team, lg),
             }
             proj_result = proj_funcs[g]()
             proj_total = proj_result[0] if proj_result else None
@@ -1945,6 +2043,15 @@ def score_combo(combo: List[CandidateLeg], c: ConstraintSpec, leg_quality: Dict[
             score += (cnt - dw["max_same_group"]) * dw["excess_same_penalty"]
     unique_groups = len(group_counts)
     score -= unique_groups * dw["unique_group_bonus"]
+
+    # --- League diversity (cross-league mode) ---
+    if c.leagues:
+        league_counts = Counter(_leg_league(leg, c.league) for leg in combo)
+        unique_leagues = len(league_counts)
+        score -= unique_leagues * dw.get("unique_league_bonus", 0.3)
+        max_league_count = max(league_counts.values())
+        if max_league_count > n_legs * 0.6:
+            score += (max_league_count - n_legs * 0.6) * dw.get("league_concentration_penalty", 2.0)
 
     # Hard excludes should be strongly avoided.
     for leg in combo:
@@ -2180,7 +2287,7 @@ def select_parlay(candidates: List[CandidateLeg], leg_count: int, c: ConstraintS
     # Final cap by proximity-to-target odds + KB quality, not raw low odds.
     leg_quality: Dict[CandidateLeg, float] = {}
     for leg in pool:
-        leg_quality[leg] = kb_leg_quality(leg, c.league)
+        leg_quality[leg] = kb_leg_quality(leg, _leg_league(leg, c.league))
 
     pw = SCORING_WEIGHTS["pool"]
 
@@ -2189,7 +2296,10 @@ def select_parlay(candidates: List[CandidateLeg], leg_count: int, c: ConstraintS
         quality_bonus = pw["quality_bonus"] * leg_quality.get(leg, 0.0)
         return proximity - quality_bonus
 
-    pool = sorted(pool, key=leg_rank)[:pw["cap"]]
+    cap = int(pw["cap"])
+    if c.leagues and len(c.leagues) > 1:
+        cap = min(cap * 2, 400)
+    pool = sorted(pool, key=leg_rank)[:cap]
 
     if len(pool) < leg_count:
         return [], [f"Only {len(pool)} candidate legs available for {leg_count}-leg request."]
@@ -2236,6 +2346,19 @@ def select_parlay(candidates: List[CandidateLeg], leg_count: int, c: ConstraintS
             best = min(scored, key=lambda x: abs(x[2] - tgt))
             notes.append(f"No combo >= {tgt:.2f}x; returning closest at {best[2]:.2f}x.")
             return best[0], notes
+
+    # --- Odds range mode ---
+    if c.target_min is not None and c.target_max is not None:
+        in_range = [row for row in scored if c.target_min <= row[2] <= c.target_max]
+        if in_range:
+            best = min(in_range, key=lambda x: x[1])
+            return best[0], notes
+        best = min(scored, key=lambda x: min(abs(x[2] - c.target_min), abs(x[2] - c.target_max)))
+        notes.append(
+            f"No combo within odds range [{c.target_min:.1f}x, {c.target_max:.1f}x]; "
+            f"returning closest at {best[2]:.2f}x."
+        )
+        return best[0], notes
 
     # default: best score
     best = min(scored, key=lambda x: x[1])
@@ -2832,6 +2955,11 @@ def leg_evidence(leg: CandidateLeg, league: str) -> List[str]:
                     f"Referee: {cards_ref_mod.referee_name.title()} is {direction_word} than avg "
                     f"({cards_ref_mod.strictness_ratio:.2f}x, {cards_ref_mod.sample_size} matches)."
                 )
+                if cards_ref_mod.cards_per_foul > 0:
+                    lines.append(
+                        f"Ref cards/foul: {cards_ref_mod.cards_per_foul:.3f}, "
+                        f"avg fouls/match: {cards_ref_mod.avg_fouls_per_match:.1f}."
+                    )
 
         h_recent_cards = hr.get("cards_avg")
         a_recent_cards = ar.get("cards_avg")
@@ -3083,6 +3211,38 @@ def get_llm_reasoning(
         return {}, None, f"LLM explanation failed: {exc}"
 
 
+def get_llm_reasoning_multi(
+    user_q: str,
+    selected: List[CandidateLeg],
+    events: List[Dict],
+) -> Tuple[Dict[int, List[str]], Optional[str], Optional[str]]:
+    """LLM reasoning for cross-league parlays — retrieves KB snippets per leg's league."""
+    if not client:
+        return {}, None, "OPENAI_API_KEY not set; using deterministic evidence."
+    profile_docs: List[str] = []
+    team_fixture_docs: List[str] = []
+    player_docs: List[str] = []
+    for leg in selected:
+        lg = leg.league or "EPL"
+        leg_events = [ev for ev in events if str(ev.get("id") or "") == leg.event_id]
+        profile_docs.extend(get_team_profile_snippets_for_events(leg_events, lg, per_team=1))
+        team_fixture_docs.extend(get_team_fixture_snippets_for_events(leg_events, lg, per_team=2))
+        player_docs.extend(get_player_snippets_for_events(leg_events, lg, per_team_profiles=3, per_team_fixtures=4))
+    messages = build_reasoning_messages(
+        user_q, selected, profile_docs, team_fixture_docs, player_docs,
+        chat_context=render_recent_chat_context(max_turns=3),
+    )
+    try:
+        resp = client.chat.completions.create(model=CHAT_MODEL, messages=messages, temperature=0.2)
+        text = (resp.choices[0].message.content or "").strip()
+        evidence_map, why = parse_llm_leg_evidence(text, leg_count=len(selected))
+        if not evidence_map:
+            return {}, None, "LLM explanation parse failed; using deterministic evidence."
+        return evidence_map, why, None
+    except Exception as exc:
+        return {}, None, f"LLM explanation failed: {exc}"
+
+
 def llm_validate_selection(
     selected: List[CandidateLeg],
     league: str,
@@ -3148,12 +3308,19 @@ def render_parlay(
     lines.append("Parlay recommendation:")
     for i, leg in enumerate(selected, start=1):
         bm = f" ({leg.bookmaker})" if leg.bookmaker else ""
-        lines.append(f"- Leg {i}: {leg.fixture} | {leg_label(leg)} @ {leg.odds:.2f}{bm}")
-        ev_lines = (llm_evidence or {}).get(i) or leg_evidence(leg, c.league)
+        lg_badge = f"[{leg.league}] " if leg.league else ""
+        lines.append(f"- Leg {i}: {lg_badge}{leg.fixture} | {leg_label(leg)} @ {leg.odds:.2f}{bm}")
+        ev_lines = (llm_evidence or {}).get(i) or leg_evidence(leg, _leg_league(leg, c.league))
         for ev in ev_lines[:3]:
             lines.append(f"  Evidence: {ev}")
 
     lines.append(f"- Estimated combined odds: {combo:.2f}x")
+    # League distribution summary for cross-league parlays
+    if any(leg.league for leg in selected):
+        league_counts = Counter(leg.league for leg in selected if leg.league)
+        if len(league_counts) > 1:
+            dist = ", ".join(f"{cnt}x {lg}" for lg, cnt in league_counts.most_common())
+            lines.append(f"- League distribution: {dist}")
     if llm_why:
         lines.append(f"- Why this parlay: {llm_why}")
     lines.append("- Constraint report:")
@@ -3284,7 +3451,8 @@ def wants_totals_only_parlay(user_q: str) -> bool:
 def is_comparison_query(user_q: str) -> bool:
     q = user_q.lower()
     return bool(
-        re.search(r"(which team|who)\s+.*(more|higher|most)", q)
+        re.search(r"(which team|who)\s+.*(more|higher|most|win|get|lead)", q)
+        or re.search(r"(which team|who)\s+.*(corner|card|shot|sot|foul)", q)
         or re.search(r"for all.*games", q)
     )
 
@@ -3333,6 +3501,15 @@ def is_spreads_line_query(user_q: str) -> bool:
 def is_btts_query(user_q: str) -> bool:
     q = user_q.lower()
     return bool(re.search(r"\bbtts\b", q) or re.search(r"both\s+teams?\s+(?:to\s+)?scor", q))
+
+
+def is_team_totals_query(user_q: str) -> bool:
+    q = user_q.lower()
+    has_team = bool(re.search(
+        r"\b(team\s+line|team\s+total|individual|per[- ]team|each\s+team|per\s+side)\b", q
+    ))
+    has_stat = bool(re.search(r"\b(corner|card|booking)s?\b", q))
+    return has_team and has_stat
 
 
 def is_player_prop_query(user_q: str) -> bool:
@@ -3430,6 +3607,25 @@ def projected_total_cards(home: str, away: str, league: str) -> Tuple[Optional[f
         ref_anchor_w = rw.get("anchor_weight", 0.15) * ref_mod.confidence
         blended = (1.0 - ref_anchor_w) * blended + ref_anchor_w * ref_mod.avg_cards_per_match
 
+    # Foul-based card estimate: predicted_fouls × referee cards_per_foul
+    cpf = ref_mod.cards_per_foul if ref_mod.source == "profile" else 0.0
+    if cpf > 0 and ref_mod.sample_size >= rw.get("min_sample_size", 5):
+        pc = SCORING_WEIGHTS["projection_cards"]
+        h_fouls_s = safe_float(hm.get("fouls_per_90_team"))
+        a_fouls_s = safe_float(am.get("fouls_per_90_team"))
+        h_fouls_r = hr.get("fouls_avg")
+        a_fouls_r = ar.get("fouls_avg")
+        def _foul_bl(s, r):
+            if s is not None and r is not None:
+                return pw["blend_season"] * s + pw["blend_recent"] * r
+            return s if s is not None else r
+        h_fouls = _foul_bl(h_fouls_s, h_fouls_r)
+        a_fouls = _foul_bl(a_fouls_s, a_fouls_r)
+        if h_fouls is not None and a_fouls is not None:
+            foul_based_total = (h_fouls + a_fouls) * cpf
+            foul_w = pc.get("foul_card_blend", 0.15) * ref_mod.confidence
+            blended = (1.0 - foul_w) * blended + foul_w * foul_based_total
+
     # ML blend
     ml_w = SCORING_WEIGHTS["ml"]["blend_weight"]
     ml_proj = ml_predict_total(home, away, league, "cards", home_meta=hm, away_meta=am)
@@ -3437,6 +3633,115 @@ def projected_total_cards(home: str, away: str, league: str) -> Tuple[Optional[f
         blended = (1.0 - ml_w) * blended + ml_w * ml_proj
 
     return blended, season_total, recent_total, ref_mod
+
+
+# ---- Per-team blended projections (for team totals lines) ----
+
+def projected_team_corners(
+    team: str, opponent: str, league: str, is_home: bool,
+) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+    """Per-team blended corner projection. Returns (blended, season, recent)."""
+    pw = SCORING_WEIGHTS["projection"]
+    hm = get_team_profile_meta(team if is_home else opponent, league)
+    am = get_team_profile_meta(opponent if is_home else team, league)
+
+    h_proj, a_proj = projected_corners(hm, am)
+    season_proj = h_proj if is_home else a_proj
+
+    recent_stats = get_team_recent_stats(team, league, last_n=6)
+    recent_corners = recent_stats.get("corners_for_avg")
+
+    if season_proj is not None and recent_corners is not None:
+        blended = pw["blend_season"] * season_proj + pw["blend_recent"] * recent_corners
+    elif season_proj is not None:
+        blended = season_proj
+    elif recent_corners is not None:
+        blended = recent_corners
+    else:
+        return None, None, None
+
+    # ML proportional split
+    ml_w = SCORING_WEIGHTS["ml"]["blend_weight"]
+    home_name = team if is_home else opponent
+    away_name = opponent if is_home else team
+    ml_proj = ml_predict_total(home_name, away_name, league, "corners",
+                               home_meta=hm, away_meta=am)
+    if ml_proj is not None and h_proj is not None and a_proj is not None:
+        total_season = h_proj + a_proj
+        if total_season > 0:
+            team_share = (h_proj if is_home else a_proj) / total_season
+            blended = (1.0 - ml_w) * blended + ml_w * (ml_proj * team_share)
+
+    return blended, season_proj, recent_corners
+
+
+def projected_team_cards(
+    team: str, opponent: str, league: str, is_home: bool,
+    ref_mod: "RefereeModifier" = None,
+) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+    """Per-team blended card projection. Returns (blended, season, recent)."""
+    pw = SCORING_WEIGHTS["projection"]
+    rw = SCORING_WEIGHTS["referee"]
+    hm = get_team_profile_meta(team if is_home else opponent, league)
+    am = get_team_profile_meta(opponent if is_home else team, league)
+
+    if ref_mod is None:
+        home_name = team if is_home else opponent
+        away_name = opponent if is_home else team
+        ref_mod = get_referee_modifier(home_name, away_name, league,
+                                       weight=rw.get("modifier_weight", 0.25))
+
+    h_proj, a_proj = projected_cards(hm, am, referee_modifier=ref_mod.multiplier)
+    season_proj = h_proj if is_home else a_proj
+
+    recent_stats = get_team_recent_stats(team, league, last_n=6)
+    recent_cards = recent_stats.get("cards_avg")
+
+    if season_proj is not None and recent_cards is not None:
+        blended = pw["blend_season"] * season_proj + pw["blend_recent"] * recent_cards
+    elif season_proj is not None:
+        blended = season_proj
+    elif recent_cards is not None:
+        blended = recent_cards
+    else:
+        return None, None, None
+
+    # Referee anchor scaled to per-team (divide match avg by 2)
+    if (ref_mod.source == "profile" and ref_mod.avg_cards_per_match > 0
+            and ref_mod.sample_size >= rw.get("min_sample_size", 5)):
+        ref_anchor_w = rw.get("anchor_weight", 0.15) * ref_mod.confidence
+        per_team_ref_avg = ref_mod.avg_cards_per_match / 2.0
+        blended = (1.0 - ref_anchor_w) * blended + ref_anchor_w * per_team_ref_avg
+
+    # Foul-based card estimate: this team's predicted fouls × ref cards_per_foul
+    cpf = ref_mod.cards_per_foul if ref_mod.source == "profile" else 0.0
+    if cpf > 0 and ref_mod.sample_size >= rw.get("min_sample_size", 5):
+        pc = SCORING_WEIGHTS["projection_cards"]
+        team_meta = hm if is_home else am
+        fouls_s = safe_float(team_meta.get("fouls_per_90_team"))
+        fouls_r = recent_stats.get("fouls_avg")
+        if fouls_s is not None and fouls_r is not None:
+            team_fouls = pw["blend_season"] * fouls_s + pw["blend_recent"] * fouls_r
+        else:
+            team_fouls = fouls_s if fouls_s is not None else fouls_r
+        if team_fouls is not None:
+            foul_based_cards = team_fouls * cpf
+            foul_w = pc.get("foul_card_blend", 0.15) * ref_mod.confidence
+            blended = (1.0 - foul_w) * blended + foul_w * foul_based_cards
+
+    # ML proportional split
+    ml_w = SCORING_WEIGHTS["ml"]["blend_weight"]
+    home_name = team if is_home else opponent
+    away_name = opponent if is_home else team
+    ml_proj = ml_predict_total(home_name, away_name, league, "cards",
+                               home_meta=hm, away_meta=am)
+    if ml_proj is not None and h_proj is not None and a_proj is not None:
+        total_season = h_proj + a_proj
+        if total_season > 0:
+            team_share = (h_proj if is_home else a_proj) / total_season
+            blended = (1.0 - ml_w) * blended + ml_w * (ml_proj * team_share)
+
+    return blended, season_proj, recent_cards
 
 
 def projected_total_goals(home: str, away: str, league: str) -> Tuple[Optional[float], Optional[float], Optional[float]]:
@@ -3606,6 +3911,59 @@ def extract_total_line_options(event: Dict, stat_group: str) -> List[Dict]:
                         "odds": price,
                     }
                 )
+    return out
+
+
+def extract_team_total_line_options(
+    event: Dict, team_name: str, stat_group: str,
+) -> List[Dict]:
+    """Extract over/under lines for a specific team from team_totals markets.
+
+    The Odds API only offers team_totals for goals — corners/cards team totals
+    don't exist, so this returns empty for those stat groups (triggering model-only
+    fallback in the renderer).
+    """
+    out: List[Dict] = []
+    aliases = team_name_aliases(team_name)
+    for bm in event.get("bookmakers", []) or []:
+        bm_name = str(bm.get("title") or "")
+        for mk in bm.get("markets", []) or []:
+            key = str(mk.get("key") or "")
+            k = key.lower()
+            if not is_full_game_market(key):
+                continue
+            if "team_total" not in k:
+                continue
+            if stat_group == "corners" and "corner" not in k:
+                continue
+            if stat_group == "cards" and "card" not in k and "booking" not in k:
+                continue
+            for outcome in mk.get("outcomes", []) or []:
+                name = str(outcome.get("name") or "").strip()
+                desc = str(outcome.get("description") or "").strip()
+                combined_text = f"{name} {desc}".lower()
+                if not any(a in combined_text for a in aliases):
+                    if not (canonical_team_name(name) == canonical_team_name(team_name)
+                            or canonical_team_name(desc) == canonical_team_name(team_name)):
+                        continue
+                side = None
+                if name.lower() in ("over", "under"):
+                    side = name.lower()
+                elif "over" in combined_text:
+                    side = "over"
+                elif "under" in combined_text:
+                    side = "under"
+                if side is None:
+                    continue
+                point = safe_float(outcome.get("point"))
+                price = safe_float(outcome.get("price"))
+                if point is None or price is None or price <= 1.0:
+                    continue
+                out.append({
+                    "market_key": key, "bookmaker": bm_name,
+                    "side": side, "point": point, "odds": price,
+                    "team": team_name,
+                })
     return out
 
 
@@ -3979,6 +4337,12 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
                     f"  Referee: {ref_name} — {ref_avg:.2f} cards/match ({label}, "
                     f"{ref_strict:.2f}x league avg, {ref_n} matches)."
                 )
+                ref_cpf = _cards_ref_mod.cards_per_foul
+                if ref_cpf > 0:
+                    lines.append(
+                        f"  Ref cards/foul: {ref_cpf:.3f} — "
+                        f"avg fouls/match: {_cards_ref_mod.avg_fouls_per_match:.1f}."
+                    )
             else:
                 lines.append("  Referee: not yet assigned or API-Football key not set.")
 
@@ -4127,6 +4491,141 @@ def render_btts_answer(user_q: str, league: str, events: List[Dict]) -> str:
             )
 
     lines.append("Method: independent Poisson probability model for per-team scoring from local KB.")
+    return "\n".join(lines)
+
+
+def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> str:
+    """Per-team corner and card line recommendations for each fixture."""
+    lines: List[str] = ["Per-Team Totals Lines by fixture:"]
+
+    for ev in events:
+        home = str(ev.get("home_team") or "Home")
+        away = str(ev.get("away_team") or "Away")
+        lines.append(f"\n=== {home} vs {away} ===")
+
+        rw = SCORING_WEIGHTS["referee"]
+        ref_mod = get_referee_modifier(home, away, league,
+                                       weight=rw.get("modifier_weight", 0.25))
+
+        # ---- CORNERS ----
+        lines.append("  CORNERS:")
+        for team, opp, is_home in [(home, away, True), (away, home, False)]:
+            c_bl, c_sea, c_rec = projected_team_corners(team, opp, league, is_home)
+            if c_bl is None:
+                lines.append(f"    {team}: insufficient data.")
+                continue
+            lines.append(f"    {team}: projected {c_bl:.2f} corners/match.")
+            if c_sea is not None:
+                lines.append(f"      Season model: {c_sea:.2f}.")
+            if c_rec is not None:
+                lines.append(f"      Recent 6-match: {c_rec:.2f}.")
+            t_var = get_team_recent_variance(team, league).get("corners_for_var")
+            options = extract_team_total_line_options(ev, team, "corners")
+            best = choose_best_total_line(options, c_bl, t_var) if options else None
+            if best:
+                side = str(best.get("side") or "").title()
+                pt = float(best.get("point"))
+                odds = float(best.get("odds"))
+                edge = (c_bl - pt) if side.lower() == "over" else (pt - c_bl)
+                mp = best.get("_model_prob")
+                ip = best.get("_implied_prob")
+                ve = best.get("_value_edge")
+                ev_val = best.get("_ev")
+                conf = confidence_from_edge(edge, stat_group="corners",
+                                           model_prob=mp, value_edge_pct=ve)
+                lines.append(
+                    f"      Recommended: {side} {pt:g} @ {odds:.2f} "
+                    f"({best.get('bookmaker')}, {best.get('market_key')})."
+                )
+                if mp is not None and ip is not None and ve is not None:
+                    lines.append(
+                        f"      Model: P({side} {pt:g}) = {mp:.1%} | "
+                        f"Fair implied: {ip:.1%} | Value edge: {ve:+.1%}"
+                    )
+                if ev_val is not None:
+                    lines.append(f"      EV: {ev_val:+.3f} per unit ({conf} confidence).")
+                else:
+                    lines.append(f"      Edge {edge:+.2f} ({conf} confidence).")
+            else:
+                anchor = round(c_bl * 2.0) / 2.0
+                side = "Over" if c_bl >= anchor else "Under"
+                mp = (over_prob(c_bl, anchor, t_var) if side == "Over"
+                      else under_prob(c_bl, anchor, t_var))
+                lines.append(
+                    f"      Recommended: {side} {anchor:g} "
+                    f"(model-only, P({side} {anchor:g}) = {mp:.1%})."
+                )
+
+        # ---- CARDS ----
+        lines.append("  CARDS:")
+        if ref_mod.source == "profile":
+            rn = (ref_mod.referee_name or "Unknown").title()
+            ra = ref_mod.avg_cards_per_match
+            rs = ref_mod.strictness_ratio
+            rns = ref_mod.sample_size
+            label = "strict" if rs >= 1.10 else ("lenient" if rs <= 0.90 else "average")
+            lines.append(
+                f"    Referee: {rn} — {ra:.2f} cards/match ({label}, "
+                f"{rs:.2f}x league avg, {rns} matches)."
+            )
+            ref_cpf = ref_mod.cards_per_foul
+            if ref_cpf > 0:
+                lines.append(
+                    f"    Ref cards/foul: {ref_cpf:.3f} — "
+                    f"avg fouls/match: {ref_mod.avg_fouls_per_match:.1f}."
+                )
+        else:
+            lines.append("    Referee: not yet assigned or API-Football key not set.")
+
+        for team, opp, is_home in [(home, away, True), (away, home, False)]:
+            k_bl, k_sea, k_rec = projected_team_cards(team, opp, league, is_home,
+                                                       ref_mod=ref_mod)
+            if k_bl is None:
+                lines.append(f"    {team}: insufficient data.")
+                continue
+            lines.append(f"    {team}: projected {k_bl:.2f} cards/match.")
+            if k_sea is not None:
+                lines.append(f"      Season model: {k_sea:.2f}.")
+            if k_rec is not None:
+                lines.append(f"      Recent 6-match: {k_rec:.2f}.")
+            t_var = get_team_recent_variance(team, league).get("cards_var")
+            options = extract_team_total_line_options(ev, team, "cards")
+            best = choose_best_total_line(options, k_bl, t_var) if options else None
+            if best:
+                side = str(best.get("side") or "").title()
+                pt = float(best.get("point"))
+                odds = float(best.get("odds"))
+                edge = (k_bl - pt) if side.lower() == "over" else (pt - k_bl)
+                mp = best.get("_model_prob")
+                ip = best.get("_implied_prob")
+                ve = best.get("_value_edge")
+                ev_val = best.get("_ev")
+                conf = confidence_from_edge(edge, stat_group="cards",
+                                           model_prob=mp, value_edge_pct=ve)
+                lines.append(
+                    f"      Recommended: {side} {pt:g} @ {odds:.2f} "
+                    f"({best.get('bookmaker')}, {best.get('market_key')})."
+                )
+                if mp is not None and ip is not None and ve is not None:
+                    lines.append(
+                        f"      Model: P({side} {pt:g}) = {mp:.1%} | "
+                        f"Fair implied: {ip:.1%} | Value edge: {ve:+.1%}"
+                    )
+                if ev_val is not None:
+                    lines.append(f"      EV: {ev_val:+.3f} per unit ({conf} confidence).")
+                else:
+                    lines.append(f"      Edge {edge:+.2f} ({conf} confidence).")
+            else:
+                anchor = round(k_bl * 2.0) / 2.0
+                side = "Over" if k_bl >= anchor else "Under"
+                mp = (over_prob(k_bl, anchor, t_var) if side == "Over"
+                      else under_prob(k_bl, anchor, t_var))
+                lines.append(
+                    f"      Recommended: {side} {anchor:g} "
+                    f"(model-only, P({side} {anchor:g}) = {mp:.1%})."
+                )
+
+    lines.append("Method: per-team Poisson/NegBin probability model from local KB.")
     return "\n".join(lines)
 
 
@@ -4457,6 +4956,7 @@ INTENT_TOTALS_LINE = "totals_line"
 INTENT_PLAYER_PROP = "player_prop"
 INTENT_SPREADS_LINE = "spreads_line"
 INTENT_BTTS = "btts"
+INTENT_TEAM_TOTALS = "team_totals"
 INTENT_PARLAY = "parlay"
 INTENT_UNKNOWN = "unknown"
 
@@ -4466,6 +4966,7 @@ INTENT_LABELS = {
     INTENT_COMPARISON: "Stat Comparison",
     INTENT_TOTALS_LINE: "Totals Line Advice",
     INTENT_BTTS: "BTTS Advice",
+    INTENT_TEAM_TOTALS: "Per-Team Totals Lines",
     INTENT_SPREADS_LINE: "Handicap Line Advice",
     INTENT_PLAYER_PROP: "Player Props",
     INTENT_PARLAY: "Parlay Builder",
@@ -4492,6 +4993,8 @@ def classify_intent(user_q: str) -> List[Tuple[str, float]]:
         scores.append((INTENT_SPREADS_LINE, 0.15 if (parlay or player_prop) else 0.68))
     if is_btts_query(user_q):
         scores.append((INTENT_BTTS, 0.15 if (parlay or player_prop) else 0.70))
+    if is_team_totals_query(user_q):
+        scores.append((INTENT_TEAM_TOTALS, 0.15 if (parlay or player_prop) else 0.67))
     if is_totals_line_query(user_q):
         scores.append((INTENT_TOTALS_LINE, 0.15 if (parlay or player_prop) else 0.65))
     if parlay and not player_prop:
@@ -4555,6 +5058,13 @@ def _handle_spreads_line(user_q: str, c: ConstraintSpec, events: List[Dict], not
 
 def _handle_btts(user_q: str, c: ConstraintSpec, events: List[Dict], notes: List[str]) -> str:
     out = render_btts_answer(user_q, c.league, events)
+    if notes:
+        out = out + "\nNotes:\n" + "\n".join(f"- {n}" for n in notes)
+    return out
+
+
+def _handle_team_totals(user_q: str, c: ConstraintSpec, events: List[Dict], notes: List[str]) -> str:
+    out = render_team_totals_answer(user_q, c.league, events)
     if notes:
         out = out + "\nNotes:\n" + "\n".join(f"- {n}" for n in notes)
     return out
@@ -4642,7 +5152,12 @@ def answer_once(user_q: str, default_league: str = "EPL") -> None:
         elif totals_stat_group == "sot":
             c.hard_include_groups = {"sot"}
             c.hard_exclude_groups = {"moneyline", "spreads", "corners", "cards", "totals"}
-    events_raw, notes = fetch_events(c.league, c.requested_markets)
+    if c.leagues:
+        events_raw, notes = fetch_events_multi(c.leagues, c.requested_markets)
+    else:
+        events_raw, notes = fetch_events(c.league, c.requested_markets)
+        for ev in events_raw:
+            ev["_league"] = c.league
     if not events_raw:
         print("Could not fetch odds events.")
         for n in notes:
@@ -4695,12 +5210,38 @@ def answer_once(user_q: str, default_league: str = "EPL") -> None:
                 + " candidates."
             )
 
+    # Team totals intent always needs corners + cards enrichment
+    if is_team_totals_query(user_q):
+        needed_groups.update({"corners", "cards"})
+
     if needed_groups:
-        events, enrich_notes = enrich_events_for_groups(events, c.league, needed_groups)
-        notes.extend(enrich_notes)
+        if c.leagues:
+            events_by_lg: Dict[str, List[Dict]] = {}
+            for ev in events:
+                events_by_lg.setdefault(ev.get("_league", c.league), []).append(ev)
+            enriched_all: List[Dict] = []
+            for lg, lg_evs in events_by_lg.items():
+                enriched, enotes = enrich_events_for_groups(lg_evs, lg, needed_groups)
+                enriched_all.extend(enriched)
+                notes.extend(enotes)
+            events = enriched_all
+        else:
+            events, enrich_notes = enrich_events_for_groups(events, c.league, needed_groups)
+            notes.extend(enrich_notes)
 
     if parlay_intent and force_totals_only:
-        events, depth_notes = enrich_events_for_totals_depth(events, c.league, stat_group=totals_stat_group)
+        if c.leagues:
+            events_by_lg2: Dict[str, List[Dict]] = {}
+            for ev in events:
+                events_by_lg2.setdefault(ev.get("_league", c.league), []).append(ev)
+            depth_all: List[Dict] = []
+            for lg, lg_evs in events_by_lg2.items():
+                depth_evs, depth_notes = enrich_events_for_totals_depth(lg_evs, lg, stat_group=totals_stat_group)
+                depth_all.extend(depth_evs)
+                notes.extend(depth_notes)
+            events = depth_all
+        else:
+            events, depth_notes = enrich_events_for_totals_depth(events, c.league, stat_group=totals_stat_group)
         notes.extend(depth_notes)
         notes.append(f"Expanded full-game totals ladder for parlay optimization ({totals_stat_group}).")
     # ---- Intent-based routing via scored classifier ----
@@ -4739,6 +5280,12 @@ def answer_once(user_q: str, default_league: str = "EPL") -> None:
 
     if top_intent == INTENT_BTTS:
         out = _handle_btts(user_q, c, events, notes)
+        print(out)
+        add_chat_turn(raw_user_q, out)
+        return
+
+    if top_intent == INTENT_TEAM_TOTALS:
+        out = _handle_team_totals(user_q, c, events, notes)
         print(out)
         add_chat_turn(raw_user_q, out)
         return
@@ -4827,11 +5374,15 @@ def answer_once(user_q: str, default_league: str = "EPL") -> None:
         return
 
     # Optional LLM validation pass (gated by RAG_LLM_VALIDATION env var)
-    validation_passed, validation_concern = llm_validate_selection(selected, c.league)
+    league_label = ", ".join(c.leagues) if c.leagues else c.league
+    validation_passed, validation_concern = llm_validate_selection(selected, league_label)
     if not validation_passed and validation_concern:
         notes.append(f"LLM validation concern: {validation_concern}")
 
-    llm_evidence, llm_why, llm_note = get_llm_reasoning(user_q, selected, events, c.league)
+    if c.leagues:
+        llm_evidence, llm_why, llm_note = get_llm_reasoning_multi(user_q, selected, events)
+    else:
+        llm_evidence, llm_why, llm_note = get_llm_reasoning(user_q, selected, events, c.league)
     if llm_note:
         notes.append(llm_note)
 
@@ -4851,6 +5402,7 @@ def answer_once(user_q: str, default_league: str = "EPL") -> None:
     memory["last_leg_count"] = len(selected)
     memory["last_intent"] = top_intent
     memory["last_league"] = c.league
+    memory["last_leagues"] = c.leagues or []
     memory["last_constraint_spec"] = {
         "hard_include_groups": list(c.hard_include_groups),
         "hard_exclude_groups": list(c.hard_exclude_groups),

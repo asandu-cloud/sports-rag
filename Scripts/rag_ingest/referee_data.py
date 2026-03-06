@@ -90,6 +90,8 @@ class RefereeModifier:
     confidence: float = 0.0
     strictness_ratio: float = 1.0
     avg_cards_per_match: float = 0.0
+    avg_fouls_per_match: float = 0.0
+    cards_per_foul: float = 0.0
     source: str = "unavailable"  # "profile" | "fallback" | "unavailable"
 
 
@@ -600,6 +602,8 @@ def compute_referee_modifier(
             sample_size=n,
             strictness_ratio=profile.strictness_ratio,
             avg_cards_per_match=profile.avg_cards_per_match,
+            avg_fouls_per_match=profile.avg_fouls_per_match,
+            cards_per_foul=profile.cards_per_foul,
             source="profile",
         )
 
@@ -615,6 +619,8 @@ def compute_referee_modifier(
         confidence=confidence,
         strictness_ratio=profile.strictness_ratio,
         avg_cards_per_match=profile.avg_cards_per_match,
+        avg_fouls_per_match=profile.avg_fouls_per_match,
+        cards_per_foul=profile.cards_per_foul,
         source="profile",
     )
 

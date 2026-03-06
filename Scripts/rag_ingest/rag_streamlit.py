@@ -60,6 +60,7 @@ import rag_cli_v2 as rag
 
 
 LEAGUES = ["EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1"]
+LEAGUES_WITH_ALL = ["All Leagues"] + LEAGUES
 
 
 def _next_seven_days() -> List[Dict]:
@@ -143,7 +144,12 @@ def run_query(prompt: str, league: str) -> str:
     buf = io.StringIO()
     start = time.perf_counter()
     with redirect_stdout(buf):
-        rag.answer_once(prompt, default_league=league)
+        if league == "All Leagues":
+            if not any(k in prompt.lower() for k in ["all leagues", "cross-league", "any league", "top 5"]):
+                prompt = f"(All leagues) {prompt}"
+            rag.answer_once(prompt, default_league="EPL")
+        else:
+            rag.answer_once(prompt, default_league=league)
     elapsed = time.perf_counter() - start
     text = buf.getvalue().strip() or "(No output)"
     stamp = datetime.now().strftime("%H:%M:%S")
@@ -244,6 +250,12 @@ def template_prompts(target_date: str, home: str = "", away: str = "", league: s
             "BTTS (all fixtures)": (
                 f"For all {lg} games on {date_text}, which fixtures are best for BTTS Yes?"
             ),
+            "Team Lines (single fixture)": (
+                f"For {fx} on {date_text}, what are the per-team corner and card lines I should take?"
+            ),
+            "Team Lines (all fixtures)": (
+                f"For all {lg} games on {date_text}, what are the per-team corner and card lines for each fixture?"
+            ),
         },
         "Handicap Lines": {
             "Handicap Pick (single fixture)": (
@@ -341,6 +353,28 @@ def template_prompts(target_date: str, home: str = "", away: str = "", league: s
                 "Include one goalscorer, one shots, and one cards pick. Target around 6.0x odds."
             ),
         },
+        "Cross-League Parlays": {
+            "Best Parlay (3-5x)": (
+                f"For all top 5 league games on {date_text}, build a cross-league parlay "
+                "with odds between 3x and 5x. Pick the best combination across all leagues."
+            ),
+            "Best Parlay (5-10x)": (
+                f"For all top 5 league games on {date_text}, build a cross-league parlay "
+                "with odds between 5x and 10x. Mix leagues for the best value."
+            ),
+            "Conservative Cross-League (2-3x)": (
+                f"From all leagues on {date_text}, build a safe 3-leg cross-league parlay "
+                "with combined odds between 2x and 3x."
+            ),
+            "High-Value Cross-League (8x+)": (
+                f"For all top 5 league games on {date_text}, build a cross-league parlay "
+                "with odds at least 8x. Use the best value edges from any league."
+            ),
+            "Mixed Markets Cross-League (4-leg)": (
+                f"Build a 4-leg cross-league parlay for {date_text} with odds between 4x and 6x. "
+                "Mix goals, corners, and cards markets across different leagues."
+            ),
+        },
         "Memory Follow-ups": {
             "Add One More Leg": "Add one more leg.",
             "Swap Weakest Leg": "Replace the weakest leg with a better alternative from the same fixture.",
@@ -366,7 +400,8 @@ def render_chat() -> None:
 def sidebar_ui() -> None:
     with st.sidebar:
         st.header("Settings")
-        st.session_state.league = st.selectbox("League", options=LEAGUES, index=LEAGUES.index(st.session_state.league))
+        _league_idx = LEAGUES_WITH_ALL.index(st.session_state.league) if st.session_state.league in LEAGUES_WITH_ALL else 0
+        st.session_state.league = st.selectbox("League", options=LEAGUES_WITH_ALL, index=_league_idx)
         st.session_state.show_debug = st.toggle("Show debug memory", value=st.session_state.show_debug)
 
         st.header("Templates")
@@ -382,6 +417,9 @@ def sidebar_ui() -> None:
 
         # Build templates with example teams first (for workflow/template key navigation)
         templates = template_prompts(target_date, league=st.session_state.league)
+        # Filter cross-league templates based on league selection
+        if st.session_state.league != "All Leagues":
+            templates.pop("Cross-League Parlays", None)
         selected_workflow = st.selectbox("Workflow", options=list(templates.keys()))
         selected_template = st.selectbox(
             "Prompt template",
@@ -390,7 +428,7 @@ def sidebar_ui() -> None:
 
         # Conditional fixture picker for single-fixture templates
         home, away = "", ""
-        if _is_single_fixture_template(selected_template):
+        if _is_single_fixture_template(selected_template) and st.session_state.league != "All Leagues":
             fixtures = _fetch_day_fixtures(
                 st.session_state.league, target_date_obj.isoformat(),
             )
