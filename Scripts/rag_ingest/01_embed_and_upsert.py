@@ -18,7 +18,7 @@ INDEX_DIR = str(ROOT / "Index")
 CHROMA_DIR = str(ROOT / "Index" / "chroma")
 COLLECTION = env_first("CHROMA_COLLECTION", default="football_top5")   # keep one collection, filter by metadata
 EMBED_MODEL = "text-embedding-3-large"
-ALL_LEAGUES = ["EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1"]
+ALL_LEAGUES = ["EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1", "UCL", "UEL", "UECL"]
 
 load_dotenv()
 client = OpenAI(api_key=env_first("OPENAI_API_KEY"))

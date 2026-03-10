@@ -59,7 +59,9 @@ apply_runtime_secrets()
 import rag_cli_v2 as rag
 
 
-LEAGUES = ["EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1"]
+DOMESTIC_LEAGUES_UI = ["EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1"]
+EUROPEAN_COMPS_UI = ["UCL", "UEL", "UECL"]
+LEAGUES = DOMESTIC_LEAGUES_UI + EUROPEAN_COMPS_UI
 LEAGUES_WITH_ALL = ["All Leagues"] + LEAGUES
 
 
@@ -271,6 +273,41 @@ def template_prompts(target_date: str, home: str = "", away: str = "", league: s
             ),
             "Spread Advice (all fixtures)": (
                 f"For every {lg} game on {date_text}, give me spread advice for each fixture."
+            ),
+        },
+        "Correct Score": {
+            "Most Likely Score (single fixture)": (
+                f"What is the most likely correct score for {fx} on {date_text}? "
+                "Give me the top 5 possible scorelines with probabilities."
+            ),
+            "Best Value Score (single fixture)": (
+                f"{fx} on {date_text}. Which correct score bet offers the best value? "
+                "Compare model probability vs bookmaker odds."
+            ),
+            "Correct Score (all fixtures)": (
+                f"For every {lg} game on {date_text}, predict the most likely correct score."
+            ),
+            "Score Predictions with Odds (all fixtures)": (
+                f"For all {lg} games on {date_text}, show me correct score predictions "
+                "with the best value bets for each fixture."
+            ),
+        },
+        "Moneyline": {
+            "Match Winner (single fixture)": (
+                f"Who will win {fx} on {date_text}? "
+                "Show me 1X2 probabilities and the best value moneyline bet."
+            ),
+            "Match Winner (all fixtures)": (
+                f"For every {lg} game on {date_text}, who is most likely to win? "
+                "Show moneyline probabilities and value picks."
+            ),
+            "Moneyline Value (single fixture)": (
+                f"Moneyline analysis for {fx} on {date_text}. "
+                "Compare model win probabilities vs bookmaker odds."
+            ),
+            "Moneyline Value (all fixtures)": (
+                f"For all {lg} games on {date_text}, show me moneyline value picks "
+                "where the model disagrees with the bookmakers."
             ),
         },
         "Parlays": {

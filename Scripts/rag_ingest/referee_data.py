@@ -44,6 +44,9 @@ LEAGUE_TO_API_ID: Dict[str, int] = {
     "SerieA": 135,
     "Bundesliga": 78,
     "Ligue1": 61,
+    "UCL": 2,
+    "UEL": 3,
+    "UECL": 848,
 }
 
 LEAGUE_TO_FE_DIR: Dict[str, str] = {
@@ -52,6 +55,9 @@ LEAGUE_TO_FE_DIR: Dict[str, str] = {
     "SerieA": "SeriaA_feature_engineering",
     "Bundesliga": "Bundesliga_feature_engineering",
     "Ligue1": "Ligue1_feature_engineering",
+    "UCL": "UCL_feature_engineering",
+    "UEL": "UEL_feature_engineering",
+    "UECL": "UECL_feature_engineering",
 }
 
 SEASON = 2025

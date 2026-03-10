@@ -50,6 +50,21 @@ LEAGUES = {
         "player_stats": "Scripts/Ligue_1/Ligue_1_Stats_for_players.py",
         "feature_eng":  "Scripts/Ligue_1/Ligue1_feature_engineering.py",
     },
+    "UCL": {
+        "team_stats":   "Scripts/Champions_League/UCL_stats_for_teams.py",
+        "player_stats": "Scripts/Champions_League/UCL_player_stats.py",
+        "feature_eng":  "Scripts/Champions_League/UCL_feature_engineering.py",
+    },
+    "UEL": {
+        "team_stats":   "Scripts/Europa_League/UEL_stats_for_teams.py",
+        "player_stats": "Scripts/Europa_League/UEL_player_stats.py",
+        "feature_eng":  "Scripts/Europa_League/UEL_feature_engineering.py",
+    },
+    "UECL": {
+        "team_stats":   "Scripts/Conference_League/UECL_stats_for_teams.py",
+        "player_stats": "Scripts/Conference_League/UECL_player_stats.py",
+        "feature_eng":  "Scripts/Conference_League/UECL_feature_engineering.py",
+    },
 }
 
 

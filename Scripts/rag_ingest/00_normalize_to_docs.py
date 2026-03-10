@@ -15,6 +15,9 @@ LEAGUE_FROM_DIR = {
     "seriaa": "SerieA",      # tolerate your folder spelling
     "seriea": "SerieA",
     "bundesliga": "Bundesliga",
+    "ucl": "UCL",
+    "uel": "UEL",
+    "uecl": "UECL",
 }
 
 # --------- UTILS ---------

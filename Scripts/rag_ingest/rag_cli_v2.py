@@ -63,11 +63,13 @@ try:
     from prob_models import (
         over_prob, under_prob, implied_prob, remove_vig_two_way,
         value_edge, expected_value, kelly_fraction,
+        poisson_pmf, negbin_pmf, negbin_from_mean_var,
     )
 except ImportError:
     from Scripts.rag_ingest.prob_models import (
         over_prob, under_prob, implied_prob, remove_vig_two_way,
         value_edge, expected_value, kelly_fraction,
+        poisson_pmf, negbin_pmf, negbin_from_mean_var,
     )
 
 try:
@@ -132,8 +134,13 @@ LEAGUE_TO_ODDS_SPORT = {
     "SerieA": "soccer_italy_serie_a",
     "Bundesliga": "soccer_germany_bundesliga",
     "Ligue1": "soccer_france_ligue_one",
+    "UCL": "soccer_uefa_champs_league",
+    "UEL": "soccer_uefa_europa_league",
+    "UECL": "soccer_uefa_europa_conference_league",
 }
 ALL_LEAGUES = list(LEAGUE_TO_ODDS_SPORT.keys())
+DOMESTIC_LEAGUES = {"EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1"}
+EUROPEAN_COMPETITIONS = {"UCL", "UEL", "UECL"}
 
 # Provider-safe defaults. Some subscriptions do not expose extra market families.
 DEFAULT_MARKETS = ["h2h", "totals", "spreads"]
@@ -334,6 +341,12 @@ SCORING_WEIGHTS = {
     },
     "recency": {
         "alpha": 0.85,  # exponential decay per match (most recent=1.0, next=0.85, then 0.72…)
+    },
+    "european": {
+        "domestic_weight": 0.80,       # weight for domestic league profile in blended projections
+        "euro_weight": 0.20,           # weight for European competition profile
+        "min_euro_fixtures": 3,        # minimum European fixtures before blending kicks in
+        "non_top5_confidence_penalty": 0.15,  # confidence penalty for teams without domestic profiles
     },
 }
 
@@ -718,10 +731,13 @@ LEAGUE_HINTS = {
     "SerieA": ["serie a", "italy"],
     "Bundesliga": ["bundesliga", "germany"],
     "Ligue1": ["ligue 1", "france"],
+    "UCL": ["ucl", "champions league", "uefa champions"],
+    "UEL": ["uel", "europa league", "uefa europa league"],
+    "UECL": ["uecl", "conference league", "europa conference"],
 }
 
 _CROSS_LEAGUE_PATTERNS = [
-    r"all\s+(?:5\s+)?leagues?",
+    r"all\s+(?:5\s+|8\s+)?leagues?",
     r"top\s+5\s+leagues?",
     r"cross[- ]league",
     r"any\s+league",
@@ -731,6 +747,8 @@ _CROSS_LEAGUE_PATTERNS = [
     r"multiple\s+leagues",
     r"every\s+league",
     r"all\s+(?:european\s+)?leagues",
+    r"all\s+(?:8\s+)?competitions?",
+    r"european\s+(?:and\s+domestic|competitions?)",
 ]
 
 
@@ -1719,10 +1737,10 @@ def kb_leg_quality(leg: CandidateLeg, league: str) -> float:
     """
     Positive score indicates stronger multi-signal support from local KB.
     """
-    hm = get_team_profile_meta(leg.home_team, league)
-    am = get_team_profile_meta(leg.away_team, league)
-    h_recent = get_team_recent_stats(leg.home_team, league, last_n=6)
-    a_recent = get_team_recent_stats(leg.away_team, league, last_n=6)
+    hm = _profile_meta(leg.home_team, league)
+    am = _profile_meta(leg.away_team, league)
+    h_recent = _recent_stats(leg.home_team, league, last_n=6)
+    a_recent = _recent_stats(leg.away_team, league, last_n=6)
     heur_groups = heuristic_groups_for_event(hm, am)
 
     g = market_group_from_key(leg.market_key)
@@ -2424,6 +2442,112 @@ def get_team_profile_meta(team_name: str, league: str) -> Dict:
     return meta
 
 
+# ---------------------------------------------------------------------------
+# European competition: domestic-anchored projection helpers
+# ---------------------------------------------------------------------------
+_domestic_league_cache: Dict[str, Optional[str]] = {}
+
+
+def resolve_domestic_league(team_name: str) -> Optional[str]:
+    """Find which domestic league a team belongs to by searching Chroma profiles."""
+    canon = canonical_team_name(team_name).lower()
+    if canon in _domestic_league_cache:
+        return _domestic_league_cache[canon]
+    for lg in sorted(DOMESTIC_LEAGUES):
+        meta = get_team_profile_meta(team_name, lg)
+        if meta:
+            _domestic_league_cache[canon] = lg
+            return lg
+    _domestic_league_cache[canon] = None
+    return None
+
+
+def get_blended_profile_meta(team_name: str, competition: str) -> Dict:
+    """For European competitions, blend domestic (80%) + European (20%) profiles.
+    For domestic leagues, returns the standard profile unchanged."""
+    if competition not in EUROPEAN_COMPETITIONS:
+        return get_team_profile_meta(team_name, competition)
+
+    ew = SCORING_WEIGHTS["european"]
+    euro_meta = get_team_profile_meta(team_name, competition)
+    domestic_lg = resolve_domestic_league(team_name)
+
+    if not domestic_lg:
+        return euro_meta  # Non-top-5 team — European data only
+
+    domestic_meta = get_team_profile_meta(team_name, domestic_lg)
+    if not domestic_meta:
+        return euro_meta
+    if not euro_meta:
+        return domestic_meta
+
+    # Need enough European fixtures before blending is meaningful
+    euro_n = _numeric(euro_meta.get("matches_played")) or 0
+    if euro_n < ew["min_euro_fixtures"]:
+        return domestic_meta  # Not enough European data yet — domestic only
+
+    # Weighted blend of all numeric fields
+    blended = dict(domestic_meta)  # start with domestic as base
+    d_w, e_w = ew["domestic_weight"], ew["euro_weight"]
+    for key, d_val in domestic_meta.items():
+        e_val = euro_meta.get(key)
+        if isinstance(d_val, (int, float)) and isinstance(e_val, (int, float)):
+            blended[key] = d_w * d_val + e_w * e_val
+    blended["_domestic_league"] = domestic_lg
+    blended["_euro_competition"] = competition
+    blended["_blend_mode"] = "domestic_anchored"
+    return blended
+
+
+def get_blended_recent_stats(team_name: str, competition: str, last_n: int = 6) -> Dict:
+    """For European competitions, blend domestic + European recent stats."""
+    if competition not in EUROPEAN_COMPETITIONS:
+        return get_team_recent_stats(team_name, competition, last_n)
+
+    ew = SCORING_WEIGHTS["european"]
+    euro_stats = get_team_recent_stats(team_name, competition, last_n)
+    domestic_lg = resolve_domestic_league(team_name)
+
+    if not domestic_lg:
+        return euro_stats  # Non-top-5 team
+
+    domestic_stats = get_team_recent_stats(team_name, domestic_lg, last_n)
+    if not domestic_stats or domestic_stats.get("n", 0) == 0:
+        return euro_stats
+    if not euro_stats or euro_stats.get("n", 0) == 0:
+        return domestic_stats
+
+    # Weighted blend
+    blended: Dict = {}
+    d_w, e_w = ew["domestic_weight"], ew["euro_weight"]
+    all_keys = set(list(domestic_stats.keys()) + list(euro_stats.keys()))
+    for key in all_keys:
+        d_val = domestic_stats.get(key)
+        e_val = euro_stats.get(key)
+        if isinstance(d_val, (int, float)) and isinstance(e_val, (int, float)):
+            blended[key] = d_w * d_val + e_w * e_val
+        elif d_val is not None:
+            blended[key] = d_val
+        else:
+            blended[key] = e_val
+    blended["n"] = domestic_stats.get("n", 0) + euro_stats.get("n", 0)
+    return blended
+
+
+def _profile_meta(team: str, league: str) -> Dict:
+    """Profile metadata — auto-blends for European competitions."""
+    if league in EUROPEAN_COMPETITIONS:
+        return get_blended_profile_meta(team, league)
+    return get_team_profile_meta(team, league)
+
+
+def _recent_stats(team: str, league: str, last_n: int = 6) -> Dict:
+    """Recent stats — auto-blends for European competitions."""
+    if league in EUROPEAN_COMPETITIONS:
+        return get_blended_recent_stats(team, league, last_n)
+    return get_team_recent_stats(team, league, last_n)
+
+
 def get_recent_team_fixture_rows(team_name: str, league: str, limit: int = 8,
                                   season: Optional[str] = None) -> List[Dict]:
     col = get_collection_handle(create_if_missing=True)
@@ -2760,13 +2884,13 @@ def projected_goals(home_meta: Dict, away_meta: Dict) -> Tuple[Optional[float], 
 
 def projected_total_sot(home: str, away: str, league: str) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     pw = SCORING_WEIGHTS["projection"]
-    hm = get_team_profile_meta(home, league)
-    am = get_team_profile_meta(away, league)
+    hm = _profile_meta(home, league)
+    am = _profile_meta(away, league)
     h_proj, a_proj = projected_sot(hm, am)
     season_total = (h_proj + a_proj) if (h_proj is not None and a_proj is not None) else None
 
-    hr = get_team_recent_stats(home, league, last_n=6)
-    ar = get_team_recent_stats(away, league, last_n=6)
+    hr = _recent_stats(home, league, last_n=6)
+    ar = _recent_stats(away, league, last_n=6)
     h_recent = hr.get("sot_for_avg")
     a_recent = ar.get("sot_for_avg")
     recent_total = (h_recent + a_recent) if (h_recent is not None and a_recent is not None) else None
@@ -2799,10 +2923,10 @@ def leg_label(leg: CandidateLeg) -> str:
 
 
 def leg_evidence(leg: CandidateLeg, league: str) -> List[str]:
-    hm = get_team_profile_meta(leg.home_team, league)
-    am = get_team_profile_meta(leg.away_team, league)
-    hr = get_team_recent_stats(leg.home_team, league, last_n=6)
-    ar = get_team_recent_stats(leg.away_team, league, last_n=6)
+    hm = _profile_meta(leg.home_team, league)
+    am = _profile_meta(leg.away_team, league)
+    hr = _recent_stats(leg.home_team, league, last_n=6)
+    ar = _recent_stats(leg.away_team, league, last_n=6)
     heur_groups = heuristic_groups_for_event(hm, am)
     lines: List[str] = []
 
@@ -3498,6 +3622,48 @@ def is_spreads_line_query(user_q: str) -> bool:
     return has_spread and asks_line
 
 
+def is_moneyline_query(user_q: str) -> bool:
+    q = user_q.lower()
+    if re.search(r"\bmoney\s*line\b", q):
+        return True
+    if re.search(r"\b1x2\b", q):
+        return True
+    if re.search(r"\bmatch\s+winner\b", q):
+        return True
+    if re.search(r"\bwho\s+(?:will|would|is\s+going\s+to)\s+win\b", q):
+        return True
+    if re.search(r"\bwin\s+(?:the\s+)?(?:match|game)\b", q):
+        return True
+    if re.search(r"\bh2h\b", q):
+        return True
+    if re.search(r"\bthree[- ]?way\b", q):
+        return True
+    if re.search(r"\bwin\s*,?\s*(?:draw|lose)\b", q):
+        return True
+    if re.search(r"\bmatch\s+result\b", q):
+        return True
+    return False
+
+
+def is_correct_score_query(user_q: str) -> bool:
+    q = user_q.lower()
+    if re.search(r"\bcorrect\s+score", q):
+        return True
+    if re.search(r"\bexact\s+score", q):
+        return True
+    if re.search(r"\bfinal\s+score\b.*\bpredict", q) or re.search(r"\bpredict.*\bfinal\s+score\b", q):
+        return True
+    if re.search(r"\bscore\s*line", q):
+        return True
+    if re.search(r"\bwhat\s+(?:will|would)\s+the\s+score\s+be\b", q):
+        return True
+    if re.search(r"\bmost\s+likely\s+score\b", q):
+        return True
+    if re.search(r"\b\d+\s*-\s*\d+\s+(?:result|prediction|correct)\b", q):
+        return True
+    return False
+
+
 def is_btts_query(user_q: str) -> bool:
     q = user_q.lower()
     return bool(re.search(r"\bbtts\b", q) or re.search(r"both\s+teams?\s+(?:to\s+)?scor", q))
@@ -3542,13 +3708,13 @@ def is_player_prop_query(user_q: str) -> bool:
 
 def projected_total_corners(home: str, away: str, league: str) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     pw = SCORING_WEIGHTS["projection"]
-    hm = get_team_profile_meta(home, league)
-    am = get_team_profile_meta(away, league)
+    hm = _profile_meta(home, league)
+    am = _profile_meta(away, league)
     h_proj, a_proj = projected_corners(hm, am)
     season_total = (h_proj + a_proj) if (h_proj is not None and a_proj is not None) else None
 
-    hr = get_team_recent_stats(home, league, last_n=6)
-    ar = get_team_recent_stats(away, league, last_n=6)
+    hr = _recent_stats(home, league, last_n=6)
+    ar = _recent_stats(away, league, last_n=6)
     h_recent = hr.get("corners_for_avg")
     a_recent = ar.get("corners_for_avg")
     recent_total = (h_recent + a_recent) if (h_recent is not None and a_recent is not None) else None
@@ -3574,8 +3740,8 @@ def projected_total_corners(home: str, away: str, league: str) -> Tuple[Optional
 def projected_total_cards(home: str, away: str, league: str) -> Tuple[Optional[float], Optional[float], Optional[float], RefereeModifier]:
     pw = SCORING_WEIGHTS["projection"]
     rw = SCORING_WEIGHTS["referee"]
-    hm = get_team_profile_meta(home, league)
-    am = get_team_profile_meta(away, league)
+    hm = _profile_meta(home, league)
+    am = _profile_meta(away, league)
 
     ref_mod = get_referee_modifier(home, away, league,
                                    weight=rw.get("modifier_weight", 0.25))
@@ -3584,8 +3750,8 @@ def projected_total_cards(home: str, away: str, league: str) -> Tuple[Optional[f
     h_proj, a_proj = projected_cards(hm, am, referee_modifier=ref_mod.multiplier)
     season_total = (h_proj + a_proj) if (h_proj is not None and a_proj is not None) else None
 
-    hr = get_team_recent_stats(home, league, last_n=6)
-    ar = get_team_recent_stats(away, league, last_n=6)
+    hr = _recent_stats(home, league, last_n=6)
+    ar = _recent_stats(away, league, last_n=6)
     h_recent = hr.get("cards_avg")
     a_recent = ar.get("cards_avg")
     recent_total = (h_recent + a_recent) if (h_recent is not None and a_recent is not None) else None
@@ -3642,13 +3808,13 @@ def projected_team_corners(
 ) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """Per-team blended corner projection. Returns (blended, season, recent)."""
     pw = SCORING_WEIGHTS["projection"]
-    hm = get_team_profile_meta(team if is_home else opponent, league)
-    am = get_team_profile_meta(opponent if is_home else team, league)
+    hm = _profile_meta(team if is_home else opponent, league)
+    am = _profile_meta(opponent if is_home else team, league)
 
     h_proj, a_proj = projected_corners(hm, am)
     season_proj = h_proj if is_home else a_proj
 
-    recent_stats = get_team_recent_stats(team, league, last_n=6)
+    recent_stats = _recent_stats(team, league, last_n=6)
     recent_corners = recent_stats.get("corners_for_avg")
 
     if season_proj is not None and recent_corners is not None:
@@ -3682,8 +3848,8 @@ def projected_team_cards(
     """Per-team blended card projection. Returns (blended, season, recent)."""
     pw = SCORING_WEIGHTS["projection"]
     rw = SCORING_WEIGHTS["referee"]
-    hm = get_team_profile_meta(team if is_home else opponent, league)
-    am = get_team_profile_meta(opponent if is_home else team, league)
+    hm = _profile_meta(team if is_home else opponent, league)
+    am = _profile_meta(opponent if is_home else team, league)
 
     if ref_mod is None:
         home_name = team if is_home else opponent
@@ -3694,7 +3860,7 @@ def projected_team_cards(
     h_proj, a_proj = projected_cards(hm, am, referee_modifier=ref_mod.multiplier)
     season_proj = h_proj if is_home else a_proj
 
-    recent_stats = get_team_recent_stats(team, league, last_n=6)
+    recent_stats = _recent_stats(team, league, last_n=6)
     recent_cards = recent_stats.get("cards_avg")
 
     if season_proj is not None and recent_cards is not None:
@@ -3746,14 +3912,14 @@ def projected_team_cards(
 
 def projected_total_goals(home: str, away: str, league: str) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     pw = SCORING_WEIGHTS["projection"]
-    hm = get_team_profile_meta(home, league)
-    am = get_team_profile_meta(away, league)
+    hm = _profile_meta(home, league)
+    am = _profile_meta(away, league)
 
     h_proj, a_proj = projected_goals(hm, am)
     season_total = (h_proj + a_proj) if (h_proj is not None and a_proj is not None) else None
 
-    hr = get_team_recent_stats(home, league, last_n=6)
-    ar = get_team_recent_stats(away, league, last_n=6)
+    hr = _recent_stats(home, league, last_n=6)
+    ar = _recent_stats(away, league, last_n=6)
     h_xg = hr.get("xg_for_avg")
     a_xg = ar.get("xg_for_avg")
     recent_total = (h_xg + a_xg) if (h_xg is not None and a_xg is not None) else None
@@ -3782,13 +3948,13 @@ def projected_btts_prob(home: str, away: str, league: str) -> Tuple[Optional[flo
     Returns (p_btts_yes, h_proj, a_proj, h_season, a_season).
     """
     pw = SCORING_WEIGHTS["projection"]
-    hm = get_team_profile_meta(home, league)
-    am = get_team_profile_meta(away, league)
+    hm = _profile_meta(home, league)
+    am = _profile_meta(away, league)
 
     h_season, a_season = projected_goals(hm, am)
 
-    hr = get_team_recent_stats(home, league, last_n=6)
-    ar = get_team_recent_stats(away, league, last_n=6)
+    hr = _recent_stats(home, league, last_n=6)
+    ar = _recent_stats(away, league, last_n=6)
     h_xg = hr.get("xg_for_avg")
     a_xg = ar.get("xg_for_avg")
 
@@ -3825,14 +3991,87 @@ def projected_btts_prob(home: str, away: str, league: str) -> Tuple[Optional[flo
     return p_btts_yes, h_proj, a_proj, h_season, a_season
 
 
+def projected_correct_score_probs(
+    home: str, away: str, league: str, max_goals: int = 6,
+) -> Tuple[Optional[Dict[Tuple[int, int], float]], Optional[float], Optional[float]]:
+    """
+    Compute P(Home=i, Away=j) for all i,j in [0, max_goals] using independent
+    Poisson/NegBin per team.  Returns (prob_matrix, h_proj, a_proj).
+    """
+    pw = SCORING_WEIGHTS["projection"]
+    hm = _profile_meta(home, league)
+    am = _profile_meta(away, league)
+    h_season, a_season = projected_goals(hm, am)
+
+    hr = _recent_stats(home, league, last_n=6)
+    ar = _recent_stats(away, league, last_n=6)
+    h_xg = hr.get("xg_for_avg")
+    a_xg = ar.get("xg_for_avg")
+
+    def _blend(season_val, recent_val):
+        if season_val is not None and recent_val is not None:
+            return pw["blend_season"] * season_val + pw["blend_recent"] * recent_val
+        return season_val if season_val is not None else recent_val
+
+    h_proj = _blend(h_season, h_xg)
+    a_proj = _blend(a_season, a_xg)
+    if h_proj is None or a_proj is None:
+        return None, None, None
+
+    # ML blend (same pipeline as projected_btts_prob)
+    ml_w = SCORING_WEIGHTS["ml"]["blend_weight"]
+    ml_proj = ml_predict_total(home, away, league, "goals", home_meta=hm, away_meta=am)
+    if ml_proj is not None and (h_proj + a_proj) > 0:
+        ratio_h = h_proj / (h_proj + a_proj)
+        h_proj = (1.0 - ml_w) * h_proj + ml_w * (ml_proj * ratio_h)
+        a_proj = (1.0 - ml_w) * a_proj + ml_w * (ml_proj * (1.0 - ratio_h))
+
+    # Per-team variance for distribution selection
+    h_var = get_team_recent_variance(home, league).get("goals_var")
+    a_var = get_team_recent_variance(away, league).get("goals_var")
+
+    def _team_pmf(lam, var, k):
+        if var is not None and var > lam and lam > 0:
+            r, p = negbin_from_mean_var(lam, var)
+            return negbin_pmf(k, r, p)
+        return poisson_pmf(k, lam)
+
+    probs: Dict[Tuple[int, int], float] = {}
+    for i in range(max_goals + 1):
+        p_h = _team_pmf(h_proj, h_var, i)
+        for j in range(max_goals + 1):
+            p_a = _team_pmf(a_proj, a_var, j)
+            probs[(i, j)] = p_h * p_a
+
+    return probs, h_proj, a_proj
+
+
+def projected_moneyline_probs(
+    home: str, away: str, league: str,
+) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[float]]:
+    """
+    Compute P(Home Win), P(Draw), P(Away Win) from the Poisson/NegBin scoreline matrix.
+    Returns (p_home, p_draw, p_away, h_proj, a_proj).
+    """
+    probs, h_proj, a_proj = projected_correct_score_probs(home, away, league)
+    if probs is None:
+        return None, None, None, None, None
+
+    p_home = sum(p for (h, a), p in probs.items() if h > a)
+    p_draw = sum(p for (h, a), p in probs.items() if h == a)
+    p_away = sum(p for (h, a), p in probs.items() if h < a)
+
+    return p_home, p_draw, p_away, h_proj, a_proj
+
+
 def projected_goal_difference(home: str, away: str, league: str) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """
     Project expected goal difference (home - away). Positive = home favored.
     Returns (blended_diff, season_diff, recent_diff).
     """
     pw = SCORING_WEIGHTS["projection_spreads"]
-    hm = get_team_profile_meta(home, league)
-    am = get_team_profile_meta(away, league)
+    hm = _profile_meta(home, league)
+    am = _profile_meta(away, league)
 
     h_g = safe_float(hm.get("goals_for_pm"))
     a_g = safe_float(am.get("goals_for_pm"))
@@ -3849,8 +4088,8 @@ def projected_goal_difference(home: str, away: str, league: str) -> Tuple[Option
         if h_dom is not None and a_dom is not None:
             season_diff += (h_dom - a_dom) * pw["dominance_w"]
 
-    hr = get_team_recent_stats(home, league, last_n=6)
-    ar = get_team_recent_stats(away, league, last_n=6)
+    hr = _recent_stats(home, league, last_n=6)
+    ar = _recent_stats(away, league, last_n=6)
     h_xg = hr.get("xg_for_avg")
     a_xg = ar.get("xg_for_avg")
     recent_diff = (h_xg - a_xg) if (h_xg is not None and a_xg is not None) else None
@@ -4131,6 +4370,166 @@ def choose_best_btts_side(options: List[Dict], p_btts_yes: float) -> Optional[Di
     return best
 
 
+def extract_correct_score_odds(event: Dict) -> Dict[Tuple[int, int], List[Dict]]:
+    """Extract correct score odds from event bookmaker data.
+
+    Returns {(home_goals, away_goals): [{"odds": float, "bookmaker": str, "key": str}, ...]}.
+    """
+    result: Dict[Tuple[int, int], List[Dict]] = {}
+    for bm in event.get("bookmakers", []) or []:
+        bm_name = str(bm.get("title") or "")
+        for mk in bm.get("markets", []) or []:
+            key = str(mk.get("key") or "").lower()
+            if "correctscore" not in key and "correct_score" not in key and "exactscore" not in key:
+                continue
+            for oc in mk.get("outcomes", []) or []:
+                name = str(oc.get("name") or "")
+                odds = safe_float(oc.get("price"))
+                if odds is None or odds <= 1.0:
+                    continue
+                m = re.match(r"(\d+)\s*[-:]\s*(\d+)", name.strip())
+                if not m:
+                    continue
+                score = (int(m.group(1)), int(m.group(2)))
+                result.setdefault(score, []).append({
+                    "odds": odds,
+                    "bookmaker": bm_name,
+                    "key": key,
+                })
+    return result
+
+
+def choose_best_correct_scores(
+    model_probs: Dict[Tuple[int, int], float],
+    market_odds: Dict[Tuple[int, int], List[Dict]],
+    top_n: int = 5,
+) -> List[Dict]:
+    """Rank correct score bets by model probability + value edge.  Returns up to *top_n*."""
+    candidates: List[Dict] = []
+    sorted_scores = sorted(model_probs.items(), key=lambda x: x[1], reverse=True)
+
+    for score, model_p in sorted_scores[:15]:
+        entry: Dict = {
+            "score": score,
+            "score_str": f"{score[0]}-{score[1]}",
+            "model_prob": model_p,
+            "best_odds": None,
+            "bookmaker": None,
+            "implied_prob": None,
+            "value_edge": None,
+            "ev": None,
+        }
+        if score in market_odds and market_odds[score]:
+            best = max(market_odds[score], key=lambda x: x["odds"])
+            entry["best_odds"] = best["odds"]
+            entry["bookmaker"] = best["bookmaker"]
+            entry["implied_prob"] = implied_prob(best["odds"])
+            entry["value_edge"] = value_edge(model_p, entry["implied_prob"])
+            entry["ev"] = expected_value(model_p, best["odds"])
+        candidates.append(entry)
+
+    def _rank(c):
+        base = c["model_prob"] * 10.0
+        if c["value_edge"] is not None:
+            base += max(c["value_edge"], 0) * 5.0
+        if c["ev"] is not None and c["ev"] > 0:
+            base += c["ev"] * 2.0
+        return -base
+
+    candidates.sort(key=_rank)
+    return candidates[:top_n]
+
+
+def extract_moneyline_odds(event: Dict) -> List[Dict]:
+    """Extract home/draw/away moneyline odds from event bookmaker data."""
+    home = str(event.get("home_team") or "")
+    away = str(event.get("away_team") or "")
+    results: List[Dict] = []
+    for bm in event.get("bookmakers", []) or []:
+        bm_name = str(bm.get("title") or "")
+        for mk in bm.get("markets", []) or []:
+            key = str(mk.get("key") or "").lower()
+            if market_group_from_key(key) != "moneyline":
+                continue
+            if not is_full_game_market(key):
+                continue
+            for oc in mk.get("outcomes", []) or []:
+                name = str(oc.get("name") or "")
+                odds = safe_float(oc.get("price"))
+                if odds is None or odds <= 1.0:
+                    continue
+                name_l = name.lower().strip()
+                if name_l == "draw" or name_l == "x":
+                    side, team = "draw", "Draw"
+                elif name_l == home.lower().strip() or name_l.startswith("home") or name_l == "1":
+                    side, team = "home", home
+                elif name_l == away.lower().strip() or name_l.startswith("away") or name_l == "2":
+                    side, team = "away", away
+                else:
+                    continue
+                results.append({"side": side, "odds": odds, "bookmaker": bm_name, "team": team})
+    return results
+
+
+def choose_best_moneyline_side(
+    p_home: float, p_draw: float, p_away: float,
+    market_odds: List[Dict],
+    home: str, away: str,
+) -> Dict:
+    """Score home/draw/away and pick the best value moneyline bet."""
+    model_probs = {"home": p_home, "draw": p_draw, "away": p_away}
+    team_labels = {"home": home, "draw": "Draw", "away": away}
+
+    # Group odds by side, pick best (highest) per side
+    best_per_side: Dict[str, Dict] = {}
+    for entry in market_odds:
+        s = entry["side"]
+        if s not in best_per_side or entry["odds"] > best_per_side[s]["odds"]:
+            best_per_side[s] = entry
+
+    # Remove vig (3-way proportional)
+    fair_probs: Dict[str, float] = {}
+    if all(s in best_per_side for s in ("home", "draw", "away")):
+        raw = {s: 1.0 / best_per_side[s]["odds"] for s in ("home", "draw", "away")}
+        total = sum(raw.values())
+        fair_probs = {s: raw[s] / total for s in ("home", "draw", "away")}
+
+    candidates: List[Dict] = []
+    for side in ("home", "draw", "away"):
+        entry: Dict = {
+            "side": side,
+            "team": team_labels[side],
+            "model_prob": model_probs[side],
+            "best_odds": None,
+            "bookmaker": None,
+            "implied_prob": None,
+            "fair_implied": None,
+            "value_edge": None,
+            "ev": None,
+        }
+        if side in best_per_side:
+            bps = best_per_side[side]
+            entry["best_odds"] = bps["odds"]
+            entry["bookmaker"] = bps["bookmaker"]
+            entry["implied_prob"] = implied_prob(bps["odds"])
+            if side in fair_probs:
+                entry["fair_implied"] = fair_probs[side]
+                entry["value_edge"] = model_probs[side] - fair_probs[side]
+            else:
+                entry["value_edge"] = value_edge(model_probs[side], entry["implied_prob"])
+            entry["ev"] = expected_value(model_probs[side], bps["odds"])
+        candidates.append(entry)
+
+    # Pick best: highest value_edge among sides with positive EV, else highest model_prob
+    value_picks = [c for c in candidates if c["ev"] is not None and c["ev"] > 0]
+    if value_picks:
+        best = max(value_picks, key=lambda c: c["value_edge"] or 0)
+    else:
+        best = max(candidates, key=lambda c: c["model_prob"])
+
+    return {"recommended": best, "all_sides": candidates}
+
+
 def extract_spread_line_options(event: Dict) -> List[Dict]:
     """Extract available handicap/spread lines from bookmaker data for one event."""
     out: List[Dict] = []
@@ -4251,29 +4650,61 @@ def choose_best_spread_line(options: List[Dict], projected_diff: float, home_tea
 
 def confidence_from_edge(edge: float, stat_group: Optional[str] = None,
                          model_prob: Optional[float] = None,
-                         value_edge_pct: Optional[float] = None) -> str:
+                         value_edge_pct: Optional[float] = None,
+                         is_european: bool = False,
+                         has_domestic_profile: bool = True) -> str:
     # Probability-calibrated confidence when available
     if model_prob is not None and value_edge_pct is not None:
         if model_prob >= 0.65 and value_edge_pct >= 0.08:
-            return "high"
-        if model_prob >= 0.55 and value_edge_pct >= 0.03:
-            return "medium"
-        return "low"
-    # Fallback: existing threshold logic
-    cw = SCORING_WEIGHTS["confidence"]
-    if stat_group == "cards":
-        high, medium = cw.get("cards_gap_high", cw["edge_high"]), cw.get("cards_gap_medium", cw["edge_medium"])
-    elif stat_group == "corners":
-        high, medium = cw.get("corners_gap_high", cw["edge_high"]), cw.get("corners_gap_medium", cw["edge_medium"])
-    elif stat_group == "sot":
-        high, medium = cw.get("sot_gap_high", cw["edge_high"]), cw.get("sot_gap_medium", cw["edge_medium"])
+            conf = "high"
+        elif model_prob >= 0.55 and value_edge_pct >= 0.03:
+            conf = "medium"
+        else:
+            conf = "low"
     else:
-        high, medium = cw["edge_high"], cw["edge_medium"]
-    if edge >= high:
-        return "high"
-    if edge >= medium:
-        return "medium"
-    return "low"
+        # Fallback: existing threshold logic
+        cw = SCORING_WEIGHTS["confidence"]
+        if stat_group == "cards":
+            high, medium = cw.get("cards_gap_high", cw["edge_high"]), cw.get("cards_gap_medium", cw["edge_medium"])
+        elif stat_group == "corners":
+            high, medium = cw.get("corners_gap_high", cw["edge_high"]), cw.get("corners_gap_medium", cw["edge_medium"])
+        elif stat_group == "sot":
+            high, medium = cw.get("sot_gap_high", cw["edge_high"]), cw.get("sot_gap_medium", cw["edge_medium"])
+        else:
+            high, medium = cw["edge_high"], cw["edge_medium"]
+        if edge >= high:
+            conf = "high"
+        elif edge >= medium:
+            conf = "medium"
+        else:
+            conf = "low"
+    # European competition penalty for non-top-5 teams (no domestic profile)
+    if is_european and not has_domestic_profile:
+        if conf == "high":
+            conf = "medium"
+        elif conf == "medium":
+            conf = "low"
+    return conf
+
+
+def _euro_data_source_note(team: str, league: str) -> Optional[str]:
+    """Return a data-source note for European competition evidence rendering."""
+    if league not in EUROPEAN_COMPETITIONS:
+        return None
+    domestic_lg = resolve_domestic_league(team)
+    if domestic_lg:
+        euro_meta = get_team_profile_meta(team, league)
+        domestic_meta = get_team_profile_meta(team, domestic_lg)
+        d_n = int(_numeric(domestic_meta.get("matches_played")) or 0) if domestic_meta else 0
+        e_n = int(_numeric(euro_meta.get("matches_played")) or 0) if euro_meta else 0
+        ew = SCORING_WEIGHTS["european"]
+        if e_n >= ew["min_euro_fixtures"]:
+            return (f"Data: Domestic-anchored ({int(ew['domestic_weight']*100)}% {domestic_lg} + "
+                    f"{int(ew['euro_weight']*100)}% {league}) — {d_n} domestic + {e_n} European fixtures")
+        return f"Data: {domestic_lg} profile only ({d_n} fixtures) — insufficient {league} data ({e_n} fixtures)"
+    euro_meta = get_team_profile_meta(team, league)
+    e_n = int(_numeric(euro_meta.get("matches_played")) or 0) if euro_meta else 0
+    return f"Data: European competition only ({e_n} {league} fixtures) — lower confidence"
 
 
 def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> str:
@@ -4302,6 +4733,13 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
         if proj_total is None:
             lines.append(f"- {fixture}: insufficient profile data to project totals.")
             continue
+
+        # European data source note
+        if league in EUROPEAN_COMPETITIONS:
+            for _t in (home, away):
+                _note = _euro_data_source_note(_t, league)
+                if _note:
+                    lines.append(f"  {_t}: {_note}")
 
         # Compute combined variance for probability modeling
         h_var = get_team_recent_variance(home, league)
@@ -4394,6 +4832,11 @@ def render_spreads_line_answer(user_q: str, league: str, events: List[Dict]) -> 
 
         favored = home if proj_diff >= 0 else away
         lines.append(f"- {fixture}: projected goal difference {proj_diff:+.2f} ({favored} favored).")
+        if league in EUROPEAN_COMPETITIONS:
+            for _t in (home, away):
+                _note = _euro_data_source_note(_t, league)
+                if _note:
+                    lines.append(f"  {_t}: {_note}")
         if season_diff is not None:
             lines.append(f"  Reasoning: Season model diff {season_diff:+.2f}.")
         if recent_diff is not None:
@@ -4452,6 +4895,11 @@ def render_btts_answer(user_q: str, league: str, events: List[Dict]) -> str:
             continue
 
         lines.append(f"- {fixture}: P(BTTS Yes) = {p_btts:.1%}.")
+        if league in EUROPEAN_COMPETITIONS:
+            for _t in (home, away):
+                _note = _euro_data_source_note(_t, league)
+                if _note:
+                    lines.append(f"  {_t}: {_note}")
         if h_proj is not None and a_proj is not None:
             lines.append(f"  Blended projections: {home} {h_proj:.2f} goals, {away} {a_proj:.2f} goals.")
         if h_season is not None and a_season is not None:
@@ -4494,6 +4942,133 @@ def render_btts_answer(user_q: str, league: str, events: List[Dict]) -> str:
     return "\n".join(lines)
 
 
+def render_correct_score_answer(user_q: str, league: str, events: List[Dict]) -> str:
+    """Standalone correct score prediction per fixture."""
+    lines: List[str] = ["Correct Score Predictions by fixture:"]
+
+    for ev in events:
+        home = str(ev.get("home_team") or "Home")
+        away = str(ev.get("away_team") or "Away")
+        fixture = f"{home} vs {away}"
+
+        probs, h_proj, a_proj = projected_correct_score_probs(home, away, league)
+        if probs is None:
+            lines.append(f"\n=== {fixture} ===")
+            lines.append("  Insufficient profile data to project correct score.")
+            continue
+
+        lines.append(f"\n=== {fixture} ===")
+        lines.append(f"  Goal projections: {home} {h_proj:.2f} — {away} {a_proj:.2f}")
+        if league in EUROPEAN_COMPETITIONS:
+            for _t in (home, away):
+                _note = _euro_data_source_note(_t, league)
+                if _note:
+                    lines.append(f"  {_t}: {_note}")
+
+        top_score = max(probs, key=probs.get)
+        lines.append(f"  Most likely score: {top_score[0]}-{top_score[1]} ({probs[top_score]:.1%})")
+
+        market_odds = extract_correct_score_odds(ev)
+        ranked = choose_best_correct_scores(probs, market_odds, top_n=5)
+
+        if market_odds:
+            lines.append("  Top correct score bets (with odds):")
+        else:
+            lines.append("  Top scoreline probabilities (model-only — no correct score odds in feed):")
+
+        for i, r in enumerate(ranked, 1):
+            prob_str = f"{r['model_prob']:.1%}"
+            if r["best_odds"] is not None:
+                odds_str = f"@ {r['best_odds']:.2f}"
+                bm_str = f" ({r['bookmaker']})" if r["bookmaker"] else ""
+                edge_str = ""
+                if r["value_edge"] is not None:
+                    edge_str = f" | Edge: {r['value_edge']:+.1%}"
+                ev_str = ""
+                if r["ev"] is not None:
+                    ev_str = f" | EV: {r['ev']:+.3f}"
+                lines.append(f"    {i}. {r['score_str']}  —  {prob_str} {odds_str}{bm_str}{edge_str}{ev_str}")
+            else:
+                lines.append(f"    {i}. {r['score_str']}  —  {prob_str}")
+
+        p_home_win = sum(p for (h, a), p in probs.items() if h > a)
+        p_draw = sum(p for (h, a), p in probs.items() if h == a)
+        p_away_win = sum(p for (h, a), p in probs.items() if h < a)
+        lines.append(f"  Result probabilities: Home win {p_home_win:.1%} | Draw {p_draw:.1%} | Away win {p_away_win:.1%}")
+
+    lines.append("\nMethod: independent Poisson/NegBin probability model per team from local KB.")
+    return "\n".join(lines)
+
+
+def render_moneyline_answer(user_q: str, league: str, events: List[Dict]) -> str:
+    """Standalone moneyline recommendation per fixture."""
+    lines: List[str] = ["Moneyline (1X2) advice by fixture:"]
+
+    for ev in events:
+        home = str(ev.get("home_team") or "Home")
+        away = str(ev.get("away_team") or "Away")
+        fixture = f"{home} vs {away}"
+
+        p_home, p_draw, p_away, h_proj, a_proj = projected_moneyline_probs(home, away, league)
+        if p_home is None:
+            lines.append(f"\n=== {fixture} ===")
+            lines.append("  Insufficient profile data to project moneyline.")
+            continue
+
+        lines.append(f"\n=== {fixture} ===")
+        lines.append(f"  Goal projections: {home} {h_proj:.2f} — {away} {a_proj:.2f}")
+        lines.append(f"  Model: P(Home) = {p_home:.1%}  P(Draw) = {p_draw:.1%}  P(Away) = {p_away:.1%}")
+        if league in EUROPEAN_COMPETITIONS:
+            for _t in (home, away):
+                _note = _euro_data_source_note(_t, league)
+                if _note:
+                    lines.append(f"  {_t}: {_note}")
+
+        # Quality signals for evidence
+        hm = _profile_meta(home, league)
+        am = _profile_meta(away, league)
+        h_form = _numeric(hm.get("form_index_team"))
+        a_form = _numeric(am.get("form_index_team"))
+        h_dom = _numeric(hm.get("dominance_index"))
+        a_dom = _numeric(am.get("dominance_index"))
+        if h_form is not None and a_form is not None:
+            lines.append(f"  Form index: {home} {h_form:.2f} vs {away} {a_form:.2f}")
+        if h_dom is not None and a_dom is not None:
+            lines.append(f"  Dominance index: {home} {h_dom:.2f} vs {away} {a_dom:.2f}")
+
+        # Odds
+        market_odds = extract_moneyline_odds(ev)
+        result = choose_best_moneyline_side(p_home, p_draw, p_away, market_odds, home, away)
+        rec = result["recommended"]
+
+        if market_odds:
+            lines.append(f"  Odds comparison:")
+            for side_data in result["all_sides"]:
+                if side_data["best_odds"] is not None:
+                    ve_str = f" | Edge: {side_data['value_edge']:+.1%}" if side_data["value_edge"] is not None else ""
+                    ev_str = f" | EV: {side_data['ev']:+.3f}" if side_data["ev"] is not None else ""
+                    lines.append(
+                        f"    {side_data['team']}: {side_data['model_prob']:.1%} model "
+                        f"@ {side_data['best_odds']:.2f} ({side_data['bookmaker']}){ve_str}{ev_str}"
+                    )
+
+            conf = confidence_from_edge(
+                abs(rec["value_edge"] or 0), stat_group="goals",
+                model_prob=rec["model_prob"],
+                value_edge_pct=rec["value_edge"],
+            )
+            lines.append(f"  >>> Recommended: {rec['team']} @ {rec['best_odds']:.2f} ({conf} confidence)")
+        else:
+            favored = max(
+                [("home", p_home, home), ("draw", p_draw, "Draw"), ("away", p_away, away)],
+                key=lambda x: x[1],
+            )
+            lines.append(f"  >>> Recommended: {favored[2]} ({favored[1]:.1%}) — no moneyline odds in feed (model-only)")
+
+    lines.append("\nMethod: Poisson/NegBin scoreline matrix from local KB → 3-way outcome probabilities.")
+    return "\n".join(lines)
+
+
 def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> str:
     """Per-team corner and card line recommendations for each fixture."""
     lines: List[str] = ["Per-Team Totals Lines by fixture:"]
@@ -4502,6 +5077,11 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
         home = str(ev.get("home_team") or "Home")
         away = str(ev.get("away_team") or "Away")
         lines.append(f"\n=== {home} vs {away} ===")
+        if league in EUROPEAN_COMPETITIONS:
+            for _t in (home, away):
+                _note = _euro_data_source_note(_t, league)
+                if _note:
+                    lines.append(f"  {_t}: {_note}")
 
         rw = SCORING_WEIGHTS["referee"]
         ref_mod = get_referee_modifier(home, away, league,
@@ -4630,10 +5210,10 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
 
 
 def comparison_signals_cards(home: str, away: str, league: str) -> Tuple[Optional[str], List[str], Optional[float], Optional[float]]:
-    hm = get_team_profile_meta(home, league)
-    am = get_team_profile_meta(away, league)
-    hr = get_team_recent_stats(home, league, last_n=6)
-    ar = get_team_recent_stats(away, league, last_n=6)
+    hm = _profile_meta(home, league)
+    am = _profile_meta(away, league)
+    hr = _recent_stats(home, league, last_n=6)
+    ar = _recent_stats(away, league, last_n=6)
 
     h_cards = safe_float(hm.get("cards_per_90_team"))
     a_cards = safe_float(am.get("cards_per_90_team"))
@@ -4741,10 +5321,10 @@ def comparison_signals_cards(home: str, away: str, league: str) -> Tuple[Optiona
 
 
 def comparison_signals_corners(home: str, away: str, league: str) -> Tuple[Optional[str], List[str], Optional[float], Optional[float]]:
-    hm = get_team_profile_meta(home, league)
-    am = get_team_profile_meta(away, league)
-    hr = get_team_recent_stats(home, league, last_n=6)
-    ar = get_team_recent_stats(away, league, last_n=6)
+    hm = _profile_meta(home, league)
+    am = _profile_meta(away, league)
+    hr = _recent_stats(home, league, last_n=6)
+    ar = _recent_stats(away, league, last_n=6)
 
     h_for = safe_float(hm.get("corners_pm"))
     a_for = safe_float(am.get("corners_pm"))
@@ -4839,10 +5419,10 @@ def comparison_signals_corners(home: str, away: str, league: str) -> Tuple[Optio
 
 
 def comparison_signals_sot(home: str, away: str, league: str) -> Tuple[Optional[str], List[str], Optional[float], Optional[float]]:
-    hm = get_team_profile_meta(home, league)
-    am = get_team_profile_meta(away, league)
-    hr = get_team_recent_stats(home, league, last_n=6)
-    ar = get_team_recent_stats(away, league, last_n=6)
+    hm = _profile_meta(home, league)
+    am = _profile_meta(away, league)
+    hr = _recent_stats(home, league, last_n=6)
+    ar = _recent_stats(away, league, last_n=6)
 
     h_for = safe_float(hm.get("sot_for_pm"))
     a_for = safe_float(am.get("sot_for_pm"))
@@ -4957,6 +5537,8 @@ INTENT_PLAYER_PROP = "player_prop"
 INTENT_SPREADS_LINE = "spreads_line"
 INTENT_BTTS = "btts"
 INTENT_TEAM_TOTALS = "team_totals"
+INTENT_CORRECT_SCORE = "correct_score"
+INTENT_MONEYLINE = "moneyline_standalone"
 INTENT_PARLAY = "parlay"
 INTENT_UNKNOWN = "unknown"
 
@@ -4967,7 +5549,9 @@ INTENT_LABELS = {
     INTENT_TOTALS_LINE: "Totals Line Advice",
     INTENT_BTTS: "BTTS Advice",
     INTENT_TEAM_TOTALS: "Per-Team Totals Lines",
+    INTENT_CORRECT_SCORE: "Correct Score Prediction",
     INTENT_SPREADS_LINE: "Handicap Line Advice",
+    INTENT_MONEYLINE: "Moneyline Prediction",
     INTENT_PLAYER_PROP: "Player Props",
     INTENT_PARLAY: "Parlay Builder",
     INTENT_UNKNOWN: "General",
@@ -4993,6 +5577,10 @@ def classify_intent(user_q: str) -> List[Tuple[str, float]]:
         scores.append((INTENT_SPREADS_LINE, 0.15 if (parlay or player_prop) else 0.68))
     if is_btts_query(user_q):
         scores.append((INTENT_BTTS, 0.15 if (parlay or player_prop) else 0.70))
+    if is_correct_score_query(user_q):
+        scores.append((INTENT_CORRECT_SCORE, 0.15 if (parlay or player_prop) else 0.69))
+    if is_moneyline_query(user_q):
+        scores.append((INTENT_MONEYLINE, 0.15 if (parlay or player_prop) else 0.71))
     if is_team_totals_query(user_q):
         scores.append((INTENT_TEAM_TOTALS, 0.15 if (parlay or player_prop) else 0.67))
     if is_totals_line_query(user_q):
@@ -5058,6 +5646,20 @@ def _handle_spreads_line(user_q: str, c: ConstraintSpec, events: List[Dict], not
 
 def _handle_btts(user_q: str, c: ConstraintSpec, events: List[Dict], notes: List[str]) -> str:
     out = render_btts_answer(user_q, c.league, events)
+    if notes:
+        out = out + "\nNotes:\n" + "\n".join(f"- {n}" for n in notes)
+    return out
+
+
+def _handle_correct_score(user_q: str, c: ConstraintSpec, events: List[Dict], notes: List[str]) -> str:
+    out = render_correct_score_answer(user_q, c.league, events)
+    if notes:
+        out = out + "\nNotes:\n" + "\n".join(f"- {n}" for n in notes)
+    return out
+
+
+def _handle_moneyline(user_q: str, c: ConstraintSpec, events: List[Dict], notes: List[str]) -> str:
+    out = render_moneyline_answer(user_q, c.league, events)
     if notes:
         out = out + "\nNotes:\n" + "\n".join(f"- {n}" for n in notes)
     return out
@@ -5266,6 +5868,13 @@ def answer_once(user_q: str, default_league: str = "EPL") -> None:
         add_chat_turn(raw_user_q, out)
         return
 
+    if top_intent == INTENT_MONEYLINE:
+        out = _handle_moneyline(user_q, c, events, notes)
+        print(out)
+        add_chat_turn(raw_user_q, out)
+        memory["last_intent"] = INTENT_MONEYLINE
+        return
+
     if top_intent == INTENT_SPREADS_LINE:
         out = _handle_spreads_line(user_q, c, events, notes)
         print(out)
@@ -5282,6 +5891,13 @@ def answer_once(user_q: str, default_league: str = "EPL") -> None:
         out = _handle_btts(user_q, c, events, notes)
         print(out)
         add_chat_turn(raw_user_q, out)
+        return
+
+    if top_intent == INTENT_CORRECT_SCORE:
+        out = _handle_correct_score(user_q, c, events, notes)
+        print(out)
+        add_chat_turn(raw_user_q, out)
+        memory["last_intent"] = INTENT_CORRECT_SCORE
         return
 
     if top_intent == INTENT_TEAM_TOTALS:

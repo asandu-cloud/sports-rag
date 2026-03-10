@@ -43,6 +43,9 @@ LEAGUE_TO_FE_DIR = {
     "SerieA": "SeriaA_feature_engineering",
     "Bundesliga": "Bundesliga_feature_engineering",
     "Ligue1": "Ligue1_feature_engineering",
+    "UCL": "UCL_feature_engineering",
+    "UEL": "UEL_feature_engineering",
+    "UECL": "UECL_feature_engineering",
 }
 ALL_LEAGUES = list(LEAGUE_TO_FE_DIR.keys())
 
