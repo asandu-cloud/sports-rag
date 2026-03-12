@@ -61,7 +61,7 @@ MODELS_DIR = ROOT / "Index" / "ml_models"
 ELO_PATH = ROOT / "Index" / "elo_ratings.json"
 
 ELO_START = 1500.0
-ELO_K = 32.0
+ELO_K = 16.0
 
 # Features extracted from each team's fixture row for the Ridge model.
 # Only composites, rolling averages, and activity metrics — no raw per-match

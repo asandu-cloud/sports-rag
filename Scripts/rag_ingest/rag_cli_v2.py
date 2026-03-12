@@ -61,13 +61,13 @@ except ImportError:
 
 try:
     from prob_models import (
-        over_prob, under_prob, implied_prob, remove_vig_two_way,
+        over_prob, under_prob, interval_prob, implied_prob, remove_vig_two_way,
         value_edge, expected_value, kelly_fraction,
         poisson_pmf, negbin_pmf, negbin_from_mean_var,
     )
 except ImportError:
     from Scripts.rag_ingest.prob_models import (
-        over_prob, under_prob, implied_prob, remove_vig_two_way,
+        over_prob, under_prob, interval_prob, implied_prob, remove_vig_two_way,
         value_edge, expected_value, kelly_fraction,
         poisson_pmf, negbin_pmf, negbin_from_mean_var,
     )
@@ -126,7 +126,7 @@ ODDS_API_BASE = "https://api.the-odds-api.com/v4"
 ODDS_API_KEY = env_first("ODDS-API", "ODDS_API_KEY")
 ODDS_API_REGIONS = env_first("ODDS_API_REGIONS", default="uk,eu,us")
 OPENAI_API_KEY = env_first("OPENAI_API_KEY")
-CHAT_MODEL = env_first("RAG_CHAT_MODEL", default="gpt-5.2")
+CHAT_MODEL = env_first("RAG_CHAT_MODEL", default="gpt-5.4")
 
 LEAGUE_TO_ODDS_SPORT = {
     "EPL": "soccer_epl",
@@ -225,7 +225,10 @@ SCORING_WEIGHTS = {
         "cards_agg_scale": 3.0,
         "blend_season": 0.65,
         "blend_recent": 0.35,
-        "corners_venue_blend": 0.30,
+        "corners_venue_blend": 0.50,
+        "goals_venue_blend": 0.50,
+        "sot_venue_blend": 0.50,
+        "xg_blend": 0.60,
     },
     "comparison_cards": {
         "cards": 0.55,
@@ -260,7 +263,7 @@ SCORING_WEIGHTS = {
     "projection_cards": {
         "own": 0.6,
         "opp": 0.4,
-        "venue_blend": 0.30,
+        "venue_blend": 0.50,
         "agg_nudge": 0.10,
         "agg_scale": 3.0,
         "foul_card_blend": 0.15,
@@ -293,9 +296,9 @@ SCORING_WEIGHTS = {
         "sot_gap_medium": 0.20,
     },
     "referee": {
-        "modifier_weight": 0.25,
+        "modifier_weight": 0.35,
         "anchor_weight": 0.15,
-        "min_sample_size": 5,
+        "min_sample_size": 8,
         "full_confidence_sample": 20,
         "evidence_threshold": 0.02,
     },
@@ -1910,9 +1913,11 @@ def kb_leg_quality(leg: CandidateLeg, league: str) -> float:
             direction = leg.outcome.lower()
             home_outcome = direction.startswith(leg.home_team.lower()) if hasattr(leg, 'home_team') else False
             if "over" in direction:
-                score += abs(elo_norm) * mw["elo_signal_weight"]
+                # Positive elo_norm means home stronger → higher total expected → supports over
+                score += elo_norm * mw["elo_signal_weight"]
             elif "under" in direction:
-                score -= abs(elo_norm) * mw["elo_signal_weight"]
+                # Negative elo_norm means away stronger → lower total expected → supports under
+                score -= elo_norm * mw["elo_signal_weight"]
             elif home_outcome:
                 score += elo_norm * mw["elo_signal_weight"]
             else:
@@ -2640,6 +2645,22 @@ def get_team_recent_variance(team_name: str, league: str, last_n: int = 8) -> Di
     return result
 
 
+def get_blended_variance(team_name: str, league: str, stat_key: str) -> Optional[float]:
+    """Bayesian blend of season variance (prior) with recent variance (update).
+    Returns blended variance for distribution selection (Poisson vs NegBin)."""
+    season_var_key = {"goals_var": "goals_var", "corners_for_var": "corners_var",
+                      "cards_var": "cards_var", "sot_for_var": "sot_var"}.get(stat_key)
+    recent_dict = get_team_recent_variance(team_name, league)
+    recent_var = recent_dict.get(stat_key)
+    season_var = None
+    if season_var_key:
+        meta = _profile_meta(team_name, league)
+        season_var = _numeric(meta.get(season_var_key)) if meta else None
+    if season_var is not None and recent_var is not None:
+        return 0.7 * season_var + 0.3 * recent_var
+    return season_var if season_var is not None else recent_var
+
+
 def get_team_profile_snippets_for_events(events: List[Dict], league: str, per_team: int = 1) -> List[Dict]:
     out: List[Dict] = []
     teams: List[str] = []
@@ -2835,11 +2856,20 @@ def projected_cards(
 
 
 def projected_sot(home_meta: Dict, away_meta: Dict) -> Tuple[Optional[float], Optional[float]]:
-    """Blended SoT projection: own sot_for_pm vs opponent sot_against_pm."""
+    """Blended SoT projection: own sot_for_pm vs opponent sot_against_pm, with venue splits."""
     pw = SCORING_WEIGHTS["projection_sot"]
+    proj_w = SCORING_WEIGHTS["projection"]
+    vb = proj_w.get("sot_venue_blend", 0.50)
+
     h_for = safe_float(home_meta.get("sot_for_pm"))
-    h_opp_allow = safe_float(away_meta.get("sot_against_pm"))
+    h_for_venue = safe_float(home_meta.get("sot_home_pm"))
+    h_for = _venue_blend(h_for_venue, h_for, vb)
+
     a_for = safe_float(away_meta.get("sot_for_pm"))
+    a_for_venue = safe_float(away_meta.get("sot_away_pm"))
+    a_for = _venue_blend(a_for_venue, a_for, vb)
+
+    h_opp_allow = safe_float(away_meta.get("sot_against_pm"))
     a_opp_allow = safe_float(home_meta.get("sot_against_pm"))
 
     def blend(own, opp):
@@ -2851,15 +2881,36 @@ def projected_sot(home_meta: Dict, away_meta: Dict) -> Tuple[Optional[float], Op
 
 
 def projected_goals(home_meta: Dict, away_meta: Dict) -> Tuple[Optional[float], Optional[float]]:
-    """Per-team goal projection blending own attack with opponent defense."""
+    """Per-team goal projection blending own attack with opponent defense.
+    Uses xG when available (60% xG + 40% actual goals) and venue splits."""
     pw = SCORING_WEIGHTS["projection"]
     own_w = pw.get("goals_own", 0.6)
     opp_w = pw.get("goals_opp", 0.4)
+    vb = pw.get("goals_venue_blend", 0.50)
+    xg_w = pw.get("xg_blend", 0.60)
 
-    h_gf = safe_float(home_meta.get("goals_for_pm"))
-    a_gf = safe_float(away_meta.get("goals_for_pm"))
+    # Raw goals and xG per match
+    h_gf_raw = safe_float(home_meta.get("goals_for_pm"))
+    a_gf_raw = safe_float(away_meta.get("goals_for_pm"))
+    h_xg = safe_float(home_meta.get("expected_goals"))
+    a_xg = safe_float(away_meta.get("expected_goals"))
+
+    # Blend xG with actual goals when both available
+    def _xg_blend(actual, xg):
+        if actual is not None and xg is not None:
+            return xg_w * xg + (1.0 - xg_w) * actual
+        return actual  # fallback to actual if no xG
+
+    h_gf = _xg_blend(h_gf_raw, h_xg)
+    a_gf = _xg_blend(a_gf_raw, a_xg)
+
+    # Venue-specific rates
+    h_gf_venue = safe_float(home_meta.get("goals_home_pm"))
+    a_gf_venue = safe_float(away_meta.get("goals_away_pm"))
+    h_gf = _venue_blend(h_gf_venue, h_gf, vb)
+    a_gf = _venue_blend(a_gf_venue, a_gf, vb)
+
     # goals_against_pm = avg goals conceded by that team
-    # home attacks vs away's defensive record, and vice versa
     a_ga = safe_float(away_meta.get("goals_against_pm"))
     h_ga = safe_float(home_meta.get("goals_against_pm"))
 
@@ -3467,8 +3518,18 @@ def render_parlay(
 
 def is_schedule_query(user_q: str) -> bool:
     q = user_q.lower()
-    schedule_terms = ["what matches", "fixtures", "games are on", "matches are on", "schedule", "who plays"]
-    return any(t in q for t in schedule_terms)
+    schedule_terms = ["what matches", "games are on", "matches are on", "schedule", "who plays",
+                      "kickoff time", "kick-off time", "kick off time"]
+    if any(t in q for t in schedule_terms):
+        return True
+    # "show me ... fixtures" / "list ... fixtures" / "what fixtures" — the fixture IS the object
+    if re.search(r"\b(show|list)\b.{0,20}\bfixtures?\b", q):
+        return True
+    # "what/which fixtures" only when NOT followed by "are best/worst" (that's analysis)
+    if re.search(r"\b(what|which|upcoming)\s+\w*\s*fixtures?\b", q):
+        if not re.search(r"\bfixtures?\s+are\s+(best|worst|good)", q):
+            return True
+    return False
 
 
 def is_capability_query(user_q: str) -> bool:
@@ -3554,7 +3615,8 @@ def event_sort_key(ev: Dict) -> str:
 
 def is_parlay_query(user_q: str) -> bool:
     q = user_q.lower()
-    return "parlay" in q or "legs" in q or "bet" in q
+    return bool(re.search(r"\b(parlay|accumulator|acca|combo|multi[- ]?bet|multi[- ]?leg)\b", q)
+                or re.search(r"\b\d+[- ]?legs?\b", q))
 
 
 def wants_totals_only_parlay(user_q: str) -> bool:
@@ -3608,6 +3670,7 @@ def is_totals_line_query(user_q: str) -> bool:
     asks_total_or_line = bool(
         re.search(r"\b(how many|total|totals|line|which line|what line|should i take|take)\b", q)
         or re.search(r"\b(over|under)\b", q)
+        or re.search(r"\b(interval|range|band)s?\b", q)
     )
     return has_stat and asks_total_or_line
 
@@ -3977,11 +4040,9 @@ def projected_btts_prob(home: str, away: str, league: str) -> Tuple[Optional[flo
         h_proj = (1.0 - ml_w) * h_proj + ml_w * (ml_proj * ratio_h)
         a_proj = (1.0 - ml_w) * a_proj + ml_w * (ml_proj * (1.0 - ratio_h))
 
-    # Per-team variance for distribution selection
-    h_var_dict = get_team_recent_variance(home, league)
-    a_var_dict = get_team_recent_variance(away, league)
-    h_var = h_var_dict.get("goals_var")
-    a_var = a_var_dict.get("goals_var")
+    # Per-team variance for distribution selection (Bayesian blend: season + recent)
+    h_var = get_blended_variance(home, league, "goals_var")
+    a_var = get_blended_variance(away, league, "goals_var")
 
     # P(team scores >= 1) = P(X > 0.5) via over_prob
     p_home_scores = over_prob(h_proj, 0.5, h_var)
@@ -4026,9 +4087,9 @@ def projected_correct_score_probs(
         h_proj = (1.0 - ml_w) * h_proj + ml_w * (ml_proj * ratio_h)
         a_proj = (1.0 - ml_w) * a_proj + ml_w * (ml_proj * (1.0 - ratio_h))
 
-    # Per-team variance for distribution selection
-    h_var = get_team_recent_variance(home, league).get("goals_var")
-    a_var = get_team_recent_variance(away, league).get("goals_var")
+    # Per-team variance for distribution selection (Bayesian blend: season + recent)
+    h_var = get_blended_variance(home, league, "goals_var")
+    a_var = get_blended_variance(away, league, "goals_var")
 
     def _team_pmf(lam, var, k):
         if var is not None and var > lam and lam > 0:
@@ -4708,6 +4769,12 @@ def _euro_data_source_note(team: str, league: str) -> Optional[str]:
 
 
 def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> str:
+    # Delegate to goal intervals if user asks for intervals/ranges/bands
+    q_lower = user_q.lower()
+    if (re.search(r"\b(interval|range|band)s?\b", q_lower)
+            and re.search(r"\b(goal|xg)s?\b", q_lower)):
+        return render_goal_intervals(user_q, league, events)
+
     group = requested_stat_group(user_q)
     if group not in {"goals", "corners", "cards", "sot"}:
         return "I can estimate totals lines for goals/corners/cards/shots-on-target when the stat type is clear."
@@ -4741,12 +4808,10 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
                 if _note:
                     lines.append(f"  {_t}: {_note}")
 
-        # Compute combined variance for probability modeling
-        h_var = get_team_recent_variance(home, league)
-        a_var = get_team_recent_variance(away, league)
+        # Compute combined variance for probability modeling (Bayesian blend)
         var_key = {"goals": "goals_var", "corners": "corners_for_var", "cards": "cards_var", "sot": "sot_for_var"}[group]
-        h_v = h_var.get(var_key)
-        a_v = a_var.get(var_key)
+        h_v = get_blended_variance(home, league, var_key)
+        a_v = get_blended_variance(away, league, var_key)
         combined_var = (h_v + a_v) if (h_v is not None and a_v is not None) else None
 
         options = extract_total_line_options(ev, group)
@@ -4813,6 +4878,143 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
             )
 
     lines.append("Method: Poisson probability model from local KB + available full-game market lines.")
+    return "\n".join(lines)
+
+
+# ---- Goal Interval Predictions ----
+
+GOAL_INTERVAL_BANDS = [
+    (0, 1, "0-1 goals"),
+    (0, 2, "0-2 goals"),
+    (1, 2, "1-2 goals"),
+    (1, 3, "1-3 goals"),
+    (2, 3, "2-3 goals"),
+    (2, 4, "2-4 goals"),
+    (2, 5, "2-5 goals"),
+    (3, 4, "3-4 goals"),
+    (3, 5, "3-5 goals"),
+    (4, 5, "4-5 goals"),
+    (6, 30, "6+ goals"),
+]
+
+
+def extract_goal_interval_odds(event: Dict) -> Dict[str, Dict]:
+    """Extract goal range / goal band odds from bookmaker data.
+
+    Returns {label: {"odds": float, "bookmaker": str, "market_key": str}} for
+    each interval band found.  Empty dict when no goal-range market exists
+    (graceful model-only fallback).
+    """
+    out: Dict[str, Dict] = {}
+    for bm in event.get("bookmakers", []) or []:
+        bm_name = str(bm.get("title") or "")
+        for mk in bm.get("markets", []) or []:
+            key = str(mk.get("key") or "")
+            k = key.lower()
+            if not is_full_game_market(key):
+                continue
+            # Match goal range / goal band market keys
+            if not (("goal" in k and ("range" in k or "band" in k or "interval" in k))
+                    or k in {"goals_range", "goal_range", "goal_band", "goal_interval"}):
+                continue
+            for outcome in mk.get("outcomes", []) or []:
+                name = str(outcome.get("name") or "").strip()
+                price = safe_float(outcome.get("price"))
+                if price is None or price <= 1.0:
+                    continue
+                # Map outcome name to our standard bands
+                label = _match_interval_label(name)
+                if label and (label not in out or price > out[label]["odds"]):
+                    out[label] = {"odds": price, "bookmaker": bm_name, "market_key": key}
+    return out
+
+
+def _match_interval_label(outcome_name: str) -> Optional[str]:
+    """Map bookmaker outcome name like '0-1', '2-3', '4-5', '6+' to our band labels."""
+    n = outcome_name.lower().strip()
+    for low, high, label in GOAL_INTERVAL_BANDS:
+        if high >= 30:
+            # Open-ended: match "6+", "6 or more", "6-7", etc.
+            if f"{low}+" in n or f"{low} or more" in n or f"{low}-" in n:
+                return label
+        else:
+            if f"{low}-{high}" in n or f"{low} - {high}" in n:
+                return label
+    return None
+
+
+def render_goal_intervals(_user_q: str, league: str, events: List[Dict]) -> str:
+    """Goal interval probability breakdown per fixture."""
+    lines: List[str] = ["Goal Interval Predictions by fixture:"]
+
+    for ev in events:
+        home = str(ev.get("home_team") or "Home")
+        away = str(ev.get("away_team") or "Away")
+        fixture = f"{home} vs {away}"
+
+        proj_total, season_total, recent_total = projected_total_goals(home, away, league)
+        if proj_total is None:
+            lines.append(f"- {fixture}: insufficient profile data to project goal intervals.")
+            continue
+
+        # European data source note
+        if league in EUROPEAN_COMPETITIONS:
+            for _t in (home, away):
+                _note = _euro_data_source_note(_t, league)
+                if _note:
+                    lines.append(f"  {_t}: {_note}")
+
+        # Combined variance for NegBin
+        h_v = get_blended_variance(home, league, "goals_var")
+        a_v = get_blended_variance(away, league, "goals_var")
+        combined_var = (h_v + a_v) if (h_v is not None and a_v is not None) else None
+
+        lines.append(f"- {fixture}: projected total {proj_total:.2f}.")
+        if season_total is not None:
+            lines.append(f"  Season model: {season_total:.2f}.")
+        if recent_total is not None:
+            lines.append(f"  Recent 6-match: {recent_total:.2f}.")
+
+        # Compute interval probabilities
+        interval_odds = extract_goal_interval_odds(ev)
+        lines.append("")
+        lines.append(f"  Goal Intervals:")
+
+        best_label = None
+        best_prob = 0.0
+        best_value_edge = None
+
+        for low, high, label in GOAL_INTERVAL_BANDS:
+            prob = interval_prob(proj_total, low, high, combined_var)
+
+            odds_info = interval_odds.get(label)
+            edge_str = ""
+            v_edge = None
+            if odds_info:
+                odds = odds_info["odds"]
+                imp_p = implied_prob(odds)
+                v_edge = value_edge(prob, imp_p)
+                edge_str = f"  @ {odds:.2f} ({odds_info['bookmaker']}) | Value edge: {v_edge:+.1%}"
+
+            # Only recommend from bands with ≤3 goals (0-1 or 2-3)
+            if high <= 3 and prob > best_prob:
+                best_prob = prob
+                best_label = label
+                best_value_edge = v_edge
+
+            lines.append(f"    {label:<14} {prob:>6.1%}{edge_str}")
+
+        # Recommendation
+        if best_label:
+            conf = "high" if best_prob >= 0.45 else ("medium" if best_prob >= 0.30 else "low")
+            rec = f"  Recommended: {best_label} ({best_prob:.1%} model probability, {conf} confidence)."
+            if best_value_edge is not None:
+                rec += f" Value edge: {best_value_edge:+.1%}."
+            lines.append(rec)
+
+        lines.append("")
+
+    lines.append("Method: Poisson/NegBin interval probability model from local KB projections.")
     return "\n".join(lines)
 
 
@@ -5546,7 +5748,7 @@ INTENT_LABELS = {
     INTENT_SCHEDULE: "Schedule & Fixtures",
     INTENT_CAPABILITY: "Market Availability",
     INTENT_COMPARISON: "Stat Comparison",
-    INTENT_TOTALS_LINE: "Totals Line Advice",
+    INTENT_TOTALS_LINE: "Totals Advice",
     INTENT_BTTS: "BTTS Advice",
     INTENT_TEAM_TOTALS: "Per-Team Totals Lines",
     INTENT_CORRECT_SCORE: "Correct Score Prediction",

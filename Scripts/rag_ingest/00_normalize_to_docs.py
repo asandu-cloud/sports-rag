@@ -295,6 +295,10 @@ def doc_from_team_profile(
     cards_ha_pm_map: Optional[dict] = None,
     stat_var_map: Optional[dict] = None,
     goals_against_pm_map: Optional[dict] = None,
+    goals_ha_pm_map: Optional[dict] = None,
+    sot_ha_pm_map: Optional[dict] = None,
+    xg_ha_pm_map: Optional[dict] = None,
+    matches_played_map: Optional[dict] = None,
 ) -> dict:
     league = row.get("league")
     season = row.get("season") or season_hint
@@ -310,11 +314,21 @@ def doc_from_team_profile(
     cards_ha = (cards_ha_pm_map or {}).get(tkey, {})
     cards_home_pm = cards_ha.get("home") if cards_ha else None
     cards_away_pm = cards_ha.get("away") if cards_ha else None
+    goals_ha = (goals_ha_pm_map or {}).get(tkey, {})
+    goals_home_pm = goals_ha.get("home") if goals_ha else None
+    goals_away_pm = goals_ha.get("away") if goals_ha else None
+    sot_ha = (sot_ha_pm_map or {}).get(tkey, {})
+    sot_home_pm = sot_ha.get("home") if sot_ha else None
+    sot_away_pm = sot_ha.get("away") if sot_ha else None
+    xg_ha = (xg_ha_pm_map or {}).get(tkey, {})
+    xg_home_pm = xg_ha.get("home") if xg_ha else None
+    xg_away_pm = xg_ha.get("away") if xg_ha else None
     stat_vars = (stat_var_map or {}).get(tkey, {})
     corners_var = stat_vars.get("corners_var")
     goals_var = stat_vars.get("goals_var")
     cards_var = stat_vars.get("cards_var")
     sot_var = stat_vars.get("sot_var")
+    matches_played = (matches_played_map or {}).get(tkey, 0)
 
     corner_edge_pm = None
     try:
@@ -325,11 +339,14 @@ def doc_from_team_profile(
 
     text = (
         f"{league} {season} | Team Profile\n"
-        f"{team} | MP:{row.get('matches_played')} G:{row.get('goals')} A:{row.get('assists')}\n"
+        f"{team} | MP:{matches_played} G:{row.get('goals')} A:{row.get('assists')}\n"
         f"G/Match:{row.get('goals_for_pm')} xG/Match:{row.get('expected_goals')} Poss:{row.get('possession')}\n"
         f"Goals Against/Match:{goals_against_pm}\n"
         f"Shots For/Match:{row.get('shots_for_pm')} | SoT For/Match:{row.get('sot_for_pm')} | SoT Against/Match:{sot_against_pm}\n"
         f"Corners For/Match:{row.get('corners_pm')} | Corners Against/Match:{c_against_pm}\n"
+        f"Goals Home/Match:{goals_home_pm} | Goals Away/Match:{goals_away_pm}\n"
+        f"xG Home/Match:{xg_home_pm} | xG Away/Match:{xg_away_pm}\n"
+        f"SoT Home/Match:{sot_home_pm} | SoT Away/Match:{sot_away_pm}\n"
         f"Corners Home/Match:{corners_home_pm} | Corners Away/Match:{corners_away_pm}\n"
         f"Corner Edge/Match (For - Against):{corner_edge_pm}\n"
         f"Dominance:{row.get('dominance_index')} Control:{row.get('control_index')} Archetype:{row.get('archetype')}\n"
@@ -342,7 +359,7 @@ def doc_from_team_profile(
     meta = {
         "entity_type": "team", "doc_type": "team_profile",
         "league": league, "season": season,
-        "team": team,
+        "team": team, "matches_played": matches_played,
         "corners_against_pm": c_against_pm,
         "corner_edge_pm": corner_edge_pm,
         "control_index": row.get("control_index"),
@@ -352,6 +369,12 @@ def doc_from_team_profile(
         "goals_for_pm": row.get("goals_for_pm"),
         "goals_against_pm": goals_against_pm,  # actual goals conceded (opponent-join)
         "corners_pm": row.get("corners_pm"),
+        "goals_home_pm": goals_home_pm,
+        "goals_away_pm": goals_away_pm,
+        "xg_home_pm": xg_home_pm,
+        "xg_away_pm": xg_away_pm,
+        "sot_home_pm": sot_home_pm,
+        "sot_away_pm": sot_away_pm,
         "corners_home_pm": corners_home_pm,
         "corners_away_pm": corners_away_pm,
         "cards_per_90_team": row.get("cards_per_90_team"),
@@ -578,6 +601,62 @@ def compute_cards_home_away_pm(team_rows: list[dict]) -> dict:
     return out
 
 
+def _compute_venue_split(team_rows: list[dict], stat_field: str) -> dict:
+    """Generic venue split: returns { team_lower: {"home": avg_home, "away": avg_away} }."""
+    home_sums: dict[str, float] = {}
+    home_cnts: dict[str, int]   = {}
+    away_sums: dict[str, float] = {}
+    away_cnts: dict[str, int]   = {}
+
+    for r in team_rows:
+        team = (r.get("team") or "").lower().strip()
+        if not team:
+            continue
+        home_team_raw = (r.get("home_team") or "").lower().strip()
+        if home_team_raw:
+            is_home = (team == home_team_raw)
+        else:
+            venue, _ = infer_home_away(r.get("fixture", ""), r.get("team", ""))
+            is_home = (venue == "home")
+
+        val = r.get(stat_field)
+        try:
+            val = float(val) if val is not None else None
+        except (TypeError, ValueError):
+            val = None
+        if val is None:
+            continue
+
+        if is_home:
+            home_sums[team] = home_sums.get(team, 0.0) + val
+            home_cnts[team] = home_cnts.get(team, 0) + 1
+        else:
+            away_sums[team] = away_sums.get(team, 0.0) + val
+            away_cnts[team] = away_cnts.get(team, 0) + 1
+
+    out = {}
+    for t in set(home_sums.keys()) | set(away_sums.keys()):
+        h_avg = home_sums[t] / max(1, home_cnts[t]) if t in home_sums else None
+        a_avg = away_sums[t] / max(1, away_cnts[t]) if t in away_sums else None
+        out[t] = {"home": h_avg, "away": a_avg}
+    return out
+
+
+def compute_goals_home_away_pm(team_rows: list[dict]) -> dict:
+    """Returns { team_lower: {"home": avg_goals_home, "away": avg_goals_away} }."""
+    return _compute_venue_split(team_rows, "goals")
+
+
+def compute_sot_home_away_pm(team_rows: list[dict]) -> dict:
+    """Returns { team_lower: {"home": avg_sot_home, "away": avg_sot_away} }."""
+    return _compute_venue_split(team_rows, "shots_on")
+
+
+def compute_xg_home_away_pm(team_rows: list[dict]) -> dict:
+    """Returns { team_lower: {"home": avg_xg_home, "away": avg_xg_away} }."""
+    return _compute_venue_split(team_rows, "expected_goals")
+
+
 # --- per-team stat variance (season-level) for probabilistic modeling ---
 def compute_stat_variance(team_rows: list[dict]) -> dict:
     """
@@ -779,6 +858,17 @@ def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
     cards_ha_pm_map = compute_cards_home_away_pm(team_rows) if team_rows else {}
     stat_var_map = compute_stat_variance(team_rows) if team_rows else {}
     goals_against_pm_map = compute_goals_against_pm(team_rows) if team_rows else {}
+    goals_ha_pm_map = compute_goals_home_away_pm(team_rows) if team_rows else {}
+    sot_ha_pm_map = compute_sot_home_away_pm(team_rows) if team_rows else {}
+    xg_ha_pm_map = compute_xg_home_away_pm(team_rows) if team_rows else {}
+
+    # Count fixtures per team (for matches_played metadata)
+    matches_played_map: dict = {}
+    if team_rows:
+        for r in team_rows:
+            tkey = (r.get("team") or "").lower().strip()
+            if tkey:
+                matches_played_map[tkey] = matches_played_map.get(tkey, 0) + 1
 
     # Emit team fixture docs with opponent join (corners_against, shots_against, etc.)
     if team_rows:
@@ -872,6 +962,10 @@ def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
                     cards_ha_pm_map=cards_ha_pm_map,
                     stat_var_map=stat_var_map,
                     goals_against_pm_map=goals_against_pm_map,
+                    goals_ha_pm_map=goals_ha_pm_map,
+                    sot_ha_pm_map=sot_ha_pm_map,
+                    xg_ha_pm_map=xg_ha_pm_map,
+                    matches_played_map=matches_played_map,
                 )
             )
 

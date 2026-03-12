@@ -218,12 +218,18 @@ def template_prompts(target_date: str, home: str = "", away: str = "", league: s
                 f"Compare possession and control index for both teams in {fx} on {date_text}."
             ),
         },
-        "Totals Lines": {
+        "Totals": {
             "Goals O/U (single fixture)": (
                 f"{fx} on {date_text}. What over/under goals line should I take?"
             ),
             "Goals O/U (all fixtures)": (
                 f"Give me the over/under goals line I should take for each {lg} game on {date_text}."
+            ),
+            "Goal Intervals (single fixture)": (
+                f"{fx} on {date_text}. What are the most likely goal intervals for this game?"
+            ),
+            "Goal Intervals (all fixtures)": (
+                f"For every {lg} game on {date_text}, show me the goal interval probabilities for each fixture."
             ),
             "Corners O/U (single fixture)": (
                 f"{fx_at} on {date_text}. Give me corner totals for this game. "
@@ -539,7 +545,7 @@ def main() -> None:
             "Prompt",
             value=st.session_state.draft_prompt,
             height=110,
-            placeholder="Ask for parlays, totals lines, fixture schedule, or stat comparisons...",
+            placeholder="Ask for parlays, totals, goal intervals, fixture schedule, or stat comparisons...",
         )
         col1, col2 = st.columns([1, 1])
         submitted = col1.form_submit_button("Send")

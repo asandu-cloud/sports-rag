@@ -100,6 +100,26 @@ def under_prob(lam: float, line: float,
     return 1.0 - over_prob(lam, line, variance)
 
 
+def interval_prob(lam: float, low: int, high: int,
+                  variance: Optional[float] = None) -> float:
+    """P(low <= X <= high).
+
+    Uses negative binomial when *variance* is provided and exceeds the mean
+    (over-dispersion), otherwise falls back to Poisson.
+    For open-ended upper bands (e.g. 6+), pass a large *high* value (30).
+    """
+    if lam <= 0:
+        return 1.0 if low <= 0 else 0.0
+    if variance is not None and variance > lam:
+        r, p = negbin_from_mean_var(lam, variance)
+        upper = negbin_cdf(high, r, p)
+        lower = negbin_cdf(low - 1, r, p) if low > 0 else 0.0
+        return upper - lower
+    upper = poisson_cdf(high, lam)
+    lower = poisson_cdf(low - 1, lam) if low > 0 else 0.0
+    return upper - lower
+
+
 # ---------------------------------------------------------------------------
 # Implied probability from bookmaker odds
 # ---------------------------------------------------------------------------
