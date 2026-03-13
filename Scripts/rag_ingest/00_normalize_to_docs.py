@@ -26,8 +26,8 @@ def make_doc_id(parts: Iterable) -> str:
     return hashlib.md5(base.encode()).hexdigest()
 
 def euro_season_from_year(year: int) -> str:
-    """2025 -> '2024/25'"""
-    return f"{year-1}/{str(year)[-2:]}"
+    """2025 -> '2025/26' (API-Football season=2025 means the 2025/26 campaign)"""
+    return f"{year}/{str(year + 1)[-2:]}"
 
 def find_year_token(name: str) -> Optional[int]:
     m = re.search(r"(20\d{2})", name)
@@ -204,8 +204,8 @@ def doc_from_team_engineered(row: dict, league: str, season: str, source_file: s
     home_away, opponent = infer_home_away(row.get("fixture", ""), row.get("team", ""))
 
     # Team's own stats
-    shots_for        = row.get("shots_total")
-    sot_for          = row.get("shots_on")
+    shots_for        = row.get("shots_total") or row.get("shots_total_x")
+    sot_for          = row.get("shots_on") or row.get("shots_on_x")
     corners_for      = row.get("corners")
     xg_for           = row.get("expected_goals")
     possession_for   = row.get("possession")
@@ -215,8 +215,8 @@ def doc_from_team_engineered(row: dict, league: str, season: str, source_file: s
 
     # Opponent-derived stats
     # We look up the opponent's row for the same fixture (precomputed in normalize_feature_engineering_dir)
-    shots_against    = (opp_row or {}).get("shots_total")
-    sot_against      = (opp_row or {}).get("shots_on")
+    shots_against    = (opp_row or {}).get("shots_total") or (opp_row or {}).get("shots_total_x")
+    sot_against      = (opp_row or {}).get("shots_on") or (opp_row or {}).get("shots_on_x")
     corners_against  = (opp_row or {}).get("corners")
 
     # Extra engineered metrics we now trust
@@ -649,7 +649,12 @@ def compute_goals_home_away_pm(team_rows: list[dict]) -> dict:
 
 def compute_sot_home_away_pm(team_rows: list[dict]) -> dict:
     """Returns { team_lower: {"home": avg_sot_home, "away": avg_sot_away} }."""
-    return _compute_venue_split(team_rows, "shots_on")
+    # Some leagues store shots_on=0 but shots_on_x has real values (pandas merge artifact).
+    # Prefer shots_on_x (always real when present), fall back to shots_on.
+    result = _compute_venue_split(team_rows, "shots_on_x")
+    if not result:
+        result = _compute_venue_split(team_rows, "shots_on")
+    return result
 
 
 def compute_xg_home_away_pm(team_rows: list[dict]) -> dict:
@@ -673,7 +678,7 @@ def compute_stat_variance(team_rows: list[dict]) -> dict:
             continue
         corners = r.get("corners")
         goals = r.get("goals")
-        sot = r.get("shots_on")
+        sot = r.get("shots_on") or r.get("shots_on_x")
         cards = r.get("cards_total")
         if cards is None:
             yc = r.get("yellow_cards")

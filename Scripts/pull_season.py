@@ -109,6 +109,10 @@ def main():
         "--embed", action="store_true",
         help="Run 01_embed_and_upsert.py --all-leagues --skip-existing after normalization."
     )
+    parser.add_argument(
+        "--retrain-ml", action="store_true",
+        help="Retrain ML models (Elo + regression) after normalize/embed."
+    )
     args = parser.parse_args()
 
     leagues = args.league if args.league else list(LEAGUES.keys())
@@ -152,6 +156,16 @@ def main():
         print(f"{'='*60}")
         embed_script = ROOT / "Scripts" / "rag_ingest" / "01_embed_and_upsert.py"
         cmd = [sys.executable, str(embed_script), "--all-leagues", "--skip-existing"]
+        print(f"  [RUN] {' '.join(cmd)}")
+        subprocess.run(cmd, cwd=str(ROOT))
+
+    # Stage 5: Retrain ML models
+    if args.retrain_ml:
+        print(f"\n{'='*60}")
+        print("RETRAINING ML MODELS (ml_edge.py --train)")
+        print(f"{'='*60}")
+        ml_script = ROOT / "Scripts" / "rag_ingest" / "ml_edge.py"
+        cmd = [sys.executable, str(ml_script), "--train"]
         print(f"  [RUN] {' '.join(cmd)}")
         subprocess.run(cmd, cwd=str(ROOT))
 
