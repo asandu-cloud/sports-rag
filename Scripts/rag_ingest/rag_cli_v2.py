@@ -306,10 +306,11 @@ SCORING_WEIGHTS = {
         "value_edge_weight": 2.0,
         "negative_ev_penalty": 3.0,
         "min_value_edge": 0.02,
-        "min_model_prob": 0.45,
+        "min_model_prob": 0.55,
         "margin_std_default": 1.25,
         "prob_quality_weight": 1.5,
         "ev_combo_weight": 0.5,
+        "model_prob_weight": 4.0,
     },
     "pool": {
         "default_anchor": 1.55,
@@ -4339,8 +4340,11 @@ def choose_best_total_line(options: List[Dict], projection_total: float,
 
         prob_term = val_edge * pw["value_edge_weight"]
         ev_penalty = abs(ev) * pw["negative_ev_penalty"] if ev < 0 else 0.0
+        # Reward higher absolute model probability — prevents thin-edge recs
+        model_prob_bonus = (model_p - pw["min_model_prob"]) * pw["model_prob_weight"]
 
-        score = edge_term - proximity_penalty + odds_term - far_penalty + prob_term - ev_penalty
+        score = (edge_term - proximity_penalty + odds_term - far_penalty
+                 + prob_term - ev_penalty + model_prob_bonus)
 
         # Attach probability data for rendering
         opt["_model_prob"] = model_p
@@ -4352,6 +4356,59 @@ def choose_best_total_line(options: List[Dict], projection_total: float,
             best = opt
             best_score = score
     return best
+
+
+def _best_model_only_line(projection: float,
+                          variance: Optional[float] = None) -> Tuple[str, float, float]:
+    """Pick the strongest (side, line, model_prob) for a model-only recommendation.
+
+    Evaluates half-integer lines (X.5, no push) within ±1.0 of the projection
+    and returns the side+line combination with the highest model probability.
+    """
+    best_side, best_line, best_prob = "Over", round(projection * 2) / 2, 0.5
+
+    base = int(projection)
+    candidates = [base - 0.5, base + 0.5, base + 1.5]
+    if base >= 2:
+        candidates.append(base - 1.5)
+
+    for line in candidates:
+        if line < 0.5 or abs(line - projection) > 1.0:
+            continue
+        p_over = over_prob(projection, line, variance)
+        p_under = 1.0 - p_over
+        side = "Over" if p_over >= p_under else "Under"
+        prob = max(p_over, p_under)
+        if prob > best_prob:
+            best_side, best_line, best_prob = side, line, prob
+
+    return best_side, best_line, best_prob
+
+
+def _best_model_only_spread(proj_diff: float, home: str, away: str) -> Tuple[str, str, float]:
+    """Pick the strongest (team, handicap_display, cover_prob) for model-only spread.
+
+    Evaluates half-integer handicaps within ±1.0 of |proj_diff|.
+    """
+    margin_std = SCORING_WEIGHTS["prob"]["margin_std_default"]
+    best_team = home if proj_diff >= 0 else away
+    best_hc = "-0.5" if proj_diff >= 0 else "+0.5"
+    best_prob = 0.5
+
+    for handicap_abs in [0.5, 1.5, 2.5]:
+        if abs(handicap_abs - abs(proj_diff)) > 1.0:
+            continue
+        # Home giving -handicap
+        p_home = 1.0 - _normal_cdf((handicap_abs - proj_diff) / margin_std)
+        # Away receiving +handicap
+        p_away = 1.0 - _normal_cdf((proj_diff - handicap_abs) / margin_std)
+
+        if p_home > best_prob:
+            best_team, best_hc, best_prob = home, f"{-handicap_abs:+g}", p_home
+        if p_away > best_prob:
+            best_team, best_hc, best_prob = away, f"+{handicap_abs:g}", p_away
+
+    return best_team, best_hc, best_prob
 
 
 def extract_btts_odds(event: Dict) -> List[Dict]:
@@ -4695,8 +4752,11 @@ def choose_best_spread_line(options: List[Dict], projected_diff: float, home_tea
 
         prob_term = val_edge * pw["value_edge_weight"]
         ev_penalty = abs(ev) * pw["negative_ev_penalty"] if ev < 0 else 0.0
+        # Reward higher absolute model probability — prevents thin-edge recs
+        model_prob_bonus = (model_p - pw["min_model_prob"]) * pw["model_prob_weight"]
 
-        score = edge_term - proximity_term + odds_term + prob_term - ev_penalty
+        score = (edge_term - proximity_term + odds_term + prob_term
+                 - ev_penalty + model_prob_bonus)
 
         opt["_model_prob"] = model_p
         opt["_implied_prob"] = implied_p
@@ -4871,10 +4931,10 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
             else:
                 lines.append(f"  Model edge {edge:+.2f} ({conf} confidence).")
         else:
-            anchor = round(proj_total * 2.0) / 2.0
-            side = "Over" if proj_total >= anchor else "Under"
+            side, anchor, mp = _best_model_only_line(proj_total, combined_var)
             lines.append(
-                f"  Recommended: {side} {anchor:g} (no realistic-priced full-game line available in current feed; model-only)."
+                f"  Recommended: {side} {anchor:g} "
+                f"(model-only, P({side} {anchor:g}) = {mp:.1%})."
             )
 
     lines.append("Method: Poisson probability model from local KB + available full-game market lines.")
@@ -5070,10 +5130,10 @@ def render_spreads_line_answer(user_q: str, league: str, events: List[Dict]) -> 
             else:
                 lines.append(f"  Model edge {edge:+.2f} ({conf} confidence).")
         else:
-            anchor = round(proj_diff * 2.0) / 2.0
-            side = home if proj_diff >= 0 else away
+            sp_team, sp_hc, sp_cp = _best_model_only_spread(proj_diff, home, away)
             lines.append(
-                f"  Recommended: {side} {-abs(anchor):+g} (no spread line available in feed; model-only)."
+                f"  Recommended: {sp_team} {sp_hc} "
+                f"(model-only, P(cover) = {sp_cp:.1%})."
             )
 
     lines.append("Method: normal probability model for goal-difference from local KB + available spread lines.")
@@ -5329,10 +5389,7 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
                 else:
                     lines.append(f"      Edge {edge:+.2f} ({conf} confidence).")
             else:
-                anchor = round(c_bl * 2.0) / 2.0
-                side = "Over" if c_bl >= anchor else "Under"
-                mp = (over_prob(c_bl, anchor, t_var) if side == "Over"
-                      else under_prob(c_bl, anchor, t_var))
+                side, anchor, mp = _best_model_only_line(c_bl, t_var)
                 lines.append(
                     f"      Recommended: {side} {anchor:g} "
                     f"(model-only, P({side} {anchor:g}) = {mp:.1%})."
@@ -5398,10 +5455,7 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
                 else:
                     lines.append(f"      Edge {edge:+.2f} ({conf} confidence).")
             else:
-                anchor = round(k_bl * 2.0) / 2.0
-                side = "Over" if k_bl >= anchor else "Under"
-                mp = (over_prob(k_bl, anchor, t_var) if side == "Over"
-                      else under_prob(k_bl, anchor, t_var))
+                side, anchor, mp = _best_model_only_line(k_bl, t_var)
                 lines.append(
                     f"      Recommended: {side} {anchor:g} "
                     f"(model-only, P({side} {anchor:g}) = {mp:.1%})."

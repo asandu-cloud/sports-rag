@@ -1,0 +1,462 @@
+"""Convert RAG text output into bet-card-style Discord embeds."""
+
+from __future__ import annotations
+
+import re
+from typing import Dict, List, Optional, Tuple
+
+import discord
+
+from config import COLOR_GREEN, COLOR_YELLOW, COLOR_RED, COLOR_BLUE, COLOR_PURPLE
+
+# ── Confidence → color / rating dots ─────────────────────────────────────────
+
+_CONF_MAP = {
+    "high": (COLOR_GREEN, "●●●●●"),
+    "medium": (COLOR_YELLOW, "●●●○○"),
+    "low": (COLOR_RED, "●○○○○"),
+}
+
+
+def _conf(text: str) -> Tuple[int, str, str]:
+    """Return (color, dots, label) from confidence keyword in text."""
+    lower = text.lower()
+    for label, (color, dots) in _CONF_MAP.items():
+        if f"{label} confidence" in lower:
+            return color, dots, label.title()
+    return COLOR_BLUE, "●●○○○", "—"
+
+
+# ── Text helpers ─────────────────────────────────────────────────────────────
+
+def _truncate(text: str, limit: int = 1024) -> str:
+    if len(text) <= limit:
+        return text
+    return text[: limit - 3] + "..."
+
+
+def _first_match(pattern: str, text: str, group: int = 1) -> Optional[str]:
+    m = re.search(pattern, text)
+    return m.group(group) if m else None
+
+
+# ── Block splitters ──────────────────────────────────────────────────────────
+
+def _split_fixture_blocks(text: str) -> List[str]:
+    """Split RAG output into per-fixture text blocks.
+
+    Works for both '- Home vs Away:' and '=== Home vs Away ===' formats.
+    Handles single-fixture outputs too.
+    """
+    # Try === separator first (moneyline, correct score, team totals)
+    eq_blocks = re.split(r"\n\s*===\s+", text)
+    if len(eq_blocks) > 1:
+        return [b.strip() for b in eq_blocks[1:] if b.strip()]
+
+    # Try '- Home vs Away:' separator (totals, btts, spreads)
+    # Match lines starting with '- ' followed by team names with vs or @
+    dash_blocks = re.split(r"\n-\s+(?=[A-Z][\w\s.'()-]+(?:vs|@))", text)
+    if len(dash_blocks) > 1:
+        return [b.strip() for b in dash_blocks[1:] if b.strip()]
+
+    # Single fixture: try to find the fixture content after the header
+    m = re.search(r"(?:advice|Predictions?) by fixture:?\s*\n", text)
+    if m:
+        body = text[m.end():].strip()
+        # Strip method footer
+        body = re.sub(r"\nMethod:.*$", "", body, flags=re.DOTALL).strip()
+        if body:
+            return [body]
+
+    return [text.strip()]
+
+
+def _parse_fixture_name(block: str) -> str:
+    """Extract 'Home vs Away' from a fixture block."""
+    # Block starts with "Arsenal vs Chelsea ===" (from === split)
+    m = re.match(r"(.+?)\s*===", block)
+    if m:
+        return m.group(1).strip()
+    # Home vs Away: or Home @ Away:
+    m = re.match(r"(.+?(?:vs|@).+?):", block)
+    if m:
+        return m.group(1).strip()
+    # First line fallback
+    return block.split("\n")[0].strip().rstrip(":").rstrip("=")
+
+
+# ── Field extractors ─────────────────────────────────────────────────────────
+
+def _extract_pick(block: str) -> Optional[str]:
+    """Extract the recommended pick (e.g. 'Under 3.5', 'BTTS Yes', 'Arsenal')."""
+    # >>> Recommended: Arsenal @ 2.10  (moneyline uses >>> prefix)
+    m = re.search(r"(?:>>>\s*)?Recommended:\s*(.+?)(?:\s*@\s*|\s*\()", block)
+    if m:
+        return m.group(1).strip()
+    return None
+
+
+def _extract_odds(block: str) -> Optional[str]:
+    """Extract odds + bookmaker, e.g. '1.45 (Bet365)'."""
+    # Match "@ 1.45 (Bet365, totals)" or "@ 2.10 (Bet365)"
+    # Avoid matching "@ 2.10 (high confidence)" — bookmaker names don't contain "confidence"
+    m = re.search(r"@\s*([\d.]+)\s*\(([^)]+)\)", block)
+    if m:
+        source = m.group(2).split(",")[0].strip()
+        if "confidence" in source.lower():
+            return m.group(1)  # odds only, no bookmaker
+        return f"{m.group(1)} ({source})"
+    return None
+
+
+def _extract_model_line(block: str) -> Dict[str, Optional[str]]:
+    """Extract model probability, implied prob, value edge from Model: line."""
+    out: Dict[str, Optional[str]] = {"model_p": None, "implied_p": None, "edge": None}
+    m = re.search(r"Model:\s*P\(.+?\)\s*=\s*([\d.]+%)", block)
+    if m:
+        out["model_p"] = m.group(1)
+    m = re.search(r"Fair implied:\s*([\d.]+%)", block)
+    if m:
+        out["implied_p"] = m.group(1)
+    m = re.search(r"Value edge:\s*([+\-][\d.]+%)", block)
+    if m:
+        out["edge"] = m.group(1)
+    return out
+
+
+def _extract_ev(block: str) -> Optional[str]:
+    m = re.search(r"Expected value:\s*([+\-][\d.]+)", block)
+    return m.group(1) if m else None
+
+
+def _extract_projection(block: str) -> Optional[str]:
+    """Extract projection line (varies by workflow)."""
+    # projected total X.XX
+    m = re.search(r"projected total\s+([\d.]+)", block)
+    if m:
+        return m.group(1)
+    # projected goal difference +X.XX
+    m = re.search(r"projected goal difference\s*([+\-]?[\d.]+)", block)
+    if m:
+        return m.group(1)
+    # P(BTTS Yes) = XX.X%
+    m = re.search(r"P\(BTTS Yes\)\s*=\s*([\d.]+%)", block)
+    if m:
+        return m.group(1)
+    return None
+
+
+def _extract_confidence(block: str) -> str:
+    m = re.search(r"\b(high|medium|low)\s+confidence\b", block, re.IGNORECASE)
+    return m.group(1).title() if m else "—"
+
+
+def _extract_moneyline_probs(block: str) -> Dict[str, str]:
+    """Extract 3-way moneyline probabilities."""
+    out: Dict[str, str] = {}
+    m = re.search(r"P\(Home\)\s*=\s*([\d.]+%)", block)
+    if m:
+        out["home"] = m.group(1)
+    m = re.search(r"P\(Draw\)\s*=\s*([\d.]+%)", block)
+    if m:
+        out["draw"] = m.group(1)
+    m = re.search(r"P\(Away\)\s*=\s*([\d.]+%)", block)
+    if m:
+        out["away"] = m.group(1)
+    return out
+
+
+def _extract_correct_scores(block: str) -> List[str]:
+    """Extract top scoreline lines."""
+    lines = []
+    for m in re.finditer(r"\d+\.\s+(.+?—\s*[\d.]+%.*)", block):
+        lines.append(m.group(1).strip())
+        if len(lines) >= 5:
+            break
+    return lines
+
+
+def _extract_interval_rows(block: str) -> List[Tuple[str, str]]:
+    """Extract goal interval rows: (band_label, probability)."""
+    rows = []
+    for m in re.finditer(r"(\d+-\d+\s+goals|\d+\+\s+goals)\s+([\d.]+%)", block):
+        rows.append((m.group(1).strip(), m.group(2)))
+    return rows
+
+
+# ── Bet card builders ────────────────────────────────────────────────────────
+
+def _bet_card_embed(
+    fixture: str,
+    pick: Optional[str],
+    odds: Optional[str],
+    model_p: Optional[str],
+    implied_p: Optional[str],
+    edge: Optional[str],
+    confidence: str,
+    projection: Optional[str],
+    league: str = "",
+    market_emoji: str = "⚽",
+    extra_fields: Optional[List[Tuple[str, str, bool]]] = None,
+) -> discord.Embed:
+    """Build a single bet-card embed for one fixture."""
+    color, dots, conf_label = _conf(f"{confidence} confidence" if confidence != "—" else "")
+
+    em = discord.Embed(color=color)
+    em.set_author(name=f"{market_emoji}  {fixture}", icon_url=None)
+
+    if pick:
+        em.add_field(name="📋 Pick", value=f"**{pick}**", inline=True)
+    if odds:
+        em.add_field(name="💰 Odds", value=odds, inline=True)
+    if confidence and confidence != "—":
+        em.add_field(name="⭐ Rating", value=f"{dots} {conf_label}", inline=True)
+
+    if model_p:
+        em.add_field(name="📊 Model", value=model_p, inline=True)
+    if implied_p:
+        em.add_field(name="📖 Books", value=implied_p, inline=True)
+    if edge:
+        sign_emoji = "📈" if edge.startswith("+") else "📉"
+        em.add_field(name=f"{sign_emoji} Edge", value=edge, inline=True)
+
+    if extra_fields:
+        for name, value, inline in extra_fields:
+            em.add_field(name=name, value=value, inline=inline)
+
+    footer_parts = []
+    if league:
+        footer_parts.append(league)
+    if projection:
+        footer_parts.append(f"Projection: {projection}")
+    em.set_footer(text=" | ".join(footer_parts) if footer_parts else "Betting RAG")
+
+    return em
+
+
+# ── Main public functions ────────────────────────────────────────────────────
+
+def rag_output_to_embeds(
+    title: str,
+    text: str,
+    league: str = "",
+    footer: Optional[str] = None,
+) -> List[discord.Embed]:
+    """Convert RAG text output into bet-card-style Discord embeds.
+
+    Parses fixtures and builds one embed per fixture. Falls back to
+    a plain code-block embed if parsing fails.
+    """
+    # Detect market type for emoji
+    title_lower = title.lower()
+    if "corner" in title_lower:
+        emoji = "📐"
+    elif "card" in title_lower:
+        emoji = "🟨"
+    elif "sot" in title_lower or "shot" in title_lower:
+        emoji = "🎯"
+    elif "btts" in title_lower:
+        emoji = "🤝"
+    elif "moneyline" in title_lower or "winner" in title_lower:
+        emoji = "🏆"
+    elif "handicap" in title_lower or "spread" in title_lower:
+        emoji = "📏"
+    elif "correct" in title_lower or "score" in title_lower:
+        emoji = "🎯"
+    elif "interval" in title_lower:
+        emoji = "📊"
+    elif "team" in title_lower:
+        emoji = "👥"
+    else:
+        emoji = "⚽"
+
+    blocks = _split_fixture_blocks(text)
+    embeds: List[discord.Embed] = []
+
+    # Header embed
+    header = discord.Embed(
+        title=f"{emoji}  {title}",
+        description=f"*{league}*" if league else None,
+        color=COLOR_BLUE,
+    )
+    embeds.append(header)
+
+    for block in blocks:
+        fixture = _parse_fixture_name(block)
+        pick = _extract_pick(block)
+        odds = _extract_odds(block)
+        model = _extract_model_line(block)
+        confidence = _extract_confidence(block)
+        projection = _extract_projection(block)
+
+        # Special handling for moneyline
+        ml_probs = _extract_moneyline_probs(block)
+        extra: List[Tuple[str, str, bool]] = []
+        if ml_probs:
+            prob_line = " | ".join(
+                f"{'🏠' if k == 'home' else '🤝' if k == 'draw' else '✈️'} {v}"
+                for k, v in ml_probs.items()
+            )
+            extra.append(("📊 Win Probabilities", prob_line, False))
+
+        # Special handling for correct score
+        scores = _extract_correct_scores(block)
+        if scores:
+            scores_text = "\n".join(f"`{i+1}.` {s}" for i, s in enumerate(scores[:5]))
+            extra.append(("🎯 Top Scorelines", _truncate(scores_text, 1024), False))
+
+        # Special handling for goal intervals
+        intervals = _extract_interval_rows(block)
+        if intervals:
+            iv_text = "\n".join(f"`{band:<15}` {prob}" for band, prob in intervals)
+            extra.append(("📊 Intervals", _truncate(iv_text, 1024), False))
+
+        em = _bet_card_embed(
+            fixture=fixture,
+            pick=pick,
+            odds=odds,
+            model_p=model["model_p"],
+            implied_p=model["implied_p"],
+            edge=model["edge"],
+            confidence=confidence,
+            projection=projection,
+            league=league,
+            market_emoji=emoji,
+            extra_fields=extra if extra else None,
+        )
+        embeds.append(em)
+
+    # Discord limit: max 10 embeds per message
+    if len(embeds) > 10:
+        embeds = embeds[:10]
+
+    return embeds
+
+
+def parlay_embed(text: str, league: str = "Mixed") -> List[discord.Embed]:
+    """Format parlay output as a bet-slip-style embed."""
+    embeds: List[discord.Embed] = []
+
+    # Parse legs
+    legs: List[Dict[str, str]] = []
+    for m in re.finditer(
+        r"Leg\s+(\d+):\s*(?:\[([^\]]+)\]\s*)?(.+?)\s*\|\s*(.+?)\s*@\s*([\d.]+)\s*\(([^)]+)\)",
+        text,
+    ):
+        legs.append({
+            "num": m.group(1),
+            "league": m.group(2) or league,
+            "fixture": m.group(3).strip(),
+            "pick": m.group(4).strip(),
+            "odds": m.group(5),
+            "book": m.group(6).split(",")[0].strip(),
+        })
+
+    # Parse combined odds
+    combo_odds = _first_match(r"combined odds:\s*([\d.]+)", text)
+
+    if not legs:
+        return _fallback_embeds("Parlay", text, league)
+
+    # Main slip embed
+    slip = discord.Embed(
+        title="🎰  Parlay Slip",
+        color=COLOR_PURPLE,
+    )
+    if league:
+        slip.set_author(name=f"League: {league}")
+
+    for leg in legs:
+        slip.add_field(
+            name=f"Leg {leg['num']}",
+            value=(
+                f"**{leg['fixture']}**\n"
+                f"📋 {leg['pick']}\n"
+                f"💰 {leg['odds']} ({leg['book']})"
+            ),
+            inline=False,
+        )
+
+    # Combined odds bar
+    if combo_odds:
+        slip.add_field(
+            name="━━━━━━━━━━━━━━━━━━━━━━",
+            value=f"**Combined Odds: {combo_odds}x**",
+            inline=False,
+        )
+
+    # Parse evidence for each leg
+    why = _first_match(r"Why this parlay:\s*(.+?)(?:\n-|\Z)", text, 1)
+    if why:
+        slip.add_field(name="💡 Why", value=_truncate(why, 1024), inline=False)
+
+    slip.set_footer(text="Betting RAG")
+    embeds.append(slip)
+
+    # Discord limit
+    if len(embeds) > 10:
+        embeds = embeds[:10]
+
+    return embeds
+
+
+def value_alert_embed(text: str, league: str) -> discord.Embed:
+    """Format a value alert as a green bet-card embed."""
+    pick = _extract_pick(text)
+    odds = _extract_odds(text)
+    model = _extract_model_line(text)
+
+    em = discord.Embed(
+        title="🚨  Value Alert",
+        color=COLOR_GREEN,
+    )
+    em.set_author(name=f"League: {league}")
+
+    if pick:
+        em.add_field(name="📋 Pick", value=f"**{pick}**", inline=True)
+    if odds:
+        em.add_field(name="💰 Odds", value=odds, inline=True)
+    if model["model_p"]:
+        em.add_field(name="📊 Model", value=model["model_p"], inline=True)
+    if model["edge"]:
+        em.add_field(name="📈 Edge", value=model["edge"], inline=True)
+
+    em.set_footer(text="Betting RAG | Value Alert")
+    return em
+
+
+# ── Fallback for unparseable output ──────────────────────────────────────────
+
+def _fallback_embeds(
+    title: str,
+    text: str,
+    league: str = "",
+    footer: Optional[str] = None,
+) -> List[discord.Embed]:
+    """Plain code-block embed when structured parsing fails."""
+    color = _conf(text)[0]
+    limit = 4096 - 10  # account for code fences
+    chunks: List[str] = []
+    current = ""
+    for line in text.split("\n"):
+        if len(current) + len(line) + 1 > limit:
+            chunks.append(current)
+            current = line
+        else:
+            current = f"{current}\n{line}" if current else line
+    if current:
+        chunks.append(current)
+
+    embeds: List[discord.Embed] = []
+    for i, chunk in enumerate(chunks):
+        em = discord.Embed(
+            title=title if i == 0 else f"{title} (cont.)",
+            description=f"```\n{chunk}\n```",
+            color=color,
+        )
+        if i == 0 and league:
+            em.set_author(name=f"League: {league}")
+        if i == len(chunks) - 1:
+            em.set_footer(text=footer or "Betting RAG")
+        embeds.append(em)
+    return embeds[:10]
