@@ -104,16 +104,33 @@ except ImportError:
     from Scripts.rag_ingest.chroma_backend import backend_description, env_bool, env_first, get_chroma_client
 
 try:
-    from ml_edge import ml_predict_total, get_elo_edge
+    from ml_edge import ml_predict_total, get_elo_edge, get_dynamic_blend_weight
     _HAS_ML = True
 except ImportError:
     try:
-        from Scripts.rag_ingest.ml_edge import ml_predict_total, get_elo_edge
+        from Scripts.rag_ingest.ml_edge import ml_predict_total, get_elo_edge, get_dynamic_blend_weight
         _HAS_ML = True
     except ImportError:
         _HAS_ML = False
         def ml_predict_total(*a, **kw): return None
         def get_elo_edge(*a, **kw): return None
+        def get_dynamic_blend_weight(*a, **kw): return 0.0
+
+try:
+    from player_projections import (
+        projected_player_stat, recommend_player_prop,
+        render_player_prop_answer, PlayerPropRecommendation,
+    )
+    _HAS_PLAYER_PROJ = True
+except ImportError:
+    try:
+        from Scripts.rag_ingest.player_projections import (
+            projected_player_stat, recommend_player_prop,
+            render_player_prop_answer, PlayerPropRecommendation,
+        )
+        _HAS_PLAYER_PROJ = True
+    except ImportError:
+        _HAS_PLAYER_PROJ = False
 
 
 load_dotenv()
@@ -338,7 +355,8 @@ SCORING_WEIGHTS = {
         "league_concentration_penalty": 2.0,
     },
     "ml": {
-        "blend_weight": 0.0,  # disabled: R2<0.32 models add noise. Elo signal still active. Re-enable when R2>0.40
+        "blend_weight": 0.0,  # static fallback (used when dynamic_blend=False). Set >0 to force blend.
+        "dynamic_blend": True,  # when True, blend_weight computed per-stat from R2 via get_dynamic_blend_weight()
         "elo_signal_weight": 0.15,
         "elo_scale": 400.0,
         "min_elo_diff": 20,
@@ -2818,6 +2836,15 @@ def safe_float(x) -> Optional[float]:
         return None
 
 
+def _ml_blend_weight(stat: str) -> float:
+    """Resolve ML blend weight for a stat. Uses dynamic R2-based weight if enabled,
+    otherwise falls back to static SCORING_WEIGHTS["ml"]["blend_weight"]."""
+    mw = SCORING_WEIGHTS["ml"]
+    if mw.get("dynamic_blend", False):
+        return get_dynamic_blend_weight(stat)
+    return mw.get("blend_weight", 0.0)
+
+
 def _venue_blend(venue_rate: Optional[float], overall_rate: Optional[float], blend_w: float) -> Optional[float]:
     """Blend venue-specific and overall rate.  Falls back gracefully."""
     if venue_rate is not None and overall_rate is not None:
@@ -3032,7 +3059,7 @@ def projected_total_sot(home: str, away: str, league: str) -> Tuple[Optional[flo
     blended += _trend_adjustment(hr, ar, "sot_for_slope")
 
     # ML blend
-    ml_w = SCORING_WEIGHTS["ml"]["blend_weight"]
+    ml_w = _ml_blend_weight("sot")
     if ml_w > 0:
         ml_proj = ml_predict_total(home, away, league, "sot", home_meta=hm, away_meta=am)
         if ml_proj is not None:
@@ -3543,6 +3570,162 @@ def llm_validate_selection(
         return True, None
 
 
+def _leg_standalone_confidence(leg: CandidateLeg, league: str) -> Dict:
+    """Run the standalone market projection for a parlay leg to get confidence,
+    model probability, and check for side agreement.
+
+    Returns dict with: confidence, model_prob, projected, side_agrees, standalone_side
+    """
+    g = market_group_from_key(leg.market_key)
+    result: Dict = {
+        "confidence": None, "model_prob": None, "projected": None,
+        "side_agrees": True, "standalone_side": None, "warning": None,
+    }
+
+    try:
+        if g == "corners":
+            proj_total, _, _ = projected_total_corners(leg.home_team, leg.away_team, league)
+            if proj_total is not None and leg.point is not None:
+                direction = leg.outcome.lower()
+                is_over = "over" in direction
+                h_var = get_team_recent_variance(leg.home_team, league)
+                a_var = get_team_recent_variance(leg.away_team, league)
+                comb_var_val = None
+                hv, av = h_var.get("corners_for_var"), a_var.get("corners_for_var")
+                if hv is not None and av is not None:
+                    comb_var_val = hv + av
+                model_p = over_prob(proj_total, leg.point, comb_var_val) if is_over else under_prob(proj_total, leg.point, comb_var_val)
+                implied_p = implied_prob(leg.odds)
+                ve = value_edge(model_p, implied_p)
+                standalone_side = "Over" if proj_total > leg.point else "Under"
+                result["projected"] = proj_total
+                result["model_prob"] = model_p
+                result["standalone_side"] = standalone_side
+                result["side_agrees"] = (is_over and standalone_side == "Over") or (not is_over and standalone_side == "Under")
+                result["confidence"] = confidence_from_edge(abs(ve), stat_group="corners", model_prob=model_p, value_edge_pct=ve)
+
+        elif g == "totals":
+            proj_total, _, _ = projected_total_goals(leg.home_team, leg.away_team, league)
+            if proj_total is not None and leg.point is not None:
+                direction = leg.outcome.lower()
+                is_over = "over" in direction
+                h_var = get_team_recent_variance(leg.home_team, league)
+                a_var = get_team_recent_variance(leg.away_team, league)
+                comb_var_val = None
+                hv, av = h_var.get("goals_var"), a_var.get("goals_var")
+                if hv is not None and av is not None:
+                    comb_var_val = hv + av
+                model_p = over_prob(proj_total, leg.point, comb_var_val) if is_over else under_prob(proj_total, leg.point, comb_var_val)
+                implied_p = implied_prob(leg.odds)
+                ve = value_edge(model_p, implied_p)
+                standalone_side = "Over" if proj_total > leg.point else "Under"
+                result["projected"] = proj_total
+                result["model_prob"] = model_p
+                result["standalone_side"] = standalone_side
+                result["side_agrees"] = (is_over and standalone_side == "Over") or (not is_over and standalone_side == "Under")
+                result["confidence"] = confidence_from_edge(abs(ve), stat_group="goals", model_prob=model_p, value_edge_pct=ve)
+
+        elif g == "cards":
+            proj_total, _, _, ref_mod = projected_total_cards(leg.home_team, leg.away_team, league)
+            if proj_total is not None and leg.point is not None:
+                direction = leg.outcome.lower()
+                is_over = "over" in direction
+                h_var = get_team_recent_variance(leg.home_team, league)
+                a_var = get_team_recent_variance(leg.away_team, league)
+                comb_var_val = None
+                hv, av = h_var.get("cards_var"), a_var.get("cards_var")
+                if hv is not None and av is not None:
+                    comb_var_val = hv + av
+                model_p = over_prob(proj_total, leg.point, comb_var_val) if is_over else under_prob(proj_total, leg.point, comb_var_val)
+                implied_p = implied_prob(leg.odds)
+                ve = value_edge(model_p, implied_p)
+                standalone_side = "Over" if proj_total > leg.point else "Under"
+                result["projected"] = proj_total
+                result["model_prob"] = model_p
+                result["standalone_side"] = standalone_side
+                result["side_agrees"] = (is_over and standalone_side == "Over") or (not is_over and standalone_side == "Under")
+                result["confidence"] = confidence_from_edge(abs(ve), stat_group="cards", model_prob=model_p, value_edge_pct=ve)
+
+        elif g == "sot":
+            proj_total, _, _ = projected_total_sot(leg.home_team, leg.away_team, league)
+            if proj_total is not None and leg.point is not None:
+                direction = leg.outcome.lower()
+                is_over = "over" in direction
+                h_var = get_team_recent_variance(leg.home_team, league)
+                a_var = get_team_recent_variance(leg.away_team, league)
+                comb_var_val = None
+                hv, av = h_var.get("sot_for_var"), a_var.get("sot_for_var")
+                if hv is not None and av is not None:
+                    comb_var_val = hv + av
+                model_p = over_prob(proj_total, leg.point, comb_var_val) if is_over else under_prob(proj_total, leg.point, comb_var_val)
+                implied_p = implied_prob(leg.odds)
+                ve = value_edge(model_p, implied_p)
+                standalone_side = "Over" if proj_total > leg.point else "Under"
+                result["projected"] = proj_total
+                result["model_prob"] = model_p
+                result["standalone_side"] = standalone_side
+                result["side_agrees"] = (is_over and standalone_side == "Over") or (not is_over and standalone_side == "Under")
+                result["confidence"] = confidence_from_edge(abs(ve), stat_group="sot", model_prob=model_p, value_edge_pct=ve)
+
+        elif g == "btts":
+            btts_result = projected_btts_prob(leg.home_team, leg.away_team, league)
+            p_btts = btts_result[0] if btts_result else None
+            if p_btts is not None:
+                direction = leg.outcome.lower().strip()
+                model_p = p_btts if direction == "yes" else (1.0 - p_btts)
+                implied_p = implied_prob(leg.odds)
+                ve = value_edge(model_p, implied_p)
+                standalone_side = "Yes" if p_btts >= 0.50 else "No"
+                result["projected"] = p_btts
+                result["model_prob"] = model_p
+                result["standalone_side"] = standalone_side
+                result["side_agrees"] = direction == standalone_side.lower()
+                result["confidence"] = confidence_from_edge(abs(ve), stat_group="goals", model_prob=model_p, value_edge_pct=ve)
+                if not result["side_agrees"] and abs(p_btts - 0.50) > 0.10:
+                    result["warning"] = f"Model favors BTTS {standalone_side} ({p_btts:.0%})"
+
+        elif g == "moneyline":
+            ml_result = projected_moneyline_probs(leg.home_team, leg.away_team, league)
+            if ml_result and ml_result[0] is not None:
+                p_home, p_draw, p_away = ml_result[0], ml_result[1], ml_result[2]
+                direction = leg.outcome.lower().strip()
+                home_lower = leg.home_team.lower()
+                if direction.startswith(home_lower) or "home" in direction:
+                    model_p = p_home
+                elif "draw" in direction:
+                    model_p = p_draw
+                else:
+                    model_p = p_away
+                implied_p = implied_prob(leg.odds)
+                ve = value_edge(model_p, implied_p)
+                # Standalone would pick highest probability
+                best_side = max([("Home", p_home), ("Draw", p_draw), ("Away", p_away)], key=lambda x: x[1])
+                result["model_prob"] = model_p
+                result["standalone_side"] = best_side[0]
+                result["confidence"] = confidence_from_edge(abs(ve), stat_group="goals", model_prob=model_p, value_edge_pct=ve)
+
+        elif g == "spreads":
+            proj_diff, _, _ = projected_goal_difference(leg.home_team, leg.away_team, league)
+            if proj_diff is not None and leg.point is not None:
+                from math import erf, sqrt
+                margin_std = SCORING_WEIGHTS["prob"].get("margin_std_default", 1.25)
+                # Home covers if diff > -point
+                cover_z = (proj_diff + leg.point) / margin_std
+                model_p = 0.5 * (1.0 + erf(cover_z / sqrt(2.0)))
+                if leg.outcome.lower().startswith(leg.away_team.lower()):
+                    model_p = 1.0 - model_p
+                implied_p = implied_prob(leg.odds)
+                ve = value_edge(model_p, implied_p)
+                result["projected"] = proj_diff
+                result["model_prob"] = model_p
+                result["confidence"] = confidence_from_edge(abs(ve), stat_group="goals", model_prob=model_p, value_edge_pct=ve)
+
+    except Exception:
+        pass  # graceful — return empty result if anything fails
+
+    return result
+
+
 def render_parlay(
     user_q: str,
     c: ConstraintSpec,
@@ -3558,21 +3741,55 @@ def render_parlay(
 
     lines: List[str] = []
     lines.append("Parlay recommendation:")
+
+    warnings: List[str] = []
+
     for i, leg in enumerate(selected, start=1):
         bm = f" ({leg.bookmaker})" if leg.bookmaker else ""
         lg_badge = f"[{leg.league}] " if leg.league else ""
-        lines.append(f"- Leg {i}: {lg_badge}{leg.fixture} | {leg_label(leg)} @ {leg.odds:.2f}{bm}")
-        ev_lines = (llm_evidence or {}).get(i) or leg_evidence(leg, _leg_league(leg, c.league))
+        league = _leg_league(leg, c.league)
+
+        # Get standalone confidence for this leg
+        sc = _leg_standalone_confidence(leg, league)
+        conf_label = sc.get("confidence") or "—"
+        model_p = sc.get("model_prob")
+        conf_str = f" ({conf_label} confidence" + (f", model {model_p:.0%}" if model_p else "") + ")"
+
+        lines.append(f"- Leg {i}: {lg_badge}{leg.fixture} | {leg_label(leg)} @ {leg.odds:.2f}{bm}{conf_str}")
+
+        # Cross-validation warning
+        if not sc.get("side_agrees", True) and sc.get("warning"):
+            lines.append(f"  ⚠ {sc['warning']}")
+            warnings.append(f"Leg {i}: {sc['warning']}")
+        elif not sc.get("side_agrees", True) and sc.get("standalone_side"):
+            g = market_group_from_key(leg.market_key)
+            lines.append(f"  ⚠ Standalone {g} model favors {sc['standalone_side']}")
+            warnings.append(f"Leg {i}: standalone {g} model favors {sc['standalone_side']}")
+
+        ev_lines = (llm_evidence or {}).get(i) or leg_evidence(leg, league)
         for ev in ev_lines[:3]:
             lines.append(f"  Evidence: {ev}")
 
     lines.append(f"- Estimated combined odds: {combo:.2f}x")
+
+    # Overall parlay confidence summary
+    leg_confs = [_leg_standalone_confidence(leg, _leg_league(leg, c.league)).get("confidence") for leg in selected]
+    conf_counts = Counter(c for c in leg_confs if c)
+    if conf_counts:
+        conf_summary = ", ".join(f"{cnt} {label}" for label, cnt in
+                                 sorted(conf_counts.items(), key=lambda x: {"high": 0, "medium": 1, "low": 2}.get(x[0], 3)))
+        lines.append(f"- Confidence breakdown: {conf_summary}")
+
     # League distribution summary for cross-league parlays
     if any(leg.league for leg in selected):
         league_counts = Counter(leg.league for leg in selected if leg.league)
         if len(league_counts) > 1:
             dist = ", ".join(f"{cnt}x {lg}" for lg, cnt in league_counts.most_common())
             lines.append(f"- League distribution: {dist}")
+
+    if warnings:
+        lines.append(f"- ⚠ Cross-check warnings: {len(warnings)} leg(s) disagree with standalone projections")
+
     if llm_why:
         lines.append(f"- Why this parlay: {llm_why}")
     lines.append("- Constraint report:")
@@ -3584,7 +3801,6 @@ def render_parlay(
         for n in notes:
             lines.append(f"  {n}")
 
-    # User-friendly fallback guidance, no dead-end.
     if unmet:
         lines.append(
             "- Fallback behavior: kept best possible legs from available markets instead of returning no answer."
@@ -3872,7 +4088,7 @@ def projected_total_corners(home: str, away: str, league: str) -> Tuple[Optional
     blended += _trend_adjustment(hr, ar, "corners_for_slope")
 
     # ML blend
-    ml_w = SCORING_WEIGHTS["ml"]["blend_weight"]
+    ml_w = _ml_blend_weight("corners")
     if ml_w > 0:
         ml_proj = ml_predict_total(home, away, league, "corners", home_meta=hm, away_meta=am)
         if ml_proj is not None:
@@ -3940,7 +4156,7 @@ def projected_total_cards(home: str, away: str, league: str) -> Tuple[Optional[f
             blended = (1.0 - foul_w) * blended + foul_w * foul_based_total
 
     # ML blend
-    ml_w = SCORING_WEIGHTS["ml"]["blend_weight"]
+    ml_w = _ml_blend_weight("cards")
     if ml_w > 0:
         ml_proj = ml_predict_total(home, away, league, "cards", home_meta=hm, away_meta=am)
         if ml_proj is not None:
@@ -3975,7 +4191,7 @@ def projected_team_corners(
         return None, None, None
 
     # ML proportional split
-    ml_w = SCORING_WEIGHTS["ml"]["blend_weight"]
+    ml_w = _ml_blend_weight("corners")
     if ml_w > 0:
         home_name = team if is_home else opponent
         away_name = opponent if is_home else team
@@ -4045,7 +4261,7 @@ def projected_team_cards(
             blended = (1.0 - foul_w) * blended + foul_w * foul_based_cards
 
     # ML proportional split
-    ml_w = SCORING_WEIGHTS["ml"]["blend_weight"]
+    ml_w = _ml_blend_weight("cards")
     if ml_w > 0:
         home_name = team if is_home else opponent
         away_name = opponent if is_home else team
@@ -4103,7 +4319,7 @@ def projected_total_goals(home: str, away: str, league: str) -> Tuple[Optional[f
     blended += _trend_adjustment(hr, ar, "goals_slope")
 
     # ML blend
-    ml_w = SCORING_WEIGHTS["ml"]["blend_weight"]
+    ml_w = _ml_blend_weight("goals")
     if ml_w > 0:
         ml_proj = ml_predict_total(home, away, league, "goals", home_meta=hm, away_meta=am)
         if ml_proj is not None:
@@ -4140,7 +4356,7 @@ def projected_btts_prob(home: str, away: str, league: str) -> Tuple[Optional[flo
         return None, None, None, h_season, a_season
 
     # ML blend: split ML total proportionally between home/away
-    ml_w = SCORING_WEIGHTS["ml"]["blend_weight"]
+    ml_w = _ml_blend_weight("goals")
     if ml_w > 0:
         ml_proj = ml_predict_total(home, away, league, "goals", home_meta=hm, away_meta=am)
         if ml_proj is not None and (h_proj + a_proj) > 0:
@@ -4188,7 +4404,7 @@ def projected_correct_score_probs(
         return None, None, None
 
     # ML blend (same pipeline as projected_btts_prob)
-    ml_w = SCORING_WEIGHTS["ml"]["blend_weight"]
+    ml_w = _ml_blend_weight("goals")
     if ml_w > 0:
         ml_proj = ml_predict_total(home, away, league, "goals", home_meta=hm, away_meta=am)
         if ml_proj is not None and (h_proj + a_proj) > 0:
@@ -4545,7 +4761,13 @@ def extract_btts_odds(event: Dict) -> List[Dict]:
 
 
 def choose_best_btts_side(options: List[Dict], p_btts_yes: float) -> Optional[Dict]:
-    """Score BTTS Yes/No options and return the best one with probability data attached."""
+    """Score BTTS Yes/No options and return the best one with probability data attached.
+
+    BTTS is a directional bet — the model's conviction (probability) must drive the
+    recommendation, not just value edge. A 72% BTTS Yes probability should almost always
+    recommend Yes, regardless of whether No has a marginally better edge. Value edge is
+    used as a tiebreaker and to flag when the model-preferred side is overpriced.
+    """
     if not options:
         return None
     pw = SCORING_WEIGHTS["prob"]
@@ -4567,6 +4789,11 @@ def choose_best_btts_side(options: List[Dict], p_btts_yes: float) -> Optional[Di
             _fair_implied[(bm, "yes")] = f_yes
             _fair_implied[(bm, "no")] = f_no
 
+    # Step 1: Determine the model's preferred side based on probability
+    model_preferred_side = "yes" if p_btts_yes >= 0.50 else "no"
+    model_conviction = max(p_btts_yes, 1.0 - p_btts_yes)
+
+    # Step 2: Score all options, but heavily weight model conviction
     best = None
     best_score = None
     for opt in options:
@@ -4581,9 +4808,19 @@ def choose_best_btts_side(options: List[Dict], p_btts_yes: float) -> Optional[Di
         val_edge = value_edge(model_p, implied_p)
         ev = expected_value(model_p, odds)
 
-        prob_term = val_edge * pw["value_edge_weight"]
+        # Score: model probability is the PRIMARY driver (weight 4.0)
+        # Value edge is secondary (weight 1.0)
+        # Penalize going against model conviction heavily
+        conviction_score = (model_p - 0.50) * pw.get("model_prob_weight", 4.0)
+        edge_bonus = val_edge * pw.get("value_edge_weight", 2.0) if val_edge > 0 else 0.0
         ev_penalty = abs(ev) * pw["negative_ev_penalty"] if ev < 0 else 0.0
-        score = prob_term - ev_penalty
+
+        # Strong penalty for recommending opposite of model conviction
+        against_model_penalty = 0.0
+        if side != model_preferred_side and model_conviction >= 0.55:
+            against_model_penalty = (model_conviction - 0.50) * 6.0
+
+        score = conviction_score + edge_bonus - ev_penalty - against_model_penalty
 
         opt["_model_prob"] = model_p
         opt["_implied_prob"] = implied_p
@@ -4746,12 +4983,36 @@ def choose_best_moneyline_side(
             entry["ev"] = expected_value(model_probs[side], bps["odds"])
         candidates.append(entry)
 
-    # Pick best: highest value_edge among sides with positive EV, else highest model_prob
-    value_picks = [c for c in candidates if c["ev"] is not None and c["ev"] > 0]
-    if value_picks:
-        best = max(value_picks, key=lambda c: c["value_edge"] or 0)
-    else:
-        best = max(candidates, key=lambda c: c["model_prob"])
+    # Pick best: model probability is the primary driver, value edge is secondary.
+    # A Draw at +2% edge should NOT beat a Home Win at 55% probability.
+    # Score = model_prob * 3.0 + value_edge_bonus - negative_ev_penalty
+    best = None
+    best_score = -999.0
+    for c in candidates:
+        model_p = c["model_prob"]
+        ve = c["value_edge"]
+        ev_val = c["ev"]
+
+        # Model conviction is the dominant signal
+        conviction = (model_p - 0.33) * 3.0  # 3-way: baseline is 33%, not 50%
+
+        # Value edge bonus (only when positive)
+        edge_bonus = (ve * 2.0) if ve is not None and ve > 0 else 0.0
+
+        # Penalty for negative EV
+        ev_penalty = abs(ev_val) * 2.0 if ev_val is not None and ev_val < 0 else 0.0
+
+        # Penalty for recommending Draw (draws are inherently harder to predict
+        # and rarely the right recommendation unless model is very confident)
+        draw_penalty = 0.0
+        if c["side"] == "draw" and model_p < 0.32:
+            draw_penalty = 0.5
+
+        score = conviction + edge_bonus - ev_penalty - draw_penalty
+
+        if score > best_score:
+            best_score = score
+            best = c
 
     return {"recommended": best, "all_sides": candidates}
 
@@ -5303,9 +5564,15 @@ def render_btts_answer(user_q: str, league: str, events: List[Dict]) -> str:
             else:
                 lines.append(f"  Confidence: {conf}.")
         else:
+            # Model-only: recommend the side the model is more confident about
             rec = "Yes" if p_btts >= 0.50 else "No"
+            rec_prob = p_btts if rec == "Yes" else (1.0 - p_btts)
+            conf = "high" if rec_prob >= 0.65 else ("medium" if rec_prob >= 0.55 else "low")
             lines.append(
-                f"  Recommended: BTTS {rec} (no BTTS odds available in current feed; model-only)."
+                f"  Recommended: BTTS {rec} — model gives {rec_prob:.0%} probability ({conf} confidence)."
+            )
+            lines.append(
+                f"  (No BTTS odds available in current feed; model-only projection.)"
             )
 
     lines.append("Method: independent Poisson probability model for per-team scoring from local KB.")
@@ -6039,6 +6306,169 @@ def _handle_team_totals(user_q: str, c: ConstraintSpec, events: List[Dict], note
 def _handle_player_props(user_q: str, c: ConstraintSpec, events: List[Dict], notes: List[str]) -> str:
     if not events:
         return "No fixtures found for the requested date. Cannot analyse player props without a fixture list."
+
+    # Detect which stats the user is asking about
+    requested_stats = _parse_player_prop_stats(user_q)
+
+    # Use projection-backed handler when available
+    if _HAS_PLAYER_PROJ:
+        return _handle_player_props_projected(user_q, c, events, notes, requested_stats)
+
+    # Fallback to LLM-only handler
+    return _handle_player_props_llm(user_q, c, events, notes)
+
+
+def _parse_player_prop_stats(user_q: str) -> List[str]:
+    """Detect which player stats the user is asking about."""
+    q = user_q.lower()
+    stats = []
+    if re.search(r"\b(goal|scor|anytime|first\s*scorer)\b", q):
+        stats.append("goals")
+    if re.search(r"\b(shot|sot|shots?\s+on\s+target)\b", q):
+        stats.append("sot")
+    if re.search(r"\b(assist|chance|creat)\b", q):
+        stats.append("assists")
+    if re.search(r"\b(card|book|yellow|red|caution)\b", q):
+        stats.append("cards")
+    if not stats:
+        stats = ["goals"]  # default
+    return stats
+
+
+def _get_recommendable_players(
+    team: str, league: str, limit: int = 8,
+) -> List[Dict]:
+    """Retrieve player profiles filtered to recommendable players (not bench).
+    Sorted by start_rate descending."""
+    col = get_collection_handle(create_if_missing=True)
+    variants = _kb_team_variants(team)
+
+    # Determine current season
+    prof = get_team_profile_doc(team, league)
+    current_season = (prof.get("meta") or {}).get("season")
+
+    profiles = []
+    for tv in variants:
+        filters: List[Dict] = [{"doc_type": "player_profile"}, {"team": tv}]
+        if current_season:
+            filters.append({"season": current_season})
+        where = build_where(league, extra_filters=filters)
+        res = col.get(where=where, include=["documents", "metadatas"], limit=50)
+        for i, d, m in zip(res.get("ids", []), res.get("documents", []), res.get("metadatas", [])):
+            meta = m or {}
+            role = meta.get("minutes_risk", "")
+            # Skip bench players
+            if role == "bench":
+                continue
+            profiles.append({"id": i, "text": d or "", "meta": meta})
+
+    profiles.sort(
+        key=lambda d: float(d.get("meta", {}).get("start_rate") or 0),
+        reverse=True,
+    )
+    return profiles[:limit]
+
+
+def _get_player_recent_fixtures(
+    player_id, team: str, league: str, limit: int = 8, min_minutes: int = 30,
+) -> List[Dict]:
+    """Retrieve recent fixture docs for a specific player."""
+    col = get_collection_handle(create_if_missing=True)
+    variants = _kb_team_variants(team)
+
+    prof = get_team_profile_doc(team, league)
+    current_season = (prof.get("meta") or {}).get("season")
+
+    fixtures = []
+    for tv in variants:
+        filters: List[Dict] = [
+            {"doc_type": "player_fixture"},
+            {"team": tv},
+            {"minutes": {"$gte": min_minutes}},
+        ]
+        if current_season:
+            filters.append({"season": current_season})
+        where = build_where(league, extra_filters=filters)
+        res = col.get(where=where, include=["documents", "metadatas"], limit=limit * 3)
+        for i, d, m in zip(res.get("ids", []), res.get("documents", []), res.get("metadatas", [])):
+            meta = m or {}
+            # Match player_id (handle both int and str)
+            pid = meta.get("player_id")
+            if str(pid) == str(player_id):
+                fixtures.append({"id": i, "text": d or "", "meta": meta})
+
+    fixtures.sort(key=lambda d: d.get("meta", {}).get("minutes") or 0, reverse=True)
+    return fixtures[:limit]
+
+
+def _handle_player_props_projected(
+    user_q: str, c: ConstraintSpec, events: List[Dict],
+    notes: List[str], requested_stats: List[str],
+) -> str:
+    """Projection-backed player prop handler."""
+    league = c.league
+    all_recommendations: List[PlayerPropRecommendation] = []
+
+    for ev in events:
+        home_team = ev.get("home_team", "")
+        away_team = ev.get("away_team", "")
+        if not home_team or not away_team:
+            continue
+
+        home_team_meta = get_team_profile_meta(home_team, league) or {}
+        away_team_meta = get_team_profile_meta(away_team, league) or {}
+
+        for team, opp_meta, is_home in [
+            (home_team, away_team_meta, True),
+            (away_team, home_team_meta, False),
+        ]:
+            team_meta = home_team_meta if is_home else away_team_meta
+            players = _get_recommendable_players(team, league, limit=8)
+
+            for player_doc in players:
+                player_meta = player_doc.get("meta", {})
+                player_id = player_meta.get("player_id")
+                if not player_id:
+                    continue
+
+                recent = _get_player_recent_fixtures(
+                    player_id, team, league, limit=8, min_minutes=30,
+                )
+
+                for stat in requested_stats:
+                    proj = projected_player_stat(
+                        player_meta=player_meta,
+                        team_meta=team_meta,
+                        opponent_meta=opp_meta,
+                        stat=stat,
+                        league=league,
+                        is_home=is_home,
+                        recent_fixtures=recent,
+                    )
+                    if proj is None:
+                        continue
+
+                    rec = recommend_player_prop(proj)
+                    if rec is not None:
+                        all_recommendations.append(rec)
+
+    # Sort: high confidence first, then by model_prob
+    all_recommendations.sort(key=lambda r: (
+        {"high": 3, "medium": 2, "low": 1}.get(r.projection.confidence, 0),
+        r.model_prob,
+    ), reverse=True)
+
+    top_recs = all_recommendations[:10]
+    out = render_player_prop_answer(league, top_recs)
+
+    if notes:
+        out += "\n\nNotes:\n" + "\n".join(f"- {n}" for n in notes)
+
+    return out
+
+
+def _handle_player_props_llm(user_q: str, c: ConstraintSpec, events: List[Dict], notes: List[str]) -> str:
+    """LLM-only fallback for player props (used when player_projections module unavailable)."""
     if client is None:
         return "OpenAI client not configured — player prop analysis requires LLM access."
 
@@ -6061,6 +6491,8 @@ def _handle_player_props(user_q: str, c: ConstraintSpec, events: List[Dict], not
         "- Team profile docs (team-level context: form, control, dominance, aggression).\n\n"
         "Guidelines:\n"
         "- Base your picks on the statistical data provided. Cite specific numbers.\n"
+        "- IMPORTANT: Only recommend players who are regular starters (look at minutes played and appearances).\n"
+        "- Do NOT recommend players who mostly come off the bench or have very few appearances.\n"
         "- For goalscorer picks: prioritise goals/90, shots/90, SoT/90, minutes played, and recent form index.\n"
         "- For SoT picks: use shots/90, SoT/90, and recent fixture shot counts.\n"
         "- For card picks: use cards/90, fouls/90, aggression index, and recent yellow card counts.\n"

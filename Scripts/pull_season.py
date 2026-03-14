@@ -139,23 +139,39 @@ def main():
                 # Stage 2: Feature engineering
                 run_script(scripts["feature_eng"], season, f"{lg} feature engineering")
 
-    # Stage 3: Normalize
+    # Stage 3: Normalize (incremental when single season, full when multiple)
     if args.normalize:
         print(f"\n{'='*60}")
-        print("NORMALIZING (00_normalize_to_docs.py --all)")
-        print(f"{'='*60}")
         norm_script = ROOT / "Scripts" / "rag_ingest" / "00_normalize_to_docs.py"
-        cmd = [sys.executable, str(norm_script), "--all"]
-        print(f"  [RUN] {' '.join(cmd)}")
-        subprocess.run(cmd, cwd=str(ROOT))
+        if len(args.season) == 1:
+            # Single season: only normalize files matching that season (fast)
+            season_year = args.season[0]
+            print(f"NORMALIZING (incremental — season {season_year} only)")
+            print(f"{'='*60}")
+            if args.league:
+                for lg in leagues:
+                    cmd = [sys.executable, str(norm_script), "--league", lg, "--season", str(season_year)]
+                    print(f"  [RUN] {' '.join(cmd)}")
+                    subprocess.run(cmd, cwd=str(ROOT))
+            else:
+                cmd = [sys.executable, str(norm_script), "--all", "--season", str(season_year)]
+                print(f"  [RUN] {' '.join(cmd)}")
+                subprocess.run(cmd, cwd=str(ROOT))
+        else:
+            # Multiple seasons: normalize everything
+            print("NORMALIZING (full — multiple seasons)")
+            print(f"{'='*60}")
+            cmd = [sys.executable, str(norm_script), "--all"]
+            print(f"  [RUN] {' '.join(cmd)}")
+            subprocess.run(cmd, cwd=str(ROOT))
 
-    # Stage 4: Embed
+    # Stage 4: Embed (incremental by default — skip-existing is the default behavior)
     if args.embed:
         print(f"\n{'='*60}")
-        print("EMBEDDING (01_embed_and_upsert.py --all-leagues --skip-existing)")
+        print("EMBEDDING (incremental — skipping existing fixtures/players)")
         print(f"{'='*60}")
         embed_script = ROOT / "Scripts" / "rag_ingest" / "01_embed_and_upsert.py"
-        cmd = [sys.executable, str(embed_script), "--all-leagues", "--skip-existing"]
+        cmd = [sys.executable, str(embed_script), "--all-leagues"]
         print(f"  [RUN] {' '.join(cmd)}")
         subprocess.run(cmd, cwd=str(ROOT))
 

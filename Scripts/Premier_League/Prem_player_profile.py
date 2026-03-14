@@ -1,4 +1,4 @@
-# Prem Player Profiles 
+# Prem Player Profiles
 
 import argparse
 import json
@@ -8,6 +8,11 @@ from collections import Counter
 
 import numpy as np
 import pandas as pd
+
+
+# ── Constants ────────────────────────────────────────────────────────────────
+STARTER_MINUTES_THRESHOLD = 60   # >= 60 min = counted as a starter appearance
+RECENT_WINDOW = 5                # last N team fixtures for recent role analysis
 
 
 def parse_args():
@@ -73,7 +78,181 @@ def load_player_fixtures(path: str) -> pd.DataFrame:
     if "minutes" in df.columns:
         df = df[df["minutes"] > 0].copy()
 
+    # Mark starter appearances (>= STARTER_MINUTES_THRESHOLD)
+    if "minutes" in df.columns:
+        df["_is_starter"] = (df["minutes"] >= STARTER_MINUTES_THRESHOLD).astype(int)
+    else:
+        df["_is_starter"] = 0
+
     return df
+
+
+# ── Fix 1: Starter/Sub Role Classification ──────────────────────────────────
+def compute_role_classification(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Per player_id, compute role classification fields from the raw fixture rows.
+    Returns a DataFrame indexed by player_id with new role columns.
+    """
+    role_agg = df.groupby("player_id").agg(
+        appearances_total=("minutes", "count"),
+        appearances_as_starter=("_is_starter", "sum"),
+        avg_minutes_per_appearance=("minutes", "mean"),
+    ).reset_index()
+
+    role_agg["start_rate"] = (
+        role_agg["appearances_as_starter"] / role_agg["appearances_total"]
+    ).round(3)
+
+    role_agg["appearances_as_starter"] = role_agg["appearances_as_starter"].astype(int)
+    role_agg["avg_minutes_per_appearance"] = role_agg["avg_minutes_per_appearance"].round(1)
+
+    return role_agg
+
+
+# ── Fix 2: Starter-Only Per-90 Rates ────────────────────────────────────────
+def compute_starter_per90(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Compute per-90 rates using ONLY starter appearances (>= STARTER_MINUTES_THRESHOLD).
+    This eliminates the sub-appearance rate inflation problem.
+    """
+    starters = df[df["_is_starter"] == 1].copy()
+    if starters.empty:
+        return pd.DataFrame(columns=["player_id"])
+
+    starter_agg = starters.groupby("player_id").agg(
+        starter_minutes=("minutes", "sum"),
+        starter_goals=("goals", "sum"),
+        starter_assists=("assists", "sum"),
+        starter_shots_on=("shots_on", "sum"),
+        starter_shots_total=("shots_total", "sum"),
+        starter_fouls=("fouls_committed", "sum"),
+        starter_cards_total=("cards_total", "sum"),
+    ).reset_index()
+
+    m = starter_agg["starter_minutes"].replace({0: np.nan})
+    starter_agg["starter_goals_per_90"] = (starter_agg["starter_goals"] / (m / 90.0)).round(3)
+    starter_agg["starter_assists_per_90"] = (starter_agg["starter_assists"] / (m / 90.0)).round(3)
+    starter_agg["starter_sot_per_90"] = (starter_agg["starter_shots_on"] / (m / 90.0)).round(3)
+    starter_agg["starter_shots_per_90"] = (starter_agg["starter_shots_total"] / (m / 90.0)).round(3)
+    starter_agg["starter_fouls_per_90"] = (starter_agg["starter_fouls"] / (m / 90.0)).round(3)
+    starter_agg["starter_cards_per_90"] = (starter_agg["starter_cards_total"] / (m / 90.0)).round(3)
+
+    # Drop intermediate sum columns (keep only per-90 rates + starter_minutes)
+    keep_cols = [
+        "player_id", "starter_minutes",
+        "starter_goals_per_90", "starter_assists_per_90",
+        "starter_sot_per_90", "starter_shots_per_90",
+        "starter_fouls_per_90", "starter_cards_per_90",
+    ]
+    return starter_agg[keep_cols]
+
+
+# ── Fix 4: Minutes Risk Score ───────────────────────────────────────────────
+def compute_minutes_risk(row) -> str:
+    """
+    Classify a player's minutes risk based on start_rate and avg minutes.
+    """
+    sr = row.get("start_rate") or 0.0
+    avg_min = row.get("avg_minutes_per_appearance") or 0.0
+
+    if sr >= 0.80 and avg_min >= 75:
+        return "nailed_on"
+    elif sr >= 0.60 and avg_min >= 60:
+        return "likely_starter"
+    elif sr >= 0.30:
+        return "rotation"
+    else:
+        return "bench"
+
+
+# ── Fix 5: Recent Form with Minutes Context ────────────────────────────────
+def compute_recent_minutes_context(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    For each player, look at the last RECENT_WINDOW *team* fixtures and compute:
+    - last_5_minutes: list of minutes played (0 if player did not appear)
+    - recent_starts_last_5: count of starts in those fixtures
+    - recent_role_trend: "starting" / "benched" / "mixed"
+    """
+    # Build per-team fixture ordering.  We use the fixture string as a proxy
+    # for ordering (the engineered features are already sorted chronologically
+    # within the feature engineering pipeline via fixture_date).
+    # First, assign a fixture sequence number per team.
+    team_fixture_order = (
+        df.drop_duplicates(subset=["team", "fixture"])
+          .sort_values(["team", "fixture"])
+          .groupby("team")
+          .cumcount()
+    )
+    # Build a map: (team, fixture) -> sequence_number
+    fixture_seq_df = df.drop_duplicates(subset=["team", "fixture"]).sort_values(["team", "fixture"]).copy()
+    fixture_seq_df["_seq"] = team_fixture_order.values
+
+    # For each team, identify the last RECENT_WINDOW fixtures
+    max_seq = fixture_seq_df.groupby("team")["_seq"].max().reset_index()
+    max_seq.columns = ["team", "_max_seq"]
+
+    fixture_seq_df = fixture_seq_df.merge(max_seq, on="team")
+    recent_fixtures = fixture_seq_df[
+        fixture_seq_df["_seq"] > fixture_seq_df["_max_seq"] - RECENT_WINDOW
+    ][["team", "fixture", "_seq"]].copy()
+
+    # For each player, check which of their team's recent fixtures they appeared in
+    results = []
+    for pid, player_rows in df.groupby("player_id"):
+        team = most_frequent(player_rows["team"])
+        if team is None:
+            results.append({
+                "player_id": pid,
+                "last_5_minutes": [],
+                "recent_starts_last_5": 0,
+                "recent_role_trend": "bench",
+            })
+            continue
+
+        team_recent = recent_fixtures[
+            recent_fixtures["team"].str.lower().str.strip() == str(team).lower().strip()
+        ].sort_values("_seq")
+
+        if team_recent.empty:
+            results.append({
+                "player_id": pid,
+                "last_5_minutes": [],
+                "recent_starts_last_5": 0,
+                "recent_role_trend": "bench",
+            })
+            continue
+
+        # For each recent team fixture, find if the player appeared and how many minutes
+        player_fixture_map = {}
+        for _, pr in player_rows.iterrows():
+            fx_key = str(pr.get("fixture", "")).lower().strip()
+            player_fixture_map[fx_key] = int(pr.get("minutes") or 0)
+
+        last_5_minutes = []
+        starts = 0
+        for _, rf in team_recent.iterrows():
+            fx_key = str(rf["fixture"]).lower().strip()
+            mins = player_fixture_map.get(fx_key, 0)
+            last_5_minutes.append(mins)
+            if mins >= STARTER_MINUTES_THRESHOLD:
+                starts += 1
+
+        # Determine trend from last RECENT_WINDOW team fixtures
+        if starts >= 4:
+            trend = "starting"
+        elif starts <= 1:
+            trend = "benched"
+        else:
+            trend = "mixed"
+
+        results.append({
+            "player_id": pid,
+            "last_5_minutes": last_5_minutes,
+            "recent_starts_last_5": starts,
+            "recent_role_trend": trend,
+        })
+
+    return pd.DataFrame(results)
 
 
 def aggregate_player_profiles(df: pd.DataFrame, league: str, season: str) -> pd.DataFrame:
@@ -81,6 +260,15 @@ def aggregate_player_profiles(df: pd.DataFrame, league: str, season: str) -> pd.
     for col in ["player_id", "name", "team", "position"]:
         if col not in df.columns:
             df[col] = None
+
+    # ── Fix 1: Compute role classification before grouping ───────────────
+    role_df = compute_role_classification(df)
+
+    # ── Fix 2: Compute starter-only per-90 rates ────────────────────────
+    starter_per90_df = compute_starter_per90(df)
+
+    # ── Fix 5: Compute recent minutes context ───────────────────────────
+    recent_ctx_df = compute_recent_minutes_context(df)
 
     # Build aggregation dictionary (sum where per-90 will be computed; mean for ratios/indices)
     agg = {
@@ -133,7 +321,22 @@ def aggregate_player_profiles(df: pd.DataFrame, league: str, season: str) -> pd.
           .reset_index()
     )
 
-    # Per-90s & derived metrics
+    # ── Merge role classification (Fix 1) ────────────────────────────────
+    grouped = grouped.merge(role_df, on="player_id", how="left")
+
+    # ── Merge starter per-90 rates (Fix 2) ──────────────────────────────
+    if not starter_per90_df.empty:
+        grouped = grouped.merge(starter_per90_df, on="player_id", how="left")
+    else:
+        for col in ["starter_minutes", "starter_goals_per_90", "starter_assists_per_90",
+                     "starter_sot_per_90", "starter_shots_per_90",
+                     "starter_fouls_per_90", "starter_cards_per_90"]:
+            grouped[col] = None
+
+    # ── Merge recent minutes context (Fix 5) ────────────────────────────
+    grouped = grouped.merge(recent_ctx_df, on="player_id", how="left")
+
+    # Per-90s & derived metrics (all appearances -- kept for backward compatibility)
     m = grouped["minutes"].replace({0: np.nan})
     grouped["goals_per_90"] = grouped["goals"] / (m / 90.0)
     grouped["assists_per_90"] = grouped["assists"] / (m / 90.0)
@@ -161,7 +364,10 @@ def aggregate_player_profiles(df: pd.DataFrame, league: str, season: str) -> pd.
     grouped["total_yellows"] = grouped.get("yellow_cards", pd.Series([0] * len(grouped)))
     grouped["total_reds"] = grouped.get("red_cards", pd.Series([0] * len(grouped)))
 
-    # Style tags
+    # ── Fix 4: Minutes risk classification ──────────────────────────────
+    grouped["minutes_risk"] = grouped.apply(compute_minutes_risk, axis=1)
+
+    # Style tags (updated to include minutes risk tags)
     def make_style_tags(row):
         tags = []
         if pd.notna(row.get("aggression_index_norm", np.nan)) and row["aggression_index_norm"] > 0.25:
@@ -179,11 +385,19 @@ def aggregate_player_profiles(df: pd.DataFrame, league: str, season: str) -> pd.
             tags.append("shooter")
         if pd.notna(row.get("assists_per_90", np.nan)) and row["assists_per_90"] >= 0.20:
             tags.append("creator")
+        # Minutes risk tag for downstream visibility
+        mr = row.get("minutes_risk", "")
+        if mr == "nailed_on":
+            tags.append("nailed-on-starter")
+        elif mr == "bench":
+            tags.append("bench-player")
+        elif mr == "rotation":
+            tags.append("rotation-risk")
         return tags
 
     grouped["style_tags"] = grouped.apply(make_style_tags, axis=1)
 
-    # Natural-language summary
+    # Natural-language summary (updated to include role and minutes context)
     def summarize_player(row):
         name = row.get("name") or f"Player {row['player_id']}"
         team = row.get("team") or "Unknown Team"
@@ -196,9 +410,29 @@ def aggregate_player_profiles(df: pd.DataFrame, league: str, season: str) -> pd.
         rat = row.get("rating", np.nan)
         cards90 = row.get("cards_per_90_calc", 0.0)
 
+        # New: role context
+        apps = row.get("appearances_total", 0) or 0
+        starts = row.get("appearances_as_starter", 0) or 0
+        sr = row.get("start_rate", 0.0) or 0.0
+        avg_min = row.get("avg_minutes_per_appearance", 0.0) or 0.0
+        mr = row.get("minutes_risk", "unknown")
+        trend = row.get("recent_role_trend", "unknown")
+
+        # Use starter per-90 when available (more accurate for starters)
+        sg90 = row.get("starter_goals_per_90")
+        sa90 = row.get("starter_assists_per_90")
+        rate_label = "all"
+        disp_g90 = goals90 or 0.0
+        disp_a90 = ast90 or 0.0
+        if sg90 is not None and pd.notna(sg90) and starts >= 3:
+            disp_g90 = sg90
+            disp_a90 = sa90 if (sa90 is not None and pd.notna(sa90)) else (ast90 or 0.0)
+            rate_label = "starter"
+
         parts = [
-            f"{name} ({team}) – {pos}",
-            f"{goals90:.2f} G/90, {ast90:.2f} A/90",
+            f"{name} ({team}) - {pos}",
+            f"{disp_g90:.2f} G/90 ({rate_label}), {disp_a90:.2f} A/90 ({rate_label})",
+            f"role: {mr} ({starts}/{apps} starts, avg {avg_min:.0f}min, trend:{trend})",
             f"duel win {duel:.0f}%" if pd.notna(duel) else None,
             f"pass acc {pass_acc:.0f}%" if pd.notna(pass_acc) else None,
             f"cards {cards90:.2f}/90",
@@ -218,10 +452,23 @@ def aggregate_player_profiles(df: pd.DataFrame, league: str, season: str) -> pd.
     col_order_front = [
         "entity_type", "league", "season", "player_id", "name", "team", "position",
         "minutes", "goals", "assists",
+        # All-appearances per-90 (backward compat)
         "goals_per_90", "assists_per_90", "shots_per_90", "sot_per_90",
         "passes_per_90", "pass_accuracy_pct",
         "tackles_per_90", "interceptions_per_90",
         "fouls_per_90_calc", "cards_per_90_calc", "duel_win_pct",
+        # Starter-only per-90 (Fix 2)
+        "starter_minutes", "starter_goals_per_90", "starter_assists_per_90",
+        "starter_sot_per_90", "starter_shots_per_90",
+        "starter_fouls_per_90", "starter_cards_per_90",
+        # Role classification (Fix 1)
+        "appearances_total", "appearances_as_starter", "start_rate",
+        "avg_minutes_per_appearance",
+        # Minutes risk (Fix 4)
+        "minutes_risk",
+        # Recent context (Fix 5)
+        "recent_starts_last_5", "recent_role_trend", "last_5_minutes",
+        # Existing
         "rating", "aggression_index_norm", "form_index", "control_index",
         "expected_foul_pressure", "expected_card_risk",
         "total_yellows", "total_reds", "total_cards",

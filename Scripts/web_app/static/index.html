@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Matchwise — Every pick. Every reason.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <!-- Top Nav -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="logo" role="banner" onclick="navigateTo('home')" style="cursor:pointer">
+        <span class="logo-icon">M</span>
+        <span class="logo-text">Matchwise</span>
+      </div>
+      <nav class="main-nav" aria-label="Main navigation">
+        <button class="nav-btn active" data-view="home">Home</button>
+        <button class="nav-btn" data-view="best-bets">Best Bets</button>
+      </nav>
+      <button class="slip-toggle" id="slipToggleMobile" aria-label="Open bet slip">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 7h6M7 10h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span class="slip-badge" id="slipBadgeNav">0</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+
+      <!-- Home View -->
+      <section class="view" id="viewHome">
+        <div class="hero">
+          <h1 class="hero-title">Every pick. Every reason.</h1>
+          <p class="hero-sub">AI-powered football predictions backed by data across Europe's top leagues.</p>
+        </div>
+        <div class="date-tabs" id="homeDateTabs" role="tablist" aria-label="Date selector">
+          <!-- Rendered by JS -->
+        </div>
+        <div id="homeFixtures">
+          <!-- Rendered by JS -->
+        </div>
+      </section>
+
+      <!-- Best Bets View -->
+      <section class="view hidden" id="viewBestBets">
+        <div class="hero">
+          <h1 class="hero-title">Best Bets</h1>
+          <p class="hero-sub">Top picks across all leagues, sorted by confidence and value edge.</p>
+        </div>
+        <div class="section-header">
+          <h2 class="section-title">Top Picks Today</h2>
+          <span class="section-date" id="bestBetsDate"></span>
+        </div>
+        <div class="card-grid" id="bestBetsList">
+          <!-- Rendered by JS -->
+        </div>
+      </section>
+
+      <!-- Match Detail View -->
+      <section class="view hidden" id="viewMatch">
+        <button class="back-btn" onclick="navigateTo('home')">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Back to fixtures
+        </button>
+        <div id="matchHeader"></div>
+        <div class="card-grid" id="matchMarkets"></div>
+      </section>
+
+    </main>
+
+    <!-- Bet Slip Sidebar (desktop) / Bottom Sheet (mobile) -->
+    <aside class="bet-slip" id="betSlip" aria-label="Bet slip">
+      <div class="slip-header">
+        <h3 class="slip-title">BET SLIP <span class="slip-count" id="slipCount">(0)</span></h3>
+        <button class="slip-clear" id="slipClear" aria-label="Clear all legs">Clear</button>
+      </div>
+      <div class="slip-body" id="slipBody">
+        <div class="slip-empty" id="slipEmpty">
+          <p>No picks added yet.</p>
+          <p class="slip-empty-hint">Tap + on any prediction to build your parlay.</p>
+        </div>
+        <div class="slip-legs" id="slipLegs">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+      <div class="slip-footer" id="slipFooter">
+        <div class="slip-odds-row">
+          <span class="slip-odds-label">Combined Odds</span>
+          <span class="slip-odds-value" id="slipOdds">--</span>
+        </div>
+        <div class="slip-payout-row">
+          <span class="slip-payout-label">$10 returns</span>
+          <span class="slip-payout-value" id="slipPayout">--</span>
+        </div>
+        <button class="slip-score-btn" id="slipScoreBtn">Score My Parlay</button>
+        <div class="slip-quality hidden" id="slipQuality">
+          <div class="quality-bar">
+            <div class="quality-fill" id="qualityFill"></div>
+          </div>
+          <span class="quality-label" id="qualityLabel"></span>
+        </div>
+        <button class="slip-share-btn" id="slipShareBtn">Share Parlay</button>
+      </div>
+    </aside>
+
+    <!-- Mobile slip overlay backdrop -->
+    <div class="slip-backdrop hidden" id="slipBackdrop"></div>
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

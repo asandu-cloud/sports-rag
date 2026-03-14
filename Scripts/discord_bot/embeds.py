@@ -427,6 +427,45 @@ def value_alert_embed(text: str, league: str) -> discord.Embed:
 
 # ── Fallback for unparseable output ──────────────────────────────────────────
 
+def fixture_list_embed(
+    fixtures: list,
+    league: str,
+    date_phrase: str,
+) -> discord.Embed:
+    """Build an embed listing fixtures for a given date."""
+    if not fixtures:
+        em = discord.Embed(
+            title=f"No {league} fixtures on {date_phrase}",
+            description="Try a different date or league.",
+            color=COLOR_BLUE,
+        )
+        return em
+
+    em = discord.Embed(
+        title=f"Fixtures — {league} — {date_phrase}",
+        color=COLOR_BLUE,
+    )
+    lines = []
+    for ev in fixtures:
+        home = ev.get("home_team", "?")
+        away = ev.get("away_team", "?")
+        kick = ev.get("commence_time", "")
+        # Parse kickoff time
+        time_str = ""
+        if kick:
+            try:
+                from datetime import datetime
+                dt = datetime.fromisoformat(kick.replace("Z", "+00:00"))
+                time_str = f" — {dt.strftime('%H:%M')} UTC"
+            except Exception:
+                pass
+        lines.append(f"**{home}** vs **{away}**{time_str}")
+
+    em.description = "\n".join(lines)
+    em.set_footer(text=f"{len(fixtures)} fixture(s) | Use /analyze to drill into a match")
+    return em
+
+
 def _fallback_embeds(
     title: str,
     text: str,

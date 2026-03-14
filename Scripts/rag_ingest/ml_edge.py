@@ -4,7 +4,7 @@ ML edge layer for the betting RAG.
 
 Two components:
 1. Stat-specific Elo ratings per team (goals, corners, cards, SoT)
-2. Regression models (LightGBM with Ridge fallback) predicting match totals per stat type
+2. Regression models (Ridge, or LightGBM for larger datasets) predicting match totals
 
 Both are trained offline from team_engineered_features data and loaded
 lazily at query time. Graceful degradation: returns None when unavailable.
@@ -82,45 +82,19 @@ ELO_PATH = ROOT / "Index" / "elo_ratings.json"
 ELO_START = 1500.0
 ELO_K = 32.0  # Football has ~38 games/season — K=32 responds faster than chess K=16
 
-# Base composite features (available per-match and in team_profile metadata).
+# Minimum sample count to prefer LightGBM over Ridge.
+# Below this threshold, Ridge generalizes better on small data.
+LGB_MIN_SAMPLES = 2000
+
+# Base composite features per team (available per-match and in team_profile metadata).
 TEAM_FEATURES_BASE = [
     "possession", "control_index", "dominance_index", "form_index_team",
     "aggression_index_norm",
     "fouls_committed",   # available per-match and in profiles as fouls_per_90_team
     "expected_goals",    # xG: better predictor than raw goals
     "shots_total",       # total shots — activity marker
+    "shot_on_target_ratio",  # SoT/total shots — quality marker
 ]
-
-# Stat-specific features: each maps to (fixture_row_field, opponent_fixture_row_field).
-# At training time, we use cumulative season averages; at serve time, profile metadata.
-STAT_FEATURE_SETS: Dict[str, List[Tuple[str, str]]] = {
-    "goals": [
-        ("goals", "opp_goals"),            # own goals, opponent goals
-        ("shots_on", "opp_shots_on"),      # SoT predicts goals
-        ("expected_goals", "opp_expected_goals"),
-    ],
-    "corners": [
-        ("corners", "opp_corners"),
-        ("shots_total", "opp_shots_total"),  # shot volume correlates with corners
-    ],
-    "cards": [
-        ("cards_total", "opp_cards_total"),
-        ("fouls_committed", "opp_fouls_committed"),
-    ],
-    "sot": [
-        ("shots_on", "opp_shots_on"),
-        ("shots_total", "opp_shots_total"),
-        ("goals", "opp_goals"),            # goals ↔ SoT correlation
-    ],
-}
-
-# Venue-split features: stat → list of (home_field, away_field) from profile metadata
-VENUE_FEATURES: Dict[str, List[Tuple[str, str]]] = {
-    "goals": [("goals_home_pm", "goals_away_pm")],
-    "corners": [("corners_home_pm", "corners_away_pm")],
-    "cards": [("cards_home_pm", "cards_away_pm")],
-    "sot": [("sot_home_pm", "sot_away_pm")],
-}
 
 # Minimum cross-validated R2 for a model to be used at query time.
 MIN_MODEL_R2 = 0.20
@@ -176,7 +150,7 @@ def _pair_fixtures(rows: List[dict]) -> List[Tuple[dict, dict]]:
 def _sort_pairs_by_date(pairs: List[Tuple[dict, dict]]) -> List[Tuple[dict, dict]]:
     def date_key(pair):
         d = pair[0].get("fixture_date") or pair[1].get("fixture_date") or ""
-        return d
+        return str(d)
     return sorted(pairs, key=date_key)
 
 
@@ -186,95 +160,6 @@ def _safe_float(val, default=0.0) -> float:
         return v if np.isfinite(v) else default
     except (TypeError, ValueError):
         return default
-
-
-# ---------------------------------------------------------------------------
-# Cumulative season-average computation (fixes train/serve distribution skew)
-# ---------------------------------------------------------------------------
-
-def _compute_cumulative_averages(
-    rows: List[dict], league: str,
-) -> List[Tuple[dict, dict, dict, dict]]:
-    """For each fixture pair, compute cumulative season averages up to that point.
-
-    Returns list of (home_avg_row, away_avg_row, home_raw_row, away_raw_row).
-    The avg_rows contain season-average-so-far for each stat, matching the
-    distribution of team_profile metadata seen at serve time.
-    """
-    pairs = _pair_fixtures(rows)
-    pairs = _sort_pairs_by_date(pairs)
-
-    # Accumulate per-team running sums
-    team_sums: Dict[str, Dict[str, float]] = {}
-    team_counts: Dict[str, int] = {}
-
-    # Fields to accumulate
-    accum_fields = [
-        "possession", "control_index", "dominance_index", "form_index_team",
-        "aggression_index_norm", "fouls_committed", "expected_goals",
-        "shots_total", "goals", "corners", "cards_total", "shots_on",
-    ]
-
-    result = []
-    for home_row, away_row in pairs:
-        h_team = (home_row.get("team") or "").lower().strip()
-        a_team = (away_row.get("team") or "").lower().strip()
-        if not h_team or not a_team:
-            continue
-
-        # Compute averages BEFORE updating sums (model sees only past data)
-        h_avg = {}
-        a_avg = {}
-        h_n = team_counts.get(h_team, 0)
-        a_n = team_counts.get(a_team, 0)
-
-        if h_n >= 3:  # Need at least 3 past games for stable averages
-            for fld in accum_fields:
-                h_avg[fld] = team_sums[h_team].get(fld, 0.0) / h_n
-            h_avg["team"] = h_team
-        if a_n >= 3:
-            for fld in accum_fields:
-                a_avg[fld] = team_sums[a_team].get(fld, 0.0) / a_n
-            a_avg["team"] = a_team
-
-        if h_avg and a_avg:
-            # Add opponent stats (what opponent's avg concedes/produces)
-            h_avg["opp_goals"] = a_avg.get("goals", 0.0)
-            h_avg["opp_shots_on"] = a_avg.get("shots_on", 0.0)
-            h_avg["opp_corners"] = a_avg.get("corners", 0.0)
-            h_avg["opp_cards_total"] = a_avg.get("cards_total", 0.0)
-            h_avg["opp_fouls_committed"] = a_avg.get("fouls_committed", 0.0)
-            h_avg["opp_shots_total"] = a_avg.get("shots_total", 0.0)
-            h_avg["opp_expected_goals"] = a_avg.get("expected_goals", 0.0)
-
-            a_avg["opp_goals"] = h_avg.get("goals", 0.0)
-            a_avg["opp_shots_on"] = h_avg.get("shots_on", 0.0)
-            a_avg["opp_corners"] = h_avg.get("corners", 0.0)
-            a_avg["opp_cards_total"] = h_avg.get("cards_total", 0.0)
-            a_avg["opp_fouls_committed"] = h_avg.get("fouls_committed", 0.0)
-            a_avg["opp_shots_total"] = h_avg.get("shots_total", 0.0)
-            a_avg["opp_expected_goals"] = h_avg.get("expected_goals", 0.0)
-
-            result.append((h_avg, a_avg, home_row, away_row))
-
-        # Update running sums with current game
-        if h_team not in team_sums:
-            team_sums[h_team] = {}
-            team_counts[h_team] = 0
-        if a_team not in team_sums:
-            team_sums[a_team] = {}
-            team_counts[a_team] = 0
-
-        for fld in accum_fields:
-            h_val = _safe_float(home_row.get(fld))
-            a_val = _safe_float(away_row.get(fld))
-            team_sums[h_team][fld] = team_sums[h_team].get(fld, 0.0) + h_val
-            team_sums[a_team][fld] = team_sums[a_team].get(fld, 0.0) + a_val
-
-        team_counts[h_team] += 1
-        team_counts[a_team] += 1
-
-    return result
 
 
 # ---------------------------------------------------------------------------
@@ -353,8 +238,8 @@ def _extract_features(home_row: dict, away_row: dict,
                       league: str = "") -> Optional[np.ndarray]:
     """Build feature vector for one fixture.
 
-    Expects home_row/away_row to contain season-average-so-far values
-    (at training time via cumulative averages, at serve time via profile metadata).
+    Uses composite features and activity metrics per team (no same-stat
+    features that would leak target info at training time).
     """
     feats = []
 
@@ -362,20 +247,6 @@ def _extract_features(home_row: dict, away_row: dict,
     for row in [home_row, away_row]:
         for f in TEAM_FEATURES_BASE:
             feats.append(_safe_float(row.get(f)))
-
-    # Stat-specific features (own + opponent)
-    stat_feats = STAT_FEATURE_SETS.get(stat, [])
-    for own_field, opp_field in stat_feats:
-        feats.append(_safe_float(home_row.get(own_field)))
-        feats.append(_safe_float(home_row.get(opp_field)))
-        feats.append(_safe_float(away_row.get(own_field)))
-        feats.append(_safe_float(away_row.get(opp_field)))
-
-    # Venue-split features
-    venue_feats = VENUE_FEATURES.get(stat, [])
-    for home_field, away_field in venue_feats:
-        feats.append(_safe_float(home_row.get(home_field)))
-        feats.append(_safe_float(away_row.get(away_field)))
 
     # Derived features
     h_poss = _safe_float(home_row.get("possession"))
@@ -408,8 +279,11 @@ def _extract_features(home_row: dict, away_row: dict,
 
 def build_regression_models(leagues: Optional[List[str]] = None,
                             elo: Optional[Dict] = None) -> Dict[str, object]:
-    """Train regression models per stat type. Uses LightGBM if available, else Ridge.
-    Returns dict of trained models/pipelines."""
+    """Train regression models per stat type.
+
+    Uses Ridge for datasets < 2000 samples, LightGBM for larger datasets.
+    Returns dict of trained models/pipelines.
+    """
     if not _HAS_SKLEARN:
         print("scikit-learn not available — skipping regression models.")
         return {}
@@ -417,25 +291,25 @@ def build_regression_models(leagues: Optional[List[str]] = None,
     from sklearn.model_selection import TimeSeriesSplit
 
     leagues = leagues or ALL_LEAGUES
-
-    # Collect cumulative-average training data per league
-    all_training_data: List[Tuple[dict, dict, dict, dict, str]] = []
+    all_pairs: List[Tuple[dict, dict, str]] = []
     for league in leagues:
         rows = _load_fixture_rows(league)
-        if not rows:
-            continue
-        cum_data = _compute_cumulative_averages(rows, league)
-        for h_avg, a_avg, h_raw, a_raw in cum_data:
-            all_training_data.append((h_avg, a_avg, h_raw, a_raw, league))
+        if rows:
+            pairs = _pair_fixtures(rows)
+            pairs = _sort_pairs_by_date(pairs)
+            for h, a in pairs:
+                all_pairs.append((h, a, league))
 
-    # Sort by date for time-series CV
-    all_training_data.sort(key=lambda t: t[2].get("fixture_date") or "")
+    # Sort all pairs chronologically for time-series CV
+    all_pairs.sort(key=lambda t: str(t[0].get("fixture_date", "")))
 
-    if len(all_training_data) < 50:
-        print(f"Only {len(all_training_data)} fixtures — too few to train. Need at least 50.")
+    if len(all_pairs) < 50:
+        print(f"Only {len(all_pairs)} fixtures — too few to train. Need at least 50.")
         return {}
 
-    print(f"Training on {len(all_training_data)} fixtures across {len(leagues)} league(s).")
+    use_lgb = _HAS_LGB and len(all_pairs) >= LGB_MIN_SAMPLES
+    model_type = "LightGBM" if use_lgb else "Ridge"
+    print(f"Training on {len(all_pairs)} fixtures across {len(leagues)} league(s) ({model_type}).")
 
     models: Dict[str, object] = {}
     r2_meta: Dict[str, float] = {}
@@ -444,12 +318,12 @@ def build_regression_models(leagues: Optional[List[str]] = None,
     for stat in STAT_TYPES:
         X_list, y_list = [], []
 
-        for h_avg, a_avg, h_raw, a_raw, league in all_training_data:
-            feats = _extract_features(h_avg, a_avg, elo=elo, stat=stat, league=league)
+        for home_row, away_row, league in all_pairs:
+            feats = _extract_features(home_row, away_row, elo=elo, stat=stat, league=league)
             if feats is None:
                 continue
-            h_val = _get_stat_value(h_raw, stat)
-            a_val = _get_stat_value(a_raw, stat)
+            h_val = _get_stat_value(home_row, stat)
+            a_val = _get_stat_value(away_row, stat)
             target = h_val + a_val
             if target <= 0 and stat != "goals":
                 continue  # skip rows with missing stat data
@@ -465,20 +339,15 @@ def build_regression_models(leagues: Optional[List[str]] = None,
 
         tscv = TimeSeriesSplit(n_splits=5)
 
-        if _HAS_LGB:
+        if use_lgb:
             best_model, best_r2 = _train_lgb(X, y, tscv, stat)
         else:
             best_model, best_r2 = _train_ridge(X, y, tscv)
 
-        # Final metrics
-        if _HAS_LGB:
-            r2_scores = cross_val_score(best_model, X, y, cv=tscv, scoring="r2")
-            mae_scores = -cross_val_score(best_model, X, y, cv=tscv, scoring="neg_mean_absolute_error")
-            model_type = "LightGBM"
-        else:
-            r2_scores = cross_val_score(best_model, X, y, cv=tscv, scoring="r2")
-            mae_scores = -cross_val_score(best_model, X, y, cv=tscv, scoring="neg_mean_absolute_error")
-            model_type = "Ridge"
+        # Final metrics with best model
+        r2_scores = cross_val_score(best_model, X, y, cv=TimeSeriesSplit(n_splits=5), scoring="r2")
+        mae_scores = -cross_val_score(best_model, X, y, cv=TimeSeriesSplit(n_splits=5),
+                                       scoring="neg_mean_absolute_error")
 
         print(f"  [{stat}] R2={r2_scores.mean():.3f} (+/-{r2_scores.std():.3f})  "
               f"MAE={mae_scores.mean():.2f} (+/-{mae_scores.std():.2f})  "
@@ -494,7 +363,7 @@ def build_regression_models(leagues: Optional[List[str]] = None,
         r2_meta[stat] = round(float(r2_scores.mean()), 4)
 
         # Save feature importance (LightGBM only)
-        if _HAS_LGB and hasattr(best_model, 'feature_importances_'):
+        if use_lgb and hasattr(best_model, 'feature_importances_'):
             _save_feature_importance(best_model, stat, X.shape[1])
 
     # Save R2 metadata
@@ -504,7 +373,7 @@ def build_regression_models(leagues: Optional[List[str]] = None,
     print(f"Saved {len(models)} models to {MODELS_DIR} (R2 metadata: {r2_meta})")
 
     # Save training history
-    _append_training_history(r2_meta)
+    _append_training_history(r2_meta, model_type)
 
     return models
 
@@ -515,26 +384,18 @@ def _train_lgb(X: np.ndarray, y: np.ndarray, tscv, stat: str) -> Tuple[object, f
     best_r2 = -999.0
 
     param_grid = [
-        {"n_estimators": 200, "max_depth": 4, "learning_rate": 0.05, "min_child_samples": 30},
-        {"n_estimators": 300, "max_depth": 5, "learning_rate": 0.05, "min_child_samples": 20},
-        {"n_estimators": 200, "max_depth": 3, "learning_rate": 0.1, "min_child_samples": 40},
-        {"n_estimators": 400, "max_depth": 6, "learning_rate": 0.03, "min_child_samples": 25},
+        {"n_estimators": 200, "max_depth": 3, "learning_rate": 0.05, "min_child_samples": 40},
+        {"n_estimators": 300, "max_depth": 4, "learning_rate": 0.05, "min_child_samples": 30},
+        {"n_estimators": 100, "max_depth": 3, "learning_rate": 0.1, "min_child_samples": 50},
+        {"n_estimators": 400, "max_depth": 3, "learning_rate": 0.03, "min_child_samples": 40},
     ]
 
     for params in param_grid:
-        model = lgb.LGBMRegressor(
-            verbosity=-1,
-            force_col_wise=True,
-            **params,
-        )
+        model = lgb.LGBMRegressor(verbosity=-1, force_col_wise=True, **params)
         r2_scores = cross_val_score(model, X, y, cv=tscv, scoring="r2")
         if r2_scores.mean() > best_r2:
             best_r2 = r2_scores.mean()
-            best_model = lgb.LGBMRegressor(
-                verbosity=-1,
-                force_col_wise=True,
-                **params,
-            )
+            best_model = lgb.LGBMRegressor(verbosity=-1, force_col_wise=True, **params)
 
     return best_model, best_r2
 
@@ -565,24 +426,7 @@ def _save_feature_importance(model, stat: str, n_features: int) -> None:
     """Save LightGBM feature importance to JSON."""
     try:
         importances = model.feature_importances_
-        # Build feature names
-        names = []
-        for prefix in ["home", "away"]:
-            for f in TEAM_FEATURES_BASE:
-                names.append(f"{prefix}_{f}")
-        stat_feats = STAT_FEATURE_SETS.get(stat, [])
-        for own_field, opp_field in stat_feats:
-            names.extend([f"home_{own_field}", f"home_{opp_field}",
-                          f"away_{own_field}", f"away_{opp_field}"])
-        venue_feats = VENUE_FEATURES.get(stat, [])
-        for home_field, away_field in venue_feats:
-            names.extend([f"home_{home_field}", f"away_{away_field}"])
-        names.append("possession_gap")
-        names.append("elo_diff")
-        for lg in LEAGUE_ONEHOT_ORDER:
-            names.append(f"league_{lg}")
-
-        # Pad or truncate names to match
+        names = _get_feature_names()
         while len(names) < n_features:
             names.append(f"feature_{len(names)}")
         names = names[:n_features]
@@ -597,7 +441,20 @@ def _save_feature_importance(model, stat: str, n_features: int) -> None:
         pass  # Non-critical
 
 
-def _append_training_history(r2_meta: Dict[str, float]) -> None:
+def _get_feature_names() -> List[str]:
+    """Build feature name list matching _extract_features() output order."""
+    names = []
+    for prefix in ["home", "away"]:
+        for f in TEAM_FEATURES_BASE:
+            names.append(f"{prefix}_{f}")
+    names.append("possession_gap")
+    names.append("elo_diff")
+    for lg in LEAGUE_ONEHOT_ORDER:
+        names.append(f"league_{lg}")
+    return names
+
+
+def _append_training_history(r2_meta: Dict[str, float], model_type: str) -> None:
     """Append R2 metrics to training history log."""
     from datetime import datetime
     history_path = MODELS_DIR / "training_history.json"
@@ -611,7 +468,7 @@ def _append_training_history(r2_meta: Dict[str, float]) -> None:
 
     entry = {
         "timestamp": datetime.now().isoformat(),
-        "model_type": "lightgbm" if _HAS_LGB else "ridge",
+        "model_type": model_type.lower(),
         "r2": r2_meta,
     }
     history.append(entry)
@@ -721,9 +578,7 @@ def ml_predict_total(home: str, away: str, league: str, stat: str,
         return None
 
     elo = _load_elo()
-    # Build a synthetic "fixture row" from profile metadata for feature extraction.
-    # Profile metadata contains season averages — same distribution as training
-    # (which now uses cumulative season averages instead of raw per-match values).
+    # Build a synthetic "fixture row" from profile metadata for feature extraction
     home_row = _profile_meta_to_fixture_row(home_meta, home)
     away_row = _profile_meta_to_fixture_row(away_meta, away)
 
@@ -731,7 +586,17 @@ def ml_predict_total(home: str, away: str, league: str, stat: str,
     if feats is None:
         return None
     try:
-        pred = float(model.predict([feats])[0])
+        # For Ridge models, clip features to ±2σ of training distribution to
+        # handle train/serve distribution skew (per-match values vs season averages).
+        # LightGBM models handle this naturally via tree splits.
+        if hasattr(model, 'named_steps') and "scaler" in model.named_steps:
+            scaler = model.named_steps["scaler"]
+            feats_input = np.clip(feats,
+                                  scaler.mean_ - 2.0 * scaler.scale_,
+                                  scaler.mean_ + 2.0 * scaler.scale_)
+        else:
+            feats_input = feats
+        pred = float(model.predict([feats_input])[0])
         lo, hi = PRED_CLAMP.get(stat, (0.0, 20.0))
         return max(lo, min(hi, pred))
     except Exception:
@@ -742,13 +607,11 @@ def _profile_meta_to_fixture_row(meta: dict, team_name: str) -> dict:
     """Convert Chroma team_profile metadata to a fixture-like row for feature extraction.
 
     Maps profile metadata field names to the fixture-row field names expected by
-    _extract_features(). Training uses cumulative season averages, so profile
-    metadata (which is also season averages) has the same distribution — no
-    train/serve skew.
+    _extract_features(). The ±2σ clipping in ml_predict_total() handles the
+    distribution difference between per-match training values and season averages.
     """
     return {
         "team": team_name,
-        # Base features
         "possession": meta.get("possession"),
         "control_index": meta.get("control_index"),
         "dominance_index": meta.get("dominance_index"),
@@ -757,29 +620,18 @@ def _profile_meta_to_fixture_row(meta: dict, team_name: str) -> dict:
         "fouls_committed": meta.get("fouls_per_90_team", 10.0),
         "expected_goals": meta.get("xg_home_pm") or meta.get("goals_for_pm", 1.3),
         "shots_total": meta.get("shots_for_pm", 10.0),
-        # Stat-specific features (own side)
-        "goals": meta.get("goals_for_pm", 1.3),
-        "corners": meta.get("corners_pm", 5.0),
-        "cards_total": meta.get("cards_per_90_team", 2.0),
-        "shots_on": meta.get("sot_for_pm", 4.0),
-        # Stat-specific features (opponent side — from opponent-join aggregations)
-        "opp_goals": meta.get("goals_against_pm", 1.3),
-        "opp_shots_on": meta.get("sot_against_pm", 4.0),
-        "opp_corners": meta.get("corners_against_pm", 5.0),
-        "opp_cards_total": meta.get("opp_cards_induced_pm", 2.0),
-        "opp_fouls_committed": meta.get("fouls_per_90_team", 10.0),  # approx
-        "opp_shots_total": meta.get("shots_for_pm", 10.0),  # approx
-        "opp_expected_goals": meta.get("xg_away_pm") or meta.get("goals_against_pm", 1.3),
-        # Venue-split features
-        "goals_home_pm": meta.get("goals_home_pm"),
-        "goals_away_pm": meta.get("goals_away_pm"),
-        "corners_home_pm": meta.get("corners_home_pm"),
-        "corners_away_pm": meta.get("corners_away_pm"),
-        "cards_home_pm": meta.get("cards_home_pm"),
-        "cards_away_pm": meta.get("cards_away_pm"),
-        "sot_home_pm": meta.get("sot_home_pm"),
-        "sot_away_pm": meta.get("sot_away_pm"),
+        "shot_on_target_ratio": meta.get("shot_on_target_ratio",
+                                          _compute_sot_ratio(meta)),
     }
+
+
+def _compute_sot_ratio(meta: dict) -> float:
+    """Compute SoT ratio from profile metadata when not directly available."""
+    sot = _safe_float(meta.get("sot_for_pm"))
+    shots = _safe_float(meta.get("shots_for_pm"))
+    if shots > 0:
+        return sot / shots
+    return 0.35  # default
 
 
 # ---------------------------------------------------------------------------
@@ -842,8 +694,7 @@ def main():
         elo = build_elo_ratings(leagues)
         save_elo(elo)
         print()
-        model_type = "LightGBM" if _HAS_LGB else "Ridge"
-        print(f"Training {model_type} regression models...")
+        print("Training regression models...")
         build_regression_models(leagues, elo=elo)
         print("\nDone.")
 
@@ -898,24 +749,27 @@ def main():
         print("Running cross-validation (no model save)...")
         elo = _load_elo() or build_elo_ratings(leagues)
 
-        # Use cumulative averages for CV to match train/serve distribution
-        all_training_data = []
+        all_pairs: List[Tuple[dict, dict, str]] = []
         for league in (leagues or ALL_LEAGUES):
             rows = _load_fixture_rows(league)
             if rows:
-                cum_data = _compute_cumulative_averages(rows, league)
-                for h_avg, a_avg, h_raw, a_raw in cum_data:
-                    all_training_data.append((h_avg, a_avg, h_raw, a_raw, league))
-        all_training_data.sort(key=lambda t: t[2].get("fixture_date") or "")
+                pairs = _pair_fixtures(rows)
+                pairs = _sort_pairs_by_date(pairs)
+                for h, a in pairs:
+                    all_pairs.append((h, a, league))
+        all_pairs.sort(key=lambda t: str(t[0].get("fixture_date", "")))
+
+        use_lgb = _HAS_LGB and len(all_pairs) >= LGB_MIN_SAMPLES
+        model_type = "LightGBM" if use_lgb else "Ridge"
 
         for stat in STAT_TYPES:
             X_list, y_list = [], []
-            for h_avg, a_avg, h_raw, a_raw, league in all_training_data:
-                feats = _extract_features(h_avg, a_avg, elo=elo, stat=stat, league=league)
+            for home_row, away_row, league in all_pairs:
+                feats = _extract_features(home_row, away_row, elo=elo, stat=stat, league=league)
                 if feats is None:
                     continue
-                h_val = _get_stat_value(h_raw, stat)
-                a_val = _get_stat_value(a_raw, stat)
+                h_val = _get_stat_value(home_row, stat)
+                a_val = _get_stat_value(away_row, stat)
                 target = h_val + a_val
                 if target <= 0 and stat != "goals":
                     continue
@@ -926,15 +780,13 @@ def main():
             y = np.array(y_list)
             tscv = TimeSeriesSplit(n_splits=5)
 
-            if _HAS_LGB:
+            if use_lgb:
                 model = lgb.LGBMRegressor(
-                    n_estimators=200, max_depth=4, learning_rate=0.05,
-                    min_child_samples=30, verbosity=-1, force_col_wise=True,
+                    n_estimators=100, max_depth=3, learning_rate=0.1,
+                    min_child_samples=50, verbosity=-1, force_col_wise=True,
                 )
-                model_type = "LightGBM"
             else:
                 model = Pipeline([("scaler", StandardScaler()), ("ridge", Ridge(alpha=50.0))])
-                model_type = "Ridge"
 
             r2 = cross_val_score(model, X, y, cv=tscv, scoring="r2")
             mae = -cross_val_score(model, X, y, cv=tscv, scoring="neg_mean_absolute_error")

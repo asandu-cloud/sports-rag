@@ -110,9 +110,22 @@ cards_home_pm (team profile): Average cards received per match in HOME fixtures 
 cards_away_pm (team profile): Average cards received per match in AWAY fixtures only.
 sot_against_pm (team profile): Average shots on target conceded per match (season). Opponent-join aggregation.
 
+Player Role & Minutes Context (player profile):
+- appearances_total: Total appearances across all fixtures (any minutes > 0).
+- appearances_as_starter: Count of appearances with >= 60 minutes played.
+- start_rate: appearances_as_starter / appearances_total (0.0 to 1.0).
+- avg_minutes_per_appearance: Total minutes / appearances_total.
+- minutes_risk: Categorical risk label — "nailed_on" (SR>=0.80, avg>=75min), "likely_starter" (SR>=0.60, avg>=60min), "rotation" (SR>=0.30), "bench" (SR<0.30).
+- recent_starts_last_5: How many of the team's last 5 fixtures the player started (>= 60 min).
+- recent_role_trend: "starting" (4-5 of last 5), "benched" (0-1 of last 5), "mixed" (2-3 of last 5).
+- last_5_minutes: List of minutes played in each of the team's last 5 fixtures (0 if player did not appear).
+- starter_goals_per_90 / starter_sot_per_90 / etc.: Per-90 rates computed ONLY from appearances >= 60 min. Eliminates sub-appearance rate inflation.
+- goals_per_90 / sot_per_90 / etc. (without starter_ prefix): Per-90 rates from ALL appearances (backward compatible, may be inflated by short subs).
+
 Notes:
 - *_pm means per-match season averages.
 - Fixture-level 'Against' values are joined from the opponent's row for the same fixture.
+- Starter-only per-90 rates are preferred for player prop analysis; all-appearances rates are kept for backward compatibility.
 """
     path = Path(out_dir) / "variable_dictionary.txt"
     Path(out_dir).mkdir(parents=True, exist_ok=True)
@@ -174,16 +187,51 @@ def doc_from_player_engineered(row: dict, league: str, season: str, source_file:
 def doc_from_player_profile(row: dict, season_hint: Optional[str], source_file: str) -> dict:
     league = row.get("league")
     season = row.get("season") or season_hint
+
+    # Style tags may be a list or a string; normalize to list
+    style_tags = row.get("style_tags", [])
+    if isinstance(style_tags, str):
+        style_tags = [t.strip() for t in style_tags.split(",") if t.strip()]
+
+    # Role / minutes context lines (Fix 1, 4, 5 — graceful when fields absent)
+    apps_total = row.get("appearances_total")
+    apps_starter = row.get("appearances_as_starter")
+    start_rate = row.get("start_rate")
+    avg_min = row.get("avg_minutes_per_appearance")
+    minutes_risk = row.get("minutes_risk")
+    recent_starts = row.get("recent_starts_last_5")
+    recent_trend = row.get("recent_role_trend")
+
+    role_line = ""
+    if apps_total is not None:
+        role_line = (
+            f"Role: {minutes_risk or 'unknown'} | "
+            f"Apps:{apps_total} Starts:{apps_starter} StartRate:{start_rate} AvgMin:{avg_min} "
+            f"RecentStarts(5):{recent_starts} Trend:{recent_trend}\n"
+        )
+
+    # Starter-only per-90 line (Fix 2 — graceful when fields absent)
+    starter_line = ""
+    sg90 = row.get("starter_goals_per_90")
+    if sg90 is not None:
+        starter_line = (
+            f"StarterOnly G/90:{sg90} A/90:{row.get('starter_assists_per_90')} "
+            f"Shots/90:{row.get('starter_shots_per_90')} SoT/90:{row.get('starter_sot_per_90')} "
+            f"Fouls/90:{row.get('starter_fouls_per_90')} Cards/90:{row.get('starter_cards_per_90')}\n"
+        )
+
     text = (
         f"{league} {season} | Player Profile\n"
         f"{row.get('name')} (id:{row.get('player_id')}, {row.get('team')}) – pos:{row.get('position')} rating:{row.get('rating')}\n"
+        f"{role_line}"
         f"G/90:{row.get('goals_per_90')} A/90:{row.get('assists_per_90')} Shots/90:{row.get('shots_per_90')} SoT/90:{row.get('sot_per_90')} "
         f"Passes/90:{row.get('passes_per_90')} Acc%:{row.get('pass_accuracy_pct')}\n"
+        f"{starter_line}"
         f"Tkl/90:{row.get('tackles_per_90')} Int/90:{row.get('interceptions_per_90')} Fouls/90:{row.get('fouls_per_90_calc')} "
         f"Cards/90:{row.get('cards_per_90_calc')} DuelWin%:{row.get('duel_win_pct')}\n"
         f"FormIdx:{row.get('form_index')} AggIdx:{row.get('aggression_index_norm')} CtrlIdx:{row.get('control_index')} "
         f"CardRiskExp:{row.get('expected_card_risk')} FoulPressureExp:{row.get('expected_foul_pressure')}\n"
-        f"Tags: {', '.join(row.get('style_tags', []))}\n"
+        f"Tags: {', '.join(style_tags)}\n"
         f"Summary: {row.get('summary_nl')}"
     )
     meta = {
@@ -194,6 +242,13 @@ def doc_from_player_profile(row: dict, season_hint: Optional[str], source_file: 
         "player_name": row.get("name"),
         "position": row.get("position"),
         "source_file": source_file,
+        # New metadata fields for downstream filtering (Fix 1, 4)
+        "minutes_risk": minutes_risk,
+        "start_rate": float(start_rate) if start_rate is not None else None,
+        "appearances_total": _maybe_int(apps_total),
+        "appearances_as_starter": _maybe_int(apps_starter),
+        "avg_minutes_per_appearance": float(avg_min) if avg_min is not None else None,
+        "recent_role_trend": recent_trend,
     }
     uid = make_doc_id([league, season, "player_profile", meta["player_id"]])
     return {"id": uid, "text": text, "metadata": meta}
@@ -993,6 +1048,8 @@ def discover_fe_dirs(output_root: str) -> List[Path]:
 
 
 def main():
+    import time as _time
+
     parser = argparse.ArgumentParser(description="Normalize feature-engineering output into RAG docs.")
     parser.add_argument(
         "--league",
@@ -1004,8 +1061,13 @@ def main():
         "--all", dest="all_leagues", action="store_true",
         help="Explicitly normalize all discovered leagues (same as omitting --league).",
     )
+    parser.add_argument(
+        "--season", type=int, default=None,
+        help="Restrict to a specific season year (e.g. 2025). Normalizes only files matching that year.",
+    )
     args = parser.parse_args()
 
+    t_start = _time.time()
     os.makedirs(INDEX_DIR, exist_ok=True)
 
     fe_dirs = discover_fe_dirs(OUTPUT_ROOT)
@@ -1023,20 +1085,47 @@ def main():
             )
 
     total = 0
+    normalized_count = 0
+    skipped_season = 0
     for d in fe_dirs:
         league = league_from_dir(d.name) or "UNKNOWN"
+
+        # Season filter: skip directories whose data files don't match the requested season
+        if args.season is not None:
+            season_files = list(d.glob(f"*_{args.season}.json")) + list(d.glob(f"*_{args.season}.jsonl"))
+            if not season_files:
+                skipped_season += 1
+                continue
+
+        t_dir = _time.time()
         docs = normalize_feature_engineering_dir(str(d))
         season_token = "unknown"
         if docs:
             s = next((x["metadata"].get("season") for x in docs if x["metadata"].get("season")), None)
             season_token = s.replace("/", "_") if isinstance(s, str) else "unknown"
+
+        # Season filter at doc level: if --season specified, only keep docs matching that season
+        if args.season is not None and docs:
+            target_season = euro_season_from_year(args.season)
+            docs = [doc for doc in docs if doc.get("metadata", {}).get("season") == target_season
+                    or doc.get("metadata", {}).get("doc_type") == "data_dictionary"]
+            if docs:
+                season_token = target_season.replace("/", "_")
+
         out_path = Path(INDEX_DIR) / f"normalized_{league}_{season_token}.json"
         with open(out_path, "w") as f:
             json.dump(docs, f, ensure_ascii=False)
-        print(f"[{d.name}] -> {len(docs)} docs -> {out_path}")
+        elapsed = _time.time() - t_dir
+        skipped_players = sum(1 for doc in docs if doc.get("metadata", {}).get("doc_type") == "player_fixture"
+                              and doc.get("metadata", {}).get("minutes", 99) < 15)
+        print(f"[{elapsed:.1f}s] [{d.name}] -> {len(docs)} docs -> {out_path}")
         total += len(docs)
+        normalized_count += 1
 
-    print(f"Total docs: {total}")
+    t_total = _time.time() - t_start
+    print(f"\nDone in {t_total:.1f}s. Normalized {normalized_count} directories, {total:,} total docs.")
+    if skipped_season:
+        print(f"  Skipped {skipped_season} directories (no files matching season {args.season}).")
 
 if __name__ == "__main__":
     main()
