@@ -29,6 +29,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from config import COLOR_BLUE, COLOR_RED
 from embeds import (
+    live_bets_embed,
+    live_bets_all_embed,
     live_fixtures_embed,
     live_prob_embed,
     live_scoreboard_embed,
@@ -259,6 +261,155 @@ class LiveCommandsCog(commands.Cog):
 
         em = live_stats_embed(snapshot, state)
         await interaction.response.send_message(embed=em)
+
+
+    # ------------------------------------------------------------------
+    # /livebets <match> — recommended live bets for one fixture
+    # ------------------------------------------------------------------
+
+    @app_commands.command(
+        name="livebets",
+        description="Get recommended live bets for a match",
+    )
+    @app_commands.describe(match="Team name or partial match (e.g. 'Arsenal')")
+    async def livebets(self, interaction: discord.Interaction, match: str) -> None:
+        poller = self._get_poller()
+        if poller is None:
+            await interaction.response.send_message(
+                "Live poller is not running.", ephemeral=True,
+            )
+            return
+
+        fixture = self._find_fixture(match)
+        if fixture is None:
+            active = poller.get_active_fixtures()
+            if not active:
+                msg = "No matches are currently live."
+            else:
+                fixture_list = "\n".join(
+                    f"  {f.get('home', '?')} vs {f.get('away', '?')} [{f.get('league', '')}]"
+                    for f in active
+                )
+                msg = f"No live match found for '{match}'. Currently live:\n```\n{fixture_list}\n```"
+            await interaction.response.send_message(msg, ephemeral=True)
+            return
+
+        fid = fixture["fixture_id"]
+        state = poller.get_state(fid)
+        snapshot = poller.get_snapshot(fid)
+
+        if snapshot is None:
+            await interaction.response.send_message(
+                "Projections not yet available. Waiting for first data update.",
+                ephemeral=True,
+            )
+            return
+
+        em = live_bets_embed(snapshot, state)
+        await interaction.response.send_message(embed=em)
+
+    # ------------------------------------------------------------------
+    # /livebetsall — best live bets across ALL live fixtures
+    # ------------------------------------------------------------------
+
+    @app_commands.command(
+        name="livebetsall",
+        description="Best live bets across all currently live matches",
+    )
+    async def livebetsall(self, interaction: discord.Interaction) -> None:
+        poller = self._get_poller()
+        if poller is None:
+            await interaction.response.send_message(
+                "Live poller is not running.", ephemeral=True,
+            )
+            return
+
+        await interaction.response.defer(thinking=True)
+
+        active = poller.get_active_fixtures()
+        if not active:
+            await interaction.followup.send("No matches are currently live.")
+            return
+
+        # Collect picks from each fixture
+        fixtures_with_picks = []
+        for f in active:
+            fid = f["fixture_id"]
+            snapshot = poller.get_snapshot(fid)
+            state = poller.get_state(fid)
+            if snapshot is None:
+                continue
+
+            # Extract picks using the same logic as live_bets_embed
+            picks = _extract_live_picks(snapshot, state)
+            if picks:
+                fixtures_with_picks.append({"snapshot": snapshot, "picks": picks})
+
+        embeds = live_bets_all_embed(fixtures_with_picks)
+        for em in embeds[:10]:
+            await interaction.followup.send(embed=em)
+
+
+def _extract_live_picks(snapshot, state) -> list:
+    """Extract ranked live bet picks from a snapshot (same logic as live_bets_embed)."""
+    picks = []
+
+    prob_goals = getattr(snapshot, "prob_over_goals", {}) or {}
+    proj_goals = getattr(snapshot, "projected_total_goals", None)
+    for line_str, prob in prob_goals.items():
+        observed = getattr(state, "total_goals", 0) if hasattr(state, "total_goals") else 0
+        if prob >= 0.60:
+            picks.append({"market": f"Over {line_str} Goals", "prob": prob,
+                          "confidence": "Strong Edge" if prob >= 0.75 else "Leaning",
+                          "color": "high" if prob >= 0.75 else "medium",
+                          "reason": f"Projected {proj_goals:.1f} total ({observed} so far)" if proj_goals else ""})
+        elif (1.0 - prob) >= 0.65:
+            picks.append({"market": f"Under {line_str} Goals", "prob": 1.0 - prob,
+                          "confidence": "Strong Edge" if (1.0 - prob) >= 0.80 else "Leaning",
+                          "color": "high" if (1.0 - prob) >= 0.80 else "medium",
+                          "reason": f"Projected {proj_goals:.1f} total" if proj_goals else ""})
+
+    prob_corners = getattr(snapshot, "prob_over_corners", {}) or {}
+    proj_corners = getattr(snapshot, "projected_total_corners", None)
+    for line_str, prob in prob_corners.items():
+        observed = getattr(state, "total_corners", 0) if hasattr(state, "total_corners") else 0
+        if prob >= 0.62:
+            picks.append({"market": f"Over {line_str} Corners", "prob": prob,
+                          "confidence": "Strong Edge" if prob >= 0.75 else "Leaning",
+                          "color": "high" if prob >= 0.75 else "medium",
+                          "reason": f"Projected {proj_corners:.1f} total ({observed} so far)" if proj_corners else ""})
+
+    btts = getattr(snapshot, "btts_prob", None)
+    pre_btts = getattr(snapshot, "pre_match_btts_prob", None)
+    if btts is not None:
+        goals_h = getattr(state, "goals_home", 0) if hasattr(state, "goals_home") else 0
+        goals_a = getattr(state, "goals_away", 0) if hasattr(state, "goals_away") else 0
+        if not (goals_h >= 1 and goals_a >= 1):
+            if btts >= 0.60:
+                picks.append({"market": "BTTS Yes", "prob": btts,
+                              "confidence": "Strong Edge" if btts >= 0.75 else "Leaning",
+                              "color": "high" if btts >= 0.75 else "medium",
+                              "reason": f"P(BTTS) = {btts:.0%} (was {pre_btts:.0%})" if pre_btts else f"P(BTTS) = {btts:.0%}"})
+            elif (1.0 - btts) >= 0.65:
+                picks.append({"market": "BTTS No", "prob": 1.0 - btts,
+                              "confidence": "Strong Edge" if (1.0 - btts) >= 0.80 else "Leaning",
+                              "color": "high" if (1.0 - btts) >= 0.80 else "medium",
+                              "reason": f"P(BTTS No) = {1.0 - btts:.0%}"})
+
+    ml = getattr(snapshot, "moneyline", None)
+    if ml:
+        best = max(ml.items(), key=lambda x: x[1])
+        home = getattr(snapshot, "home_team", "?")
+        away = getattr(snapshot, "away_team", "?")
+        label = {"home_win": f"{home} Win", "draw": "Draw", "away_win": f"{away} Win"}.get(best[0], best[0])
+        if best[1] >= 0.55:
+            picks.append({"market": label, "prob": best[1],
+                          "confidence": "Strong Edge" if best[1] >= 0.70 else "Leaning",
+                          "color": "high" if best[1] >= 0.70 else "medium",
+                          "reason": f"Model: {best[1]:.0%}"})
+
+    picks.sort(key=lambda p: p["prob"], reverse=True)
+    return picks[:4]
 
 
 async def setup(bot: commands.Bot) -> None:

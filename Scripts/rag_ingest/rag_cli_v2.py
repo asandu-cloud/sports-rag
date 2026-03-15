@@ -132,6 +132,17 @@ except ImportError:
     except ImportError:
         _HAS_PLAYER_PROJ = False
 
+try:
+    from prediction_tracker import log_from_render_output as _log_predictions
+    _HAS_TRACKER = True
+except ImportError:
+    try:
+        from Scripts.rag_ingest.prediction_tracker import log_from_render_output as _log_predictions
+        _HAS_TRACKER = True
+    except ImportError:
+        _HAS_TRACKER = False
+        def _log_predictions(*a, **kw): return 0
+
 
 load_dotenv()
 
@@ -6668,6 +6679,8 @@ def answer_once(user_q: str, default_league: str = "EPL") -> None:
         out = _handle_moneyline(user_q, c, events, notes)
         print(out)
         add_chat_turn(raw_user_q, out)
+        if _HAS_TRACKER:
+            _log_predictions(out, c.league, events)
         memory["last_intent"] = INTENT_MONEYLINE
         return
 
@@ -6675,24 +6688,32 @@ def answer_once(user_q: str, default_league: str = "EPL") -> None:
         out = _handle_spreads_line(user_q, c, events, notes)
         print(out)
         add_chat_turn(raw_user_q, out)
+        if _HAS_TRACKER:
+            _log_predictions(out, c.league, events)
         return
 
     if top_intent == INTENT_TOTALS_LINE:
         out = _handle_totals_line(user_q, c, events, notes)
         print(out)
         add_chat_turn(raw_user_q, out)
+        if _HAS_TRACKER:
+            _log_predictions(out, c.league, events)
         return
 
     if top_intent == INTENT_BTTS:
         out = _handle_btts(user_q, c, events, notes)
         print(out)
         add_chat_turn(raw_user_q, out)
+        if _HAS_TRACKER:
+            _log_predictions(out, c.league, events)
         return
 
     if top_intent == INTENT_CORRECT_SCORE:
         out = _handle_correct_score(user_q, c, events, notes)
         print(out)
         add_chat_turn(raw_user_q, out)
+        if _HAS_TRACKER:
+            _log_predictions(out, c.league, events)
         memory["last_intent"] = INTENT_CORRECT_SCORE
         return
 
@@ -6700,6 +6721,8 @@ def answer_once(user_q: str, default_league: str = "EPL") -> None:
         out = _handle_team_totals(user_q, c, events, notes)
         print(out)
         add_chat_turn(raw_user_q, out)
+        if _HAS_TRACKER:
+            _log_predictions(out, c.league, events)
         return
 
     if top_intent == INTENT_PLAYER_PROP:
@@ -6808,6 +6831,10 @@ def answer_once(user_q: str, default_league: str = "EPL") -> None:
         llm_why=llm_why,
     )
     print(out)
+    # Parlays are NOT logged to the track record — they are user-requested
+    # compositions optimized for odds targets, not standalone model opinions.
+    # Only standalone market workflows (goals, corners, cards, SoT, BTTS,
+    # moneyline, spreads) are tracked for accuracy.
 
     memory["last_selected_event_ids"] = [x.event_id for x in selected]
     memory["last_selected_fixtures"] = [x.fixture for x in selected]

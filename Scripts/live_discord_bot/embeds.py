@@ -765,6 +765,222 @@ def live_prob_embed(
 # G. Live Stats Embed (raw stats for /livestats)
 # ---------------------------------------------------------------------------
 
+def live_bets_embed(snapshot: Any, state: Any) -> discord.Embed:
+    """Recommended live bets for a fixture based on current projections."""
+    home = getattr(snapshot, "home_team", "?")
+    away = getattr(snapshot, "away_team", "?")
+    league = getattr(snapshot, "league", "")
+    elapsed = getattr(snapshot, "elapsed_min", 0)
+    score = getattr(snapshot, "score", "? - ?")
+
+    em = discord.Embed(
+        title=f"\U0001f4b0 Live Bets \u2014 {home} {score} {away} ({elapsed:.0f}')",
+        color=COLOR_GREEN,
+    )
+
+    picks = []
+
+    # --- Goals picks ---
+    prob_goals = getattr(snapshot, "prob_over_goals", {}) or {}
+    pre_goals = getattr(snapshot, "pre_match_total_goals", None)
+    proj_goals = getattr(snapshot, "projected_total_goals", None)
+    for line_str, prob in sorted(prob_goals.items(), key=lambda x: float(x[0])):
+        line = float(line_str)
+        observed = getattr(state, "total_goals", 0) if hasattr(state, "total_goals") else 0
+        if prob >= 0.60:
+            picks.append({
+                "market": f"\u26bd Over {line_str} Goals",
+                "prob": prob,
+                "confidence": "Strong Edge" if prob >= 0.75 else "Leaning",
+                "color": "high" if prob >= 0.75 else "medium",
+                "reason": f"Projected {_f1(proj_goals)} total ({observed} so far, {_f1(getattr(snapshot, 'remaining_goals', None))} remaining)",
+            })
+        elif (1.0 - prob) >= 0.65:
+            picks.append({
+                "market": f"\u26bd Under {line_str} Goals",
+                "prob": 1.0 - prob,
+                "confidence": "Strong Edge" if (1.0 - prob) >= 0.80 else "Leaning",
+                "color": "high" if (1.0 - prob) >= 0.80 else "medium",
+                "reason": f"Projected {_f1(proj_goals)} total ({observed} so far)",
+            })
+
+    # --- Corners picks ---
+    prob_corners = getattr(snapshot, "prob_over_corners", {}) or {}
+    proj_corners = getattr(snapshot, "projected_total_corners", None)
+    for line_str, prob in sorted(prob_corners.items(), key=lambda x: float(x[0])):
+        line = float(line_str)
+        observed = getattr(state, "total_corners", 0) if hasattr(state, "total_corners") else 0
+        if prob >= 0.62:
+            picks.append({
+                "market": f"\U0001f4d0 Over {line_str} Corners",
+                "prob": prob,
+                "confidence": "Strong Edge" if prob >= 0.75 else "Leaning",
+                "color": "high" if prob >= 0.75 else "medium",
+                "reason": f"Projected {_f1(proj_corners)} total ({observed} so far)",
+            })
+        elif (1.0 - prob) >= 0.68:
+            picks.append({
+                "market": f"\U0001f4d0 Under {line_str} Corners",
+                "prob": 1.0 - prob,
+                "confidence": "Strong Edge" if (1.0 - prob) >= 0.80 else "Leaning",
+                "color": "high" if (1.0 - prob) >= 0.80 else "medium",
+                "reason": f"Projected {_f1(proj_corners)} total ({observed} so far)",
+            })
+
+    # --- Cards picks ---
+    prob_cards = getattr(snapshot, "prob_over_cards", {}) or {}
+    proj_cards = getattr(snapshot, "projected_total_cards", None)
+    for line_str, prob in sorted(prob_cards.items(), key=lambda x: float(x[0])):
+        observed = getattr(state, "total_cards", 0) if hasattr(state, "total_cards") else 0
+        if prob >= 0.62:
+            picks.append({
+                "market": f"\U0001f7e8 Over {line_str} Cards",
+                "prob": prob,
+                "confidence": "Strong Edge" if prob >= 0.75 else "Leaning",
+                "color": "high" if prob >= 0.75 else "medium",
+                "reason": f"Projected {_f1(proj_cards)} total ({observed} so far)",
+            })
+        elif (1.0 - prob) >= 0.68:
+            picks.append({
+                "market": f"\U0001f7e8 Under {line_str} Cards",
+                "prob": 1.0 - prob,
+                "confidence": "Strong Edge" if (1.0 - prob) >= 0.80 else "Leaning",
+                "color": "high" if (1.0 - prob) >= 0.80 else "medium",
+                "reason": f"Projected {_f1(proj_cards)} total ({observed} so far)",
+            })
+
+    # --- BTTS pick ---
+    btts_prob = getattr(snapshot, "btts_prob", None)
+    pre_btts = getattr(snapshot, "pre_match_btts_prob", None)
+    if btts_prob is not None:
+        goals_h = getattr(state, "goals_home", 0) if hasattr(state, "goals_home") else 0
+        goals_a = getattr(state, "goals_away", 0) if hasattr(state, "goals_away") else 0
+        if goals_h >= 1 and goals_a >= 1:
+            pass  # BTTS already hit, no pick needed
+        elif btts_prob >= 0.60:
+            picks.append({
+                "market": "\U0001f91d BTTS Yes",
+                "prob": btts_prob,
+                "confidence": "Strong Edge" if btts_prob >= 0.75 else "Leaning",
+                "color": "high" if btts_prob >= 0.75 else "medium",
+                "reason": f"P(BTTS Yes) = {_pct(btts_prob)} (was {_pct(pre_btts)} pre-match)",
+            })
+        elif (1.0 - btts_prob) >= 0.65:
+            picks.append({
+                "market": "\U0001f91d BTTS No",
+                "prob": 1.0 - btts_prob,
+                "confidence": "Strong Edge" if (1.0 - btts_prob) >= 0.80 else "Leaning",
+                "color": "high" if (1.0 - btts_prob) >= 0.80 else "medium",
+                "reason": f"P(BTTS No) = {_pct(1.0 - btts_prob)} (was {_pct(1.0 - pre_btts if pre_btts else None)} pre-match)",
+            })
+
+    # --- Moneyline pick ---
+    ml = getattr(snapshot, "moneyline", None)
+    pre_ml = getattr(snapshot, "pre_match_moneyline", None)
+    if ml:
+        best_side = max(ml.items(), key=lambda x: x[1])
+        side_label = {"home_win": f"{home} Win", "draw": "Draw", "away_win": f"{away} Win"}.get(best_side[0], best_side[0])
+        pre_val = pre_ml.get(best_side[0]) if pre_ml else None
+        if best_side[1] >= 0.55:
+            picks.append({
+                "market": f"\U0001f3c6 {side_label}",
+                "prob": best_side[1],
+                "confidence": "Strong Edge" if best_side[1] >= 0.70 else "Leaning",
+                "color": "high" if best_side[1] >= 0.70 else "medium",
+                "reason": f"Model: {_pct(best_side[1])} (was {_pct(pre_val)} pre-match)",
+            })
+
+    # --- Sort by probability descending, take top 6 ---
+    picks.sort(key=lambda p: p["prob"], reverse=True)
+    picks = picks[:6]
+
+    if not picks:
+        em.description = "No strong live bets identified for this fixture right now. Probabilities are too close to call."
+        em.color = COLOR_BLUE
+    else:
+        for i, pick in enumerate(picks, 1):
+            badge = "\U0001f7e2" if pick["color"] == "high" else "\U0001f7e1"
+            em.add_field(
+                name=f"{badge} {pick['market']}",
+                value=(
+                    f"**{pick['confidence']}** \u2014 {_pct(pick['prob'])}\n"
+                    f"{pick['reason']}"
+                ),
+                inline=False,
+            )
+
+    # xG context if available
+    xg_h = getattr(snapshot, "live_xg_home", None)
+    xg_a = getattr(snapshot, "live_xg_away", None)
+    if xg_h is not None and xg_a is not None:
+        em.add_field(
+            name="\U0001f4ca xG Context",
+            value=f"{home} {_f2(xg_h)} \u2014 {away} {_f2(xg_a)}",
+            inline=False,
+        )
+
+    # Momentum
+    mom = getattr(snapshot, "momentum", None)
+    if mom:
+        bar = _momentum_bar(mom.get("home", 0.5))
+        dominant = home if mom.get("home", 0.5) > 0.55 else (away if mom.get("away", 0.5) > 0.55 else "Even")
+        em.add_field(
+            name="Momentum",
+            value=f"{bar} {dominant}",
+            inline=False,
+        )
+
+    footer_parts = ["Matchwise Live"]
+    if league:
+        footer_parts.append(league)
+    footer_parts.append(f"Updated {getattr(snapshot, 'timestamp', '')[:19]}")
+    em.set_footer(text=" | ".join(footer_parts))
+    return em
+
+
+def live_bets_all_embed(fixtures_with_picks: list) -> List[discord.Embed]:
+    """Summary of best live bets across ALL live fixtures."""
+    embeds = []
+
+    header = discord.Embed(
+        title="\U0001f4b0 Live Bets \u2014 All Matches",
+        description="Top live betting opportunities right now",
+        color=COLOR_GREEN,
+    )
+    embeds.append(header)
+
+    all_picks = []
+    for fix_data in fixtures_with_picks:
+        snapshot = fix_data["snapshot"]
+        picks = fix_data["picks"]
+        fixture_label = f"{getattr(snapshot, 'home_team', '?')} {getattr(snapshot, 'score', '?-?')} {getattr(snapshot, 'away_team', '?')} ({getattr(snapshot, 'elapsed_min', 0):.0f}')"
+        league = getattr(snapshot, "league", "")
+        for p in picks:
+            all_picks.append({**p, "fixture": fixture_label, "league": league})
+
+    all_picks.sort(key=lambda p: p["prob"], reverse=True)
+    all_picks = all_picks[:10]
+
+    if not all_picks:
+        header.description = "No strong live bets across any currently live fixture."
+        return embeds
+
+    for pick in all_picks:
+        badge = "\U0001f7e2" if pick["color"] == "high" else "\U0001f7e1"
+        header.add_field(
+            name=f"{badge} {pick['market']}",
+            value=(
+                f"**{pick['fixture']}** [{pick.get('league', '')}]\n"
+                f"**{pick['confidence']}** \u2014 {_pct(pick['prob'])}\n"
+                f"{pick['reason']}"
+            ),
+            inline=False,
+        )
+
+    header.set_footer(text="Matchwise Live | Sorted by model probability")
+    return embeds
+
+
 def live_stats_embed(snapshot: Any, state: Any) -> discord.Embed:
     """Raw live stats display for /livestats command."""
     home = getattr(state, "home_team", "?")
