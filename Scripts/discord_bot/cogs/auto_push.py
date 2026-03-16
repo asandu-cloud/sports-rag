@@ -109,22 +109,105 @@ class AutoPush(commands.Cog):
     async def _wait_digest(self):
         await self.bot.wait_until_ready()
 
-    # --- Daily Parlay of the Day ---
-    @tasks.loop(time=dt_time(hour=DIGEST_POST_HOUR, minute=15))
+    # --- Parlay of the Day (checks every 30 min, posts 2-3 hours before first kickoff) ---
+    @tasks.loop(minutes=30)
     async def daily_parlay(self):
         channel = self.bot.get_channel(CHANNEL_PARLAY_OF_DAY)
         if not channel:
             return
 
+        # Only post once per day
+        today = date.today().isoformat()
+        if getattr(self, "_parlay_posted_date", None) == today:
+            return
+
+        # Find today's first kickoff across ALL leagues (including European comps)
+        all_leagues = DOMESTIC_LEAGUES + ["UCL", "UEL", "UECL"]
+        first_kickoff = None
+        has_fixtures = False
+
+        for league in all_leagues:
+            try:
+                events, _ = rag.fetch_events(league, set(rag.DEFAULT_MARKETS))
+                day_events = rag.filter_events_by_exact_date(events, date.today())
+                if day_events:
+                    has_fixtures = True
+                    for ev in day_events:
+                        ko = ev.get("commence_time")
+                        if ko:
+                            try:
+                                ko_dt = datetime.fromisoformat(ko.replace("Z", "+00:00"))
+                                if first_kickoff is None or ko_dt < first_kickoff:
+                                    first_kickoff = ko_dt
+                            except Exception:
+                                pass
+            except Exception:
+                pass
+
+        if not has_fixtures:
+            return  # no games today, don't post
+
+        # Post 2-3 hours before first kickoff
+        now = datetime.now(first_kickoff.tzinfo) if first_kickoff else datetime.utcnow()
+        if first_kickoff:
+            hours_until = (first_kickoff - now).total_seconds() / 3600
+            if hours_until > 3.5 or hours_until < -0.5:
+                return  # too early or games already started, wait
+
+        # --- Post 3 parlays: Lock, Safe, Standard ---
         date_str = _today_phrase()
-        prompt = (
-            f"For all top 5 league games on {date_str}, build a cross-league parlay "
-            "with odds between 3x and 5x. Pick the best combination across all leagues."
+        self._parlay_posted_date = today
+
+        # Header
+        header = discord.Embed(
+            title="\U0001f3af  Parlay of the Day",
+            description=f"**{date_str}** — 3 parlays ranked by risk level",
+            color=COLOR_GREEN,
         )
-        text = _run_rag(prompt, "EPL")
-        if text and "no fixtures" not in text.lower():
-            embeds = parlay_embed(text, league="Cross-League")
-            for em in embeds:
+        header.set_footer(text="Spick | Auto-generated from model projections")
+        await channel.send(embed=header)
+
+        # 1. THE LOCK — ultra-safe, ~1.8x odds, highest confidence legs only
+        lock_prompt = (
+            f"For all league games on {date_str} across all top 5 leagues, UCL, UEL, and UECL, "
+            "build a 2-leg parlay using ONLY the two strongest high-confidence picks. "
+            "Keep combined decimal odds at or below 1.9x. Prioritize picks where the model "
+            "probability is above 65%. This is the safest possible parlay."
+        )
+        lock_text = _run_rag(lock_prompt, "EPL")
+        if lock_text and "no fixtures" not in lock_text.lower():
+            lock_embeds = parlay_embed(lock_text, league="Cross-League")
+            for em in lock_embeds:
+                em.title = "\U0001f512  The Lock (~1.8x)"
+                em.color = COLOR_GREEN
+                await channel.send(embed=em)
+
+        # 2. SAFE — conservative, 2-3x odds
+        safe_prompt = (
+            f"For all league games on {date_str} across all top 5 leagues, UCL, UEL, and UECL, "
+            "build a 3-leg parlay with combined odds between 2.0x and 3.0x. "
+            "Only use high or medium confidence picks."
+        )
+        safe_text = _run_rag(safe_prompt, "EPL")
+        if safe_text and "no fixtures" not in safe_text.lower():
+            safe_embeds = parlay_embed(safe_text, league="Cross-League")
+            for em in safe_embeds:
+                em.title = "\U0001f6e1\ufe0f  Safe Parlay (~2.5x)"
+                em.color = COLOR_BLUE
+                await channel.send(embed=em)
+
+        # 3. STANDARD — balanced risk, 4-6x odds
+        std_prompt = (
+            f"For all league games on {date_str} across all top 5 leagues, UCL, UEL, and UECL, "
+            "build a 4-leg parlay with combined odds between 4x and 6x. "
+            "Mix goals, corners, and cards markets for diversity."
+        )
+        std_text = _run_rag(std_prompt, "EPL")
+        if std_text and "no fixtures" not in std_text.lower():
+            std_embeds = parlay_embed(std_text, league="Cross-League")
+            for em in std_embeds:
+                em.title = "\U0001f3b2  Standard Parlay (~5x)"
+                em.color = COLOR_PURPLE
                 await channel.send(embed=em)
 
     @daily_parlay.before_loop

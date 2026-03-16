@@ -905,6 +905,46 @@ def live_bets_embed(snapshot: Any, state: Any) -> discord.Embed:
                 "reason": f"Model: {_pct(best_side[1])} (was {_pct(pre_val)} pre-match)",
             })
 
+    # --- Next Goal / No More Goals ---
+    ng = getattr(snapshot, "next_goal_probs", None)
+    if ng and elapsed >= 15:
+        p_home_ng = ng.get("next_home", 0)
+        p_away_ng = ng.get("next_away", 0)
+        p_none_ng = ng.get("no_more", 0)
+        p_goal = 1.0 - p_none_ng
+        exp_min = ng.get("expected_min_to_next", 99)
+
+        if p_goal > 0:
+            home_share = p_home_ng / p_goal
+            away_share = p_away_ng / p_goal
+        else:
+            home_share = away_share = 0.5
+
+        if home_share >= 0.62 and p_goal >= 0.45:
+            picks.append({
+                "market": f"\u26bd Next Goal: {home}",
+                "prob": p_home_ng,
+                "confidence": "Strong Edge" if home_share >= 0.72 else "Leaning",
+                "color": "high" if home_share >= 0.72 else "medium",
+                "reason": f"{home_share:.0%} of next-goal probability. ~{exp_min:.0f} min expected",
+            })
+        elif away_share >= 0.62 and p_goal >= 0.45:
+            picks.append({
+                "market": f"\u26bd Next Goal: {away}",
+                "prob": p_away_ng,
+                "confidence": "Strong Edge" if away_share >= 0.72 else "Leaning",
+                "color": "high" if away_share >= 0.72 else "medium",
+                "reason": f"{away_share:.0%} of next-goal probability. ~{exp_min:.0f} min expected",
+            })
+        elif p_none_ng >= 0.55 and elapsed >= 65:
+            picks.append({
+                "market": "\u26bd No More Goals",
+                "prob": p_none_ng,
+                "confidence": "Strong Edge" if p_none_ng >= 0.70 else "Leaning",
+                "color": "high" if p_none_ng >= 0.70 else "medium",
+                "reason": f"P(no more goals) = {_pct(p_none_ng)} at {elapsed:.0f}'",
+            })
+
     # --- Sort by probability descending, take top 6 ---
     picks.sort(key=lambda p: p["prob"], reverse=True)
     picks = picks[:6]

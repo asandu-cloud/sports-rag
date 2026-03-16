@@ -20,6 +20,7 @@ import rag_cli_v2 as rag  # noqa: E402
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1]))
 from embeds import parlay_embed  # noqa: E402
 from config import ALL_LEAGUES, COLOR_PURPLE, COLOR_BLUE  # noqa: E402
+from cogs.access import premium_only, get_or_create_private_thread, _has_premium_role  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -162,10 +163,27 @@ async def _match_autocomplete(
 class ParlayFollowUpView(discord.ui.View):
     """Follow-up action buttons attached to every parlay response."""
 
-    def __init__(self, league: str, date_phrase: str):
+    def __init__(self, league: str, date_phrase: str, thread: Optional[discord.Thread] = None):
         super().__init__(timeout=300)  # 5 minutes
         self.league = league
         self.date_phrase = date_phrase
+        self.thread = thread
+
+    async def _send_to_thread(
+        self,
+        interaction: discord.Interaction,
+        embeds: list,
+        view: "ParlayFollowUpView",
+    ):
+        """Send results to the user's private thread (or ephemeral fallback)."""
+        if self.thread:
+            await interaction.followup.send(
+                f"Updated parlay posted in your private thread {self.thread.mention}.",
+                ephemeral=True,
+            )
+            await self.thread.send(embeds=embeds, view=view)
+        else:
+            await interaction.followup.send(embeds=embeds, view=view, ephemeral=True)
 
     @discord.ui.button(label="Add a leg", style=discord.ButtonStyle.green, emoji="\u2795")
     async def add_leg(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -176,8 +194,8 @@ class ParlayFollowUpView(discord.ui.View):
         )
         text = _run_rag(prompt, self.league)
         embeds = parlay_embed(text, league=self.league)
-        view = ParlayFollowUpView(self.league, self.date_phrase)
-        await interaction.followup.send(embeds=embeds, view=view)
+        view = ParlayFollowUpView(self.league, self.date_phrase, self.thread)
+        await self._send_to_thread(interaction, embeds, view)
 
     @discord.ui.button(label="Swap weakest", style=discord.ButtonStyle.blurple, emoji="\U0001f504")
     async def swap_weakest(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -188,8 +206,8 @@ class ParlayFollowUpView(discord.ui.View):
         )
         text = _run_rag(prompt, self.league)
         embeds = parlay_embed(text, league=self.league)
-        view = ParlayFollowUpView(self.league, self.date_phrase)
-        await interaction.followup.send(embeds=embeds, view=view)
+        view = ParlayFollowUpView(self.league, self.date_phrase, self.thread)
+        await self._send_to_thread(interaction, embeds, view)
 
     @discord.ui.button(label="Safer", style=discord.ButtonStyle.grey, emoji="\U0001f6e1\ufe0f")
     async def safer(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -200,8 +218,8 @@ class ParlayFollowUpView(discord.ui.View):
         )
         text = _run_rag(prompt, self.league)
         embeds = parlay_embed(text, league=self.league)
-        view = ParlayFollowUpView(self.league, self.date_phrase)
-        await interaction.followup.send(embeds=embeds, view=view)
+        view = ParlayFollowUpView(self.league, self.date_phrase, self.thread)
+        await self._send_to_thread(interaction, embeds, view)
 
     @discord.ui.button(label="Riskier", style=discord.ButtonStyle.red, emoji="\U0001f3b2")
     async def riskier(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -212,8 +230,8 @@ class ParlayFollowUpView(discord.ui.View):
         )
         text = _run_rag(prompt, self.league)
         embeds = parlay_embed(text, league=self.league)
-        view = ParlayFollowUpView(self.league, self.date_phrase)
-        await interaction.followup.send(embeds=embeds, view=view)
+        view = ParlayFollowUpView(self.league, self.date_phrase, self.thread)
+        await self._send_to_thread(interaction, embeds, view)
 
 
 # ---------------------------------------------------------------------------
@@ -225,9 +243,11 @@ class ParlayFollowUpView(discord.ui.View):
 class DateButton(discord.ui.Button):
     """A single date-picker button."""
 
-    def __init__(self, label: str, target_date: date):
+    def __init__(self, label: str, target_date: date,
+                 thread: Optional[discord.Thread] = None):
         super().__init__(label=label, style=discord.ButtonStyle.blurple)
         self.target_date = target_date
+        self.thread = thread
 
     async def callback(self, interaction: discord.Interaction):
         em = discord.Embed(
@@ -235,14 +255,14 @@ class DateButton(discord.ui.Button):
             description="Step 2: Pick a league",
             color=COLOR_PURPLE,
         )
-        view = BuildLeagueSelectView(self.target_date)
+        view = BuildLeagueSelectView(self.target_date, self.thread)
         await interaction.response.edit_message(embed=em, view=view)
 
 
 class DateSelectView(discord.ui.View):
     """Step 1 view: choose a date."""
 
-    def __init__(self):
+    def __init__(self, thread: Optional[discord.Thread] = None):
         super().__init__(timeout=120)
         today = date.today()
         dates = [
@@ -255,7 +275,7 @@ class DateSelectView(discord.ui.View):
             dates.append((d.strftime("%A"), d))
 
         for label, d in dates:
-            self.add_item(DateButton(label=label, target_date=d))
+            self.add_item(DateButton(label=label, target_date=d, thread=thread))
 
 
 # Step 2: League selection
@@ -263,8 +283,9 @@ class DateSelectView(discord.ui.View):
 class BuildLeagueSelect(discord.ui.Select):
     """Dropdown to pick a league (step 2 of /build)."""
 
-    def __init__(self, target_date: date):
+    def __init__(self, target_date: date, thread: Optional[discord.Thread] = None):
         self.target_date = target_date
+        self.thread = thread
         options = [discord.SelectOption(label=lg, value=lg) for lg in ALL_LEAGUES]
         super().__init__(placeholder="Pick a league...", options=options)
 
@@ -275,14 +296,14 @@ class BuildLeagueSelect(discord.ui.Select):
             description="Step 3: Pick a market type",
             color=COLOR_PURPLE,
         )
-        view = BuildMarketSelectView(league, self.target_date)
+        view = BuildMarketSelectView(league, self.target_date, self.thread)
         await interaction.response.edit_message(embed=em, view=view)
 
 
 class BuildLeagueSelectView(discord.ui.View):
-    def __init__(self, target_date: date):
+    def __init__(self, target_date: date, thread: Optional[discord.Thread] = None):
         super().__init__(timeout=120)
-        self.add_item(BuildLeagueSelect(target_date))
+        self.add_item(BuildLeagueSelect(target_date, thread))
 
 
 # Step 3: Market selection
@@ -290,9 +311,11 @@ class BuildLeagueSelectView(discord.ui.View):
 class BuildMarketSelect(discord.ui.Select):
     """Dropdown to pick a market type (step 3 of /build)."""
 
-    def __init__(self, league: str, target_date: date):
+    def __init__(self, league: str, target_date: date,
+                 thread: Optional[discord.Thread] = None):
         self.league = league
         self.target_date = target_date
+        self.thread = thread
         options = [
             discord.SelectOption(label="Goals Totals", value="totals", emoji="\u26bd"),
             discord.SelectOption(label="Corners", value="corners", emoji="\U0001f4d0"),
@@ -311,14 +334,15 @@ class BuildMarketSelect(discord.ui.Select):
             description="Step 4: Pick your risk level",
             color=COLOR_PURPLE,
         )
-        view = BuildOddsTargetView(self.league, self.target_date, market)
+        view = BuildOddsTargetView(self.league, self.target_date, market, self.thread)
         await interaction.response.edit_message(embed=em, view=view)
 
 
 class BuildMarketSelectView(discord.ui.View):
-    def __init__(self, league: str, target_date: date):
+    def __init__(self, league: str, target_date: date,
+                 thread: Optional[discord.Thread] = None):
         super().__init__(timeout=120)
-        self.add_item(BuildMarketSelect(league, target_date))
+        self.add_item(BuildMarketSelect(league, target_date, thread))
 
 
 # Step 4: Risk level / execute
@@ -337,11 +361,13 @@ _MARKET_CONSTRAINTS = {
 class BuildOddsTargetView(discord.ui.View):
     """Step 4 view: pick a risk level and execute the parlay query."""
 
-    def __init__(self, league: str, target_date: date, market: str):
+    def __init__(self, league: str, target_date: date, market: str,
+                 thread: Optional[discord.Thread] = None):
         super().__init__(timeout=120)
         self.league = league
         self.target_date = target_date
         self.market = market
+        self.thread = thread
 
     async def _build(self, interaction: discord.Interaction, legs: int, odds: float):
         await interaction.response.defer(thinking=True)
@@ -353,8 +379,15 @@ class BuildOddsTargetView(discord.ui.View):
         )
         text = _run_rag(prompt, self.league)
         embeds = parlay_embed(text, league=self.league)
-        view = ParlayFollowUpView(self.league, dp)
-        await interaction.followup.send(embeds=embeds, view=view)
+        view = ParlayFollowUpView(self.league, dp, self.thread)
+        if self.thread:
+            await interaction.followup.send(
+                f"Parlay posted in your private thread {self.thread.mention}.",
+                ephemeral=True,
+            )
+            await self.thread.send(embeds=embeds, view=view)
+        else:
+            await interaction.followup.send(embeds=embeds, view=view, ephemeral=True)
 
     @discord.ui.button(label="Safe (3-leg, ~2.5x)", style=discord.ButtonStyle.green)
     async def safe(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -399,14 +432,23 @@ class ParlayBuilder(commands.Cog):
     # --- /build ---
 
     @app_commands.command(name="build", description="Step-by-step interactive parlay builder")
+    @premium_only()
     async def build(self, interaction: discord.Interaction):
+        thread = await get_or_create_private_thread(interaction)
         em = discord.Embed(
             title="Build a Parlay",
             description="Step 1: Pick a date",
             color=COLOR_PURPLE,
         )
-        view = DateSelectView()
-        await interaction.response.send_message(embed=em, view=view)
+        view = DateSelectView(thread)
+        if thread:
+            await interaction.response.send_message(
+                f"Building your parlay in {thread.mention}...",
+                ephemeral=True,
+            )
+            await thread.send(embed=em, view=view)
+        else:
+            await interaction.response.send_message(embed=em, view=view, ephemeral=True)
 
     # --- /parlay ---
 
@@ -421,6 +463,7 @@ class ParlayBuilder(commands.Cog):
     )
     @app_commands.choices(league=PARLAY_LEAGUE_CHOICES)
     @app_commands.choices(market=PARLAY_MARKET_CHOICES)
+    @premium_only()
     async def parlay_cmd(
         self,
         interaction: discord.Interaction,
@@ -431,6 +474,7 @@ class ParlayBuilder(commands.Cog):
         match: Optional[str] = None,
         date: Optional[str] = None,
     ):
+        thread = await get_or_create_private_thread(interaction)
         await interaction.response.defer(thinking=True)
 
         target_date = _parse_date(date)
@@ -440,7 +484,6 @@ class ParlayBuilder(commands.Cog):
 
         # Build the prompt based on context
         if lg == "cross-league":
-            # Cross-league parlay
             prompt = (
                 f"For all top 5 league games on {dp}, build a cross-league parlay "
                 f"with {legs} legs and combined odds around {odds}x."
@@ -452,9 +495,8 @@ class ParlayBuilder(commands.Cog):
                     f"{constraint} with {legs} legs and combined odds around {odds}x."
                 )
             display_league = "Cross-League"
-            rag_league = "EPL"  # default league for RAG engine; cross-league detected via prompt
+            rag_league = "EPL"
         elif match:
-            # Same-game parlay locked to a specific fixture
             prompt = (
                 f"Build a {legs}-leg same-game parlay for {match} in {lg} on {dp} "
                 f"with combined odds around {odds}x."
@@ -468,7 +510,6 @@ class ParlayBuilder(commands.Cog):
             display_league = lg
             rag_league = lg
         else:
-            # Standard single-league parlay
             if market_val and market_val != "mixed":
                 constraint = _MARKET_CONSTRAINTS.get(market_val, "")
                 prompt = (
@@ -485,8 +526,15 @@ class ParlayBuilder(commands.Cog):
 
         text = _run_rag(prompt, rag_league)
         embeds = parlay_embed(text, league=display_league)
-        view = ParlayFollowUpView(display_league, dp)
-        await interaction.followup.send(embeds=embeds, view=view)
+        view = ParlayFollowUpView(display_league, dp, thread)
+        if thread:
+            await interaction.followup.send(
+                f"Parlay posted in your private thread {thread.mention}.",
+                ephemeral=True,
+            )
+            await thread.send(embeds=embeds, view=view)
+        else:
+            await interaction.followup.send(embeds=embeds, view=view, ephemeral=True)
 
     @parlay_cmd.autocomplete("match")
     async def _parlay_match_ac(

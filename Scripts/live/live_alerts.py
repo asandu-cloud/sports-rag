@@ -148,9 +148,12 @@ def _find_best_live_bet(
                 }
                 break  # only the best ML bet
 
+    # Next goal / no more goals bet
+    next_goal_bet = _find_next_goal_bet(current, state)
+
     # Collect all candidates and pick the single best
     candidates = []
-    for bet in [best_goal_bet, best_corner_bet, best_card_bet, btts_bet, ml_bet]:
+    for bet in [best_goal_bet, best_corner_bet, best_card_bet, btts_bet, ml_bet, next_goal_bet]:
         if bet is not None:
             candidates.append(bet)
 
@@ -231,6 +234,113 @@ def _best_actionable_line(
             }
 
     return best
+
+
+# ---------------------------------------------------------------------------
+# Next Goal / No More Goals alert
+# ---------------------------------------------------------------------------
+
+def _find_next_goal_bet(
+    current: LiveSnapshot,
+    state: LiveMatchState,
+) -> Optional[Dict]:
+    """Recommend a next goal bet when the model has a strong directional opinion.
+
+    Three scenarios:
+    1. One team heavily favored to score next (65%+ of next-goal probability)
+       → Recommend "Next Goal: [Team]"
+    2. High P(no more goals) late in a tight match (55%+ after 65')
+       → Recommend "No More Goals" / "No Next Goal"
+    3. Right after a goal, momentum shifts the next-goal probabilities
+       → Stronger signal, lower threshold (60%)
+
+    This is high-value for bettors because next-goal markets are:
+    - Available in-play on most sportsbooks
+    - Often mispriced right after a goal or red card
+    - Easy to understand (no line/total to parse)
+    """
+    ng = current.next_goal_probs
+    if not ng:
+        return None
+
+    elapsed = state.elapsed_min
+    if elapsed < 15 or elapsed > 88:
+        return None  # too early (unreliable) or too late (match almost over)
+
+    p_home = ng.get("next_home", 0)
+    p_away = ng.get("next_away", 0)
+    p_none = ng.get("no_more", 0)
+    expected_min = ng.get("expected_min_to_next", 99)
+
+    # --- Scenario 1: Strong directional signal for next goal ---
+    # One team has 65%+ share of next-goal probability
+    p_goal = 1.0 - p_none  # P(at least one more goal)
+    if p_goal > 0:
+        home_share = p_home / p_goal if p_goal > 0 else 0.5
+        away_share = p_away / p_goal if p_goal > 0 else 0.5
+    else:
+        home_share = 0.5
+        away_share = 0.5
+
+    # Check if xG supports the direction (extra confidence)
+    xg_h = current.live_xg_home or 0
+    xg_a = current.live_xg_away or 0
+    xg_supports_home = xg_h > xg_a + 0.3
+    xg_supports_away = xg_a > xg_h + 0.3
+
+    # Lower threshold if we just saw a goal (momentum)
+    recent_goal = any(
+        e.event_type == "goal" and e.minute >= elapsed - 5
+        for e in state.events
+    ) if state.events else False
+    threshold = 0.60 if recent_goal else 0.65
+
+    if home_share >= threshold and p_goal >= 0.45:
+        prob = p_home
+        xg_note = f" (xG: {state.home_team} {xg_h:.1f} vs {state.away_team} {xg_a:.1f})" if xg_supports_home else ""
+        return {
+            "pick": f"⚽ Next Goal: {state.home_team}",
+            "prob": prob,
+            "confidence": "Strong Edge" if home_share >= 0.72 else "Leaning",
+            "color": "high" if home_share >= 0.72 else "medium",
+            "reason": (
+                f"{state.home_team} has {home_share:.0%} of next-goal probability. "
+                f"Expected ~{expected_min:.0f} min until next goal{xg_note}"
+            ),
+            "shift": home_share - 0.50,  # how much better than 50/50
+        }
+
+    if away_share >= threshold and p_goal >= 0.45:
+        prob = p_away
+        xg_note = f" (xG: {state.away_team} {xg_a:.1f} vs {state.home_team} {xg_h:.1f})" if xg_supports_away else ""
+        return {
+            "pick": f"⚽ Next Goal: {state.away_team}",
+            "prob": prob,
+            "confidence": "Strong Edge" if away_share >= 0.72 else "Leaning",
+            "color": "high" if away_share >= 0.72 else "medium",
+            "reason": (
+                f"{state.away_team} has {away_share:.0%} of next-goal probability. "
+                f"Expected ~{expected_min:.0f} min until next goal{xg_note}"
+            ),
+            "shift": away_share - 0.50,
+        }
+
+    # --- Scenario 2: No more goals (high probability late in match) ---
+    if p_none >= 0.55 and elapsed >= 65:
+        score = f"{state.goals_home}-{state.goals_away}"
+        return {
+            "pick": "⚽ No More Goals",
+            "prob": p_none,
+            "confidence": "Strong Edge" if p_none >= 0.70 else "Leaning",
+            "color": "high" if p_none >= 0.70 else "medium",
+            "reason": (
+                f"P(no more goals) = {p_none:.0%} at {elapsed:.0f}' with score {score}. "
+                f"Match pace suggests the scoring is done"
+            ),
+            "shift": p_none - 0.30,  # shift from baseline ~30% for "no more goals"
+        }
+
+    return None
 
 
 # ---------------------------------------------------------------------------

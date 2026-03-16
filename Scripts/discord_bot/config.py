@@ -22,6 +22,15 @@ ALERT_SCAN_INTERVAL_MINUTES = int(os.getenv("DISCORD_ALERT_INTERVAL", "120"))
 MIN_ALERT_MODEL_PROB = 0.65
 MIN_ALERT_VALUE_EDGE = 0.08
 
+# Access control — role names that can interact with the bot
+# Users with ANY of these roles can use premium commands.
+# Set via env (comma-separated) or override here.
+PREMIUM_ROLE_NAMES = [
+    r.strip()
+    for r in os.getenv("DISCORD_PREMIUM_ROLES", "Premium").split(",")
+    if r.strip()
+]
+
 # Leagues
 DOMESTIC_LEAGUES = ["EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1"]
 EUROPEAN_COMPS = ["UCL", "UEL", "UECL"]

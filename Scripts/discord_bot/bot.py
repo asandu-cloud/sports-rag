@@ -72,7 +72,9 @@ def main():
             "  4. Enable MESSAGE CONTENT INTENT under Privileged Intents\n"
             "  5. Go to OAuth2 → URL Generator:\n"
             "     - Scopes: bot, applications.commands\n"
-            "     - Permissions: Send Messages, Embed Links, Use Slash Commands\n"
+            "     - Permissions: Send Messages, Embed Links, Use Slash Commands,\n"
+            "       Create Private Threads, Send Messages in Threads,\n"
+            "       Manage Threads\n"
             "  6. Copy the generated URL and open it to invite the bot to your server"
         )
         sys.exit(1)

@@ -33,6 +33,7 @@ import rag_cli_v2 as rag  # noqa: E402
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1]))
 from embeds import rag_output_to_embeds, parlay_embed  # noqa: E402
 from config import ALL_LEAGUES, COLOR_BLUE, COLOR_PURPLE, COLOR_GREEN  # noqa: E402
+from cogs.access import premium_only, get_or_create_private_thread  # noqa: E402
 
 
 # ============================================================================
@@ -431,6 +432,7 @@ class SlashCommands(commands.Cog):
     )
     @app_commands.choices(league=_league_choices())
     @app_commands.choices(market=_ANALYZE_MARKET_CHOICES)
+    @premium_only()
     async def analyze(
         self,
         interaction: discord.Interaction,
@@ -439,6 +441,7 @@ class SlashCommands(commands.Cog):
         market: Optional[app_commands.Choice[str]] = None,
         date: Optional[str] = None,
     ) -> None:
+        thread = await get_or_create_private_thread(interaction)
         await interaction.response.defer(thinking=True)
         target = _parse_date(date)
         phrase = _date_phrase(target)
@@ -455,7 +458,14 @@ class SlashCommands(commands.Cog):
         if market_key == "overview":
             label = "Match Analysis"
         embeds = rag_output_to_embeds(label, text, league=league.value)
-        await interaction.followup.send(embeds=embeds)
+        if thread:
+            await interaction.followup.send(
+                f"Results posted in your private thread {thread.mention}.",
+                ephemeral=True,
+            )
+            await thread.send(embeds=embeds)
+        else:
+            await interaction.followup.send(embeds=embeds, ephemeral=True)
 
     @analyze.autocomplete("match")
     async def _analyze_match_autocomplete(
@@ -479,6 +489,7 @@ class SlashCommands(commands.Cog):
     )
     @app_commands.choices(league=_league_choices())
     @app_commands.choices(market=_MARKET_MARKET_CHOICES)
+    @premium_only()
     async def market(
         self,
         interaction: discord.Interaction,
@@ -486,6 +497,7 @@ class SlashCommands(commands.Cog):
         market: app_commands.Choice[str],
         date: Optional[str] = None,
     ) -> None:
+        thread = await get_or_create_private_thread(interaction)
         await interaction.response.defer(thinking=True)
         target = _parse_date(date)
         phrase = _date_phrase(target)
@@ -496,7 +508,14 @@ class SlashCommands(commands.Cog):
 
         label = _MARKET_LABELS.get(market.value, market.value.title())
         embeds = rag_output_to_embeds(label, text, league=league.value)
-        await interaction.followup.send(embeds=embeds)
+        if thread:
+            await interaction.followup.send(
+                f"Results posted in your private thread {thread.mention}.",
+                ephemeral=True,
+            )
+            await thread.send(embeds=embeds)
+        else:
+            await interaction.followup.send(embeds=embeds, ephemeral=True)
 
     # -----------------------------------------------------------------------
     # /compare — Head-to-head stat comparison
@@ -513,6 +532,7 @@ class SlashCommands(commands.Cog):
     )
     @app_commands.choices(league=_league_choices())
     @app_commands.choices(stat=_STAT_CHOICES)
+    @premium_only()
     async def compare(
         self,
         interaction: discord.Interaction,
@@ -521,6 +541,7 @@ class SlashCommands(commands.Cog):
         stat: app_commands.Choice[str],
         date: Optional[str] = None,
     ) -> None:
+        thread = await get_or_create_private_thread(interaction)
         await interaction.response.defer(thinking=True)
         target = _parse_date(date)
         phrase = _date_phrase(target)
@@ -536,7 +557,14 @@ class SlashCommands(commands.Cog):
         embeds = rag_output_to_embeds(
             f"Comparison: {stat_label.title()}", text, league=league.value,
         )
-        await interaction.followup.send(embeds=embeds)
+        if thread:
+            await interaction.followup.send(
+                f"Results posted in your private thread {thread.mention}.",
+                ephemeral=True,
+            )
+            await thread.send(embeds=embeds)
+        else:
+            await interaction.followup.send(embeds=embeds, ephemeral=True)
 
     @compare.autocomplete("match")
     async def _compare_match_autocomplete(
@@ -561,6 +589,7 @@ class SlashCommands(commands.Cog):
     )
     @app_commands.choices(league=_league_choices())
     @app_commands.choices(prop=_PROP_CHOICES)
+    @premium_only()
     async def players(
         self,
         interaction: discord.Interaction,
@@ -569,6 +598,7 @@ class SlashCommands(commands.Cog):
         match: Optional[str] = None,
         date: Optional[str] = None,
     ) -> None:
+        thread = await get_or_create_private_thread(interaction)
         await interaction.response.defer(thinking=True)
         target = _parse_date(date)
         phrase = _date_phrase(target)
@@ -587,7 +617,14 @@ class SlashCommands(commands.Cog):
 
         label = _PROP_LABELS.get(prop.value, "Player Props")
         embeds = rag_output_to_embeds(label, text, league=league.value)
-        await interaction.followup.send(embeds=embeds)
+        if thread:
+            await interaction.followup.send(
+                f"Results posted in your private thread {thread.mention}.",
+                ephemeral=True,
+            )
+            await thread.send(embeds=embeds)
+        else:
+            await interaction.followup.send(embeds=embeds, ephemeral=True)
 
     @players.autocomplete("match")
     async def _players_match_autocomplete(
@@ -612,6 +649,7 @@ class SlashCommands(commands.Cog):
         date="Day (today, tomorrow, saturday, or YYYY-MM-DD)",
     )
     @app_commands.choices(league=_league_choices())
+    @premium_only()
     async def teamlines(
         self,
         interaction: discord.Interaction,
@@ -619,6 +657,7 @@ class SlashCommands(commands.Cog):
         match: Optional[str] = None,
         date: Optional[str] = None,
     ) -> None:
+        thread = await get_or_create_private_thread(interaction)
         await interaction.response.defer(thinking=True)
         target = _parse_date(date)
         phrase = _date_phrase(target)
@@ -638,7 +677,14 @@ class SlashCommands(commands.Cog):
 
         text = _run_rag(prompt, lg)
         embeds = rag_output_to_embeds("Team Lines", text, league=lg)
-        await interaction.followup.send(embeds=embeds)
+        if thread:
+            await interaction.followup.send(
+                f"Results posted in your private thread {thread.mention}.",
+                ephemeral=True,
+            )
+            await thread.send(embeds=embeds)
+        else:
+            await interaction.followup.send(embeds=embeds, ephemeral=True)
 
     @teamlines.autocomplete("match")
     async def _teamlines_match_ac(
