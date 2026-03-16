@@ -337,10 +337,12 @@ def parlay_embed(text: str, league: str = "Mixed") -> List[discord.Embed]:
     """Format parlay output as a bet-slip-style embed."""
     embeds: List[discord.Embed] = []
 
-    # Parse legs
+    # Parse legs — handle both old format and new format with confidence appended
+    # New format: Leg 1: [EPL] Arsenal vs Chelsea | Over 2.5 (corners) @ 1.83 (Bet365) (high confidence, model 71%)
     legs: List[Dict[str, str]] = []
     for m in re.finditer(
-        r"Leg\s+(\d+):\s*(?:\[([^\]]+)\]\s*)?(.+?)\s*\|\s*(.+?)\s*@\s*([\d.]+)\s*\(([^)]+)\)",
+        r"Leg\s+(\d+):\s*(?:\[([^\]]+)\]\s*)?(.+?)\s*\|\s*(.+?)\s*@\s*([\d.]+)\s*\(([^)]+?)\)"
+        r"(?:\s*\((\w+)\s+confidence(?:,\s*model\s+([\d.]+%))?\))?",
         text,
     ):
         legs.append({
@@ -350,10 +352,18 @@ def parlay_embed(text: str, league: str = "Mixed") -> List[discord.Embed]:
             "pick": m.group(4).strip(),
             "odds": m.group(5),
             "book": m.group(6).split(",")[0].strip(),
+            "confidence": m.group(7) or None,       # "high", "medium", "low", or None
+            "model_prob": m.group(8) or None,        # "71%", or None
         })
 
     # Parse combined odds
     combo_odds = _first_match(r"combined odds:\s*([\d.]+)", text)
+
+    # Parse confidence breakdown
+    conf_breakdown = _first_match(r"Confidence breakdown:\s*(.+?)(?:\n|$)", text)
+
+    # Parse cross-check warnings
+    cross_warnings = _first_match(r"Cross-check warnings:\s*(.+?)(?:\n|$)", text)
 
     if not legs:
         return _fallback_embeds("Parlay", text, league)
@@ -367,12 +377,24 @@ def parlay_embed(text: str, league: str = "Mixed") -> List[discord.Embed]:
         slip.set_author(name=f"League: {league}")
 
     for leg in legs:
+        # Build confidence badge for this leg
+        conf = leg.get("confidence")
+        model_p = leg.get("model_prob")
+        conf_line = ""
+        if conf:
+            emoji = "🟢" if conf == "high" else ("🟡" if conf == "medium" else "⚪")
+            label = {"high": "Strong Edge", "medium": "Leaning", "low": "Speculative"}.get(conf, conf.title())
+            conf_line = f"\n{emoji} {label}"
+            if model_p:
+                conf_line += f" ({model_p})"
+
         slip.add_field(
             name=f"Leg {leg['num']}",
             value=(
                 f"**{leg['fixture']}**\n"
                 f"📋 {leg['pick']}\n"
                 f"💰 {leg['odds']} ({leg['book']})"
+                f"{conf_line}"
             ),
             inline=False,
         )
@@ -385,12 +407,20 @@ def parlay_embed(text: str, league: str = "Mixed") -> List[discord.Embed]:
             inline=False,
         )
 
+    # Confidence breakdown
+    if conf_breakdown:
+        slip.add_field(name="⭐ Confidence", value=conf_breakdown, inline=True)
+
+    # Cross-check warnings
+    if cross_warnings:
+        slip.add_field(name="⚠️ Warnings", value=cross_warnings, inline=True)
+
     # Parse evidence for each leg
     why = _first_match(r"Why this parlay:\s*(.+?)(?:\n-|\Z)", text, 1)
     if why:
         slip.add_field(name="💡 Why", value=_truncate(why, 1024), inline=False)
 
-    slip.set_footer(text="Betting RAG")
+    slip.set_footer(text="Matchwise")
     embeds.append(slip)
 
     # Discord limit

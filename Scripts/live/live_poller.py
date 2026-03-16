@@ -379,38 +379,51 @@ def _compute_priors(home: str, away: str, league: str, state: LiveMatchState) ->
         logger.info("rag_cli_v2 not available — priors will be None for %s vs %s", home, away)
         return
 
+    # projected_total_* returns (blended, season, recent) — index 0 is the blended total
     try:
         result = projected_total_goals(home, away, league)
-        if result and len(result) >= 3:
-            state.prior_total_goals = result[2]  # total
-            state.prior_home_goals, state.prior_away_goals = result[0], result[1]
+        if result and result[0] is not None:
+            state.prior_total_goals = result[0]  # blended total
     except Exception as exc:
         logger.warning("Prior goals failed for %s vs %s: %s", home, away, exc)
 
+    # Per-team goal projections for BTTS/moneyline
+    try:
+        hm = _profile_meta(home, league) if _profile_meta else {}
+        am = _profile_meta(away, league) if _profile_meta else {}
+        h_goals, a_goals = projected_goals(hm, am) if projected_goals else (None, None)
+        if h_goals is not None:
+            state.prior_home_goals = h_goals
+        if a_goals is not None:
+            state.prior_away_goals = a_goals
+    except Exception as exc:
+        logger.warning("Prior per-team goals failed for %s vs %s: %s", home, away, exc)
+
     try:
         result = projected_total_corners(home, away, league)
-        if result and len(result) >= 3:
-            state.prior_total_corners = result[2]
+        if result and result[0] is not None:
+            state.prior_total_corners = result[0]
     except Exception as exc:
         logger.warning("Prior corners failed for %s vs %s: %s", home, away, exc)
 
     try:
         result = projected_total_cards(home, away, league)
-        if result and len(result) >= 3:
-            state.prior_total_cards = result[2]
+        # projected_total_cards returns (blended, season, recent, ref_mod) — 4 items
+        if result and result[0] is not None:
+            state.prior_total_cards = result[0]
     except Exception as exc:
         logger.warning("Prior cards failed for %s vs %s: %s", home, away, exc)
 
     try:
         result = projected_total_sot(home, away, league)
-        if result and len(result) >= 3:
-            state.prior_total_sot = result[2]
+        if result and result[0] is not None:
+            state.prior_total_sot = result[0]
     except Exception as exc:
         logger.warning("Prior SoT failed for %s vs %s: %s", home, away, exc)
 
     try:
         result = projected_btts_prob(home, away, league)
-        if result and len(result) >= 1:
+        if result and result[0] is not None:
             state.prior_btts_prob = result[0]
     except Exception as exc:
         logger.warning("Prior BTTS failed for %s vs %s: %s", home, away, exc)
@@ -720,6 +733,7 @@ class LivePoller:
 
         # Parse team statistics
         # API-Football returns statistics as list of 2 items: [home_stats, away_stats]
+        # Each item has {"team": {...}, "statistics": [{type, value}, ...]}
         home_team_stats = TeamLiveStats()
         away_team_stats = TeamLiveStats()
         if len(statistics_raw) >= 2:
@@ -727,6 +741,18 @@ class LivePoller:
             away_stat_list = statistics_raw[1].get("statistics", [])
             home_team_stats = _parse_team_stats(home_stat_list)
             away_team_stats = _parse_team_stats(away_stat_list)
+            logger.debug(
+                "Fixture %d stats: home corners=%d sot=%d shots=%d | away corners=%d sot=%d shots=%d",
+                fixture_id,
+                home_team_stats.corners, home_team_stats.sot, home_team_stats.shots,
+                away_team_stats.corners, away_team_stats.sot, away_team_stats.shots,
+            )
+        else:
+            # Statistics not available — try fetching from /fixtures/statistics endpoint
+            logger.warning(
+                "Fixture %d: statistics array has %d items (expected 2). Stats will be zero.",
+                fixture_id, len(statistics_raw),
+            )
 
         # Set goals from goals object (more reliable than statistics)
         home_team_stats.goals = goals_info.get("home", 0) or 0
@@ -780,6 +806,81 @@ class LivePoller:
 
     # -- Snapshot computation -----------------------------------------------
 
+    @staticmethod
+    def _convert_events(poller_events: list, home_team: str, away_team: str) -> list:
+        """Convert poller MatchEvents (team=name) to engine MatchEvents (team_side=home/away)."""
+        try:
+            from live.live_state import MatchEvent as EngineEvent
+        except ImportError:
+            from live_state import MatchEvent as EngineEvent
+
+        home_lower = home_team.lower().strip() if home_team else ""
+        converted = []
+        for ev in poller_events:
+            team_name = getattr(ev, "team", "") or ""
+            team_side = "home" if team_name.lower().strip() == home_lower else "away"
+            converted.append(EngineEvent(
+                minute=getattr(ev, "minute", 0),
+                event_type=getattr(ev, "event_type", ""),
+                team_side=team_side,
+                player=getattr(ev, "player", "") or "",
+                detail=getattr(ev, "detail", "") or "",
+            ))
+        return converted
+
+    def _to_engine_state(self, state: LiveMatchState):
+        """Convert poller's LiveMatchState to the engine's LiveMatchState format.
+
+        The engine (live_engine.py) expects flat fields like `prior_goals`,
+        `goals_home`, `corners_home`, etc. The poller uses nested
+        `home_stats`/`away_stats` objects and `prior_total_goals`.
+        """
+        try:
+            from live.live_state import LiveMatchState as EngineState
+        except ImportError:
+            from live_state import LiveMatchState as EngineState
+
+        hs = state.home_stats
+        as_ = state.away_stats
+
+        engine_state = EngineState(
+            fixture_id=state.fixture_id,
+            league=state.league,
+            home_team=state.home_team,
+            away_team=state.away_team,
+            status=state.status,
+            elapsed_min=float(state.elapsed_min),
+            # Score
+            goals_home=hs.goals if hs else 0,
+            goals_away=as_.goals if as_ else 0,
+            # Stats
+            corners_home=hs.corners if hs else 0,
+            corners_away=as_.corners if as_ else 0,
+            cards_home=(hs.yellow_cards + hs.red_cards) if hs else 0,
+            cards_away=(as_.yellow_cards + as_.red_cards) if as_ else 0,
+            sot_home=hs.sot if hs else 0,
+            sot_away=as_.sot if as_ else 0,
+            shots_home=hs.shots if hs else 0,
+            shots_away=as_.shots if as_ else 0,
+            fouls_home=hs.fouls if hs else 0,
+            fouls_away=as_.fouls if as_ else 0,
+            possession_home=hs.possession if hs else 50.0,
+            possession_away=as_.possession if as_ else 50.0,
+            red_cards_home=hs.red_cards if hs else 0,
+            red_cards_away=as_.red_cards if as_ else 0,
+            # Events — convert poller MatchEvent (team=name) to engine MatchEvent (team_side=home/away)
+            events=self._convert_events(state.events, state.home_team, state.away_team),
+            # Priors (map poller field names to engine field names)
+            prior_goals=state.prior_total_goals,
+            prior_goals_home=state.prior_home_goals,
+            prior_goals_away=state.prior_away_goals,
+            prior_corners=state.prior_total_corners,
+            prior_cards=state.prior_total_cards,
+            prior_sot=state.prior_total_sot,
+            prior_btts_prob=state.prior_btts_prob,
+        )
+        return engine_state
+
     def _try_compute_snapshot(self, state: LiveMatchState) -> Optional[LiveSnapshot]:
         """Attempt to compute a live snapshot. Returns None on failure."""
         if not _HAS_LIVE_ENGINE or compute_snapshot is None:
@@ -795,7 +896,9 @@ class LivePoller:
             )
 
         try:
-            return compute_snapshot(state)
+            # Convert poller state to engine-compatible format
+            engine_state = self._to_engine_state(state)
+            return compute_snapshot(engine_state)
         except Exception as exc:
             logger.warning(
                 "compute_snapshot failed for fixture %d: %s (returning basic snapshot)",

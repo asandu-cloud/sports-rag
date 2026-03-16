@@ -3754,6 +3754,7 @@ def render_parlay(
     lines.append("Parlay recommendation:")
 
     warnings: List[str] = []
+    leg_confidence_cache: List[Optional[str]] = []  # cache per-leg confidence for summary
 
     for i, leg in enumerate(selected, start=1):
         bm = f" ({leg.bookmaker})" if leg.bookmaker else ""
@@ -3765,6 +3766,7 @@ def render_parlay(
         conf_label = sc.get("confidence") or "—"
         model_p = sc.get("model_prob")
         conf_str = f" ({conf_label} confidence" + (f", model {model_p:.0%}" if model_p else "") + ")"
+        leg_confidence_cache.append(conf_label if conf_label != "—" else None)
 
         lines.append(f"- Leg {i}: {lg_badge}{leg.fixture} | {leg_label(leg)} @ {leg.odds:.2f}{bm}{conf_str}")
 
@@ -3783,9 +3785,8 @@ def render_parlay(
 
     lines.append(f"- Estimated combined odds: {combo:.2f}x")
 
-    # Overall parlay confidence summary
-    leg_confs = [_leg_standalone_confidence(leg, _leg_league(leg, c.league)).get("confidence") for leg in selected]
-    conf_counts = Counter(c for c in leg_confs if c)
+    # Overall parlay confidence summary (from cached values, no recomputation)
+    conf_counts = Counter(cf for cf in leg_confidence_cache if cf)
     if conf_counts:
         conf_summary = ", ".join(f"{cnt} {label}" for label, cnt in
                                  sorted(conf_counts.items(), key=lambda x: {"high": 0, "medium": 1, "low": 2}.get(x[0], 3)))

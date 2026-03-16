@@ -347,6 +347,7 @@ _HELP_COMMAND_CHOICES = [
     app_commands.Choice(name="parlay", value="parlay"),
     app_commands.Choice(name="build", value="build"),
     app_commands.Choice(name="players", value="players"),
+    app_commands.Choice(name="teamlines", value="teamlines"),
 ]
 
 
@@ -597,6 +598,55 @@ class SlashCommands(commands.Cog):
         return await _match_autocomplete(interaction, current)
 
     # /parlay lives in parlay_builder.py (with follow-up buttons, cross-league, etc.)
+
+    # -----------------------------------------------------------------------
+    # /teamlines — Standalone per-team corner & card lines
+    # -----------------------------------------------------------------------
+    @app_commands.command(
+        name="teamlines",
+        description="Per-team corner and card lines (e.g. Tottenham Over 2.5 Corners)",
+    )
+    @app_commands.describe(
+        league="League",
+        match="Focus on a specific fixture (type to search)",
+        date="Day (today, tomorrow, saturday, or YYYY-MM-DD)",
+    )
+    @app_commands.choices(league=_league_choices())
+    async def teamlines(
+        self,
+        interaction: discord.Interaction,
+        league: app_commands.Choice[str],
+        match: Optional[str] = None,
+        date: Optional[str] = None,
+    ) -> None:
+        await interaction.response.defer(thinking=True)
+        target = _parse_date(date)
+        phrase = _date_phrase(target)
+        lg = league.value
+
+        if match:
+            home, away = _parse_match(match)
+            prompt = (
+                f"For {home} vs {away} in {lg} on {phrase}, "
+                "what are the per-team corner and card lines for each team?"
+            )
+        else:
+            prompt = (
+                f"For all {lg} games on {phrase}, "
+                "what are the per-team corner and card lines for each fixture?"
+            )
+
+        text = _run_rag(prompt, lg)
+        embeds = rag_output_to_embeds("Team Lines", text, league=lg)
+        await interaction.followup.send(embeds=embeds)
+
+    @teamlines.autocomplete("match")
+    async def _teamlines_match_ac(
+        self,
+        interaction: discord.Interaction,
+        current: str,
+    ) -> List[app_commands.Choice[str]]:
+        return await _match_autocomplete(interaction, current)
 
     # -----------------------------------------------------------------------
     # /help — Guided onboarding

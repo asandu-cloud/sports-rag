@@ -780,83 +780,98 @@ def live_bets_embed(snapshot: Any, state: Any) -> discord.Embed:
 
     picks = []
 
-    # --- Goals picks ---
-    prob_goals = getattr(snapshot, "prob_over_goals", {}) or {}
-    pre_goals = getattr(snapshot, "pre_match_total_goals", None)
-    proj_goals = getattr(snapshot, "projected_total_goals", None)
-    for line_str, prob in sorted(prob_goals.items(), key=lambda x: float(x[0])):
-        line = float(line_str)
-        observed = getattr(state, "total_goals", 0) if hasattr(state, "total_goals") else 0
-        if prob >= 0.60:
-            picks.append({
-                "market": f"\u26bd Over {line_str} Goals",
-                "prob": prob,
-                "confidence": "Strong Edge" if prob >= 0.75 else "Leaning",
-                "color": "high" if prob >= 0.75 else "medium",
-                "reason": f"Projected {_f1(proj_goals)} total ({observed} so far, {_f1(getattr(snapshot, 'remaining_goals', None))} remaining)",
-            })
-        elif (1.0 - prob) >= 0.65:
-            picks.append({
-                "market": f"\u26bd Under {line_str} Goals",
-                "prob": 1.0 - prob,
-                "confidence": "Strong Edge" if (1.0 - prob) >= 0.80 else "Leaning",
-                "color": "high" if (1.0 - prob) >= 0.80 else "medium",
-                "reason": f"Projected {_f1(proj_goals)} total ({observed} so far)",
-            })
+    def _best_line_pick(prob_dict, stat_emoji, stat_name, projected, observed, remaining=None):
+        """Find the single best actionable line for a stat.
 
-    # --- Corners picks ---
+        Instead of showing every line above 60%, find the TIGHTEST contested
+        line — the one closest to the projection where the model has a
+        directional opinion. This is where real betting value lives.
+        """
+        if not prob_dict or projected is None:
+            return None
+
+        best = None
+        best_score = -1
+
+        for line_str, p_over in sorted(prob_dict.items(), key=lambda x: float(x[0])):
+            line = float(line_str)
+            # Skip lines already cleared (e.g., Over 1.5 when 3 goals scored)
+            if line < observed:
+                continue
+
+            # The actionable probability is whichever side is stronger
+            if p_over >= 0.55:
+                side = "Over"
+                prob = p_over
+            elif (1.0 - p_over) >= 0.55:
+                side = "Under"
+                prob = 1.0 - p_over
+            else:
+                continue  # too close to call
+
+            # Score: reward lines where probability is strong but NOT trivially obvious.
+            # Best picks are in the 55-80% range on a contested line.
+            # 98% on Under 4.5 is useless. 62% on Under 2.5 is actionable.
+            closeness_to_projection = 1.0 / (1.0 + abs(projected - line))
+            actionability = prob if prob < 0.85 else (0.85 - (prob - 0.85) * 2)  # penalize trivial
+            score = actionability * closeness_to_projection
+
+            if score > best_score:
+                best_score = score
+                rem_str = f", {_f1(remaining)} remaining" if remaining is not None else ""
+                best = {
+                    "market": f"{stat_emoji} {side} {line_str} {stat_name}",
+                    "prob": prob,
+                    "confidence": "Strong Edge" if prob >= 0.65 else "Leaning",
+                    "color": "high" if prob >= 0.65 else "medium",
+                    "reason": f"Projected {_f1(projected)} total ({observed} so far{rem_str})",
+                }
+
+        return best
+
+    # --- Goals: best single line ---
+    prob_goals = getattr(snapshot, "prob_over_goals", {}) or {}
+    proj_goals = getattr(snapshot, "projected_total_goals", None)
+    observed_goals = _observed_count(state, "goals")
+    rem_goals = getattr(snapshot, "remaining_goals", None)
+    goal_pick = _best_line_pick(prob_goals, "\u26bd", "Goals", proj_goals, observed_goals, rem_goals)
+    if goal_pick:
+        picks.append(goal_pick)
+
+    # --- Corners: best single line ---
     prob_corners = getattr(snapshot, "prob_over_corners", {}) or {}
     proj_corners = getattr(snapshot, "projected_total_corners", None)
-    for line_str, prob in sorted(prob_corners.items(), key=lambda x: float(x[0])):
-        line = float(line_str)
-        observed = getattr(state, "total_corners", 0) if hasattr(state, "total_corners") else 0
-        if prob >= 0.62:
-            picks.append({
-                "market": f"\U0001f4d0 Over {line_str} Corners",
-                "prob": prob,
-                "confidence": "Strong Edge" if prob >= 0.75 else "Leaning",
-                "color": "high" if prob >= 0.75 else "medium",
-                "reason": f"Projected {_f1(proj_corners)} total ({observed} so far)",
-            })
-        elif (1.0 - prob) >= 0.68:
-            picks.append({
-                "market": f"\U0001f4d0 Under {line_str} Corners",
-                "prob": 1.0 - prob,
-                "confidence": "Strong Edge" if (1.0 - prob) >= 0.80 else "Leaning",
-                "color": "high" if (1.0 - prob) >= 0.80 else "medium",
-                "reason": f"Projected {_f1(proj_corners)} total ({observed} so far)",
-            })
+    observed_corners = _observed_count(state, "corners")
+    rem_corners = getattr(snapshot, "remaining_corners", None)
+    corner_pick = _best_line_pick(prob_corners, "\U0001f4d0", "Corners", proj_corners, observed_corners, rem_corners)
+    if corner_pick:
+        picks.append(corner_pick)
 
-    # --- Cards picks ---
+    # --- Cards: best single line ---
     prob_cards = getattr(snapshot, "prob_over_cards", {}) or {}
     proj_cards = getattr(snapshot, "projected_total_cards", None)
-    for line_str, prob in sorted(prob_cards.items(), key=lambda x: float(x[0])):
-        observed = getattr(state, "total_cards", 0) if hasattr(state, "total_cards") else 0
-        if prob >= 0.62:
-            picks.append({
-                "market": f"\U0001f7e8 Over {line_str} Cards",
-                "prob": prob,
-                "confidence": "Strong Edge" if prob >= 0.75 else "Leaning",
-                "color": "high" if prob >= 0.75 else "medium",
-                "reason": f"Projected {_f1(proj_cards)} total ({observed} so far)",
-            })
-        elif (1.0 - prob) >= 0.68:
-            picks.append({
-                "market": f"\U0001f7e8 Under {line_str} Cards",
-                "prob": 1.0 - prob,
-                "confidence": "Strong Edge" if (1.0 - prob) >= 0.80 else "Leaning",
-                "color": "high" if (1.0 - prob) >= 0.80 else "medium",
-                "reason": f"Projected {_f1(proj_cards)} total ({observed} so far)",
-            })
+    observed_cards = _observed_count(state, "cards")
+    rem_cards = getattr(snapshot, "remaining_cards", None)
+    card_pick = _best_line_pick(prob_cards, "\U0001f7e8", "Cards", proj_cards, observed_cards, rem_cards)
+    if card_pick:
+        picks.append(card_pick)
 
     # --- BTTS pick ---
     btts_prob = getattr(snapshot, "btts_prob", None)
     pre_btts = getattr(snapshot, "pre_match_btts_prob", None)
     if btts_prob is not None:
-        goals_h = getattr(state, "goals_home", 0) if hasattr(state, "goals_home") else 0
-        goals_a = getattr(state, "goals_away", 0) if hasattr(state, "goals_away") else 0
+        # Check if both teams scored — handles both poller state (home_stats.goals)
+        # and engine state (goals_home) formats
+        hs = getattr(state, "home_stats", None)
+        as_ = getattr(state, "away_stats", None)
+        if hs and as_:
+            goals_h = getattr(hs, "goals", 0)
+            goals_a = getattr(as_, "goals", 0)
+        else:
+            goals_h = getattr(state, "goals_home", 0)
+            goals_a = getattr(state, "goals_away", 0)
         if goals_h >= 1 and goals_a >= 1:
-            pass  # BTTS already hit, no pick needed
+            pass  # BTTS already cashed — do NOT recommend
         elif btts_prob >= 0.60:
             picks.append({
                 "market": "\U0001f91d BTTS Yes",
