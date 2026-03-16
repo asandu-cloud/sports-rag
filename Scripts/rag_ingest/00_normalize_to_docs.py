@@ -109,6 +109,14 @@ cards_per_foul_team (team profile): Ratio of cards to fouls — card propensity 
 cards_home_pm (team profile): Average cards received per match in HOME fixtures only.
 cards_away_pm (team profile): Average cards received per match in AWAY fixtures only.
 sot_against_pm (team profile): Average shots on target conceded per match (season). Opponent-join aggregation.
+corners_against_home_pm (team profile): Average corners conceded per match in HOME fixtures only. Opponent-join + venue-split.
+corners_against_away_pm (team profile): Average corners conceded per match in AWAY fixtures only. Opponent-join + venue-split.
+sot_against_home_pm (team profile): Average SoT conceded per match in HOME fixtures only. Opponent-join + venue-split.
+sot_against_away_pm (team profile): Average SoT conceded per match in AWAY fixtures only. Opponent-join + venue-split.
+cards_induced_home_pm (team profile): Average cards opponents receive per match in team's HOME fixtures. Opponent-join + venue-split.
+cards_induced_away_pm (team profile): Average cards opponents receive per match in team's AWAY fixtures. Opponent-join + venue-split.
+fouls_home_pm (team profile): Average fouls committed per match in HOME fixtures only.
+fouls_away_pm (team profile): Average fouls committed per match in AWAY fixtures only.
 
 Player Role & Minutes Context (player profile):
 - appearances_total: Total appearances across all fixtures (any minutes > 0).
@@ -354,6 +362,10 @@ def doc_from_team_profile(
     sot_ha_pm_map: Optional[dict] = None,
     xg_ha_pm_map: Optional[dict] = None,
     matches_played_map: Optional[dict] = None,
+    corners_against_ha_pm_map: Optional[dict] = None,
+    sot_against_ha_pm_map: Optional[dict] = None,
+    cards_induced_ha_pm_map: Optional[dict] = None,
+    fouls_ha_pm_map: Optional[dict] = None,
 ) -> dict:
     league = row.get("league")
     season = row.get("season") or season_hint
@@ -384,6 +396,18 @@ def doc_from_team_profile(
     cards_var = stat_vars.get("cards_var")
     sot_var = stat_vars.get("sot_var")
     matches_played = (matches_played_map or {}).get(tkey, 0)
+    corners_against_ha = (corners_against_ha_pm_map or {}).get(tkey, {})
+    corners_against_home_pm = corners_against_ha.get("home") if corners_against_ha else None
+    corners_against_away_pm = corners_against_ha.get("away") if corners_against_ha else None
+    sot_against_ha = (sot_against_ha_pm_map or {}).get(tkey, {})
+    sot_against_home_pm = sot_against_ha.get("home") if sot_against_ha else None
+    sot_against_away_pm = sot_against_ha.get("away") if sot_against_ha else None
+    cards_induced_ha = (cards_induced_ha_pm_map or {}).get(tkey, {})
+    cards_induced_home_pm = cards_induced_ha.get("home") if cards_induced_ha else None
+    cards_induced_away_pm = cards_induced_ha.get("away") if cards_induced_ha else None
+    fouls_ha = (fouls_ha_pm_map or {}).get(tkey, {})
+    fouls_home_pm = fouls_ha.get("home") if fouls_ha else None
+    fouls_away_pm = fouls_ha.get("away") if fouls_ha else None
 
     corner_edge_pm = None
     try:
@@ -408,6 +432,10 @@ def doc_from_team_profile(
         f"Fouls/90:{row.get('fouls_per_90_team')} Cards/90:{row.get('cards_per_90_team')} Cards/Foul:{row.get('cards_per_foul_team')} Cards/Match:{row.get('cards_pm')}\n"
         f"Cards Home/Match:{cards_home_pm} | Cards Away/Match:{cards_away_pm}\n"
         f"Opp Cards Induced/Match:{cards_induced_pm}\n"
+        f"Corners Against Home/Match:{corners_against_home_pm} | Corners Against Away/Match:{corners_against_away_pm}\n"
+        f"SoT Against Home/Match:{sot_against_home_pm} | SoT Against Away/Match:{sot_against_away_pm}\n"
+        f"Cards Induced Home/Match:{cards_induced_home_pm} | Cards Induced Away/Match:{cards_induced_away_pm}\n"
+        f"Fouls Home/Match:{fouls_home_pm} | Fouls Away/Match:{fouls_away_pm}\n"
         f"Tags: {', '.join(row.get('style_tags', []))}\n"
         f"Summary: {row.get('summary_nl')}"
     )
@@ -447,6 +475,14 @@ def doc_from_team_profile(
         "goals_var": goals_var,
         "cards_var": cards_var,
         "sot_var": sot_var,
+        "corners_against_home_pm": corners_against_home_pm,
+        "corners_against_away_pm": corners_against_away_pm,
+        "sot_against_home_pm": sot_against_home_pm,
+        "sot_against_away_pm": sot_against_away_pm,
+        "cards_induced_home_pm": cards_induced_home_pm,
+        "cards_induced_away_pm": cards_induced_away_pm,
+        "fouls_home_pm": fouls_home_pm,
+        "fouls_away_pm": fouls_away_pm,
         "source_file": source_file,
     }
     uid = make_doc_id([league, season, "team_profile", team])
@@ -846,6 +882,187 @@ def compute_sot_against_pm(team_rows: list[dict]) -> dict:
     return out
 
 
+# --- venue-split corners conceded per match (opponent-join + home/away) ---
+def compute_corners_against_home_away_pm(team_rows: list[dict]) -> dict:
+    """
+    Returns { team_lower: {"home": avg_corners_conceded_home, "away": avg_corners_conceded_away} }.
+    For each of team X's fixtures, look up the opponent's corners won,
+    then split by whether X was home or away.
+    """
+    fx_map = build_fixture_team_map(team_rows)
+    home_sums: dict[str, float] = {}
+    home_cnts: dict[str, int]   = {}
+    away_sums: dict[str, float] = {}
+    away_cnts: dict[str, int]   = {}
+
+    for r in team_rows:
+        fx   = (r.get("fixture") or "").lower().strip()
+        team = (r.get("team") or "").lower().strip()
+        if not fx or not team:
+            continue
+        # Determine venue
+        home_team_raw = (r.get("home_team") or "").lower().strip()
+        if home_team_raw:
+            is_home = (team == home_team_raw)
+        else:
+            venue, _ = infer_home_away(r.get("fixture", ""), r.get("team", ""))
+            is_home = (venue == "home")
+        # Find opponent's corners
+        _hm, opp_name = infer_home_away(r.get("fixture", ""), r.get("team", ""))
+        opp_row = None
+        if opp_name:
+            opp_row = fx_map.get(fx, {}).get(opp_name.lower().strip())
+        c_against = (opp_row or {}).get("corners")
+        try:
+            c_against = float(c_against) if c_against is not None else None
+        except (TypeError, ValueError):
+            c_against = None
+        if c_against is None:
+            continue
+
+        if is_home:
+            home_sums[team] = home_sums.get(team, 0.0) + c_against
+            home_cnts[team] = home_cnts.get(team, 0) + 1
+        else:
+            away_sums[team] = away_sums.get(team, 0.0) + c_against
+            away_cnts[team] = away_cnts.get(team, 0) + 1
+
+    out = {}
+    for t in set(home_sums.keys()) | set(away_sums.keys()):
+        h_avg = home_sums[t] / max(1, home_cnts[t]) if t in home_sums else None
+        a_avg = away_sums[t] / max(1, away_cnts[t]) if t in away_sums else None
+        out[t] = {"home": h_avg, "away": a_avg}
+    return out
+
+
+# --- venue-split SoT conceded per match (opponent-join + home/away) ---
+def compute_sot_against_home_away_pm(team_rows: list[dict]) -> dict:
+    """
+    Returns { team_lower: {"home": avg_sot_conceded_home, "away": avg_sot_conceded_away} }.
+    For each of team X's fixtures, look up the opponent's SoT,
+    then split by whether X was home or away.
+    """
+    fx_map = build_fixture_team_map(team_rows)
+    home_sums: dict[str, float] = {}
+    home_cnts: dict[str, int]   = {}
+    away_sums: dict[str, float] = {}
+    away_cnts: dict[str, int]   = {}
+
+    for r in team_rows:
+        fx   = (r.get("fixture") or "").lower().strip()
+        team = (r.get("team") or "").lower().strip()
+        if not fx or not team:
+            continue
+        # Determine venue
+        home_team_raw = (r.get("home_team") or "").lower().strip()
+        if home_team_raw:
+            is_home = (team == home_team_raw)
+        else:
+            venue, _ = infer_home_away(r.get("fixture", ""), r.get("team", ""))
+            is_home = (venue == "home")
+        # Find opponent's SoT
+        _hm, opp_name = infer_home_away(r.get("fixture", ""), r.get("team", ""))
+        opp_row = None
+        if opp_name:
+            opp_row = fx_map.get(fx, {}).get(opp_name.lower().strip())
+        opp_sot = None
+        if opp_row:
+            for _k in ("sot_for", "shots_on_x", "shots_on"):
+                v = opp_row.get(_k)
+                if v is not None:
+                    opp_sot = v
+                    break
+        try:
+            opp_sot = float(opp_sot) if opp_sot is not None else None
+        except (TypeError, ValueError):
+            opp_sot = None
+        if opp_sot is None:
+            continue
+
+        if is_home:
+            home_sums[team] = home_sums.get(team, 0.0) + opp_sot
+            home_cnts[team] = home_cnts.get(team, 0) + 1
+        else:
+            away_sums[team] = away_sums.get(team, 0.0) + opp_sot
+            away_cnts[team] = away_cnts.get(team, 0) + 1
+
+    out = {}
+    for t in set(home_sums.keys()) | set(away_sums.keys()):
+        h_avg = home_sums[t] / max(1, home_cnts[t]) if t in home_sums else None
+        a_avg = away_sums[t] / max(1, away_cnts[t]) if t in away_sums else None
+        out[t] = {"home": h_avg, "away": a_avg}
+    return out
+
+
+# --- venue-split opponent cards induced per match (opponent-join + home/away) ---
+def compute_cards_induced_home_away_pm(team_rows: list[dict]) -> dict:
+    """
+    Returns { team_lower: {"home": avg_cards_induced_home, "away": avg_cards_induced_away} }.
+    For each of team X's fixtures, look up the opponent's cards_total,
+    then split by whether X was home or away.
+    """
+    fx_map = build_fixture_team_map(team_rows)
+    home_sums: dict[str, float] = {}
+    home_cnts: dict[str, int]   = {}
+    away_sums: dict[str, float] = {}
+    away_cnts: dict[str, int]   = {}
+
+    for r in team_rows:
+        fx   = (r.get("fixture") or "").lower().strip()
+        team = (r.get("team") or "").lower().strip()
+        if not fx or not team:
+            continue
+        # Determine venue
+        home_team_raw = (r.get("home_team") or "").lower().strip()
+        if home_team_raw:
+            is_home = (team == home_team_raw)
+        else:
+            venue, _ = infer_home_away(r.get("fixture", ""), r.get("team", ""))
+            is_home = (venue == "home")
+        # Find opponent's cards
+        _hm, opp_name = infer_home_away(r.get("fixture", ""), r.get("team", ""))
+        opp_row = None
+        if opp_name:
+            opp_row = fx_map.get(fx, {}).get(opp_name.lower().strip())
+        opp_cards = None
+        if opp_row:
+            opp_cards = opp_row.get("cards_total")
+            if opp_cards is None:
+                yc = opp_row.get("yellow_cards")
+                rc = opp_row.get("red_cards")
+                if yc is not None or rc is not None:
+                    opp_cards = float(yc or 0) + float(rc or 0)
+        try:
+            opp_cards = float(opp_cards) if opp_cards is not None else None
+        except (TypeError, ValueError):
+            opp_cards = None
+        if opp_cards is None:
+            continue
+
+        if is_home:
+            home_sums[team] = home_sums.get(team, 0.0) + opp_cards
+            home_cnts[team] = home_cnts.get(team, 0) + 1
+        else:
+            away_sums[team] = away_sums.get(team, 0.0) + opp_cards
+            away_cnts[team] = away_cnts.get(team, 0) + 1
+
+    out = {}
+    for t in set(home_sums.keys()) | set(away_sums.keys()):
+        h_avg = home_sums[t] / max(1, home_cnts[t]) if t in home_sums else None
+        a_avg = away_sums[t] / max(1, away_cnts[t]) if t in away_sums else None
+        out[t] = {"home": h_avg, "away": a_avg}
+    return out
+
+
+# --- venue-split own fouls committed per match ---
+def compute_fouls_home_away_pm(team_rows: list[dict]) -> dict:
+    """
+    Returns { team_lower: {"home": avg_fouls_home, "away": avg_fouls_away} }.
+    Uses fouls_committed field from team fixture rows.
+    """
+    return _compute_venue_split(team_rows, "fouls_committed")
+
+
 # --------- DISCOVERY & NORMALIZATION ---------
 def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
     """
@@ -921,6 +1138,10 @@ def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
     goals_ha_pm_map = compute_goals_home_away_pm(team_rows) if team_rows else {}
     sot_ha_pm_map = compute_sot_home_away_pm(team_rows) if team_rows else {}
     xg_ha_pm_map = compute_xg_home_away_pm(team_rows) if team_rows else {}
+    corners_against_ha_pm_map = compute_corners_against_home_away_pm(team_rows) if team_rows else {}
+    sot_against_ha_pm_map = compute_sot_against_home_away_pm(team_rows) if team_rows else {}
+    cards_induced_ha_pm_map = compute_cards_induced_home_away_pm(team_rows) if team_rows else {}
+    fouls_ha_pm_map = compute_fouls_home_away_pm(team_rows) if team_rows else {}
 
     # Count fixtures per team (for matches_played metadata)
     matches_played_map: dict = {}
@@ -1026,6 +1247,10 @@ def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
                     sot_ha_pm_map=sot_ha_pm_map,
                     xg_ha_pm_map=xg_ha_pm_map,
                     matches_played_map=matches_played_map,
+                    corners_against_ha_pm_map=corners_against_ha_pm_map,
+                    sot_against_ha_pm_map=sot_against_ha_pm_map,
+                    cards_induced_ha_pm_map=cards_induced_ha_pm_map,
+                    fouls_ha_pm_map=fouls_ha_pm_map,
                 )
             )
 

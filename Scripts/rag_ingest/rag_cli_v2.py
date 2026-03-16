@@ -804,6 +804,11 @@ def _detect_cross_league(user_q: str) -> List[str]:
         is_cross = True
     if not is_cross:
         return []
+    # If a broad cross-league pattern matched (e.g. "all top 5 leagues"),
+    # return ALL leagues even if specific leagues are also mentioned.
+    broad_pattern_matched = any(re.search(p, q) for p in _CROSS_LEAGUE_PATTERNS)
+    if broad_pattern_matched:
+        return list(ALL_LEAGUES)
     return mentioned if len(mentioned) >= 2 else list(ALL_LEAGUES)
 
 
@@ -2669,13 +2674,20 @@ def get_recent_team_fixture_rows(team_name: str, league: str, limit: int = 8,
     return rows[:limit]
 
 
-def get_team_recent_stats(team_name: str, league: str, last_n: int = 6) -> Dict:
-    cache_key = (league, canonical_team_name(team_name).lower(), int(last_n))
+def get_team_recent_stats(team_name: str, league: str, last_n: int = 6,
+                          venue: Optional[str] = None) -> Dict:
+    cache_key = (league, canonical_team_name(team_name).lower(), int(last_n),
+                 venue or "all")
     cached = _team_recent_stats_cache.get(cache_key)
     if cached is not None:
         return cached
 
-    rows = get_recent_team_fixture_rows(team_name, league, limit=max(last_n, 4))
+    # Fetch more rows when venue-filtering so we still get enough after filtering
+    fetch_limit = max(last_n * 3, 12) if venue else max(last_n, 4)
+    rows = get_recent_team_fixture_rows(team_name, league, limit=fetch_limit)
+    if venue:
+        rows = [r for r in rows
+                if (r.get("meta") or {}).get("home_away", "").lower() == venue.lower()]
     rows = rows[:last_n]
     metas = [(r.get("meta") or {}) for r in rows]
 
@@ -3053,9 +3065,15 @@ def projected_total_sot(home: str, away: str, league: str) -> Tuple[Optional[flo
 
     hr = _recent_stats(home, league, last_n=6)
     ar = _recent_stats(away, league, last_n=6)
-    h_recent = hr.get("sot_for_avg")
-    a_recent = ar.get("sot_for_avg")
-    recent_total = (h_recent + a_recent) if (h_recent is not None and a_recent is not None) else None
+    h_recent_for = hr.get("sot_for_avg")
+    a_recent_for = ar.get("sot_for_avg")
+    # Blend each team's recent SoT attack with opponent's recent SoT defensive concession
+    if h_recent_for is not None and a_recent_for is not None:
+        h_recent_proj = 0.6 * h_recent_for + 0.4 * ar.get("sot_against_avg", a_proj if a_proj is not None else a_recent_for)
+        a_recent_proj = 0.6 * a_recent_for + 0.4 * hr.get("sot_against_avg", h_proj if h_proj is not None else h_recent_for)
+        recent_total = h_recent_proj + a_recent_proj
+    else:
+        recent_total = None
 
     if season_total is not None and recent_total is not None:
         blended = pw["blend_season"] * season_total + pw["blend_recent"] * recent_total
@@ -4083,9 +4101,15 @@ def projected_total_corners(home: str, away: str, league: str) -> Tuple[Optional
 
     hr = _recent_stats(home, league, last_n=6)
     ar = _recent_stats(away, league, last_n=6)
-    h_recent = hr.get("corners_for_avg")
-    a_recent = ar.get("corners_for_avg")
-    recent_total = (h_recent + a_recent) if (h_recent is not None and a_recent is not None) else None
+    h_recent_for = hr.get("corners_for_avg")
+    a_recent_for = ar.get("corners_for_avg")
+    # Blend each team's recent attack with opponent's recent defensive concession
+    if h_recent_for is not None and a_recent_for is not None:
+        h_recent_proj = 0.6 * h_recent_for + 0.4 * ar.get("corners_against_avg", a_proj if a_proj is not None else a_recent_for)
+        a_recent_proj = 0.6 * a_recent_for + 0.4 * hr.get("corners_against_avg", h_proj if h_proj is not None else h_recent_for)
+        recent_total = h_recent_proj + a_recent_proj
+    else:
+        recent_total = None
 
     if season_total is not None and recent_total is not None:
         blended = pw["blend_season"] * season_total + pw["blend_recent"] * recent_total
@@ -4124,9 +4148,17 @@ def projected_total_cards(home: str, away: str, league: str) -> Tuple[Optional[f
 
     hr = _recent_stats(home, league, last_n=6)
     ar = _recent_stats(away, league, last_n=6)
-    h_recent = hr.get("cards_avg")
-    a_recent = ar.get("cards_avg")
-    recent_total = (h_recent + a_recent) if (h_recent is not None and a_recent is not None) else None
+    h_recent_cards = hr.get("cards_avg")
+    a_recent_cards = ar.get("cards_avg")
+    # Blend each team's recent cards with opponent's recent card-inducing tendency
+    # For cards, opponent "defensive" form = how many cards opponents get against them
+    if h_recent_cards is not None and a_recent_cards is not None:
+        # Use opponent's cards_avg as proxy for cards conceded/induced context
+        h_recent_proj = 0.6 * h_recent_cards + 0.4 * a_recent_cards
+        a_recent_proj = 0.6 * a_recent_cards + 0.4 * h_recent_cards
+        recent_total = h_recent_proj + a_recent_proj
+    else:
+        recent_total = None
 
     if season_total is not None and recent_total is not None:
         blended = pw["blend_season"] * season_total + pw["blend_recent"] * recent_total
@@ -4234,7 +4266,9 @@ def projected_team_cards(
         ref_mod = get_referee_modifier(home_name, away_name, league,
                                        weight=rw.get("modifier_weight", 0.25))
 
-    h_proj, a_proj = projected_cards(hm, am, referee_modifier=ref_mod.multiplier)
+    # Use referee_modifier=1.0 here — referee signal comes through anchor and
+    # foul-based estimate below, not multiplicatively (avoids triple-counting).
+    h_proj, a_proj = projected_cards(hm, am, referee_modifier=1.0)
     season_proj = h_proj if is_home else a_proj
 
     recent_stats = _recent_stats(team, league, last_n=6)
@@ -5738,17 +5772,19 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
 
         # ---- CORNERS ----
         lines.append("  CORNERS:")
+        _corner_projs = {}
         for team, opp, is_home in [(home, away, True), (away, home, False)]:
             c_bl, c_sea, c_rec = projected_team_corners(team, opp, league, is_home)
             if c_bl is None:
                 lines.append(f"    {team}: insufficient data.")
                 continue
+            _corner_projs[team] = c_bl
             lines.append(f"    {team}: projected {c_bl:.2f} corners/match.")
             if c_sea is not None:
                 lines.append(f"      Season model: {c_sea:.2f}.")
             if c_rec is not None:
                 lines.append(f"      Recent 6-match: {c_rec:.2f}.")
-            t_var = get_team_recent_variance(team, league).get("corners_for_var")
+            t_var = get_blended_variance(team, league, "corners_for_var")
             options = extract_team_total_line_options(ev, team, "corners")
             best = choose_best_total_line(options, c_bl, t_var) if options else None
             if best:
@@ -5777,10 +5813,26 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
                     lines.append(f"      Edge {edge:+.2f} ({conf} confidence).")
             else:
                 side, anchor, mp = _best_model_only_line(c_bl, t_var)
+                conf = "high" if mp >= 0.65 else ("medium" if mp >= 0.55 else "low")
                 lines.append(
                     f"      Recommended: {side} {anchor:g} "
-                    f"(model-only, P({side} {anchor:g}) = {mp:.1%})."
+                    f"(model-only, P({side} {anchor:g}) = {mp:.1%}, {conf} confidence)."
                 )
+                # Adjacent line probabilities
+                for adj_offset in [-1.0, 1.0]:
+                    adj_line = anchor + adj_offset
+                    if adj_line >= 0.5:
+                        adj_p_over = over_prob(c_bl, adj_line, t_var)
+                        adj_side = "Over" if adj_p_over >= 0.5 else "Under"
+                        adj_p = adj_p_over if adj_side == "Over" else (1.0 - adj_p_over)
+                        lines.append(
+                            f"        Alt: {adj_side} {adj_line:g} — P = {adj_p:.1%}."
+                        )
+
+        # Match total corners summary
+        if len(_corner_projs) == 2:
+            _c_vals = list(_corner_projs.values())
+            lines.append(f"    Match total: {_c_vals[0] + _c_vals[1]:.1f} projected corners.")
 
         # ---- CARDS ----
         lines.append("  CARDS:")
@@ -5803,18 +5855,20 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
         else:
             lines.append("    Referee: not yet assigned or API-Football key not set.")
 
+        _card_projs = {}
         for team, opp, is_home in [(home, away, True), (away, home, False)]:
             k_bl, k_sea, k_rec = projected_team_cards(team, opp, league, is_home,
                                                        ref_mod=ref_mod)
             if k_bl is None:
                 lines.append(f"    {team}: insufficient data.")
                 continue
+            _card_projs[team] = k_bl
             lines.append(f"    {team}: projected {k_bl:.2f} cards/match.")
             if k_sea is not None:
                 lines.append(f"      Season model: {k_sea:.2f}.")
             if k_rec is not None:
                 lines.append(f"      Recent 6-match: {k_rec:.2f}.")
-            t_var = get_team_recent_variance(team, league).get("cards_var")
+            t_var = get_blended_variance(team, league, "cards_var")
             options = extract_team_total_line_options(ev, team, "cards")
             best = choose_best_total_line(options, k_bl, t_var) if options else None
             if best:
@@ -5843,10 +5897,26 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
                     lines.append(f"      Edge {edge:+.2f} ({conf} confidence).")
             else:
                 side, anchor, mp = _best_model_only_line(k_bl, t_var)
+                conf = "high" if mp >= 0.65 else ("medium" if mp >= 0.55 else "low")
                 lines.append(
                     f"      Recommended: {side} {anchor:g} "
-                    f"(model-only, P({side} {anchor:g}) = {mp:.1%})."
+                    f"(model-only, P({side} {anchor:g}) = {mp:.1%}, {conf} confidence)."
                 )
+                # Adjacent line probabilities
+                for adj_offset in [-1.0, 1.0]:
+                    adj_line = anchor + adj_offset
+                    if adj_line >= 0.5:
+                        adj_p_over = over_prob(k_bl, adj_line, t_var)
+                        adj_side = "Over" if adj_p_over >= 0.5 else "Under"
+                        adj_p = adj_p_over if adj_side == "Over" else (1.0 - adj_p_over)
+                        lines.append(
+                            f"        Alt: {adj_side} {adj_line:g} — P = {adj_p:.1%}."
+                        )
+
+        # Match total cards summary
+        if len(_card_projs) == 2:
+            _k_vals = list(_card_projs.values())
+            lines.append(f"    Match total: {_k_vals[0] + _k_vals[1]:.1f} projected cards.")
 
     lines.append("Method: per-team Poisson/NegBin probability model from local KB.")
     return "\n".join(lines)

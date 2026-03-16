@@ -96,6 +96,15 @@ TEAM_FEATURES_BASE = [
     "shot_on_target_ratio",  # SoT/total shots — quality marker
 ]
 
+# Opponent-adjusted features per team (from opponent-join aggregations in 00_normalize).
+# These capture defensive profile: how much a team concedes in each stat category.
+TEAM_FEATURES_OPP = [
+    "corners_against_pm",      # avg corners conceded per match
+    "sot_against_pm",          # avg SoT conceded per match
+    "goals_against_pm",        # avg goals conceded per match
+    "opp_cards_induced_pm",    # avg cards opponents receive against this team
+]
+
 # Minimum cross-validated R2 for a model to be used at query time.
 MIN_MODEL_R2 = 0.20
 
@@ -240,18 +249,43 @@ def _extract_features(home_row: dict, away_row: dict,
 
     Uses composite features and activity metrics per team (no same-stat
     features that would leak target info at training time).
+
+    Feature order:
+      [home_base (9)] [home_opp (4)] [away_base (9)] [away_opp (4)]
+      [is_home_flag (1)]
+      [possession_gap (1)] [control_diff (1)] [dominance_diff (1)]
+      [aggression_diff (1)] [xg_diff (1)]
+      [elo_diff (1)]
+      [league_onehot (5)]
     """
     feats = []
 
-    # Base features per team
+    # Base features + opponent-adjusted features per team
     for row in [home_row, away_row]:
         for f in TEAM_FEATURES_BASE:
             feats.append(_safe_float(row.get(f)))
+        for f in TEAM_FEATURES_OPP:
+            feats.append(_safe_float(row.get(f)))
 
-    # Derived features
+    # Venue feature: 1.0 for the fixture (home team advantage signal)
+    feats.append(1.0)
+
+    # Pairwise difference features (home - away)
     h_poss = _safe_float(home_row.get("possession"))
     a_poss = _safe_float(away_row.get("possession"))
     feats.append(h_poss - a_poss)  # possession_gap
+
+    feats.append(_safe_float(home_row.get("control_index"))
+                 - _safe_float(away_row.get("control_index")))     # control_diff
+
+    feats.append(_safe_float(home_row.get("dominance_index"))
+                 - _safe_float(away_row.get("dominance_index")))   # dominance_diff
+
+    feats.append(_safe_float(home_row.get("aggression_index_norm"))
+                 - _safe_float(away_row.get("aggression_index_norm")))  # aggression_diff
+
+    feats.append(_safe_float(home_row.get("expected_goals"))
+                 - _safe_float(away_row.get("expected_goals")))    # xg_diff
 
     # Elo diff
     if elo:
@@ -447,7 +481,14 @@ def _get_feature_names() -> List[str]:
     for prefix in ["home", "away"]:
         for f in TEAM_FEATURES_BASE:
             names.append(f"{prefix}_{f}")
+        for f in TEAM_FEATURES_OPP:
+            names.append(f"{prefix}_{f}")
+    names.append("is_home")
     names.append("possession_gap")
+    names.append("control_diff")
+    names.append("dominance_diff")
+    names.append("aggression_diff")
+    names.append("xg_diff")
     names.append("elo_diff")
     for lg in LEAGUE_ONEHOT_ORDER:
         names.append(f"league_{lg}")
@@ -609,9 +650,14 @@ def _profile_meta_to_fixture_row(meta: dict, team_name: str) -> dict:
     Maps profile metadata field names to the fixture-row field names expected by
     _extract_features(). The ±2σ clipping in ml_predict_total() handles the
     distribution difference between per-match training values and season averages.
+
+    Includes opponent-adjusted features (corners/SoT/goals conceded, cards induced)
+    which come from opponent-join aggregations computed in 00_normalize_to_docs.py.
+    These default to 0.0 when unavailable (older data without opponent-joins).
     """
     return {
         "team": team_name,
+        # Base features
         "possession": meta.get("possession"),
         "control_index": meta.get("control_index"),
         "dominance_index": meta.get("dominance_index"),
@@ -622,6 +668,11 @@ def _profile_meta_to_fixture_row(meta: dict, team_name: str) -> dict:
         "shots_total": meta.get("shots_for_pm", 10.0),
         "shot_on_target_ratio": meta.get("shot_on_target_ratio",
                                           _compute_sot_ratio(meta)),
+        # Opponent-adjusted features (defensive profile)
+        "corners_against_pm": meta.get("corners_against_pm", 0.0),
+        "sot_against_pm": meta.get("sot_against_pm", 0.0),
+        "goals_against_pm": meta.get("goals_against_pm", 0.0),
+        "opp_cards_induced_pm": meta.get("opp_cards_induced_pm", 0.0),
     }
 
 

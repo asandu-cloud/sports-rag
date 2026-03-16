@@ -30,6 +30,7 @@ from config import (  # noqa: E402
     COLOR_YELLOW,
     COLOR_RED,
     COLOR_BLUE,
+    COLOR_PURPLE,
 )
 
 # Prediction tracker (optional — graceful if unavailable)
@@ -44,9 +45,18 @@ log = logging.getLogger("auto_push")
 
 def _run_rag(prompt: str, league: str) -> str:
     buf = io.StringIO()
-    with redirect_stdout(buf):
-        rag.answer_once(prompt, default_league=league)
-    return buf.getvalue().strip() or ""
+    try:
+        with redirect_stdout(buf):
+            rag.answer_once(prompt, default_league=league)
+    except Exception as exc:
+        log.error("RAG query failed: %s", exc, exc_info=True)
+        return ""
+    result = buf.getvalue().strip()
+    if not result:
+        log.warning("RAG returned empty output for prompt: %.100s", prompt)
+    else:
+        log.info("RAG output length: %d chars for prompt: %.80s", len(result), prompt)
+    return result
 
 
 def _ordinal(n: int) -> str:
@@ -148,17 +158,59 @@ class AutoPush(commands.Cog):
             return  # no games today, don't post
 
         # Post 2-3 hours before first kickoff
-        now = datetime.now(first_kickoff.tzinfo) if first_kickoff else datetime.utcnow()
+        from datetime import timezone
+        now = datetime.now(timezone.utc)
         if first_kickoff:
+            # Ensure first_kickoff is timezone-aware (UTC)
+            if first_kickoff.tzinfo is None:
+                first_kickoff = first_kickoff.replace(tzinfo=timezone.utc)
             hours_until = (first_kickoff - now).total_seconds() / 3600
+            log.info("First kickoff in %.1f hours (kickoff=%s, now=%s)", hours_until, first_kickoff, now)
             if hours_until > 3.5 or hours_until < -0.5:
                 return  # too early or games already started, wait
 
-        # --- Post 3 parlays: Lock, Safe, Standard ---
+        # --- Build 3 parlays: Lock, Safe, Standard ---
         date_str = _today_phrase()
-        self._parlay_posted_date = today
 
-        # Header
+        # 1. THE LOCK — ultra-safe, ~1.8x odds, highest confidence legs only
+        lock_prompt = (
+            f"For all league games on {date_str} across all leagues, "
+            "build a cross-league 2-leg parlay using ONLY the two strongest high-confidence picks. "
+            "Keep combined decimal odds at or below 1.9x. Prioritize picks where the model "
+            "probability is above 65%. This is the safest possible parlay."
+        )
+        lock_text = _run_rag(lock_prompt, "EPL")
+
+        # 2. SAFE — conservative, 2-3x odds
+        safe_prompt = (
+            f"For all league games on {date_str} across all leagues, "
+            "build a cross-league 3-leg parlay with combined odds between 2.0x and 3.0x. "
+            "Only use high or medium confidence picks."
+        )
+        safe_text = _run_rag(safe_prompt, "EPL")
+
+        # 3. STANDARD — balanced risk, 4-6x odds
+        std_prompt = (
+            f"For all league games on {date_str} across all leagues, "
+            "build a cross-league 4-leg parlay with combined odds between 4x and 6x. "
+            "Mix goals, corners, and cards markets for diversity."
+        )
+        std_text = _run_rag(std_prompt, "EPL")
+
+        # Check if we got any real content before posting
+        def _is_valid(text: str) -> bool:
+            if not text:
+                return False
+            low = text.lower()
+            return "no fixtures" not in low and "could not" not in low and "no odds" not in low
+
+        has_any = _is_valid(lock_text) or _is_valid(safe_text) or _is_valid(std_text)
+        if not has_any:
+            log.warning("All 3 parlay prompts returned no usable output. Skipping post.")
+            return
+
+        # Only post header after confirming we have content
+        self._parlay_posted_date = today
         header = discord.Embed(
             title="\U0001f3af  Parlay of the Day",
             description=f"**{date_str}** — 3 parlays ranked by risk level",
@@ -167,43 +219,21 @@ class AutoPush(commands.Cog):
         header.set_footer(text="Spick | Auto-generated from model projections")
         await channel.send(embed=header)
 
-        # 1. THE LOCK — ultra-safe, ~1.8x odds, highest confidence legs only
-        lock_prompt = (
-            f"For all league games on {date_str} across all top 5 leagues, UCL, UEL, and UECL, "
-            "build a 2-leg parlay using ONLY the two strongest high-confidence picks. "
-            "Keep combined decimal odds at or below 1.9x. Prioritize picks where the model "
-            "probability is above 65%. This is the safest possible parlay."
-        )
-        lock_text = _run_rag(lock_prompt, "EPL")
-        if lock_text and "no fixtures" not in lock_text.lower():
+        if _is_valid(lock_text):
             lock_embeds = parlay_embed(lock_text, league="Cross-League")
             for em in lock_embeds:
                 em.title = "\U0001f512  The Lock (~1.8x)"
                 em.color = COLOR_GREEN
                 await channel.send(embed=em)
 
-        # 2. SAFE — conservative, 2-3x odds
-        safe_prompt = (
-            f"For all league games on {date_str} across all top 5 leagues, UCL, UEL, and UECL, "
-            "build a 3-leg parlay with combined odds between 2.0x and 3.0x. "
-            "Only use high or medium confidence picks."
-        )
-        safe_text = _run_rag(safe_prompt, "EPL")
-        if safe_text and "no fixtures" not in safe_text.lower():
+        if _is_valid(safe_text):
             safe_embeds = parlay_embed(safe_text, league="Cross-League")
             for em in safe_embeds:
                 em.title = "\U0001f6e1\ufe0f  Safe Parlay (~2.5x)"
                 em.color = COLOR_BLUE
                 await channel.send(embed=em)
 
-        # 3. STANDARD — balanced risk, 4-6x odds
-        std_prompt = (
-            f"For all league games on {date_str} across all top 5 leagues, UCL, UEL, and UECL, "
-            "build a 4-leg parlay with combined odds between 4x and 6x. "
-            "Mix goals, corners, and cards markets for diversity."
-        )
-        std_text = _run_rag(std_prompt, "EPL")
-        if std_text and "no fixtures" not in std_text.lower():
+        if _is_valid(std_text):
             std_embeds = parlay_embed(std_text, league="Cross-League")
             for em in std_embeds:
                 em.title = "\U0001f3b2  Standard Parlay (~5x)"
@@ -350,6 +380,159 @@ class AutoPush(commands.Cog):
     @daily_track_record.before_loop
     async def _wait_track_record(self):
         await self.bot.wait_until_ready()
+
+    # --- Manual triggers (owner only) ---
+
+    @discord.app_commands.command(
+        name="trigger",
+        description="Manually trigger an auto-push task (owner only)",
+    )
+    @discord.app_commands.describe(task="Which task to trigger")
+    @discord.app_commands.choices(task=[
+        discord.app_commands.Choice(name="Parlay of the Day", value="parlay"),
+        discord.app_commands.Choice(name="Matchday Digest", value="digest"),
+        discord.app_commands.Choice(name="Value Alerts", value="alerts"),
+    ])
+    async def trigger(
+        self,
+        interaction: discord.Interaction,
+        task: discord.app_commands.Choice[str],
+    ):
+        # Owner-only check
+        if interaction.user.id != interaction.guild.owner_id:
+            await interaction.response.send_message(
+                "Only the server owner can use this command.", ephemeral=True,
+            )
+            return
+
+        await interaction.response.defer(thinking=True, ephemeral=True)
+
+        try:
+            if task.value == "parlay":
+                # Bypass the time window check — force post
+                self._parlay_posted_date = None  # reset so it doesn't skip
+                channel = self.bot.get_channel(CHANNEL_PARLAY_OF_DAY)
+                if not channel:
+                    await interaction.followup.send("Parlay channel not configured.", ephemeral=True)
+                    return
+
+                date_str = _today_phrase()
+
+                def _is_valid(text: str) -> bool:
+                    if not text:
+                        return False
+                    low = text.lower()
+                    return "no fixtures" not in low and "could not" not in low and "no odds" not in low
+
+                lock_prompt = (
+                    f"For all league games on {date_str} across all leagues, "
+                    "build a cross-league 2-leg parlay using ONLY the two strongest high-confidence picks. "
+                    "Keep combined decimal odds at or below 1.9x. Prioritize picks where the model "
+                    "probability is above 65%. This is the safest possible parlay."
+                )
+                lock_text = _run_rag(lock_prompt, "EPL")
+
+                safe_prompt = (
+                    f"For all league games on {date_str} across all leagues, "
+                    "build a cross-league 3-leg parlay with combined odds between 2.0x and 3.0x. "
+                    "Only use high or medium confidence picks."
+                )
+                safe_text = _run_rag(safe_prompt, "EPL")
+
+                std_prompt = (
+                    f"For all league games on {date_str} across all leagues, "
+                    "build a cross-league 4-leg parlay with combined odds between 4x and 6x. "
+                    "Mix goals, corners, and cards markets for diversity."
+                )
+                std_text = _run_rag(std_prompt, "EPL")
+
+                has_any = _is_valid(lock_text) or _is_valid(safe_text) or _is_valid(std_text)
+                if not has_any:
+                    await interaction.followup.send(
+                        "No usable parlay output from any of the 3 prompts. "
+                        "Check bot logs for details.", ephemeral=True,
+                    )
+                    return
+
+                header = discord.Embed(
+                    title="\U0001f3af  Parlay of the Day",
+                    description=f"**{date_str}** — 3 parlays ranked by risk level",
+                    color=COLOR_GREEN,
+                )
+                header.set_footer(text="Spick | Manually triggered")
+                await channel.send(embed=header)
+
+                if _is_valid(lock_text):
+                    lock_embeds = parlay_embed(lock_text, league="Cross-League")
+                    for em in lock_embeds:
+                        em.title = "\U0001f512  The Lock (~1.8x)"
+                        em.color = COLOR_GREEN
+                        await channel.send(embed=em)
+
+                if _is_valid(safe_text):
+                    safe_embeds = parlay_embed(safe_text, league="Cross-League")
+                    for em in safe_embeds:
+                        em.title = "\U0001f6e1\ufe0f  Safe Parlay (~2.5x)"
+                        em.color = COLOR_BLUE
+                        await channel.send(embed=em)
+
+                if _is_valid(std_text):
+                    std_embeds = parlay_embed(std_text, league="Cross-League")
+                    for em in std_embeds:
+                        em.title = "\U0001f3b2  Standard Parlay (~5x)"
+                        em.color = COLOR_PURPLE
+                        await channel.send(embed=em)
+
+                self._parlay_posted_date = date.today().isoformat()
+                await interaction.followup.send("Parlay of the Day posted.", ephemeral=True)
+
+            elif task.value == "digest":
+                channel = self.bot.get_channel(CHANNEL_MATCHDAY_DIGEST)
+                if not channel:
+                    await interaction.followup.send("Digest channel not configured.", ephemeral=True)
+                    return
+                date_str = _today_phrase()
+                for league in DOMESTIC_LEAGUES:
+                    prompt = (
+                        f"Give me the over/under goals line I should take for each "
+                        f"{league} game on {date_str}."
+                    )
+                    text = _run_rag(prompt, league)
+                    if text and "no fixtures" not in text.lower():
+                        embeds = rag_output_to_embeds(
+                            f"Matchday Digest — {league}", text, league=league,
+                            footer=f"Manually triggered | {date_str}",
+                        )
+                        for em in embeds:
+                            await channel.send(embed=em)
+                await interaction.followup.send("Matchday Digest posted.", ephemeral=True)
+
+            elif task.value == "alerts":
+                channel = self.bot.get_channel(CHANNEL_VALUE_ALERTS)
+                if not channel:
+                    await interaction.followup.send("Alerts channel not configured.", ephemeral=True)
+                    return
+                date_str = _today_phrase()
+                posted = 0
+                for league in DOMESTIC_LEAGUES:
+                    prompt = (
+                        f"For every {league} game on {date_str}, show moneyline probabilities "
+                        "and value picks where the model disagrees with the bookmakers."
+                    )
+                    text = _run_rag(prompt, league)
+                    if not text or "no fixtures" in text.lower():
+                        continue
+                    if "value edge: +" in text.lower() or "high confidence" in text.lower():
+                        em = value_alert_embed(text, league)
+                        await channel.send(embed=em)
+                        posted += 1
+                await interaction.followup.send(
+                    f"Value Alerts: {posted} alert(s) posted.", ephemeral=True,
+                )
+
+        except Exception as exc:
+            log.error("Manual trigger failed: %s", exc, exc_info=True)
+            await interaction.followup.send(f"Error: {exc}", ephemeral=True)
 
 
 async def setup(bot: commands.Bot):

@@ -335,6 +335,14 @@ def rag_output_to_embeds(
 
 def parlay_embed(text: str, league: str = "Mixed") -> List[discord.Embed]:
     """Format parlay output as a bet-slip-style embed."""
+    if not text or not text.strip():
+        em = discord.Embed(
+            title="🎰  Parlay Slip",
+            description="No parlay data available. Try a different date or league.",
+            color=COLOR_BLUE,
+        )
+        return [em]
+
     embeds: List[discord.Embed] = []
 
     # Parse legs — handle both old format and new format with confidence appended
@@ -503,6 +511,17 @@ def _fallback_embeds(
     footer: Optional[str] = None,
 ) -> List[discord.Embed]:
     """Plain code-block embed when structured parsing fails."""
+    if not text or not text.strip():
+        em = discord.Embed(
+            title=title,
+            description="No data available for this query. Try a different date or league.",
+            color=COLOR_BLUE,
+        )
+        if league:
+            em.set_author(name=f"League: {league}")
+        em.set_footer(text=footer or "Betting RAG")
+        return [em]
+
     color = _conf(text)[0]
     limit = 4096 - 10  # account for code fences
     chunks: List[str] = []

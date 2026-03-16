@@ -8,7 +8,6 @@ are invisible to other members.
 from __future__ import annotations
 
 import logging
-from functools import wraps
 from typing import Optional
 
 import discord
