@@ -3959,11 +3959,25 @@ def wants_totals_only_parlay(user_q: str) -> bool:
 
 def is_comparison_query(user_q: str) -> bool:
     q = user_q.lower()
-    return bool(
+    # Explicit comparison phrases
+    has_compare = bool(
         re.search(r"(which team|who)\s+.*(more|higher|most|win|get|lead)", q)
         or re.search(r"(which team|who)\s+.*(corner|card|shot|sot|foul)", q)
-        or re.search(r"for all.*games", q)
     )
+    if has_compare:
+        return True
+    # "for all games" is only a comparison if there's a comparison signal
+    # (not just "for all games, what are the lines" which is totals/team totals)
+    if re.search(r"for all.*games", q):
+        has_compare_signal = bool(
+            re.search(r"\b(more|most|higher|fewer|less|which team|who gets|who has|compare|versus)\b", q)
+        )
+        has_totals_signal = bool(
+            re.search(r"\b(line|total|per[- ]team|team\s+line|team\s+total|over|under)\b", q)
+        )
+        # Only treat as comparison if there's a compare signal and no totals signal
+        return has_compare_signal and not has_totals_signal
+    return False
 
 
 def wants_deep_explanation(user_q: str) -> bool:
@@ -6295,7 +6309,7 @@ def classify_intent(user_q: str) -> List[Tuple[str, float]]:
     if is_moneyline_query(user_q):
         scores.append((INTENT_MONEYLINE, 0.15 if (parlay or player_prop) else 0.71))
     if is_team_totals_query(user_q):
-        scores.append((INTENT_TEAM_TOTALS, 0.15 if (parlay or player_prop) else 0.67))
+        scores.append((INTENT_TEAM_TOTALS, 0.15 if (parlay or player_prop) else 0.72))
     if is_totals_line_query(user_q):
         scores.append((INTENT_TOTALS_LINE, 0.15 if (parlay or player_prop) else 0.65))
     if parlay and not player_prop:
@@ -6497,6 +6511,7 @@ def _handle_player_props_projected(
         if not home_team or not away_team:
             continue
 
+        fixture_label = f"{home_team} vs {away_team}"
         home_team_meta = get_team_profile_meta(home_team, league) or {}
         away_team_meta = get_team_profile_meta(away_team, league) or {}
 
@@ -6526,6 +6541,7 @@ def _handle_player_props_projected(
                         league=league,
                         is_home=is_home,
                         recent_fixtures=recent,
+                        fixture_label=fixture_label,
                     )
                     if proj is None:
                         continue
@@ -6540,8 +6556,17 @@ def _handle_player_props_projected(
         r.model_prob,
     ), reverse=True)
 
-    top_recs = all_recommendations[:10]
-    out = render_player_prop_answer(league, top_recs)
+    # Limit to top 5 per fixture to keep output focused
+    fixture_counts: Dict[str, int] = {}
+    filtered_recs: List[PlayerPropRecommendation] = []
+    for rec in all_recommendations:
+        fx = rec.projection.fixture
+        cnt = fixture_counts.get(fx, 0)
+        if cnt < 5:
+            filtered_recs.append(rec)
+            fixture_counts[fx] = cnt + 1
+
+    out = render_player_prop_answer(league, filtered_recs)
 
     if notes:
         out += "\n\nNotes:\n" + "\n".join(f"- {n}" for n in notes)

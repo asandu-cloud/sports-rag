@@ -1,7 +1,8 @@
 """Player prop projection engine.
 
 Deterministic per-player projections for goals, SoT, assists, cards.
-Combines player rates with team context and opponent strength.
+Combines player rates with team context, opponent strength, position
+relevance, home/away splits, recent form streaks, and minutes risk.
 Uses Poisson/NegBin from prob_models.py for probability distributions.
 
 No external dependencies beyond existing RAG infrastructure.
@@ -10,6 +11,7 @@ Graceful degradation: returns None when data insufficient.
 
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
@@ -30,10 +32,13 @@ class PlayerProjection:
     player_id: int
     team: str
     stat: str                         # "goals" | "sot" | "assists" | "cards"
+    position: str                     # "F" | "M" | "D" | "G"
+    fixture: str                      # "Arsenal vs Chelsea"
     projection: float                 # expected value (e.g., 0.42 goals)
     minutes_projection: float         # expected minutes (e.g., 82.0)
     minutes_risk: str                 # "nailed_on" | "likely_starter" | "rotation" | "bench"
     start_probability: float          # from start_rate
+    recent_role_trend: str            # "starting" | "benched" | "mixed"
     prob_over_0_5: Optional[float]    # P(X >= 1)
     prob_over_1_5: Optional[float]    # P(X >= 2)
     prob_over_2_5: Optional[float]    # P(X >= 3)
@@ -41,6 +46,8 @@ class PlayerProjection:
     evidence: Dict                    # raw numbers for rendering
     opponent_adjustment: float        # multiplier applied
     data_quality: str                 # "full" | "limited" | "insufficient"
+    recent_form_values: List[int]     # last N raw stat values (e.g., [1, 0, 2, 0, 1])
+    is_home: bool                     # True if playing at home
 
 
 @dataclass
@@ -58,14 +65,18 @@ class PlayerPropRecommendation:
 # ---------------------------------------------------------------------------
 
 PLAYER_PROP_WEIGHTS = {
-    "season_blend": 0.75,
-    "recent_blend": 0.25,
+    "season_blend": 0.70,
+    "recent_blend": 0.30,
     "team_share_weight": 0.30,
     "opponent_defense_weight": 0.40,
 
     # Opponent adjustment bounds
     "max_opp_multiplier": 1.40,
     "min_opp_multiplier": 0.65,
+
+    # Home/away adjustment
+    "home_boost": 1.06,
+    "away_discount": 0.94,
 
     # Minutes risk
     "rotation_minutes_discount": 0.70,
@@ -78,6 +89,15 @@ PLAYER_PROP_WEIGHTS = {
     "min_qualified_apps": 5,
     "min_qualified_apps_limited": 3,
     "min_total_minutes": 180,
+}
+
+# Position relevance multipliers per stat — prevents absurd recs like
+# "Defender to score 2+ goals" while boosting natural fits.
+POSITION_RELEVANCE = {
+    "goals":   {"F": 1.0, "M": 0.85, "D": 0.40, "G": 0.0},
+    "sot":     {"F": 1.0, "M": 0.90, "D": 0.45, "G": 0.0},
+    "assists": {"F": 0.85, "M": 1.0, "D": 0.55, "G": 0.0},
+    "cards":   {"F": 0.80, "M": 1.0, "D": 1.0, "G": 0.15},
 }
 
 STAT_LINES = {
@@ -94,6 +114,21 @@ LEAGUE_DEFAULTS = {
     "assists": 0.85,
 }
 
+# Stat display labels
+STAT_LABELS = {
+    "goals": "Anytime Goalscorer",
+    "sot": "Shots on Target",
+    "assists": "Assists",
+    "cards": "To Be Booked",
+}
+
+STAT_EMOJIS = {
+    "goals": "\u26bd",
+    "sot": "\U0001f3af",
+    "assists": "\U0001f3c3",
+    "cards": "\U0001f7e8",
+}
+
 
 # ---------------------------------------------------------------------------
 # Core projection
@@ -107,18 +142,40 @@ def projected_player_stat(
     league: str,
     is_home: bool,
     recent_fixtures: Optional[List[Dict]] = None,
+    fixture_label: str = "",
 ) -> Optional[PlayerProjection]:
     """Compute expected value for a player stat in a specific fixture.
 
     Pipeline:
-    1. Player's own per-90 rate (starter appearances preferred)
-    2. Adjust for expected minutes (starter/rotation/bench)
-    3. Scale by team context (team output vs league average)
-    4. Adjust for opponent defensive quality
-    5. Blend season rate with recent form
-    6. Feed to Poisson for probability distribution
+    1. Position gate — filter goalkeepers, apply position relevance
+    2. Player's own per-90 rate (starter appearances preferred)
+    3. Adjust for expected minutes (starter/rotation/bench)
+    4. Home/away venue adjustment
+    5. Scale by team context (team output vs league average)
+    6. Adjust for opponent defensive quality
+    7. Blend season rate with recent form (70/30)
+    8. Apply position relevance scaling
+    9. Feed to Poisson/NegBin for probability distribution
     """
     pw = PLAYER_PROP_WEIGHTS
+
+    # --- Position gate ---
+    position = (player_meta.get("position") or "").strip().upper()
+    if not position:
+        position = "M"  # default to midfielder if unknown
+    # Normalize position variants
+    if position in ("GK", "G"):
+        position = "G"
+    elif position in ("D", "DEF"):
+        position = "D"
+    elif position in ("M", "MF", "MID"):
+        position = "M"
+    elif position in ("F", "FW", "ST", "ATT", "A"):
+        position = "F"
+
+    pos_relevance = POSITION_RELEVANCE.get(stat, {}).get(position, 0.5)
+    if pos_relevance <= 0.0:
+        return None  # e.g., goalkeeper for goals/sot/assists
 
     # --- Data quality gate ---
     role = player_meta.get("minutes_risk") or player_meta.get("role", "bench")
@@ -129,11 +186,16 @@ def projected_player_stat(
                                      or player_meta.get("appearances_as_starter"), 0))
     total_apps = int(_safe_float(player_meta.get("appearances_total")
                                  or player_meta.get("total_appearances"), 0))
+    recent_trend = player_meta.get("recent_role_trend") or "unknown"
 
     if total_minutes < pw["min_total_minutes"]:
         return None
     if qualified_apps < pw["min_qualified_apps_limited"]:
         return None
+
+    # Extra gate: if player has been benched recently, downgrade hard
+    if recent_trend == "benched" and role not in ("nailed_on", "starter"):
+        return None  # skip players trending to bench — unreliable
 
     data_quality = "full" if qualified_apps >= pw["min_qualified_apps"] else "limited"
 
@@ -165,6 +227,9 @@ def projected_player_stat(
     minutes_factor = expected_minutes / 90.0
     season_projection = base_rate * minutes_factor
 
+    # --- Home/away venue adjustment ---
+    venue_factor = pw["home_boost"] if is_home else pw["away_discount"]
+
     # --- Recent form blend ---
     recent_rate = _compute_recent_rate(recent_fixtures, stat, min_minutes=30)
     if recent_rate is not None:
@@ -180,8 +245,13 @@ def projected_player_stat(
 
     # --- Opponent adjustment ---
     opp_multiplier = _opponent_adjustment(opponent_meta, stat)
-    final_projection = blended * opp_multiplier
+
+    # --- Apply venue + opponent + position relevance ---
+    final_projection = blended * opp_multiplier * venue_factor * pos_relevance
     final_projection = max(0.01, final_projection)
+
+    # --- Collect recent raw stat values for display ---
+    recent_form_values = _collect_recent_values(recent_fixtures, stat, limit=6)
 
     # --- Poisson probabilities ---
     variance = _player_stat_variance(recent_fixtures, stat) if recent_fixtures else None
@@ -191,17 +261,22 @@ def projected_player_stat(
                     if stat in ("goals", "sot") else None)
 
     # --- Confidence ---
-    confidence = _player_confidence(prob_over_05, data_quality, role, qualified_apps)
+    confidence = _player_confidence(
+        prob_over_05, data_quality, role, qualified_apps, recent_trend, pos_relevance,
+    )
 
     return PlayerProjection(
         player_name=player_meta.get("player_name", "Unknown"),
         player_id=int(_safe_float(player_meta.get("player_id"), 0)),
         team=player_meta.get("team", "Unknown"),
         stat=stat,
+        position=position,
+        fixture=fixture_label,
         projection=round(final_projection, 3),
         minutes_projection=round(expected_minutes, 1),
         minutes_risk=role,
         start_probability=round(start_rate, 2),
+        recent_role_trend=recent_trend,
         prob_over_0_5=round(prob_over_05, 4) if prob_over_05 is not None else None,
         prob_over_1_5=round(prob_over_15, 4) if prob_over_15 is not None else None,
         prob_over_2_5=round(prob_over_25, 4) if prob_over_25 is not None else None,
@@ -213,11 +288,15 @@ def projected_player_stat(
             "recent_rate_per_90": round(recent_rate, 3) if recent_rate is not None else None,
             "team_share_factor": round(team_share, 3),
             "opponent_multiplier": round(opp_multiplier, 3),
+            "venue_factor": round(venue_factor, 3),
+            "position_relevance": round(pos_relevance, 2),
             "qualified_apps": qualified_apps,
             "total_apps": total_apps,
         },
         opponent_adjustment=round(opp_multiplier, 3),
         data_quality=data_quality,
+        recent_form_values=recent_form_values,
+        is_home=is_home,
     )
 
 
@@ -282,8 +361,8 @@ def recommend_player_prop(
 def _opponent_adjustment(opponent_meta: Dict, stat: str) -> float:
     """Opponent defensive quality multiplier.
 
-    Leaky defense (high goals_against_pm) → multiplier > 1.0.
-    Stingy defense → multiplier < 1.0.
+    Leaky defense (high goals_against_pm) -> multiplier > 1.0.
+    Stingy defense -> multiplier < 1.0.
     """
     pw = PLAYER_PROP_WEIGHTS
 
@@ -310,7 +389,7 @@ def _opponent_adjustment(opponent_meta: Dict, stat: str) -> float:
 def _team_share_adjustment(team_meta: Dict, stat: str) -> float:
     """Team output context adjustment.
 
-    High-scoring team → boost attackers. Low-scoring → penalize.
+    High-scoring team -> boost attackers. Low-scoring -> penalize.
     """
     pw = PLAYER_PROP_WEIGHTS
 
@@ -371,6 +450,25 @@ def _compute_recent_rate(
     return total_weighted_rate / total_weight if total_weight > 0 else None
 
 
+def _collect_recent_values(
+    recent_fixtures: Optional[List[Dict]],
+    stat: str,
+    limit: int = 6,
+) -> List[int]:
+    """Collect raw stat values from recent fixtures for display."""
+    if not recent_fixtures:
+        return []
+
+    stat_field = _stat_to_raw_field(stat)
+    values = []
+    for f in recent_fixtures[:limit]:
+        meta = f if isinstance(f, dict) and "minutes" in f else f.get("meta", f)
+        mins = int(_safe_float(meta.get("minutes"), 0))
+        if mins >= 30:
+            values.append(int(_safe_float(meta.get(stat_field), 0)))
+    return values
+
+
 def _player_stat_variance(
     recent_fixtures: Optional[List[Dict]],
     stat: str,
@@ -405,11 +503,14 @@ def _player_confidence(
     data_quality: str,
     role: str,
     qualified_apps: int,
+    recent_trend: str = "unknown",
+    pos_relevance: float = 1.0,
 ) -> str:
     """Map projections to confidence levels.
 
     Model-only (no bookmaker comparison), so confidence is based on:
-    model probability strength, data quality, and minutes risk.
+    model probability strength, data quality, minutes risk, position fit,
+    and recent role trend.
     """
     pw = PLAYER_PROP_WEIGHTS
 
@@ -433,51 +534,115 @@ def _player_confidence(
     elif role == "bench":
         conf = "low"
 
+    # Downgrade for mixed/benched trend
+    if recent_trend == "mixed" and conf == "high":
+        conf = "medium"
+
+    # Downgrade for weak position fit
+    if pos_relevance < 0.50 and conf == "high":
+        conf = "medium"
+
     return conf
 
 
 # ---------------------------------------------------------------------------
-# Rendering
+# Rendering — fixture-grouped, Discord-parseable format
 # ---------------------------------------------------------------------------
 
 def render_player_prop_answer(
     league: str,
     recommendations: List[PlayerPropRecommendation],
 ) -> str:
-    """Render player prop recommendations in structured format."""
-    lines = [f"Player Prop Analysis — {league}", "=" * 50, ""]
+    """Render player prop recommendations grouped by fixture.
 
+    Output format is designed to be parseable by the Discord embed system
+    using the === fixture separator pattern.
+    """
     if not recommendations:
-        lines.append("No player prop recommendations meet confidence thresholds.")
-        lines.append("This can happen when player data is sparse or all candidates "
-                     "are rotation/bench players.")
-        return "\n".join(lines)
+        return (
+            f"Player Prop Predictions by fixture:\n\n"
+            f"No player prop recommendations meet confidence thresholds.\n"
+            f"This can happen when player data is sparse or all candidates "
+            f"are rotation/bench players.\n"
+            f"Method: deterministic player projection model"
+        )
 
+    # Group recommendations by fixture
+    fixture_groups: Dict[str, List[PlayerPropRecommendation]] = defaultdict(list)
     for rec in recommendations:
-        p = rec.projection
-        lines.append(f"  {p.player_name} ({p.team}) — {p.stat.upper()}")
-        lines.append(f"    Role: {p.minutes_risk} | Start rate: {p.start_probability:.0%} | "
-                     f"Expected minutes: {p.minutes_projection:.0f}")
-        lines.append(f"    Projection: {p.projection:.2f} {p.stat} | "
-                     f"P(Over 0.5): {p.prob_over_0_5:.0%}"
-                     + (f" | P(Over 1.5): {p.prob_over_1_5:.0%}" if p.prob_over_1_5 else ""))
-        opp_sign = "+" if p.opponent_adjustment > 1 else ""
-        lines.append(f"    Opponent adj: {opp_sign}"
-                     f"{(p.opponent_adjustment - 1) * 100:.0f}%")
-        lines.append(f"    >>> Recommended: {rec.recommended_side.upper()} "
-                     f"{rec.recommended_line} | Model P: {rec.model_prob:.0%} | "
-                     f"Confidence: {p.confidence.upper()}")
-        if p.data_quality != "full":
-            lines.append(f"    [!] Data quality: {p.data_quality} "
-                         f"({p.evidence.get('qualified_apps', '?')} qualified apps)")
-        for r in rec.rationale:
-            lines.append(f"      - {r}")
+        fixture_groups[rec.projection.fixture].append(rec)
+
+    lines = [f"Player Prop Predictions by fixture:", ""]
+
+    for fixture, recs in fixture_groups.items():
+        lines.append(f"=== {fixture} ===")
         lines.append("")
 
+        # Sort within fixture: high conf first, then model_prob
+        recs.sort(key=lambda r: (
+            {"high": 3, "medium": 2, "low": 1}.get(r.projection.confidence, 0),
+            r.model_prob,
+        ), reverse=True)
+
+        for rec in recs:
+            p = rec.projection
+            stat_emoji = STAT_EMOJIS.get(p.stat, "")
+            stat_label = STAT_LABELS.get(p.stat, p.stat.upper())
+            pos_label = {"F": "FWD", "M": "MID", "D": "DEF", "G": "GK"}.get(p.position, p.position)
+            venue = "HOME" if p.is_home else "AWAY"
+
+            # Player header
+            lines.append(f"{stat_emoji} {p.player_name} ({p.team}) [{pos_label}] ({venue})")
+
+            # Recommendation line — mirrors the >>> pattern other workflows use
+            lines.append(
+                f"  >>> Recommended: {rec.recommended_side.upper()} {rec.recommended_line} "
+                f"{stat_label} ({rec.model_prob:.0%} confidence)"
+            )
+
+            # Role and minutes context
+            role_display = p.minutes_risk.replace("_", " ").title()
+            trend_display = p.recent_role_trend.replace("_", " ").title() if p.recent_role_trend != "unknown" else ""
+            role_line = f"  Role: {role_display} | Starts: {p.start_probability:.0%} | ~{p.minutes_projection:.0f} min"
+            if trend_display:
+                role_line += f" | Trend: {trend_display}"
+            lines.append(role_line)
+
+            # Projection with probabilities
+            prob_parts = [f"P(1+): {p.prob_over_0_5:.0%}"]
+            if p.prob_over_1_5 and p.prob_over_1_5 >= 0.05:
+                prob_parts.append(f"P(2+): {p.prob_over_1_5:.0%}")
+            if p.prob_over_2_5 and p.prob_over_2_5 >= 0.02:
+                prob_parts.append(f"P(3+): {p.prob_over_2_5:.0%}")
+            lines.append(f"  Projection: {p.projection:.2f} | {' | '.join(prob_parts)}")
+
+            # Recent form streak
+            if p.recent_form_values:
+                form_str = " ".join(str(v) for v in p.recent_form_values)
+                lines.append(f"  Recent: [{form_str}] (last {len(p.recent_form_values)} starts)")
+
+            # Opponent adjustment (only show when meaningful)
+            opp_pct = (p.opponent_adjustment - 1) * 100
+            if abs(opp_pct) >= 2:
+                opp_sign = "+" if opp_pct > 0 else ""
+                opp_label = "Leaky defense" if opp_pct > 0 else "Stingy defense"
+                lines.append(f"  Opponent: {opp_sign}{opp_pct:.0f}% ({opp_label})")
+
+            # Confidence
+            conf_label = p.confidence.upper()
+            lines.append(f"  Confidence: {conf_label}")
+
+            # Data quality warning
+            if p.data_quality != "full":
+                lines.append(
+                    f"  [!] Limited data ({p.evidence.get('qualified_apps', '?')} "
+                    f"qualified starts)"
+                )
+
+            lines.append("")
+
     lines.append("Method: deterministic player projection "
-                 "(season rate + recent form + opponent defense + minutes risk)")
-    lines.append("Note: Player prop odds not available from feed — "
-                 "projections are model-only (no value edge vs market).")
+                 "(starter rates + minutes risk + opponent defense + position + venue)")
     return "\n".join(lines)
 
 
@@ -508,18 +673,20 @@ def _build_rationale(
     prob: float,
 ) -> List[str]:
     ev = projection.evidence
-    lines = []
-    lines.append(f"Season rate: {ev['base_rate_per_90']:.2f} {projection.stat}/90 "
-                 f"(from {ev.get('qualified_apps', '?')} qualified apps)")
+    rat = []
+    rat.append(f"Season rate: {ev['base_rate_per_90']:.2f} {projection.stat}/90 "
+               f"(from {ev.get('qualified_apps', '?')} starts)")
     if ev.get("recent_rate_per_90") is not None:
-        lines.append(f"Recent form: {ev['recent_rate_per_90']:.2f} "
-                     f"{projection.stat}/90 (last 6)")
-    lines.append(f"Team factor: {ev['team_share_factor']:.2f}x | "
-                 f"Opponent factor: {ev['opponent_multiplier']:.2f}x")
-    lines.append(f"Minutes risk: {projection.minutes_risk} "
-                 f"({projection.start_probability:.0%} start rate, "
-                 f"~{projection.minutes_projection:.0f} min expected)")
-    return lines
+        rat.append(f"Recent form: {ev['recent_rate_per_90']:.2f} "
+                   f"{projection.stat}/90")
+    rat.append(f"Team {ev['team_share_factor']:.2f}x | "
+               f"Opponent {ev['opponent_multiplier']:.2f}x | "
+               f"Venue {ev.get('venue_factor', 1.0):.2f}x | "
+               f"Position {ev.get('position_relevance', 1.0):.0%}")
+    rat.append(f"Minutes: {projection.minutes_risk} "
+               f"({projection.start_probability:.0%} start rate, "
+               f"~{projection.minutes_projection:.0f} min)")
+    return rat
 
 
 def _safe_float(val, default=None):

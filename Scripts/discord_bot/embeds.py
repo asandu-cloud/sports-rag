@@ -236,6 +236,407 @@ def _bet_card_embed(
 
 # ── Main public functions ────────────────────────────────────────────────────
 
+def player_prop_embeds(
+    title: str,
+    text: str,
+    league: str = "",
+) -> List[discord.Embed]:
+    """Convert player prop RAG output into styled Discord embeds.
+
+    Parses the === fixture separator format with player recommendation blocks.
+    One embed per fixture, each containing player pick cards.
+    """
+    _STAT_EMOJI = {
+        "goalscorer": "\u26bd", "goals": "\u26bd",
+        "shots on target": "\U0001f3af", "sot": "\U0001f3af",
+        "cards": "\U0001f7e8", "booked": "\U0001f7e8",
+        "assists": "\U0001f3c3", "assist": "\U0001f3c3",
+    }
+
+    # Detect stat type from title for emoji
+    title_lower = title.lower()
+    stat_emoji = "\U0001f464"
+    for key, em in _STAT_EMOJI.items():
+        if key in title_lower:
+            stat_emoji = em
+            break
+
+    blocks = _split_fixture_blocks(text)
+    embeds: List[discord.Embed] = []
+
+    # Header embed
+    header = discord.Embed(
+        title=f"{stat_emoji}  {title}",
+        description=f"*{league}*" if league else None,
+        color=COLOR_BLUE,
+    )
+    embeds.append(header)
+
+    for block in blocks:
+        fixture = _parse_fixture_name(block)
+
+        # Parse individual player recommendations from this fixture block
+        players = _parse_player_prop_block(block)
+
+        if not players:
+            continue
+
+        # Build one embed per fixture with all players as fields
+        # Use highest confidence player's color for the embed
+        best_conf = "low"
+        for p in players:
+            if p.get("confidence") == "high":
+                best_conf = "high"
+                break
+            elif p.get("confidence") == "medium" and best_conf != "high":
+                best_conf = "medium"
+
+        color, dots, conf_label = _conf(f"{best_conf} confidence")
+        em = discord.Embed(color=color)
+        em.set_author(name=f"{stat_emoji}  {fixture}")
+
+        for p in players[:5]:  # max 5 players per fixture
+            # Build compact player card
+            name = p.get("name", "Unknown")
+            pos = p.get("position", "")
+            venue = p.get("venue", "")
+            conf = p.get("confidence", "low")
+
+            conf_icon = "\U0001f7e2" if conf == "HIGH" else ("\U0001f7e1" if conf == "MEDIUM" else "\u26aa")
+            pick_line = p.get("pick", "")
+            role_line = p.get("role_line", "")
+            proj_line = p.get("projection_line", "")
+            recent_line = p.get("recent_line", "")
+            opp_line = p.get("opponent_line", "")
+
+            value_parts = []
+            if pick_line:
+                value_parts.append(f"**{pick_line}**")
+            if role_line:
+                value_parts.append(role_line)
+            if proj_line:
+                value_parts.append(proj_line)
+            if recent_line:
+                value_parts.append(recent_line)
+            if opp_line:
+                value_parts.append(opp_line)
+
+            header_text = f"{conf_icon} {name}"
+            if pos:
+                header_text += f" [{pos}]"
+            if venue:
+                header_text += f" ({venue})"
+
+            em.add_field(
+                name=header_text,
+                value=_truncate("\n".join(value_parts) if value_parts else "No data", 1024),
+                inline=False,
+            )
+
+        em.set_footer(text=f"{league} | Model-only projections" if league else "Model-only projections")
+        embeds.append(em)
+
+    if len(embeds) > 10:
+        embeds = embeds[:10]
+
+    return embeds
+
+
+def _parse_player_prop_block(block: str) -> List[Dict[str, str]]:
+    """Parse player recommendation entries from a fixture block.
+
+    Each player entry starts with an emoji + player name line.
+    """
+    players: List[Dict[str, str]] = []
+
+    # Split on player header lines (emoji + name pattern)
+    # Pattern: emoji(s) followed by player name, team in parens, position in brackets
+    player_sections = re.split(
+        r"\n(?=[\u2600-\U0001ffff]+ [A-Z])",
+        block,
+    )
+
+    for section in player_sections:
+        section = section.strip()
+        if not section:
+            continue
+
+        p: Dict[str, str] = {}
+
+        # Extract player name and metadata from header
+        # Format: "emoji Name (team) [POS] (VENUE)"
+        header_m = re.match(
+            r"[\u2600-\U0001ffff]+\s+(.+?)\s+\(([^)]+)\)\s+\[([A-Z]+)\]\s+\((\w+)\)",
+            section,
+        )
+        if header_m:
+            p["name"] = header_m.group(1).strip()
+            p["team"] = header_m.group(2).strip()
+            p["position"] = header_m.group(3).strip()
+            p["venue"] = header_m.group(4).strip()
+        else:
+            continue  # skip unparseable
+
+        # Extract recommendation line
+        pick_m = re.search(
+            r">>>\s*Recommended:\s*(.+?)(?:\s*\((\d+%)\s+confidence\))?$",
+            section, re.MULTILINE,
+        )
+        if pick_m:
+            p["pick"] = pick_m.group(1).strip()
+            if pick_m.group(2):
+                p["model_prob"] = pick_m.group(2)
+
+        # Extract role line
+        role_m = re.search(r"Role:\s*(.+?)$", section, re.MULTILINE)
+        if role_m:
+            p["role_line"] = role_m.group(1).strip()
+
+        # Extract projection line
+        proj_m = re.search(r"Projection:\s*(.+?)$", section, re.MULTILINE)
+        if proj_m:
+            p["projection_line"] = proj_m.group(1).strip()
+
+        # Extract recent form
+        recent_m = re.search(r"Recent:\s*(.+?)$", section, re.MULTILINE)
+        if recent_m:
+            p["recent_line"] = recent_m.group(1).strip()
+
+        # Extract opponent line
+        opp_m = re.search(r"Opponent:\s*(.+?)$", section, re.MULTILINE)
+        if opp_m:
+            p["opponent_line"] = opp_m.group(1).strip()
+
+        # Extract confidence
+        conf_m = re.search(r"Confidence:\s*(\w+)", section)
+        if conf_m:
+            p["confidence"] = conf_m.group(1).strip()
+
+        players.append(p)
+
+    return players
+
+
+def team_totals_embeds(
+    title: str,
+    text: str,
+    league: str = "",
+) -> List[discord.Embed]:
+    """Convert team totals RAG output into styled Discord embeds.
+
+    Parses the === fixture separator format, then extracts CORNERS and CARDS
+    sections with per-team projections and recommendations.
+    One embed per fixture with structured fields for each stat/team.
+    """
+    blocks = _split_fixture_blocks(text)
+    embeds: List[discord.Embed] = []
+
+    # Header embed
+    header = discord.Embed(
+        title=f"👥  {title}",
+        description=f"*{league}*" if league else None,
+        color=COLOR_BLUE,
+    )
+    embeds.append(header)
+
+    for block in blocks:
+        fixture = _parse_fixture_name(block)
+        teams = _parse_team_totals_block(block)
+
+        if not teams:
+            continue
+
+        # Determine best confidence across all recs for embed color
+        best_conf = "low"
+        for t in teams:
+            conf = t.get("confidence", "low").lower()
+            if conf == "high":
+                best_conf = "high"
+            elif conf == "medium" and best_conf != "high":
+                best_conf = "medium"
+
+        color, dots, conf_label = _conf(f"{best_conf} confidence")
+        em = discord.Embed(color=color)
+        em.set_author(name=f"👥  {fixture}")
+
+        # Group teams by stat section
+        corners = [t for t in teams if t.get("stat") == "corners"]
+        cards = [t for t in teams if t.get("stat") == "cards"]
+
+        # CORNERS section
+        if corners:
+            corner_lines = []
+            for t in corners:
+                team_name = t.get("team", "?")
+                proj = t.get("projection", "?")
+                rec = t.get("recommendation", "")
+                prob = t.get("model_prob", "")
+                conf = t.get("confidence", "")
+
+                conf_icon = "🟢" if conf.lower() == "high" else (
+                    "🟡" if conf.lower() == "medium" else "⚪")
+
+                line = f"{conf_icon} **{team_name}**: {proj} corners"
+                if rec:
+                    line += f"\n  📋 {rec}"
+                if prob:
+                    line += f" ({prob})"
+                corner_lines.append(line)
+
+            # Match total
+            match_total = _first_match(
+                r"Match total:\s*([\d.]+)\s+projected corners", block)
+            if match_total:
+                corner_lines.append(f"📊 Match total: **{match_total}** projected")
+
+            em.add_field(
+                name="📐 Corners",
+                value=_truncate("\n".join(corner_lines), 1024),
+                inline=False,
+            )
+
+        # CARDS section
+        if cards:
+            card_lines = []
+
+            # Referee info
+            ref_m = re.search(
+                r"Referee:\s*(.+?)(?:\s*—\s*(.+?))?$",
+                block, re.MULTILINE,
+            )
+            if ref_m and "not yet assigned" not in (ref_m.group(0) or ""):
+                ref_name = ref_m.group(1).strip()
+                ref_detail = ref_m.group(2).strip() if ref_m.group(2) else ""
+                ref_text = f"🧑‍⚖️ {ref_name}"
+                if ref_detail:
+                    ref_text += f" — {ref_detail}"
+                card_lines.append(ref_text)
+
+            for t in cards:
+                team_name = t.get("team", "?")
+                proj = t.get("projection", "?")
+                rec = t.get("recommendation", "")
+                prob = t.get("model_prob", "")
+                conf = t.get("confidence", "")
+
+                conf_icon = "🟢" if conf.lower() == "high" else (
+                    "🟡" if conf.lower() == "medium" else "⚪")
+
+                line = f"{conf_icon} **{team_name}**: {proj} cards"
+                if rec:
+                    line += f"\n  📋 {rec}"
+                if prob:
+                    line += f" ({prob})"
+                card_lines.append(line)
+
+            # Match total
+            match_total = _first_match(
+                r"Match total:\s*([\d.]+)\s+projected cards", block)
+            if match_total:
+                card_lines.append(f"📊 Match total: **{match_total}** projected")
+
+            em.add_field(
+                name="🟨 Cards",
+                value=_truncate("\n".join(card_lines), 1024),
+                inline=False,
+            )
+
+        em.set_footer(text=f"{league} | Per-team model projections" if league else "Per-team model projections")
+        embeds.append(em)
+
+    if len(embeds) > 10:
+        embeds = embeds[:10]
+
+    return embeds
+
+
+def _parse_team_totals_block(block: str) -> List[Dict[str, str]]:
+    """Parse per-team recommendations from a team totals fixture block.
+
+    Extracts CORNERS and CARDS sections, finding team projections and
+    recommended lines within each.
+    """
+    teams: List[Dict[str, str]] = []
+
+    # Split block into CORNERS and CARDS sections
+    corners_m = re.search(r"CORNERS:(.*?)(?=\s*CARDS:|$)", block, re.DOTALL)
+    cards_m = re.search(r"CARDS:(.*?)$", block, re.DOTALL)
+
+    for stat, section_match in [("corners", corners_m), ("cards", cards_m)]:
+        if not section_match:
+            continue
+        section = section_match.group(1)
+
+        # Find per-team entries: "TeamName: projected X.XX corners/match."
+        # followed by optional recommendation lines
+        team_pattern = re.finditer(
+            r"^\s{2,6}(\S.+?):\s*projected\s+([\d.]+)\s+(?:corners|cards)/match\.",
+            section, re.MULTILINE,
+        )
+        for tm in team_pattern:
+            team_name = tm.group(1).strip()
+            projection = tm.group(2)
+
+            # Find the recommendation after this team's projection line
+            # Search from this match position to the next team or section end
+            rest = section[tm.end():]
+            # Cut at next team projection line
+            next_team = re.search(
+                r"^\s{2,6}\S.+?:\s*(?:projected|insufficient)",
+                rest, re.MULTILINE,
+            )
+            team_section = rest[:next_team.start()] if next_team else rest
+
+            rec_text = ""
+            model_prob = ""
+            confidence = ""
+
+            # Model-only recommendation
+            rec_m = re.search(
+                r"Recommended:\s*(\w+)\s+([\d.]+)\s+\(model-only,\s*P\(.+?\)\s*=\s*([\d.]+%),\s*(\w+)\s+confidence\)",
+                team_section,
+            )
+            if rec_m:
+                side = rec_m.group(1)
+                line_val = rec_m.group(2)
+                model_prob = rec_m.group(3)
+                confidence = rec_m.group(4)
+                rec_text = f"{side} {line_val} {stat}"
+            else:
+                # Bookmaker-backed recommendation
+                rec_m = re.search(
+                    r"Recommended:\s*(\w+)\s+([\d.]+)\s+@\s*([\d.]+)\s+\(([^)]+)\)",
+                    team_section,
+                )
+                if rec_m:
+                    side = rec_m.group(1)
+                    line_val = rec_m.group(2)
+                    odds = rec_m.group(3)
+                    book = rec_m.group(4).split(",")[0].strip()
+                    rec_text = f"{side} {line_val} {stat} @ {odds} ({book})"
+
+                # Extract model prob from Model: line
+                mp_m = re.search(r"Model:\s*P\(.+?\)\s*=\s*([\d.]+%)", team_section)
+                if mp_m:
+                    model_prob = mp_m.group(1)
+
+                # Extract confidence from EV or Edge line
+                conf_m = re.search(r"\b(high|medium|low)\s+confidence\b", team_section, re.I)
+                if conf_m:
+                    confidence = conf_m.group(1)
+
+            teams.append({
+                "stat": stat,
+                "team": team_name,
+                "projection": projection,
+                "recommendation": rec_text,
+                "model_prob": model_prob,
+                "confidence": confidence,
+            })
+
+    return teams
+
+
 def rag_output_to_embeds(
     title: str,
     text: str,
@@ -247,6 +648,14 @@ def rag_output_to_embeds(
     Parses fixtures and builds one embed per fixture. Falls back to
     a plain code-block embed if parsing fails.
     """
+    # Route player prop output to dedicated parser
+    if "Player Prop Predictions" in text:
+        return player_prop_embeds(title, text, league)
+
+    # Route team totals output to dedicated parser
+    if "Per-Team Totals Lines" in text:
+        return team_totals_embeds(title, text, league)
+
     # Detect market type for emoji
     title_lower = title.lower()
     if "corner" in title_lower:

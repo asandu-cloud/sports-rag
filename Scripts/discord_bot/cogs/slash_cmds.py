@@ -362,6 +362,23 @@ class SlashCommands(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
+    async def cog_app_command_error(
+        self, interaction: discord.Interaction, error: app_commands.AppCommandError,
+    ) -> None:
+        """Handle errors from app commands — especially CheckFailure from premium_only."""
+        if isinstance(error, app_commands.CheckFailure):
+            # premium_only already sent a response; if it didn't, send one now
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    "You don't have permission to use this command. "
+                    "Check the upgrade channel for details.",
+                    ephemeral=True,
+                )
+            return
+        # Log unexpected errors
+        import logging
+        logging.getLogger("slash_cmds").error("Command error: %s", error, exc_info=error)
+
     # -----------------------------------------------------------------------
     # /fixtures — Schedule browser
     # -----------------------------------------------------------------------

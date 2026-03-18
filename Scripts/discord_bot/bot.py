@@ -18,7 +18,7 @@ from discord.ext import commands
 # Ensure rag_ingest is importable
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "rag_ingest"))
 
-from config import BOT_TOKEN
+from config import BOT_TOKEN, PREMIUM_ROLE_NAMES
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("betting_rag_bot")
@@ -44,13 +44,16 @@ class BettingRAGBot(commands.Bot):
             except Exception as e:
                 log.error(f"Failed to load cog {cog}: {e}")
 
-        # Sync slash commands with Discord
-        synced = await self.tree.sync()
-        log.info(f"Synced {len(synced)} slash commands")
-
     async def on_ready(self):
         log.info(f"Bot ready as {self.user} (ID: {self.user.id})")
         log.info(f"Guilds: {[g.name for g in self.guilds]}")
+
+        # Sync slash commands per guild (instant, unlike global sync which takes ~1hr)
+        for guild in self.guilds:
+            self.tree.copy_global_to(guild=guild)
+            synced = await self.tree.sync(guild=guild)
+            log.info(f"Synced {len(synced)} commands to '{guild.name}'")
+
         await self.change_presence(
             activity=discord.Activity(
                 type=discord.ActivityType.watching,
@@ -79,6 +82,8 @@ def main():
         )
         sys.exit(1)
 
+    print(f"[STARTUP] Premium roles configured: {PREMIUM_ROLE_NAMES}")
+    log.info("Premium roles configured: %s", PREMIUM_ROLE_NAMES)
     bot = BettingRAGBot()
     bot.run(BOT_TOKEN)
 

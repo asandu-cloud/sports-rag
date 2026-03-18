@@ -24,12 +24,22 @@ log = logging.getLogger("access")
 def _has_premium_role(interaction: discord.Interaction) -> bool:
     """Return True if the invoking member has any of the configured premium roles."""
     if not interaction.guild:
+        log.warning("Premium check: no guild context")
         return False
     member = interaction.user
     if not isinstance(member, discord.Member):
+        log.warning("Premium check: user %s is not a Member", member)
         return False
-    role_names = {r.name for r in member.roles}
-    return bool(role_names & set(PREMIUM_ROLE_NAMES))
+    role_names_lower = {r.name.lower() for r in member.roles}
+    allowed_lower = {r.lower() for r in PREMIUM_ROLE_NAMES}
+    matched = role_names_lower & allowed_lower
+    if not matched:
+        actual_roles = {r.name for r in member.roles}
+        log.info("Premium check DENIED for %s — has roles: %s | allowed: %s",
+                 member, actual_roles, set(PREMIUM_ROLE_NAMES))
+    else:
+        log.debug("Premium check OK for %s — matched: %s", member, matched)
+    return bool(matched)
 
 
 def premium_only():
@@ -47,7 +57,10 @@ def premium_only():
             ),
             color=COLOR_BLUE,
         )
-        await interaction.response.send_message(embed=em, ephemeral=True)
+        try:
+            await interaction.response.send_message(embed=em, ephemeral=True)
+        except Exception as exc:
+            log.warning("Failed to send premium gate message: %s", exc)
         return False
 
     return app_commands.check(predicate)
