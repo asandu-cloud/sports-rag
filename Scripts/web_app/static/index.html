@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Spick — Football Predictions</title>
+  <title>Matchwise — Football Predictions</title>
+  <meta name="description" content="AI-powered football betting predictions with real-time odds analysis across Europe's top leagues.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -14,14 +15,13 @@
   <!-- ===== Top Navigation Bar ===== -->
   <header class="topbar" role="banner">
     <div class="topbar-inner">
-      <div class="logo" onclick="navigateTo('home')" tabindex="0" role="link" aria-label="Spick home">
-        <span class="logo-mark">S</span>
-        <span class="logo-text">Spick</span>
+      <div class="logo" onclick="navigateTo('home')" tabindex="0" role="link" aria-label="Matchwise home">
+        <span class="logo-mark">M</span>
+        <span class="logo-text">Matchwise</span>
       </div>
       <nav class="nav" aria-label="Main navigation">
-        <button class="nav-link active" data-view="home">Home</button>
+        <button class="nav-link active" data-view="home">Fixtures</button>
         <button class="nav-link" data-view="best-bets">Best Bets</button>
-        <button class="nav-link" data-view="track-record">Track Record</button>
       </nav>
       <div class="topbar-right">
         <button class="slip-indicator hidden" id="slipIndicator" onclick="toggleMobileSlip()" aria-label="Open bet slip">
@@ -43,9 +43,10 @@
       <section class="view" id="viewHome">
         <div class="page-header">
           <h1 class="page-title">Today's Matches</h1>
-          <p class="page-subtitle">All matches covered by our models today</p>
+          <p class="page-subtitle">AI-powered predictions across Europe's top leagues</p>
         </div>
         <div class="date-strip" id="homeDateTabs" role="tablist" aria-label="Select date"></div>
+        <div class="league-filters" id="leagueFilters" role="toolbar" aria-label="League filter"></div>
         <div id="homeFixtures"></div>
       </section>
 
@@ -61,40 +62,25 @@
 
       <!-- Match Detail View -->
       <section class="view hidden" id="viewMatch">
-        <button class="back-link" onclick="history.back()">
+        <button class="back-link" onclick="navigateTo('home')">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 11L5 7l4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Back
+          Back to Fixtures
         </button>
         <div id="matchHeader"></div>
         <div class="market-tabs" id="marketTabs" role="tablist" aria-label="Market categories"></div>
         <div id="matchMarkets"></div>
       </section>
 
-      <!-- Track Record View -->
-      <section class="view hidden" id="viewTrackRecord">
-        <div class="page-header">
-          <h1 class="page-title">Track Record</h1>
-          <p class="page-subtitle">Historical prediction accuracy and performance</p>
-        </div>
-        <div class="empty-state">
-          <div class="empty-state-icon">
-            <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect x="6" y="10" width="36" height="28" rx="4" stroke="currentColor" stroke-width="2"/><path d="M14 26l6-6 4 4 8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-          <p>Track record coming soon.</p>
-          <p class="empty-state-hint">Prediction accuracy metrics will appear here once enough data is collected.</p>
-        </div>
-      </section>
-
     </main>
 
-    <!-- ===== Bet Slip (slides in from right) ===== -->
+    <!-- ===== Bet Slip (slides in from right on desktop, bottom sheet on mobile) ===== -->
     <aside class="slip" id="betSlip" aria-label="Bet slip">
       <div class="slip-head">
-        <div class="slip-tabs" role="tablist">
-          <button class="slip-tab active" data-mode="parlay" role="tab" aria-selected="true">Parlay</button>
-          <button class="slip-tab" data-mode="single" role="tab" aria-selected="false">Single</button>
+        <div class="slip-title-row">
+          <h2 class="slip-title">Bet Slip</h2>
+          <span class="slip-count-badge" id="slipCountBadge">0</span>
         </div>
-        <button class="slip-clear-btn" id="slipClear" aria-label="Remove all selections">Clear</button>
+        <button class="slip-clear-btn" id="slipClear" aria-label="Remove all selections">Clear All</button>
       </div>
 
       <div class="slip-body" id="slipBody">
@@ -102,45 +88,39 @@
       </div>
 
       <div class="slip-foot" id="slipFoot">
-        <!-- Parlay mode footer -->
-        <div class="slip-parlay-section" id="slipParlaySection">
-          <div class="slip-summary-row">
-            <span class="slip-summary-label">Combined Odds</span>
-            <span class="slip-summary-value mono" id="slipCombinedOdds">--</span>
-          </div>
-          <div class="slip-stake-row">
-            <div class="slip-stake-input-wrap">
-              <span class="slip-stake-prefix">$</span>
-              <input type="number" class="slip-stake-input" id="slipStakeInput" placeholder="Stake" min="0" step="any" aria-label="Stake amount">
-            </div>
-          </div>
-          <div class="slip-quick-stakes">
-            <button class="quick-stake" data-amount="5">$5</button>
-            <button class="quick-stake" data-amount="10">$10</button>
-            <button class="quick-stake" data-amount="25">$25</button>
-            <button class="quick-stake" data-amount="50">$50</button>
-            <button class="quick-stake" data-amount="100">$100</button>
-          </div>
-          <div class="slip-payout-row">
-            <span class="slip-payout-label">Potential Win</span>
-            <span class="slip-payout-value" id="slipPayout">$0.00</span>
-          </div>
-          <button class="slip-score-btn" id="slipScoreBtn">Score My Parlay</button>
-          <div class="slip-quality hidden" id="slipQuality">
-            <div class="quality-bar"><div class="quality-fill" id="qualityFill"></div></div>
-            <span class="quality-label" id="qualityLabel"></span>
+        <div class="slip-summary-row">
+          <span class="slip-summary-label">Combined Odds</span>
+          <span class="slip-summary-value mono" id="slipCombinedOdds">--</span>
+        </div>
+        <div class="slip-stake-row">
+          <div class="slip-stake-input-wrap">
+            <span class="slip-stake-prefix">$</span>
+            <input type="number" class="slip-stake-input" id="slipStakeInput" placeholder="Stake" min="0" step="any" aria-label="Stake amount">
           </div>
         </div>
-
-        <!-- Single mode footer -->
-        <div class="slip-single-section hidden" id="slipSingleSection">
-          <p class="slip-single-hint">Each selection has its own stake below.</p>
+        <div class="slip-quick-stakes">
+          <button class="quick-stake" data-amount="5">$5</button>
+          <button class="quick-stake" data-amount="10">$10</button>
+          <button class="quick-stake" data-amount="25">$25</button>
+          <button class="quick-stake" data-amount="50">$50</button>
+          <button class="quick-stake" data-amount="100">$100</button>
         </div>
-
-        <button class="slip-share-btn" id="slipShareBtn">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 8.5l6-3M4 5.5l6 3M10 3a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM10 8a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM4 5.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3z" stroke="currentColor" stroke-width="1.2"/></svg>
-          Share Parlay
-        </button>
+        <div class="slip-payout-row">
+          <span class="slip-payout-label">Potential Win</span>
+          <span class="slip-payout-value" id="slipPayout">$0.00</span>
+        </div>
+        <button class="slip-score-btn" id="slipScoreBtn">Score My Parlay</button>
+        <div class="slip-quality hidden" id="slipQuality">
+          <div class="quality-bar"><div class="quality-fill" id="qualityFill"></div></div>
+          <span class="quality-label" id="qualityLabel"></span>
+          <div class="quality-warnings" id="qualityWarnings"></div>
+        </div>
+        <div class="slip-actions-row">
+          <button class="slip-share-btn" id="slipShareBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+            Share Parlay
+          </button>
+        </div>
       </div>
     </aside>
 
@@ -148,7 +128,7 @@
     <div class="slip-mobile-bar hidden" id="slipMobileBar" onclick="toggleMobileSlip()">
       <div class="slip-mobile-bar-left">
         <span class="slip-mobile-count" id="slipMobileCount">0</span>
-        <span class="slip-mobile-label">selections</span>
+        <span class="slip-mobile-label">Bet Slip</span>
       </div>
       <div class="slip-mobile-bar-right">
         <span class="slip-mobile-odds" id="slipMobileOdds">--</span>

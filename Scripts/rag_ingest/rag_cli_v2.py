@@ -6422,9 +6422,9 @@ def _parse_player_prop_stats(user_q: str) -> List[str]:
         stats.append("goals")
     if re.search(r"\b(shot|sot|shots?\s+on\s+target)\b", q):
         stats.append("sot")
-    if re.search(r"\b(assist|chance|creat)\b", q):
+    if re.search(r"\b(assists?|chance|creat)", q):
         stats.append("assists")
-    if re.search(r"\b(card|book|yellow|red|caution)\b", q):
+    if re.search(r"\b(cards?|booked?|booking|yellow|red|caution)\b", q):
         stats.append("cards")
     if not stats:
         stats = ["goals"]  # default
@@ -6465,10 +6465,46 @@ def _get_recommendable_players(
     return profiles[:limit]
 
 
+def _parse_player_stats_from_text(text: str) -> Dict:
+    """Extract stat fields from player fixture document text.
+
+    Chroma drops integer 0 from metadata, so we parse stats from the
+    text which has format: 'G:1 A:0 Shots:3 (On:2) ... YC:1 RC:0'
+    """
+    stats: Dict = {}
+    if not text:
+        return stats
+    # Goals
+    m = re.search(r"\bG:(\d+)", text)
+    if m:
+        stats["goals"] = int(m.group(1))
+    # Assists
+    m = re.search(r"\bA:(\d+)", text)
+    if m:
+        stats["assists"] = int(m.group(1))
+    # Shots on target
+    m = re.search(r"\(On:(\d+)\)", text)
+    if m:
+        stats["shots_on"] = int(m.group(1))
+    # Yellow + Red cards -> cards_total
+    yc = rc = 0
+    m = re.search(r"\bYC:(\d+)", text)
+    if m:
+        yc = int(m.group(1))
+    m = re.search(r"\bRC:(\d+)", text)
+    if m:
+        rc = int(m.group(1))
+    stats["cards_total"] = yc + rc
+    return stats
+
+
 def _get_player_recent_fixtures(
     player_id, team: str, league: str, limit: int = 8, min_minutes: int = 30,
 ) -> List[Dict]:
-    """Retrieve recent fixture docs for a specific player."""
+    """Retrieve recent fixture docs for a specific player.
+
+    Parses stat fields from document text (Chroma drops 0-valued metadata).
+    """
     col = get_collection_handle(create_if_missing=True)
     variants = _kb_team_variants(team)
 
@@ -6476,22 +6512,33 @@ def _get_player_recent_fixtures(
     current_season = (prof.get("meta") or {}).get("season")
 
     fixtures = []
-    for tv in variants:
-        filters: List[Dict] = [
-            {"doc_type": "player_fixture"},
-            {"team": tv},
-            {"minutes": {"$gte": min_minutes}},
-        ]
-        if current_season:
-            filters.append({"season": current_season})
-        where = build_where(league, extra_filters=filters)
-        res = col.get(where=where, include=["documents", "metadatas"], limit=limit * 3)
+    # Query by player_id directly — much more efficient than filtering in Python
+    filters: List[Dict] = [
+        {"doc_type": "player_fixture"},
+        {"player_id": int(player_id) if str(player_id).isdigit() else player_id},
+        {"minutes": {"$gte": min_minutes}},
+    ]
+    if current_season:
+        filters.append({"season": current_season})
+    where = build_where(league, extra_filters=filters)
+    res = col.get(where=where, include=["documents", "metadatas"], limit=limit)
+    for i, d, m in zip(res.get("ids", []), res.get("documents", []), res.get("metadatas", [])):
+        meta = m or {}
+        # Parse stats from text since Chroma drops integer 0 metadata
+        text_stats = _parse_player_stats_from_text(d or "")
+        enriched_meta = {**meta, **text_stats}
+        fixtures.append({"id": i, "text": d or "", "meta": enriched_meta})
+
+    # Fallback: retry without season filter if no results (season format mismatch)
+    if not fixtures and current_season:
+        filters_no_season = [f for f in filters if "season" not in f]
+        where_ns = build_where(league, extra_filters=filters_no_season)
+        res = col.get(where=where_ns, include=["documents", "metadatas"], limit=limit)
         for i, d, m in zip(res.get("ids", []), res.get("documents", []), res.get("metadatas", [])):
             meta = m or {}
-            # Match player_id (handle both int and str)
-            pid = meta.get("player_id")
-            if str(pid) == str(player_id):
-                fixtures.append({"id": i, "text": d or "", "meta": meta})
+            text_stats = _parse_player_stats_from_text(d or "")
+            enriched_meta = {**meta, **text_stats}
+            fixtures.append({"id": i, "text": d or "", "meta": enriched_meta})
 
     fixtures.sort(key=lambda d: d.get("meta", {}).get("minutes") or 0, reverse=True)
     return fixtures[:limit]
@@ -6505,6 +6552,9 @@ def _handle_player_props_projected(
     league = c.league
     all_recommendations: List[PlayerPropRecommendation] = []
 
+    # Pre-check if cards are requested (referee lookup needed)
+    needs_referee = "cards" in requested_stats
+
     for ev in events:
         home_team = ev.get("home_team", "")
         away_team = ev.get("away_team", "")
@@ -6514,6 +6564,18 @@ def _handle_player_props_projected(
         fixture_label = f"{home_team} vs {away_team}"
         home_team_meta = get_team_profile_meta(home_team, league) or {}
         away_team_meta = get_team_profile_meta(away_team, league) or {}
+
+        # Fetch referee modifier once per fixture (for card projections)
+        ref_mod = None
+        if needs_referee and _REFEREE_AVAILABLE:
+            try:
+                rw = SCORING_WEIGHTS.get("referee", {})
+                ref_mod = get_referee_modifier(
+                    home_team, away_team, league,
+                    weight=rw.get("modifier_weight", 0.25),
+                )
+            except Exception:
+                ref_mod = None
 
         for team, opp_meta, is_home in [
             (home_team, away_team_meta, True),
@@ -6525,6 +6587,7 @@ def _handle_player_props_projected(
             for player_doc in players:
                 player_meta = player_doc.get("meta", {})
                 player_id = player_meta.get("player_id")
+                player_text = player_doc.get("text", "")
                 if not player_id:
                     continue
 
@@ -6542,6 +6605,8 @@ def _handle_player_props_projected(
                         is_home=is_home,
                         recent_fixtures=recent,
                         fixture_label=fixture_label,
+                        player_text=player_text,
+                        ref_mod=ref_mod if stat == "cards" else None,
                     )
                     if proj is None:
                         continue
@@ -6550,10 +6615,12 @@ def _handle_player_props_projected(
                     if rec is not None:
                         all_recommendations.append(rec)
 
-    # Sort: high confidence first, then by model_prob
+    # Sort: highest projection value first (best scorers/assisters on top),
+    # then by confidence, then by P(Over 0.5)
     all_recommendations.sort(key=lambda r: (
+        r.projection.projection,  # actual expected value — best scorers first
         {"high": 3, "medium": 2, "low": 1}.get(r.projection.confidence, 0),
-        r.model_prob,
+        r.projection.prob_over_0_5 or 0,
     ), reverse=True)
 
     # Limit to top 5 per fixture to keep output focused

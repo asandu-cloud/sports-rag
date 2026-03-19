@@ -637,6 +637,190 @@ def _parse_team_totals_block(block: str) -> List[Dict[str, str]]:
     return teams
 
 
+def consolidated_fixture_embeds(
+    league: str,
+    fixture_data: Dict[str, Dict[str, str]],
+) -> List[discord.Embed]:
+    """Build compact fixture-centric embeds from pre-parsed multi-market data.
+
+    fixture_data: {
+        "Arsenal vs Chelsea": {
+            "moneyline": "**Arsenal** @ 2.10 | 62% model | 🟢 High",
+            "btts": "**Yes** @ 1.75 | 58% model | 🟡 Medium",
+            "spreads": "**Arsenal -0.5** @ 1.85 | 61% model | 🟢 High",
+            "sot": "**Over 8.5** @ 1.80 | 67% model | 🟡 Medium",
+        },
+        ...
+    }
+    """
+    embeds: List[discord.Embed] = []
+
+    # Header
+    header = discord.Embed(
+        title=f"📊  Match Predictions — {league}",
+        color=COLOR_BLUE,
+    )
+    embeds.append(header)
+
+    _SECTION_LABELS = {
+        "moneyline": "🏆 Winner",
+        "btts": "🤝 BTTS",
+        "spreads": "📏 Handicap",
+        "sot": "🎯 Shots on Target",
+    }
+
+    for fixture, markets in fixture_data.items():
+        if not markets:
+            continue
+
+        # Determine best confidence for embed color
+        best_conf = "low"
+        for line in markets.values():
+            if "🟢" in line:
+                best_conf = "high"
+                break
+            elif "🟡" in line and best_conf != "high":
+                best_conf = "medium"
+
+        color, _, _ = _conf(f"{best_conf} confidence")
+        em = discord.Embed(color=color)
+        em.set_author(name=f"⚽  {fixture}")
+
+        # Build compact market lines
+        lines = []
+        for key in ["moneyline", "btts", "spreads", "sot"]:
+            val = markets.get(key)
+            if val:
+                label = _SECTION_LABELS.get(key, key.title())
+                lines.append(f"{label}\n{val}")
+
+        if lines:
+            em.description = "\n\n".join(lines)
+
+        em.set_footer(text=league)
+        embeds.append(em)
+
+    if len(embeds) > 10:
+        embeds = embeds[:10]
+
+    return embeds
+
+
+def consolidated_score_embeds(
+    league: str,
+    fixture_data: Dict[str, Dict[str, str]],
+) -> List[discord.Embed]:
+    """Build compact fixture-centric embeds for correct score + intervals.
+
+    fixture_data: {
+        "Arsenal vs Chelsea": {
+            "correct_score": "1. 2-1 — 14.2% | 2. 1-1 — 12.8% | ...",
+            "intervals": "0-1: 22% | 2-3: 45% | 4-5: 28% | 6+: 5%",
+        },
+    }
+    """
+    embeds: List[discord.Embed] = []
+
+    header = discord.Embed(
+        title=f"🎯  Correct Score & Goal Intervals — {league}",
+        color=COLOR_BLUE,
+    )
+    embeds.append(header)
+
+    for fixture, data in fixture_data.items():
+        if not data:
+            continue
+
+        em = discord.Embed(color=COLOR_BLUE)
+        em.set_author(name=f"⚽  {fixture}")
+
+        cs = data.get("correct_score")
+        if cs:
+            em.add_field(name="🎯 Most Likely Scores", value=_truncate(cs, 1024),
+                         inline=False)
+
+        iv = data.get("intervals")
+        if iv:
+            em.add_field(name="📊 Goal Intervals", value=_truncate(iv, 1024),
+                         inline=False)
+
+        em.set_footer(text=league)
+        embeds.append(em)
+
+    if len(embeds) > 10:
+        embeds = embeds[:10]
+
+    return embeds
+
+
+def parse_fixture_picks(text: str) -> Dict[str, str]:
+    """Parse RAG output into {fixture_name: compact_pick_line} dict.
+
+    Extracts fixture name, pick, odds, model prob, confidence from each
+    fixture block and formats as a single compact line.
+    """
+    blocks = _split_fixture_blocks(text)
+    result: Dict[str, str] = {}
+
+    for block in blocks:
+        fixture = _parse_fixture_name(block)
+        pick = _extract_pick(block)
+        odds = _extract_odds(block)
+        model = _extract_model_line(block)
+        confidence = _extract_confidence(block)
+        projection = _extract_projection(block)
+
+        if not pick and not projection:
+            continue
+
+        # Build compact one-liner
+        parts = []
+        if pick:
+            parts.append(f"**{pick}**")
+        if odds:
+            parts.append(f"@ {odds}")
+        if model.get("model_p"):
+            parts.append(f"{model['model_p']} model")
+        if model.get("edge"):
+            parts.append(f"edge {model['edge']}")
+
+        conf_icon = "🟢" if confidence == "High" else (
+            "🟡" if confidence == "Medium" else "⚪")
+        parts.append(conf_icon)
+
+        result[fixture] = " | ".join(parts) if parts else ""
+
+    return result
+
+
+def parse_correct_score_picks(text: str) -> Dict[str, str]:
+    """Parse correct score RAG output into {fixture: top_scorelines_str}."""
+    blocks = _split_fixture_blocks(text)
+    result: Dict[str, str] = {}
+
+    for block in blocks:
+        fixture = _parse_fixture_name(block)
+        scores = _extract_correct_scores(block)
+        if scores:
+            result[fixture] = "\n".join(f"`{i+1}.` {s}" for i, s in enumerate(scores[:5]))
+
+    return result
+
+
+def parse_interval_picks(text: str) -> Dict[str, str]:
+    """Parse goal interval RAG output into {fixture: intervals_str}."""
+    blocks = _split_fixture_blocks(text)
+    result: Dict[str, str] = {}
+
+    for block in blocks:
+        fixture = _parse_fixture_name(block)
+        intervals = _extract_interval_rows(block)
+        if intervals:
+            result[fixture] = " | ".join(f"**{band}** {prob}" for band, prob in intervals)
+
+    return result
+
+
 def rag_output_to_embeds(
     title: str,
     text: str,

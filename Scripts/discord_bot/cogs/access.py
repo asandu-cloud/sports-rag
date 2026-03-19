@@ -109,8 +109,9 @@ async def get_or_create_private_thread(
             type=discord.ChannelType.private_thread,
             invitable=False,
         )
-        # Send a welcome message so the user knows what this thread is.
+        # Mention the user so they get added to the thread and can see it.
         await thread.send(
+            content=f"{user.mention}",
             embed=discord.Embed(
                 title="Your Private Bot Channel",
                 description=(
@@ -118,7 +119,7 @@ async def get_or_create_private_thread(
                     "Only you and the server admins can see this thread."
                 ),
                 color=COLOR_BLUE,
-            )
+            ),
         )
         return thread
     except discord.Forbidden:

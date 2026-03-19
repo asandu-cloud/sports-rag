@@ -2,7 +2,9 @@
 
 Deterministic per-player projections for goals, SoT, assists, cards.
 Combines player rates with team context, opponent strength, position
-relevance, home/away splits, recent form streaks, and minutes risk.
+relevance, home/away splits, recent form streaks, minutes risk,
+matchup-specific signals (referee, shot volume chain, card induction),
+and text-parsed player profile fields (fouls/90, aggression, shots/90).
 Uses Poisson/NegBin from prob_models.py for probability distributions.
 
 No external dependencies beyond existing RAG infrastructure.
@@ -11,14 +13,41 @@ Graceful degradation: returns None when data insufficient.
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     from prob_models import over_prob
 except ImportError:
     from Scripts.rag_ingest.prob_models import over_prob
+
+# Referee integration — graceful degradation when unavailable
+try:
+    from referee_data import get_referee_modifier, RefereeModifier
+    _REFEREE_AVAILABLE = True
+except ImportError:
+    try:
+        from Scripts.rag_ingest.referee_data import get_referee_modifier, RefereeModifier
+        _REFEREE_AVAILABLE = True
+    except ImportError:
+        _REFEREE_AVAILABLE = False
+
+        @dataclass
+        class RefereeModifier:
+            multiplier: float = 1.0
+            referee_name: Optional[str] = None
+            sample_size: int = 0
+            confidence: float = 0.0
+            strictness_ratio: float = 1.0
+            avg_cards_per_match: float = 0.0
+            avg_fouls_per_match: float = 0.0
+            cards_per_foul: float = 0.0
+            source: str = "unavailable"
+
+        def get_referee_modifier(*args, **kwargs) -> RefereeModifier:
+            return RefereeModifier()
 
 
 # ---------------------------------------------------------------------------
@@ -89,6 +118,29 @@ PLAYER_PROP_WEIGHTS = {
     "min_qualified_apps": 5,
     "min_qualified_apps_limited": 3,
     "min_total_minutes": 180,
+
+    # --- Enhanced matchup weights ---
+    # Cards matchup model
+    "cards_foul_rate_weight": 0.35,          # foul-rate pathway share
+    "cards_base_rate_weight": 0.65,          # historical card rate pathway share
+    "cards_referee_blend": 0.25,             # how much referee modifier shifts projection
+    "cards_opp_induction_weight": 0.20,      # opponent card-induction adjustment
+    "cards_aggression_nudge": 0.10,          # player aggression index nudge
+    "cards_foul_card_estimate_weight": 0.30, # fouls/90 * ref cards_per_foul blend
+
+    # Goals shot-chain model
+    "goals_shot_chain_weight": 0.30,         # how much shot-chain estimate influences
+    "goals_conversion_default": 0.10,        # default conversion rate (goals/shot)
+    "goals_xg_team_weight": 0.15,            # team xG context boost
+
+    # SoT shot-volume model
+    "sot_shot_volume_weight": 0.30,          # how much raw shot volume influences
+    "sot_conversion_default": 0.35,          # default shot-to-SoT conversion
+    "sot_possession_weight": 0.10,           # possession context
+
+    # Assists team-attack model
+    "assists_team_goals_weight": 0.25,       # team goal output context
+    "assists_opp_defense_weight": 0.20,      # opponent defensive weakness
 }
 
 # Position relevance multipliers per stat — prevents absurd recs like
@@ -112,6 +164,9 @@ LEAGUE_DEFAULTS = {
     "sot": 3.80,
     "cards": 1.80,
     "assists": 0.85,
+    "fouls": 11.0,      # typical fouls per team per match
+    "shots": 12.0,      # typical shots per team per match
+    "possession": 50.0,
 }
 
 # Stat display labels
@@ -131,6 +186,395 @@ STAT_EMOJIS = {
 
 
 # ---------------------------------------------------------------------------
+# Player profile text parser
+# ---------------------------------------------------------------------------
+
+def _parse_player_profile_text(text: str) -> Dict[str, float]:
+    """Extract stat fields embedded in player profile document text.
+
+    Player profile documents include text-only fields like:
+        Fouls/90:1.23  Cards/90:0.34  Shots/90:2.10  SoT/90:1.05
+        FormIdx:0.72  AggIdx:0.65  CtrlIdx:0.58
+        CardRiskExp:0.41  FoulPressureExp:0.33  DuelWin%:52.3
+        Tags: aggressive, rotation-risk
+
+    These are NOT in Chroma metadata, so we parse them from the raw text.
+    Returns a dict of parsed float values; missing fields are omitted.
+    """
+    if not text:
+        return {}
+
+    parsed: Dict[str, float] = {}
+
+    # Map of regex pattern -> output key
+    patterns = {
+        r"Fouls/90:([\d.]+)":            "fouls_per_90",
+        r"Cards/90:([\d.]+)":            "cards_per_90_text",
+        r"Shots/90:([\d.]+)":            "shots_per_90",
+        r"SoT/90:([\d.]+)":             "sot_per_90_text",
+        r"FormIdx:([\d.]+)":             "form_index",
+        r"AggIdx:([\d.]+)":              "aggression_index",
+        r"CtrlIdx:([\d.]+)":             "control_index",
+        r"CardRiskExp:([\d.]+)":          "expected_card_risk",
+        r"FoulPressureExp:([\d.]+)":      "expected_foul_pressure",
+        r"DuelWin%:([\d.]+)":             "duel_win_pct",
+    }
+
+    for pattern, key in patterns.items():
+        m = re.search(pattern, text)
+        if m:
+            v = _safe_float(m.group(1))
+            if v is not None:
+                parsed[key] = v
+
+    # Tags (string, not float)
+    m = re.search(r"Tags:\s*(.+?)(?:\n|$)", text)
+    if m:
+        tags_raw = m.group(1).strip()
+        parsed["_tags"] = tags_raw  # type: ignore[assignment]
+
+    return parsed
+
+
+def _has_tag(parsed_text: Dict, tag: str) -> bool:
+    """Check if a player has a specific style tag from parsed text."""
+    tags = str(parsed_text.get("_tags", "")).lower()
+    return tag.lower() in tags
+
+
+# ---------------------------------------------------------------------------
+# Enhanced stat-specific projection models
+# ---------------------------------------------------------------------------
+
+def _cards_matchup_projection(
+    base_rate: float,
+    minutes_factor: float,
+    player_meta: Dict,
+    team_meta: Dict,
+    opponent_meta: Dict,
+    parsed_text: Dict,
+    ref_mod: Optional[Any] = None,
+) -> Tuple[float, Dict]:
+    """Full matchup model for card projection.
+
+    Three pathways blended:
+    1. Historical card rate (base_rate) -- the traditional pathway
+    2. Foul-rate pathway: fouls_per_90 * referee cards_per_foul
+    3. Aggression + opponent card-induction adjustment
+
+    Returns (projection, extra_evidence).
+    """
+    pw = PLAYER_PROP_WEIGHTS
+    extra_ev: Dict[str, Any] = {}
+
+    # --- Pathway 1: historical card rate (already scaled to minutes) ---
+    hist_projection = base_rate * minutes_factor
+
+    # --- Parse text-based fields ---
+    fouls_per_90 = parsed_text.get("fouls_per_90")
+    player_aggression = parsed_text.get("aggression_index")
+    expected_card_risk = parsed_text.get("expected_card_risk")
+
+    # Fallback fouls from metadata if text parse fails
+    if fouls_per_90 is None:
+        fouls_per_90 = _safe_float(player_meta.get("fouls_per_90"))
+
+    # --- Pathway 2: foul-rate * referee cards_per_foul ---
+    foul_card_estimate = None
+    if fouls_per_90 is not None and fouls_per_90 > 0:
+        if ref_mod is not None and ref_mod.cards_per_foul > 0 and ref_mod.source == "profile":
+            # Player fouls/90 * referee's card-per-foul rate, scaled to expected minutes
+            foul_card_estimate = fouls_per_90 * ref_mod.cards_per_foul * minutes_factor
+            extra_ev["foul_card_estimate"] = round(foul_card_estimate, 3)
+            extra_ev["player_fouls_per_90"] = round(fouls_per_90, 2)
+            extra_ev["ref_cards_per_foul"] = round(ref_mod.cards_per_foul, 3)
+
+    # --- Pathway 3: opponent card-induction ---
+    opp_induction = _safe_float(opponent_meta.get("opp_cards_induced_pm"))
+    league_avg_cards = LEAGUE_DEFAULTS.get("cards", 1.80)
+    opp_induction_multiplier = 1.0
+    if opp_induction is not None and opp_induction > 0 and league_avg_cards > 0:
+        raw_ratio = opp_induction / league_avg_cards
+        # Clamp to [0.75, 1.35] range
+        clamped = max(0.75, min(1.35, raw_ratio))
+        opp_induction_multiplier = 1.0 + pw["cards_opp_induction_weight"] * (clamped - 1.0)
+        extra_ev["opp_card_induction_pm"] = round(opp_induction, 2)
+        extra_ev["opp_induction_multiplier"] = round(opp_induction_multiplier, 3)
+
+    # --- Player aggression nudge ---
+    aggression_nudge = 0.0
+    if player_aggression is not None:
+        # aggression_index is typically 0-1; above 0.5 = aggressive player
+        aggression_nudge = pw["cards_aggression_nudge"] * (player_aggression - 0.5)
+        extra_ev["player_aggression_index"] = round(player_aggression, 2)
+
+    # Expected card risk from profile text (pre-computed risk estimate)
+    if expected_card_risk is not None:
+        extra_ev["expected_card_risk"] = round(expected_card_risk, 3)
+
+    # --- Blend pathways ---
+    if foul_card_estimate is not None:
+        # Blend: foul-rate pathway + historical pathway
+        blended = (pw["cards_foul_card_estimate_weight"] * foul_card_estimate
+                   + (1.0 - pw["cards_foul_card_estimate_weight"]) * hist_projection)
+    else:
+        blended = hist_projection
+
+    # Apply opponent induction
+    blended *= opp_induction_multiplier
+
+    # Apply aggression nudge additively (small push)
+    blended += aggression_nudge
+
+    # --- Referee strictness modifier ---
+    # Applied multiplicatively, same as team-level cards in rag_cli_v2.py
+    if ref_mod is not None and ref_mod.multiplier != 1.0:
+        ref_blend_w = pw["cards_referee_blend"] * ref_mod.confidence
+        blended = blended * (1.0 + ref_blend_w * (ref_mod.multiplier - 1.0))
+        extra_ev["referee_name"] = ref_mod.referee_name or "Unknown"
+        extra_ev["referee_strictness"] = round(ref_mod.strictness_ratio, 2)
+        extra_ev["referee_modifier"] = round(ref_mod.multiplier, 3)
+        extra_ev["referee_confidence"] = round(ref_mod.confidence, 2)
+
+    # Floor at a small positive value
+    blended = max(0.01, blended)
+    extra_ev["matchup_model"] = "cards_full"
+
+    return blended, extra_ev
+
+
+def _goals_shot_chain_projection(
+    base_rate: float,
+    minutes_factor: float,
+    player_meta: Dict,
+    team_meta: Dict,
+    opponent_meta: Dict,
+    parsed_text: Dict,
+) -> Tuple[float, Dict]:
+    """Shot volume chain model for goals projection.
+
+    Chain: shots_per_90 -> conversion_rate -> expected goals
+    Adjusted by opponent SoT concession and team xG context.
+
+    Returns (projection, extra_evidence).
+    """
+    pw = PLAYER_PROP_WEIGHTS
+    extra_ev: Dict[str, Any] = {}
+
+    hist_projection = base_rate * minutes_factor
+
+    # --- Shot volume pathway ---
+    shots_per_90 = parsed_text.get("shots_per_90")
+    if shots_per_90 is None:
+        shots_per_90 = _safe_float(player_meta.get("shots_per_90"))
+
+    shot_chain_estimate = None
+    if shots_per_90 is not None and shots_per_90 > 0:
+        # Conversion rate: goals / shots. Derive from player's own rates if possible.
+        goals_per_90 = _safe_float(player_meta.get("goals_per_90")) or base_rate
+        if goals_per_90 > 0 and shots_per_90 > 0:
+            conversion = goals_per_90 / shots_per_90
+        else:
+            conversion = pw["goals_conversion_default"]
+        # Clamp conversion to reasonable range [0.02, 0.35]
+        conversion = max(0.02, min(0.35, conversion))
+
+        # Opponent SoT concession: if opponent lets through many SoT,
+        # the player's shots are more likely to reach the keeper / go in
+        opp_sot_against = _safe_float(opponent_meta.get("sot_against_pm"))
+        league_avg_sot = LEAGUE_DEFAULTS.get("sot", 3.80)
+        shot_volume_adjust = 1.0
+        if opp_sot_against is not None and league_avg_sot > 0:
+            # Opponent concedes more SoT than average -> player gets more quality chances
+            shot_volume_adjust = 0.5 + 0.5 * (opp_sot_against / league_avg_sot)
+            shot_volume_adjust = max(0.75, min(1.30, shot_volume_adjust))
+
+        shot_chain_estimate = (shots_per_90 * shot_volume_adjust
+                               * conversion * minutes_factor)
+        extra_ev["shots_per_90"] = round(shots_per_90, 2)
+        extra_ev["conversion_rate"] = round(conversion, 3)
+        extra_ev["opp_sot_against_pm"] = round(opp_sot_against, 2) if opp_sot_against else None
+        extra_ev["shot_volume_adjust"] = round(shot_volume_adjust, 3)
+        extra_ev["shot_chain_estimate"] = round(shot_chain_estimate, 3)
+
+    # --- Team xG context ---
+    # High-xG team = more quality chances for its forwards
+    xg_boost = 1.0
+    xg_home = _safe_float(team_meta.get("xg_home_pm"))
+    xg_away = _safe_float(team_meta.get("xg_away_pm"))
+    team_xg = None
+    if xg_home is not None and xg_away is not None:
+        team_xg = (xg_home + xg_away) / 2.0
+    if team_xg is not None and team_xg > 0:
+        league_avg_goals = LEAGUE_DEFAULTS.get("goals", 1.30)
+        xg_ratio = team_xg / league_avg_goals
+        xg_boost = 1.0 + pw["goals_xg_team_weight"] * (xg_ratio - 1.0)
+        xg_boost = max(0.85, min(1.20, xg_boost))
+        extra_ev["team_xg_pm"] = round(team_xg, 2)
+        extra_ev["xg_boost"] = round(xg_boost, 3)
+
+    # --- Blend shot-chain with historical ---
+    if shot_chain_estimate is not None:
+        blended = ((1.0 - pw["goals_shot_chain_weight"]) * hist_projection
+                   + pw["goals_shot_chain_weight"] * shot_chain_estimate)
+    else:
+        blended = hist_projection
+
+    # Apply xG context boost
+    blended *= xg_boost
+
+    blended = max(0.01, blended)
+    extra_ev["matchup_model"] = "goals_shot_chain"
+
+    return blended, extra_ev
+
+
+def _sot_shot_volume_projection(
+    base_rate: float,
+    minutes_factor: float,
+    player_meta: Dict,
+    team_meta: Dict,
+    opponent_meta: Dict,
+    parsed_text: Dict,
+) -> Tuple[float, Dict]:
+    """Shot volume model for SoT projection.
+
+    Chain: shots_per_90 -> SoT conversion -> expected SoT
+    Adjusted by opponent shot concession and team possession context.
+
+    Returns (projection, extra_evidence).
+    """
+    pw = PLAYER_PROP_WEIGHTS
+    extra_ev: Dict[str, Any] = {}
+
+    hist_projection = base_rate * minutes_factor
+
+    # --- Shot volume -> SoT conversion ---
+    shots_per_90 = parsed_text.get("shots_per_90")
+    if shots_per_90 is None:
+        shots_per_90 = _safe_float(player_meta.get("shots_per_90"))
+
+    shot_volume_estimate = None
+    if shots_per_90 is not None and shots_per_90 > 0:
+        # SoT conversion: SoT / total shots
+        sot_per_90 = _safe_float(player_meta.get("sot_per_90")) or base_rate
+        if sot_per_90 > 0 and shots_per_90 > 0:
+            sot_conversion = sot_per_90 / shots_per_90
+        else:
+            sot_conversion = pw["sot_conversion_default"]
+        sot_conversion = max(0.15, min(0.70, sot_conversion))
+
+        # Opponent shot concession: how many SoT they allow
+        opp_sot_against = _safe_float(opponent_meta.get("sot_against_pm"))
+        league_avg_sot = LEAGUE_DEFAULTS.get("sot", 3.80)
+        opp_sot_factor = 1.0
+        if opp_sot_against is not None and league_avg_sot > 0:
+            opp_sot_factor = 0.5 + 0.5 * (opp_sot_against / league_avg_sot)
+            opp_sot_factor = max(0.75, min(1.30, opp_sot_factor))
+
+        shot_volume_estimate = (shots_per_90 * opp_sot_factor
+                                * sot_conversion * minutes_factor)
+        extra_ev["shots_per_90"] = round(shots_per_90, 2)
+        extra_ev["sot_conversion"] = round(sot_conversion, 3)
+        extra_ev["opp_sot_against_pm"] = round(opp_sot_against, 2) if opp_sot_against else None
+        extra_ev["opp_sot_factor"] = round(opp_sot_factor, 3)
+        extra_ev["shot_volume_estimate"] = round(shot_volume_estimate, 3)
+
+    # --- Possession context ---
+    # More possession = more time in attacking positions = more shots
+    possession_boost = 1.0
+    team_possession = _safe_float(team_meta.get("possession"))
+    if team_possession is not None and team_possession > 0:
+        possession_ratio = team_possession / LEAGUE_DEFAULTS.get("possession", 50.0)
+        possession_boost = 1.0 + pw["sot_possession_weight"] * (possession_ratio - 1.0)
+        possession_boost = max(0.90, min(1.12, possession_boost))
+        extra_ev["team_possession"] = round(team_possession, 1)
+        extra_ev["possession_boost"] = round(possession_boost, 3)
+
+    # --- Blend ---
+    if shot_volume_estimate is not None:
+        blended = ((1.0 - pw["sot_shot_volume_weight"]) * hist_projection
+                   + pw["sot_shot_volume_weight"] * shot_volume_estimate)
+    else:
+        blended = hist_projection
+
+    blended *= possession_boost
+    blended = max(0.01, blended)
+    extra_ev["matchup_model"] = "sot_shot_volume"
+
+    return blended, extra_ev
+
+
+def _assists_team_attack_projection(
+    base_rate: float,
+    minutes_factor: float,
+    player_meta: Dict,
+    team_meta: Dict,
+    opponent_meta: Dict,
+    parsed_text: Dict,
+) -> Tuple[float, Dict]:
+    """Team attack model for assists projection.
+
+    Assists only happen when goals are scored, so team attack output
+    and opponent defensive weakness are primary context signals.
+
+    Returns (projection, extra_evidence).
+    """
+    pw = PLAYER_PROP_WEIGHTS
+    extra_ev: Dict[str, Any] = {}
+
+    hist_projection = base_rate * minutes_factor
+
+    # --- Team goal output context ---
+    # More goals from teammates = more assist opportunities
+    team_goals_for = _safe_float(team_meta.get("goals_for_pm"))
+    league_avg_goals = LEAGUE_DEFAULTS.get("goals", 1.30)
+    team_attack_factor = 1.0
+    if team_goals_for is not None and team_goals_for > 0 and league_avg_goals > 0:
+        team_attack_ratio = team_goals_for / league_avg_goals
+        team_attack_factor = 1.0 + pw["assists_team_goals_weight"] * (team_attack_ratio - 1.0)
+        team_attack_factor = max(0.80, min(1.25, team_attack_factor))
+        extra_ev["team_goals_for_pm"] = round(team_goals_for, 2)
+        extra_ev["team_attack_factor"] = round(team_attack_factor, 3)
+
+    # --- Opponent defensive weakness ---
+    # Opponent concedes more goals = more assist chances
+    opp_goals_against = _safe_float(opponent_meta.get("goals_against_pm"))
+    opp_defense_factor = 1.0
+    if opp_goals_against is not None and opp_goals_against > 0 and league_avg_goals > 0:
+        opp_defense_ratio = opp_goals_against / league_avg_goals
+        opp_defense_factor = 1.0 + pw["assists_opp_defense_weight"] * (opp_defense_ratio - 1.0)
+        opp_defense_factor = max(0.80, min(1.25, opp_defense_factor))
+        extra_ev["opp_goals_against_pm"] = round(opp_goals_against, 2)
+        extra_ev["opp_defense_factor"] = round(opp_defense_factor, 3)
+
+    # --- Team xG as secondary signal ---
+    xg_home = _safe_float(team_meta.get("xg_home_pm"))
+    xg_away = _safe_float(team_meta.get("xg_away_pm"))
+    if xg_home is not None and xg_away is not None:
+        team_xg = (xg_home + xg_away) / 2.0
+        extra_ev["team_xg_pm"] = round(team_xg, 2)
+
+    # --- Control index as chance creation proxy ---
+    control_index = parsed_text.get("control_index")
+    if control_index is None:
+        control_index = _safe_float(player_meta.get("control_index"))
+    control_boost = 1.0
+    if control_index is not None:
+        # Higher control = better chance creation = more assists
+        control_boost = 1.0 + 0.08 * (control_index - 0.5)
+        control_boost = max(0.95, min(1.08, control_boost))
+        extra_ev["player_control_index"] = round(control_index, 2)
+
+    # --- Combine ---
+    blended = hist_projection * team_attack_factor * opp_defense_factor * control_boost
+    blended = max(0.01, blended)
+    extra_ev["matchup_model"] = "assists_team_attack"
+
+    return blended, extra_ev
+
+
+# ---------------------------------------------------------------------------
 # Core projection
 # ---------------------------------------------------------------------------
 
@@ -143,19 +587,29 @@ def projected_player_stat(
     is_home: bool,
     recent_fixtures: Optional[List[Dict]] = None,
     fixture_label: str = "",
+    player_text: str = "",
+    ref_mod: Optional[Any] = None,
 ) -> Optional[PlayerProjection]:
     """Compute expected value for a player stat in a specific fixture.
 
     Pipeline:
-    1. Position gate — filter goalkeepers, apply position relevance
+    1. Position gate -- filter goalkeepers, apply position relevance
     2. Player's own per-90 rate (starter appearances preferred)
     3. Adjust for expected minutes (starter/rotation/bench)
     4. Home/away venue adjustment
-    5. Scale by team context (team output vs league average)
-    6. Adjust for opponent defensive quality
+    5. Parse player profile text for extra matchup fields
+    6. Stat-specific enhanced matchup model:
+       - cards: foul-rate * ref cards_per_foul + aggression + opp induction + referee
+       - goals: shot volume * conversion * opp SoT concession + team xG
+       - sot: shot volume * SoT conversion * opp shot concession + possession
+       - assists: team attack output * opp defensive weakness + control
     7. Blend season rate with recent form (70/30)
     8. Apply position relevance scaling
     9. Feed to Poisson/NegBin for probability distribution
+
+    New parameters:
+        player_text: raw text from the player profile Chroma document
+        ref_mod: RefereeModifier from referee_data.py (for card projections)
     """
     pw = PLAYER_PROP_WEIGHTS
 
@@ -195,7 +649,7 @@ def projected_player_stat(
 
     # Extra gate: if player has been benched recently, downgrade hard
     if recent_trend == "benched" and role not in ("nailed_on", "starter"):
-        return None  # skip players trending to bench — unreliable
+        return None  # skip players trending to bench -- unreliable
 
     data_quality = "full" if qualified_apps >= pw["min_qualified_apps"] else "limited"
 
@@ -225,29 +679,101 @@ def projected_player_stat(
 
     # --- Scale rate to expected minutes ---
     minutes_factor = expected_minutes / 90.0
-    season_projection = base_rate * minutes_factor
 
     # --- Home/away venue adjustment ---
     venue_factor = pw["home_boost"] if is_home else pw["away_discount"]
 
-    # --- Recent form blend ---
+    # --- Parse player profile text for extra matchup fields ---
+    parsed_text = _parse_player_profile_text(player_text)
+
+    # --- Recent form blend (compute recent rate first, used by all pathways) ---
     recent_rate = _compute_recent_rate(recent_fixtures, stat, min_minutes=30)
-    if recent_rate is not None:
-        recent_projection = recent_rate * minutes_factor
-        blended = (pw["season_blend"] * season_projection
-                   + pw["recent_blend"] * recent_projection)
+
+    # --- Stat-specific enhanced matchup projection ---
+    extra_evidence: Dict[str, Any] = {}
+
+    if stat == "cards":
+        # Enhanced cards: foul-rate pathway + referee + opponent induction
+        season_proj, extra_evidence = _cards_matchup_projection(
+            base_rate, minutes_factor, player_meta, team_meta,
+            opponent_meta, parsed_text, ref_mod,
+        )
+        if recent_rate is not None:
+            recent_proj, _ = _cards_matchup_projection(
+                recent_rate, minutes_factor, player_meta, team_meta,
+                opponent_meta, parsed_text, ref_mod,
+            )
+            blended = pw["season_blend"] * season_proj + pw["recent_blend"] * recent_proj
+        else:
+            blended = season_proj
+
+    elif stat == "goals":
+        # Enhanced goals: shot volume chain + xG context
+        season_proj, extra_evidence = _goals_shot_chain_projection(
+            base_rate, minutes_factor, player_meta, team_meta,
+            opponent_meta, parsed_text,
+        )
+        if recent_rate is not None:
+            recent_proj, _ = _goals_shot_chain_projection(
+                recent_rate, minutes_factor, player_meta, team_meta,
+                opponent_meta, parsed_text,
+            )
+            blended = pw["season_blend"] * season_proj + pw["recent_blend"] * recent_proj
+        else:
+            blended = season_proj
+
+    elif stat == "sot":
+        # Enhanced SoT: shot volume + possession context
+        season_proj, extra_evidence = _sot_shot_volume_projection(
+            base_rate, minutes_factor, player_meta, team_meta,
+            opponent_meta, parsed_text,
+        )
+        if recent_rate is not None:
+            recent_proj, _ = _sot_shot_volume_projection(
+                recent_rate, minutes_factor, player_meta, team_meta,
+                opponent_meta, parsed_text,
+            )
+            blended = pw["season_blend"] * season_proj + pw["recent_blend"] * recent_proj
+        else:
+            blended = season_proj
+
+    elif stat == "assists":
+        # Enhanced assists: team attack model
+        season_proj, extra_evidence = _assists_team_attack_projection(
+            base_rate, minutes_factor, player_meta, team_meta,
+            opponent_meta, parsed_text,
+        )
+        if recent_rate is not None:
+            recent_proj, _ = _assists_team_attack_projection(
+                recent_rate, minutes_factor, player_meta, team_meta,
+                opponent_meta, parsed_text,
+            )
+            blended = pw["season_blend"] * season_proj + pw["recent_blend"] * recent_proj
+        else:
+            blended = season_proj
+
     else:
-        blended = season_projection
+        # Fallback: legacy simple pipeline for unknown stats
+        season_projection = base_rate * minutes_factor
+        if recent_rate is not None:
+            recent_projection = recent_rate * minutes_factor
+            blended = (pw["season_blend"] * season_projection
+                       + pw["recent_blend"] * recent_projection)
+        else:
+            blended = season_projection
+        # Legacy team/opponent adjustments for unknown stats
+        team_share = _team_share_adjustment(team_meta, stat)
+        opp_multiplier = _opponent_adjustment(opponent_meta, stat)
+        blended *= team_share * opp_multiplier
 
-    # --- Team context adjustment ---
-    team_share = _team_share_adjustment(team_meta, stat)
-    blended *= team_share
+    # --- Apply venue + position relevance ---
+    # NOTE: For enhanced models, opponent adjustment is built into the
+    # stat-specific model. For the legacy path, it is applied above.
+    if stat in ("cards", "goals", "sot", "assists"):
+        final_projection = blended * venue_factor * pos_relevance
+    else:
+        final_projection = blended * venue_factor * pos_relevance
 
-    # --- Opponent adjustment ---
-    opp_multiplier = _opponent_adjustment(opponent_meta, stat)
-
-    # --- Apply venue + opponent + position relevance ---
-    final_projection = blended * opp_multiplier * venue_factor * pos_relevance
     final_projection = max(0.01, final_projection)
 
     # --- Collect recent raw stat values for display ---
@@ -265,6 +791,27 @@ def projected_player_stat(
         prob_over_05, data_quality, role, qualified_apps, recent_trend, pos_relevance,
     )
 
+    # --- Build evidence dict ---
+    # Compute opponent_multiplier for display (even though enhanced models
+    # internalize it, we report the equivalent for transparency)
+    opp_multiplier = _opponent_adjustment(opponent_meta, stat)
+    team_share = _team_share_adjustment(team_meta, stat)
+
+    evidence = {
+        "base_rate_per_90": round(base_rate, 3),
+        "expected_minutes": round(expected_minutes, 1),
+        "season_projection": round(base_rate * minutes_factor, 3),
+        "recent_rate_per_90": round(recent_rate, 3) if recent_rate is not None else None,
+        "team_share_factor": round(team_share, 3),
+        "opponent_multiplier": round(opp_multiplier, 3),
+        "venue_factor": round(venue_factor, 3),
+        "position_relevance": round(pos_relevance, 2),
+        "qualified_apps": qualified_apps,
+        "total_apps": total_apps,
+    }
+    # Merge extra evidence from enhanced models
+    evidence.update(extra_evidence)
+
     return PlayerProjection(
         player_name=player_meta.get("player_name", "Unknown"),
         player_id=int(_safe_float(player_meta.get("player_id"), 0)),
@@ -281,18 +828,7 @@ def projected_player_stat(
         prob_over_1_5=round(prob_over_15, 4) if prob_over_15 is not None else None,
         prob_over_2_5=round(prob_over_25, 4) if prob_over_25 is not None else None,
         confidence=confidence,
-        evidence={
-            "base_rate_per_90": round(base_rate, 3),
-            "expected_minutes": round(expected_minutes, 1),
-            "season_projection": round(season_projection, 3),
-            "recent_rate_per_90": round(recent_rate, 3) if recent_rate is not None else None,
-            "team_share_factor": round(team_share, 3),
-            "opponent_multiplier": round(opp_multiplier, 3),
-            "venue_factor": round(venue_factor, 3),
-            "position_relevance": round(pos_relevance, 2),
-            "qualified_apps": qualified_apps,
-            "total_apps": total_apps,
-        },
+        evidence=evidence,
         opponent_adjustment=round(opp_multiplier, 3),
         data_quality=data_quality,
         recent_form_values=recent_form_values,
@@ -355,7 +891,7 @@ def recommend_player_prop(
 
 
 # ---------------------------------------------------------------------------
-# Opponent & team adjustments
+# Opponent & team adjustments (legacy, still used for display and fallback)
 # ---------------------------------------------------------------------------
 
 def _opponent_adjustment(opponent_meta: Dict, stat: str) -> float:
@@ -546,7 +1082,7 @@ def _player_confidence(
 
 
 # ---------------------------------------------------------------------------
-# Rendering — fixture-grouped, Discord-parseable format
+# Rendering -- fixture-grouped, Discord-parseable format
 # ---------------------------------------------------------------------------
 
 def render_player_prop_answer(
@@ -594,7 +1130,7 @@ def render_player_prop_answer(
             # Player header
             lines.append(f"{stat_emoji} {p.player_name} ({p.team}) [{pos_label}] ({venue})")
 
-            # Recommendation line — mirrors the >>> pattern other workflows use
+            # Recommendation line -- mirrors the >>> pattern other workflows use
             lines.append(
                 f"  >>> Recommended: {rec.recommended_side.upper()} {rec.recommended_line} "
                 f"{stat_label} ({rec.model_prob:.0%} confidence)"
@@ -621,12 +1157,25 @@ def render_player_prop_answer(
                 form_str = " ".join(str(v) for v in p.recent_form_values)
                 lines.append(f"  Recent: [{form_str}] (last {len(p.recent_form_values)} starts)")
 
-            # Opponent adjustment (only show when meaningful)
-            opp_pct = (p.opponent_adjustment - 1) * 100
-            if abs(opp_pct) >= 2:
-                opp_sign = "+" if opp_pct > 0 else ""
-                opp_label = "Leaky defense" if opp_pct > 0 else "Stingy defense"
-                lines.append(f"  Opponent: {opp_sign}{opp_pct:.0f}% ({opp_label})")
+            # Enhanced matchup evidence
+            ev = p.evidence
+            matchup_model = ev.get("matchup_model", "")
+
+            if matchup_model == "cards_full":
+                _render_cards_evidence(lines, ev)
+            elif matchup_model == "goals_shot_chain":
+                _render_goals_evidence(lines, ev)
+            elif matchup_model == "sot_shot_volume":
+                _render_sot_evidence(lines, ev)
+            elif matchup_model == "assists_team_attack":
+                _render_assists_evidence(lines, ev)
+            else:
+                # Legacy opponent adjustment display
+                opp_pct = (p.opponent_adjustment - 1) * 100
+                if abs(opp_pct) >= 2:
+                    opp_sign = "+" if opp_pct > 0 else ""
+                    opp_label = "Leaky defense" if opp_pct > 0 else "Stingy defense"
+                    lines.append(f"  Opponent: {opp_sign}{opp_pct:.0f}% ({opp_label})")
 
             # Confidence
             conf_label = p.confidence.upper()
@@ -642,8 +1191,127 @@ def render_player_prop_answer(
             lines.append("")
 
     lines.append("Method: deterministic player projection "
-                 "(starter rates + minutes risk + opponent defense + position + venue)")
+                 "(matchup model + starter rates + minutes risk + opponent + position + venue)")
     return "\n".join(lines)
+
+
+def _render_cards_evidence(lines: List[str], ev: Dict) -> None:
+    """Render enhanced cards matchup evidence."""
+    parts = []
+
+    # Foul-rate pathway
+    fouls_90 = ev.get("player_fouls_per_90")
+    ref_cpf = ev.get("ref_cards_per_foul")
+    if fouls_90 is not None and ref_cpf is not None:
+        foul_est = ev.get("foul_card_estimate", 0)
+        parts.append(f"Fouls/90: {fouls_90:.1f} x Ref CPF: {ref_cpf:.2f} = {foul_est:.2f}")
+
+    # Opponent induction
+    opp_ind = ev.get("opp_card_induction_pm")
+    if opp_ind is not None:
+        opp_mult = ev.get("opp_induction_multiplier", 1.0)
+        opp_label = "high-induction" if opp_mult > 1.02 else ("low-induction" if opp_mult < 0.98 else "neutral")
+        parts.append(f"Opp cards induced: {opp_ind:.1f}/m ({opp_label})")
+
+    # Player aggression
+    agg = ev.get("player_aggression_index")
+    if agg is not None:
+        agg_label = "aggressive" if agg > 0.60 else ("calm" if agg < 0.40 else "moderate")
+        parts.append(f"Aggression: {agg:.2f} ({agg_label})")
+
+    # Referee info
+    ref_name = ev.get("referee_name")
+    ref_strict = ev.get("referee_strictness")
+    if ref_name and ref_strict:
+        ref_label = "strict" if ref_strict > 1.05 else ("lenient" if ref_strict < 0.95 else "average")
+        ref_conf = ev.get("referee_confidence", 0)
+        parts.append(f"Ref: {ref_name} ({ref_label}, {ref_strict:.2f}x, conf {ref_conf:.0%})")
+
+    if parts:
+        lines.append(f"  Matchup: {' | '.join(parts)}")
+
+
+def _render_goals_evidence(lines: List[str], ev: Dict) -> None:
+    """Render enhanced goals shot-chain evidence."""
+    parts = []
+
+    shots = ev.get("shots_per_90")
+    conv = ev.get("conversion_rate")
+    if shots is not None and conv is not None:
+        parts.append(f"Shots/90: {shots:.1f} x Conv: {conv:.0%}")
+
+    chain_est = ev.get("shot_chain_estimate")
+    if chain_est is not None:
+        parts.append(f"Shot-chain est: {chain_est:.2f}")
+
+    opp_sot = ev.get("opp_sot_against_pm")
+    if opp_sot is not None:
+        adj = ev.get("shot_volume_adjust", 1.0)
+        adj_label = "leaky" if adj > 1.02 else ("tight" if adj < 0.98 else "average")
+        parts.append(f"Opp SoT against: {opp_sot:.1f} ({adj_label})")
+
+    xg = ev.get("team_xg_pm")
+    xg_boost = ev.get("xg_boost")
+    if xg is not None and xg_boost is not None:
+        parts.append(f"Team xG: {xg:.2f} ({xg_boost:.2f}x)")
+
+    if parts:
+        lines.append(f"  Matchup: {' | '.join(parts)}")
+
+
+def _render_sot_evidence(lines: List[str], ev: Dict) -> None:
+    """Render enhanced SoT shot-volume evidence."""
+    parts = []
+
+    shots = ev.get("shots_per_90")
+    conv = ev.get("sot_conversion")
+    if shots is not None and conv is not None:
+        parts.append(f"Shots/90: {shots:.1f} x SoT conv: {conv:.0%}")
+
+    vol_est = ev.get("shot_volume_estimate")
+    if vol_est is not None:
+        parts.append(f"Vol est: {vol_est:.2f}")
+
+    opp_sot = ev.get("opp_sot_against_pm")
+    if opp_sot is not None:
+        factor = ev.get("opp_sot_factor", 1.0)
+        label = "leaky" if factor > 1.02 else ("tight" if factor < 0.98 else "average")
+        parts.append(f"Opp SoT against: {opp_sot:.1f} ({label})")
+
+    poss = ev.get("team_possession")
+    if poss is not None:
+        parts.append(f"Possession: {poss:.0f}%")
+
+    if parts:
+        lines.append(f"  Matchup: {' | '.join(parts)}")
+
+
+def _render_assists_evidence(lines: List[str], ev: Dict) -> None:
+    """Render enhanced assists team-attack evidence."""
+    parts = []
+
+    team_gf = ev.get("team_goals_for_pm")
+    if team_gf is not None:
+        factor = ev.get("team_attack_factor", 1.0)
+        label = "prolific" if factor > 1.05 else ("limited" if factor < 0.95 else "average")
+        parts.append(f"Team goals: {team_gf:.2f}/m ({label})")
+
+    opp_ga = ev.get("opp_goals_against_pm")
+    if opp_ga is not None:
+        factor = ev.get("opp_defense_factor", 1.0)
+        label = "leaky" if factor > 1.05 else ("solid" if factor < 0.95 else "average")
+        parts.append(f"Opp concedes: {opp_ga:.2f}/m ({label})")
+
+    ctrl = ev.get("player_control_index")
+    if ctrl is not None:
+        parts.append(f"Control: {ctrl:.2f}")
+
+    xg = ev.get("team_xg_pm")
+    if xg is not None:
+        parts.append(f"Team xG: {xg:.2f}")
+
+    if parts:
+        lines.append(f"  Matchup: {' | '.join(parts)}")
 
 
 # ---------------------------------------------------------------------------
@@ -679,10 +1347,49 @@ def _build_rationale(
     if ev.get("recent_rate_per_90") is not None:
         rat.append(f"Recent form: {ev['recent_rate_per_90']:.2f} "
                    f"{projection.stat}/90")
-    rat.append(f"Team {ev['team_share_factor']:.2f}x | "
-               f"Opponent {ev['opponent_multiplier']:.2f}x | "
-               f"Venue {ev.get('venue_factor', 1.0):.2f}x | "
-               f"Position {ev.get('position_relevance', 1.0):.0%}")
+
+    # Enhanced matchup rationale
+    matchup_model = ev.get("matchup_model", "")
+    if matchup_model == "cards_full":
+        fouls = ev.get("player_fouls_per_90")
+        ref_name = ev.get("referee_name")
+        ref_strict = ev.get("referee_strictness")
+        if fouls is not None:
+            rat.append(f"Fouls/90: {fouls:.1f}")
+        if ref_name and ref_strict:
+            rat.append(f"Referee: {ref_name} (strictness {ref_strict:.2f}x)")
+        agg = ev.get("player_aggression_index")
+        if agg is not None:
+            rat.append(f"Player aggression: {agg:.2f}")
+    elif matchup_model == "goals_shot_chain":
+        shots = ev.get("shots_per_90")
+        conv = ev.get("conversion_rate")
+        if shots is not None and conv is not None:
+            rat.append(f"Shot chain: {shots:.1f} shots/90 x {conv:.0%} conversion")
+        xg = ev.get("team_xg_pm")
+        if xg is not None:
+            rat.append(f"Team xG: {xg:.2f}/match")
+    elif matchup_model == "sot_shot_volume":
+        shots = ev.get("shots_per_90")
+        conv = ev.get("sot_conversion")
+        if shots is not None and conv is not None:
+            rat.append(f"Shot volume: {shots:.1f}/90 x {conv:.0%} on target")
+        poss = ev.get("team_possession")
+        if poss is not None:
+            rat.append(f"Team possession: {poss:.0f}%")
+    elif matchup_model == "assists_team_attack":
+        team_gf = ev.get("team_goals_for_pm")
+        if team_gf is not None:
+            rat.append(f"Team scores: {team_gf:.2f}/match")
+        opp_ga = ev.get("opp_goals_against_pm")
+        if opp_ga is not None:
+            rat.append(f"Opp concedes: {opp_ga:.2f}/match")
+    else:
+        rat.append(f"Team {ev['team_share_factor']:.2f}x | "
+                   f"Opponent {ev['opponent_multiplier']:.2f}x | "
+                   f"Venue {ev.get('venue_factor', 1.0):.2f}x | "
+                   f"Position {ev.get('position_relevance', 1.0):.0%}")
+
     rat.append(f"Minutes: {projection.minutes_risk} "
                f"({projection.start_probability:.0%} start rate, "
                f"~{projection.minutes_projection:.0f} min)")

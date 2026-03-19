@@ -14,6 +14,12 @@ CHANNEL_MATCHDAY_DIGEST = int(os.getenv("DISCORD_CHANNEL_DIGEST", "0"))
 CHANNEL_VALUE_ALERTS = int(os.getenv("DISCORD_CHANNEL_ALERTS", "0"))
 CHANNEL_TRACK_RECORD = int(os.getenv("DISCORD_CHANNEL_TRACK_RECORD", "0"))
 
+# Market-specific auto-push channels
+CHANNEL_MATCH_PREDICTIONS = int(os.getenv("DISCORD_CHANNEL_PREDICTIONS", "0"))  # moneyline + BTTS + spreads + SoT
+CHANNEL_CORNERS_CARDS = int(os.getenv("DISCORD_CHANNEL_CORNERS_CARDS", "0"))    # corners + cards
+CHANNEL_PLAYER_PROPS = int(os.getenv("DISCORD_CHANNEL_PLAYER_PROPS", "0"))      # goals + cards + SoT + assists
+CHANNEL_CORRECT_SCORE = int(os.getenv("DISCORD_CHANNEL_CORRECT_SCORE", "0"))    # correct score + goal intervals
+
 # Auto-push schedule (hours in UTC)
 DIGEST_POST_HOUR = int(os.getenv("DISCORD_DIGEST_HOUR", "8"))  # 8 AM UTC
 ALERT_SCAN_INTERVAL_MINUTES = int(os.getenv("DISCORD_ALERT_INTERVAL", "120"))

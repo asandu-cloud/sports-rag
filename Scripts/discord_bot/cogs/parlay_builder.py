@@ -79,12 +79,19 @@ def _date_phrase(d: date) -> str:
     return f"{_ordinal(d.day)} {d.strftime('%B')}"
 
 
-def _run_rag(prompt: str, league: str) -> str:
-    """Run a RAG query and capture the text output."""
+def _run_rag_sync(prompt: str, league: str) -> str:
+    """Synchronous RAG call — never call from event loop directly."""
     buf = io.StringIO()
     with redirect_stdout(buf):
         rag.answer_once(prompt, default_league=league)
     return buf.getvalue().strip() or "(No output from model)"
+
+
+async def _run_rag(prompt: str, league: str) -> str:
+    """Async wrapper — runs RAG in thread pool so event loop stays free."""
+    import asyncio
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _run_rag_sync, prompt, league)
 
 
 # ---------------------------------------------------------------------------
@@ -192,7 +199,7 @@ class ParlayFollowUpView(discord.ui.View):
             f"For {self.league} games on {self.date_phrase}, "
             "add one more leg to the parlay above."
         )
-        text = _run_rag(prompt, self.league)
+        text = await _run_rag(prompt, self.league)
         embeds = parlay_embed(text, league=self.league)
         view = ParlayFollowUpView(self.league, self.date_phrase, self.thread)
         await self._send_to_thread(interaction, embeds, view)
@@ -204,7 +211,7 @@ class ParlayFollowUpView(discord.ui.View):
             f"For {self.league} games on {self.date_phrase}, "
             "replace the weakest leg with a better alternative from the same fixture."
         )
-        text = _run_rag(prompt, self.league)
+        text = await _run_rag(prompt, self.league)
         embeds = parlay_embed(text, league=self.league)
         view = ParlayFollowUpView(self.league, self.date_phrase, self.thread)
         await self._send_to_thread(interaction, embeds, view)
@@ -216,7 +223,7 @@ class ParlayFollowUpView(discord.ui.View):
             f"For {self.league} games on {self.date_phrase}, "
             "keep the same fixtures, but make the parlay safer and cap combined odds at 2.6x."
         )
-        text = _run_rag(prompt, self.league)
+        text = await _run_rag(prompt, self.league)
         embeds = parlay_embed(text, league=self.league)
         view = ParlayFollowUpView(self.league, self.date_phrase, self.thread)
         await self._send_to_thread(interaction, embeds, view)
@@ -228,7 +235,7 @@ class ParlayFollowUpView(discord.ui.View):
             f"For {self.league} games on {self.date_phrase}, "
             "same fixtures and market types, but push the combined odds up to around 5.0x."
         )
-        text = _run_rag(prompt, self.league)
+        text = await _run_rag(prompt, self.league)
         embeds = parlay_embed(text, league=self.league)
         view = ParlayFollowUpView(self.league, self.date_phrase, self.thread)
         await self._send_to_thread(interaction, embeds, view)
@@ -377,7 +384,7 @@ class BuildOddsTargetView(discord.ui.View):
             f"For all {self.league} games on {dp}, make a {legs}-leg parlay "
             f"{constraint} with combined decimal odds at or below {odds}x."
         )
-        text = _run_rag(prompt, self.league)
+        text = await _run_rag(prompt, self.league)
         embeds = parlay_embed(text, league=self.league)
         view = ParlayFollowUpView(self.league, dp, self.thread)
         if self.thread:
@@ -524,7 +531,7 @@ class ParlayBuilder(commands.Cog):
             display_league = lg
             rag_league = lg
 
-        text = _run_rag(prompt, rag_league)
+        text = await _run_rag(prompt, rag_league)
         embeds = parlay_embed(text, league=display_league)
         view = ParlayFollowUpView(display_league, dp, thread)
         if thread:

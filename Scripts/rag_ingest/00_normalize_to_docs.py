@@ -187,6 +187,15 @@ def doc_from_player_engineered(row: dict, league: str, season: str, source_file:
         "player_name": row.get("name"),
         "position": row.get("position"),
         "minutes": _maybe_int(row.get("minutes")),
+        # Stat fields needed by player_projections.py for recent form
+        "goals": _maybe_int(row.get("goals")),
+        "assists": _maybe_int(row.get("assists")),
+        "shots_on": _maybe_int(row.get("shots_on")),
+        "cards_total": _maybe_int(row.get("cards_total")) if row.get("cards_total") is not None else (
+            (_maybe_int(row.get("yellow_cards")) or 0) + (_maybe_int(row.get("red_cards")) or 0)
+        ),
+        "fouls_committed": _maybe_int(row.get("fouls_committed")),
+        "rating": float(row["rating"]) if row.get("rating") is not None else None,
         "source_file": source_file,
     }
     uid = make_doc_id([league, season, "player_fixture", meta["player_id"], row.get("fixture")])
@@ -257,6 +266,18 @@ def doc_from_player_profile(row: dict, season_hint: Optional[str], source_file: 
         "appearances_as_starter": _maybe_int(apps_starter),
         "avg_minutes_per_appearance": float(avg_min) if avg_min is not None else None,
         "recent_role_trend": recent_trend,
+        # Per-90 rates needed by player_projections.py
+        "goals_per_90": float(row["goals_per_90"]) if row.get("goals_per_90") is not None else None,
+        "assists_per_90": float(row["assists_per_90"]) if row.get("assists_per_90") is not None else None,
+        "sot_per_90": float(row["sot_per_90"]) if row.get("sot_per_90") is not None else None,
+        "cards_per_90": float(row["cards_per_90_calc"]) if row.get("cards_per_90_calc") is not None else None,
+        # Starter-only per-90 rates (preferred by projection engine)
+        "starter_goals_per_90": float(row["starter_goals_per_90"]) if row.get("starter_goals_per_90") is not None else None,
+        "starter_assists_per_90": float(row["starter_assists_per_90"]) if row.get("starter_assists_per_90") is not None else None,
+        "starter_sot_per_90": float(row["starter_sot_per_90"]) if row.get("starter_sot_per_90") is not None else None,
+        "starter_cards_per_90": float(row["starter_cards_per_90"]) if row.get("starter_cards_per_90") is not None else None,
+        # Total minutes for data quality gate
+        "total_minutes": _maybe_int(row.get("minutes")),
     }
     uid = make_doc_id([league, season, "player_profile", meta["player_id"]])
     return {"id": uid, "text": text, "metadata": meta}

@@ -40,12 +40,20 @@ from cogs.access import premium_only, get_or_create_private_thread  # noqa: E402
 # Shared Utilities
 # ============================================================================
 
-def _run_rag(prompt: str, league: str) -> str:
-    """Run a RAG query and capture the text output."""
+def _run_rag_sync(prompt: str, league: str) -> str:
+    """Synchronous RAG call — never call from event loop directly."""
     buf = io.StringIO()
     with redirect_stdout(buf):
         rag.answer_once(prompt, default_league=league)
     return buf.getvalue().strip() or "(No output from model)"
+
+
+async def _run_rag(prompt: str, league: str) -> str:
+    """Async wrapper — runs RAG in thread pool so event loop stays free."""
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _run_rag_sync, prompt, league)
 
 
 # ---------------------------------------------------------------------------
@@ -469,7 +477,7 @@ class SlashCommands(commands.Cog):
         prompt = template.format(
             home=home, away=away, league=league.value, date=phrase,
         )
-        text = _run_rag(prompt, league.value)
+        text = await _run_rag(prompt, league.value)
 
         label = _MARKET_LABELS.get(market_key, "Match Analysis")
         if market_key == "overview":
@@ -521,7 +529,7 @@ class SlashCommands(commands.Cog):
 
         template = _MARKET_PROMPTS.get(market.value, _MARKET_PROMPTS["totals"])
         prompt = template.format(league=league.value, date=phrase)
-        text = _run_rag(prompt, league.value)
+        text = await _run_rag(prompt, league.value)
 
         label = _MARKET_LABELS.get(market.value, market.value.title())
         embeds = rag_output_to_embeds(label, text, league=league.value)
@@ -569,7 +577,7 @@ class SlashCommands(commands.Cog):
             f"For {home} vs {away} in {league.value} on {phrase}, which team will "
             f"get more {stat_label}? Compare both sides."
         )
-        text = _run_rag(prompt, league.value)
+        text = await _run_rag(prompt, league.value)
 
         embeds = rag_output_to_embeds(
             f"Comparison: {stat_label.title()}", text, league=league.value,
@@ -630,7 +638,7 @@ class SlashCommands(commands.Cog):
             template = _PLAYER_PROMPTS_ALL.get(prop.value, "")
             prompt = template.format(league=league.value, date=phrase)
 
-        text = _run_rag(prompt, league.value)
+        text = await _run_rag(prompt, league.value)
 
         label = _PROP_LABELS.get(prop.value, "Player Props")
         embeds = rag_output_to_embeds(label, text, league=league.value)
@@ -692,7 +700,7 @@ class SlashCommands(commands.Cog):
                 "what are the per-team corner and card lines for each fixture?"
             )
 
-        text = _run_rag(prompt, lg)
+        text = await _run_rag(prompt, lg)
         embeds = rag_output_to_embeds("Team Lines", text, league=lg)
         if thread:
             await interaction.followup.send(
