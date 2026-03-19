@@ -99,6 +99,32 @@ except ImportError:
             return RefereeModifier()
 
 try:
+    from knockout_context import get_knockout_context, knockout_evidence_line, KnockoutContext
+    _HAS_KNOCKOUT = True
+except ImportError:
+    try:
+        from Scripts.rag_ingest.knockout_context import get_knockout_context, knockout_evidence_line, KnockoutContext
+        _HAS_KNOCKOUT = True
+    except ImportError:
+        _HAS_KNOCKOUT = False
+        from dataclasses import dataclass as _dc_ko
+
+        @_dc_ko
+        class KnockoutContext:
+            is_knockout: bool = False
+            goals_modifier: float = 1.0
+            corners_modifier: float = 1.0
+            cards_modifier: float = 1.0
+            sot_modifier: float = 1.0
+            source: str = "none"
+
+        def get_knockout_context(*a, **kw) -> "KnockoutContext":
+            return KnockoutContext()
+
+        def knockout_evidence_line(ctx) -> None:
+            return None
+
+try:
     from chroma_backend import backend_description, env_bool, env_first, get_chroma_client
 except ImportError:
     from Scripts.rag_ingest.chroma_backend import backend_description, env_bool, env_first, get_chroma_client
@@ -3056,7 +3082,7 @@ def projected_goals(home_meta: Dict, away_meta: Dict) -> Tuple[Optional[float], 
     return h_proj, a_proj
 
 
-def projected_total_sot(home: str, away: str, league: str) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+def projected_total_sot(home: str, away: str, league: str, knockout_ctx: Optional[KnockoutContext] = None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     pw = SCORING_WEIGHTS["projection"]
     hm = _profile_meta(home, league)
     am = _profile_meta(away, league)
@@ -3093,6 +3119,10 @@ def projected_total_sot(home: str, away: str, league: str) -> Tuple[Optional[flo
         ml_proj = ml_predict_total(home, away, league, "sot", home_meta=hm, away_meta=am)
         if ml_proj is not None:
             blended = (1.0 - ml_w) * blended + ml_w * ml_proj
+
+    # Knockout round context adjustment
+    if knockout_ctx and knockout_ctx.is_knockout and knockout_ctx.sot_modifier != 1.0:
+        blended *= knockout_ctx.sot_modifier
 
     return blended, season_total, recent_total
 
@@ -4106,7 +4136,7 @@ def is_player_prop_query(user_q: str) -> bool:
     return has_player_keyword or sot_hit
 
 
-def projected_total_corners(home: str, away: str, league: str) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+def projected_total_corners(home: str, away: str, league: str, knockout_ctx: Optional[KnockoutContext] = None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     pw = SCORING_WEIGHTS["projection"]
     hm = _profile_meta(home, league)
     am = _profile_meta(away, league)
@@ -4144,10 +4174,14 @@ def projected_total_corners(home: str, away: str, league: str) -> Tuple[Optional
         if ml_proj is not None:
             blended = (1.0 - ml_w) * blended + ml_w * ml_proj
 
+    # Knockout round context adjustment
+    if knockout_ctx and knockout_ctx.is_knockout and knockout_ctx.corners_modifier != 1.0:
+        blended *= knockout_ctx.corners_modifier
+
     return blended, season_total, recent_total
 
 
-def projected_total_cards(home: str, away: str, league: str) -> Tuple[Optional[float], Optional[float], Optional[float], RefereeModifier]:
+def projected_total_cards(home: str, away: str, league: str, knockout_ctx: Optional[KnockoutContext] = None) -> Tuple[Optional[float], Optional[float], Optional[float], RefereeModifier]:
     pw = SCORING_WEIGHTS["projection"]
     rw = SCORING_WEIGHTS["referee"]
     hm = _profile_meta(home, league)
@@ -4219,6 +4253,10 @@ def projected_total_cards(home: str, away: str, league: str) -> Tuple[Optional[f
         ml_proj = ml_predict_total(home, away, league, "cards", home_meta=hm, away_meta=am)
         if ml_proj is not None:
             blended = (1.0 - ml_w) * blended + ml_w * ml_proj
+
+    # Knockout round context adjustment
+    if knockout_ctx and knockout_ctx.is_knockout and knockout_ctx.cards_modifier != 1.0:
+        blended *= knockout_ctx.cards_modifier
 
     return blended, season_total, recent_total, ref_mod
 
@@ -4352,7 +4390,7 @@ def _trend_adjustment(hr: Dict, ar: Dict, slope_key: str) -> float:
     return adj
 
 
-def projected_total_goals(home: str, away: str, league: str) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+def projected_total_goals(home: str, away: str, league: str, knockout_ctx: Optional[KnockoutContext] = None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     pw = SCORING_WEIGHTS["projection"]
     hm = _profile_meta(home, league)
     am = _profile_meta(away, league)
@@ -4384,6 +4422,10 @@ def projected_total_goals(home: str, away: str, league: str) -> Tuple[Optional[f
         ml_proj = ml_predict_total(home, away, league, "goals", home_meta=hm, away_meta=am)
         if ml_proj is not None:
             blended = (1.0 - ml_w) * blended + ml_w * ml_proj
+
+    # Knockout round context adjustment
+    if knockout_ctx and knockout_ctx.is_knockout and knockout_ctx.goals_modifier != 1.0:
+        blended *= knockout_ctx.goals_modifier
 
     return blended, season_total, recent_total
 
@@ -5276,19 +5318,34 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
         away = str(ev.get("away_team") or "Away")
         fixture = f"{home} vs {away}"
 
+        # Knockout round context for European competitions
+        ko_ctx = None
+        if league in EUROPEAN_COMPETITIONS:
+            try:
+                ko_date = ev.get("commence_time", "")
+                ko_ctx = get_knockout_context(home, away, league, ko_date)
+            except Exception:
+                ko_ctx = None
+
         _cards_ref_mod = None
         if group == "goals":
-            proj_total, season_total, recent_total = projected_total_goals(home, away, league)
+            proj_total, season_total, recent_total = projected_total_goals(home, away, league, knockout_ctx=ko_ctx)
         elif group == "corners":
-            proj_total, season_total, recent_total = projected_total_corners(home, away, league)
+            proj_total, season_total, recent_total = projected_total_corners(home, away, league, knockout_ctx=ko_ctx)
         elif group == "sot":
-            proj_total, season_total, recent_total = projected_total_sot(home, away, league)
+            proj_total, season_total, recent_total = projected_total_sot(home, away, league, knockout_ctx=ko_ctx)
         else:
-            proj_total, season_total, recent_total, _cards_ref_mod = projected_total_cards(home, away, league)
+            proj_total, season_total, recent_total, _cards_ref_mod = projected_total_cards(home, away, league, knockout_ctx=ko_ctx)
 
         if proj_total is None:
             lines.append(f"- {fixture}: insufficient profile data to project totals.")
             continue
+
+        # Knockout context evidence
+        if ko_ctx and ko_ctx.is_knockout:
+            ko_line = knockout_evidence_line(ko_ctx)
+            if ko_line:
+                lines.append(f"  {ko_line}")
 
         # European data source note
         if league in EUROPEAN_COMPETITIONS:
@@ -5774,7 +5831,19 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
         home = str(ev.get("home_team") or "Home")
         away = str(ev.get("away_team") or "Away")
         lines.append(f"\n=== {home} vs {away} ===")
+
+        # Knockout round context for European competitions
+        ko_ctx = None
         if league in EUROPEAN_COMPETITIONS:
+            try:
+                ko_date = ev.get("commence_time", "")
+                ko_ctx = get_knockout_context(home, away, league, ko_date)
+            except Exception:
+                ko_ctx = None
+            if ko_ctx and ko_ctx.is_knockout:
+                ko_line = knockout_evidence_line(ko_ctx)
+                if ko_line:
+                    lines.append(f"  {ko_line}")
             for _t in (home, away):
                 _note = _euro_data_source_note(_t, league)
                 if _note:
@@ -5789,6 +5858,9 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
         _corner_projs = {}
         for team, opp, is_home in [(home, away, True), (away, home, False)]:
             c_bl, c_sea, c_rec = projected_team_corners(team, opp, league, is_home)
+            # Apply knockout modifier
+            if ko_ctx and ko_ctx.is_knockout and ko_ctx.corners_modifier != 1.0 and c_bl is not None:
+                c_bl *= ko_ctx.corners_modifier
             if c_bl is None:
                 lines.append(f"    {team}: insufficient data.")
                 continue
@@ -5873,6 +5945,9 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
         for team, opp, is_home in [(home, away, True), (away, home, False)]:
             k_bl, k_sea, k_rec = projected_team_cards(team, opp, league, is_home,
                                                        ref_mod=ref_mod)
+            # Apply knockout modifier
+            if ko_ctx and ko_ctx.is_knockout and ko_ctx.cards_modifier != 1.0 and k_bl is not None:
+                k_bl *= ko_ctx.cards_modifier
             if k_bl is None:
                 lines.append(f"    {team}: insufficient data.")
                 continue

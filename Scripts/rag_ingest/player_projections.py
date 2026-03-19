@@ -839,9 +839,17 @@ def projected_player_stat(
 def recommend_player_prop(
     projection: PlayerProjection,
 ) -> Optional[PlayerPropRecommendation]:
-    """Pick the best line and side for a player prop recommendation.
+    """Recommend a player prop — always OVER-oriented.
 
-    Returns None if the player doesn't meet minimum start rate.
+    Football player props are almost exclusively "anytime" markets:
+    - Anytime Goalscorer = Over 0.5 goals
+    - To Be Booked = Over 0.5 cards
+    - 1+ Shot on Target = Over 0.5 SoT
+    - To Get an Assist = Over 0.5 assists
+
+    For SoT where rates are higher, also consider Over 1.5.
+    Returns None if the player doesn't meet minimum start rate or
+    probability is too low to be a useful recommendation.
     """
     if projection is None:
         return None
@@ -850,34 +858,32 @@ def recommend_player_prop(
     if projection.start_probability < pw["min_start_rate_for_rec"]:
         return None
 
-    lines = STAT_LINES.get(projection.stat, [0.5])
-    best_line = None
-    best_side = None
-    best_prob = 0.0
-
     lam = projection.projection
-    for line in lines:
-        p_over = over_prob(lam, line)
-        p_under = 1.0 - p_over
+    p_over_05 = projection.prob_over_0_5 or over_prob(lam, 0.5)
 
-        if p_over >= 0.55 and p_over > best_prob:
-            best_line = line
-            best_side = "over"
-            best_prob = p_over
-        elif p_under >= 0.60 and p_under > best_prob:
-            best_line = line
-            best_side = "under"
-            best_prob = p_under
+    # Minimum probability to even recommend — below this the player
+    # has essentially no chance and showing them is noise.
+    MIN_PROB = {
+        "goals": 0.08,   # ~8% = roughly 1 in 12 chance
+        "cards": 0.10,   # ~10%
+        "sot": 0.15,     # shots on target more common
+        "assists": 0.06, # assists are rare
+    }
+    min_p = MIN_PROB.get(projection.stat, 0.08)
+    if p_over_05 < min_p:
+        return None
 
-    if best_line is None:
-        p_over_05 = projection.prob_over_0_5 or over_prob(lam, 0.5)
-        best_line = 0.5
-        if p_over_05 >= 0.50:
-            best_side = "over"
-            best_prob = p_over_05
-        else:
-            best_side = "under"
-            best_prob = 1.0 - p_over_05
+    # Default: Over 0.5 (anytime)
+    best_line = 0.5
+    best_side = "over"
+    best_prob = p_over_05
+
+    # For SoT: if P(2+) is strong enough, recommend Over 1.5 instead
+    if projection.stat == "sot" and projection.prob_over_1_5:
+        p_15 = projection.prob_over_1_5
+        if p_15 >= 0.40:
+            best_line = 1.5
+            best_prob = p_15
 
     rationale = _build_rationale(projection, best_line, best_side, best_prob)
 
@@ -1114,10 +1120,10 @@ def render_player_prop_answer(
         lines.append(f"=== {fixture} ===")
         lines.append("")
 
-        # Sort within fixture: high conf first, then model_prob
+        # Sort within fixture: highest probability first (best picks on top)
         recs.sort(key=lambda r: (
-            {"high": 3, "medium": 2, "low": 1}.get(r.projection.confidence, 0),
             r.model_prob,
+            r.projection.projection,
         ), reverse=True)
 
         for rec in recs:
@@ -1130,11 +1136,20 @@ def render_player_prop_answer(
             # Player header
             lines.append(f"{stat_emoji} {p.player_name} ({p.team}) [{pos_label}] ({venue})")
 
-            # Recommendation line -- mirrors the >>> pattern other workflows use
-            lines.append(
-                f"  >>> Recommended: {rec.recommended_side.upper()} {rec.recommended_line} "
-                f"{stat_label} ({rec.model_prob:.0%} confidence)"
-            )
+            # Recommendation line — anytime-style display
+            if rec.recommended_line == 0.5:
+                # "Anytime Goalscorer — 34% chance" / "To Be Booked — 23% chance"
+                lines.append(
+                    f"  >>> {stat_label} — {rec.model_prob:.0%} chance"
+                )
+            else:
+                # "Over 1.5 SoT — 45% chance"
+                lines.append(
+                    f"  >>> Over {rec.recommended_line} {stat_label} — {rec.model_prob:.0%} chance"
+                )
+
+            # Confidence badge
+            lines.append(f"  Confidence: {p.confidence.upper()}")
 
             # Role and minutes context
             role_display = p.minutes_risk.replace("_", " ").title()
@@ -1144,13 +1159,13 @@ def render_player_prop_answer(
                 role_line += f" | Trend: {trend_display}"
             lines.append(role_line)
 
-            # Projection with probabilities
+            # Probability breakdown
             prob_parts = [f"P(1+): {p.prob_over_0_5:.0%}"]
             if p.prob_over_1_5 and p.prob_over_1_5 >= 0.05:
                 prob_parts.append(f"P(2+): {p.prob_over_1_5:.0%}")
             if p.prob_over_2_5 and p.prob_over_2_5 >= 0.02:
                 prob_parts.append(f"P(3+): {p.prob_over_2_5:.0%}")
-            lines.append(f"  Projection: {p.projection:.2f} | {' | '.join(prob_parts)}")
+            lines.append(f"  {' | '.join(prob_parts)}")
 
             # Recent form streak
             if p.recent_form_values:
