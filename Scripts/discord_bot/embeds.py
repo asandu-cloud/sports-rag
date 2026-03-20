@@ -188,14 +188,24 @@ def _extract_pick(block: str) -> Optional[str]:
 
 
 def _extract_odds(block: str) -> Optional[str]:
-    """Extract odds + bookmaker, e.g. '1.45 (Bet365)'."""
-    # Match "@ 1.45 (Bet365, totals)" or "@ 2.10 (Bet365)"
-    # Avoid matching "@ 2.10 (high confidence)" -- bookmaker names don't contain "confidence"
+    """Extract odds + bookmaker from the Recommended line, e.g. '1.45 (Bet365)'.
+
+    Searches the >>> Recommended line first to avoid picking up odds from
+    'Odds comparison' lines that list all 3 moneyline sides.
+    """
+    # Try Recommended line first (most reliable)
+    rec_m = re.search(r"(?:>>>\s*)?Recommended:.*?@\s*([\d.]+)\s*\(([^)]+)\)", block)
+    if rec_m:
+        source = rec_m.group(2).split(",")[0].strip()
+        if "confidence" not in source.lower():
+            return f"{rec_m.group(1)} ({source})"
+        return rec_m.group(1)
+    # Fallback: first @ in block
     m = re.search(r"@\s*([\d.]+)\s*\(([^)]+)\)", block)
     if m:
         source = m.group(2).split(",")[0].strip()
         if "confidence" in source.lower():
-            return m.group(1)  # odds only, no bookmaker
+            return m.group(1)
         return f"{m.group(1)} ({source})"
     return None
 
@@ -301,9 +311,9 @@ def _bet_card_embed(
 
     em = discord.Embed(color=color)
 
-    # Set league logo as author icon
+    # Clean fixture name as author — no emoji prefix
     league_logo = _get_league_logo(league) if league else None
-    em.set_author(name=f"{market_emoji}  {fixture}", icon_url=league_logo)
+    em.set_author(name=fixture)
 
     # Set home team logo as thumbnail
     home, away = _parse_teams_from_fixture(fixture)
@@ -336,7 +346,7 @@ def _bet_card_embed(
         footer_parts.append(league)
     if projection:
         footer_parts.append(f"Projection: {projection}")
-    footer_parts.append("Matchwise")
+    footer_parts.append("Spick's Picks")
     league_logo_footer = _get_league_logo(league) if league else None
     em.set_footer(
         text=" \u2502 ".join(footer_parts),
@@ -420,7 +430,7 @@ def player_prop_embeds(
 
         color = _conf_color(best_conf)
         em = discord.Embed(color=color)
-        em.set_author(name=f"{stat_emoji}  {fixture}", icon_url=league_logo)
+        em.set_author(name=fixture)
 
         # Home team logo as thumbnail
         if home:
@@ -499,7 +509,7 @@ def player_prop_embeds(
             )
 
         em.set_footer(
-            text=f"{league} \u2502 Matchwise" if league else "Matchwise",
+            text=f"{league} \u2502 Spick's Picks" if league else "Spick's Picks",
             icon_url=league_logo,
         )
         embeds.append(em)
@@ -675,7 +685,7 @@ def team_totals_embeds(
 
         color = _conf_color(best_conf)
         em = discord.Embed(color=color)
-        em.set_author(name=f"\U0001f465  {fixture}", icon_url=league_logo)
+        em.set_author(name=fixture)
 
         # Home team logo as thumbnail
         if home:
@@ -765,7 +775,7 @@ def team_totals_embeds(
             )
 
         em.set_footer(
-            text=f"{league} \u2502 Matchwise" if league else "Matchwise",
+            text=f"{league} \u2502 Spick's Picks" if league else "Spick's Picks",
             icon_url=league_logo,
         )
         embeds.append(em)
@@ -897,6 +907,9 @@ def consolidated_fixture_embeds(
         "btts": "\U0001f91d",
         "spreads": "\U0001f4cf",
         "sot": "\U0001f3af",
+        "goals": "\u26bd",
+        "corners": "\U0001f4d0",
+        "cards": "\U0001f7e8",
     }
 
     _SECTION_LABELS = {
@@ -904,7 +917,13 @@ def consolidated_fixture_embeds(
         "btts": "BTTS",
         "spreads": "Handicap",
         "sot": "Shots on Target",
+        "goals": "Goals",
+        "corners": "Corners",
+        "cards": "Cards",
     }
+
+    # Display order for markets
+    _MARKET_ORDER = ["moneyline", "goals", "corners", "cards", "btts", "spreads", "sot"]
 
     for fixture, markets in fixture_data.items():
         if not markets:
@@ -912,51 +931,33 @@ def consolidated_fixture_embeds(
 
         home, away = _parse_teams_from_fixture(fixture)
 
-        # Determine best confidence for embed color
+        # Format all available markets
+        formatted_lines: List[Tuple[str, str]] = []  # (conf, formatted_line)
         best_conf = "low"
-        for line in markets.values():
-            lower_line = line.lower() if line else ""
-            if "\U0001f7e2" in line or "high" in lower_line:
-                best_conf = "high"
-                break
-            elif ("\U0001f7e1" in line or "medium" in lower_line) and best_conf != "high":
-                best_conf = "medium"
 
-        color = _conf_color(best_conf)
-        em = discord.Embed(color=color)
-        em.set_author(name=f"\u26bd  {fixture}", icon_url=league_logo)
-
-        # Home team logo as thumbnail
-        if home:
-            home_logo = _get_team_logo(home)
-            if home_logo:
-                em.set_thumbnail(url=home_logo)
-
-        # Build rich description with rating bars
-        lines = []
-        for key in ["moneyline", "btts", "spreads", "sot"]:
+        for key in _MARKET_ORDER:
             val = markets.get(key)
             if not val:
                 continue
 
-            emoji = _SECTION_EMOJIS.get(key, "\u26bd")
-            label = _SECTION_LABELS.get(key, key.title())
-
-            # Parse the compact line to extract components for reformatting
-            # Expected: "**Pick** @ odds | XX% model | edge +X% | conf_icon Conf"
-            # or: "**Pick** @ odds | XX% model | conf"
             pick_m = re.search(r"\*\*(.+?)\*\*", val)
             odds_m = re.search(r"@\s*([\d.]+)", val)
             model_m = re.search(r"([\d.]+%)\s*model", val)
             edge_m = re.search(r"edge\s*([+\-][\d.]+%)", val)
 
-            # Detect confidence from the value line
             line_conf = "low"
             if "\U0001f7e2" in val or re.search(r"\bhigh\b", val, re.I):
                 line_conf = "high"
             elif "\U0001f7e1" in val or re.search(r"\bmedium\b", val, re.I):
                 line_conf = "medium"
 
+            if line_conf == "high":
+                best_conf = "high"
+            elif line_conf == "medium" and best_conf != "high":
+                best_conf = "medium"
+
+            emoji = _SECTION_EMOJIS.get(key, "\u26bd")
+            label = _SECTION_LABELS.get(key, key.title())
             bar = _conf_bar(line_conf)
             conf_desc = _conf_label(line_conf)
 
@@ -964,23 +965,42 @@ def consolidated_fixture_embeds(
             odds_text = f" @ {odds_m.group(1)}" if odds_m else ""
 
             line = f"{emoji} **{label}: {pick_text}**{odds_text}"
-
             detail_parts = [f"{bar} {conf_desc}"]
             if model_m:
                 detail_parts.append(f"{model_m.group(1)} model")
             if edge_m:
                 detail_parts.append(f"{edge_m.group(1)} edge")
-
             line += f"\n{' \u2022 '.join(detail_parts)}"
-            lines.append(line)
 
-        if lines:
-            em.description = "\n\n".join(lines)
+            formatted_lines.append((line_conf, line))
 
-        em.set_footer(
-            text=f"{league} \u2502 Matchwise",
-            icon_url=league_logo,
-        )
+        if not formatted_lines:
+            continue
+
+        # Also check for any markets not in _MARKET_ORDER
+        for key, val in markets.items():
+            if key in _MARKET_ORDER or not val:
+                continue
+            pick_m = re.search(r"\*\*(.+?)\*\*", val)
+            if pick_m:
+                emoji = _SECTION_EMOJIS.get(key, "\u26bd")
+                label = _SECTION_LABELS.get(key, key.title())
+                formatted_lines.append(("low", f"{emoji} **{label}: {pick_m.group(1)}**"))
+
+        color = _conf_color(best_conf)
+        em = discord.Embed(color=color)
+
+        # Fixture name as author (clean, no emojis)
+        em.set_author(name=f"{home or '?'}  vs  {away or '?'}")
+
+        # Competition logo as thumbnail
+        if league_logo:
+            em.set_thumbnail(url=league_logo)
+
+        # All markets in description
+        em.description = "\n\n".join(line for _, line in formatted_lines)
+
+        em.set_footer(text=f"{league} \u2502 Spick's Picks")
         embeds.append(em)
 
     if len(embeds) > 10:
@@ -1021,7 +1041,7 @@ def consolidated_score_embeds(
         home, away = _parse_teams_from_fixture(fixture)
 
         em = discord.Embed(color=COLOR_BLUE)
-        em.set_author(name=f"\u26bd  {fixture}", icon_url=league_logo)
+        em.set_author(name=fixture)
 
         # Home team logo as thumbnail
         if home:
@@ -1040,7 +1060,7 @@ def consolidated_score_embeds(
                          inline=False)
 
         em.set_footer(
-            text=f"{league} \u2502 Matchwise",
+            text=f"{league} \u2502 Spick's Picks",
             icon_url=league_logo,
         )
         embeds.append(em)
@@ -1334,7 +1354,7 @@ def parlay_embed(text: str, league: str = "Mixed") -> List[discord.Embed]:
         slip.add_field(name="\U0001f4a1 Why", value=_truncate(why, 1024), inline=False)
 
     slip.set_footer(
-        text="Matchwise",
+        text="Spick's Picks",
         icon_url=league_logo,
     )
     embeds.append(slip)
@@ -1392,7 +1412,7 @@ def value_alert_embed(text: str, league: str) -> discord.Embed:
         em.add_field(name="\U0001f4c8 Edge", value=model["edge"], inline=True)
 
     em.set_footer(
-        text=f"{league} \u2502 Matchwise \u2502 Value Alert",
+        text=f"{league} \u2502 Spick's Picks \u2502 Value Alert",
         icon_url=league_logo,
     )
     return em
@@ -1443,7 +1463,7 @@ def fixture_list_embed(
 
     em.description = "\n".join(lines)
     em.set_footer(
-        text=f"{len(fixtures)} fixture(s) \u2502 Use /analyze to drill into a match \u2502 Matchwise",
+        text=f"{len(fixtures)} fixture(s) \u2502 Use /analyze to drill into a match \u2502 Spick's Picks",
         icon_url=league_logo,
     )
     return em
@@ -1465,7 +1485,7 @@ def _fallback_embeds(
         league_logo = _get_league_logo(league) if league else None
         if league:
             em.set_author(name=f"League: {league}", icon_url=league_logo)
-        em.set_footer(text=footer or "Matchwise")
+        em.set_footer(text=footer or "Spick's Picks")
         return [em]
 
     color = _conf(text)[0]
@@ -1493,7 +1513,7 @@ def _fallback_embeds(
             em.set_author(name=f"League: {league}", icon_url=league_logo)
         if i == len(chunks) - 1:
             em.set_footer(
-                text=footer or "Matchwise",
+                text=footer or "Spick's Picks",
                 icon_url=league_logo if league else None,
             )
         embeds.append(em)

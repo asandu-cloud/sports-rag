@@ -1345,15 +1345,29 @@ def odds_get(path: str, params: Dict) -> Tuple[Optional[object], Optional[str]]:
 
 
 def fetch_events(league: str, markets: Set[str]) -> Tuple[List[Dict], List[str]]:
+    """Fetch events and odds. Uses API-Football as primary provider (richer markets),
+    falls back to The Odds API if API-Football returns no results."""
+    from datetime import date as _date
+
+    # Primary: API-Football (has corners, cards, SoT, player props, correct score)
+    try:
+        from odds_provider import fetch_events_apifootball
+        af_events, af_notes = fetch_events_apifootball(league, _date.today())
+        if af_events:
+            return af_events, af_notes
+    except ImportError:
+        pass
+    except Exception as exc:
+        log.warning("API-Football odds failed for %s: %s", league, exc)
+
+    # Fallback: The Odds API
     notes: List[str] = []
     sport_key = LEAGUE_TO_ODDS_SPORT.get(league, LEAGUE_TO_ODDS_SPORT["EPL"])
     requested = sorted(markets)
 
-    # Try requested bundle first.
     market_str = ",".join(requested)
     rows, err = odds_get(f"/sports/{sport_key}/odds", {"markets": market_str})
     if err:
-        # Fallback to safe default bundle; keep note for transparency.
         fallback = ",".join(DEFAULT_MARKETS)
         rows_fb, err_fb = odds_get(f"/sports/{sport_key}/odds", {"markets": fallback})
         if err_fb:
@@ -4603,8 +4617,14 @@ def extract_total_line_options(event: Dict, stat_group: str) -> List[Dict]:
             if stat_group == "corners":
                 if ("corner" not in k) or ("total" not in k):
                     continue
+                # Exclude per-team corner lines — we want match totals only
+                if "team_total" in k or "home_corner" in k or "away_corner" in k:
+                    continue
             elif stat_group == "cards":
-                if (("card" not in k) and ("booking" not in k)) or ("total" not in k):
+                if (("card" not in k) and ("booking" not in k) and ("yellow" not in k)) or ("total" not in k):
+                    continue
+                # Exclude per-team card lines — we want match totals only
+                if "team_total" in k or "home_card" in k or "away_card" in k or "home_team_total" in k or "away_team_total" in k:
                     continue
             elif stat_group == "goals":
                 # Match totals goals markets. Avoid corners/cards/teams/goalscorer props.
@@ -4614,10 +4634,18 @@ def extract_total_line_options(event: Dict, stat_group: str) -> List[Dict]:
                     continue
                 if "team_total" in k or "player" in k or "goalscorer" in k:
                     continue
-                if "shot" in k:
+                if "shot" in k or "yellow" in k:
                     continue
             elif stat_group == "sot":
-                if ("shot" not in k) or ("total" not in k):
+                if "shot" not in k:
+                    continue
+                # Must be a totals-style market (over/under), not 1x2 or handicap
+                if "total" not in k and "over" not in k and "under" not in k:
+                    continue
+                # Exclude per-team SoT and 1x2/handicap shot markets
+                if "team_total" in k or "home" in k or "away" in k:
+                    continue
+                if "1x2" in k or "handicap" in k or "double" in k:
                     continue
             else:
                 continue
@@ -4665,21 +4693,42 @@ def extract_team_total_line_options(
                 continue
             if stat_group == "cards" and "card" not in k and "booking" not in k:
                 continue
+            # Determine if this market is for the requested team.
+            # API-Football keys: team_totals_home_corners, team_totals_away_cards, etc.
+            # Match "home" in key to the event's home team, "away" to away team.
+            home_in_event = str(event.get("home_team") or "").lower().strip()
+            away_in_event = str(event.get("away_team") or "").lower().strip()
+            team_lower = team_name.lower().strip()
+
+            key_is_home = "home" in k
+            key_is_away = "away" in k
+            team_is_home = (team_lower == home_in_event
+                            or any(a in home_in_event for a in aliases))
+            team_is_away = (team_lower == away_in_event
+                            or any(a in away_in_event for a in aliases))
+
+            # If key says "home" but team is away (or vice versa), skip
+            if key_is_home and not team_is_home:
+                continue
+            if key_is_away and not team_is_away:
+                continue
+            # If key doesn't specify home/away, fall back to old text matching
+            if not key_is_home and not key_is_away:
+                # Legacy path for Odds API format
+                pass
+
             for outcome in mk.get("outcomes", []) or []:
                 name = str(outcome.get("name") or "").strip()
-                desc = str(outcome.get("description") or "").strip()
-                combined_text = f"{name} {desc}".lower()
-                if not any(a in combined_text for a in aliases):
-                    if not (canonical_team_name(name) == canonical_team_name(team_name)
-                            or canonical_team_name(desc) == canonical_team_name(team_name)):
-                        continue
                 side = None
                 if name.lower() in ("over", "under"):
                     side = name.lower()
-                elif "over" in combined_text:
-                    side = "over"
-                elif "under" in combined_text:
-                    side = "under"
+                if side is None:
+                    desc = str(outcome.get("description") or "").strip()
+                    combined_text = f"{name} {desc}".lower()
+                    if "over" in combined_text:
+                        side = "over"
+                    elif "under" in combined_text:
+                        side = "under"
                 if side is None:
                     continue
                 point = safe_float(outcome.get("point"))
@@ -5173,23 +5222,56 @@ def choose_best_spread_line(options: List[Dict], projected_diff: float, home_tea
     primary = [o for o in filtered if "alternate" not in str(o.get("market_key") or "").lower()]
     options_use = primary if primary else filtered
 
-    # Pre-compute vig-free implied probabilities for spread pairs
-    _sp_pair: Dict[Tuple, Dict[str, float]] = {}
+    # Pre-compute vig-free implied probabilities for spread pairs.
+    # Each option has (team, signed_point, odds). The matching pair for
+    # "TeamA at point X" is "TeamB at point -X" from the same bookmaker.
+    # Build a lookup: (bookmaker, team, signed_point) -> odds
+    _sp_lookup: Dict[Tuple, float] = {}
     for _o in options_use:
         _bm = str(_o.get("bookmaker") or "")
-        _pt = abs(_o.get("point") or 0)
         _tm = str(_o.get("team") or "").lower().strip()
+        _pt = _o.get("point") or 0
         _od = _o.get("odds")
         if _od is not None and _tm:
-            _sp_pair.setdefault((_bm, _pt), {})[_tm] = float(_od)
-    _sp_fair: Dict[Tuple, float] = {}
-    for (_bm, _pt), _teams_odds in _sp_pair.items():
-        if len(_teams_odds) == 2:
-            _tl = list(_teams_odds.keys())
-            _ol = list(_teams_odds.values())
-            _fa, _fb = remove_vig_two_way(_ol[0], _ol[1])
-            _sp_fair[(_bm, _pt, _tl[0])] = _fa
-            _sp_fair[(_bm, _pt, _tl[1])] = _fb
+            _sp_lookup[(_bm, _tm, _pt)] = float(_od)
+
+    # Build fair implied probabilities by pairing each option with its
+    # counterpart: same bookmaker, same abs(point), opposite sign, different team.
+    # Key: (bookmaker, signed_point, team) -> fair_implied_probability
+    _sp_fair_signed: Dict[Tuple, float] = {}
+    _sp_done: set = set()
+    for _o in options_use:
+        _bm = str(_o.get("bookmaker") or "")
+        _tm = str(_o.get("team") or "").lower().strip()
+        _pt = _o.get("point") or 0
+        _od = float(_o.get("odds") or 0)
+
+        key_self = (_bm, _pt, _tm)
+        if key_self in _sp_done:
+            continue
+
+        opp_entry = None
+        for (_bm2, _tm2, _pt2), _od2 in _sp_lookup.items():
+            if (_bm2 == _bm
+                    and _tm2 != _tm
+                    and abs(abs(_pt2) - abs(_pt)) < 0.001
+                    and ((_pt < 0 and _pt2 > 0) or (_pt > 0 and _pt2 < 0))):
+                opp_entry = (_tm2, _pt2, _od2)
+                break
+
+        if opp_entry:
+            _tm2, _pt2, _od2 = opp_entry
+            _fa, _fb = remove_vig_two_way(_od, _od2)
+            _sp_fair_signed[key_self] = _fa
+            _sp_fair_signed[(_bm, _pt2, _tm2)] = _fb
+            _sp_done.add(key_self)
+            _sp_done.add((_bm, _pt2, _tm2))
+
+    # Wrapper to look up fair implied by signed point
+    def _get_sp_fair(bookmaker: str, point: float, team: str) -> Optional[float]:
+        return _sp_fair_signed.get((bookmaker, point, team.lower().strip()))
+
+    _sp_fair = {}  # legacy compat: not used in lookup below
 
     best, best_score = None, None
     for opt in options_use:
@@ -5216,8 +5298,7 @@ def choose_best_spread_line(options: List[Dict], projected_diff: float, home_tea
         margin_mean = sign * projected_diff
         cover_threshold = -point
         model_p = 1.0 - _normal_cdf((cover_threshold - margin_mean) / margin_std)
-        sp_key = (str(opt.get("bookmaker") or ""), abs(point), team.lower().strip())
-        implied_p = _sp_fair.get(sp_key) or implied_prob(odds)
+        implied_p = _get_sp_fair(str(opt.get("bookmaker") or ""), point, team) or implied_prob(odds)
         val_edge = value_edge(model_p, implied_p)
         ev = expected_value(model_p, odds)
 
@@ -6510,28 +6591,49 @@ def _get_recommendable_players(
     team: str, league: str, limit: int = 8,
 ) -> List[Dict]:
     """Retrieve player profiles filtered to recommendable players (not bench).
-    Sorted by start_rate descending."""
+    Sorted by start_rate descending.
+
+    For European competitions, falls back to the team's domestic league
+    since European comp player profiles are often sparse or missing.
+    """
     col = get_collection_handle(create_if_missing=True)
     variants = _kb_team_variants(team)
+
+    # For European comps, try domestic league first (more data)
+    search_leagues = [league]
+    if league in EUROPEAN_COMPETITIONS:
+        domestic = resolve_domestic_league(team)
+        if domestic:
+            search_leagues = [domestic, league]
 
     # Determine current season
     prof = get_team_profile_doc(team, league)
     current_season = (prof.get("meta") or {}).get("season")
 
     profiles = []
-    for tv in variants:
-        filters: List[Dict] = [{"doc_type": "player_profile"}, {"team": tv}]
-        if current_season:
-            filters.append({"season": current_season})
-        where = build_where(league, extra_filters=filters)
-        res = col.get(where=where, include=["documents", "metadatas"], limit=50)
-        for i, d, m in zip(res.get("ids", []), res.get("documents", []), res.get("metadatas", [])):
-            meta = m or {}
-            role = meta.get("minutes_risk", "")
-            # Skip bench players
-            if role == "bench":
-                continue
-            profiles.append({"id": i, "text": d or "", "meta": meta})
+    seen_ids = set()
+    for search_lg in search_leagues:
+        # Try with season filter first, then without (handles season format mismatches)
+        for use_season in ([current_season, None] if current_season else [None]):
+            for tv in variants:
+                filters: List[Dict] = [{"doc_type": "player_profile"}, {"team": tv}]
+                if use_season:
+                    filters.append({"season": use_season})
+                where = build_where(search_lg, extra_filters=filters)
+                res = col.get(where=where, include=["documents", "metadatas"], limit=50)
+                for i, d, m in zip(res.get("ids", []), res.get("documents", []), res.get("metadatas", [])):
+                    if i in seen_ids:
+                        continue
+                    seen_ids.add(i)
+                    meta = m or {}
+                    role = meta.get("minutes_risk", "")
+                    if role == "bench":
+                        continue
+                    profiles.append({"id": i, "text": d or "", "meta": meta})
+            if profiles:
+                break  # found players, stop trying season variants
+        if profiles:
+            break  # found players in this league
 
     profiles.sort(
         key=lambda d: float(d.get("meta", {}).get("start_rate") or 0),

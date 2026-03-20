@@ -27,13 +27,17 @@ from embeds import (  # noqa: E402
     parse_fixture_picks, parse_correct_score_picks, parse_interval_picks,
 )
 from config import (  # noqa: E402
+    CHANNEL_DAILY_PICKS,
+    CHANNEL_PARLAYS,
+    CHANNEL_PLAYER_PROPS,
+    CHANNEL_TEAM_LINES,
+    # Legacy aliases (all map to the 3 channels above via config.py)
     CHANNEL_PARLAY_OF_DAY,
     CHANNEL_MATCHDAY_DIGEST,
     CHANNEL_VALUE_ALERTS,
     CHANNEL_TRACK_RECORD,
     CHANNEL_MATCH_PREDICTIONS,
     CHANNEL_CORNERS_CARDS,
-    CHANNEL_PLAYER_PROPS,
     CHANNEL_CORRECT_SCORE,
     DIGEST_POST_HOUR,
     ALERT_SCAN_INTERVAL_MINUTES,
@@ -291,20 +295,16 @@ class AutoPush(commands.Cog):
         self._posted_today[task_name] = date.today().isoformat()
 
     async def cog_load(self):
-        if CHANNEL_MATCHDAY_DIGEST:
-            self.daily_digest.start()
-        if CHANNEL_PARLAY_OF_DAY:
-            self.daily_parlay.start()
-        if CHANNEL_VALUE_ALERTS:
-            self.value_scan.start()
-        if CHANNEL_TRACK_RECORD and _HAS_TRACKER:
-            self.daily_track_record.start()
-        # Market channels — all share the same 30-min check loop
+        # Main scheduled tasks — use new 3-channel structure
         self.market_channels.start()
+        if CHANNEL_PARLAYS:
+            self.daily_parlay.start()
+            self.value_scan.start()
+        if CHANNEL_PARLAYS and _HAS_TRACKER:
+            self.daily_track_record.start()
 
     async def cog_unload(self):
-        for task in [self.daily_digest, self.daily_parlay, self.value_scan,
-                     self.market_channels]:
+        for task in [self.daily_parlay, self.value_scan, self.market_channels]:
             if task.is_running():
                 task.cancel()
         if hasattr(self, "daily_track_record") and self.daily_track_record.is_running():
@@ -316,10 +316,10 @@ class AutoPush(commands.Cog):
 
     @tasks.loop(minutes=30)
     async def market_channels(self):
-        """Post market analysis to dedicated channels before first kickoff.
+        """Post all market analysis before first kickoff.
 
         Checks every 30 min. Posts once per day when within the pre-kickoff window.
-        Each market type goes to its own channel.
+        #daily-picks gets all market predictions, #player-props gets prop picks.
         """
         first_kickoff, active_leagues = _get_todays_leagues()
         if not active_leagues:
@@ -331,86 +331,17 @@ class AutoPush(commands.Cog):
         date_str = _today_phrase()
         leagues = active_leagues
 
-        # --- Match Predictions: consolidated by fixture ---
-        if CHANNEL_MATCH_PREDICTIONS and not self._already_posted("predictions"):
-            ch = self.bot.get_channel(CHANNEL_MATCH_PREDICTIONS)
-            if ch:
-                log.info("Posting consolidated match predictions...")
-                await _post_consolidated_predictions(ch, leagues, date_str)
-                self._mark_posted("predictions")
+        # --- #daily-picks: all market predictions ---
+        if CHANNEL_DAILY_PICKS and not self._already_posted("daily_picks"):
+            await self._post_daily_picks(leagues, date_str)
 
-        # --- Corners + Cards ---
-        if CHANNEL_CORNERS_CARDS and not self._already_posted("corners_cards"):
-            ch = self.bot.get_channel(CHANNEL_CORNERS_CARDS)
-            if ch:
-                log.info("Posting corner & card lines...")
-                await _post_market_for_leagues(
-                    ch,
-                    "For all {league} games on {date}, what are the per-team "
-                    "corner and card lines for each fixture?",
-                    "Corner & Card Lines — {league}",
-                    leagues, date_str,
-                )
-                self._mark_posted("corners_cards")
+        # --- #team-lines: per-team corners & cards with odds ---
+        if CHANNEL_TEAM_LINES and not self._already_posted("team_lines"):
+            await self._post_team_lines(leagues, date_str)
 
-        # --- Correct Score + Goal Intervals: consolidated by fixture ---
-        if CHANNEL_CORRECT_SCORE and not self._already_posted("correct_score"):
-            ch = self.bot.get_channel(CHANNEL_CORRECT_SCORE)
-            if ch:
-                log.info("Posting consolidated correct score + intervals...")
-                await _post_consolidated_scores(ch, leagues, date_str)
-                self._mark_posted("correct_score")
-
-        # --- Player Props: Goals + Cards + SoT + Assists ---
+        # --- #player-props ---
         if CHANNEL_PLAYER_PROPS and not self._already_posted("player_props"):
-            ch = self.bot.get_channel(CHANNEL_PLAYER_PROPS)
-            if ch:
-                log.info("Posting player props (goals + cards + SoT + assists)...")
-                for league in leagues:
-                    prompt = (
-                        f"For all {league} games on {date_str}, who are the "
-                        f"best anytime goalscorer picks?"
-                    )
-                    text = await _run_rag(prompt, league)
-                    if _is_valid(text):
-                        for em in rag_output_to_embeds(
-                            f"Goalscorer Picks — {league}", text, league=league,
-                        ):
-                            await ch.send(embed=em)
-
-                    prompt = (
-                        f"For all {league} games on {date_str}, which players "
-                        f"are most likely to be booked?"
-                    )
-                    text = await _run_rag(prompt, league)
-                    if _is_valid(text):
-                        for em in rag_output_to_embeds(
-                            f"Player Cards — {league}", text, league=league,
-                        ):
-                            await ch.send(embed=em)
-
-                    prompt = (
-                        f"For all {league} games on {date_str}, which players "
-                        f"are best for shots on target props?"
-                    )
-                    text = await _run_rag(prompt, league)
-                    if _is_valid(text):
-                        for em in rag_output_to_embeds(
-                            f"Player SoT — {league}", text, league=league,
-                        ):
-                            await ch.send(embed=em)
-
-                    prompt = (
-                        f"For all {league} games on {date_str}, who are the "
-                        f"best assist picks?"
-                    )
-                    text = await _run_rag(prompt, league)
-                    if _is_valid(text):
-                        for em in rag_output_to_embeds(
-                            f"Assist Picks — {league}", text, league=league,
-                        ):
-                            await ch.send(embed=em)
-                self._mark_posted("player_props")
+            await self._post_player_props(leagues, date_str)
 
     @market_channels.before_loop
     async def _wait_markets(self):
@@ -422,7 +353,7 @@ class AutoPush(commands.Cog):
 
     @tasks.loop(minutes=30)
     async def daily_parlay(self):
-        channel = self.bot.get_channel(CHANNEL_PARLAY_OF_DAY)
+        channel = self.bot.get_channel(CHANNEL_PARLAYS)
         if not channel:
             return
 
@@ -506,7 +437,7 @@ class AutoPush(commands.Cog):
 
     @tasks.loop(time=dt_time(hour=DIGEST_POST_HOUR, minute=0))
     async def daily_digest(self):
-        channel = self.bot.get_channel(CHANNEL_MATCHDAY_DIGEST)
+        channel = self.bot.get_channel(CHANNEL_DAILY_PICKS)
         if not channel:
             return
 
@@ -539,7 +470,7 @@ class AutoPush(commands.Cog):
 
     @tasks.loop(minutes=ALERT_SCAN_INTERVAL_MINUTES)
     async def value_scan(self):
-        channel = self.bot.get_channel(CHANNEL_VALUE_ALERTS)
+        channel = self.bot.get_channel(CHANNEL_PARLAYS)
         if not channel:
             return
 
@@ -571,7 +502,7 @@ class AutoPush(commands.Cog):
 
     @tasks.loop(time=dt_time(hour=12, minute=0))
     async def daily_track_record(self):
-        channel = self.bot.get_channel(CHANNEL_TRACK_RECORD)
+        channel = self.bot.get_channel(CHANNEL_PARLAYS)
         if not channel:
             return
 
@@ -669,7 +600,7 @@ class AutoPush(commands.Cog):
             ),
             inline=False,
         )
-        em.set_footer(text="Matchwise Track Record | Updated daily at noon UTC")
+        em.set_footer(text="Spick's Picks Track Record | Updated daily at noon UTC")
         await channel.send(embed=em)
 
     @daily_track_record.before_loop
@@ -686,14 +617,11 @@ class AutoPush(commands.Cog):
     )
     @discord.app_commands.describe(task="Which task to trigger")
     @discord.app_commands.choices(task=[
-        discord.app_commands.Choice(name="Parlay of the Day", value="parlay"),
-        discord.app_commands.Choice(name="Goals Digest", value="digest"),
-        discord.app_commands.Choice(name="Value Alerts", value="alerts"),
-        discord.app_commands.Choice(name="Predictions (ML+BTTS+Spreads+SoT)", value="predictions"),
-        discord.app_commands.Choice(name="Corners & Cards", value="corners_cards"),
-        discord.app_commands.Choice(name="Correct Score & Intervals", value="correct_score"),
+        discord.app_commands.Choice(name="Daily Picks (all markets)", value="daily_picks"),
+        discord.app_commands.Choice(name="Team Lines", value="team_lines"),
+        discord.app_commands.Choice(name="Parlays", value="parlays"),
         discord.app_commands.Choice(name="Player Props", value="player_props"),
-        discord.app_commands.Choice(name="All Markets", value="all_markets"),
+        discord.app_commands.Choice(name="Everything", value="everything"),
     ])
     async def trigger(
         self,
@@ -714,123 +642,180 @@ class AutoPush(commands.Cog):
                 "No fixtures found in any league today.", ephemeral=True)
             return
         leagues = active_leagues
-        log.info("Manual trigger: active leagues = %s", leagues)
+        log.info("Manual trigger '%s': active leagues = %s", task.value, leagues)
 
+        posted = []
         try:
-            if task.value == "parlay":
+            if task.value in ("daily_picks", "everything"):
+                await self._post_daily_picks(leagues, date_str)
+                posted.append("daily picks")
+
+            if task.value in ("team_lines", "everything"):
+                await self._post_team_lines(leagues, date_str)
+                posted.append("team lines")
+
+            if task.value in ("parlays", "everything"):
                 self._posted_today.pop("parlay", None)
-                await self.daily_parlay()
-                await interaction.followup.send(
-                    "Parlay of the Day posted.", ephemeral=True)
+                await self._post_parlays_now(leagues, date_str)
+                posted.append("parlays")
 
-            elif task.value == "digest":
-                ch = self.bot.get_channel(CHANNEL_MATCHDAY_DIGEST)
-                if not ch:
-                    await interaction.followup.send(
-                        "Digest channel not configured.", ephemeral=True)
-                    return
-                for league in leagues:
-                    prompt = (
-                        f"Give me the over/under goals line I should take "
-                        f"for each {league} game on {date_str}."
-                    )
-                    text = await _run_rag(prompt, league)
-                    if _is_valid(text):
-                        for em in rag_output_to_embeds(
-                            f"Goals Totals — {league}", text, league=league,
-                        ):
-                            await ch.send(embed=em)
-                await interaction.followup.send(
-                    "Goals digest posted.", ephemeral=True)
+            if task.value in ("player_props", "everything"):
+                await self._post_player_props(leagues, date_str)
+                posted.append("player props")
 
-            elif task.value == "alerts":
-                ch = self.bot.get_channel(CHANNEL_VALUE_ALERTS)
-                if not ch:
-                    await interaction.followup.send(
-                        "Alerts channel not configured.", ephemeral=True)
-                    return
-                posted = 0
-                for league in leagues:
-                    prompt = (
-                        f"For every {league} game on {date_str}, show "
-                        "moneyline probabilities and value picks where "
-                        "the model disagrees with the bookmakers."
-                    )
-                    text = await _run_rag(prompt, league)
-                    if _is_valid(text) and (
-                        "value edge: +" in text.lower()
-                        or "high confidence" in text.lower()
-                    ):
-                        await ch.send(embed=value_alert_embed(text, league))
-                        posted += 1
-                await interaction.followup.send(
-                    f"Value Alerts: {posted} alert(s) posted.", ephemeral=True)
-
-            elif task.value in ("predictions", "corners_cards", "correct_score",
-                                "player_props", "all_markets"):
-                # Force-post specific or all market channels
-                targets = ([task.value] if task.value != "all_markets"
-                           else ["predictions", "corners_cards",
-                                 "correct_score", "player_props"])
-                for t in targets:
-                    self._posted_today.pop(t, None)
-                # Trigger the market_channels loop logic directly
-                await self._post_markets_now(targets, date_str, leagues)
-                await interaction.followup.send(
-                    f"Market channels posted: {', '.join(targets)}",
-                    ephemeral=True,
-                )
+            await interaction.followup.send(
+                f"Posted: {', '.join(posted)}.", ephemeral=True)
 
         except Exception as exc:
             log.error("Manual trigger failed: %s", exc, exc_info=True)
             await interaction.followup.send(f"Error: {exc}", ephemeral=True)
 
-    async def _post_markets_now(self, targets: list, date_str: str,
-                                leagues: list):
-        """Post specific market channels immediately (for /trigger)."""
-        if "predictions" in targets and CHANNEL_MATCH_PREDICTIONS:
-            ch = self.bot.get_channel(CHANNEL_MATCH_PREDICTIONS)
-            if ch:
-                await _post_consolidated_predictions(ch, leagues, date_str)
-                self._mark_posted("predictions")
+    async def _post_daily_picks(self, leagues: list, date_str: str):
+        """Post ONE embed per fixture with ALL market predictions to #daily-picks."""
+        ch = self.bot.get_channel(CHANNEL_DAILY_PICKS)
+        if not ch:
+            log.warning("CHANNEL_DAILY_PICKS not configured")
+            return
 
-        if "corners_cards" in targets and CHANNEL_CORNERS_CARDS:
-            ch = self.bot.get_channel(CHANNEL_CORNERS_CARDS)
-            if ch:
-                await _post_market_for_leagues(
-                    ch,
-                    "For all {league} games on {date}, what are the per-team "
-                    "corner and card lines for each fixture?",
-                    "Corner & Card Lines — {league}",
-                    leagues, date_str,
-                )
-                self._mark_posted("corners_cards")
+        # All market queries — results are merged per fixture into a single embed
+        _ALL_QUERIES = {
+            "moneyline": "For every {league} game on {date}, show me moneyline probabilities and the best value pick.",
+            "btts": "For every {league} game on {date}, should I take BTTS Yes or No?",
+            "spreads": "For every {league} game on {date}, recommend a handicap line.",
+            "sot": "For every {league} game on {date}, recommend a shots on target over/under line.",
+            "goals": "Give me the over/under goals line I should take for each {league} game on {date}.",
+            "corners": "For every {league} game on {date}, recommend a corner totals line.",
+            "cards": "For every {league} game on {date}, recommend a cards over/under line.",
+        }
 
-        if "correct_score" in targets and CHANNEL_CORRECT_SCORE:
-            ch = self.bot.get_channel(CHANNEL_CORRECT_SCORE)
-            if ch:
-                await _post_consolidated_scores(ch, leagues, date_str)
-                self._mark_posted("correct_score")
+        for league in leagues:
+            log.info("Posting daily picks for %s...", league)
+            fixture_data: dict = {}  # {fixture: {market: compact_line}}
 
-        if "player_props" in targets and CHANNEL_PLAYER_PROPS:
-            ch = self.bot.get_channel(CHANNEL_PLAYER_PROPS)
-            if ch:
-                _pp = [
-                    ("who are the best anytime goalscorer picks?", "Goalscorer Picks"),
-                    ("which players are most likely to be booked?", "Player Cards"),
-                    ("which players are best for shots on target props?", "Player SoT"),
-                    ("who are the best assist picks?", "Assist Picks"),
-                ]
-                for league in leagues:
-                    for suffix, label in _pp:
-                        prompt = f"For all {league} games on {date_str}, {suffix}"
-                        text = await _run_rag(prompt, league)
-                        if _is_valid(text):
-                            for em in rag_output_to_embeds(
-                                f"{label} — {league}", text, league=league,
-                            ):
-                                await ch.send(embed=em)
-                self._mark_posted("player_props")
+            for market_key, prompt_tpl in _ALL_QUERIES.items():
+                prompt = prompt_tpl.format(league=league, date=date_str)
+                text = await _run_rag(prompt, league)
+                if not _is_valid(text):
+                    continue
+                picks = parse_fixture_picks(text)
+                for fixture, line in picks.items():
+                    if fixture not in fixture_data:
+                        fixture_data[fixture] = {}
+                    fixture_data[fixture][market_key] = line
+
+            if not fixture_data:
+                continue
+
+            embeds = consolidated_fixture_embeds(league, fixture_data)
+            for em in embeds:
+                await ch.send(embed=em)
+
+        self._mark_posted("daily_picks")
+
+    async def _post_parlays_now(self, leagues: list, date_str: str):
+        """Post parlays immediately — bypasses time window check (for /trigger)."""
+        channel = self.bot.get_channel(CHANNEL_PARLAYS)
+        if not channel:
+            log.warning("CHANNEL_PARLAYS not configured")
+            return
+
+        log.info("Posting parlays (manual trigger)...")
+
+        lock_text = await _run_rag(
+            f"For all league games on {date_str} across all leagues, "
+            "build a cross-league 2-leg parlay using ONLY the two strongest "
+            "high-confidence picks. Keep combined decimal odds at or below 1.9x. "
+            "Prioritize picks where the model probability is above 65%. "
+            "This is the safest possible parlay.",
+            "EPL",
+        )
+        safe_text = await _run_rag(
+            f"For all league games on {date_str} across all leagues, "
+            "build a cross-league 3-leg parlay with combined odds between "
+            "2.0x and 3.0x. Only use high or medium confidence picks.",
+            "EPL",
+        )
+        std_text = await _run_rag(
+            f"For all league games on {date_str} across all leagues, "
+            "build a cross-league 4-leg parlay with combined odds between "
+            "4x and 6x. Mix goals, corners, and cards markets for diversity.",
+            "EPL",
+        )
+
+        has_any = _is_valid(lock_text) or _is_valid(safe_text) or _is_valid(std_text)
+        if not has_any:
+            log.warning("All 3 parlay prompts returned no usable output.")
+            return
+
+        header = discord.Embed(
+            title="\U0001f3af  Parlay of the Day",
+            description=f"**{date_str}** \u2014 3 parlays ranked by risk level",
+            color=COLOR_GREEN,
+        )
+        header.set_footer(text="Spick | Auto-generated from model projections")
+        await channel.send(embed=header)
+
+        if _is_valid(lock_text):
+            for em in parlay_embed(lock_text, league="Cross-League"):
+                em.title = "\U0001f512  The Lock (~1.8x)"
+                em.color = COLOR_GREEN
+                await channel.send(embed=em)
+
+        if _is_valid(safe_text):
+            for em in parlay_embed(safe_text, league="Cross-League"):
+                em.title = "\U0001f6e1\ufe0f  Safe Parlay (~2.5x)"
+                em.color = COLOR_BLUE
+                await channel.send(embed=em)
+
+        if _is_valid(std_text):
+            for em in parlay_embed(std_text, league="Cross-League"):
+                em.title = "\U0001f3b2  Standard Parlay (~5x)"
+                em.color = COLOR_PURPLE
+                await channel.send(embed=em)
+
+        self._mark_posted("parlay")
+
+    async def _post_team_lines(self, leagues: list, date_str: str):
+        """Post per-team corner & card lines with odds to #team-lines."""
+        ch = self.bot.get_channel(CHANNEL_TEAM_LINES)
+        if not ch:
+            log.warning("CHANNEL_TEAM_LINES not configured")
+            return
+
+        log.info("Posting team lines...")
+        await _post_market_for_leagues(
+            ch,
+            "For all {league} games on {date}, what are the per-team "
+            "corner and card lines for each fixture?",
+            "Team Lines — {league}",
+            leagues, date_str,
+        )
+        self._mark_posted("team_lines")
+
+    async def _post_player_props(self, leagues: list, date_str: str):
+        """Post player prop picks to #player-props."""
+        ch = self.bot.get_channel(CHANNEL_PLAYER_PROPS)
+        if not ch:
+            log.warning("CHANNEL_PLAYER_PROPS not configured")
+            return
+
+        log.info("Posting player props...")
+        _pp = [
+            ("who are the best anytime goalscorer picks?", "Goalscorer Picks"),
+            ("which players are most likely to be booked?", "Player Cards"),
+            ("which players are best for shots on target props?", "Player SoT"),
+            ("who are the best assist picks?", "Assist Picks"),
+        ]
+        for league in leagues:
+            for suffix, label in _pp:
+                prompt = f"For all {league} games on {date_str}, {suffix}"
+                text = await _run_rag(prompt, league)
+                if _is_valid(text):
+                    for em in rag_output_to_embeds(
+                        f"{label} — {league}", text, league=league,
+                    ):
+                        await ch.send(embed=em)
+        self._mark_posted("player_props")
 
 
 async def setup(bot: commands.Bot):
