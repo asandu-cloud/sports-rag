@@ -18,7 +18,11 @@ import discord
 from discord.ext import commands, tasks
 
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[2] / "rag_ingest"))
-import rag_cli_v2 as rag  # noqa: E402
+import rag_cli_v2 as rag  # noqa: E402  (kept for text-based workflows: parlays, player props)
+
+# Core modules for direct structured access (no stdout capture needed)
+from core.events import fetch_events, filter_events_by_exact_date  # noqa: E402
+from core.weights import DOMESTIC_LEAGUES as _CORE_DOMESTIC, EUROPEAN_COMPETITIONS  # noqa: E402
 
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1]))
 from embeds import (  # noqa: E402
@@ -122,8 +126,8 @@ def _get_todays_leagues() -> tuple:
 
     for league in all_leagues:
         try:
-            events, _ = rag.fetch_events(league, set(rag.DEFAULT_MARKETS))
-            day_events = rag.filter_events_by_exact_date(events, date.today())
+            events, _ = fetch_events(league, target_date=date.today())
+            day_events = filter_events_by_exact_date(events, date.today())
             if day_events:
                 active_leagues.append(league)
                 for ev in day_events:

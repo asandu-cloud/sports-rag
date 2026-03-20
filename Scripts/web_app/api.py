@@ -1,5 +1,5 @@
 """
-FastAPI backend server wrapping the rag_cli_v2 scoring engine.
+FastAPI backend server — imports from refactored core/ modules.
 
 Serves structured JSON predictions to the frontend.
 Run: python api.py   (starts uvicorn on 0.0.0.0:8000)
@@ -31,41 +31,26 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
-# Engine imports (direct function calls, no CLI parsing)
+# Engine imports — from refactored core/ modules (no monolith dependency)
 # ---------------------------------------------------------------------------
-from rag_cli_v2 import (
-    fetch_events,
-    fetch_events_multi,
-    filter_events_by_exact_date,
-    enrich_events_for_groups,
-    get_team_profile_meta,
-    projected_total_goals,
-    projected_total_corners,
-    projected_total_cards,
-    projected_total_sot,
-    projected_btts_prob,
-    projected_moneyline_probs,
-    projected_correct_score_probs,
-    projected_goal_difference,
-    extract_total_line_options,
-    extract_btts_odds,
-    extract_moneyline_odds,
-    extract_spread_line_options,
-    choose_best_total_line,
-    choose_best_spread_line,
-    choose_best_btts_side,
-    choose_best_moneyline_side,
-    confidence_from_edge,
-    build_candidates,
-    kb_leg_quality,
-    market_group_from_key,
-    CandidateLeg,
-    DEFAULT_MARKETS,
-    LEAGUE_TO_ODDS_SPORT,
-    DOMESTIC_LEAGUES,
-    _best_model_only_line,
-    _best_model_only_spread,
+from core.weights import DEFAULT_MARKETS, LEAGUE_TO_ODDS_SPORT, DOMESTIC_LEAGUES
+from core.events import fetch_events, fetch_events_multi, filter_events_by_exact_date
+from core.team_resolution import get_team_profile_meta
+from core.projections import (
+    projected_total_goals, projected_total_corners, projected_total_cards,
+    projected_total_sot, projected_btts_prob, projected_moneyline_probs,
+    projected_correct_score_probs, projected_goal_difference,
 )
+from core.odds_extraction import (
+    extract_total_line_options, extract_btts_odds, extract_moneyline_odds,
+    extract_spread_line_options, market_group_from_key,
+)
+from core.line_selection import (
+    choose_best_total_line, choose_best_spread_line, choose_best_btts_side,
+    choose_best_moneyline_side, confidence_from_edge,
+    _best_model_only_line, _best_model_only_spread,
+)
+from core.parlay import build_candidates, kb_leg_quality, CandidateLeg, enrich_events_for_groups
 
 from prob_models import over_prob, implied_prob, value_edge
 
