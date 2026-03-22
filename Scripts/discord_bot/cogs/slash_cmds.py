@@ -122,20 +122,45 @@ _event_cache: Dict[Tuple[str, str], Tuple[float, list]] = {}
 _CACHE_TTL = 300
 
 
-def _get_events_cached(league: str, target: date) -> list:
+def _get_events_cached(league: str, target: date, upcoming_only: bool = True) -> list:
     key = (league, target.isoformat())
-    now = time.time()
+    now_ts = time.time()
     if key in _event_cache:
         ts, evts = _event_cache[key]
-        if now - ts < _CACHE_TTL:
+        if now_ts - ts < _CACHE_TTL:
+            if upcoming_only:
+                return _filter_upcoming(evts)
             return evts
     try:
         events, _ = rag.fetch_events(league, set(rag.DEFAULT_MARKETS))
         filtered = rag.filter_events_by_exact_date(events, target)
-        _event_cache[key] = (now, filtered)
+        _event_cache[key] = (now_ts, filtered)
+        if upcoming_only:
+            return _filter_upcoming(filtered)
         return filtered
     except Exception:
         return []
+
+
+def _filter_upcoming(events: list) -> list:
+    """Remove events that have already kicked off or finished."""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    upcoming = []
+    for ev in events:
+        ko = ev.get("commence_time", "")
+        if not ko:
+            upcoming.append(ev)  # keep if no kickoff time (safety)
+            continue
+        try:
+            ko_dt = datetime.fromisoformat(str(ko).replace("Z", "+00:00"))
+            if ko_dt.tzinfo is None:
+                ko_dt = ko_dt.replace(tzinfo=timezone.utc)
+            if ko_dt > now:
+                upcoming.append(ev)
+        except Exception:
+            upcoming.append(ev)  # keep on parse failure
+    return upcoming
 
 
 # ---------------------------------------------------------------------------

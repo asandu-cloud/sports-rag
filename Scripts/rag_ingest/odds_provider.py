@@ -100,6 +100,11 @@ _BET_ID_TO_MARKET_KEY: Dict[int, str] = {
     153: "totals_yellow_cards",
     212: "player_assists",
     242: "player_sot",
+    266: "player_fouls",
+    271: "player_fouls_home",
+    277: "player_fouls_away",
+    102: "player_booked",
+    251: "player_booked",
 }
 
 # Reverse lookup: market key -> bet ID (used for targeted enrichment)

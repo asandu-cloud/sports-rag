@@ -899,6 +899,11 @@ def serve_root():
     """Serve the main HTML page."""
     return FileResponse(_STATIC_DIR / "index.html")
 
+@app.get("/app")
+def serve_app():
+    """Serve the SPA for the /app route (client-side routing)."""
+    return FileResponse(_STATIC_DIR / "index.html")
+
 # Mount static files AFTER API routes so /api/* takes priority
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 

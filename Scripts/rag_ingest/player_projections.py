@@ -87,6 +87,10 @@ class PlayerPropRecommendation:
     recommended_side: str             # "over" | "under"
     model_prob: float                 # P(outcome) for recommended side
     rationale: List[str]              # human-readable evidence lines
+    odds: Optional[float] = None      # bookmaker odds if available
+    bookmaker: Optional[str] = None   # bookmaker name
+    implied_prob: Optional[float] = None  # bookmaker implied probability
+    value_edge: Optional[float] = None    # model_prob - implied_prob
 
 
 # ---------------------------------------------------------------------------
@@ -141,6 +145,9 @@ PLAYER_PROP_WEIGHTS = {
     # Assists team-attack model
     "assists_team_goals_weight": 0.25,       # team goal output context
     "assists_opp_defense_weight": 0.20,      # opponent defensive weakness
+
+    # Style matchup interaction
+    "matchup_weight": 0.20,                  # overall matchup modifier weight
 }
 
 # Position relevance multipliers per stat — prevents absurd recs like
@@ -150,6 +157,7 @@ POSITION_RELEVANCE = {
     "sot":     {"F": 1.0, "M": 0.90, "D": 0.45, "G": 0.0},
     "assists": {"F": 0.85, "M": 1.0, "D": 0.55, "G": 0.0},
     "cards":   {"F": 0.80, "M": 1.0, "D": 1.0, "G": 0.15},
+    "fouls":   {"F": 0.70, "M": 1.0, "D": 1.0, "G": 0.05},
 }
 
 STAT_LINES = {
@@ -157,6 +165,7 @@ STAT_LINES = {
     "sot": [0.5, 1.5, 2.5, 3.5],
     "assists": [0.5, 1.5],
     "cards": [0.5, 1.5],
+    "fouls": [0.5, 1.5, 2.5, 3.5],
 }
 
 LEAGUE_DEFAULTS = {
@@ -175,6 +184,7 @@ STAT_LABELS = {
     "sot": "Shots on Target",
     "assists": "Assists",
     "cards": "To Be Booked",
+    "fouls": "To Commit a Foul",
 }
 
 STAT_EMOJIS = {
@@ -182,12 +192,110 @@ STAT_EMOJIS = {
     "sot": "\U0001f3af",
     "assists": "\U0001f3c3",
     "cards": "\U0001f7e8",
+    "fouls": "\U0001f6d1",
 }
 
 
 # ---------------------------------------------------------------------------
 # Player profile text parser
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Player prop odds extraction from event bookmaker data
+# ---------------------------------------------------------------------------
+
+# Map our stat types to API-Football market keys
+_STAT_TO_MARKET_KEYS = {
+    "goals": ["anytime_goalscorer"],
+    "sot": ["player_sot"],
+    "assists": ["player_assists"],
+    "cards": ["player_booked"],
+    "fouls": ["player_fouls", "player_fouls_home", "player_fouls_away"],
+}
+
+
+def _normalize_player_name(name: str) -> str:
+    """Normalize player name for fuzzy matching across sources."""
+    n = name.strip().lower()
+    # Strip trailing " -" from API-Football format ("Amara Nallo -")
+    n = re.sub(r"\s*-\s*$", "", n)
+    # Strip common prefixes/suffixes
+    for strip in (".", "'", "-"):
+        n = n.replace(strip, "")
+    return n.strip()
+
+
+def extract_player_odds(
+    event: Dict,
+    player_name: str,
+    stat: str,
+    line: float = 0.5,
+) -> Optional[Dict]:
+    """Find bookmaker odds for a specific player prop.
+
+    Searches event bookmaker data for the player's name in the relevant market.
+    Returns {odds, bookmaker, implied_prob} or None if not found.
+
+    For anytime goalscorer/assists: matches player name directly (no line needed).
+    For SoT/fouls: matches player name + specific over line.
+    """
+    market_keys = _STAT_TO_MARKET_KEYS.get(stat, [])
+    if not market_keys:
+        return None
+
+    player_norm = _normalize_player_name(player_name)
+    if not player_norm or len(player_norm) < 3:
+        return None
+
+    best_match: Optional[Dict] = None
+
+    for bm in event.get("bookmakers", []) or []:
+        bm_name = str(bm.get("title") or "")
+        for mk in bm.get("markets", []) or []:
+            if mk.get("key") not in market_keys:
+                continue
+
+            for oc in mk.get("outcomes", []) or []:
+                oc_name = _normalize_player_name(str(oc.get("name") or ""))
+                price = oc.get("price")
+                oc_point = oc.get("point")
+
+                if not oc_name or price is None or price <= 1.0:
+                    continue
+
+                # Match player name (substring in either direction)
+                if not (player_norm in oc_name or oc_name in player_norm):
+                    # Try last-name match (e.g., "fernandes" in "bruno fernandes")
+                    player_parts = player_norm.split()
+                    oc_parts = oc_name.split()
+                    if not any(p in oc_name for p in player_parts if len(p) >= 4):
+                        continue
+
+                # For anytime markets (goalscorer, assists, cards/booked): no line needed
+                if stat in ("goals", "assists", "cards"):
+                    # Anytime = Over 0.5 implied
+                    implied = 1.0 / float(price)
+                    candidate = {
+                        "odds": float(price),
+                        "bookmaker": bm_name,
+                        "implied_prob": round(implied, 4),
+                    }
+                    if best_match is None or float(price) > best_match["odds"]:
+                        best_match = candidate
+                else:
+                    # Line-based markets (SoT, fouls): match the specific line
+                    if oc_point is not None and abs(float(oc_point) - line) < 0.01:
+                        implied = 1.0 / float(price)
+                        candidate = {
+                            "odds": float(price),
+                            "bookmaker": bm_name,
+                            "implied_prob": round(implied, 4),
+                        }
+                        if best_match is None or float(price) > best_match["odds"]:
+                            best_match = candidate
+
+    return best_match
+
 
 def _parse_player_profile_text(text: str) -> Dict[str, float]:
     """Extract stat fields embedded in player profile document text.
@@ -662,6 +770,19 @@ def projected_player_stat(
         rate_field = _stat_to_rate_field(stat)
         base_rate = _safe_float(player_meta.get(rate_field))
 
+    # Fallback to text-parsed rate (for stats not in Chroma metadata like fouls)
+    if base_rate is None or base_rate < 0:
+        parsed = _parse_player_profile_text(player_text) if player_text else {}
+        text_rate_map = {
+            "fouls": "fouls_per_90",
+            "cards": "cards_per_90",
+            "sot": "sot_per_90",
+            "goals": "goals_per_90",
+        }
+        text_field = text_rate_map.get(stat)
+        if text_field:
+            base_rate = _safe_float(parsed.get(text_field))
+
     if base_rate is None or base_rate < 0:
         return None
 
@@ -776,6 +897,13 @@ def projected_player_stat(
 
     final_projection = max(0.01, final_projection)
 
+    # --- Style matchup interaction ---
+    # Cross-reference player style with opponent team profile
+    style_mod = _style_matchup_modifier(parsed_text, opponent_meta, stat)
+    if abs(style_mod - 1.0) >= 0.01:
+        final_projection *= style_mod
+        extra_evidence["style_matchup_modifier"] = round(style_mod, 3)
+
     # --- Collect recent raw stat values for display ---
     recent_form_values = _collect_recent_values(recent_fixtures, stat, limit=6)
 
@@ -838,6 +966,7 @@ def projected_player_stat(
 
 def recommend_player_prop(
     projection: PlayerProjection,
+    event: Optional[Dict] = None,
 ) -> Optional[PlayerPropRecommendation]:
     """Recommend a player prop — always OVER-oriented.
 
@@ -868,6 +997,7 @@ def recommend_player_prop(
         "cards": 0.10,   # ~10%
         "sot": 0.15,     # shots on target more common
         "assists": 0.06, # assists are rare
+        "fouls": 0.30,   # fouls are common — need higher bar
     }
     min_p = MIN_PROB.get(projection.stat, 0.08)
     if p_over_05 < min_p:
@@ -885,7 +1015,33 @@ def recommend_player_prop(
             best_line = 1.5
             best_prob = p_15
 
+    # For fouls: players foul often, so recommend higher lines
+    # Pick the highest line where probability is still >= 50%
+    if projection.stat == "fouls":
+        for line in [3.5, 2.5, 1.5, 0.5]:
+            p = over_prob(lam, line)
+            if p >= 0.50:
+                best_line = line
+                best_prob = p
+                break
+
     rationale = _build_rationale(projection, best_line, best_side, best_prob)
+
+    # Look up bookmaker odds for this player prop
+    prop_odds = None
+    prop_bookmaker = None
+    prop_implied = None
+    prop_edge = None
+
+    if event is not None:
+        odds_match = extract_player_odds(
+            event, projection.player_name, projection.stat, best_line,
+        )
+        if odds_match:
+            prop_odds = odds_match["odds"]
+            prop_bookmaker = odds_match["bookmaker"]
+            prop_implied = odds_match["implied_prob"]
+            prop_edge = round(best_prob - prop_implied, 4)
 
     return PlayerPropRecommendation(
         projection=projection,
@@ -893,6 +1049,10 @@ def recommend_player_prop(
         recommended_side=best_side,
         model_prob=round(best_prob, 4),
         rationale=rationale,
+        odds=prop_odds,
+        bookmaker=prop_bookmaker,
+        implied_prob=prop_implied,
+        value_edge=prop_edge,
     )
 
 
@@ -952,6 +1112,118 @@ def _team_share_adjustment(team_meta: Dict, stat: str) -> float:
 
     team_relative = team_output / league_avg
     return 1.0 + pw["team_share_weight"] * (team_relative - 1.0)
+
+
+# ---------------------------------------------------------------------------
+# Style matchup interaction
+# ---------------------------------------------------------------------------
+
+def _style_matchup_modifier(
+    player_parsed: Dict,
+    opponent_meta: Dict,
+    stat: str,
+) -> float:
+    """Compute a matchup modifier based on how a player's style interacts
+    with the opponent's playing profile.
+
+    Returns a multiplier (1.0 = neutral, >1 = favorable matchup, <1 = unfavorable).
+
+    Key interactions:
+    - Fouling player vs transition/counter-attacking team → more fouls
+    - Aggressive player vs aggressive opponent → more cards
+    - High-shot player vs team that concedes shots → more SoT
+    - Striker vs low-possession opponent (they'll sit deep, less space) → fewer goals
+    - Creative player vs high-press opponent → more chance creation (assists)
+    """
+    if not player_parsed or not opponent_meta:
+        return 1.0
+
+    modifier = 1.0
+    pw = PLAYER_PROP_WEIGHTS
+    weight = pw.get("matchup_weight", 0.20)
+
+    # Player attributes
+    p_aggression = _safe_float(player_parsed.get("aggression_index"))
+    p_fouls = _safe_float(player_parsed.get("fouls_per_90"))
+    p_control = _safe_float(player_parsed.get("control_index"))
+    p_duel_win = _safe_float(player_parsed.get("duel_win_pct"))
+
+    # Opponent attributes
+    opp_possession = _safe_float(opponent_meta.get("possession"))
+    opp_aggression = _safe_float(opponent_meta.get("aggression_index_norm"))
+    opp_control = _safe_float(opponent_meta.get("control_index"))
+    opp_dominance = _safe_float(opponent_meta.get("dominance_index"))
+    opp_fouls = _safe_float(opponent_meta.get("fouls_per_90_team"))
+    opp_cards_induced = _safe_float(opponent_meta.get("opp_cards_induced_pm"))
+
+    if stat == "fouls":
+        # Fouling players foul MORE against teams that play in transition
+        # Transition teams have lower possession but higher counter-attack threat
+        if opp_possession is not None and p_fouls is not None:
+            # Low-possession opponent = transition style = more tactical fouling needed
+            if opp_possession < 0.47:
+                modifier += weight * 0.30  # transition opponent → more fouls
+            elif opp_possession > 0.55:
+                modifier -= weight * 0.15  # possession-heavy opponent → fewer fouls needed
+
+        # Aggressive opponent draws more fouls from defenders trying to stop them
+        if opp_aggression is not None and opp_aggression > 0.55:
+            modifier += weight * 0.20
+
+        # High duel involvement → more foul opportunities
+        if opp_dominance is not None and opp_dominance > 0.50:
+            modifier += weight * 0.15  # dominant opponent forces more defensive actions
+
+    elif stat == "cards":
+        # Aggressive player vs card-inducing opponent → boosted
+        if p_aggression is not None and opp_cards_induced is not None:
+            if p_aggression > 0.55 and opp_cards_induced > 2.0:
+                modifier += weight * 0.35  # aggressive player + card-heavy opponent
+
+        # Low control player vs high-tempo opponent → more rash challenges
+        if p_control is not None and opp_control is not None:
+            if p_control < 0.60 and opp_control > 0.65:
+                modifier += weight * 0.20  # outclassed player fouls more
+
+        # Opponent plays with high fouls → physical game → more cards for everyone
+        if opp_fouls is not None and opp_fouls > 12.0:
+            modifier += weight * 0.15
+
+    elif stat == "goals":
+        # Striker vs low-block team (high possession opponent = they have the ball)
+        if opp_possession is not None:
+            if opp_possession > 0.55:
+                modifier -= weight * 0.20  # less time on the ball → fewer goals
+            elif opp_possession < 0.45:
+                modifier += weight * 0.15  # opponent sits deep, counter opportunities
+
+        # Weak defensive opponent (low control) → easier to score
+        if opp_control is not None and opp_control < 0.55:
+            modifier += weight * 0.20
+
+    elif stat == "sot":
+        # High-shot player vs team that concedes shots
+        opp_sot_against = _safe_float(opponent_meta.get("sot_against_pm"))
+        if opp_sot_against is not None and opp_sot_against > 4.5:
+            modifier += weight * 0.25  # leaky defense → more shots get through
+
+        # Dominant player vs weaker opponent → more shooting opportunities
+        if opp_dominance is not None and opp_dominance < 0.40:
+            modifier += weight * 0.15
+
+    elif stat == "assists":
+        # Creative player vs high-press opponent → spaces open behind the press
+        if p_control is not None and opp_aggression is not None:
+            if p_control > 0.65 and opp_aggression > 0.55:
+                modifier += weight * 0.25  # composed passer vs aggressive presser
+
+        # Opponent concedes a lot → more assists possible
+        opp_goals_against = _safe_float(opponent_meta.get("goals_against_pm"))
+        if opp_goals_against is not None and opp_goals_against > 1.5:
+            modifier += weight * 0.20
+
+    # Clamp to reasonable range
+    return max(0.80, min(1.25, modifier))
 
 
 # ---------------------------------------------------------------------------
@@ -1136,16 +1408,22 @@ def render_player_prop_answer(
             # Player header
             lines.append(f"{stat_emoji} {p.player_name} ({p.team}) [{pos_label}] ({venue})")
 
-            # Recommendation line — anytime-style display
+            # Recommendation line — anytime-style display with odds when available
             if rec.recommended_line == 0.5:
-                # "Anytime Goalscorer — 34% chance" / "To Be Booked — 23% chance"
-                lines.append(
-                    f"  >>> {stat_label} — {rec.model_prob:.0%} chance"
-                )
+                pick_text = f"  >>> {stat_label} — {rec.model_prob:.0%} chance"
             else:
-                # "Over 1.5 SoT — 45% chance"
+                pick_text = f"  >>> Over {rec.recommended_line} {stat_label} — {rec.model_prob:.0%} chance"
+
+            if rec.odds:
+                pick_text += f" @ {rec.odds:.2f} ({rec.bookmaker})"
+            lines.append(pick_text)
+
+            # Odds comparison line when available
+            if rec.odds and rec.implied_prob and rec.value_edge is not None:
+                edge_sign = "+" if rec.value_edge > 0 else ""
                 lines.append(
-                    f"  >>> Over {rec.recommended_line} {stat_label} — {rec.model_prob:.0%} chance"
+                    f"  Model: {rec.model_prob:.0%} vs Books: {rec.implied_prob:.0%} "
+                    f"| Edge: {edge_sign}{rec.value_edge:.0%}"
                 )
 
             # Confidence badge
@@ -1191,6 +1469,15 @@ def render_player_prop_answer(
                     opp_sign = "+" if opp_pct > 0 else ""
                     opp_label = "Leaky defense" if opp_pct > 0 else "Stingy defense"
                     lines.append(f"  Opponent: {opp_sign}{opp_pct:.0f}% ({opp_label})")
+
+            # Style matchup modifier evidence
+            style_mod = ev.get("style_matchup_modifier")
+            if style_mod is not None and abs(style_mod - 1.0) >= 0.02:
+                pct = (style_mod - 1.0) * 100
+                if pct > 0:
+                    lines.append(f"  Matchup: +{pct:.0f}% (favorable style interaction)")
+                else:
+                    lines.append(f"  Matchup: {pct:.0f}% (unfavorable style interaction)")
 
             # Confidence
             conf_label = p.confidence.upper()
@@ -1335,18 +1622,20 @@ def _render_assists_evidence(lines: List[str], ev: Dict) -> None:
 
 def _stat_to_rate_field(stat: str) -> str:
     return {"goals": "goals_per_90", "sot": "sot_per_90",
-            "assists": "assists_per_90", "cards": "cards_per_90"}.get(stat, f"{stat}_per_90")
+            "assists": "assists_per_90", "cards": "cards_per_90",
+            "fouls": "fouls_per_90"}.get(stat, f"{stat}_per_90")
 
 
 def _stat_to_starter_rate_field(stat: str) -> str:
     return {"goals": "starter_goals_per_90", "sot": "starter_sot_per_90",
-            "assists": "starter_assists_per_90", "cards": "starter_cards_per_90"
+            "assists": "starter_assists_per_90", "cards": "starter_cards_per_90",
+            "fouls": "starter_fouls_per_90"
             }.get(stat, f"starter_{stat}_per_90")
 
 
 def _stat_to_raw_field(stat: str) -> str:
     return {"goals": "goals", "sot": "shots_on", "assists": "assists",
-            "cards": "cards_total"}.get(stat, stat)
+            "cards": "cards_total", "fouls": "fouls_committed"}.get(stat, stat)
 
 
 def _build_rationale(

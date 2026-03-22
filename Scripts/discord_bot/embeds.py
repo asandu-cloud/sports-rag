@@ -79,9 +79,9 @@ def _parse_teams_from_fixture(fixture: str) -> Tuple[Optional[str], Optional[str
 # ── Confidence -> color / rating bar ─────────────────────────────────────────
 
 _CONF_MAP = {
-    "high": (COLOR_GREEN, "\u25b0\u25b0\u25b0\u25b0\u25b1", "Strong Edge"),
-    "medium": (COLOR_YELLOW, "\u25b0\u25b0\u25b0\u25b1\u25b1", "Leaning"),
-    "low": (COLOR_RED, "\u25b0\u25b1\u25b1\u25b1\u25b1", "Speculative"),
+    "high": (COLOR_GREEN, "\u25cf\u25cf\u25cf\u25cf\u25cb", "Strong Edge"),
+    "medium": (COLOR_YELLOW, "\u25cf\u25cf\u25cf\u25cb\u25cb", "Leaning"),
+    "low": (COLOR_RED, "\u25cf\u25cb\u25cb\u25cb\u25cb", "Speculative"),
 }
 
 
@@ -91,7 +91,7 @@ def _conf(text: str) -> Tuple[int, str, str]:
     for label, (color, bar, desc) in _CONF_MAP.items():
         if f"{label} confidence" in lower or label == lower:
             return color, bar, desc
-    return COLOR_BLUE, "\u25b0\u25b0\u25b1\u25b1\u25b1", "\u2014"
+    return COLOR_BLUE, "\u25cf\u25cf\u25cb\u25cb\u25cb", "\u2014"
 
 
 def _conf_color(confidence: str) -> int:
@@ -465,11 +465,22 @@ def player_prop_embeds(
             # Build field value
             value_parts = []
 
-            # Rating bar + probability
+            # Rating bar + probability + odds
+            odds_str = ""
+            if p.get("odds"):
+                odds_str = f" @ {p['odds']}"
+                if p.get("bookmaker"):
+                    odds_str += f" ({p['bookmaker']})"
+
             if prob:
-                value_parts.append(f"{bar} **{prob}** chance")
+                value_parts.append(f"{bar} **{prob}** chance{odds_str}")
             else:
-                value_parts.append(f"{bar} {label}")
+                value_parts.append(f"{bar} {label}{odds_str}")
+
+            # Edge line when available
+            edge = p.get("edge")
+            if edge:
+                value_parts.append(f"Edge: **{edge}** vs books")
 
             # Pick line
             pick_line = p.get("pick", "")
@@ -497,10 +508,13 @@ def player_prop_embeds(
             if detail_parts:
                 value_parts.append(" | ".join(detail_parts))
 
-            # Opponent line
+            # Opponent/matchup line
             opp_line = p.get("opponent_line", "")
             if opp_line:
                 value_parts.append(f"vs {opp_line}")
+            matchup_line = p.get("matchup_line", "")
+            if matchup_line:
+                value_parts.append(f"Matchup: {matchup_line}")
 
             em.add_field(
                 name=field_name,
@@ -581,20 +595,18 @@ def _parse_player_prop_block(block: str) -> List[Dict[str, str]]:
         else:
             continue  # skip unparseable
 
-        # NEW FORMAT: >>> Anytime Goalscorer -- 34% chance
+        # NEW FORMAT: >>> Anytime Goalscorer — 34% chance @ 3.50 (Bet365)
+        # Or: >>> Over 1.5 Shots on Target — 45% chance @ 2.10 (Bet365)
         pick_new = re.search(
-            r">>>\s*(.+?)\s*\u2014\s*(\d+%)\s*chance",
+            r">>>\s*(.+?)\s*[\u2014\-]{1,2}\s*(\d+%)\s*chance(?:\s*@\s*([\d.]+)\s*\(([^)]+)\))?",
             section,
         )
-        if not pick_new:
-            # Also try with -- (double dash) as separator
-            pick_new = re.search(
-                r">>>\s*(.+?)\s*--\s*(\d+%)\s*chance",
-                section,
-            )
         if pick_new:
             p["pick"] = pick_new.group(1).strip()
             p["model_prob"] = pick_new.group(2)
+            if pick_new.group(3):
+                p["odds"] = pick_new.group(3)
+                p["bookmaker"] = pick_new.group(4)
         else:
             # OLD FORMAT: >>> Recommended: Anytime Goalscorer (34% confidence)
             pick_m = re.search(
@@ -605,6 +617,19 @@ def _parse_player_prop_block(block: str) -> List[Dict[str, str]]:
                 p["pick"] = pick_m.group(1).strip()
                 if pick_m.group(2):
                     p["model_prob"] = pick_m.group(2)
+
+        # Extract odds comparison line: Model: 33% vs Books: 29% | Edge: +5%
+        edge_m = re.search(
+            r"Model:\s*(\d+%)\s*vs\s*Books:\s*(\d+%)\s*\|\s*Edge:\s*([+\-]\d+%)",
+            section,
+        )
+        if edge_m:
+            p["edge"] = edge_m.group(3)
+
+        # Extract matchup modifier line
+        matchup_m = re.search(r"Matchup:\s*(.+?)$", section, re.MULTILINE)
+        if matchup_m:
+            p["matchup_line"] = matchup_m.group(1).strip()
 
         # Extract role line
         role_m = re.search(r"Role:\s*(.+?)$", section, re.MULTILINE)

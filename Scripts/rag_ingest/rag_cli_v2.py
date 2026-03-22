@@ -125,6 +125,31 @@ except ImportError:
             return None
 
 try:
+    from stake_context import get_stake_context, stake_evidence_line, StakeContext
+    _HAS_STAKES = True
+except ImportError:
+    try:
+        from Scripts.rag_ingest.stake_context import get_stake_context, stake_evidence_line, StakeContext
+        _HAS_STAKES = True
+    except ImportError:
+        _HAS_STAKES = False
+        from dataclasses import dataclass as _dc_st
+
+        @_dc_st
+        class StakeContext:
+            goals_modifier: float = 1.0
+            corners_modifier: float = 1.0
+            cards_modifier: float = 1.0
+            sot_modifier: float = 1.0
+            source: str = "none"
+
+        def get_stake_context(*a, **kw) -> "StakeContext":
+            return StakeContext()
+
+        def stake_evidence_line(ctx) -> None:
+            return None
+
+try:
     from chroma_backend import backend_description, env_bool, env_first, get_chroma_client
 except ImportError:
     from Scripts.rag_ingest.chroma_backend import backend_description, env_bool, env_first, get_chroma_client
@@ -1679,6 +1704,11 @@ def build_candidates(events: List[Dict]) -> List[CandidateLeg]:
                 market_key = str(mk.get("key") or "")
                 if not is_full_game_market(market_key):
                     continue
+                # Exclude per-team totals from parlay pool — they have
+                # trivially high probabilities (Over 2.5 home corners = 97%)
+                # and add noise. Parlays should use match-level lines.
+                if "team_total" in market_key.lower():
+                    continue
                 for out in mk.get("outcomes", []) or []:
                     name = str(out.get("name") or "")
                     if not name:
@@ -2033,14 +2063,44 @@ def kb_leg_quality(leg: CandidateLeg, league: str) -> float:
 
     # --- Probability-aware quality bonus for count-based markets ---
     if leg.point is not None and g in ("corners", "cards", "sot", "totals"):
-        proj_funcs = {
-            "corners": lambda: projected_total_corners(leg.home_team, leg.away_team, league),
-            "cards": lambda: projected_total_cards(leg.home_team, leg.away_team, league),
-            "sot": lambda: projected_total_sot(leg.home_team, leg.away_team, league),
-            "totals": lambda: projected_total_goals(leg.home_team, leg.away_team, league),
-        }
-        proj_result = proj_funcs[g]()
-        proj_total = proj_result[0] if proj_result else None
+        mk_lower = leg.market_key.lower()
+        is_team_total = "team_total" in mk_lower
+
+        if is_team_total:
+            # Per-team line — use team-specific projection, not match total
+            # Determine which team this line is for from the market key
+            is_home_team = "home" in mk_lower
+            if g == "corners":
+                team_proj, _, _ = projected_team_corners(
+                    leg.home_team if is_home_team else leg.away_team,
+                    leg.away_team if is_home_team else leg.home_team,
+                    league, is_home=is_home_team,
+                )
+                proj_total = team_proj
+            elif g == "cards":
+                team_proj, _, _ = projected_team_cards(
+                    leg.home_team if is_home_team else leg.away_team,
+                    leg.away_team if is_home_team else leg.home_team,
+                    league, is_home=is_home_team,
+                )
+                proj_total = team_proj
+            elif g == "totals":
+                # team_totals_home_goals / team_totals_away_goals
+                h_proj, a_proj = projected_goals(hm, am)
+                proj_total = h_proj if is_home_team else a_proj
+            else:
+                proj_total = None
+        else:
+            # Match-level total — use match total projection
+            proj_funcs = {
+                "corners": lambda: projected_total_corners(leg.home_team, leg.away_team, league),
+                "cards": lambda: projected_total_cards(leg.home_team, leg.away_team, league),
+                "sot": lambda: projected_total_sot(leg.home_team, leg.away_team, league),
+                "totals": lambda: projected_total_goals(leg.home_team, leg.away_team, league),
+            }
+            proj_result = proj_funcs[g]()
+            proj_total = proj_result[0] if proj_result else None
+
         if proj_total is not None:
             direction = leg.outcome.lower()
             is_over = "over" in direction
@@ -2129,14 +2189,42 @@ def score_combo(combo: List[CandidateLeg], c: ConstraintSpec, leg_quality: Dict[
         g = market_group_from_key(leg.market_key)
         if leg.point is not None and g in ("corners", "cards", "sot", "totals"):
             leg_lg = _leg_league(leg, c.league)
-            proj_funcs = {
-                "corners": lambda l=leg, lg=leg_lg: projected_total_corners(l.home_team, l.away_team, lg),
-                "cards": lambda l=leg, lg=leg_lg: projected_total_cards(l.home_team, l.away_team, lg),
-                "sot": lambda l=leg, lg=leg_lg: projected_total_sot(l.home_team, l.away_team, lg),
-                "totals": lambda l=leg, lg=leg_lg: projected_total_goals(l.home_team, l.away_team, lg),
-            }
-            proj_result = proj_funcs[g]()
-            proj_total = proj_result[0] if proj_result else None
+            mk_lower = leg.market_key.lower()
+            is_team_total = "team_total" in mk_lower
+
+            if is_team_total:
+                # Per-team line — use team projection
+                is_home_team = "home" in mk_lower
+                _hm = _profile_meta(leg.home_team, leg_lg)
+                _am = _profile_meta(leg.away_team, leg_lg)
+                if g == "corners":
+                    tp, _, _ = projected_team_corners(
+                        leg.home_team if is_home_team else leg.away_team,
+                        leg.away_team if is_home_team else leg.home_team,
+                        leg_lg, is_home=is_home_team)
+                    proj_total = tp
+                elif g == "cards":
+                    tp, _, _ = projected_team_cards(
+                        leg.home_team if is_home_team else leg.away_team,
+                        leg.away_team if is_home_team else leg.home_team,
+                        leg_lg, is_home=is_home_team)
+                    proj_total = tp
+                elif g == "totals":
+                    h_proj, a_proj = projected_goals(_hm, _am)
+                    proj_total = h_proj if is_home_team else a_proj
+                else:
+                    proj_total = None
+            else:
+                # Match total
+                proj_funcs = {
+                    "corners": lambda l=leg, lg=leg_lg: projected_total_corners(l.home_team, l.away_team, lg),
+                    "cards": lambda l=leg, lg=leg_lg: projected_total_cards(l.home_team, l.away_team, lg),
+                    "sot": lambda l=leg, lg=leg_lg: projected_total_sot(l.home_team, l.away_team, lg),
+                    "totals": lambda l=leg, lg=leg_lg: projected_total_goals(l.home_team, l.away_team, lg),
+                }
+                proj_result = proj_funcs[g]()
+                proj_total = proj_result[0] if proj_result else None
+
             if proj_total is not None:
                 is_over = "over" in leg.outcome.lower()
                 # Use variance for Poisson/NegBin distribution selection (consistent
@@ -2355,6 +2443,10 @@ def select_parlay(candidates: List[CandidateLeg], leg_count: int, c: ConstraintS
     # ---- Hard pre-filter: remove legs that violate non-negotiable constraints ----
     # This prevents the solver from ever considering invalid legs.
     pre_filter_count = len(candidates)
+
+    # Minimum odds floor for parlay legs
+    _PARLAY_MIN_ODDS = 1.35
+    candidates = [leg for leg in candidates if leg.odds >= _PARLAY_MIN_ODDS]
 
     # require_total_corner_keys: only keep legs whose market key contains both "corner" and "total"
     if c.require_total_corner_keys:
@@ -4815,11 +4907,19 @@ def choose_best_total_line(options: List[Dict], projection_total: float,
 
         prob_term = val_edge * pw["value_edge_weight"]
         ev_penalty = abs(ev) * pw["negative_ev_penalty"] if ev < 0 else 0.0
-        # Reward higher absolute model probability — prevents thin-edge recs
-        model_prob_bonus = (model_p - pw["min_model_prob"]) * pw["model_prob_weight"]
 
-        score = (edge_term - proximity_penalty + odds_term - far_penalty
-                 + prob_term - ev_penalty + model_prob_bonus)
+        # Model probability is the DOMINANT signal — a bet that cashes is worth
+        # more than a bet with a big edge that doesn't. Scale it aggressively
+        # so an 85% prob bet always beats a 55% prob bet regardless of edge.
+        model_prob_bonus = (model_p - 0.50) * pw["model_prob_weight"]
+
+        # Minimum probability gate — reject bets below 55% entirely
+        if model_p < pw["min_model_prob"]:
+            model_prob_bonus -= 5.0  # heavy penalty, effectively disqualifies
+
+        score = (model_prob_bonus + prob_term + odds_term
+                 + edge_term * 0.3 - proximity_penalty * 0.3
+                 - far_penalty - ev_penalty)
 
         # Attach probability data for rendering
         opt["_model_prob"] = model_p
@@ -5304,11 +5404,15 @@ def choose_best_spread_line(options: List[Dict], projected_diff: float, home_tea
 
         prob_term = val_edge * pw["value_edge_weight"]
         ev_penalty = abs(ev) * pw["negative_ev_penalty"] if ev < 0 else 0.0
-        # Reward higher absolute model probability — prevents thin-edge recs
-        model_prob_bonus = (model_p - pw["min_model_prob"]) * pw["model_prob_weight"]
 
-        score = (edge_term - proximity_term + odds_term + prob_term
-                 - ev_penalty + model_prob_bonus)
+        # Model probability dominant — pick the line most likely to cash
+        model_prob_bonus = (model_p - 0.50) * pw["model_prob_weight"]
+        if model_p < pw["min_model_prob"]:
+            model_prob_bonus -= 5.0
+
+        score = (model_prob_bonus + prob_term + odds_term
+                 + edge_term * 0.3 - proximity_term * 0.3
+                 - ev_penalty)
 
         opt["_model_prob"] = model_p
         opt["_implied_prob"] = implied_p
@@ -5408,6 +5512,14 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
             except Exception:
                 ko_ctx = None
 
+        # Stake intensity context for domestic leagues
+        stake_ctx = None
+        if league not in EUROPEAN_COMPETITIONS:
+            try:
+                stake_ctx = get_stake_context(home, away, league)
+            except Exception:
+                stake_ctx = None
+
         _cards_ref_mod = None
         if group == "goals":
             proj_total, season_total, recent_total = projected_total_goals(home, away, league, knockout_ctx=ko_ctx)
@@ -5418,6 +5530,13 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
         else:
             proj_total, season_total, recent_total, _cards_ref_mod = projected_total_cards(home, away, league, knockout_ctx=ko_ctx)
 
+        # Apply stake intensity modifier (domestic leagues only)
+        if stake_ctx and stake_ctx.source != "none" and proj_total is not None:
+            stat_mod = {"goals": stake_ctx.goals_modifier, "corners": stake_ctx.corners_modifier,
+                        "cards": stake_ctx.cards_modifier, "sot": stake_ctx.sot_modifier}.get(group, 1.0)
+            if abs(stat_mod - 1.0) >= 0.01:
+                proj_total *= stat_mod
+
         if proj_total is None:
             lines.append(f"- {fixture}: insufficient profile data to project totals.")
             continue
@@ -5427,6 +5546,12 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
             ko_line = knockout_evidence_line(ko_ctx)
             if ko_line:
                 lines.append(f"  {ko_line}")
+
+        # Stake intensity evidence (domestic leagues)
+        if stake_ctx and stake_ctx.source != "none":
+            stake_line = stake_evidence_line(stake_ctx)
+            if stake_line:
+                lines.append(f"  {stake_line}")
 
         # European data source note
         if league in EUROPEAN_COMPETITIONS:
@@ -5929,6 +6054,18 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
                 _note = _euro_data_source_note(_t, league)
                 if _note:
                     lines.append(f"  {_t}: {_note}")
+
+        # Stake intensity context for domestic leagues
+        stake_ctx = None
+        if league not in EUROPEAN_COMPETITIONS:
+            try:
+                stake_ctx = get_stake_context(home, away, league)
+            except Exception:
+                stake_ctx = None
+            if stake_ctx and stake_ctx.source != "none":
+                stake_line = stake_evidence_line(stake_ctx)
+                if stake_line:
+                    lines.append(f"  {stake_line}")
 
         rw = SCORING_WEIGHTS["referee"]
         ref_mod = get_referee_modifier(home, away, league,
@@ -6582,6 +6719,8 @@ def _parse_player_prop_stats(user_q: str) -> List[str]:
         stats.append("assists")
     if re.search(r"\b(cards?|booked?|booking|yellow|red|caution)\b", q):
         stats.append("cards")
+    if re.search(r"\b(fouls?|foul\s+committed|to\s+foul|player\s+foul)", q):
+        stats.append("fouls")
     if not stats:
         stats = ["goals"]  # default
     return stats
@@ -6788,7 +6927,7 @@ def _handle_player_props_projected(
                     if proj is None:
                         continue
 
-                    rec = recommend_player_prop(proj)
+                    rec = recommend_player_prop(proj, event=ev)
                     if rec is not None:
                         all_recommendations.append(rec)
 

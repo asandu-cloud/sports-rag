@@ -111,8 +111,6 @@ def _get_events_cached(league: str) -> list:
             return events
 
     try:
-        # fetch_events takes league code ("EPL") and a set of markets,
-        # returns (events_list, notes)
         events, _notes = rag.fetch_events(league, set(rag.DEFAULT_MARKETS))
         _events_cache[league] = (now, events)
         return events
@@ -122,30 +120,51 @@ def _get_events_cached(league: str) -> list:
         return []
 
 
+def _filter_upcoming(events: list) -> list:
+    """Remove events that have already kicked off or finished."""
+    from datetime import datetime as _dt, timezone as _tz
+    now = _dt.now(_tz.utc)
+    upcoming = []
+    for ev in events:
+        ko = ev.get("commence_time", "")
+        if not ko:
+            upcoming.append(ev)
+            continue
+        try:
+            ko_dt = _dt.fromisoformat(str(ko).replace("Z", "+00:00"))
+            if ko_dt.tzinfo is None:
+                ko_dt = ko_dt.replace(tzinfo=_tz.utc)
+            if ko_dt > now:
+                upcoming.append(ev)
+        except Exception:
+            upcoming.append(ev)
+    return upcoming
+
+
 async def _match_autocomplete(
     interaction: discord.Interaction,
     current: str,
 ) -> List[app_commands.Choice[str]]:
-    """Autocomplete for match selection — fetches fixtures for the selected league."""
+    """Autocomplete for match selection — only shows upcoming (not started) fixtures."""
     namespace = interaction.namespace
     league = getattr(namespace, "league", None)
 
-    # Handle Choice objects (Discord may pass the raw value or the Choice)
     if hasattr(league, "value"):
         league = league.value
     if not league or league == "cross-league":
         return []
 
-    # Fetch events (cached 5 min)
     events = _get_events_cached(league)
 
-    # Filter by date — defaults to today when no date specified
     date_str = getattr(namespace, "date", None)
-    target = _parse_date(date_str)  # returns today when date_str is None
+    target = _parse_date(date_str)
     try:
         events = rag.filter_events_by_exact_date(events, target)
     except Exception:
         pass
+
+    # Only show upcoming matches
+    events = _filter_upcoming(events)
 
     choices: List[app_commands.Choice[str]] = []
     query = current.lower()
@@ -170,11 +189,14 @@ async def _match_autocomplete(
 class ParlayFollowUpView(discord.ui.View):
     """Follow-up action buttons attached to every parlay response."""
 
-    def __init__(self, league: str, date_phrase: str, thread: Optional[discord.Thread] = None):
+    def __init__(self, league: str, date_phrase: str,
+                 thread: Optional[discord.Thread] = None,
+                 previous_parlay: str = ""):
         super().__init__(timeout=300)  # 5 minutes
         self.league = league
         self.date_phrase = date_phrase
         self.thread = thread
+        self.previous_parlay = previous_parlay  # raw text of the parlay output
 
     async def _send_to_thread(
         self,
@@ -195,49 +217,109 @@ class ParlayFollowUpView(discord.ui.View):
     @discord.ui.button(label="Add a leg", style=discord.ButtonStyle.green, emoji="\u2795")
     async def add_leg(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(thinking=True)
-        prompt = (
-            f"For {self.league} games on {self.date_phrase}, "
-            "add one more leg to the parlay above."
-        )
+        if self.previous_parlay:
+            import re
+            legs = re.findall(
+                r"Leg\s+\d+:.*?\|.*?@\s*[\d.]+\s*\([^)]+\)(?:\s*\([^)]+\))?",
+                self.previous_parlay,
+            )
+            n_legs = len(legs)
+            legs_text = "\n".join(legs) if legs else self.previous_parlay[:500]
+            prompt = (
+                f"For {self.league} games on {self.date_phrase}, "
+                f"I have this {n_legs}-leg parlay:\n{legs_text}\n\n"
+                f"Add one more leg to make it a {n_legs + 1}-leg parlay. "
+                "Pick a strong high-confidence leg from a different fixture than the existing legs."
+            )
+        else:
+            prompt = (
+                f"For {self.league} games on {self.date_phrase}, "
+                "build a 5-leg parlay with high confidence picks."
+            )
         text = await _run_rag(prompt, self.league)
         embeds = parlay_embed(text, league=self.league)
-        view = ParlayFollowUpView(self.league, self.date_phrase, self.thread)
+        view = ParlayFollowUpView(self.league, self.date_phrase, self.thread, previous_parlay=text)
         await self._send_to_thread(interaction, embeds, view)
 
     @discord.ui.button(label="Swap weakest", style=discord.ButtonStyle.blurple, emoji="\U0001f504")
     async def swap_weakest(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(thinking=True)
-        prompt = (
-            f"For {self.league} games on {self.date_phrase}, "
-            "replace the weakest leg with a better alternative from the same fixture."
-        )
+        # Include the previous parlay so the model knows which leg to swap
+        if self.previous_parlay:
+            # Extract legs from previous output to identify the weakest
+            import re
+            legs = re.findall(
+                r"Leg\s+\d+:.*?\|.*?@\s*[\d.]+\s*\([^)]+\)(?:\s*\([^)]+\))?",
+                self.previous_parlay,
+            )
+            legs_text = "\n".join(legs) if legs else self.previous_parlay[:500]
+            prompt = (
+                f"For {self.league} games on {self.date_phrase}, "
+                f"I have this parlay:\n{legs_text}\n\n"
+                "Identify the weakest leg (lowest confidence or smallest edge) "
+                "and replace it with a stronger alternative from the same or different fixture. "
+                "Keep the other legs unchanged and rebuild the parlay."
+            )
+        else:
+            prompt = (
+                f"For {self.league} games on {self.date_phrase}, "
+                "build a parlay with 4 legs, replacing any weak picks with stronger alternatives."
+            )
         text = await _run_rag(prompt, self.league)
         embeds = parlay_embed(text, league=self.league)
-        view = ParlayFollowUpView(self.league, self.date_phrase, self.thread)
+        view = ParlayFollowUpView(self.league, self.date_phrase, self.thread, previous_parlay=text)
         await self._send_to_thread(interaction, embeds, view)
 
     @discord.ui.button(label="Safer", style=discord.ButtonStyle.grey, emoji="\U0001f6e1\ufe0f")
     async def safer(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(thinking=True)
-        prompt = (
-            f"For {self.league} games on {self.date_phrase}, "
-            "keep the same fixtures, but make the parlay safer and cap combined odds at 2.6x."
-        )
+        if self.previous_parlay:
+            import re
+            legs = re.findall(
+                r"Leg\s+\d+:.*?\|.*?@\s*[\d.]+\s*\([^)]+\)(?:\s*\([^)]+\))?",
+                self.previous_parlay,
+            )
+            legs_text = "\n".join(legs) if legs else self.previous_parlay[:500]
+            prompt = (
+                f"For {self.league} games on {self.date_phrase}, "
+                f"I have this parlay:\n{legs_text}\n\n"
+                "Make it safer — keep the same fixtures but pick shorter-odds, "
+                "higher-probability lines. Cap combined odds at 2.5x."
+            )
+        else:
+            prompt = (
+                f"For {self.league} games on {self.date_phrase}, "
+                "build a safe parlay with combined odds around 2.5x using only high confidence picks."
+            )
         text = await _run_rag(prompt, self.league)
         embeds = parlay_embed(text, league=self.league)
-        view = ParlayFollowUpView(self.league, self.date_phrase, self.thread)
+        view = ParlayFollowUpView(self.league, self.date_phrase, self.thread, previous_parlay=text)
         await self._send_to_thread(interaction, embeds, view)
 
     @discord.ui.button(label="Riskier", style=discord.ButtonStyle.red, emoji="\U0001f3b2")
     async def riskier(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(thinking=True)
-        prompt = (
-            f"For {self.league} games on {self.date_phrase}, "
-            "same fixtures and market types, but push the combined odds up to around 5.0x."
-        )
+        if self.previous_parlay:
+            import re
+            legs = re.findall(
+                r"Leg\s+\d+:.*?\|.*?@\s*[\d.]+\s*\([^)]+\)(?:\s*\([^)]+\))?",
+                self.previous_parlay,
+            )
+            legs_text = "\n".join(legs) if legs else self.previous_parlay[:500]
+            prompt = (
+                f"For {self.league} games on {self.date_phrase}, "
+                f"I have this parlay:\n{legs_text}\n\n"
+                "Make it riskier — keep the same fixtures but pick longer-odds, "
+                "higher-upside lines. Push combined odds up to around 5.0x-7.0x."
+            )
+        else:
+            prompt = (
+                f"For {self.league} games on {self.date_phrase}, "
+                "build a risky parlay with combined odds around 6.0x mixing different markets."
+            )
         text = await _run_rag(prompt, self.league)
         embeds = parlay_embed(text, league=self.league)
-        view = ParlayFollowUpView(self.league, self.date_phrase, self.thread)
+        view = ParlayFollowUpView(self.league, self.date_phrase, self.thread, previous_parlay=text)
         await self._send_to_thread(interaction, embeds, view)
 
 
@@ -386,7 +468,7 @@ class BuildOddsTargetView(discord.ui.View):
         )
         text = await _run_rag(prompt, self.league)
         embeds = parlay_embed(text, league=self.league)
-        view = ParlayFollowUpView(self.league, dp, self.thread)
+        view = ParlayFollowUpView(self.league, dp, self.thread, previous_parlay=text)
         if self.thread:
             await interaction.followup.send(
                 f"Parlay posted in your private thread {self.thread.mention}.",
@@ -533,7 +615,7 @@ class ParlayBuilder(commands.Cog):
 
         text = await _run_rag(prompt, rag_league)
         embeds = parlay_embed(text, league=display_league)
-        view = ParlayFollowUpView(display_league, dp, thread)
+        view = ParlayFollowUpView(display_league, dp, thread, previous_parlay=text)
         if thread:
             await interaction.followup.send(
                 f"Parlay posted in your private thread {thread.mention}.",

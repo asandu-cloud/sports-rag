@@ -284,6 +284,329 @@ async def _post_consolidated_scores(
 # Cog
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Lineup fetching for player props
+# ---------------------------------------------------------------------------
+
+_LEAGUE_TO_API_ID = {
+    "EPL": 39, "LaLiga": 140, "SerieA": 135,
+    "Bundesliga": 78, "Ligue1": 61,
+    "UCL": 2, "UEL": 3, "UECL": 848,
+}
+
+
+def _fetch_lineups(home: str, away: str, league: str) -> List[str]:
+    """Fetch confirmed starting XI from API-Football.
+
+    Returns list of lowercase player names if lineups are published,
+    empty list if not yet available.
+    """
+    import os
+    try:
+        import requests
+    except ImportError:
+        return []
+
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass
+
+    api_key = os.environ.get("API-FOOTBALL-KEY") or os.environ.get("API_FOOTBALL_KEY")
+    if not api_key:
+        return []
+
+    league_id = _LEAGUE_TO_API_ID.get(league)
+    if not league_id:
+        return []
+
+    try:
+        # Find the fixture ID
+        resp = requests.get(
+            "https://v3.football.api-sports.io/fixtures",
+            headers={"x-apisports-key": api_key},
+            params={"league": league_id, "season": 2025, "date": date.today().isoformat()},
+            timeout=15,
+        )
+        fixtures = resp.json().get("response", [])
+
+        fixture_id = None
+        home_lower = home.lower()
+        away_lower = away.lower()
+        for f in fixtures:
+            h = f.get("teams", {}).get("home", {}).get("name", "").lower()
+            a = f.get("teams", {}).get("away", {}).get("name", "").lower()
+            if (home_lower in h or h in home_lower) and (away_lower in a or a in away_lower):
+                fixture_id = f["fixture"]["id"]
+                break
+
+        if not fixture_id:
+            return []
+
+        # Fetch lineups
+        resp2 = requests.get(
+            "https://v3.football.api-sports.io/fixtures/lineups",
+            headers={"x-apisports-key": api_key},
+            params={"fixture": fixture_id},
+            timeout=15,
+        )
+        lineups = resp2.json().get("response", [])
+        if not lineups:
+            return []
+
+        starters = []
+        for team_lineup in lineups:
+            for p in team_lineup.get("startXI", []):
+                name = p.get("player", {}).get("name", "")
+                if name:
+                    starters.append(name.lower())
+
+        log.info("Fetched %d starters for fixture %d (%s vs %s)",
+                 len(starters), fixture_id, home, away)
+        return starters
+
+    except Exception as exc:
+        log.warning("Lineup fetch failed for %s vs %s: %s", home, away, exc)
+        return []
+
+
+def _filter_to_starters(rag_output: str, starters: List[str]) -> str:
+    """Filter player prop RAG output to only include confirmed starters.
+
+    Removes player entries whose name doesn't appear in the starters list.
+    Preserves the === fixture header and Method footer.
+    """
+    if not starters:
+        return rag_output
+
+    lines = rag_output.split("\n")
+    filtered: List[str] = []
+    include_current = True
+    starters_lower = set(starters)
+
+    for line in lines:
+        # Fixture headers, empty lines, method footer — always include
+        if line.startswith("===") or line.startswith("Player Prop") or line.startswith("Method:") or not line.strip():
+            filtered.append(line)
+            include_current = True
+            continue
+
+        # Player header line (starts with emoji + name)
+        # e.g., "⚽ Antoine Semenyo (bournemouth) [MID] (HOME)"
+        import re
+        player_m = re.match(r"[\u2600-\U0001ffff]+\s+(.+?)\s+\(", line)
+        if player_m:
+            player_name = player_m.group(1).strip().lower()
+            # Check if player name matches any starter (substring match)
+            include_current = any(
+                player_name in s or s in player_name
+                for s in starters_lower
+            )
+            if include_current:
+                filtered.append(line)
+            continue
+
+        # Detail lines — include if current player is included
+        if include_current:
+            filtered.append(line)
+
+    return "\n".join(filtered)
+
+
+def _parse_player_picks_from_text(
+    text: str, stat_key: str, emoji: str, bet_label: str,
+) -> list:
+    """Parse player prop RAG output into structured pick dicts.
+
+    Returns list of {name, team, prob, prob_num, odds, edge, conf, emoji, bet_label, recent}.
+    """
+    import re
+    picks = []
+
+    # Split on player header lines
+    sections = re.split(r"\n(?=[\u2600-\U0001ffff]+ [A-Z])", text)
+
+    for section in sections:
+        section = section.strip()
+        if not section:
+            continue
+
+        # Parse player header: "emoji Name (team) [POS] (VENUE)"
+        header_m = re.match(
+            r"[\u2600-\U0001ffff]+\s+(.+?)\s+\(([^)]+)\)\s+\[([A-Z]+)\]\s+\((\w+)\)",
+            section,
+        )
+        if not header_m:
+            continue
+
+        name = header_m.group(1).strip()
+        team = header_m.group(2).strip()
+
+        # Parse probability: "— 34% chance" or "— 81% chance @ 1.17 (Bet365)"
+        prob_m = re.search(r"(\d+)%\s*chance", section)
+        prob_str = f"{prob_m.group(1)}%" if prob_m else "?"
+        prob_num = int(prob_m.group(1)) if prob_m else 0
+
+        # Parse odds: "@ 1.17 (Bet365)"
+        odds_m = re.search(r"@\s*([\d.]+)\s*\(([^)]+)\)", section)
+        odds_str = f"{odds_m.group(1)} ({odds_m.group(2)})" if odds_m else None
+
+        # Parse edge: "Edge: +5%"
+        edge_m = re.search(r"Edge:\s*([+\-]\d+%)", section)
+        edge_str = edge_m.group(1) if edge_m else None
+
+        # Parse confidence
+        conf = "low"
+        if re.search(r"Confidence:\s*HIGH", section, re.I):
+            conf = "high"
+        elif re.search(r"Confidence:\s*MEDIUM", section, re.I):
+            conf = "medium"
+
+        # Parse recent form
+        recent_m = re.search(r"Recent:\s*(\[.+?\])", section)
+        recent_str = recent_m.group(1) if recent_m else None
+
+        # Determine specific bet label (might have "Over 1.5" prefix)
+        specific_label = bet_label
+        over_m = re.search(r">>>\s*Over\s+([\d.]+)\s+", section)
+        if over_m:
+            specific_label = f"Over {over_m.group(1)} {bet_label}"
+
+        picks.append({
+            "name": name,
+            "team": team,
+            "prob": prob_str,
+            "prob_num": prob_num,
+            "odds": odds_str,
+            "edge": edge_str,
+            "conf": conf,
+            "emoji": emoji,
+            "bet_label": specific_label,
+            "recent": recent_str,
+            "_stat_key": stat_key,
+        })
+
+    return picks
+
+
+def _build_player_props_embed(
+    all_picks: list,
+    fixture_name: str,
+    league: str,
+    date_str: str,
+    footer_extra: str = "",
+) -> Optional[discord.Embed]:
+    """Build ONE compact player props embed for a fixture.
+
+    Layout:
+    - Top 1 goalscorer pick
+    - Top 1 cards pick
+    - Top 1 SoT pick
+    - Separator
+    - Top 3 fouls picks (most likely to foul — relevant for every game)
+    """
+    try:
+        from embeds import _get_league_logo, _conf_bar, _conf_label
+    except ImportError:
+        _get_league_logo = lambda x: None
+        _conf_bar = lambda x: ""
+        _conf_label = lambda x: ""
+
+    # Split picks by category
+    by_cat: dict = {}
+    for p in all_picks:
+        cat = p.get("_stat_key", "other")
+        by_cat.setdefault(cat, []).append(p)
+
+    # Sort each category by probability
+    for cat in by_cat:
+        by_cat[cat].sort(key=lambda x: x.get("prob_num", 0), reverse=True)
+
+    # Select: top 1 from goalscorer, cards, SoT + top 3 from fouls
+    selected = []
+    for cat in ("goals", "cards", "sot"):
+        picks = by_cat.get(cat, [])
+        if picks:
+            selected.append(picks[0])
+
+    foul_picks = by_cat.get("fouls", [])[:3]
+
+    if not selected and not foul_picks:
+        return None
+
+    # Determine embed color
+    all_selected = selected + foul_picks
+    best_conf = "low"
+    for p in all_selected:
+        if p.get("conf") == "high":
+            best_conf = "high"
+            break
+        elif p.get("conf") == "medium":
+            best_conf = "medium"
+
+    embed_color = COLOR_GREEN if best_conf == "high" else (
+        COLOR_YELLOW if best_conf == "medium" else COLOR_BLUE)
+
+    league_logo = _get_league_logo(league)
+
+    em = discord.Embed(
+        title=f"\U0001f464  Player Props \u2014 {fixture_name}",
+        description=f"**{date_str}** \u2022 {len(all_selected)} picks",
+        color=embed_color,
+    )
+    if league_logo:
+        em.set_thumbnail(url=league_logo)
+
+    def _add_pick_field(p: dict):
+        bar = _conf_bar(p.get("conf", "low"))
+        conf_desc = _conf_label(p.get("conf", "low"))
+        odds_str = f" @ {p['odds']}" if p.get("odds") else ""
+        edge_str = f" \u2022 Edge: **{p['edge']}**" if p.get("edge") else ""
+
+        em.add_field(
+            name=f"{p['emoji']}  {p['name']} ({p['team']})",
+            value=(
+                f"**{p['bet_label']}**{odds_str}\n"
+                f"{bar} {conf_desc} \u2022 **{p['prob']}** chance{edge_str}"
+                + (f"\nRecent: {p['recent']}" if p.get("recent") else "")
+            ),
+            inline=False,
+        )
+
+    # Add goalscorer / cards / SoT picks
+    for p in selected:
+        _add_pick_field(p)
+
+    # Add separator + fouls section
+    if foul_picks:
+        em.add_field(
+            name="\U0001f6d1  Most Likely to Foul",
+            value="\u200b",  # zero-width space as separator
+            inline=False,
+        )
+        for p in foul_picks:
+            bar = _conf_bar(p.get("conf", "low"))
+            conf_desc = _conf_label(p.get("conf", "low"))
+            odds_str = f" @ {p['odds']}" if p.get("odds") else ""
+
+            em.add_field(
+                name=f"{p['name']} ({p['team']})",
+                value=(
+                    f"**{p['bet_label']}**{odds_str}\n"
+                    f"{bar} **{p['prob']}** chance"
+                ),
+                inline=True,
+            )
+
+    footer_parts = [league, "Spick's Picks"]
+    if footer_extra:
+        footer_parts.append(footer_extra)
+    em.set_footer(text=" \u2502 ".join(footer_parts))
+
+    return em
+
+
 class AutoPush(commands.Cog):
     """Scheduled auto-posting tasks."""
 
@@ -301,6 +624,8 @@ class AutoPush(commands.Cog):
     async def cog_load(self):
         # Main scheduled tasks — use new 3-channel structure
         self.market_channels.start()
+        if CHANNEL_PLAYER_PROPS:
+            self.player_props_pre_match.start()
         if CHANNEL_PARLAYS:
             self.daily_parlay.start()
             self.value_scan.start()
@@ -308,7 +633,8 @@ class AutoPush(commands.Cog):
             self.daily_track_record.start()
 
     async def cog_unload(self):
-        for task in [self.daily_parlay, self.value_scan, self.market_channels]:
+        for task in [self.daily_parlay, self.value_scan, self.market_channels,
+                     self.player_props_pre_match]:
             if task.is_running():
                 task.cancel()
         if hasattr(self, "daily_track_record") and self.daily_track_record.is_running():
@@ -343,12 +669,113 @@ class AutoPush(commands.Cog):
         if CHANNEL_TEAM_LINES and not self._already_posted("team_lines"):
             await self._post_team_lines(leagues, date_str)
 
-        # --- #player-props ---
-        if CHANNEL_PLAYER_PROPS and not self._already_posted("player_props"):
-            await self._post_player_props(leagues, date_str)
+        # Player props are posted separately — 30 min before each kickoff
+        # via the player_props_pre_match task
 
     @market_channels.before_loop
     async def _wait_markets(self):
+        await self.bot.wait_until_ready()
+
+    # ===================================================================
+    # PLAYER PROPS — 30 min before each kickoff, with confirmed lineups
+    # ===================================================================
+
+    @tasks.loop(minutes=10)
+    async def player_props_pre_match(self):
+        """Post player props 30 min before kickoff using confirmed lineups.
+
+        Checks every 10 min. For each fixture kicking off in 25-35 min,
+        fetches lineups from API-Football. If lineups are confirmed,
+        posts player prop picks filtered to actual starters.
+        """
+        ch = self.bot.get_channel(CHANNEL_PLAYER_PROPS)
+        if not ch:
+            return
+
+        now = datetime.now(timezone.utc)
+        _, active_leagues = _get_todays_leagues()
+        if not active_leagues:
+            return
+
+        date_str = _today_phrase()
+
+        for league in active_leagues:
+            events, _ = fetch_events(league, target_date=date.today())
+            day_events = filter_events_by_exact_date(events, date.today())
+
+            for ev in day_events:
+                home = ev.get("home_team", "")
+                away = ev.get("away_team", "")
+                fixture_key = f"pp_{home}_{away}"
+
+                # Skip if already posted for this fixture
+                if self._already_posted(fixture_key):
+                    continue
+
+                # Check kickoff time — post 25-35 min before
+                ko_str = ev.get("commence_time", "")
+                if not ko_str:
+                    continue
+                try:
+                    ko_dt = datetime.fromisoformat(ko_str.replace("Z", "+00:00"))
+                    if ko_dt.tzinfo is None:
+                        ko_dt = ko_dt.replace(tzinfo=timezone.utc)
+                except Exception:
+                    continue
+
+                minutes_until = (ko_dt - now).total_seconds() / 60
+                if not (25 <= minutes_until <= 35):
+                    continue
+
+                # Fetch lineups from API-Football
+                starters = await asyncio.get_running_loop().run_in_executor(
+                    None, _fetch_lineups, home, away, league
+                )
+                if not starters:
+                    log.info("No lineups yet for %s vs %s, will retry", home, away)
+                    continue
+
+                log.info("Lineups confirmed for %s vs %s (%d starters), posting player props",
+                         home, away, len(starters))
+
+                # Run all 4 stat queries, collect ALL picks, rank, take top 3-4
+                _pp_queries = [
+                    ("who are the best anytime goalscorer picks?", "goals", "\u26bd", "Anytime Goalscorer"),
+                    ("which players are most likely to be booked?", "cards", "\U0001f7e8", "To Be Booked"),
+                    ("which players are best for shots on target props?", "sot", "\U0001f3af", "1+ Shot on Target"),
+                    ("which players are most likely to foul?", "fouls", "\U0001f6d1", "To Commit a Foul"),
+                ]
+
+                all_picks = []
+                for suffix, stat_key, emoji, bet_label in _pp_queries:
+                    prompt = f"For {home} vs {away} in {league} on {date_str}, {suffix}"
+                    text = await _run_rag(prompt, league)
+                    if not _is_valid(text):
+                        continue
+                    # Filter to confirmed starters
+                    filtered = _filter_to_starters(text, starters)
+                    if not filtered:
+                        continue
+                    # Parse picks from the RAG output
+                    picks = _parse_player_picks_from_text(filtered, stat_key, emoji, bet_label)
+                    all_picks.extend(picks)
+
+                if not all_picks:
+                    log.info("No player prop picks for %s vs %s after filtering", home, away)
+                    self._mark_posted(fixture_key)
+                    continue
+
+                em = _build_player_props_embed(
+                    all_picks, f"{home} vs {away}", league, date_str,
+                    footer_extra="30 min to kickoff \u2502 Lineup confirmed",
+                )
+                if em:
+                    await ch.send(embed=em)
+
+                self._mark_posted(fixture_key)
+
+    @player_props_pre_match.before_loop
+    async def _wait_pp(self):
         await self.bot.wait_until_ready()
 
     # ===================================================================
@@ -675,44 +1102,130 @@ class AutoPush(commands.Cog):
             await interaction.followup.send(f"Error: {exc}", ephemeral=True)
 
     async def _post_daily_picks(self, leagues: list, date_str: str):
-        """Post ONE embed per fixture with ALL market predictions to #daily-picks."""
+        """Post curated top picks per league — 5-8 best bets in ONE embed per league."""
         ch = self.bot.get_channel(CHANNEL_DAILY_PICKS)
         if not ch:
             log.warning("CHANNEL_DAILY_PICKS not configured")
             return
 
-        # All market queries — results are merged per fixture into a single embed
+        # Market queries — we run all markets, collect all picks, rank, take top 5-8
         _ALL_QUERIES = {
-            "moneyline": "For every {league} game on {date}, show me moneyline probabilities and the best value pick.",
-            "btts": "For every {league} game on {date}, should I take BTTS Yes or No?",
-            "spreads": "For every {league} game on {date}, recommend a handicap line.",
-            "sot": "For every {league} game on {date}, recommend a shots on target over/under line.",
-            "goals": "Give me the over/under goals line I should take for each {league} game on {date}.",
-            "corners": "For every {league} game on {date}, recommend a corner totals line.",
-            "cards": "For every {league} game on {date}, recommend a cards over/under line.",
+            "moneyline": ("For every {league} game on {date}, show me moneyline probabilities and the best value pick.", "\U0001f3c6"),
+            "btts": ("For every {league} game on {date}, should I take BTTS Yes or No?", "\U0001f91d"),
+            "spreads": ("For every {league} game on {date}, recommend a handicap line.", "\U0001f4cf"),
+            "sot": ("For every {league} game on {date}, recommend a shots on target over/under line.", "\U0001f3af"),
+            "goals": ("Give me the over/under goals line I should take for each {league} game on {date}.", "\u26bd"),
+            "corners": ("For every {league} game on {date}, recommend a corner totals line.", "\U0001f4d0"),
+            "cards": ("For every {league} game on {date}, recommend a cards over/under line.", "\U0001f7e8"),
+        }
+
+        _MARKET_LABELS = {
+            "moneyline": "Winner", "btts": "BTTS", "spreads": "Handicap",
+            "sot": "SoT", "goals": "Goals", "corners": "Corners", "cards": "Cards",
         }
 
         for league in leagues:
-            log.info("Posting daily picks for %s...", league)
-            fixture_data: dict = {}  # {fixture: {market: compact_line}}
+            log.info("Collecting top picks for %s...", league)
+            # Collect ALL picks: (fixture, market, pick_text, odds, model_p, edge, conf, emoji)
+            all_picks = []
 
-            for market_key, prompt_tpl in _ALL_QUERIES.items():
+            for market_key, (prompt_tpl, emoji) in _ALL_QUERIES.items():
                 prompt = prompt_tpl.format(league=league, date=date_str)
                 text = await _run_rag(prompt, league)
                 if not _is_valid(text):
                     continue
                 picks = parse_fixture_picks(text)
                 for fixture, line in picks.items():
-                    if fixture not in fixture_data:
-                        fixture_data[fixture] = {}
-                    fixture_data[fixture][market_key] = line
+                    if not line:
+                        continue
+                    # Parse components from the compact line
+                    import re
+                    pick_m = re.search(r"\*\*(.+?)\*\*", line)
+                    odds_m = re.search(r"@\s*([\d.]+)", line)
+                    model_m = re.search(r"([\d.]+)%\s*model", line)
+                    edge_m = re.search(r"edge\s*([+\-][\d.]+)%", line)
+                    conf = "low"
+                    if re.search(r"\bhigh\b", line, re.I):
+                        conf = "high"
+                    elif re.search(r"\bmedium\b", line, re.I):
+                        conf = "medium"
 
-            if not fixture_data:
+                    pick_text = pick_m.group(1) if pick_m else "?"
+                    odds_val = float(odds_m.group(1)) if odds_m else 0
+                    model_p = float(model_m.group(1)) if model_m else 0
+                    edge_val = float(edge_m.group(1)) if edge_m else 0
+
+                    # Only include medium+ confidence
+                    if conf == "low":
+                        continue
+
+                    label = _MARKET_LABELS.get(market_key, market_key.title())
+                    all_picks.append({
+                        "fixture": fixture,
+                        "market": market_key,
+                        "label": label,
+                        "emoji": emoji,
+                        "pick": pick_text,
+                        "odds": odds_val,
+                        "model_p": model_p,
+                        "edge": edge_val,
+                        "conf": conf,
+                    })
+
+            if not all_picks:
                 continue
 
-            embeds = consolidated_fixture_embeds(league, fixture_data)
-            for em in embeds:
-                await ch.send(embed=em)
+            # Rank: high confidence first, then by edge descending
+            conf_rank = {"high": 2, "medium": 1, "low": 0}
+            all_picks.sort(key=lambda p: (
+                conf_rank.get(p["conf"], 0),
+                p["edge"],
+            ), reverse=True)
+
+            # Take top 8
+            top = all_picks[:8]
+
+            # Build ONE clean embed for this league
+            league_logo = None
+            try:
+                from embeds import _get_league_logo
+                league_logo = _get_league_logo(league)
+            except Exception:
+                pass
+
+            em = discord.Embed(
+                title=f"\U0001f4ca  Today's Top Picks \u2014 {league}",
+                description=f"**{date_str}** \u2022 {len(top)} curated picks \u2022 Medium+ confidence only",
+                color=COLOR_GREEN if any(p["conf"] == "high" for p in top) else COLOR_YELLOW,
+            )
+            if league_logo:
+                em.set_thumbnail(url=league_logo)
+
+            for i, p in enumerate(top, 1):
+                # Confidence meter
+                if p["conf"] == "high":
+                    meter = "\u25cf\u25cf\u25cf\u25cf\u25cb"
+                    conf_label = "Strong Edge"
+                else:
+                    meter = "\u25cf\u25cf\u25cf\u25cb\u25cb"
+                    conf_label = "Leaning"
+
+                # Compact field
+                odds_str = f"@ {p['odds']:.2f}" if p["odds"] else ""
+                edge_str = f"+{p['edge']:.1f}%" if p["edge"] > 0 else ""
+
+                em.add_field(
+                    name=f"{p['emoji']}  {p['fixture']}",
+                    value=(
+                        f"**{p['pick']}** {odds_str}\n"
+                        f"{meter} {conf_label} \u2022 {p['model_p']:.0f}% model"
+                        + (f" \u2022 {edge_str} edge" if edge_str else "")
+                    ),
+                    inline=False,
+                )
+
+            em.set_footer(text=f"{league} \u2502 Spick's Picks \u2502 {len(all_picks)} picks analyzed, top {len(top)} shown")
+            await ch.send(embed=em)
 
         self._mark_posted("daily_picks")
 
@@ -780,45 +1293,152 @@ class AutoPush(commands.Cog):
         self._mark_posted("parlay")
 
     async def _post_team_lines(self, leagues: list, date_str: str):
-        """Post per-team corner & card lines with odds to #team-lines."""
+        """Post per-team corner & card lines — ONE embed per league."""
         ch = self.bot.get_channel(CHANNEL_TEAM_LINES)
         if not ch:
             log.warning("CHANNEL_TEAM_LINES not configured")
             return
 
-        log.info("Posting team lines...")
-        await _post_market_for_leagues(
-            ch,
-            "For all {league} games on {date}, what are the per-team "
-            "corner and card lines for each fixture?",
-            "Team Lines — {league}",
-            leagues, date_str,
-        )
+        log.info("Posting team lines (compact, one embed per league)...")
+
+        try:
+            from embeds import _get_league_logo, _split_fixture_blocks, _parse_team_totals_block, _conf_bar
+        except ImportError:
+            log.error("Could not import embed helpers for team lines")
+            return
+
+        for league in leagues:
+            prompt = (
+                f"For all {league} games on {date_str}, what are the per-team "
+                "corner and card lines for each fixture?"
+            )
+            text = await _run_rag(prompt, league)
+            if not _is_valid(text):
+                continue
+
+            # Parse all fixture blocks
+            blocks = _split_fixture_blocks(text)
+            if not blocks:
+                continue
+
+            league_logo = _get_league_logo(league)
+            em = discord.Embed(
+                title=f"\U0001f4cb  Team Lines \u2014 {league}",
+                description=f"**{date_str}** \u2022 Per-team corner & card lines",
+                color=COLOR_BLUE,
+            )
+            if league_logo:
+                em.set_thumbnail(url=league_logo)
+
+            for i, block in enumerate(blocks):
+                # Parse fixture name
+                import re
+                fx_m = re.match(r"(.+?)\s*===", block)
+                fixture = fx_m.group(1).strip() if fx_m else f"Fixture {i+1}"
+
+                # Parse teams from the block
+                teams = _parse_team_totals_block(block)
+                corners = [t for t in teams if t.get("stat") == "corners"]
+                cards = [t for t in teams if t.get("stat") == "cards"]
+
+                # Build compact fixture section
+                lines = [f"**{fixture}**"]
+
+                if corners:
+                    corner_parts = []
+                    for t in corners:
+                        rec = t.get("recommendation", "")
+                        prob = t.get("model_prob", "")
+                        conf = t.get("confidence", "low").lower()
+                        bar = _conf_bar(conf)
+                        entry = f"{bar} **{t['team']}**: {t['projection']} proj"
+                        if rec:
+                            entry += f" \u2192 {rec}"
+                        if prob:
+                            entry += f" ({prob})"
+                        corner_parts.append(entry)
+                    lines.append(f"\U0001f4d0 " + " | ".join(corner_parts))
+
+                if cards:
+                    card_parts = []
+                    for t in cards:
+                        rec = t.get("recommendation", "")
+                        prob = t.get("model_prob", "")
+                        conf = t.get("confidence", "low").lower()
+                        bar = _conf_bar(conf)
+                        entry = f"{bar} **{t['team']}**: {t['projection']} proj"
+                        if rec:
+                            entry += f" \u2192 {rec}"
+                        if prob:
+                            entry += f" ({prob})"
+                        card_parts.append(entry)
+                    lines.append(f"\U0001f7e8 " + " | ".join(card_parts))
+
+                fixture_text = "\n".join(lines)
+
+                # Add separator between fixtures (not before first)
+                if i > 0:
+                    fixture_text = "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n" + fixture_text
+
+                # Use description for first fixture, fields for the rest
+                # (Discord embeds: description has 4096 char limit, fields have 1024)
+                if i == 0 and len(blocks) <= 3:
+                    # For small number of fixtures, use description for all
+                    pass
+                em.add_field(name="\u200b", value=fixture_text[:1024], inline=False)
+
+            em.set_footer(text=f"{league} \u2502 Spick's Picks")
+            await ch.send(embed=em)
+
         self._mark_posted("team_lines")
 
     async def _post_player_props(self, leagues: list, date_str: str):
-        """Post player prop picks to #player-props."""
+        """Post compact player prop picks — ONE embed per fixture."""
         ch = self.bot.get_channel(CHANNEL_PLAYER_PROPS)
         if not ch:
             log.warning("CHANNEL_PLAYER_PROPS not configured")
             return
 
-        log.info("Posting player props...")
-        _pp = [
-            ("who are the best anytime goalscorer picks?", "Goalscorer Picks"),
-            ("which players are most likely to be booked?", "Player Cards"),
-            ("which players are best for shots on target props?", "Player SoT"),
-            ("who are the best assist picks?", "Assist Picks"),
+        log.info("Posting player props (compact format)...")
+
+        _pp_queries = [
+            ("who are the best anytime goalscorer picks?", "goals", "\u26bd", "Anytime Goalscorer"),
+            ("which players are most likely to be booked?", "cards", "\U0001f7e8", "To Be Booked"),
+            ("which players are best for shots on target props?", "sot", "\U0001f3af", "1+ Shot on Target"),
+            ("which players are most likely to foul?", "fouls", "\U0001f6d1", "To Commit a Foul"),
         ]
+
         for league in leagues:
-            for suffix, label in _pp:
+            # Build team → fixture mapping
+            team_to_fixture: dict = {}
+            events, _ = fetch_events(league, target_date=date.today())
+            day_events = filter_events_by_exact_date(events, date.today())
+            for ev in day_events:
+                h = ev.get("home_team", "")
+                a = ev.get("away_team", "")
+                fx_name = f"{h} vs {a}"
+                team_to_fixture[h.lower()] = fx_name
+                team_to_fixture[a.lower()] = fx_name
+
+            # Collect all picks grouped by fixture
+            fixture_picks: dict = {}
+            for suffix, stat_key, emoji, bet_label in _pp_queries:
                 prompt = f"For all {league} games on {date_str}, {suffix}"
                 text = await _run_rag(prompt, league)
-                if _is_valid(text):
-                    for em in rag_output_to_embeds(
-                        f"{label} — {league}", text, league=league,
-                    ):
-                        await ch.send(embed=em)
+                if not _is_valid(text):
+                    continue
+                picks = _parse_player_picks_from_text(text, stat_key, emoji, bet_label)
+                for p in picks:
+                    team_lower = p.get("team", "").lower()
+                    fx = team_to_fixture.get(team_lower, f"{league} match")
+                    fixture_picks.setdefault(fx, []).append(p)
+
+            # Build one embed per fixture using shared builder
+            for fixture, picks_list in fixture_picks.items():
+                em = _build_player_props_embed(picks_list, fixture, league, date_str)
+                if em:
+                    await ch.send(embed=em)
+
         self._mark_posted("player_props")
 
 

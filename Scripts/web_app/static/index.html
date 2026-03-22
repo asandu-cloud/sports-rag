@@ -3,144 +3,556 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Matchwise — Football Predictions</title>
-  <meta name="description" content="AI-powered football betting predictions with real-time odds analysis across Europe's top leagues.">
+  <title>SpickBot — AI Football Predictions</title>
+  <meta name="description" content="AI-powered football betting predictions with real-time odds analysis across Europe's top leagues. The edge was always there.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-  <!-- ===== Top Navigation Bar ===== -->
-  <header class="topbar" role="banner">
+  <!-- ===== Navigation ===== -->
+  <header class="topbar" id="topbar" role="banner">
     <div class="topbar-inner">
-      <div class="logo" onclick="navigateTo('home')" tabindex="0" role="link" aria-label="Matchwise home">
-        <span class="logo-mark">M</span>
-        <span class="logo-text">Matchwise</span>
+      <div class="logo" onclick="router.go('landing')" tabindex="0" role="link" aria-label="SpickBot home">
+        <span class="logo-mark">S</span>
+        <span class="logo-text">SpickBot</span>
       </div>
-      <nav class="nav" aria-label="Main navigation">
-        <button class="nav-link active" data-view="home">Fixtures</button>
-        <button class="nav-link" data-view="best-bets">Best Bets</button>
+      <nav class="nav" id="mainNav" aria-label="Main navigation">
+        <!-- Landing nav links -->
+        <a class="nav-link landing-nav" href="#how-it-works">How It Works</a>
+        <a class="nav-link landing-nav" href="#pricing">Pricing</a>
+        <a class="nav-link landing-nav" href="#faq">FAQ</a>
+        <!-- App nav links -->
+        <button class="nav-link app-nav hidden" data-view="fixtures" onclick="app.switchTab('fixtures')">Fixtures</button>
+        <button class="nav-link app-nav hidden" data-view="best-bets" onclick="app.switchTab('best-bets')">Best Bets</button>
       </nav>
       <div class="topbar-right">
-        <button class="slip-indicator hidden" id="slipIndicator" onclick="toggleMobileSlip()" aria-label="Open bet slip">
+        <!-- Landing buttons -->
+        <a class="nav-link landing-nav" href="#" onclick="event.preventDefault()">Login</a>
+        <button class="btn-primary-sm landing-nav" onclick="router.go('app')">Try Free</button>
+        <!-- App buttons -->
+        <button class="nav-link app-nav hidden" onclick="router.go('landing')">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 11L5 7l4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Home
+        </button>
+        <button class="slip-toggle app-nav hidden" id="slipToggle" onclick="slip.toggle()" aria-label="Open bet slip">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="2" width="14" height="14" rx="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M6 6h6M6 9h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-          <span class="slip-indicator-count" id="slipIndicatorCount">0</span>
-          <span class="slip-indicator-odds" id="slipIndicatorOdds"></span>
+          <span class="slip-toggle-count" id="slipToggleCount">0</span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- ===== Main Layout ===== -->
-  <div class="layout" id="layout">
+  <!-- ===================================================================
+       LANDING PAGE
+       =================================================================== -->
+  <div id="landingPage">
 
-    <!-- Main Content Area -->
-    <main class="main" id="mainContent">
-
-      <!-- Home View -->
-      <section class="view" id="viewHome">
-        <div class="page-header">
-          <h1 class="page-title">Today's Matches</h1>
-          <p class="page-subtitle">AI-powered predictions across Europe's top leagues</p>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="hero-content">
+          <div class="trust-pill">
+            <span class="trust-pill-dot"></span>
+            12,000+ bettors trust SpickBot
+          </div>
+          <h1 class="hero-h1">The edge was always there.<br><span class="grad">You just didn't have the tools to find it.</span><br><span class="grad">Until now.</span></h1>
+          <p class="hero-sub">AI-powered predictions across 8 leagues, 9 markets per fixture. Real odds. Real value. Real edge.</p>
+          <form class="hero-form" onsubmit="event.preventDefault(); router.go('app')">
+            <input type="email" class="hero-input" placeholder="Enter your email" aria-label="Email address">
+            <button type="submit" class="hero-btn">Get Started Free</button>
+          </form>
+          <p class="hero-hint">No credit card required. 7-day free trial.</p>
         </div>
-        <div class="date-strip" id="homeDateTabs" role="tablist" aria-label="Select date"></div>
-        <div class="league-filters" id="leagueFilters" role="toolbar" aria-label="League filter"></div>
-        <div id="homeFixtures"></div>
-      </section>
-
-      <!-- Best Bets View -->
-      <section class="view hidden" id="viewBestBets">
-        <div class="page-header">
-          <h1 class="page-title">Best Bets</h1>
-          <p class="page-subtitle">Highest-edge picks across all leagues today</p>
-        </div>
-        <div class="best-bets-date" id="bestBetsDate"></div>
-        <div id="bestBetsList"></div>
-      </section>
-
-      <!-- Match Detail View -->
-      <section class="view hidden" id="viewMatch">
-        <button class="back-link" onclick="navigateTo('home')">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 11L5 7l4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Back to Fixtures
-        </button>
-        <div id="matchHeader"></div>
-        <div class="market-tabs" id="marketTabs" role="tablist" aria-label="Market categories"></div>
-        <div id="matchMarkets"></div>
-      </section>
-
-    </main>
-
-    <!-- ===== Bet Slip (slides in from right on desktop, bottom sheet on mobile) ===== -->
-    <aside class="slip" id="betSlip" aria-label="Bet slip">
-      <div class="slip-head">
-        <div class="slip-title-row">
-          <h2 class="slip-title">Bet Slip</h2>
-          <span class="slip-count-badge" id="slipCountBadge">0</span>
-        </div>
-        <button class="slip-clear-btn" id="slipClear" aria-label="Remove all selections">Clear All</button>
-      </div>
-
-      <div class="slip-body" id="slipBody">
-        <div class="slip-legs" id="slipLegs"></div>
-      </div>
-
-      <div class="slip-foot" id="slipFoot">
-        <div class="slip-summary-row">
-          <span class="slip-summary-label">Combined Odds</span>
-          <span class="slip-summary-value mono" id="slipCombinedOdds">--</span>
-        </div>
-        <div class="slip-stake-row">
-          <div class="slip-stake-input-wrap">
-            <span class="slip-stake-prefix">$</span>
-            <input type="number" class="slip-stake-input" id="slipStakeInput" placeholder="Stake" min="0" step="any" aria-label="Stake amount">
+        <div class="hero-mockup">
+          <div class="mockup-window">
+            <div class="mockup-bar">
+              <span class="mockup-dot"></span><span class="mockup-dot"></span><span class="mockup-dot"></span>
+            </div>
+            <table class="mockup-table">
+              <thead>
+                <tr>
+                  <th>#</th><th>Match</th><th>Best Bet</th><th>Conf.</th><th>Odds</th><th>Edge</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="mono">1</td>
+                  <td>Arsenal vs Chelsea</td>
+                  <td>Over 2.5 Goals</td>
+                  <td><span class="conf-badge high">HIGH</span></td>
+                  <td class="mono">1.87</td>
+                  <td class="mono edge-pos">+8.5%</td>
+                </tr>
+                <tr>
+                  <td class="mono">2</td>
+                  <td>Barcelona vs Atletico</td>
+                  <td>Over 9.5 Corners</td>
+                  <td><span class="conf-badge high">HIGH</span></td>
+                  <td class="mono">1.91</td>
+                  <td class="mono edge-pos">+7.2%</td>
+                </tr>
+                <tr>
+                  <td class="mono">3</td>
+                  <td>Bayern vs Dortmund</td>
+                  <td>BTTS Yes</td>
+                  <td><span class="conf-badge med">MED</span></td>
+                  <td class="mono">1.72</td>
+                  <td class="mono edge-pos">+5.2%</td>
+                </tr>
+                <tr>
+                  <td class="mono">4</td>
+                  <td>Juventus vs AC Milan</td>
+                  <td>Under 3.5 Cards</td>
+                  <td><span class="conf-badge high">HIGH</span></td>
+                  <td class="mono">2.05</td>
+                  <td class="mono edge-pos">+9.1%</td>
+                </tr>
+                <tr>
+                  <td class="mono">5</td>
+                  <td>PSG vs Marseille</td>
+                  <td>PSG -1.5</td>
+                  <td><span class="conf-badge med">MED</span></td>
+                  <td class="mono">2.20</td>
+                  <td class="mono edge-pos">+4.8%</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
-        <div class="slip-quick-stakes">
-          <button class="quick-stake" data-amount="5">$5</button>
-          <button class="quick-stake" data-amount="10">$10</button>
-          <button class="quick-stake" data-amount="25">$25</button>
-          <button class="quick-stake" data-amount="50">$50</button>
-          <button class="quick-stake" data-amount="100">$100</button>
-        </div>
-        <div class="slip-payout-row">
-          <span class="slip-payout-label">Potential Win</span>
-          <span class="slip-payout-value" id="slipPayout">$0.00</span>
-        </div>
-        <button class="slip-score-btn" id="slipScoreBtn">Score My Parlay</button>
-        <div class="slip-quality hidden" id="slipQuality">
-          <div class="quality-bar"><div class="quality-fill" id="qualityFill"></div></div>
-          <span class="quality-label" id="qualityLabel"></span>
-          <div class="quality-warnings" id="qualityWarnings"></div>
-        </div>
-        <div class="slip-actions-row">
-          <button class="slip-share-btn" id="slipShareBtn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-            Share Parlay
-          </button>
-        </div>
       </div>
-    </aside>
+    </section>
 
-    <!-- Mobile bottom bar for slip (shows when selections exist) -->
-    <div class="slip-mobile-bar hidden" id="slipMobileBar" onclick="toggleMobileSlip()">
-      <div class="slip-mobile-bar-left">
-        <span class="slip-mobile-count" id="slipMobileCount">0</span>
-        <span class="slip-mobile-label">Bet Slip</span>
+    <!-- Stats Strip -->
+    <section class="stats-strip">
+      <div class="stats-strip-inner">
+        <div class="stat-block">
+          <span class="stat-number mono">67%</span>
+          <span class="stat-label">Win Rate</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-block">
+          <span class="stat-number mono">8</span>
+          <span class="stat-label">Leagues Covered</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-block">
+          <span class="stat-number mono">9</span>
+          <span class="stat-label">Markets per Fixture</span>
+        </div>
       </div>
-      <div class="slip-mobile-bar-right">
-        <span class="slip-mobile-odds" id="slipMobileOdds">--</span>
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
-    </div>
+    </section>
 
-    <!-- Mobile overlay backdrop -->
-    <div class="slip-backdrop hidden" id="slipBackdrop" onclick="toggleMobileSlip()"></div>
+    <!-- Social Proof -->
+    <section class="social-proof">
+      <div class="section-inner">
+        <p class="section-eyebrow">Trusted by thousands</p>
+        <h2 class="section-h2">What bettors are saying</h2>
+        <div class="reviews-track">
+          <div class="reviews-slide" id="reviewsSlide">
+            <div class="review-card">
+              <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+              <p class="review-text">"Finally a tool that actually shows value edges, not just 'expert picks'. The corners model is insane."</p>
+              <span class="review-author">Marcus T. - EPL bettor</span>
+            </div>
+            <div class="review-card">
+              <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+              <p class="review-text">"I've been profitable 4 months running since I started using SpickBot. The parlay builder alone is worth it."</p>
+              <span class="review-author">Jake R. - Multi-league</span>
+            </div>
+            <div class="review-card">
+              <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+              <p class="review-text">"The BTTS and cards models catch things I never would. Clean interface, fast, accurate."</p>
+              <span class="review-author">Sofia M. - Serie A bettor</span>
+            </div>
+            <div class="review-card">
+              <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+              <p class="review-text">"Best data I've seen for European competitions. UCL parlays hit differently with SpickBot."</p>
+              <span class="review-author">Daniel K. - UCL bettor</span>
+            </div>
+            <div class="review-card">
+              <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+              <p class="review-text">"I was skeptical at first but the model probabilities are genuinely calibrated. This isn't a tipster, it's a system."</p>
+              <span class="review-author">Alex P. - Data-driven bettor</span>
+            </div>
+            <div class="review-card">
+              <div class="review-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+              <p class="review-text">"The handicap model picked up Leverkusen early last season. 14 unit profit on Bundesliga spreads alone."</p>
+              <span class="review-author">Tom H. - Bundesliga bettor</span>
+            </div>
+          </div>
+        </div>
+        <div class="discord-cta">
+          <p class="discord-text">Join 3,000+ members in our Discord for live alerts and community picks.</p>
+          <a href="#" class="btn-outline">Join Discord</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="how-it-works" id="how-it-works">
+      <div class="section-inner">
+        <p class="section-eyebrow">How It Works</p>
+        <h2 class="section-h2">From data to edge in 3 steps</h2>
+        <div class="hiw-grid">
+          <div class="hiw-card">
+            <div class="hiw-icon">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="1.5"/><path d="M10 16h12M16 10v12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <div class="hiw-step">Step 1</div>
+            <h3 class="hiw-title">Live Data Ingestion</h3>
+            <p class="hiw-desc">We pull real-time odds from 15+ bookmakers and match stats from API-Football across 8 competitions every 5 minutes.</p>
+          </div>
+          <div class="hiw-card">
+            <div class="hiw-icon">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><rect x="4" y="8" width="24" height="16" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M10 14l4 4 8-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="hiw-step">Step 2</div>
+            <h3 class="hiw-title">AI Model Scoring</h3>
+            <p class="hiw-desc">Poisson/NegBin distributions, Elo ratings, Ridge regression, and venue-adjusted projections score every market on every fixture.</p>
+          </div>
+          <div class="hiw-card">
+            <div class="hiw-icon">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M16 4l3.09 9.51H29l-8 5.82 3.05 9.36L16 22.88l-8.05 5.81 3.05-9.36-8-5.82h9.91z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="hiw-step">Step 3</div>
+            <h3 class="hiw-title">+EV Detection</h3>
+            <p class="hiw-desc">Model probability vs implied odds. If our model says Over 2.5 at 62% but books imply 53% - that is a value bet.</p>
+          </div>
+        </div>
+        <div class="ev-calc">
+          <div class="ev-calc-inner">
+            <h4 class="ev-calc-title">EV Calculator Example</h4>
+            <div class="ev-calc-row">
+              <div class="ev-calc-item">
+                <span class="ev-calc-label">Model Probability</span>
+                <span class="ev-calc-value mono">62%</span>
+              </div>
+              <div class="ev-calc-arrow">&#8594;</div>
+              <div class="ev-calc-item">
+                <span class="ev-calc-label">Book Implied</span>
+                <span class="ev-calc-value mono">53.5%</span>
+              </div>
+              <div class="ev-calc-arrow">&#8594;</div>
+              <div class="ev-calc-item">
+                <span class="ev-calc-label">Value Edge</span>
+                <span class="ev-calc-value mono edge-pos">+8.5%</span>
+              </div>
+              <div class="ev-calc-arrow">&#8594;</div>
+              <div class="ev-calc-item">
+                <span class="ev-calc-label">Expected Value</span>
+                <span class="ev-calc-value mono edge-pos">+$15.94</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pricing -->
+    <section class="pricing" id="pricing">
+      <div class="section-inner">
+        <p class="section-eyebrow">Pricing</p>
+        <h2 class="section-h2">Simple, transparent pricing</h2>
+        <div class="pricing-grid">
+          <div class="pricing-card">
+            <h3 class="pricing-tier">Free</h3>
+            <div class="pricing-price"><span class="pricing-amount mono">$0</span><span class="pricing-period">/month</span></div>
+            <ul class="pricing-features">
+              <li>3 fixtures per day</li>
+              <li>Goals + BTTS markets only</li>
+              <li>Basic confidence ratings</li>
+              <li>1 league (EPL)</li>
+            </ul>
+            <button class="btn-outline" onclick="router.go('app')">Get Started</button>
+          </div>
+          <div class="pricing-card popular">
+            <div class="pricing-badge">Most Popular</div>
+            <h3 class="pricing-tier">Pro</h3>
+            <div class="pricing-price"><span class="pricing-amount mono">$29</span><span class="pricing-period">/month</span></div>
+            <ul class="pricing-features">
+              <li>Unlimited fixtures</li>
+              <li>All 9 markets</li>
+              <li>Model probabilities + value edges</li>
+              <li>All 5 domestic leagues</li>
+              <li>Parlay builder + scoring</li>
+              <li>Best Bets daily picks</li>
+            </ul>
+            <button class="btn-primary" onclick="router.go('app')">Start 7-Day Trial</button>
+          </div>
+          <div class="pricing-card">
+            <h3 class="pricing-tier">Elite</h3>
+            <div class="pricing-price"><span class="pricing-amount mono">$79</span><span class="pricing-period">/month</span></div>
+            <ul class="pricing-features">
+              <li>Everything in Pro</li>
+              <li>UCL, UEL, UECL coverage</li>
+              <li>Cross-league parlays</li>
+              <li>API access</li>
+              <li>Discord alerts channel</li>
+              <li>Priority support</li>
+            </ul>
+            <button class="btn-outline" onclick="router.go('app')">Start 7-Day Trial</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Community / Support -->
+    <section class="community">
+      <div class="section-inner">
+        <p class="section-eyebrow">Support</p>
+        <h2 class="section-h2">We are here to help</h2>
+        <div class="support-grid">
+          <div class="support-card">
+            <div class="support-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <h3 class="support-title">Live Chat</h3>
+            <p class="support-desc">Get help from our team in real-time during market hours. Average response time: 2 minutes.</p>
+          </div>
+          <div class="support-card">
+            <div class="support-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <h3 class="support-title">Discord Community</h3>
+            <p class="support-desc">Join 3,000+ members sharing picks, strategies, and live match discussion.</p>
+          </div>
+          <div class="support-card">
+            <div class="support-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+            </div>
+            <h3 class="support-title">Video Tutorials</h3>
+            <p class="support-desc">Step-by-step guides on using the parlay builder, reading value edges, and bankroll management.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="faq" id="faq">
+      <div class="section-inner">
+        <p class="section-eyebrow">FAQ</p>
+        <h2 class="section-h2">Frequently asked questions</h2>
+        <div class="faq-list">
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+              <span>How does the AI model work?</span>
+              <svg class="faq-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="faq-answer">
+              <p>We use a combination of Poisson and Negative Binomial distributions for count-based markets (goals, corners, cards, shots on target), Elo ratings for team strength, and Ridge regression models trained on 1,800+ fixtures across 8 leagues. Each projection blends season averages (90%) with recent form (10%) and venue adjustments.</p>
+            </div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+              <span>What does "value edge" mean?</span>
+              <svg class="faq-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="faq-answer">
+              <p>Value edge is the difference between our model's probability and the bookmaker's implied probability. If we calculate Over 2.5 Goals at 62% but the bookie prices it at 53%, that is a +8.5% value edge - meaning the bet is priced in your favor.</p>
+            </div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+              <span>Which leagues and markets do you cover?</span>
+              <svg class="faq-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="faq-answer">
+              <p>We cover 5 domestic leagues (EPL, La Liga, Serie A, Bundesliga, Ligue 1) plus 3 European competitions (UCL, UEL, UECL). Markets include: Moneyline, Goals Totals, Corners, Cards, Shots on Target, BTTS, Handicap/Spreads, Correct Score, and Goal Intervals.</p>
+            </div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+              <span>Can I build parlays?</span>
+              <svg class="faq-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="faq-answer">
+              <p>Yes. The parlay builder lets you add picks from any fixture across any league. Our scoring engine analyzes your parlay for quality, flags contradictions, and calculates combined odds and expected value. Cross-league parlays are supported on Pro and Elite plans.</p>
+            </div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+              <span>Is this guaranteed to make me money?</span>
+              <svg class="faq-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="faq-answer">
+              <p>No betting system can guarantee profits. SpickBot identifies statistically positive expected value situations, but variance is inherent to sports betting. We recommend strict bankroll management and only betting what you can afford to lose. Our tools give you an edge - discipline does the rest.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="final-cta">
+      <div class="section-inner">
+        <h2 class="final-cta-h2">The bookmakers have the data.<br>Now you do too.</h2>
+        <p class="final-cta-sub">Start finding value in every fixture across Europe's top leagues.</p>
+        <button class="btn-primary btn-lg" onclick="router.go('app')">Start Free Trial</button>
+      </div>
+    </section>
+
+    <!-- Newsletter -->
+    <section class="newsletter">
+      <div class="section-inner">
+        <h3 class="newsletter-h3">Stay sharp. Get weekly edge reports.</h3>
+        <form class="newsletter-form" onsubmit="event.preventDefault(); showToast('Subscribed!', 'success')">
+          <input type="email" class="newsletter-input" placeholder="your@email.com" aria-label="Newsletter email">
+          <button type="submit" class="btn-primary-sm">Subscribe</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <div class="logo">
+            <span class="logo-mark">S</span>
+            <span class="logo-text">SpickBot</span>
+          </div>
+          <p class="footer-tagline">AI-powered football betting intelligence.</p>
+        </div>
+        <div class="footer-links">
+          <div class="footer-col">
+            <h4 class="footer-col-title">Product</h4>
+            <a href="#how-it-works">How It Works</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#" onclick="event.preventDefault(); router.go('app')">Dashboard</a>
+          </div>
+          <div class="footer-col">
+            <h4 class="footer-col-title">Company</h4>
+            <a href="#">About</a>
+            <a href="#">Blog</a>
+            <a href="#">Careers</a>
+          </div>
+          <div class="footer-col">
+            <h4 class="footer-col-title">Legal</h4>
+            <a href="#">Privacy Policy</a>
+            <a href="#">Terms of Service</a>
+            <a href="#">Responsible Gambling</a>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <span class="footer-copy">&copy; 2026 SpickBot. All rights reserved.</span>
+          <div class="footer-socials">
+            <a href="#" aria-label="Twitter">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            </a>
+            <a href="#" aria-label="Discord">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+            </a>
+          </div>
+        </div>
+      </div>
+    </footer>
+
   </div>
 
-  <!-- Toast container -->
+  <!-- ===================================================================
+       APP / DASHBOARD
+       =================================================================== -->
+  <div id="appPage" class="hidden">
+    <div class="app-layout" id="appLayout">
+
+      <!-- Main Content -->
+      <main class="app-main" id="appMain">
+
+        <!-- Fixtures View -->
+        <section class="app-view" id="viewFixtures">
+          <div class="page-header">
+            <h1 class="page-title">Today's Matches</h1>
+            <p class="page-subtitle">AI-powered predictions across Europe's top leagues</p>
+          </div>
+          <div class="date-strip" id="dateStrip" role="tablist" aria-label="Select date"></div>
+          <div class="league-filters" id="leagueFilters" role="toolbar" aria-label="League filter"></div>
+          <div id="fixturesContainer"></div>
+        </section>
+
+        <!-- Best Bets View -->
+        <section class="app-view hidden" id="viewBestBets">
+          <div class="page-header">
+            <h1 class="page-title">Best Bets</h1>
+            <p class="page-subtitle">Highest-edge picks across all leagues today</p>
+          </div>
+          <div class="date-strip" id="bestBetsDateStrip" role="tablist" aria-label="Select date"></div>
+          <div id="bestBetsContainer"></div>
+        </section>
+
+        <!-- Match Detail View -->
+        <section class="app-view hidden" id="viewMatch">
+          <button class="back-link" onclick="app.switchTab('fixtures')">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 11L5 7l4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Back to Fixtures
+          </button>
+          <div id="matchHeader"></div>
+          <div class="market-tabs" id="marketTabs" role="tablist" aria-label="Market categories"></div>
+          <div id="matchMarkets"></div>
+        </section>
+
+      </main>
+
+      <!-- Bet Slip Sidebar -->
+      <aside class="slip" id="betSlip" aria-label="Bet slip">
+        <div class="slip-head">
+          <div class="slip-title-row">
+            <h2 class="slip-title">Bet Slip</h2>
+            <span class="slip-count" id="slipCount">0</span>
+          </div>
+          <button class="slip-clear" id="slipClear" onclick="slip.clear()">Clear All</button>
+        </div>
+        <div class="slip-body" id="slipBody">
+          <div class="slip-legs" id="slipLegs"></div>
+        </div>
+        <div class="slip-foot" id="slipFoot">
+          <div class="slip-row">
+            <span class="slip-label">Combined Odds</span>
+            <span class="slip-value mono" id="slipOdds">--</span>
+          </div>
+          <div class="slip-stake-wrap">
+            <span class="slip-stake-prefix">$</span>
+            <input type="number" class="slip-stake-input" id="slipStake" placeholder="Stake" min="0" step="any" aria-label="Stake amount">
+          </div>
+          <div class="slip-quick-stakes">
+            <button class="quick-stake" onclick="slip.setStake(5)">$5</button>
+            <button class="quick-stake" onclick="slip.setStake(10)">$10</button>
+            <button class="quick-stake" onclick="slip.setStake(25)">$25</button>
+            <button class="quick-stake" onclick="slip.setStake(50)">$50</button>
+            <button class="quick-stake" onclick="slip.setStake(100)">$100</button>
+          </div>
+          <div class="slip-row">
+            <span class="slip-label">Potential Win</span>
+            <span class="slip-payout mono" id="slipPayout">$0.00</span>
+          </div>
+          <button class="slip-score-btn" id="slipScoreBtn" onclick="slip.score()">Score My Parlay</button>
+          <div class="slip-quality hidden" id="slipQuality">
+            <div class="quality-bar"><div class="quality-fill" id="qualityFill"></div></div>
+            <span class="quality-label" id="qualityLabel"></span>
+            <div class="quality-warnings" id="qualityWarnings"></div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Mobile bottom bar -->
+      <div class="slip-mobile-bar hidden" id="slipMobileBar" onclick="slip.toggle()">
+        <div class="slip-mobile-left">
+          <span class="slip-mobile-count" id="slipMobileCount">0</span>
+          <span class="slip-mobile-label">Bet Slip</span>
+        </div>
+        <div class="slip-mobile-right">
+          <span class="slip-mobile-odds mono" id="slipMobileOdds">--</span>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+
+      <!-- Backdrop -->
+      <div class="slip-backdrop hidden" id="slipBackdrop" onclick="slip.toggle()"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
   <script src="/static/app.js"></script>
