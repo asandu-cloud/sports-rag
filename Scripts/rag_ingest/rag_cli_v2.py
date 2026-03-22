@@ -3208,7 +3208,19 @@ def projected_total_sot(home: str, away: str, league: str, knockout_ctx: Optiona
         recent_total = None
 
     if season_total is not None and recent_total is not None:
-        blended = pw["blend_season"] * season_total + pw["blend_recent"] * recent_total
+        # Dynamic blend: increase recent weight when form diverges from season avg
+        base_season_w = pw["blend_season"]
+        base_recent_w = pw["blend_recent"]
+        divergence = abs(recent_total - season_total) / max(season_total, 1.0)
+        # When divergence > 20%, shift blend toward recent (up to 60/40)
+        if divergence > 0.20:
+            shift = min(0.30, (divergence - 0.20) * 1.0)  # max 30% shift
+            blend_season = base_season_w - shift
+            blend_recent = base_recent_w + shift
+        else:
+            blend_season = base_season_w
+            blend_recent = base_recent_w
+        blended = blend_season * season_total + blend_recent * recent_total
     elif season_total is not None:
         blended = season_total
     elif recent_total is not None:
@@ -4262,7 +4274,19 @@ def projected_total_corners(home: str, away: str, league: str, knockout_ctx: Opt
         recent_total = None
 
     if season_total is not None and recent_total is not None:
-        blended = pw["blend_season"] * season_total + pw["blend_recent"] * recent_total
+        # Dynamic blend: increase recent weight when form diverges from season avg
+        base_season_w = pw["blend_season"]
+        base_recent_w = pw["blend_recent"]
+        divergence = abs(recent_total - season_total) / max(season_total, 1.0)
+        # When divergence > 20%, shift blend toward recent (up to 60/40)
+        if divergence > 0.20:
+            shift = min(0.30, (divergence - 0.20) * 1.0)  # max 30% shift
+            blend_season = base_season_w - shift
+            blend_recent = base_recent_w + shift
+        else:
+            blend_season = base_season_w
+            blend_recent = base_recent_w
+        blended = blend_season * season_total + blend_recent * recent_total
     elif season_total is not None:
         blended = season_total
     elif recent_total is not None:
@@ -4315,7 +4339,19 @@ def projected_total_cards(home: str, away: str, league: str, knockout_ctx: Optio
         recent_total = None
 
     if season_total is not None and recent_total is not None:
-        blended = pw["blend_season"] * season_total + pw["blend_recent"] * recent_total
+        # Dynamic blend: increase recent weight when form diverges from season avg
+        base_season_w = pw["blend_season"]
+        base_recent_w = pw["blend_recent"]
+        divergence = abs(recent_total - season_total) / max(season_total, 1.0)
+        # When divergence > 20%, shift blend toward recent (up to 60/40)
+        if divergence > 0.20:
+            shift = min(0.30, (divergence - 0.20) * 1.0)  # max 30% shift
+            blend_season = base_season_w - shift
+            blend_recent = base_recent_w + shift
+        else:
+            blend_season = base_season_w
+            blend_recent = base_recent_w
+        blended = blend_season * season_total + blend_recent * recent_total
     elif season_total is not None:
         blended = season_total
     elif recent_total is not None:
@@ -4511,7 +4547,19 @@ def projected_total_goals(home: str, away: str, league: str, knockout_ctx: Optio
     recent_total = (h_xg + a_xg) if (h_xg is not None and a_xg is not None) else None
 
     if season_total is not None and recent_total is not None:
-        blended = pw["blend_season"] * season_total + pw["blend_recent"] * recent_total
+        # Dynamic blend: increase recent weight when form diverges from season avg
+        base_season_w = pw["blend_season"]
+        base_recent_w = pw["blend_recent"]
+        divergence = abs(recent_total - season_total) / max(season_total, 1.0)
+        # When divergence > 20%, shift blend toward recent (up to 60/40)
+        if divergence > 0.20:
+            shift = min(0.30, (divergence - 0.20) * 1.0)  # max 30% shift
+            blend_season = base_season_w - shift
+            blend_recent = base_recent_w + shift
+        else:
+            blend_season = base_season_w
+            blend_recent = base_recent_w
+        blended = blend_season * season_total + blend_recent * recent_total
     elif season_total is not None:
         blended = season_total
     elif recent_total is not None:
@@ -7340,6 +7388,38 @@ def answer_once(user_q: str, default_league: str = "EPL") -> None:
     ]
     memory["last_market_groups_used"] = list({market_group_from_key(x.market_key) for x in selected})
     add_chat_turn(raw_user_q, out)
+
+
+# ---------------------------------------------------------------------------
+# Calibration diagnostic
+# ---------------------------------------------------------------------------
+
+def check_calibration(league: str = "EPL", season: str = "2025/26"):
+    """Print calibration stats: for each confidence bucket, what's the actual hit rate?
+
+    This diagnostic function would:
+    1. Load historical fixture outcomes from Output/{league}_feature_engineering/
+    2. Re-run projections for each completed fixture (projected_total_goals, corners, cards, SoT)
+    3. Bucket predictions by confidence level (high/medium/low from confidence_from_edge)
+    4. Compare projected lines vs actual outcomes to compute hit rates per bucket
+    5. Print a calibration table: bucket | n_predictions | hit_rate | avg_edge | avg_model_prob
+
+    Expected output format:
+        Confidence | Count | Hit Rate | Avg Edge | Avg Model P
+        high       |    42 |   71.4%  |  +12.3%  |   0.68
+        medium     |   118 |   58.5%  |   +5.1%  |   0.59
+        low        |   203 |   49.8%  |   +1.2%  |   0.53
+
+    A well-calibrated system should show hit rates that increase with confidence level.
+    If high-confidence picks hit at the same rate as low-confidence, the confidence
+    thresholds in confidence_from_edge() need recalibration.
+
+    The actual backtest calibration is implemented in backtest.py — this stub exists
+    as a reminder of the integration point and expected interface.
+
+    Usage: python rag_cli_v2.py --calibrate EPL
+    """
+    print(f"[calibration] Placeholder for {league} {season} — use backtest.py for full calibration analysis.")
 
 
 def main() -> None:
