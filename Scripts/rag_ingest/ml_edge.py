@@ -187,7 +187,15 @@ def _pair_fixtures(rows: List[dict]) -> List[Tuple[dict, dict]]:
         fx = (r.get("fixture") or "").strip()
         if not fx:
             continue
-        by_fixture.setdefault(fx, []).append(r)
+        # Use fixture_id if available (unique per match), otherwise
+        # combine fixture name + date to disambiguate across seasons
+        fid = r.get("fixture_id")
+        if fid:
+            key = str(fid)
+        else:
+            fd = (r.get("fixture_date") or "").strip()
+            key = f"{fx}|{fd}" if fd else fx
+        by_fixture.setdefault(key, []).append(r)
 
     pairs = []
     n_skipped_no_date = 0
@@ -922,6 +930,524 @@ def _append_training_history(r2_meta: Dict[str, float], model_type: str) -> None
 
 
 # ---------------------------------------------------------------------------
+# Cumulative-profile training (fixes train/serve distribution mismatch)
+# ---------------------------------------------------------------------------
+
+# Minimum prior matches required before a team's cumulative profile is usable.
+_CUMULATIVE_MIN_MATCHES = 5
+
+# Fields extracted from each fixture row for cumulative averaging.
+# Maps: fixture_row_field -> (profile_meta_field, default_if_zero_count)
+_CUMUL_STAT_FIELDS = {
+    # Base features (direct per-match stats -> season averages)
+    "possession":           ("possession",           50.0),
+    "control_index":        ("control_index",        0.5),
+    "dominance_index":      ("dominance_index",      0.5),
+    "form_index_team":      ("form_index_team",      0.0),
+    "aggression_index_norm":("aggression_index_norm", 0.5),
+    "fouls_committed":      ("fouls_per_90_team",    10.0),
+    "expected_goals":       ("xg_home_pm",           1.3),
+    "shots_total":          ("shots_for_pm",         10.0),
+    "shot_on_target_ratio": ("shot_on_target_ratio", 0.35),
+    # Count stats -> per-match averages
+    "goals":                ("goals_for_pm",         1.3),
+    "corners":              ("corners_pm",           5.0),
+    "cards_total":          ("cards_per_90_team",    2.0),
+}
+
+# SoT field has variations across leagues
+_CUMUL_SOT_FIELDS = ["shots_on", "shots_on_x"]
+
+
+def _get_sot_value(row: dict) -> float:
+    """Get SoT value from a fixture row, handling field name variations."""
+    for field in _CUMUL_SOT_FIELDS:
+        v = _safe_float(row.get(field))
+        if v > 0:
+            return v
+    return 0.0
+
+
+class _TeamCumulativeTracker:
+    """Tracks running cumulative stats for one team across a season.
+
+    Maintains separate accumulators for:
+    - Overall stats (all matches)
+    - Home-only stats (venue splits)
+    - Away-only stats (venue splits)
+    - Opponent-conceded stats (what opponents concede TO this team)
+    """
+
+    __slots__ = ("_sums", "_counts", "_home_sums", "_home_counts",
+                 "_away_sums", "_away_counts",
+                 "_opp_conceded_sums", "_opp_conceded_counts",
+                 "_recent_goals", "_recent_cards")
+
+    def __init__(self):
+        # Overall accumulators: stat_field -> running_sum
+        self._sums: Dict[str, float] = {}
+        self._counts: Dict[str, int] = {}
+        # Venue-split accumulators
+        self._home_sums: Dict[str, float] = {}
+        self._home_counts: Dict[str, int] = {}
+        self._away_sums: Dict[str, float] = {}
+        self._away_counts: Dict[str, int] = {}
+        # Opponent-conceded accumulators (what the opposing team produced
+        # against this team — used for defensive profile)
+        # Keys: "goals", "corners", "cards_total", "sot"
+        self._opp_conceded_sums: Dict[str, float] = {}
+        self._opp_conceded_counts: Dict[str, int] = {}
+        # Recent form: last-5 goals and cards (FIFO)
+        self._recent_goals: List[float] = []
+        self._recent_cards: List[float] = []
+
+    @property
+    def match_count(self) -> int:
+        """Total matches accumulated so far."""
+        return self._counts.get("goals", 0)
+
+    def snapshot_profile_meta(self) -> dict:
+        """Return a profile-metadata-like dict from cumulative stats so far.
+
+        The output keys match what _profile_meta_to_fixture_row() expects
+        as its ``meta`` input, ensuring that training features match the
+        inference code path exactly.
+        """
+        meta: Dict[str, float] = {}
+
+        # Overall averages -> profile meta fields
+        for fx_field, (meta_field, default) in _CUMUL_STAT_FIELDS.items():
+            s = self._sums.get(fx_field, 0.0)
+            c = self._counts.get(fx_field, 0)
+            meta[meta_field] = s / c if c > 0 else default
+
+        # SoT average -> sot_for_pm
+        sot_s = self._sums.get("sot", 0.0)
+        sot_c = self._counts.get("sot", 0)
+        meta["sot_for_pm"] = sot_s / sot_c if sot_c > 0 else 4.0
+
+        # Venue-split rates for goals, corners, cards, sot
+        for stat_key, home_field, away_field in [
+            ("goals",      "goals_home_pm",   "goals_away_pm"),
+            ("corners",    "corners_home_pm",  "corners_away_pm"),
+            ("cards_total","cards_home_pm",    "cards_away_pm"),
+            ("sot",        "sot_home_pm",      "sot_away_pm"),
+        ]:
+            h_s = self._home_sums.get(stat_key, 0.0)
+            h_c = self._home_counts.get(stat_key, 0)
+            a_s = self._away_sums.get(stat_key, 0.0)
+            a_c = self._away_counts.get(stat_key, 0)
+            # Fallback to overall average when no venue data yet
+            overall = meta.get({
+                "goals": "goals_for_pm",
+                "corners": "corners_pm",
+                "cards_total": "cards_per_90_team",
+                "sot": "sot_for_pm",
+            }.get(stat_key, "goals_for_pm"), 1.3)
+            meta[home_field] = h_s / h_c if h_c > 0 else overall
+            meta[away_field] = a_s / a_c if a_c > 0 else overall
+
+        # Opponent-conceded averages -> defensive profile fields
+        for opp_key, meta_field, default in [
+            ("goals",      "goals_against_pm",     0.0),
+            ("corners",    "corners_against_pm",    0.0),
+            ("cards_total","opp_cards_induced_pm",  0.0),
+            ("sot",        "sot_against_pm",        0.0),
+        ]:
+            s = self._opp_conceded_sums.get(opp_key, 0.0)
+            c = self._opp_conceded_counts.get(opp_key, 0)
+            meta[meta_field] = s / c if c > 0 else default
+
+        # matches_played (for gameweek_progress)
+        meta["matches_played"] = float(self.match_count)
+
+        return meta
+
+    def update(self, row: dict, is_home: bool, opp_row: dict) -> None:
+        """Update accumulators with one fixture's data.
+
+        Args:
+            row: This team's fixture row.
+            is_home: Whether this team was the home side.
+            opp_row: The opponent's fixture row (used for conceded stats).
+        """
+        # -- Overall stats --
+        for fx_field in _CUMUL_STAT_FIELDS:
+            val = _safe_float(row.get(fx_field))
+            self._sums[fx_field] = self._sums.get(fx_field, 0.0) + val
+            self._counts[fx_field] = self._counts.get(fx_field, 0) + 1
+
+        # SoT (separate because of field name variations)
+        sot_val = _get_sot_value(row)
+        self._sums["sot"] = self._sums.get("sot", 0.0) + sot_val
+        self._counts["sot"] = self._counts.get("sot", 0) + 1
+
+        # -- Venue splits --
+        venue_sums = self._home_sums if is_home else self._away_sums
+        venue_counts = self._home_counts if is_home else self._away_counts
+        for stat_key, fx_field in [("goals", "goals"), ("corners", "corners"),
+                                    ("cards_total", "cards_total")]:
+            val = _safe_float(row.get(fx_field))
+            venue_sums[stat_key] = venue_sums.get(stat_key, 0.0) + val
+            venue_counts[stat_key] = venue_counts.get(stat_key, 0) + 1
+        # SoT venue split
+        venue_sums["sot"] = venue_sums.get("sot", 0.0) + sot_val
+        venue_counts["sot"] = venue_counts.get("sot", 0) + 1
+
+        # -- Opponent-conceded stats (what the opponent produced against us) --
+        for stat_key, fx_field in [("goals", "goals"), ("corners", "corners"),
+                                    ("cards_total", "cards_total")]:
+            opp_val = _safe_float(opp_row.get(fx_field))
+            self._opp_conceded_sums[stat_key] = self._opp_conceded_sums.get(stat_key, 0.0) + opp_val
+            self._opp_conceded_counts[stat_key] = self._opp_conceded_counts.get(stat_key, 0) + 1
+        # SoT conceded
+        opp_sot = _get_sot_value(opp_row)
+        self._opp_conceded_sums["sot"] = self._opp_conceded_sums.get("sot", 0.0) + opp_sot
+        self._opp_conceded_counts["sot"] = self._opp_conceded_counts.get("sot", 0) + 1
+
+        # -- Recent form (last 5) --
+        self._recent_goals.append(_safe_float(row.get("goals")))
+        if len(self._recent_goals) > 5:
+            self._recent_goals.pop(0)
+        self._recent_cards.append(_safe_float(row.get("cards_total")))
+        if len(self._recent_cards) > 5:
+            self._recent_cards.pop(0)
+
+    def avg_goals_last_5(self) -> float:
+        if not self._recent_goals:
+            return 1.3
+        return sum(self._recent_goals) / len(self._recent_goals)
+
+    def avg_cards_last_5(self) -> float:
+        if not self._recent_cards:
+            return 2.0
+        return sum(self._recent_cards) / len(self._recent_cards)
+
+
+def _build_cumulative_training_data(
+    all_pairs: List[Tuple[dict, dict, str]],
+    elo: Optional[Dict] = None,
+    referee_profiles: Optional[Dict] = None,
+) -> Dict[str, Tuple[np.ndarray, np.ndarray]]:
+    """Build training matrices using rolling cumulative profiles.
+
+    For each fixture, we compute what each team's season-average profile
+    looked like *before* that match (rolling cumulative mean), then feed
+    those profiles through ``_profile_meta_to_fixture_row()`` ->
+    ``_extract_features()`` — the exact same code path used at inference.
+
+    This eliminates the train/serve distribution mismatch where the scaler
+    was fitted on per-match values but inference feeds season averages.
+
+    Args:
+        all_pairs: Chronologically sorted list of (home_row, away_row, league).
+        elo: Pre-built Elo ratings dict (optional).
+        referee_profiles: Loaded referee profiles (optional).
+
+    Returns:
+        Dict mapping stat_type -> (X_array, y_array) ready for model training.
+    """
+    if referee_profiles is None:
+        referee_profiles = {}
+
+    # Cumulative trackers: (team_lower, season_key) -> _TeamCumulativeTracker
+    # We key by (team, season) to avoid blending across seasons.
+    trackers: Dict[Tuple[str, str], _TeamCumulativeTracker] = {}
+
+    # Pre-compute rest days (same logic as existing code)
+    rest_days_map: Dict[str, Dict[str, int]] = {}
+    team_last_date: Dict[str, str] = {}
+    for home_row, away_row, _lg in all_pairs:
+        h_team = (home_row.get("team") or "").lower().strip()
+        a_team = (away_row.get("team") or "").lower().strip()
+        fx_date = str(home_row.get("fixture_date") or away_row.get("fixture_date") or "")
+        fx_key = str(home_row.get("fixture_id") or home_row.get("fixture", ""))
+
+        h_rest = REST_DAYS_DEFAULT
+        a_rest = REST_DAYS_DEFAULT
+
+        if fx_date and h_team and h_team in team_last_date:
+            try:
+                curr = datetime.strptime(fx_date[:10], "%Y-%m-%d")
+                prev = datetime.strptime(team_last_date[h_team][:10], "%Y-%m-%d")
+                h_rest = min(REST_DAYS_CAP, max(1, (curr - prev).days))
+            except (ValueError, TypeError):
+                pass
+        if fx_date and a_team and a_team in team_last_date:
+            try:
+                curr = datetime.strptime(fx_date[:10], "%Y-%m-%d")
+                prev = datetime.strptime(team_last_date[a_team][:10], "%Y-%m-%d")
+                a_rest = min(REST_DAYS_CAP, max(1, (curr - prev).days))
+            except (ValueError, TypeError):
+                pass
+
+        rest_days_map[fx_key] = {"home": h_rest, "away": a_rest}
+        if fx_date:
+            if h_team:
+                team_last_date[h_team] = fx_date
+            if a_team:
+                team_last_date[a_team] = fx_date
+
+    # Accumulators per stat
+    stat_data: Dict[str, Tuple[List[np.ndarray], List[float]]] = {
+        s: ([], []) for s in STAT_TYPES
+    }
+
+    # H2H history tracker (shared across stats for simplicity, reset is per-stat below)
+    h2h_histories: Dict[str, Dict[str, Dict[str, List[float]]]] = {
+        s: {} for s in STAT_TYPES
+    }
+    team_match_counts: Dict[str, Dict[str, int]] = {
+        s: {} for s in STAT_TYPES
+    }
+
+    n_skipped_min = 0
+    n_used = 0
+
+    for home_row, away_row, league in all_pairs:
+        h_team = (home_row.get("team") or "").lower().strip()
+        a_team = (away_row.get("team") or "").lower().strip()
+        if not h_team or not a_team:
+            continue
+
+        fx_key = str(home_row.get("fixture_id") or home_row.get("fixture", ""))
+        fx_date = str(home_row.get("fixture_date") or away_row.get("fixture_date") or "")
+
+        # Derive season key from fixture_date (e.g., "2024" from "2024-09-15")
+        season_key = fx_date[:4] if len(fx_date) >= 4 else "unknown"
+
+        h_tracker_key = (h_team, season_key)
+        a_tracker_key = (a_team, season_key)
+
+        # Initialize trackers if needed
+        if h_tracker_key not in trackers:
+            trackers[h_tracker_key] = _TeamCumulativeTracker()
+        if a_tracker_key not in trackers:
+            trackers[a_tracker_key] = _TeamCumulativeTracker()
+
+        h_tracker = trackers[h_tracker_key]
+        a_tracker = trackers[a_tracker_key]
+
+        # Check minimum match threshold BEFORE using profiles
+        if h_tracker.match_count < _CUMULATIVE_MIN_MATCHES or \
+           a_tracker.match_count < _CUMULATIVE_MIN_MATCHES:
+            # Still update trackers with this match's data, just don't use
+            # it for training
+            is_h_home = True  # home_row is always the home team from _pair_fixtures
+            h_tracker.update(home_row, is_home=True, opp_row=away_row)
+            a_tracker.update(away_row, is_home=False, opp_row=home_row)
+            n_skipped_min += 1
+            continue
+
+        # --- Snapshot cumulative profiles BEFORE this match ---
+        h_meta = h_tracker.snapshot_profile_meta()
+        a_meta = a_tracker.snapshot_profile_meta()
+
+        # Inject recent form from tracker (not from snapshot, which has averages)
+        h_meta["_avg_goals_last_5"] = h_tracker.avg_goals_last_5()
+        h_meta["_avg_cards_last_5"] = h_tracker.avg_cards_last_5()
+        a_meta["_avg_goals_last_5"] = a_tracker.avg_goals_last_5()
+        a_meta["_avg_cards_last_5"] = a_tracker.avg_cards_last_5()
+
+        # Convert profiles to fixture rows via the SAME function used at inference
+        h_row_synth = _profile_meta_to_fixture_row(h_meta, h_team)
+        a_row_synth = _profile_meta_to_fixture_row(a_meta, a_team)
+
+        # Override recent form with actual tracked values (profile_meta_to_fixture_row
+        # uses goals_for_pm as proxy, but we have real recent form)
+        h_row_synth["avg_goals_last_5"] = h_meta["_avg_goals_last_5"]
+        h_row_synth["avg_cards_last_5"] = h_meta["_avg_cards_last_5"]
+        a_row_synth["avg_goals_last_5"] = a_meta["_avg_goals_last_5"]
+        a_row_synth["avg_cards_last_5"] = a_meta["_avg_cards_last_5"]
+
+        # Rest days and gameweek progress
+        rest = rest_days_map.get(fx_key)
+        h_played = h_tracker.match_count
+        a_played = a_tracker.match_count
+        gw_progress = _compute_gameweek_progress(
+            int((h_played + a_played) / 2.0), league
+        )
+
+        # Extract features for each stat type
+        for stat in STAT_TYPES:
+            h_val = _get_stat_value(home_row, stat)
+            a_val = _get_stat_value(away_row, stat)
+            target = h_val + a_val
+            if target <= 0 and stat != "goals":
+                continue
+
+            # H2H average from past meetings
+            h2h_avg = _compute_h2h_avg(
+                h2h_histories[stat], h_team, a_team, stat
+            )
+
+            # Team match count for this stat (for gameweek_progress)
+            tmc = team_match_counts[stat]
+
+            feats = _extract_features(
+                h_row_synth, a_row_synth, elo=elo, stat=stat, league=league,
+                opp_home_row=h_row_synth,   # home profile as opponent context for away
+                opp_away_row=a_row_synth,   # away profile as opponent context for home
+                rest_days=rest,
+                referee_info=None,  # neutral during training
+                gameweek_progress=gw_progress,
+                h2h_avg=h2h_avg,
+            )
+            if feats is None:
+                continue
+
+            X_list, y_list = stat_data[stat]
+            X_list.append(feats)
+            y_list.append(target)
+
+            # Update H2H AFTER feature extraction (no future leakage)
+            key = _h2h_key(h_team, a_team)
+            h2h_histories[stat].setdefault(key, {}).setdefault(stat, []).append(target)
+            tmc[h_team] = tmc.get(h_team, 0) + 1
+            tmc[a_team] = tmc.get(a_team, 0) + 1
+
+        # --- Update trackers AFTER snapshotting profiles ---
+        h_tracker.update(home_row, is_home=True, opp_row=away_row)
+        a_tracker.update(away_row, is_home=False, opp_row=home_row)
+        n_used += 1
+
+    print(f"  Cumulative profiles: {n_used} fixtures used, "
+          f"{n_skipped_min} skipped (< {_CUMULATIVE_MIN_MATCHES} prior matches)")
+
+    # Convert to numpy arrays
+    result: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
+    for stat in STAT_TYPES:
+        X_list, y_list = stat_data[stat]
+        if len(y_list) >= 50:
+            result[stat] = (np.array(X_list), np.array(y_list))
+        else:
+            print(f"  [{stat}] Only {len(y_list)} cumulative samples, skipping.")
+    return result
+
+
+def build_regression_models_cumulative(
+    leagues: Optional[List[str]] = None,
+    elo: Optional[Dict] = None,
+) -> Dict[str, object]:
+    """Train regression models using rolling cumulative profiles.
+
+    This is the distribution-matched alternative to build_regression_models().
+    Training features are constructed from cumulative season averages (the same
+    representation used at inference time), eliminating the train/serve skew
+    that caused non-EPL leagues to predict ~4 corners when actuals are ~9.5.
+
+    The only difference from build_regression_models() is HOW the feature rows
+    are built. Everything else (model selection, CV, weighting, saving) is
+    identical.
+    """
+    if not _HAS_SKLEARN:
+        print("scikit-learn not available — skipping regression models.")
+        return {}
+
+    from sklearn.model_selection import TimeSeriesSplit
+
+    leagues = leagues or ALL_LEAGUES
+    all_pairs: List[Tuple[dict, dict, str]] = []
+    for league in leagues:
+        rows = _load_fixture_rows(league)
+        if rows:
+            pairs = _pair_fixtures(rows)
+            pairs = _sort_pairs_by_date(pairs)
+            for h, a in pairs:
+                all_pairs.append((h, a, league))
+
+    # Sort all pairs chronologically for time-series CV
+    all_pairs.sort(key=lambda t: str(t[0].get("fixture_date", "")))
+
+    if len(all_pairs) < 50:
+        print(f"Only {len(all_pairs)} fixtures — too few to train. Need at least 50.")
+        return {}
+
+    use_lgb = _HAS_LGB and len(all_pairs) >= LGB_MIN_SAMPLES
+    model_type = "LightGBM" if use_lgb else "Ridge"
+    print(f"Training (cumulative profiles) on {len(all_pairs)} fixtures "
+          f"across {len(leagues)} league(s) ({model_type}).")
+
+    # Load referee profiles
+    print("  Loading referee profiles...")
+    referee_profiles = _load_referee_profiles()
+
+    # Build cumulative training data
+    print("  Building cumulative profiles...")
+    stat_datasets = _build_cumulative_training_data(
+        all_pairs, elo=elo, referee_profiles=referee_profiles,
+    )
+
+    models: Dict[str, object] = {}
+    r2_meta: Dict[str, float] = {}
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
+
+    for stat in STAT_TYPES:
+        if stat not in stat_datasets:
+            print(f"  [{stat}] No cumulative data available, skipping.")
+            continue
+
+        X, y = stat_datasets[stat]
+
+        if len(y) < 50:
+            print(f"  [{stat}] Only {len(y)} samples, skipping.")
+            continue
+
+        # Recency weights: most recent fixture = 1.0, oldest ~0.3
+        _recency_alpha = 0.998
+        n_samples = len(y)
+        sample_weights = np.array([_recency_alpha ** (n_samples - 1 - i)
+                                   for i in range(n_samples)])
+
+        tscv = TimeSeriesSplit(n_splits=5)
+
+        if use_lgb:
+            best_model, best_r2 = _train_lgb(X, y, tscv, stat,
+                                              sample_weights=sample_weights)
+        else:
+            best_model, best_r2 = _train_ridge(X, y, tscv,
+                                                sample_weights=sample_weights)
+
+        # Final metrics with best model (unweighted CV for comparable R2)
+        r2_scores = cross_val_score(best_model, X, y,
+                                    cv=TimeSeriesSplit(n_splits=5), scoring="r2")
+        mae_scores = -cross_val_score(best_model, X, y,
+                                       cv=TimeSeriesSplit(n_splits=5),
+                                       scoring="neg_mean_absolute_error")
+
+        print(f"  [{stat}] R2={r2_scores.mean():.3f} (+/-{r2_scores.std():.3f})  "
+              f"MAE={mae_scores.mean():.2f} (+/-{mae_scores.std():.2f})  "
+              f"model={model_type}  n={len(y)}  features={X.shape[1]}")
+
+        # Train on full data with recency weights
+        if use_lgb:
+            best_model.fit(X, y, sample_weight=sample_weights)
+        else:
+            best_model.fit(X, y, ridge__sample_weight=sample_weights)
+        model_path = MODELS_DIR / f"{stat}_ridge.joblib"
+        joblib.dump(best_model, model_path)
+        models[stat] = best_model
+
+        # Save R2 metadata for query-time gating
+        r2_meta[stat] = round(float(r2_scores.mean()), 4)
+
+        # Save feature importance (LightGBM only)
+        if use_lgb and hasattr(best_model, 'feature_importances_'):
+            _save_feature_importance(best_model, stat, X.shape[1])
+
+    # Save R2 metadata
+    r2_path = MODELS_DIR / "model_r2.json"
+    with open(r2_path, "w") as f:
+        json.dump(r2_meta, f, indent=2)
+    print(f"Saved {len(models)} models to {MODELS_DIR} (R2 metadata: {r2_meta})")
+
+    # Save training history
+    _append_training_history(r2_meta, f"{model_type}_cumulative")
+
+    return models
+
+
+# ---------------------------------------------------------------------------
 # Dynamic blend weight
 # ---------------------------------------------------------------------------
 
@@ -1162,6 +1688,8 @@ def _print_feature_importance(stat: str) -> None:
 def main():
     parser = argparse.ArgumentParser(description="ML edge layer: Elo + regression models.")
     parser.add_argument("--train", action="store_true", help="Train all models + build Elo.")
+    parser.add_argument("--train-cumulative", action="store_true",
+                        help="Train using rolling cumulative profiles (fixes train/serve distribution mismatch).")
     parser.add_argument("--league", type=str, default=None,
                         help="Restrict to one league (e.g. EPL).")
     parser.add_argument("--elo-table", action="store_true", help="Print Elo rankings.")
@@ -1179,6 +1707,15 @@ def main():
 
     if args.importance:
         _print_feature_importance(args.importance)
+
+    elif args.train_cumulative:
+        print("Building Elo ratings...")
+        elo = build_elo_ratings(leagues)
+        save_elo(elo)
+        print()
+        print("Training regression models (cumulative profiles)...")
+        build_regression_models_cumulative(leagues, elo=elo)
+        print("\nDone.")
 
     elif args.train:
         print("Building Elo ratings...")

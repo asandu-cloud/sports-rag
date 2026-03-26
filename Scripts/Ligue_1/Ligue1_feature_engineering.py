@@ -224,8 +224,21 @@ def merge_team_with_fixture(team_df, fixture_df):
             fx[col] = 0
         fx[col] = pd.to_numeric(fx[col], errors="coerce").fillna(0)
 
+    # --- 4b) Add metadata columns if they exist in the fixture data
+    meta_cols = ["fixture_id", "fixture_date", "fixture_date_utc", "home_team", "away_team",
+                 "final_score", "final_score_string", "home_goals", "away_goals"]
+    for col in meta_cols:
+        if col not in fx.columns:
+            if col in ["home_goals", "away_goals"]:
+                fx[col] = 0
+            else:
+                fx[col] = None
+
     # --- 5) Merge directly on normalized keys (object dtype on both sides)
     keep_cols = ["fixture_norm", "team_norm"] + required_fx_cols
+    for col in meta_cols:
+        if col in fx.columns and col not in keep_cols:
+            keep_cols.append(col)
     merged = df.merge(fx[keep_cols], on=["fixture_norm", "team_norm"], how="left")
 
     # --- 6) Guarantee numeric safety post-merge

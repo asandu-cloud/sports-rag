@@ -35,7 +35,9 @@ from config import (  # noqa: E402
     CHANNEL_PARLAYS,
     CHANNEL_PLAYER_PROPS,
     CHANNEL_TEAM_LINES,
-    # Legacy aliases (all map to the 3 channels above via config.py)
+    CHANNEL_BEST_PICKS,
+    CHANNEL_NEWSLETTER,
+    # Legacy aliases (all map to the channels above via config.py)
     CHANNEL_PARLAY_OF_DAY,
     CHANNEL_MATCHDAY_DIGEST,
     CHANNEL_VALUE_ALERTS,
@@ -57,10 +59,17 @@ from config import (  # noqa: E402
 
 # Prediction tracker (optional — graceful if unavailable)
 try:
-    from prediction_tracker import resolve_outcomes, get_track_record
+    from prediction_tracker import resolve_outcomes, get_track_record, get_daily_breakdown, capture_closing_odds
     _HAS_TRACKER = True
 except ImportError:
     _HAS_TRACKER = False
+
+# Newsletter (optional — graceful if unavailable)
+try:
+    from newsletter import generate_newsletter
+    _HAS_NEWSLETTER = True
+except ImportError:
+    _HAS_NEWSLETTER = False
 
 log = logging.getLogger("auto_push")
 
@@ -607,6 +616,167 @@ def _build_player_props_embed(
     return em
 
 
+def _build_best_picks_embeds(breakdown: dict, date_str: str) -> list:
+    """Build Discord embeds for the daily best-picks recap.
+
+    Returns a list of Embed objects (typically 1-2):
+    1. Main summary with per-market and per-league breakdown
+    2. Notable hits and misses (if any)
+    """
+    hits = breakdown.get("hits", 0)
+    misses = breakdown.get("misses", 0)
+    pushes = breakdown.get("pushes", 0)
+    total = breakdown.get("total", 0)
+    decided = hits + misses
+    hit_rate = breakdown.get("hit_rate", 0.0)
+
+    # Color based on hit rate
+    if hit_rate >= 0.60:
+        color = COLOR_GREEN
+    elif hit_rate >= 0.50:
+        color = COLOR_YELLOW
+    else:
+        color = COLOR_RED
+
+    # Header emoji based on performance
+    if hit_rate >= 0.65:
+        header = "Yesterday's Recap  —  Great Day"
+    elif hit_rate >= 0.55:
+        header = "Yesterday's Recap  —  Solid Day"
+    elif hit_rate >= 0.50:
+        header = "Yesterday's Recap  —  Mixed Day"
+    else:
+        header = "Yesterday's Recap  —  Tough Day"
+
+    em = discord.Embed(
+        title=header,
+        description=(
+            f"**{date_str}**\n"
+            f"**{hits}/{decided}** predictions hit (**{hit_rate:.0%}**)"
+            + (f"  |  {pushes} push" if pushes else "")
+        ),
+        color=color,
+    )
+
+    # ── By Market ──
+    market_emojis = {
+        "goals": "Goals", "corners": "Corners", "cards": "Cards",
+        "sot": "SoT", "btts": "BTTS", "moneyline": "1X2",
+        "spreads": "Spreads", "correct_score": "Correct Score",
+    }
+    by_market = breakdown.get("by_market", {})
+    market_lines = []
+    # Sort by hit rate desc, then by total desc
+    sorted_markets = sorted(
+        by_market.items(),
+        key=lambda x: (x[1].get("hit_rate", 0), x[1].get("total", 0)),
+        reverse=True,
+    )
+    for mkt, data in sorted_markets:
+        mh = data.get("hits", 0)
+        mm = data.get("misses", 0)
+        md = mh + mm
+        if md == 0:
+            continue
+        mr = data.get("hit_rate", 0)
+        # Performance indicator
+        if mr >= 0.70:
+            ind = "+"
+        elif mr >= 0.50:
+            ind = "~"
+        else:
+            ind = "-"
+        label = market_emojis.get(mkt, mkt.title())
+        push_str = f" (+{data.get('pushes', 0)}P)" if data.get("pushes", 0) else ""
+        market_lines.append(f"`{ind}` **{label}**: {mh}/{md} ({mr:.0%}){push_str}")
+
+    if market_lines:
+        em.add_field(name="By Market", value="\n".join(market_lines), inline=False)
+
+    # ── By League ──
+    league_emojis = {
+        "EPL": "EPL", "LaLiga": "LaLiga", "SerieA": "Serie A",
+        "Bundesliga": "Bundesliga", "Ligue1": "Ligue 1",
+        "UCL": "UCL", "UEL": "UEL", "UECL": "UECL",
+    }
+    by_league = breakdown.get("by_league", {})
+    league_lines = []
+    sorted_leagues = sorted(
+        by_league.items(),
+        key=lambda x: (x[1].get("hit_rate", 0), x[1].get("total", 0)),
+        reverse=True,
+    )
+    for lg, data in sorted_leagues:
+        lh = data.get("hits", 0)
+        lm = data.get("misses", 0)
+        ld = lh + lm
+        if ld == 0:
+            continue
+        lr = data.get("hit_rate", 0)
+        if lr >= 0.70:
+            ind = "+"
+        elif lr >= 0.50:
+            ind = "~"
+        else:
+            ind = "-"
+        label = league_emojis.get(lg, lg)
+        league_lines.append(f"`{ind}` **{label}**: {lh}/{ld} ({lr:.0%})")
+
+    if league_lines:
+        em.add_field(name="By League", value="\n".join(league_lines), inline=False)
+
+    # ── By Confidence ──
+    by_conf = breakdown.get("by_confidence", {})
+    conf_lines = []
+    conf_labels = {"high": "Strong Edge", "medium": "Leaning", "low": "Speculative"}
+    for level in ["high", "medium", "low"]:
+        c = by_conf.get(level, {})
+        ct = c.get("total", 0)
+        if ct == 0:
+            continue
+        ch = c.get("hits", 0)
+        cr = c.get("hit_rate", 0)
+        label = conf_labels.get(level, level.title())
+        conf_lines.append(f"**{label}**: {ch}/{ct} ({cr:.0%})")
+    if conf_lines:
+        em.add_field(name="By Confidence", value="\n".join(conf_lines), inline=False)
+
+    em.set_footer(text=f"{total} predictions graded | Spick's Picks")
+
+    embeds = [em]
+
+    # ── Notable Hits & Misses (second embed) ──
+    notable_hits = breakdown.get("notable_hits", [])
+    notable_misses = breakdown.get("notable_misses", [])
+
+    if notable_hits or notable_misses:
+        em2 = discord.Embed(
+            title="Notable Picks",
+            color=COLOR_BLUE,
+        )
+
+        if notable_hits:
+            hit_lines = []
+            for h in notable_hits[:4]:
+                odds_str = f" @ {h['odds']:.2f}" if h.get("odds") else ""
+                lg = h.get("league", "")
+                hit_lines.append(f"**{lg}** {h['fixture']} — {h['pick']}{odds_str}")
+            em2.add_field(name="Best Hits", value="\n".join(hit_lines), inline=False)
+
+        if notable_misses:
+            miss_lines = []
+            for m in notable_misses[:3]:
+                prob_str = f" (P={m['model_prob']:.0%})" if m.get("model_prob") else ""
+                lg = m.get("league", "")
+                miss_lines.append(f"**{lg}** {m['fixture']} — {m['pick']}{prob_str}")
+            em2.add_field(name="Upsets / Misses", value="\n".join(miss_lines), inline=False)
+
+        em2.set_footer(text="Spick's Picks")
+        embeds.append(em2)
+
+    return embeds
+
+
 class AutoPush(commands.Cog):
     """Scheduled auto-posting tasks."""
 
@@ -622,7 +792,7 @@ class AutoPush(commands.Cog):
         self._posted_today[task_name] = date.today().isoformat()
 
     async def cog_load(self):
-        # Main scheduled tasks — use new 3-channel structure
+        # Main scheduled tasks
         self.market_channels.start()
         if CHANNEL_PLAYER_PROPS:
             self.player_props_pre_match.start()
@@ -631,6 +801,12 @@ class AutoPush(commands.Cog):
             self.value_scan.start()
         if CHANNEL_PARLAYS and _HAS_TRACKER:
             self.daily_track_record.start()
+        if CHANNEL_BEST_PICKS and _HAS_TRACKER:
+            self.best_picks_recap.start()
+        if _HAS_TRACKER:
+            self.clv_capture.start()
+        if CHANNEL_NEWSLETTER and _HAS_NEWSLETTER:
+            self.newsletter_digest.start()
 
     async def cog_unload(self):
         for task in [self.daily_parlay, self.value_scan, self.market_channels,
@@ -639,6 +815,12 @@ class AutoPush(commands.Cog):
                 task.cancel()
         if hasattr(self, "daily_track_record") and self.daily_track_record.is_running():
             self.daily_track_record.cancel()
+        if hasattr(self, "best_picks_recap") and self.best_picks_recap.is_running():
+            self.best_picks_recap.cancel()
+        if hasattr(self, "clv_capture") and self.clv_capture.is_running():
+            self.clv_capture.cancel()
+        if hasattr(self, "newsletter_digest") and self.newsletter_digest.is_running():
+            self.newsletter_digest.cancel()
 
     # ===================================================================
     # MARKET CHANNELS — auto-post before kickoff
@@ -1039,6 +1221,143 @@ class AutoPush(commands.Cog):
         await self.bot.wait_until_ready()
 
     # ===================================================================
+    # BEST PICKS RECAP — morning after, resolves + posts per-market/league
+    # ===================================================================
+
+    @tasks.loop(time=dt_time(hour=9, minute=0))
+    async def best_picks_recap(self):
+        """Resolve yesterday's predictions and post a detailed recap to #best-picks."""
+        channel = self.bot.get_channel(CHANNEL_BEST_PICKS)
+        if not channel:
+            return
+
+        if self._already_posted("best_picks_recap"):
+            return
+
+        yesterday = (date.today() - timedelta(days=1)).isoformat()
+
+        # Step 1: resolve outcomes (uses API-Football fallback)
+        loop = asyncio.get_running_loop()
+        try:
+            resolve_result = await loop.run_in_executor(
+                _rag_executor, lambda: resolve_outcomes(prediction_date=yesterday)
+            )
+            graded = resolve_result.get("graded", 0)
+            log.info("Best picks recap: resolved %d predictions for %s", graded, yesterday)
+        except Exception as exc:
+            log.error("Best picks recap: failed to resolve %s: %s", yesterday, exc)
+            return
+
+        if graded == 0:
+            return
+
+        # Step 2: get detailed breakdown
+        try:
+            breakdown = await loop.run_in_executor(
+                _rag_executor, lambda: get_daily_breakdown(prediction_date=yesterday)
+            )
+        except Exception as exc:
+            log.error("Best picks recap: failed to get breakdown: %s", exc)
+            return
+
+        if breakdown.get("total", 0) == 0:
+            return
+
+        # Step 3: build embeds and send
+        embeds = _build_best_picks_embeds(breakdown, yesterday)
+        for em in embeds:
+            await channel.send(embed=em)
+
+        self._mark_posted("best_picks_recap")
+
+    @best_picks_recap.before_loop
+    async def _wait_best_picks(self):
+        await self.bot.wait_until_ready()
+
+    # ===================================================================
+    # CLV CAPTURE — capture closing odds before kickoff
+    # ===================================================================
+
+    @tasks.loop(minutes=10)
+    async def clv_capture(self):
+        """Capture closing odds for today's predictions every 10 minutes.
+
+        Only runs on days with fixtures. The underlying capture_closing_odds()
+        is idempotent — it only updates predictions where closing_odds IS NULL,
+        so running frequently is safe and lightweight.
+        """
+        try:
+            first_kickoff, active_leagues = _get_todays_leagues()
+            if not active_leagues:
+                return
+
+            today_str = date.today().isoformat()
+            loop = asyncio.get_running_loop()
+            result = await loop.run_in_executor(
+                _rag_executor, lambda: capture_closing_odds(prediction_date=today_str)
+            )
+            captured = result.get("captured", 0)
+            if captured > 0:
+                log.info("CLV capture: updated closing odds for %d predictions", captured)
+        except Exception as exc:
+            log.error("CLV capture failed: %s", exc, exc_info=True)
+
+    @clv_capture.before_loop
+    async def _wait_clv(self):
+        await self.bot.wait_until_ready()
+
+    # ===================================================================
+    # NEWSLETTER DIGEST — matchday intel from local news sources (WHALE only)
+    # ===================================================================
+
+    @tasks.loop(time=dt_time(hour=9, minute=0))
+    async def newsletter_digest(self):
+        """Post matchday newsletter digest to #newsletter (WHALE only channel)."""
+        channel = self.bot.get_channel(CHANNEL_NEWSLETTER)
+        if not channel:
+            return
+
+        first_kickoff, active_leagues = _get_todays_leagues()
+        if not active_leagues:
+            return
+
+        if self._already_posted("newsletter"):
+            return
+
+        log.info("Generating matchday newsletter for %d leagues...", len(active_leagues))
+        loop = asyncio.get_running_loop()
+
+        try:
+            digests = await loop.run_in_executor(
+                _rag_executor, lambda: generate_newsletter(active_leagues)
+            )
+        except Exception as exc:
+            log.error("Newsletter generation failed: %s", exc, exc_info=True)
+            return
+
+        for league, digest_text in digests.items():
+            if not digest_text or not digest_text.strip():
+                continue
+
+            em = discord.Embed(
+                title=f"\U0001f4f0  Matchday Intel \u2014 {league}",
+                description=digest_text[:4096],
+                color=COLOR_BLUE,
+            )
+            em.set_footer(text=f"Spick's Picks \u2502 Sources: local sports media \u2502 WHALE exclusive")
+            try:
+                await channel.send(embed=em)
+            except Exception as exc:
+                log.error("Failed to send newsletter for %s: %s", league, exc)
+
+        self._mark_posted("newsletter")
+        log.info("Newsletter posted for %d leagues", len(digests))
+
+    @newsletter_digest.before_loop
+    async def _wait_newsletter(self):
+        await self.bot.wait_until_ready()
+
+    # ===================================================================
     # MANUAL TRIGGER (owner only)
     # ===================================================================
 
@@ -1052,6 +1371,10 @@ class AutoPush(commands.Cog):
         discord.app_commands.Choice(name="Team Lines", value="team_lines"),
         discord.app_commands.Choice(name="Parlays", value="parlays"),
         discord.app_commands.Choice(name="Player Props", value="player_props"),
+        discord.app_commands.Choice(name="Track Record", value="track_record"),
+        discord.app_commands.Choice(name="Best Picks Recap", value="best_picks_recap"),
+        discord.app_commands.Choice(name="CLV Capture", value="clv_capture"),
+        discord.app_commands.Choice(name="Newsletter", value="newsletter"),
         discord.app_commands.Choice(name="Everything", value="everything"),
     ])
     async def trigger(
@@ -1066,6 +1389,98 @@ class AutoPush(commands.Cog):
             return
 
         await interaction.response.defer(thinking=True, ephemeral=True)
+
+        # CLV capture doesn't need today's fixtures
+        if task.value == "clv_capture":
+            try:
+                today_str = date.today().isoformat()
+                loop = asyncio.get_running_loop()
+                result = await loop.run_in_executor(
+                    _rag_executor, lambda: capture_closing_odds(prediction_date=today_str)
+                )
+                captured = result.get("captured", 0)
+                skipped = result.get("skipped", 0)
+                await interaction.followup.send(
+                    f"CLV capture complete: {captured} updated, {skipped} skipped.",
+                    ephemeral=True,
+                )
+            except Exception as exc:
+                log.error("Manual CLV capture failed: %s", exc, exc_info=True)
+                await interaction.followup.send(f"Error: {exc}", ephemeral=True)
+            return
+
+        # Newsletter doesn't need today's fixtures check (it fetches its own)
+        if task.value == "newsletter":
+            try:
+                if not _HAS_NEWSLETTER:
+                    await interaction.followup.send("Newsletter module not available.", ephemeral=True)
+                    return
+                _, active_leagues = _get_todays_leagues()
+                if not active_leagues:
+                    active_leagues = ["EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1"]
+                loop = asyncio.get_running_loop()
+                digests = await loop.run_in_executor(
+                    _rag_executor, lambda: generate_newsletter(active_leagues)
+                )
+                nl_channel = self.bot.get_channel(CHANNEL_NEWSLETTER)
+                posted_count = 0
+                for league, text in digests.items():
+                    if text and text.strip() and nl_channel:
+                        em = discord.Embed(
+                            title=f"\U0001f4f0  Matchday Intel \u2014 {league}",
+                            description=text[:4096],
+                            color=COLOR_BLUE,
+                        )
+                        em.set_footer(text="Spick's Picks \u2502 WHALE exclusive")
+                        await nl_channel.send(embed=em)
+                        posted_count += 1
+                await interaction.followup.send(
+                    f"Newsletter posted: {posted_count} league(s).", ephemeral=True)
+            except Exception as exc:
+                log.error("Manual newsletter trigger failed: %s", exc, exc_info=True)
+                await interaction.followup.send(f"Error: {exc}", ephemeral=True)
+            return
+
+        # Best picks recap and track record don't need today's fixtures
+        if task.value in ("best_picks_recap", "track_record"):
+            posted = []
+            try:
+                if task.value == "best_picks_recap":
+                    from prediction_tracker import resolve_outcomes, get_daily_breakdown
+                    yesterday = (date.today() - timedelta(days=1)).isoformat()
+                    loop = asyncio.get_running_loop()
+                    await loop.run_in_executor(
+                        _rag_executor, lambda: resolve_outcomes(prediction_date=yesterday)
+                    )
+                    breakdown = await loop.run_in_executor(
+                        _rag_executor, lambda: get_daily_breakdown(prediction_date=yesterday)
+                    )
+                    if breakdown.get("total", 0) > 0:
+                        bp_channel = self.bot.get_channel(CHANNEL_BEST_PICKS)
+                        if bp_channel:
+                            embeds = _build_best_picks_embeds(breakdown, yesterday)
+                            for em in embeds:
+                                await bp_channel.send(embed=em)
+                            posted.append("best picks recap")
+                        else:
+                            posted.append("best picks recap (no channel configured)")
+                    else:
+                        posted.append("best picks recap (no graded predictions)")
+                else:
+                    from prediction_tracker import resolve_outcomes, get_track_record
+                    yesterday = (date.today() - timedelta(days=1)).isoformat()
+                    resolve_outcomes(prediction_date=yesterday)
+                    tr_channel = self.bot.get_channel(CHANNEL_PARLAYS)
+                    if tr_channel:
+                        await self._post_track_record_embed(tr_channel)
+                    posted.append("track record")
+                await interaction.followup.send(
+                    f"Posted: {', '.join(posted)}.", ephemeral=True)
+            except Exception as exc:
+                log.error("Manual trigger failed: %s", exc, exc_info=True)
+                await interaction.followup.send(f"Error: {exc}", ephemeral=True)
+            return
+
         date_str = _today_phrase()
         _, active_leagues = _get_todays_leagues()
         if not active_leagues:
@@ -1093,6 +1508,42 @@ class AutoPush(commands.Cog):
             if task.value in ("player_props", "everything"):
                 await self._post_player_props(leagues, date_str)
                 posted.append("player props")
+
+            if task.value in ("track_record", "everything"):
+                try:
+                    from prediction_tracker import resolve_outcomes, get_track_record
+                    yesterday = (date.today() - timedelta(days=1)).isoformat()
+                    resolve_result = resolve_outcomes(prediction_date=yesterday)
+                    graded = resolve_result.get("graded", 0)
+                    log.info("Resolved %d predictions for %s", graded, yesterday)
+                    # Post the track record embed
+                    tr_channel = self.bot.get_channel(CHANNEL_PARLAYS)
+                    if tr_channel:
+                        await self._post_track_record_embed(tr_channel)
+                except Exception as exc:
+                    log.error("Track record failed: %s", exc)
+                posted.append("track record")
+
+            if task.value in ("best_picks_recap", "everything"):
+                try:
+                    from prediction_tracker import resolve_outcomes, get_daily_breakdown
+                    yesterday = (date.today() - timedelta(days=1)).isoformat()
+                    loop = asyncio.get_running_loop()
+                    await loop.run_in_executor(
+                        _rag_executor, lambda: resolve_outcomes(prediction_date=yesterday)
+                    )
+                    breakdown = await loop.run_in_executor(
+                        _rag_executor, lambda: get_daily_breakdown(prediction_date=yesterday)
+                    )
+                    if breakdown.get("total", 0) > 0:
+                        bp_channel = self.bot.get_channel(CHANNEL_BEST_PICKS)
+                        if bp_channel:
+                            embeds = _build_best_picks_embeds(breakdown, yesterday)
+                            for em in embeds:
+                                await bp_channel.send(embed=em)
+                except Exception as exc:
+                    log.error("Best picks recap failed: %s", exc)
+                posted.append("best picks recap")
 
             await interaction.followup.send(
                 f"Posted: {', '.join(posted)}.", ephemeral=True)
@@ -1155,10 +1606,6 @@ class AutoPush(commands.Cog):
                     model_p = float(model_m.group(1)) if model_m else 0
                     edge_val = float(edge_m.group(1)) if edge_m else 0
 
-                    # Only include medium+ confidence
-                    if conf == "low":
-                        continue
-
                     label = _MARKET_LABELS.get(market_key, market_key.title())
                     all_picks.append({
                         "fixture": fixture,
@@ -1175,14 +1622,19 @@ class AutoPush(commands.Cog):
             if not all_picks:
                 continue
 
-            # Rank: high confidence first, then by edge descending
+            # Rank: high confidence first, then medium, then low; within tier by edge descending
             conf_rank = {"high": 2, "medium": 1, "low": 0}
             all_picks.sort(key=lambda p: (
                 conf_rank.get(p["conf"], 0),
                 p["edge"],
             ), reverse=True)
 
-            # Take top 8
+            # Take top 8 — prefer medium+ but fill with low if needed
+            medium_plus = [p for p in all_picks if p["conf"] in ("high", "medium")]
+            if len(medium_plus) >= 8:
+                top = medium_plus[:8]
+            else:
+                top = all_picks[:8]
             top = all_picks[:8]
 
             # Build ONE clean embed for this league
@@ -1193,9 +1645,10 @@ class AutoPush(commands.Cog):
             except Exception:
                 pass
 
+            n_strong = sum(1 for p in top if p["conf"] in ("high", "medium"))
             em = discord.Embed(
                 title=f"\U0001f4ca  Today's Top Picks \u2014 {league}",
-                description=f"**{date_str}** \u2022 {len(top)} curated picks \u2022 Medium+ confidence only",
+                description=f"**{date_str}** \u2022 {len(top)} curated picks from {len(all_picks)} analyzed",
                 color=COLOR_GREEN if any(p["conf"] == "high" for p in top) else COLOR_YELLOW,
             )
             if league_logo:
@@ -1206,9 +1659,12 @@ class AutoPush(commands.Cog):
                 if p["conf"] == "high":
                     meter = "\u25cf\u25cf\u25cf\u25cf\u25cb"
                     conf_label = "Strong Edge"
-                else:
+                elif p["conf"] == "medium":
                     meter = "\u25cf\u25cf\u25cf\u25cb\u25cb"
                     conf_label = "Leaning"
+                else:
+                    meter = "\u25cf\u25cb\u25cb\u25cb\u25cb"
+                    conf_label = "Speculative"
 
                 # Compact field
                 odds_str = f"@ {p['odds']:.2f}" if p["odds"] else ""
@@ -1341,44 +1797,42 @@ class AutoPush(commands.Cog):
                 corners = [t for t in teams if t.get("stat") == "corners"]
                 cards = [t for t in teams if t.get("stat") == "cards"]
 
-                # Build compact fixture section
+                # Build fixture section — each team on its own line for readability
                 lines = [f"**{fixture}**"]
 
                 if corners:
-                    corner_parts = []
+                    lines.append("\U0001f4d0 **Corners**")
                     for t in corners:
                         rec = t.get("recommendation", "")
                         prob = t.get("model_prob", "")
                         conf = t.get("confidence", "low").lower()
                         bar = _conf_bar(conf)
-                        entry = f"{bar} **{t['team']}**: {t['projection']} proj"
+                        entry = f"\u2003{bar} {t['team']}: {t['projection']} proj"
                         if rec:
-                            entry += f" \u2192 {rec}"
+                            entry += f" \u2192 **{rec}**"
                         if prob:
                             entry += f" ({prob})"
-                        corner_parts.append(entry)
-                    lines.append(f"\U0001f4d0 " + " | ".join(corner_parts))
+                        lines.append(entry)
 
                 if cards:
-                    card_parts = []
+                    lines.append("\U0001f7e8 **Cards**")
                     for t in cards:
                         rec = t.get("recommendation", "")
                         prob = t.get("model_prob", "")
                         conf = t.get("confidence", "low").lower()
                         bar = _conf_bar(conf)
-                        entry = f"{bar} **{t['team']}**: {t['projection']} proj"
+                        entry = f"\u2003{bar} {t['team']}: {t['projection']} proj"
                         if rec:
-                            entry += f" \u2192 {rec}"
+                            entry += f" \u2192 **{rec}**"
                         if prob:
                             entry += f" ({prob})"
-                        card_parts.append(entry)
-                    lines.append(f"\U0001f7e8 " + " | ".join(card_parts))
+                        lines.append(entry)
 
                 fixture_text = "\n".join(lines)
 
-                # Add separator between fixtures (not before first)
+                # Add separator between fixtures
                 if i > 0:
-                    fixture_text = "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n" + fixture_text
+                    fixture_text = "\u2500" * 30 + "\n" + fixture_text
 
                 # Use description for first fixture, fields for the rest
                 # (Discord embeds: description has 4096 char limit, fields have 1024)
@@ -1440,6 +1894,92 @@ class AutoPush(commands.Cog):
                     await ch.send(embed=em)
 
         self._mark_posted("player_props")
+
+    async def _post_track_record_embed(self, channel):
+        """Post detailed track record with per-market and per-confidence breakdown."""
+        try:
+            from prediction_tracker import get_track_record, get_calibration_data
+        except ImportError:
+            return
+
+        try:
+            stats = get_track_record()
+        except Exception:
+            return
+
+        total = stats.get("total_graded", 0)
+        if total == 0:
+            em = discord.Embed(
+                title="\U0001f4ca Track Record",
+                description="No predictions resolved yet. Check back after today's matches finish.",
+                color=COLOR_BLUE,
+            )
+            await channel.send(embed=em)
+            return
+
+        hits = stats.get("hits", 0)
+        hit_rate = stats.get("hit_rate", 0)
+        roi = stats.get("roi_flat_stake", 0)
+        streak = stats.get("recent_streak", 0)
+
+        # Color based on hit rate
+        if hit_rate >= 0.55:
+            color = COLOR_GREEN
+        elif hit_rate >= 0.48:
+            color = COLOR_YELLOW
+        else:
+            color = COLOR_RED
+
+        streak_str = f"W{streak}" if streak > 0 else (f"L{abs(streak)}" if streak < 0 else "\u2014")
+
+        em = discord.Embed(
+            title="\U0001f4ca Track Record \u2014 All Time",
+            description=f"**{hits}/{total}** predictions hit ({hit_rate:.1%}) | ROI: {roi:+.1%} | Streak: {streak_str}",
+            color=color,
+        )
+
+        # By confidence
+        by_conf = stats.get("by_confidence", {})
+        conf_lines = []
+        for level in ["high", "medium", "low"]:
+            c = by_conf.get(level, {})
+            if c.get("total", 0) > 0:
+                label = {"high": "\u25cf\u25cf\u25cf\u25cf\u25cb Strong Edge", "medium": "\u25cf\u25cf\u25cf\u25cb\u25cb Leaning", "low": "\u25cf\u25cb\u25cb\u25cb\u25cb Speculative"}[level]
+                conf_lines.append(f"{label}: **{c['hits']}/{c['total']}** ({c['hit_rate']:.0%})")
+        if conf_lines:
+            em.add_field(name="By Confidence", value="\n".join(conf_lines), inline=False)
+
+        # By market
+        by_market = stats.get("by_market", {})
+        market_lines = []
+        market_emojis = {"goals": "\u26bd", "corners": "\U0001f4d0", "cards": "\U0001f7e8", "sot": "\U0001f3af",
+                         "btts": "\U0001f91d", "moneyline": "\U0001f3c6", "spreads": "\U0001f4cf"}
+        for market, m in sorted(by_market.items(), key=lambda x: x[1].get("total", 0), reverse=True):
+            if m.get("total", 0) > 0:
+                emoji = market_emojis.get(market, "\U0001f4cb")
+                market_lines.append(f"{emoji} {market.title()}: **{m['hits']}/{m['total']}** ({m['hit_rate']:.0%})")
+        if market_lines:
+            em.add_field(name="By Market", value="\n".join(market_lines[:8]), inline=False)
+
+        # Calibration summary (if available)
+        try:
+            cal_data = get_calibration_data()
+            if cal_data:
+                cal_lines = []
+                for bucket in cal_data:
+                    if bucket.get("count", 0) >= 10:
+                        model_p = bucket["model_avg"]
+                        actual = bucket["actual_rate"]
+                        diff = actual - model_p
+                        arrow = "\u2705" if abs(diff) < 0.05 else ("\U0001f4c8" if diff > 0 else "\U0001f4c9")
+                        cal_lines.append(f"{arrow} {bucket['bucket']}: model {model_p:.0%} \u2192 actual {actual:.0%}")
+                if cal_lines:
+                    em.add_field(name="Calibration", value="\n".join(cal_lines[:6]), inline=False)
+        except Exception:
+            pass
+
+        em.set_footer(text=f"Based on {total} resolved predictions \u2502 Spick's Picks")
+        await channel.send(embed=em)
 
 
 async def setup(bot: commands.Bot):

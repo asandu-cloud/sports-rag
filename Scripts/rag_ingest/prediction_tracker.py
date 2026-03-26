@@ -17,6 +17,9 @@ CLI:
   python prediction_tracker.py --stats
   python prediction_tracker.py --stats --stats-market goals --stats-confidence high
   python prediction_tracker.py --export predictions.csv
+  python prediction_tracker.py --clv                        # CLV report
+  python prediction_tracker.py --capture-clv                # capture closing odds for today
+  python prediction_tracker.py --capture-clv --resolve-date 2026-03-14  # capture for specific date
 """
 
 from __future__ import annotations
@@ -128,6 +131,24 @@ _CREATE_INDEXES_SQL = [
 ]
 
 
+def _migrate_schema(conn: sqlite3.Connection) -> None:
+    """Run idempotent schema migrations. Safe to call on every connection."""
+    _CLV_COLUMNS = [
+        ("closing_odds", "REAL"),
+        ("closing_implied_prob", "REAL"),
+        ("clv", "REAL"),
+    ]
+    for col_name, col_type in _CLV_COLUMNS:
+        try:
+            conn.execute(f"ALTER TABLE predictions ADD COLUMN {col_name} {col_type}")
+        except sqlite3.OperationalError as exc:
+            # "duplicate column name" is expected on subsequent runs
+            if "duplicate column" in str(exc).lower():
+                pass
+            else:
+                raise
+
+
 def _get_db(db_path: Path = DB_PATH) -> sqlite3.Connection:
     """Return a connection to the predictions database, creating it if needed."""
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -138,6 +159,7 @@ def _get_db(db_path: Path = DB_PATH) -> sqlite3.Connection:
     conn.execute(_CREATE_TABLE_SQL)
     for idx_sql in _CREATE_INDEXES_SQL:
         conn.execute(idx_sql)
+    _migrate_schema(conn)
     conn.commit()
     return conn
 
@@ -687,6 +709,125 @@ def _fetch_results_from_data(
     return results
 
 
+def _fetch_results_from_api(
+    prediction_date: str,
+    league: str = None,
+) -> List[dict]:
+    """Fetch actual fixture results from API-Football when local data is unavailable.
+
+    Calls GET /fixtures?league={id}&season=2025&date={date}&status=FT for each league.
+    Then fetches per-fixture statistics for corners, cards, SoT.
+    """
+    try:
+        import requests
+    except ImportError:
+        return []
+
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass
+
+    api_key = os.environ.get("API-FOOTBALL-KEY") or os.environ.get("API_FOOTBALL_KEY")
+    if not api_key:
+        log.warning("No API-Football key for result resolution")
+        return []
+
+    results: List[dict] = []
+    leagues_to_search = [league] if league else list(LEAGUE_TO_API_ID.keys())
+
+    for lg in leagues_to_search:
+        api_id = LEAGUE_TO_API_ID.get(lg)
+        if not api_id:
+            continue
+
+        try:
+            resp = requests.get(
+                "https://v3.football.api-sports.io/fixtures",
+                headers={"x-apisports-key": api_key},
+                params={"league": api_id, "season": 2025, "date": prediction_date, "status": "FT"},
+                timeout=15,
+            )
+            resp.raise_for_status()
+            fixtures = resp.json().get("response", [])
+        except Exception as exc:
+            log.warning("API-Football fixture fetch failed for %s: %s", lg, exc)
+            continue
+
+        for fx in fixtures:
+            teams = fx.get("teams", {})
+            goals = fx.get("goals", {})
+            fixture_info = fx.get("fixture", {})
+            fixture_id = str(fixture_info.get("id", ""))
+
+            home = teams.get("home", {}).get("name", "")
+            away = teams.get("away", {}).get("name", "")
+            goals_home = goals.get("home")
+            goals_away = goals.get("away")
+
+            # Fetch fixture statistics for corners, cards, SoT
+            corners_home = corners_away = cards_home = cards_away = sot_home = sot_away = None
+            if fixture_id:
+                try:
+                    stat_resp = requests.get(
+                        "https://v3.football.api-sports.io/fixtures/statistics",
+                        headers={"x-apisports-key": api_key},
+                        params={"fixture": fixture_id},
+                        timeout=15,
+                    )
+                    stat_data = stat_resp.json().get("response", [])
+                    for team_stats in stat_data:
+                        team_name = team_stats.get("team", {}).get("name", "")
+                        is_home = _names_match(team_name, home)
+                        stats_list = team_stats.get("statistics", [])
+                        for s in stats_list:
+                            stat_type = (s.get("type") or "").lower()
+                            val = s.get("value")
+                            if stat_type == "corner kicks":
+                                if is_home:
+                                    corners_home = _safe_float(val)
+                                else:
+                                    corners_away = _safe_float(val)
+                            elif stat_type == "yellow cards":
+                                yc = _safe_float(val) or 0
+                                rc_stat = next((x for x in stats_list if (x.get("type") or "").lower() == "red cards"), None)
+                                rc = _safe_float(rc_stat.get("value")) if rc_stat else 0
+                                if is_home:
+                                    cards_home = yc + (rc or 0)
+                                else:
+                                    cards_away = yc + (rc or 0)
+                            elif stat_type == "shots on goal":
+                                if is_home:
+                                    sot_home = _safe_float(val)
+                                else:
+                                    sot_away = _safe_float(val)
+                except Exception as exc:
+                    log.debug("Stats fetch failed for fixture %s: %s", fixture_id, exc)
+
+            result = {
+                "home_team": home,
+                "away_team": away,
+                "fixture_id": fixture_id,
+                "fixture_date": prediction_date,
+                "league": lg,
+                "goals_home": _safe_float(goals_home),
+                "goals_away": _safe_float(goals_away),
+                "corners_home": corners_home,
+                "corners_away": corners_away,
+                "cards_home": cards_home,
+                "cards_away": cards_away,
+                "sot_home": sot_home,
+                "sot_away": sot_away,
+                "final_score": f"{home} {goals_home}-{goals_away} {away}",
+            }
+            results.append(result)
+
+        log.info("Fetched %d results from API-Football for %s on %s", len(fixtures), lg, prediction_date)
+
+    return results
+
+
 def _safe_float(v: Any) -> Optional[float]:
     """Convert to float, returning None on failure."""
     if v is None:
@@ -695,6 +836,268 @@ def _safe_float(v: Any) -> Optional[float]:
         return float(v)
     except (ValueError, TypeError):
         return None
+
+
+# ===================================================================
+# C2. Closing Line Value (CLV) Capture
+# ===================================================================
+
+def _match_odds_to_prediction(
+    pred: dict,
+    bookmakers: list,
+    home_team: str,
+    away_team: str,
+) -> Optional[float]:
+    """Find the closing odds that match a prediction's market/side/line.
+
+    Searches through transformed bookmaker data (Odds-API-compatible format)
+    for the outcome matching the prediction. Returns the decimal odds or None.
+    """
+    market = str(pred.get("market", "")).lower()
+    side = str(pred.get("side", "")).lower()
+    line = pred.get("line")
+    pick = str(pred.get("pick", ""))
+
+    # Map prediction market to API-Football market keys
+    market_key_map = {
+        "goals": ["totals"],
+        "corners": ["totals_corners_over_under"],
+        "cards": ["totals_cards_over_under", "totals_yellow_cards"],
+        "sot": ["shots_on_target_over_under"],
+        "btts": ["btts"],
+        "moneyline": ["h2h"],
+        "spreads": ["spreads"],
+    }
+    target_keys = market_key_map.get(market, [])
+    if not target_keys:
+        return None
+
+    for bm in bookmakers:
+        for mkt in bm.get("markets", []):
+            if mkt.get("key") not in target_keys:
+                continue
+            for outcome in mkt.get("outcomes", []):
+                price = outcome.get("price")
+                if not price or price < 1.01:
+                    continue
+                name = str(outcome.get("name", "")).lower()
+                point = outcome.get("point")
+
+                # --- Over/Under markets ---
+                if market in ("goals", "corners", "cards", "sot"):
+                    if side == "over" and name == "over" and point is not None:
+                        if line is not None and abs(float(point) - float(line)) < 0.01:
+                            return float(price)
+                    elif side == "under" and name == "under" and point is not None:
+                        if line is not None and abs(float(point) - float(line)) < 0.01:
+                            return float(price)
+
+                # --- BTTS ---
+                elif market == "btts":
+                    if side == "yes" and name == "yes":
+                        return float(price)
+                    elif side == "no" and name == "no":
+                        return float(price)
+
+                # --- Moneyline ---
+                elif market == "moneyline":
+                    outcome_name = str(outcome.get("name", ""))
+                    if side == "home" and _names_match(outcome_name, home_team):
+                        return float(price)
+                    elif side == "away" and _names_match(outcome_name, away_team):
+                        return float(price)
+                    elif side == "draw" and name == "draw":
+                        return float(price)
+
+                # --- Spreads ---
+                elif market == "spreads":
+                    outcome_name = str(outcome.get("name", ""))
+                    if point is not None and line is not None:
+                        if abs(float(point) - float(line)) < 0.01:
+                            if side == "home" and _names_match(outcome_name, home_team):
+                                return float(price)
+                            elif side == "away" and _names_match(outcome_name, away_team):
+                                return float(price)
+
+    return None
+
+
+def capture_closing_odds(
+    prediction_date: str = None,
+    *,
+    db_path: Path = DB_PATH,
+) -> dict:
+    """Fetch closing odds for unresolved predictions and compute CLV.
+
+    For each unique fixture among unresolved predictions that lack closing_odds,
+    fetches current odds from API-Football and matches them to logged predictions.
+
+    Returns {"captured": int, "skipped": int, "errors": int}.
+    """
+    if prediction_date is None:
+        prediction_date = date.today().isoformat()
+
+    stats = {"captured": 0, "skipped": 0, "errors": 0}
+
+    try:
+        conn = _get_db(db_path)
+    except Exception:
+        log.error("Cannot open database for CLV capture: %s", traceback.format_exc())
+        stats["errors"] = 1
+        return stats
+
+    # Fetch predictions that need closing odds
+    try:
+        rows = conn.execute(
+            """SELECT * FROM predictions
+               WHERE prediction_date = ?
+                 AND closing_odds IS NULL
+                 AND odds IS NOT NULL""",
+            [prediction_date],
+        ).fetchall()
+    except Exception:
+        log.error("Failed to query predictions for CLV: %s", traceback.format_exc())
+        conn.close()
+        stats["errors"] = 1
+        return stats
+
+    if not rows:
+        log.info("No predictions need closing odds for %s", prediction_date)
+        conn.close()
+        return stats
+
+    preds = [dict(r) for r in rows]
+
+    # Group by fixture_id for efficient API calls
+    fixture_preds: Dict[str, List[dict]] = {}
+    for p in preds:
+        fid = p.get("fixture_id") or ""
+        if fid:
+            fixture_preds.setdefault(fid, []).append(p)
+        else:
+            # No fixture_id — try to resolve via league + teams + date
+            fixture_preds.setdefault(f"_noid_{p['id']}", []).append(p)
+
+    # Try importing odds_provider for fixture odds fetching
+    try:
+        from odds_provider import _fetch_fixture_odds, _transform_apifootball_odds
+        has_odds_provider = True
+    except ImportError:
+        has_odds_provider = False
+
+    if not has_odds_provider:
+        # Fallback: direct API-Football call
+        try:
+            import requests
+        except ImportError:
+            log.warning("Neither odds_provider nor requests available for CLV capture")
+            conn.close()
+            stats["errors"] = 1
+            return stats
+
+    api_key = os.environ.get("API-FOOTBALL-KEY") or os.environ.get("API_FOOTBALL_KEY")
+    if not api_key and not has_odds_provider:
+        log.warning("No API-Football key for CLV capture")
+        conn.close()
+        return stats
+
+    for fid, fid_preds in fixture_preds.items():
+        if fid.startswith("_noid_"):
+            stats["skipped"] += len(fid_preds)
+            continue
+
+        try:
+            fixture_id_int = int(fid)
+        except (ValueError, TypeError):
+            stats["skipped"] += len(fid_preds)
+            continue
+
+        # Fetch odds for this fixture
+        bookmakers_raw = None
+        if has_odds_provider:
+            try:
+                bm_list, err = _fetch_fixture_odds(fixture_id_int)
+                if err:
+                    log.debug("CLV odds fetch error for fixture %s: %s", fid, err)
+                    stats["skipped"] += len(fid_preds)
+                    continue
+                bookmakers_raw = bm_list
+            except Exception as exc:
+                log.debug("CLV odds_provider error for fixture %s: %s", fid, exc)
+                stats["skipped"] += len(fid_preds)
+                continue
+        else:
+            try:
+                import requests
+                resp = requests.get(
+                    "https://v3.football.api-sports.io/odds",
+                    headers={"x-apisports-key": api_key},
+                    params={"fixture": fixture_id_int},
+                    timeout=15,
+                )
+                resp.raise_for_status()
+                api_rows = resp.json().get("response", [])
+                bookmakers_raw = api_rows[0].get("bookmakers", []) if api_rows else []
+            except Exception as exc:
+                log.debug("CLV API fetch error for fixture %s: %s", fid, exc)
+                stats["skipped"] += len(fid_preds)
+                continue
+
+        if not bookmakers_raw:
+            stats["skipped"] += len(fid_preds)
+            continue
+
+        # Transform to standard format
+        home_team = fid_preds[0].get("home_team", "Home")
+        away_team = fid_preds[0].get("away_team", "Away")
+
+        if has_odds_provider:
+            try:
+                bookmakers = _transform_apifootball_odds(bookmakers_raw, home_team, away_team)
+            except Exception:
+                bookmakers = bookmakers_raw
+        else:
+            bookmakers = bookmakers_raw
+
+        # Match each prediction to closing odds
+        for p in fid_preds:
+            closing_price = _match_odds_to_prediction(p, bookmakers, home_team, away_team)
+            if closing_price is None or closing_price < 1.01:
+                stats["skipped"] += 1
+                continue
+
+            opening_odds = p.get("odds")
+            if not opening_odds or opening_odds < 1.01:
+                stats["skipped"] += 1
+                continue
+
+            closing_implied = 1.0 / closing_price
+            opening_implied = 1.0 / opening_odds
+            clv = (opening_implied / closing_implied) - 1.0  # positive = beat the close
+
+            try:
+                conn.execute(
+                    """UPDATE predictions
+                       SET closing_odds = ?, closing_implied_prob = ?, clv = ?
+                       WHERE id = ?""",
+                    (closing_price, closing_implied, clv, p["id"]),
+                )
+                stats["captured"] += 1
+            except Exception:
+                log.error("Failed to update CLV for prediction %d: %s",
+                          p["id"], traceback.format_exc())
+                stats["errors"] += 1
+
+    try:
+        conn.commit()
+    except Exception:
+        log.error("Failed to commit CLV updates: %s", traceback.format_exc())
+        stats["errors"] += 1
+
+    conn.close()
+    log.info("CLV capture for %s: captured=%d, skipped=%d, errors=%d",
+             prediction_date, stats["captured"], stats["skipped"], stats["errors"])
+    return stats
 
 
 def _match_prediction_to_result(
@@ -930,8 +1333,10 @@ def resolve_outcomes(
         conn.close()
         return stats
 
-    # Fetch actual results
+    # Fetch actual results — try local data first, fallback to API-Football
     results = _fetch_results_from_data(prediction_date, league)
+    if not results:
+        results = _fetch_results_from_api(prediction_date, league)
     log.info("Found %d actual results for %s%s",
              len(results), prediction_date, f" ({league})" if league else "")
 
@@ -984,7 +1389,38 @@ def resolve_outcomes(
                 log.error("Failed to update prediction %d: %s", pred["id"], traceback.format_exc())
                 stats["errors"] += 1
 
+            # Compute CLV if closing odds are present (may have been captured earlier)
+            opening_odds = pred.get("odds")
+            closing_odds = pred.get("closing_odds")
+            if opening_odds and closing_odds and opening_odds > 1.0 and closing_odds > 1.0:
+                if pred.get("clv") is None:
+                    opening_implied = 1.0 / opening_odds
+                    closing_implied = 1.0 / closing_odds
+                    clv_val = (opening_implied / closing_implied) - 1.0
+                    try:
+                        conn.execute(
+                            "UPDATE predictions SET clv = ? WHERE id = ?",
+                            (clv_val, pred["id"]),
+                        )
+                    except Exception:
+                        log.debug("Failed to update CLV for prediction %d", pred["id"])
+
+    # Attempt to capture closing odds for predictions that still lack them
     if not dry_run:
+        try:
+            missing_clv = conn.execute(
+                """SELECT id, fixture_id, home_team, away_team, market, side, line,
+                          pick, odds FROM predictions
+                   WHERE prediction_date = ? AND closing_odds IS NULL AND odds IS NOT NULL""",
+                [prediction_date],
+            ).fetchall()
+            if missing_clv:
+                log.info("Attempting CLV capture for %d predictions still missing closing odds",
+                         len(missing_clv))
+        except Exception:
+            missing_clv = []
+
+        # Commit the grading results first
         try:
             conn.commit()
         except Exception:
@@ -992,6 +1428,16 @@ def resolve_outcomes(
             stats["errors"] += 1
 
     conn.close()
+
+    # If there are predictions without closing odds, attempt capture now
+    if not dry_run and prediction_date:
+        try:
+            clv_stats = capture_closing_odds(prediction_date=prediction_date, db_path=db_path)
+            if clv_stats.get("captured", 0) > 0:
+                log.info("Post-resolve CLV capture: %d closing odds captured", clv_stats["captured"])
+        except Exception:
+            log.debug("Post-resolve CLV capture failed: %s", traceback.format_exc())
+
     return stats
 
 
@@ -1058,6 +1504,7 @@ def get_track_record(
         return {
             "total_graded": 0, "hits": 0, "misses": 0, "pushes": 0,
             "hit_rate": 0.0, "roi_flat_stake": 0.0,
+            "avg_clv": None, "clv_positive_rate": None, "clv_sample_size": 0,
             "by_confidence": {}, "by_market": {}, "by_league": {},
             "recent_streak": 0, "best_streak": 0,
             "daily_performance": [],
@@ -1091,6 +1538,12 @@ def get_track_record(
                 "roi": _compute_roi(subset),
             }
 
+    # --- CLV stats (overall) ---
+    clv_preds = [p for p in preds if p.get("clv") is not None]
+    avg_clv = sum(p["clv"] for p in clv_preds) / len(clv_preds) if clv_preds else None
+    clv_positive_count = sum(1 for p in clv_preds if p["clv"] > 0)
+    clv_positive_rate = clv_positive_count / len(clv_preds) if clv_preds else None
+
     # --- By Market ---
     by_market = {}
     market_set = set(p.get("market", "") for p in preds)
@@ -1102,10 +1555,13 @@ def get_track_record(
             h = sum(1 for p in subset if p["outcome"] == "hit")
             m = sum(1 for p in subset if p["outcome"] == "miss")
             d = h + m
+            mkt_clv = [p for p in subset if p.get("clv") is not None]
+            mkt_avg_clv = sum(p["clv"] for p in mkt_clv) / len(mkt_clv) if mkt_clv else None
             by_market[mkt] = {
                 "total": len(subset),
                 "hits": h,
                 "hit_rate": h / d if d > 0 else 0.0,
+                "avg_clv": mkt_avg_clv,
             }
 
     # --- By League ---
@@ -1138,6 +1594,9 @@ def get_track_record(
         "pushes": pushes,
         "hit_rate": hit_rate,
         "roi_flat_stake": roi,
+        "avg_clv": avg_clv,
+        "clv_positive_rate": clv_positive_rate,
+        "clv_sample_size": len(clv_preds),
         "by_confidence": by_confidence,
         "by_market": by_market,
         "by_league": by_league,
@@ -1232,6 +1691,155 @@ def _compute_daily_performance(preds: List[dict], days: int = 30) -> List[dict]:
         })
 
     return daily
+
+
+def get_daily_breakdown(
+    prediction_date: str = None,
+    *,
+    db_path: Path = DB_PATH,
+) -> dict:
+    """Get yesterday's (or given date's) graded predictions broken down by market and league.
+
+    Returns {
+        "date": "YYYY-MM-DD",
+        "total": int, "hits": int, "misses": int, "pushes": int,
+        "hit_rate": float,
+        "by_market": {market: {"hits": int, "total": int, "hit_rate": float, "pushes": int}},
+        "by_league": {league: {"hits": int, "total": int, "hit_rate": float, "pushes": int}},
+        "by_confidence": {level: {"hits": int, "total": int, "hit_rate": float}},
+        "notable_hits": [...], "notable_misses": [...],
+    }
+    """
+    if prediction_date is None:
+        prediction_date = (date.today() - timedelta(days=1)).isoformat()
+
+    try:
+        conn = _get_db(db_path)
+    except Exception:
+        return {"date": prediction_date, "total": 0}
+
+    try:
+        rows = conn.execute(
+            "SELECT * FROM predictions WHERE prediction_date = ? AND outcome IS NOT NULL ORDER BY id",
+            [prediction_date],
+        ).fetchall()
+    except Exception:
+        conn.close()
+        return {"date": prediction_date, "total": 0}
+
+    conn.close()
+
+    if not rows:
+        return {"date": prediction_date, "total": 0, "hits": 0, "misses": 0, "pushes": 0,
+                "hit_rate": 0.0, "by_market": {}, "by_league": {}, "by_confidence": {},
+                "notable_hits": [], "notable_misses": []}
+
+    preds = [dict(r) for r in rows]
+
+    # Deduplicate — same fixture + market + pick, keep only one (highest odds)
+    seen: dict = {}
+    for p in preds:
+        key = (p.get("home_team", ""), p.get("away_team", ""), p.get("market", ""), p.get("pick", ""))
+        existing = seen.get(key)
+        if existing is None or (p.get("odds") or 0) > (existing.get("odds") or 0):
+            seen[key] = p
+    deduped = list(seen.values())
+
+    hits = sum(1 for p in deduped if p["outcome"] == "hit")
+    misses = sum(1 for p in deduped if p["outcome"] == "miss")
+    pushes = sum(1 for p in deduped if p["outcome"] == "push")
+    decided = hits + misses
+
+    # By market
+    by_market: Dict[str, Dict] = {}
+    for p in deduped:
+        mkt = p.get("market", "other")
+        bucket = by_market.setdefault(mkt, {"hits": 0, "misses": 0, "pushes": 0, "total": 0, "clv_values": []})
+        bucket["total"] += 1
+        if p["outcome"] == "hit":
+            bucket["hits"] += 1
+        elif p["outcome"] == "miss":
+            bucket["misses"] += 1
+        elif p["outcome"] == "push":
+            bucket["pushes"] += 1
+        if p.get("clv") is not None:
+            bucket["clv_values"].append(p["clv"])
+    for mkt, b in by_market.items():
+        d = b["hits"] + b["misses"]
+        b["hit_rate"] = b["hits"] / d if d > 0 else 0.0
+        clv_vals = b.pop("clv_values")
+        b["avg_clv"] = sum(clv_vals) / len(clv_vals) if clv_vals else None
+
+    # By league
+    by_league: Dict[str, Dict] = {}
+    for p in deduped:
+        lg = p.get("league", "other")
+        bucket = by_league.setdefault(lg, {"hits": 0, "misses": 0, "pushes": 0, "total": 0})
+        bucket["total"] += 1
+        if p["outcome"] == "hit":
+            bucket["hits"] += 1
+        elif p["outcome"] == "miss":
+            bucket["misses"] += 1
+        elif p["outcome"] == "push":
+            bucket["pushes"] += 1
+    for lg, b in by_league.items():
+        d = b["hits"] + b["misses"]
+        b["hit_rate"] = b["hits"] / d if d > 0 else 0.0
+
+    # By confidence
+    by_confidence: Dict[str, Dict] = {}
+    for p in deduped:
+        conf = (p.get("confidence") or "unknown").lower()
+        bucket = by_confidence.setdefault(conf, {"hits": 0, "total": 0})
+        bucket["total"] += 1
+        if p["outcome"] == "hit":
+            bucket["hits"] += 1
+    for conf, b in by_confidence.items():
+        b["hit_rate"] = b["hits"] / b["total"] if b["total"] > 0 else 0.0
+
+    # Notable hits (best odds)
+    hit_preds = sorted(
+        [p for p in deduped if p["outcome"] == "hit" and p.get("odds")],
+        key=lambda x: x.get("odds", 0), reverse=True,
+    )
+    notable_hits = [
+        {"fixture": f"{p['home_team']} vs {p['away_team']}", "market": p["market"],
+         "pick": p["pick"], "odds": p.get("odds"), "league": p.get("league")}
+        for p in hit_preds[:5]
+    ]
+
+    # Notable misses (highest confidence that missed)
+    miss_preds = sorted(
+        [p for p in deduped if p["outcome"] == "miss" and p.get("model_prob")],
+        key=lambda x: x.get("model_prob", 0), reverse=True,
+    )
+    notable_misses = [
+        {"fixture": f"{p['home_team']} vs {p['away_team']}", "market": p["market"],
+         "pick": p["pick"], "model_prob": p.get("model_prob"), "league": p.get("league")}
+        for p in miss_preds[:5]
+    ]
+
+    # Overall CLV for the day
+    day_clv = [p.get("clv") for p in deduped if p.get("clv") is not None]
+    avg_clv = sum(day_clv) / len(day_clv) if day_clv else None
+    clv_pos_rate = sum(1 for c in day_clv if c > 0) / len(day_clv) if day_clv else None
+
+    return {
+        "date": prediction_date,
+        "total": len(deduped),
+        "hits": hits,
+        "misses": misses,
+        "pushes": pushes,
+        "hit_rate": hits / decided if decided > 0 else 0.0,
+        "avg_clv": avg_clv,
+        "clv_positive_rate": clv_pos_rate,
+        "clv_sample_size": len(day_clv),
+        "by_market": by_market,
+        "by_league": by_league,
+        "by_confidence": by_confidence,
+        "notable_hits": notable_hits,
+        "notable_misses": notable_misses,
+    }
 
 
 def get_recent_predictions(
@@ -1331,6 +1939,14 @@ def _format_stats_report(stats: dict) -> str:
 
     lines.append(f"Overall: {hits}/{decided} ({hr:.1%})   ROI: {roi:+.1%}")
 
+    # CLV summary in main stats
+    avg_clv = stats.get("avg_clv")
+    clv_pos = stats.get("clv_positive_rate")
+    clv_n = stats.get("clv_sample_size", 0)
+    if avg_clv is not None and clv_n > 0:
+        direction = "+" if avg_clv > 0 else ""
+        lines.append(f"CLV: {direction}{avg_clv:.2%} avg   CLV+ rate: {clv_pos:.1%}  ({clv_n} picks)")
+
     streak = stats.get("recent_streak", 0)
     if streak > 0:
         lines.append(f"Current streak: W{streak}")
@@ -1379,7 +1995,11 @@ def _format_stats_report(stats: dict) -> str:
             if mkt in by_market:
                 m = by_market[mkt]
                 label = market_labels.get(mkt, mkt.title())
-                lines.append(f"  {label:15s} {m['hits']}/{m['total']} ({m['hit_rate']:.1%})")
+                clv_str = ""
+                if m.get("avg_clv") is not None:
+                    d = "+" if m["avg_clv"] > 0 else ""
+                    clv_str = f"   CLV: {d}{m['avg_clv']:.2%}"
+                lines.append(f"  {label:15s} {m['hits']}/{m['total']} ({m['hit_rate']:.1%}){clv_str}")
 
     # By League
     by_league = stats.get("by_league", {})
@@ -1430,6 +2050,152 @@ def _format_resolve_report(stats: dict, dry_run: bool = False) -> str:
     return "\n".join(lines)
 
 
+def _format_clv_report(
+    stats: dict,
+    daily: dict = None,
+) -> str:
+    """Format a CLV-focused report for the CLI."""
+    lines = [
+        "",
+        "Closing Line Value (CLV) Report",
+        "=" * 50,
+        "",
+    ]
+
+    avg_clv = stats.get("avg_clv")
+    clv_pos = stats.get("clv_positive_rate")
+    clv_n = stats.get("clv_sample_size", 0)
+
+    if clv_n == 0:
+        lines.append("No CLV data available yet.")
+        lines.append("")
+        lines.append("CLV requires closing odds to be captured before kickoff.")
+        lines.append("Run: python prediction_tracker.py --capture-clv")
+        lines.append("")
+        return "\n".join(lines)
+
+    lines.append(f"Sample size: {clv_n} predictions with CLV data")
+    lines.append("")
+
+    if avg_clv is not None:
+        direction = "+" if avg_clv > 0 else ""
+        lines.append(f"Average CLV:      {direction}{avg_clv:.2%}")
+    if clv_pos is not None:
+        lines.append(f"CLV+ rate:        {clv_pos:.1%}  (target: >50%)")
+
+    # Interpret the results
+    if avg_clv is not None and clv_pos is not None:
+        lines.append("")
+        if clv_pos >= 0.55 and avg_clv > 0:
+            lines.append("Assessment: STRONG — consistently beating the closing line.")
+            lines.append("This is the single best predictor of long-term profitability.")
+        elif clv_pos >= 0.50 and avg_clv > 0:
+            lines.append("Assessment: POSITIVE — beating the close more often than not.")
+        elif clv_pos >= 0.45:
+            lines.append("Assessment: MARGINAL — roughly in line with the market.")
+        else:
+            lines.append("Assessment: NEGATIVE — the market is sharper than our timing.")
+            lines.append("Consider placing bets earlier when lines first open.")
+
+    # By market breakdown
+    by_market = stats.get("by_market", {})
+    market_clv = {k: v for k, v in by_market.items() if v.get("avg_clv") is not None}
+    if market_clv:
+        lines.append("")
+        lines.append("By Market:")
+        market_labels = {
+            "goals": "Goals O/U",
+            "corners": "Corners O/U",
+            "cards": "Cards O/U",
+            "sot": "SoT O/U",
+            "btts": "BTTS",
+            "moneyline": "Moneyline",
+            "spreads": "Spreads",
+            "correct_score": "Correct Score",
+        }
+        for mkt in ["goals", "corners", "cards", "sot", "btts", "moneyline", "spreads", "correct_score"]:
+            if mkt in market_clv:
+                m = market_clv[mkt]
+                label = market_labels.get(mkt, mkt.title())
+                clv_val = m["avg_clv"]
+                direction = "+" if clv_val > 0 else ""
+                lines.append(f"  {label:15s} avg CLV: {direction}{clv_val:.2%}")
+
+    # Daily breakdown if provided
+    if daily and daily.get("avg_clv") is not None:
+        lines.append("")
+        lines.append(f"Today ({daily['date']}):")
+        d_clv = daily["avg_clv"]
+        d_pos = daily.get("clv_positive_rate")
+        d_n = daily.get("clv_sample_size", 0)
+        direction = "+" if d_clv > 0 else ""
+        lines.append(f"  Avg CLV: {direction}{d_clv:.2%}  ({d_n} picks)")
+        if d_pos is not None:
+            lines.append(f"  CLV+ rate: {d_pos:.1%}")
+
+    lines.append("")
+    return "\n".join(lines)
+
+
+# ===================================================================
+#  Calibration Analysis
+# ===================================================================
+
+def get_calibration_data(*, db_path: Path = DB_PATH) -> List[Dict]:
+    """Return calibration data: for each probability bucket, model prob vs actual hit rate.
+
+    Groups resolved predictions by model probability into 5% buckets (50-55%, 55-60%, etc.)
+    and computes the actual hit rate for each bucket.
+    """
+    try:
+        db = _get_db(db_path)
+    except Exception:
+        return []
+
+    try:
+        rows = db.execute(
+            "SELECT model_prob, outcome FROM predictions WHERE outcome IS NOT NULL AND model_prob IS NOT NULL"
+        ).fetchall()
+    except Exception:
+        db.close()
+        return []
+
+    db.close()
+
+    if not rows:
+        return []
+
+    # Group by 5% buckets
+    buckets: Dict[str, Dict] = {}
+    for row in rows:
+        model_prob = row["model_prob"] if isinstance(row, dict) else row[0]
+        outcome = row["outcome"] if isinstance(row, dict) else row[1]
+        try:
+            p = float(model_prob)
+        except (TypeError, ValueError):
+            continue
+        bucket_low = int(p * 20) * 5  # rounds down to nearest 5%
+        bucket_key = f"{bucket_low}-{bucket_low + 5}%"
+        if bucket_key not in buckets:
+            buckets[bucket_key] = {"probs": [], "hits": 0, "total": 0}
+        buckets[bucket_key]["probs"].append(p)
+        buckets[bucket_key]["total"] += 1
+        if outcome == "hit":
+            buckets[bucket_key]["hits"] += 1
+
+    result = []
+    for bucket_label, data in sorted(buckets.items()):
+        if data["total"] > 0:
+            result.append({
+                "bucket": bucket_label,
+                "model_avg": sum(data["probs"]) / len(data["probs"]),
+                "actual_rate": data["hits"] / data["total"],
+                "count": data["total"],
+            })
+
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Prediction tracker -- log, resolve, and report."
@@ -1450,6 +2216,10 @@ def main():
                         help="Filter stats to one confidence level")
     parser.add_argument("--export", type=str, default=None,
                         help="Export all predictions to CSV")
+    parser.add_argument("--clv", action="store_true",
+                        help="Print CLV (Closing Line Value) report")
+    parser.add_argument("--capture-clv", action="store_true",
+                        help="Capture closing odds for predictions (run before kickoff)")
     parser.add_argument("--league", type=str, default=None,
                         help="Filter to one league")
 
@@ -1480,6 +2250,23 @@ def main():
             confidence=args.stats_confidence,
         )
         print(_format_stats_report(stats))
+
+    elif args.capture_clv:
+        target_date = args.resolve_date or date.today().isoformat()
+        print(f"Capturing closing odds for {target_date}...")
+        clv_result = capture_closing_odds(prediction_date=target_date)
+        print(f"Captured: {clv_result['captured']}  |  Skipped: {clv_result['skipped']}  |  Errors: {clv_result['errors']}")
+
+    elif args.clv:
+        track = get_track_record(
+            days=args.stats_days,
+            league=args.league,
+            market=args.stats_market,
+            confidence=args.stats_confidence,
+        )
+        yesterday = (date.today() - timedelta(days=1)).isoformat()
+        daily = get_daily_breakdown(prediction_date=yesterday)
+        print(_format_clv_report(track, daily))
 
     elif args.export:
         n = export_predictions_csv(args.export, league=args.league)

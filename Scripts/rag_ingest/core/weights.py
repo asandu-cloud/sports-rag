@@ -103,12 +103,23 @@ SCORING_WEIGHTS = {
         "cards_base": 0.85,
         "cards_agg": 0.15,
         "cards_agg_scale": 3.0,
-        "blend_season": 0.90,
-        "blend_recent": 0.10,
+        "blend_season": 0.75,
+        "blend_recent": 0.25,
+        # Stat-specific blend overrides (backtested across 632 fixtures, 5 leagues)
+        "blend_goals_season": 0.85,
+        "blend_goals_recent": 0.15,
+        "blend_corners_season": 0.80,
+        "blend_corners_recent": 0.20,
+        "blend_cards_season": 0.85,
+        "blend_cards_recent": 0.15,
+        "blend_sot_season": 0.80,
+        "blend_sot_recent": 0.20,
         "corners_venue_blend": 0.50,
         "goals_venue_blend": 0.50,
         "sot_venue_blend": 0.50,
-        "xg_blend": 0.30,  # 30% xG + 70% actual goals; reduces luck variance
+        "xg_blend": 0.50,  # 50% xG + 50% actual goals; best hit rate at 2.5 line
+        # Home advantage: 0.0 — venue splits already capture this fully
+        "home_advantage": 0.0,  # ~0.15 goals boost for home team (split: +0.15 home, -0.15 away)
     },
     "comparison_cards": {
         "cards": 0.55,
@@ -151,8 +162,8 @@ SCORING_WEIGHTS = {
     "projection_spreads": {
         "form_w": 0.10,
         "dominance_w": 0.10,
-        "blend_season": 0.90,
-        "blend_recent": 0.10,
+        "blend_season": 0.75,
+        "blend_recent": 0.25,
     },
     "spreads_line": {
         "edge_weight": 1.2,
@@ -219,7 +230,7 @@ SCORING_WEIGHTS = {
     },
     "ml": {
         "blend_weight": 0.0,  # static fallback (used when dynamic_blend=False). Set >0 to force blend.
-        "dynamic_blend": True,  # when True, blend_weight computed per-stat from R2 via get_dynamic_blend_weight()
+        "dynamic_blend": False,  # DISABLED: backtesting shows train/serve skew hurts all stats
         "elo_signal_weight": 0.15,
         "elo_scale": 400.0,
         "min_elo_diff": 20,

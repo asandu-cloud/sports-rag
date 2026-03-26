@@ -33,7 +33,7 @@ import rag_cli_v2 as rag  # noqa: E402
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1]))
 from embeds import rag_output_to_embeds, parlay_embed  # noqa: E402
 from config import ALL_LEAGUES, COLOR_BLUE, COLOR_PURPLE, COLOR_GREEN  # noqa: E402
-from cogs.access import premium_only, get_or_create_private_thread  # noqa: E402
+from cogs.access import premium_only, pooled_command, tier_required, get_or_create_private_thread  # noqa: E402
 
 
 # ============================================================================
@@ -482,7 +482,7 @@ class SlashCommands(commands.Cog):
     )
     @app_commands.choices(league=_league_choices())
     @app_commands.choices(market=_ANALYZE_MARKET_CHOICES)
-    @premium_only()
+    @tier_required("elite")
     async def analyze(
         self,
         interaction: discord.Interaction,
@@ -539,7 +539,7 @@ class SlashCommands(commands.Cog):
     )
     @app_commands.choices(league=_league_choices())
     @app_commands.choices(market=_MARKET_MARKET_CHOICES)
-    @premium_only()
+    @pooled_command("free")
     async def market(
         self,
         interaction: discord.Interaction,
@@ -582,7 +582,7 @@ class SlashCommands(commands.Cog):
     )
     @app_commands.choices(league=_league_choices())
     @app_commands.choices(stat=_STAT_CHOICES)
-    @premium_only()
+    @pooled_command("starter")
     async def compare(
         self,
         interaction: discord.Interaction,
@@ -639,7 +639,7 @@ class SlashCommands(commands.Cog):
     )
     @app_commands.choices(league=_league_choices())
     @app_commands.choices(prop=_PROP_CHOICES)
-    @premium_only()
+    @pooled_command("starter")
     async def players(
         self,
         interaction: discord.Interaction,
@@ -699,7 +699,7 @@ class SlashCommands(commands.Cog):
         date="Day (today, tomorrow, saturday, or YYYY-MM-DD)",
     )
     @app_commands.choices(league=_league_choices())
-    @premium_only()
+    @pooled_command("starter")
     async def teamlines(
         self,
         interaction: discord.Interaction,

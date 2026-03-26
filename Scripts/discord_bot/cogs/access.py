@@ -1,76 +1,220 @@
-"""Access control — premium role gate and private thread routing.
+"""Access control — tier-based command gating, rate limiting, and private thread routing.
 
-Premium commands are restricted to users with a configured role.
-Responses are sent in a per-user private thread so conversations
-are invisible to other members.
+Roles map to internal tiers:
+    OWNER / MOD / FRIENDS & FAMILY → "unlimited" (bypass all checks)
+    WHALE                          → "elite"     (unlimited commands)
+    TIPSTER                        → "pro"       (35 commands/day pool)
+    ROOKIE                         → "starter"   (5 commands/day pool)
+    (no tier role)                 → "free"      (1 command/day, /market only)
+
+Decorators:
+    @tier_required("elite")    — only Whale+ can use this command
+    @pooled_command("free")    — any tier can use, costs 1 from daily pool
+    @pooled_command("starter") — Rookie+ can use, costs 1 from daily pool
+    @pooled_command("pro")     — Tipster+ can use, costs 1 from daily pool
+    @premium_only()            — legacy alias for tier_required("starter")
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from datetime import date
+from typing import Dict, Optional, Tuple
 
 import discord
 from discord import app_commands
 
-from config import PREMIUM_ROLE_NAMES, COLOR_BLUE
+from config import (
+    ROLE_TO_TIER, TIER_HIERARCHY, TIER_POOL_LIMITS,
+    PREMIUM_ROLE_NAMES, COLOR_BLUE, COLOR_PURPLE,
+)
 
 log = logging.getLogger("access")
 
 # ---------------------------------------------------------------------------
-# Role check
+# Daily command pool tracker (in-memory, resets on date change)
+# ---------------------------------------------------------------------------
+# Key: (user_id, date_iso_str) → commands used today
+_daily_pool: Dict[Tuple[int, str], int] = {}
+
+
+def _get_pool_usage(user_id: int) -> int:
+    """Return how many pooled commands this user has used today."""
+    return _daily_pool.get((user_id, date.today().isoformat()), 0)
+
+
+def _increment_pool(user_id: int) -> int:
+    """Increment and return the new usage count."""
+    key = (user_id, date.today().isoformat())
+    _daily_pool[key] = _daily_pool.get(key, 0) + 1
+    return _daily_pool[key]
+
+
+# ---------------------------------------------------------------------------
+# Tier resolution
 # ---------------------------------------------------------------------------
 
-def _has_premium_role(interaction: discord.Interaction) -> bool:
-    """Return True if the invoking member has any of the configured premium roles."""
+def _get_user_tier(interaction: discord.Interaction) -> str:
+    """Determine the user's highest tier from their Discord roles.
+
+    Returns one of: "unlimited", "elite", "pro", "starter", "free".
+    """
     if not interaction.guild:
-        log.warning("Premium check: no guild context")
-        return False
+        return "free"
     member = interaction.user
     if not isinstance(member, discord.Member):
-        log.warning("Premium check: user %s is not a Member", member)
-        return False
-    role_names_lower = {r.name.lower() for r in member.roles}
-    allowed_lower = {r.lower() for r in PREMIUM_ROLE_NAMES}
-    matched = role_names_lower & allowed_lower
-    if not matched:
-        actual_roles = {r.name for r in member.roles}
-        log.info("Premium check DENIED for %s — has roles: %s | allowed: %s",
-                 member, actual_roles, set(PREMIUM_ROLE_NAMES))
-    else:
-        log.debug("Premium check OK for %s — matched: %s", member, matched)
-    return bool(matched)
+        return "free"
+
+    best_tier = "free"
+    best_rank = 0
+
+    for role in member.roles:
+        tier = ROLE_TO_TIER.get(role.name.lower())
+        if tier:
+            rank = TIER_HIERARCHY.get(tier, 0)
+            if rank > best_rank:
+                best_tier = tier
+                best_rank = rank
+
+    return best_tier
 
 
-def premium_only():
-    """App-command check that restricts usage to premium role holders."""
+def _has_premium_role(interaction: discord.Interaction) -> bool:
+    """Legacy check — returns True if user has any paid or bypass role."""
+    return _get_user_tier(interaction) != "free"
+
+
+# ---------------------------------------------------------------------------
+# Tier gate decorator (hard gate, no pool)
+# ---------------------------------------------------------------------------
+
+def tier_required(minimum_tier: str):
+    """App-command check that requires a minimum tier (no pool cost)."""
+
+    min_rank = TIER_HIERARCHY.get(minimum_tier, 0)
+    tier_labels = {"starter": "Rookie", "pro": "Tipster", "elite": "Whale"}
+    label = tier_labels.get(minimum_tier, minimum_tier.title())
 
     async def predicate(interaction: discord.Interaction) -> bool:
-        if _has_premium_role(interaction):
+        user_tier = _get_user_tier(interaction)
+        user_rank = TIER_HIERARCHY.get(user_tier, 0)
+
+        if user_rank >= min_rank:
             return True
-        roles_list = ", ".join(f"**{r}**" for r in PREMIUM_ROLE_NAMES)
+
         em = discord.Embed(
-            title="Premium Required",
+            title="Upgrade Required",
             description=(
-                f"This command requires one of these roles: {roles_list}.\n\n"
-                "Check the upgrade channel for details on how to get access."
+                f"This command requires the **{label}** plan or higher.\n\n"
+                "Use `/subscribe` to view plans and start your 7-day free trial."
             ),
-            color=COLOR_BLUE,
+            color=COLOR_PURPLE,
         )
         try:
             await interaction.response.send_message(embed=em, ephemeral=True)
         except Exception as exc:
-            log.warning("Failed to send premium gate message: %s", exc)
+            log.warning("Failed to send tier gate message: %s", exc)
         return False
 
     return app_commands.check(predicate)
 
 
 # ---------------------------------------------------------------------------
+# Pooled command decorator (tier gate + daily pool)
+# ---------------------------------------------------------------------------
+
+def pooled_command(minimum_tier: str):
+    """App-command check that requires a minimum tier AND costs 1 from the daily pool.
+
+    - Whale+ and unlimited bypass the pool entirely.
+    - Lower tiers deduct from their daily pool.
+    - Shows remaining commands in the error message.
+    """
+
+    min_rank = TIER_HIERARCHY.get(minimum_tier, 0)
+    tier_labels = {"free": "Free", "starter": "Rookie", "pro": "Tipster", "elite": "Whale"}
+
+    async def predicate(interaction: discord.Interaction) -> bool:
+        user_tier = _get_user_tier(interaction)
+        user_rank = TIER_HIERARCHY.get(user_tier, 0)
+
+        # 1. Check minimum tier
+        if user_rank < min_rank:
+            label = tier_labels.get(minimum_tier, minimum_tier.title())
+            em = discord.Embed(
+                title="Upgrade Required",
+                description=(
+                    f"This command requires the **{label}** plan or higher.\n\n"
+                    "Use `/subscribe` to view plans and start your 7-day free trial."
+                ),
+                color=COLOR_PURPLE,
+            )
+            try:
+                await interaction.response.send_message(embed=em, ephemeral=True)
+            except Exception:
+                pass
+            return False
+
+        # 2. Check pool (elite+ and unlimited skip)
+        pool_limit = TIER_POOL_LIMITS.get(user_tier, 0)
+        if pool_limit == 0:
+            # Unlimited — no tracking needed
+            return True
+
+        user_id = interaction.user.id
+        used = _get_pool_usage(user_id)
+
+        if used >= pool_limit:
+            # Pool exhausted
+            current_label = tier_labels.get(user_tier, user_tier.title())
+            # Suggest next tier
+            if user_tier == "free":
+                upgrade_msg = "Upgrade to **Rookie** for 5/day or **Tipster** for 35/day."
+            elif user_tier == "starter":
+                upgrade_msg = "Upgrade to **Tipster** for 35/day or **Whale** for unlimited."
+            elif user_tier == "pro":
+                upgrade_msg = "Upgrade to **Whale** for unlimited access."
+            else:
+                upgrade_msg = ""
+
+            em = discord.Embed(
+                title="Daily Limit Reached",
+                description=(
+                    f"You've used all **{pool_limit}** commands today ({current_label} plan).\n\n"
+                    f"{upgrade_msg}\n"
+                    "Use `/subscribe` to upgrade."
+                ),
+                color=COLOR_BLUE,
+            )
+            try:
+                await interaction.response.send_message(embed=em, ephemeral=True)
+            except Exception:
+                pass
+            return False
+
+        # 3. Deduct from pool
+        new_count = _increment_pool(user_id)
+        remaining = pool_limit - new_count
+        log.debug("Pool usage for %s: %d/%d (tier=%s)",
+                  interaction.user, new_count, pool_limit, user_tier)
+        return True
+
+    return app_commands.check(predicate)
+
+
+# ---------------------------------------------------------------------------
+# Legacy decorator (backward compatible)
+# ---------------------------------------------------------------------------
+
+def premium_only():
+    """Legacy decorator — equivalent to tier_required("starter")."""
+    return tier_required("starter")
+
+
+# ---------------------------------------------------------------------------
 # Private thread routing
 # ---------------------------------------------------------------------------
 
-# Thread name prefix — used to find existing threads for a user.
 _THREAD_PREFIX = "bot-"
 
 
@@ -83,33 +227,26 @@ async def get_or_create_private_thread(
     """
     channel = interaction.channel
 
-    # Private threads require a text channel in a guild.
     if not isinstance(channel, discord.TextChannel):
         return None
 
     user = interaction.user
     thread_name = f"{_THREAD_PREFIX}{user.name}"
 
-    # Look for an existing private thread for this user.
-    # guild.threads only contains threads the bot can see (active + joined).
     for thread in channel.threads:
         if thread.name == thread_name and thread.is_private():
             return thread
 
-    # Also check archived threads.
     async for thread in channel.archived_threads(private=True, limit=100):
         if thread.name == thread_name:
-            # Unarchive by sending — discord auto-unarchives on new message.
             return thread
 
-    # Create a new private thread.
     try:
         thread = await channel.create_thread(
             name=thread_name,
             type=discord.ChannelType.private_thread,
             invitable=False,
         )
-        # Mention the user so they get added to the thread and can see it.
         await thread.send(
             content=f"{user.mention}",
             embed=discord.Embed(

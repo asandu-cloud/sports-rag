@@ -63,10 +63,12 @@ except ImportError:
 try:
     from prob_models import (
         over_prob, poisson_pmf, negbin_pmf, negbin_from_mean_var,
+        dixon_coles_scoreline_prob, dixon_coles_btts_prob,
     )
 except ImportError:
     from Scripts.rag_ingest.prob_models import (  # type: ignore[import]
         over_prob, poisson_pmf, negbin_pmf, negbin_from_mean_var,
+        dixon_coles_scoreline_prob, dixon_coles_btts_prob,
     )
 
 # ml_edge
@@ -172,6 +174,20 @@ def _linear_slope(values: List[Optional[float]]) -> Optional[float]:
     if den == 0:
         return 0.0
     return num / den
+
+
+def _stat_blend(stat: str) -> Tuple[float, float]:
+    """Return (season_weight, recent_weight) for a given stat type.
+
+    Uses stat-specific overrides from SCORING_WEIGHTS["projection"] if available,
+    otherwise falls back to the generic blend_season/blend_recent.
+    """
+    pw = SCORING_WEIGHTS["projection"]
+    s_key = f"blend_{stat}_season"
+    r_key = f"blend_{stat}_recent"
+    if s_key in pw and r_key in pw:
+        return pw[s_key], pw[r_key]
+    return pw["blend_season"], pw["blend_recent"]
 
 
 def _venue_blend(venue_rate: Optional[float], overall_rate: Optional[float], blend_w: float) -> Optional[float]:
@@ -388,6 +404,14 @@ def projected_goals(home_meta: Dict, away_meta: Dict) -> Tuple[Optional[float], 
     elif h_ga is not None:
         a_proj = h_ga
 
+    # Home advantage adjustment: boost home, reduce away
+    ha = pw.get("home_advantage", 0.0)
+    if ha > 0:
+        if h_proj is not None:
+            h_proj += ha
+        if a_proj is not None:
+            a_proj = max(0.1, a_proj - ha)
+
     return h_proj, a_proj
 
 
@@ -396,7 +420,6 @@ def projected_goals(home_meta: Dict, away_meta: Dict) -> Tuple[Optional[float], 
 # ===================================================================
 
 def projected_total_sot(home: str, away: str, league: str, knockout_ctx: Optional[KnockoutContext] = None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
-    pw = SCORING_WEIGHTS["projection"]
     hm = _profile_meta(home, league)
     am = _profile_meta(away, league)
     h_proj, a_proj = projected_sot(hm, am)
@@ -414,8 +437,9 @@ def projected_total_sot(home: str, away: str, league: str, knockout_ctx: Optiona
     else:
         recent_total = None
 
+    bs, br = _stat_blend("sot")
     if season_total is not None and recent_total is not None:
-        blended = pw["blend_season"] * season_total + pw["blend_recent"] * recent_total
+        blended = bs * season_total + br * recent_total
     elif season_total is not None:
         blended = season_total
     elif recent_total is not None:
@@ -441,7 +465,6 @@ def projected_total_sot(home: str, away: str, league: str, knockout_ctx: Optiona
 
 
 def projected_total_corners(home: str, away: str, league: str, knockout_ctx: Optional[KnockoutContext] = None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
-    pw = SCORING_WEIGHTS["projection"]
     hm = _profile_meta(home, league)
     am = _profile_meta(away, league)
     h_proj, a_proj = projected_corners(hm, am)
@@ -459,8 +482,9 @@ def projected_total_corners(home: str, away: str, league: str, knockout_ctx: Opt
     else:
         recent_total = None
 
+    bs, br = _stat_blend("corners")
     if season_total is not None and recent_total is not None:
-        blended = pw["blend_season"] * season_total + pw["blend_recent"] * recent_total
+        blended = bs * season_total + br * recent_total
     elif season_total is not None:
         blended = season_total
     elif recent_total is not None:
@@ -512,8 +536,9 @@ def projected_total_cards(home: str, away: str, league: str, knockout_ctx: Optio
     else:
         recent_total = None
 
+    bs, br = _stat_blend("cards")
     if season_total is not None and recent_total is not None:
-        blended = pw["blend_season"] * season_total + pw["blend_recent"] * recent_total
+        blended = bs * season_total + br * recent_total
     elif season_total is not None:
         blended = season_total
     elif recent_total is not None:
@@ -692,8 +717,9 @@ def projected_total_goals(home: str, away: str, league: str, knockout_ctx: Optio
     a_xg = ar.get("xg_for_avg")
     recent_total = (h_xg + a_xg) if (h_xg is not None and a_xg is not None) else None
 
+    bs, br = _stat_blend("goals")
     if season_total is not None and recent_total is not None:
-        blended = pw["blend_season"] * season_total + pw["blend_recent"] * recent_total
+        blended = bs * season_total + br * recent_total
     elif season_total is not None:
         blended = season_total
     elif recent_total is not None:
@@ -724,10 +750,10 @@ def projected_total_goals(home: str, away: str, league: str, knockout_ctx: Optio
 
 def projected_btts_prob(home: str, away: str, league: str) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[float]]:
     """
-    Project P(BTTS Yes) = P(Home >= 1) * P(Away >= 1) using independent Poisson/NegBin.
+    Project P(BTTS Yes) using Dixon-Coles bivariate Poisson.
     Returns (p_btts_yes, h_proj, a_proj, h_season, a_season).
     """
-    pw = SCORING_WEIGHTS["projection"]
+    bs, br = _stat_blend("goals")
     hm = _profile_meta(home, league)
     am = _profile_meta(away, league)
 
@@ -740,7 +766,7 @@ def projected_btts_prob(home: str, away: str, league: str) -> Tuple[Optional[flo
 
     def _blend(season_val, recent_val):
         if season_val is not None and recent_val is not None:
-            return pw["blend_season"] * season_val + pw["blend_recent"] * recent_val
+            return bs * season_val + br * recent_val
         return season_val if season_val is not None else recent_val
 
     h_proj = _blend(h_season, h_xg)
@@ -762,10 +788,8 @@ def projected_btts_prob(home: str, away: str, league: str) -> Tuple[Optional[flo
     h_var = get_blended_variance(home, league, "goals_var")
     a_var = get_blended_variance(away, league, "goals_var")
 
-    # P(team scores >= 1) = P(X > 0.5) via over_prob
-    p_home_scores = over_prob(h_proj, 0.5, h_var)
-    p_away_scores = over_prob(a_proj, 0.5, a_var)
-    p_btts_yes = p_home_scores * p_away_scores
+    # Dixon-Coles bivariate Poisson for BTTS (accounts for goal correlation)
+    p_btts_yes = dixon_coles_btts_prob(h_proj, a_proj)
 
     return p_btts_yes, h_proj, a_proj, h_season, a_season
 
@@ -774,10 +798,11 @@ def projected_correct_score_probs(
     home: str, away: str, league: str, max_goals: int = 6,
 ) -> Tuple[Optional[Dict[Tuple[int, int], float]], Optional[float], Optional[float]]:
     """
-    Compute P(Home=i, Away=j) for all i,j in [0, max_goals] using independent
-    Poisson/NegBin per team.  Returns (prob_matrix, h_proj, a_proj).
+    Compute P(Home=i, Away=j) for all i,j in [0, max_goals] using Dixon-Coles
+    bivariate Poisson (rho correction for low-scoring outcomes).
+    Returns (prob_matrix, h_proj, a_proj).
     """
-    pw = SCORING_WEIGHTS["projection"]
+    bs, br = _stat_blend("goals")
     hm = _profile_meta(home, league)
     am = _profile_meta(away, league)
     h_season, a_season = projected_goals(hm, am)
@@ -789,7 +814,7 @@ def projected_correct_score_probs(
 
     def _blend(season_val, recent_val):
         if season_val is not None and recent_val is not None:
-            return pw["blend_season"] * season_val + pw["blend_recent"] * recent_val
+            return bs * season_val + br * recent_val
         return season_val if season_val is not None else recent_val
 
     h_proj = _blend(h_season, h_xg)
@@ -806,22 +831,11 @@ def projected_correct_score_probs(
             h_proj = (1.0 - ml_w) * h_proj + ml_w * (ml_proj * ratio_h)
             a_proj = (1.0 - ml_w) * a_proj + ml_w * (ml_proj * (1.0 - ratio_h))
 
-    # Per-team variance for distribution selection (Bayesian blend: season + recent)
-    h_var = get_blended_variance(home, league, "goals_var")
-    a_var = get_blended_variance(away, league, "goals_var")
-
-    def _team_pmf(lam, var, k):
-        if var is not None and var > lam and lam > 0:
-            r, p = negbin_from_mean_var(lam, var)
-            return negbin_pmf(k, r, p)
-        return poisson_pmf(k, lam)
-
+    # Dixon-Coles bivariate Poisson with rho correction
     probs: Dict[Tuple[int, int], float] = {}
     for i in range(max_goals + 1):
-        p_h = _team_pmf(h_proj, h_var, i)
         for j in range(max_goals + 1):
-            p_a = _team_pmf(a_proj, a_var, j)
-            probs[(i, j)] = p_h * p_a
+            probs[(i, j)] = dixon_coles_scoreline_prob(i, j, h_proj, a_proj, rho=-0.10)
 
     return probs, h_proj, a_proj
 
@@ -860,9 +874,13 @@ def projected_goal_difference(home: str, away: str, league: str) -> Tuple[Option
     h_dom = safe_float(hm.get("dominance_index"))
     a_dom = safe_float(am.get("dominance_index"))
 
+    # Home advantage for goal difference
+    proj_w = SCORING_WEIGHTS["projection"]
+    ha = proj_w.get("home_advantage", 0.0) * 2  # full spread: +ha for home, -ha for away = 2*ha diff
+
     season_diff = None
     if h_g is not None and a_g is not None:
-        season_diff = (h_g - a_g)
+        season_diff = (h_g - a_g) + ha
         if h_form is not None and a_form is not None:
             season_diff += (h_form - a_form) * pw["form_w"]
         if h_dom is not None and a_dom is not None:

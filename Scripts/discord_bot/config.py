@@ -8,11 +8,13 @@ load_dotenv()
 # Discord bot token — set in .env as DISCORD_BOT_TOKEN
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "")
 
-# Channel IDs for auto-push (3 channels)
+# Channel IDs for auto-push (6 channels)
 CHANNEL_DAILY_PICKS = int(os.getenv("DISCORD_CHANNEL_DAILY_PICKS", "0"))    # all market predictions
-CHANNEL_PARLAYS = int(os.getenv("DISCORD_CHANNEL_PARLAYS", "0"))            # parlays + value alerts + track record
+CHANNEL_PARLAYS = int(os.getenv("DISCORD_CHANNEL_PARLAYS", "0"))            # parlays + value alerts
 CHANNEL_PLAYER_PROPS = int(os.getenv("DISCORD_CHANNEL_PLAYER_PROPS", "0"))  # player prop picks
 CHANNEL_TEAM_LINES = int(os.getenv("DISCORD_CHANNEL_TEAM_LINES", "0"))      # per-team corner & card lines
+CHANNEL_BEST_PICKS = int(os.getenv("DISCORD_CHANNEL_BEST_PICKS", "0"))      # daily track record summary
+CHANNEL_NEWSLETTER = int(os.getenv("DISCORD_CHANNEL_NEWSLETTER", "0"))      # matchday intel (WHALE only)
 
 # Legacy channel IDs (kept for backward compatibility, map to new channels)
 CHANNEL_PARLAY_OF_DAY = int(os.getenv("DISCORD_CHANNEL_PARLAYS",
@@ -21,7 +23,7 @@ CHANNEL_MATCHDAY_DIGEST = int(os.getenv("DISCORD_CHANNEL_DAILY_PICKS",
                               os.getenv("DISCORD_CHANNEL_DIGEST", "0")))
 CHANNEL_VALUE_ALERTS = int(os.getenv("DISCORD_CHANNEL_PARLAYS",
                            os.getenv("DISCORD_CHANNEL_ALERTS", "0")))
-CHANNEL_TRACK_RECORD = int(os.getenv("DISCORD_CHANNEL_PARLAYS",
+CHANNEL_TRACK_RECORD = int(os.getenv("DISCORD_CHANNEL_BEST_PICKS",
                            os.getenv("DISCORD_CHANNEL_TRACK_RECORD", "0")))
 CHANNEL_MATCH_PREDICTIONS = int(os.getenv("DISCORD_CHANNEL_DAILY_PICKS",
                                 os.getenv("DISCORD_CHANNEL_PREDICTIONS", "0")))
@@ -38,14 +40,50 @@ ALERT_SCAN_INTERVAL_MINUTES = int(os.getenv("DISCORD_ALERT_INTERVAL", "120"))
 MIN_ALERT_MODEL_PROB = 0.65
 MIN_ALERT_VALUE_EDGE = 0.08
 
-# Access control — role names that can interact with the bot
-# Users with ANY of these roles can use premium commands.
-# Set via env (comma-separated) or override here.
-PREMIUM_ROLE_NAMES = [
-    r.strip()
-    for r in os.getenv("DISCORD_PREMIUM_ROLES", "Premium").split(",")
-    if r.strip()
-]
+# ---------------------------------------------------------------------------
+# Subscription tier system
+# ---------------------------------------------------------------------------
+
+# Tier role display names in Discord
+TIER_ROLES = {
+    "starter": os.getenv("DISCORD_ROLE_TIER1_NAME", "ROOKIE"),
+    "pro": os.getenv("DISCORD_ROLE_TIER2_NAME", "TIPSTER"),
+    "elite": os.getenv("DISCORD_ROLE_TIER3_NAME", "WHALE"),
+}
+
+# Guild ID for role management via REST API
+DISCORD_GUILD_ID = os.getenv("DISCORD_GUILD_ID", "")
+
+# Role name (case-insensitive) -> internal tier
+ROLE_TO_TIER = {
+    "rookie": "starter",
+    "tipster": "pro",
+    "whale": "elite",
+    "friends & family": "unlimited",
+    "mod": "unlimited",
+    "owner": "unlimited",
+}
+
+# Tier hierarchy for permission checks
+TIER_HIERARCHY = {
+    "free": 0,
+    "starter": 1,
+    "pro": 2,
+    "elite": 3,
+    "unlimited": 99,
+}
+
+# Daily command pool sizes per tier (0 = unlimited)
+TIER_POOL_LIMITS = {
+    "free": 1,
+    "starter": 5,
+    "pro": 35,
+    "elite": 0,
+    "unlimited": 0,
+}
+
+# All roles that grant any level of access (used by legacy premium_only check)
+PREMIUM_ROLE_NAMES = list(TIER_ROLES.values()) + ["OWNER", "MOD", "FRIENDS & FAMILY"]
 
 # Leagues
 DOMESTIC_LEAGUES = ["EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1"]

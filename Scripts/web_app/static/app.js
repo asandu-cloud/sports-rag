@@ -192,6 +192,165 @@ const router = {
 
 
 // ================================================================
+// AUTH MODULE
+// ================================================================
+
+const auth = {
+  user: null,
+  token: localStorage.getItem('spickbot_token'),
+
+  async init() {
+    // Check for token in URL (redirect from OAuth callback)
+    const params = new URLSearchParams(window.location.search);
+    const urlToken = params.get('token');
+    if (urlToken) {
+      this.token = urlToken;
+      localStorage.setItem('spickbot_token', urlToken);
+      // Clean URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    if (!this.token) return;
+    // Validate token with server
+    try {
+      const resp = await fetch('/auth/me', {
+        headers: { 'Authorization': `Bearer ${this.token}` },
+      });
+      if (resp.ok) {
+        this.user = await resp.json();
+        this.updateUI();
+      } else {
+        this.logout();
+      }
+    } catch (e) {
+      console.warn('Auth check failed:', e);
+    }
+  },
+
+  getHeaders() {
+    const h = { 'Content-Type': 'application/json' };
+    if (this.token) h['Authorization'] = `Bearer ${this.token}`;
+    return h;
+  },
+
+  isLoggedIn() { return !!this.user; },
+
+  tier() { return this.user?.tier || 'free'; },
+
+  canAccess(minTier) {
+    const hierarchy = { free: 0, starter: 1, pro: 2, elite: 3 };
+    return (hierarchy[this.tier()] || 0) >= (hierarchy[minTier] || 0);
+  },
+
+  login() { window.location.href = '/auth/discord/login'; },
+
+  logout() {
+    this.user = null;
+    this.token = null;
+    localStorage.removeItem('spickbot_token');
+    this.updateUI();
+  },
+
+  updateUI() {
+    const loginBtn = document.getElementById('loginBtn');
+    const userBadge = document.getElementById('userBadge');
+    const userName = document.getElementById('userName');
+    const userAvatar = document.getElementById('userAvatar');
+
+    if (this.user) {
+      if (loginBtn) loginBtn.classList.add('hidden');
+      if (userBadge) {
+        userBadge.classList.remove('hidden');
+        userName.textContent = this.user.username || 'User';
+        const discordId = this.user.discord_id || '';
+        const avatarHash = this.user.discord_avatar_url || '';
+        if (avatarHash && discordId) {
+          userAvatar.src = avatarHash.startsWith('http')
+            ? avatarHash
+            : `https://cdn.discordapp.com/avatars/${discordId}/${avatarHash}.png?size=32`;
+        } else {
+          userAvatar.src = `https://cdn.discordapp.com/embed/avatars/${parseInt(discordId || '0') % 5}.png`;
+        }
+      }
+    } else {
+      if (loginBtn) loginBtn.classList.remove('hidden');
+      if (userBadge) userBadge.classList.add('hidden');
+    }
+  },
+
+  showMenu() {
+    const tier = this.tier();
+    const tierLabel = { free: 'Free', starter: 'Starter', pro: 'Pro', elite: 'Elite' }[tier] || tier;
+    const status = this.user?.status || 'inactive';
+    if (confirm(`${this.user?.username}\nPlan: ${tierLabel} (${status})\n\nLog out?`)) {
+      this.logout();
+    }
+  },
+};
+
+
+// ================================================================
+// PRICING MODULE
+// ================================================================
+
+const pricing = {
+  interval: 'monthly',
+
+  setInterval(interval) {
+    this.interval = interval;
+    // Update toggle buttons
+    document.querySelectorAll('.billing-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.interval === interval);
+    });
+    // Update displayed prices
+    document.querySelectorAll('.pricing-amount').forEach(el => {
+      el.textContent = el.dataset[interval] || el.textContent;
+    });
+    document.querySelectorAll('.pricing-period').forEach(el => {
+      el.textContent = el.dataset[interval] || el.textContent;
+    });
+  },
+
+  async subscribe(tier) {
+    console.log('Subscribe called:', tier, this.interval, 'loggedIn:', auth.isLoggedIn(), 'token:', !!auth.token);
+    // Must be logged in with Discord first
+    if (!auth.isLoggedIn()) {
+      // If we have a token but user hasn't loaded yet, try init first
+      if (auth.token && !auth.user) {
+        await auth.init();
+      }
+      if (!auth.isLoggedIn()) {
+        // Store intent, redirect to Discord login
+        localStorage.setItem('spickbot_subscribe_intent', JSON.stringify({ tier, interval: this.interval }));
+        auth.login();
+        return;
+      }
+    }
+    try {
+      console.log('Creating checkout session...');
+      const resp = await fetch('/api/checkout/create-session', {
+        method: 'POST',
+        headers: auth.getHeaders(),
+        body: JSON.stringify({ tier: tier, interval: this.interval }),
+      });
+      console.log('Checkout response:', resp.status);
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        alert(err.detail || 'Failed to create checkout session. Please try again.');
+        return;
+      }
+      const data = await resp.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (e) {
+      console.error('Checkout error:', e);
+      alert('Something went wrong. Please try again.');
+    }
+  },
+};
+
+
+// ================================================================
 // APP STATE
 // ================================================================
 
@@ -1003,7 +1162,19 @@ function initReviewsScroll() {
 // INIT
 // ================================================================
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await auth.init();
+  // Check for pending subscribe intent (user was redirected to login first)
+  const intent = localStorage.getItem('spickbot_subscribe_intent');
+  if (intent && auth.isLoggedIn()) {
+    localStorage.removeItem('spickbot_subscribe_intent');
+    try {
+      const { tier, interval } = JSON.parse(intent);
+      pricing.interval = interval || 'monthly';
+      pricing.subscribe(tier);
+      return; // Don't load the page, we're redirecting to Stripe
+    } catch (e) { /* ignore bad intent */ }
+  }
   router.init();
   initReviewsScroll();
 });

@@ -39,7 +39,7 @@ from collections import Counter
 import os
 import re
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from itertools import combinations
 from math import comb as _comb, log
@@ -147,6 +147,34 @@ except ImportError:
             return StakeContext()
 
         def stake_evidence_line(ctx) -> None:
+            return None
+
+try:
+    from lineup_context import get_lineup_context, lineup_evidence_line, LineupContext
+    _HAS_LINEUP = True
+except ImportError:
+    try:
+        from Scripts.rag_ingest.lineup_context import get_lineup_context, lineup_evidence_line, LineupContext
+        _HAS_LINEUP = True
+    except ImportError:
+        _HAS_LINEUP = False
+        from dataclasses import dataclass as _dc_lu
+
+        @_dc_lu
+        class LineupContext:
+            home_starters: list = None
+            away_starters: list = None
+            home_adjustment: dict = None
+            away_adjustment: dict = None
+            home_missing_key: list = None
+            away_missing_key: list = None
+            source: str = "unavailable"
+            is_available: bool = False
+
+        def get_lineup_context(*a, **kw) -> "LineupContext":
+            return LineupContext()
+
+        def lineup_evidence_line(ctx) -> None:
             return None
 
 try:
@@ -302,12 +330,23 @@ SCORING_WEIGHTS = {
         "cards_base": 0.85,
         "cards_agg": 0.15,
         "cards_agg_scale": 3.0,
-        "blend_season": 0.90,
-        "blend_recent": 0.10,
+        "blend_season": 0.75,
+        "blend_recent": 0.25,
+        # Stat-specific blend overrides (backtested across 632 fixtures, 5 leagues)
+        "blend_goals_season": 0.85,
+        "blend_goals_recent": 0.15,
+        "blend_corners_season": 0.80,
+        "blend_corners_recent": 0.20,
+        "blend_cards_season": 0.85,
+        "blend_cards_recent": 0.15,
+        "blend_sot_season": 0.80,
+        "blend_sot_recent": 0.20,
         "corners_venue_blend": 0.50,
         "goals_venue_blend": 0.50,
         "sot_venue_blend": 0.50,
-        "xg_blend": 0.30,  # 30% xG + 70% actual goals; reduces luck variance
+        "xg_blend": 0.50,  # 50% xG + 50% actual goals; best hit rate at 2.5 line
+        # Home advantage: 0.0 — venue splits already capture this fully
+        "home_advantage": 0.0,
     },
     "comparison_cards": {
         "cards": 0.55,
@@ -350,8 +389,8 @@ SCORING_WEIGHTS = {
     "projection_spreads": {
         "form_w": 0.10,
         "dominance_w": 0.10,
-        "blend_season": 0.90,
-        "blend_recent": 0.10,
+        "blend_season": 0.75,
+        "blend_recent": 0.25,
     },
     "spreads_line": {
         "edge_weight": 1.2,
@@ -418,8 +457,10 @@ SCORING_WEIGHTS = {
     },
     "ml": {
         "blend_weight": 0.0,  # static fallback (used when dynamic_blend=False). Set >0 to force blend.
-        "dynamic_blend": True,  # when True, blend_weight computed per-stat from R2 via get_dynamic_blend_weight()
-        "elo_signal_weight": 0.15,
+        "dynamic_blend": False,  # DISABLED: backtesting shows train/serve skew makes ML hurt all stats.
+                                 # Season-only projections beat ML-blended on MAE, bias, and skill.
+                                 # Re-enable after fixing _profile_meta_to_fixture_row distribution mismatch.
+        "elo_signal_weight": 0.15,  # Elo signal still active (doesn't suffer from the same skew)
         "elo_scale": 400.0,
         "min_elo_diff": 20,
     },
@@ -432,6 +473,10 @@ SCORING_WEIGHTS = {
         "euro_weight": 0.20,           # weight for European competition profile
         "min_euro_fixtures": 3,        # minimum European fixtures before blending kicks in
         "non_top5_confidence_penalty": 0.15,  # confidence penalty for teams without domestic profiles
+    },
+    "market_blend": {
+        "model_weight": 0.70,          # weight for our model projection
+        "market_weight": 0.30,         # weight for market-implied total
     },
 }
 
@@ -476,6 +521,7 @@ class CandidateLeg:
     point: Optional[float]
     bookmaker: Optional[str]
     league: str = ""
+    event: Optional[Dict] = field(default=None, repr=False, hash=False, compare=False)
 
 
 @dataclass
@@ -1739,6 +1785,7 @@ def build_candidates(events: List[Dict]) -> List[CandidateLeg]:
                         point=point,
                         bookmaker=bm_title,
                         league=ev_league,
+                        event=ev,
                     )
                     k = (event_id, market_key, name, "" if point is None else str(point))
                     cur = best_rows.get(k)
@@ -1862,6 +1909,25 @@ def heuristic_groups_for_event(home_meta: Dict, away_meta: Dict) -> Set[str]:
     return groups
 
 
+def _market_blended_proj(proj_total: float, event: Optional[Dict], stat_group: str) -> float:
+    """Blend model projection with market-implied total when available.
+
+    Uses SCORING_WEIGHTS["market_blend"] weights (default 70/30 model/market).
+    Gracefully returns proj_total unchanged when event is None or market total
+    is unavailable.
+    """
+    if event is None:
+        return proj_total
+    try:
+        market_total = extract_market_implied_total(event, stat_group)
+    except Exception:
+        return proj_total
+    if market_total is None:
+        return proj_total
+    mbw = SCORING_WEIGHTS["market_blend"]
+    return mbw["model_weight"] * proj_total + mbw["market_weight"] * market_total
+
+
 def kb_leg_quality(leg: CandidateLeg, league: str) -> float:
     """
     Positive score indicates stronger multi-signal support from local KB.
@@ -1926,6 +1992,7 @@ def kb_leg_quality(leg: CandidateLeg, league: str) -> float:
     if g == "totals":
         goals_proj, _, _ = projected_total_goals(leg.home_team, leg.away_team, league)
         if goals_proj is not None:
+            goals_proj = _market_blended_proj(goals_proj, leg.event, "totals")
             direction = leg.outcome.lower()
             if "over" in direction:
                 score += goals_proj - w["goals_over_offset"]
@@ -1940,6 +2007,7 @@ def kb_leg_quality(leg: CandidateLeg, league: str) -> float:
     if g == "corners":
         corners_proj, _, _ = projected_total_corners(leg.home_team, leg.away_team, league)
         if corners_proj is not None:
+            corners_proj = _market_blended_proj(corners_proj, leg.event, "corners")
             direction = leg.outcome.lower()
             if leg.point is not None and "total" in leg.market_key.lower():
                 if "over" in direction:
@@ -1966,6 +2034,7 @@ def kb_leg_quality(leg: CandidateLeg, league: str) -> float:
         cards_proj = cards_result[0] if cards_result else None
 
         if cards_proj is not None:
+            cards_proj = _market_blended_proj(cards_proj, leg.event, "cards")
             direction = leg.outcome.lower()
             if leg.point is not None and "total" in leg.market_key.lower():
                 if "over" in direction:
@@ -2013,6 +2082,7 @@ def kb_leg_quality(leg: CandidateLeg, league: str) -> float:
     if g == "sot":
         sot_total, sot_season, sot_recent = projected_total_sot(leg.home_team, leg.away_team, league)
         if sot_total is not None:
+            sot_total = _market_blended_proj(sot_total, leg.event, "sot")
             direction = leg.outcome.lower()
             if "over" in direction:
                 score += sot_total - w["sot_over_offset"]
@@ -2100,6 +2170,9 @@ def kb_leg_quality(leg: CandidateLeg, league: str) -> float:
             }
             proj_result = proj_funcs[g]()
             proj_total = proj_result[0] if proj_result else None
+            # Apply market blend for match-level projections
+            if proj_total is not None:
+                proj_total = _market_blended_proj(proj_total, leg.event, g if g != "totals" else "totals")
 
         if proj_total is not None:
             direction = leg.outcome.lower()
@@ -2224,6 +2297,9 @@ def score_combo(combo: List[CandidateLeg], c: ConstraintSpec, leg_quality: Dict[
                 }
                 proj_result = proj_funcs[g]()
                 proj_total = proj_result[0] if proj_result else None
+                # Apply market blend for match-level projections
+                if proj_total is not None:
+                    proj_total = _market_blended_proj(proj_total, leg.event, g if g != "totals" else "totals")
 
             if proj_total is not None:
                 is_over = "over" in leg.outcome.lower()
@@ -3185,7 +3261,25 @@ def projected_goals(home_meta: Dict, away_meta: Dict) -> Tuple[Optional[float], 
     elif h_ga is not None:
         a_proj = h_ga
 
+    # Home advantage adjustment: boost home, reduce away
+    ha = pw.get("home_advantage", 0.0)
+    if ha > 0:
+        if h_proj is not None:
+            h_proj += ha
+        if a_proj is not None:
+            a_proj = max(0.1, a_proj - ha)
+
     return h_proj, a_proj
+
+
+def _stat_blend(stat: str) -> Tuple[float, float]:
+    """Return (season_weight, recent_weight) for a given stat type."""
+    pw = SCORING_WEIGHTS["projection"]
+    s_key = f"blend_{stat}_season"
+    r_key = f"blend_{stat}_recent"
+    if s_key in pw and r_key in pw:
+        return pw[s_key], pw[r_key]
+    return pw["blend_season"], pw["blend_recent"]
 
 
 def projected_total_sot(home: str, away: str, league: str, knockout_ctx: Optional[KnockoutContext] = None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
@@ -3209,8 +3303,7 @@ def projected_total_sot(home: str, away: str, league: str, knockout_ctx: Optiona
 
     if season_total is not None and recent_total is not None:
         # Dynamic blend: increase recent weight when form diverges from season avg
-        base_season_w = pw["blend_season"]
-        base_recent_w = pw["blend_recent"]
+        base_season_w, base_recent_w = _stat_blend("sot")
         divergence = abs(recent_total - season_total) / max(season_total, 1.0)
         # When divergence > 20%, shift blend toward recent (up to 60/40)
         if divergence > 0.20:
@@ -3282,6 +3375,7 @@ def leg_evidence(leg: CandidateLeg, league: str) -> List[str]:
             lines.append(f"{leg.away_team} corners for/against: {a_for:.2f}/{a_against:.2f} per match.")
         if h_proj is not None and a_proj is not None:
             total_proj = h_proj + a_proj
+            total_proj = _market_blended_proj(total_proj, leg.event, "corners")
             side = f"{leg.home_team} {h_proj:.2f} vs {leg.away_team} {a_proj:.2f}"
             lines.append(f"Projected corners: {side} (combined {total_proj:.2f}).")
             k = leg.market_key.lower()
@@ -3321,6 +3415,7 @@ def leg_evidence(leg: CandidateLeg, league: str) -> List[str]:
             lines.append(f"Season SoT/match: {leg.home_team} {h_sot_pm:.2f}, {leg.away_team} {a_sot_pm:.2f}.")
         sot_total, sot_season, sot_recent = projected_total_sot(leg.home_team, leg.away_team, league)
         if sot_total is not None:
+            sot_total = _market_blended_proj(sot_total, leg.event, "sot")
             lines.append(f"Projected combined SoT: {sot_total:.2f}.")
             if leg.point is not None:
                 direction = leg.outcome.lower()
@@ -3394,6 +3489,7 @@ def leg_evidence(leg: CandidateLeg, league: str) -> List[str]:
             leg.home_team, leg.away_team, league
         )
         if cards_total is not None:
+            cards_total = _market_blended_proj(cards_total, leg.event, "cards")
             lines.append(f"Projected combined cards: {cards_total:.2f}.")
             if leg.point is not None:
                 direction = leg.outcome.lower()
@@ -3437,6 +3533,7 @@ def leg_evidence(leg: CandidateLeg, league: str) -> List[str]:
         proj_result = proj_map[g]()
         proj_total = proj_result[0] if proj_result else None
         if proj_total is not None:
+            proj_total = _market_blended_proj(proj_total, leg.event, g if g != "totals" else "totals")
             direction = leg.outcome.lower()
             is_over = "over" in direction
             h_var = get_team_recent_variance(leg.home_team, league)
@@ -4275,8 +4372,7 @@ def projected_total_corners(home: str, away: str, league: str, knockout_ctx: Opt
 
     if season_total is not None and recent_total is not None:
         # Dynamic blend: increase recent weight when form diverges from season avg
-        base_season_w = pw["blend_season"]
-        base_recent_w = pw["blend_recent"]
+        base_season_w, base_recent_w = _stat_blend("corners")
         divergence = abs(recent_total - season_total) / max(season_total, 1.0)
         # When divergence > 20%, shift blend toward recent (up to 60/40)
         if divergence > 0.20:
@@ -4340,8 +4436,7 @@ def projected_total_cards(home: str, away: str, league: str, knockout_ctx: Optio
 
     if season_total is not None and recent_total is not None:
         # Dynamic blend: increase recent weight when form diverges from season avg
-        base_season_w = pw["blend_season"]
-        base_recent_w = pw["blend_recent"]
+        base_season_w, base_recent_w = _stat_blend("cards")
         divergence = abs(recent_total - season_total) / max(season_total, 1.0)
         # When divergence > 20%, shift blend toward recent (up to 60/40)
         if divergence > 0.20:
@@ -4548,8 +4643,7 @@ def projected_total_goals(home: str, away: str, league: str, knockout_ctx: Optio
 
     if season_total is not None and recent_total is not None:
         # Dynamic blend: increase recent weight when form diverges from season avg
-        base_season_w = pw["blend_season"]
-        base_recent_w = pw["blend_recent"]
+        base_season_w, base_recent_w = _stat_blend("goals")
         divergence = abs(recent_total - season_total) / max(season_total, 1.0)
         # When divergence > 20%, shift blend toward recent (up to 60/40)
         if divergence > 0.20:
@@ -4624,10 +4718,15 @@ def projected_btts_prob(home: str, away: str, league: str) -> Tuple[Optional[flo
     h_var = get_blended_variance(home, league, "goals_var")
     a_var = get_blended_variance(away, league, "goals_var")
 
-    # P(team scores >= 1) = P(X > 0.5) via over_prob
-    p_home_scores = over_prob(h_proj, 0.5, h_var)
-    p_away_scores = over_prob(a_proj, 0.5, a_var)
-    p_btts_yes = p_home_scores * p_away_scores
+    # Dixon-Coles bivariate model for BTTS (accounts for low-score correlation)
+    try:
+        from prob_models import dixon_coles_btts_prob
+        p_btts_yes = dixon_coles_btts_prob(h_proj, a_proj)
+    except ImportError:
+        # Fallback to independent Poisson
+        p_home_scores = over_prob(h_proj, 0.5, h_var)
+        p_away_scores = over_prob(a_proj, 0.5, a_var)
+        p_btts_yes = p_home_scores * p_away_scores
 
     return p_btts_yes, h_proj, a_proj, h_season, a_season
 
@@ -4678,12 +4777,22 @@ def projected_correct_score_probs(
             return negbin_pmf(k, r, p)
         return poisson_pmf(k, lam)
 
-    probs: Dict[Tuple[int, int], float] = {}
-    for i in range(max_goals + 1):
-        p_h = _team_pmf(h_proj, h_var, i)
-        for j in range(max_goals + 1):
-            p_a = _team_pmf(a_proj, a_var, j)
-            probs[(i, j)] = p_h * p_a
+    # Dixon-Coles bivariate model (corrects for low-score correlation)
+    try:
+        from prob_models import dixon_coles_scoreline_matrix
+        matrix = dixon_coles_scoreline_matrix(h_proj, a_proj, rho=-0.10, max_goals=max_goals)
+        probs: Dict[Tuple[int, int], float] = {}
+        for i in range(max_goals + 1):
+            for j in range(max_goals + 1):
+                probs[(i, j)] = matrix[i][j]
+    except ImportError:
+        # Fallback to independent Poisson
+        probs = {}
+        for i in range(max_goals + 1):
+            p_h = _team_pmf(h_proj, h_var, i)
+            for j in range(max_goals + 1):
+                p_a = _team_pmf(a_proj, a_var, j)
+                probs[(i, j)] = p_h * p_a
 
     return probs, h_proj, a_proj
 
@@ -4722,9 +4831,13 @@ def projected_goal_difference(home: str, away: str, league: str) -> Tuple[Option
     h_dom = safe_float(hm.get("dominance_index"))
     a_dom = safe_float(am.get("dominance_index"))
 
+    # Home advantage for goal difference
+    proj_w = SCORING_WEIGHTS["projection"]
+    ha = proj_w.get("home_advantage", 0.0) * 2  # full spread: +ha home, -ha away = 2*ha diff
+
     season_diff = None
     if h_g is not None and a_g is not None:
-        season_diff = (h_g - a_g)
+        season_diff = (h_g - a_g) + ha
         if h_form is not None and a_form is not None:
             season_diff += (h_form - a_form) * pw["form_w"]
         if h_dom is not None and a_dom is not None:
@@ -4807,6 +4920,58 @@ def extract_total_line_options(event: Dict, stat_group: str) -> List[Dict]:
                     }
                 )
     return out
+
+
+def extract_market_implied_total(event: Dict, stat_group: str) -> Optional[float]:
+    """Extract the market-implied total from bookmaker over/under odds.
+
+    Finds the over/under line where the vig-removed P(over) is closest to 50%.
+    That line approximates the market's expected total for the stat.
+
+    Returns None if no suitable lines are found.
+    """
+    options = extract_total_line_options(event, stat_group)
+    if not options:
+        return None
+
+    # Group by (point, bookmaker) to find over/under pairs
+    pairs: Dict[Tuple[float, str], Dict[str, float]] = {}
+    for opt in options:
+        pt = float(opt["point"])
+        bm = str(opt.get("bookmaker", ""))
+        key = (pt, bm)
+        if key not in pairs:
+            pairs[key] = {}
+        pairs[key][opt["side"]] = float(opt["odds"])
+
+    best_line: Optional[float] = None
+    best_dist: float = 999.0
+
+    for (pt, _bm), sides in pairs.items():
+        over_odds = sides.get("over")
+        under_odds = sides.get("under")
+        if over_odds and under_odds:
+            # Use vig-removed probabilities
+            p_over, _p_under = remove_vig_two_way(over_odds, under_odds)
+        elif over_odds:
+            p_over = implied_prob(over_odds)
+        elif under_odds:
+            p_over = 1.0 - implied_prob(under_odds)
+        else:
+            continue
+
+        dist = abs(p_over - 0.50)
+        if dist < best_dist:
+            best_dist = dist
+            best_line = pt
+
+    if best_line is None:
+        return None
+
+    # Refine: if P(over best_line) > 50%, actual total is slightly above the line
+    # If P(over best_line) < 50%, actual total is slightly below the line
+    # Use the closest-to-50% line as the market-implied total
+    return best_line
 
 
 def extract_team_total_line_options(
@@ -5585,9 +5750,33 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
             if abs(stat_mod - 1.0) >= 0.01:
                 proj_total *= stat_mod
 
+        # Lineup adjustment (when lineups are available, typically 30 min before kickoff)
+        lineup_ctx = None
+        if _HAS_LINEUP and proj_total is not None:
+            try:
+                fx_date = ev.get("commence_time", "")[:10] if ev.get("commence_time") else None
+                lineup_ctx = get_lineup_context(home, away, league, fx_date)
+                if lineup_ctx and lineup_ctx.is_available:
+                    h_adj = lineup_ctx.home_adjustment.get(group, 1.0) if lineup_ctx.home_adjustment else 1.0
+                    a_adj = lineup_ctx.away_adjustment.get(group, 1.0) if lineup_ctx.away_adjustment else 1.0
+                    combined_adj = h_adj * a_adj
+                    if abs(combined_adj - 1.0) >= 0.01:
+                        proj_total *= combined_adj
+            except Exception:
+                lineup_ctx = None
+
         if proj_total is None:
             lines.append(f"- {fixture}: insufficient profile data to project totals.")
             continue
+
+        # Market-implied baseline blend: anchor model projection toward market consensus
+        _market_blend_applied = False
+        _original_proj = proj_total
+        market_total = extract_market_implied_total(ev, group)
+        if market_total is not None:
+            mbw = SCORING_WEIGHTS["market_blend"]
+            proj_total = mbw["model_weight"] * proj_total + mbw["market_weight"] * market_total
+            _market_blend_applied = True
 
         # Knockout context evidence
         if ko_ctx and ko_ctx.is_knockout:
@@ -5600,6 +5789,12 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
             stake_line = stake_evidence_line(stake_ctx)
             if stake_line:
                 lines.append(f"  {stake_line}")
+
+        # Lineup adjustment evidence
+        if lineup_ctx and lineup_ctx.is_available:
+            lu_line = lineup_evidence_line(lineup_ctx)
+            if lu_line:
+                lines.append(f"  {lu_line}")
 
         # European data source note
         if league in EUROPEAN_COMPETITIONS:
@@ -5622,6 +5817,11 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
             lines.append(f"  Season model: {season_total:.2f}.")
         if recent_total is not None:
             lines.append(f"  Recent 6-match: {recent_total:.2f}.")
+        if _market_blend_applied:
+            lines.append(
+                f"  Market-implied total: {market_total:.1f} "
+                f"(blended 70/30 with model {_original_proj:.2f})"
+            )
 
         # Referee profile for cards totals
         if group == "cards":
@@ -5757,6 +5957,15 @@ def render_goal_intervals(_user_q: str, league: str, events: List[Dict]) -> str:
             lines.append(f"- {fixture}: insufficient profile data to project goal intervals.")
             continue
 
+        # Market-implied baseline blend
+        _market_blend_applied = False
+        _original_proj = proj_total
+        market_total = extract_market_implied_total(ev, "goals")
+        if market_total is not None:
+            mbw = SCORING_WEIGHTS["market_blend"]
+            proj_total = mbw["model_weight"] * proj_total + mbw["market_weight"] * market_total
+            _market_blend_applied = True
+
         # European data source note
         if league in EUROPEAN_COMPETITIONS:
             for _t in (home, away):
@@ -5774,6 +5983,11 @@ def render_goal_intervals(_user_q: str, league: str, events: List[Dict]) -> str:
             lines.append(f"  Season model: {season_total:.2f}.")
         if recent_total is not None:
             lines.append(f"  Recent 6-match: {recent_total:.2f}.")
+        if _market_blend_applied:
+            lines.append(
+                f"  Market-implied total: {market_total:.1f} "
+                f"(blended 70/30 with model {_original_proj:.2f})"
+            )
 
         # Compute interval probabilities
         interval_odds = extract_goal_interval_odds(ev)
@@ -6115,6 +6329,19 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
                 if stake_line:
                     lines.append(f"  {stake_line}")
 
+        # Lineup adjustment
+        lineup_ctx = None
+        if _HAS_LINEUP:
+            try:
+                fx_date = ev.get("commence_time", "")[:10] if ev.get("commence_time") else None
+                lineup_ctx = get_lineup_context(home, away, league, fx_date)
+                if lineup_ctx and lineup_ctx.is_available:
+                    lu_line = lineup_evidence_line(lineup_ctx)
+                    if lu_line:
+                        lines.append(f"  {lu_line}")
+            except Exception:
+                lineup_ctx = None
+
         rw = SCORING_WEIGHTS["referee"]
         ref_mod = get_referee_modifier(home, away, league,
                                        weight=rw.get("modifier_weight", 0.25))
@@ -6127,6 +6354,12 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
             # Apply knockout modifier
             if ko_ctx and ko_ctx.is_knockout and ko_ctx.corners_modifier != 1.0 and c_bl is not None:
                 c_bl *= ko_ctx.corners_modifier
+            # Apply lineup adjustment
+            if lineup_ctx and lineup_ctx.is_available and c_bl is not None:
+                adj = (lineup_ctx.home_adjustment or {}).get("corners", 1.0) if is_home \
+                    else (lineup_ctx.away_adjustment or {}).get("corners", 1.0)
+                if abs(adj - 1.0) >= 0.01:
+                    c_bl *= adj
             if c_bl is None:
                 lines.append(f"    {team}: insufficient data.")
                 continue
@@ -6214,6 +6447,12 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
             # Apply knockout modifier
             if ko_ctx and ko_ctx.is_knockout and ko_ctx.cards_modifier != 1.0 and k_bl is not None:
                 k_bl *= ko_ctx.cards_modifier
+            # Apply lineup adjustment
+            if lineup_ctx and lineup_ctx.is_available and k_bl is not None:
+                adj = (lineup_ctx.home_adjustment or {}).get("cards", 1.0) if is_home \
+                    else (lineup_ctx.away_adjustment or {}).get("cards", 1.0)
+                if abs(adj - 1.0) >= 0.01:
+                    k_bl *= adj
             if k_bl is None:
                 lines.append(f"    {team}: insufficient data.")
                 continue

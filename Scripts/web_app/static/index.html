@@ -30,7 +30,11 @@
       </nav>
       <div class="topbar-right">
         <!-- Landing buttons -->
-        <a class="nav-link landing-nav" href="#" onclick="event.preventDefault()">Login</a>
+        <a class="nav-link landing-nav" id="loginBtn" href="/auth/discord/login">Login with Discord</a>
+        <div class="user-badge landing-nav hidden" id="userBadge" onclick="auth.showMenu()">
+          <img class="user-avatar" id="userAvatar" src="" alt="">
+          <span class="user-name" id="userName"></span>
+        </div>
         <button class="btn-primary-sm landing-nav" onclick="router.go('app')">Try Free</button>
         <!-- App buttons -->
         <button class="nav-link app-nav hidden" onclick="router.go('landing')">
@@ -256,46 +260,60 @@
       <div class="section-inner">
         <p class="section-eyebrow">Pricing</p>
         <h2 class="section-h2">Simple, transparent pricing</h2>
+        <p class="section-sub" style="color:var(--text-muted);margin-bottom:1rem;">7-day free trial on all plans. Cancel anytime.</p>
+        <!-- Billing toggle -->
+        <div class="billing-toggle" id="billingToggle">
+          <button class="billing-btn active" data-interval="monthly" onclick="pricing.setInterval('monthly')">Monthly</button>
+          <button class="billing-btn" data-interval="annual" onclick="pricing.setInterval('annual')">Annual <span class="save-badge">Save 17%</span></button>
+        </div>
         <div class="pricing-grid">
           <div class="pricing-card">
-            <h3 class="pricing-tier">Free</h3>
-            <div class="pricing-price"><span class="pricing-amount mono">$0</span><span class="pricing-period">/month</span></div>
+            <h3 class="pricing-tier">Rookie</h3>
+            <div class="pricing-price">
+              <span class="pricing-amount mono" data-monthly="$9.99" data-annual="$99">$9.99</span>
+              <span class="pricing-period" data-monthly="/month" data-annual="/year">/month</span>
+            </div>
             <ul class="pricing-features">
-              <li>3 fixtures per day</li>
-              <li>Goals + BTTS markets only</li>
-              <li>Basic confidence ratings</li>
-              <li>1 league (EPL)</li>
+              <li>5 domestic leagues</li>
+              <li>Daily picks + match predictions</li>
+              <li>Track record access</li>
+              <li>5 bot commands/day</li>
             </ul>
-            <button class="btn-outline" onclick="router.go('app')">Get Started</button>
+            <button class="btn-outline" onclick="pricing.subscribe('starter')">Start Free Trial</button>
           </div>
           <div class="pricing-card popular">
             <div class="pricing-badge">Most Popular</div>
-            <h3 class="pricing-tier">Pro</h3>
-            <div class="pricing-price"><span class="pricing-amount mono">$29</span><span class="pricing-period">/month</span></div>
+            <h3 class="pricing-tier">Tipster</h3>
+            <div class="pricing-price">
+              <span class="pricing-amount mono" data-monthly="$14.99" data-annual="$149">$14.99</span>
+              <span class="pricing-period" data-monthly="/month" data-annual="/year">/month</span>
+            </div>
             <ul class="pricing-features">
-              <li>Unlimited fixtures</li>
-              <li>All 9 markets</li>
-              <li>Model probabilities + value edges</li>
-              <li>All 5 domestic leagues</li>
-              <li>Parlay builder + scoring</li>
-              <li>Best Bets daily picks</li>
+              <li>Everything in Rookie</li>
+              <li>All 8 leagues (+ UCL, UEL, UECL)</li>
+              <li>Parlays + player props + team lines</li>
+              <li>Unlimited bot commands</li>
+              <li>Website dashboard</li>
             </ul>
-            <button class="btn-primary" onclick="router.go('app')">Start 7-Day Trial</button>
+            <button class="btn-primary" onclick="pricing.subscribe('pro')">Start Free Trial</button>
           </div>
           <div class="pricing-card">
-            <h3 class="pricing-tier">Elite</h3>
-            <div class="pricing-price"><span class="pricing-amount mono">$79</span><span class="pricing-period">/month</span></div>
+            <h3 class="pricing-tier">Whale</h3>
+            <div class="pricing-price">
+              <span class="pricing-amount mono" data-monthly="$29.99" data-annual="$299">$29.99</span>
+              <span class="pricing-period" data-monthly="/month" data-annual="/year">/month</span>
+            </div>
             <ul class="pricing-features">
-              <li>Everything in Pro</li>
-              <li>UCL, UEL, UECL coverage</li>
-              <li>Cross-league parlays</li>
-              <li>API access</li>
-              <li>Discord alerts channel</li>
-              <li>Priority support</li>
+              <li>Everything in Tipster</li>
+              <li>Pre-match lineup alerts</li>
+              <li>CLV tracking dashboard</li>
+              <li>Priority support thread</li>
+              <li>Early access to new features</li>
             </ul>
-            <button class="btn-outline" onclick="router.go('app')">Start 7-Day Trial</button>
+            <button class="btn-outline" onclick="pricing.subscribe('elite')">Start Free Trial</button>
           </div>
         </div>
+        <p class="founding-note" style="text-align:center;color:var(--accent);font-size:0.85rem;margin-top:1.5rem;">Founding member pricing — lock in these rates before they increase.</p>
       </div>
     </section>
 

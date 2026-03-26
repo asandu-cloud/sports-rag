@@ -27,6 +27,7 @@ COGS = [
     "cogs.slash_cmds",
     "cogs.auto_push",
     "cogs.parlay_builder",
+    "cogs.subscribe",
 ]
 
 

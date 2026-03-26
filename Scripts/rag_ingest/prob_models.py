@@ -181,3 +181,182 @@ def kelly_fraction(model_prob: float, decimal_odds: float) -> float:
         return 0.0
     f = (model_prob * b - q) / b
     return max(0.0, f)
+
+
+# ---------------------------------------------------------------------------
+# Dixon-Coles bivariate Poisson model
+# ---------------------------------------------------------------------------
+# Standard independent Poisson assumes home and away goals are independent.
+# In practice, low-scoring outcomes (0-0, 1-0, 0-1, 1-1) occur more often
+# than the independent model predicts.  Dixon & Coles (1997) introduced a
+# correlation parameter rho that adjusts probabilities for these scorelines.
+#
+# A negative rho (typical for football, around -0.10) inflates the
+# probability of low-scoring draws relative to independent Poisson.
+# ---------------------------------------------------------------------------
+
+def _tau(x: int, y: int, lam: float, mu: float, rho: float) -> float:
+    """Dixon-Coles tau adjustment factor for scoreline (x, y).
+
+    Adjusts the independent Poisson probability for low-scoring outcomes:
+      - (0,0): 1 - lam*mu*rho
+      - (1,0): 1 + lam*rho
+      - (0,1): 1 + mu*rho
+      - (1,1): 1 - rho
+      - otherwise: 1  (no adjustment)
+
+    Parameters
+    ----------
+    x : int   -- home goals
+    y : int   -- away goals
+    lam : float -- home expected goals (lambda)
+    mu : float  -- away expected goals
+    rho : float -- correlation parameter (typically -0.15 to -0.05)
+    """
+    if x == 0 and y == 0:
+        return 1.0 - lam * mu * rho
+    if x == 1 and y == 0:
+        return 1.0 + lam * rho
+    if x == 0 and y == 1:
+        return 1.0 + mu * rho
+    if x == 1 and y == 1:
+        return 1.0 - rho
+    return 1.0
+
+
+def dixon_coles_scoreline_prob(home_goals: int, away_goals: int,
+                               lambda_h: float, lambda_a: float,
+                               rho: float = -0.10) -> float:
+    """Probability of a single scoreline under the Dixon-Coles model.
+
+    Computes independent Poisson probabilities for each team, then applies
+    the tau adjustment for scorelines where both teams score 0 or 1.
+
+    Parameters
+    ----------
+    home_goals : int  -- home team goals
+    away_goals : int  -- away team goals
+    lambda_h : float  -- home team expected goals
+    lambda_a : float  -- away team expected goals
+    rho : float       -- correlation parameter (default -0.10)
+
+    Returns
+    -------
+    float -- adjusted scoreline probability
+    """
+    p_home = poisson_pmf(home_goals, lambda_h)
+    p_away = poisson_pmf(away_goals, lambda_a)
+    tau = _tau(home_goals, away_goals, lambda_h, lambda_a, rho)
+    return p_home * p_away * tau
+
+
+def dixon_coles_scoreline_matrix(lambda_h: float, lambda_a: float,
+                                 rho: float = -0.10,
+                                 max_goals: int = 7) -> list:
+    """Full scoreline probability matrix under Dixon-Coles.
+
+    Returns a nested list of shape (max_goals+1) x (max_goals+1) where
+    matrix[i][j] = P(Home=i, Away=j).  The matrix is normalized so that
+    all probabilities sum to 1.0.
+
+    Parameters
+    ----------
+    lambda_h : float  -- home team expected goals
+    lambda_a : float  -- away team expected goals
+    rho : float       -- correlation parameter (default -0.10)
+    max_goals : int   -- maximum goals per team to consider (default 7)
+
+    Returns
+    -------
+    list[list[float]] -- (max_goals+1) x (max_goals+1) probability matrix
+    """
+    size = max_goals + 1
+    matrix = [[0.0] * size for _ in range(size)]
+    total = 0.0
+    for i in range(size):
+        for j in range(size):
+            p = dixon_coles_scoreline_prob(i, j, lambda_h, lambda_a, rho)
+            matrix[i][j] = p
+            total += p
+    # Normalize to account for truncation at max_goals
+    if total > 0:
+        for i in range(size):
+            for j in range(size):
+                matrix[i][j] /= total
+    return matrix
+
+
+def dixon_coles_match_probs(lambda_h: float, lambda_a: float,
+                            rho: float = -0.10) -> Tuple[float, float, float]:
+    """Match outcome probabilities under Dixon-Coles.
+
+    Returns (p_home_win, p_draw, p_away_win) by summing the scoreline
+    matrix.  More accurate than independent Poisson for 1X2 markets
+    because it accounts for the correlation in low-scoring outcomes.
+
+    Parameters
+    ----------
+    lambda_h : float  -- home team expected goals
+    lambda_a : float  -- away team expected goals
+    rho : float       -- correlation parameter (default -0.10)
+    """
+    matrix = dixon_coles_scoreline_matrix(lambda_h, lambda_a, rho)
+    p_home = 0.0
+    p_draw = 0.0
+    p_away = 0.0
+    for i in range(len(matrix)):
+        for j in range(len(matrix[i])):
+            if i > j:
+                p_home += matrix[i][j]
+            elif i == j:
+                p_draw += matrix[i][j]
+            else:
+                p_away += matrix[i][j]
+    return (p_home, p_draw, p_away)
+
+
+def dixon_coles_btts_prob(lambda_h: float, lambda_a: float,
+                          rho: float = -0.10) -> float:
+    """P(Both Teams To Score) under Dixon-Coles.
+
+    Sums all scoreline probabilities where home >= 1 AND away >= 1.
+    More accurate than the independent approximation P(H>=1)*P(A>=1)
+    because Dixon-Coles adjusts the (0,0), (1,0), (0,1) cells.
+
+    Parameters
+    ----------
+    lambda_h : float  -- home team expected goals
+    lambda_a : float  -- away team expected goals
+    rho : float       -- correlation parameter (default -0.10)
+    """
+    matrix = dixon_coles_scoreline_matrix(lambda_h, lambda_a, rho)
+    btts = 0.0
+    for i in range(1, len(matrix)):
+        for j in range(1, len(matrix[i])):
+            btts += matrix[i][j]
+    return btts
+
+
+def dixon_coles_total_goals_prob(lambda_h: float, lambda_a: float,
+                                 line: float,
+                                 rho: float = -0.10) -> float:
+    """P(total goals > line) under Dixon-Coles.
+
+    Sums all scoreline probabilities where i + j > line.  For half-integer
+    lines (e.g. 2.5), this is equivalent to P(total >= 3).
+
+    Parameters
+    ----------
+    lambda_h : float  -- home team expected goals
+    lambda_a : float  -- away team expected goals
+    line : float      -- the over/under line (e.g. 2.5)
+    rho : float       -- correlation parameter (default -0.10)
+    """
+    matrix = dixon_coles_scoreline_matrix(lambda_h, lambda_a, rho)
+    threshold = int(line)
+    prob = 0.0
+    for i in range(len(matrix)):
+        for j in range(len(matrix[i])):
+            if i + j > threshold:
+                prob += matrix[i][j]
+    return prob

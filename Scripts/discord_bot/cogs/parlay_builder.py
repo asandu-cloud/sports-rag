@@ -20,7 +20,7 @@ import rag_cli_v2 as rag  # noqa: E402
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1]))
 from embeds import parlay_embed  # noqa: E402
 from config import ALL_LEAGUES, COLOR_PURPLE, COLOR_BLUE  # noqa: E402
-from cogs.access import premium_only, get_or_create_private_thread, _has_premium_role  # noqa: E402
+from cogs.access import premium_only, pooled_command, tier_required, get_or_create_private_thread, _has_premium_role  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -521,7 +521,7 @@ class ParlayBuilder(commands.Cog):
     # --- /build ---
 
     @app_commands.command(name="build", description="Step-by-step interactive parlay builder")
-    @premium_only()
+    @pooled_command("pro")
     async def build(self, interaction: discord.Interaction):
         thread = await get_or_create_private_thread(interaction)
         em = discord.Embed(
@@ -552,7 +552,7 @@ class ParlayBuilder(commands.Cog):
     )
     @app_commands.choices(league=PARLAY_LEAGUE_CHOICES)
     @app_commands.choices(market=PARLAY_MARKET_CHOICES)
-    @premium_only()
+    @pooled_command("pro")
     async def parlay_cmd(
         self,
         interaction: discord.Interaction,

@@ -84,6 +84,24 @@ app.add_middleware(
 )
 
 # ---------------------------------------------------------------------------
+# Mount auth, webhooks, and checkout routers
+# ---------------------------------------------------------------------------
+try:
+    from auth import router as auth_router
+    from stripe_webhooks import webhook_router, checkout_router
+    from users import init_db as init_user_db
+    app.include_router(auth_router)
+    app.include_router(webhook_router)
+    app.include_router(checkout_router)
+    # Initialize user tables on startup
+    init_user_db()
+    log.info("Auth, webhooks, and checkout routers mounted")
+except ImportError as exc:
+    log.warning("Subscription system not available (missing module): %s", exc)
+except Exception as exc:
+    log.warning("Subscription system failed to initialize: %s", exc)
+
+# ---------------------------------------------------------------------------
 # Simple TTL cache for fixture fetches (5 min)
 # ---------------------------------------------------------------------------
 _CACHE_TTL = 300  # seconds
@@ -902,6 +920,11 @@ def serve_root():
 @app.get("/app")
 def serve_app():
     """Serve the SPA for the /app route (client-side routing)."""
+    return FileResponse(_STATIC_DIR / "index.html")
+
+@app.get("/checkout/success")
+def serve_checkout_success():
+    """Serve the SPA for checkout success (client-side handles the token)."""
     return FileResponse(_STATIC_DIR / "index.html")
 
 # Mount static files AFTER API routes so /api/* takes priority
