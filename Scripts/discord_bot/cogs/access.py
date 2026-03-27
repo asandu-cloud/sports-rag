@@ -106,7 +106,7 @@ def tier_required(minimum_tier: str):
             title="Upgrade Required",
             description=(
                 f"This command requires the **{label}** plan or higher.\n\n"
-                "Use `/subscribe` to view plans and start your 7-day free trial."
+                "Use `/subscribe` to view plans."
             ),
             color=COLOR_PURPLE,
         )
@@ -145,7 +145,7 @@ def pooled_command(minimum_tier: str):
                 title="Upgrade Required",
                 description=(
                     f"This command requires the **{label}** plan or higher.\n\n"
-                    "Use `/subscribe` to view plans and start your 7-day free trial."
+                    "Use `/subscribe` to view plans."
                 ),
                 color=COLOR_PURPLE,
             )

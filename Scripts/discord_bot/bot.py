@@ -28,6 +28,8 @@ COGS = [
     "cogs.auto_push",
     "cogs.parlay_builder",
     "cogs.subscribe",
+    "cogs.whale_chat",
+    "cogs.trial",
 ]
 
 
@@ -35,7 +37,25 @@ class BettingRAGBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
         intents.message_content = True
-        super().__init__(command_prefix="!", intents=intents)
+        intents.members = True  # needed for role management, on_member_update, and DMs
+        super().__init__(
+            command_prefix="!",
+            intents=intents,
+            chunk_guilds_at_startup=True,  # cache all members so on_member_update works
+        )
+
+        # Block all slash commands in DMs — must be used in the server
+        self.tree.interaction_check = self._guild_only_check
+
+    async def _guild_only_check(self, interaction: discord.Interaction) -> bool:
+        """Reject all slash commands sent via DM."""
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "Commands can only be used in the server, not in DMs.",
+                ephemeral=True,
+            )
+            return False
+        return True
 
     async def setup_hook(self):
         for cog in COGS:

@@ -77,7 +77,7 @@ TIER_HIERARCHY = {
 TIER_POOL_LIMITS = {
     "free": 1,
     "starter": 5,
-    "pro": 35,
+    "pro": 15,
     "elite": 0,
     "unlimited": 0,
 }

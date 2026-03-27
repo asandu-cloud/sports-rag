@@ -1213,7 +1213,7 @@ class AutoPush(commands.Cog):
             ),
             inline=False,
         )
-        em.set_footer(text="Spick's Picks Track Record | Updated daily at noon UTC")
+        em.set_footer(text="Spick's Picks Track Record | Updated daily at noon CET")
         await channel.send(embed=em)
 
     @daily_track_record.before_loop

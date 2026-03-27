@@ -1,0 +1,1187 @@
+"""Trial / free-picks funnel — user acquisition via curated low-odds parlays.
+
+Flow:
+    1. User joins server, has FREE MEMBER role (or no paid role).
+    2. User runs /trial  -> gets TRIAL role -> can see #free-picks channel.
+    3. Bot auto-posts 2 low-odds parlays (1.5-1.8x) to #free-picks each matchday.
+    4. After matches conclude, bot resolves whether parlays hit.
+    5. Once a user has seen 2 correct parlays since activating trial, bot DMs them
+       with a graduation message and removes the TRIAL role.
+
+Database:  Index/predictions.db  (shared SQLite — trial tables created idempotently)
+"""
+
+from __future__ import annotations
+
+import asyncio
+import io
+import json
+import logging
+import os
+import re
+import sqlite3
+import sys
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import redirect_stdout
+from datetime import date, datetime, timedelta, time as dt_time, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+import discord
+from discord import app_commands
+from discord.ext import commands, tasks
+
+# ---------------------------------------------------------------------------
+# Path setup — same pattern as auto_push.py
+# ---------------------------------------------------------------------------
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_BOT_DIR = _SCRIPT_DIR.parent
+_PROJECT_ROOT = _BOT_DIR.parents[1]
+
+sys.path.insert(0, str(_PROJECT_ROOT / "Scripts" / "rag_ingest"))
+import rag_cli_v2 as rag  # noqa: E402
+
+from core.events import fetch_events, filter_events_by_exact_date  # noqa: E402
+
+sys.path.insert(0, str(_BOT_DIR))
+from config import (  # noqa: E402
+    DOMESTIC_LEAGUES,
+    COLOR_GREEN,
+    COLOR_YELLOW,
+    COLOR_RED,
+    COLOR_BLUE,
+    COLOR_PURPLE,
+    ROLE_TO_TIER,
+    TIER_HIERARCHY,
+)
+
+log = logging.getLogger("trial")
+
+# ---------------------------------------------------------------------------
+# Config from environment
+# ---------------------------------------------------------------------------
+CHANNEL_FREE_PICKS = int(os.getenv("DISCORD_CHANNEL_FREE_PICKS", "0"))
+ROLE_TRIAL = os.getenv("DISCORD_ROLE_TRIAL", "TRIAL")
+
+# Paid role names for checking existing subscriptions
+_PAID_ROLE_NAMES = {"rookie", "tipster", "whale"}
+
+# ---------------------------------------------------------------------------
+# Database
+# ---------------------------------------------------------------------------
+DB_PATH = _PROJECT_ROOT / "Index" / "predictions.db"
+
+_CREATE_TABLES = """
+CREATE TABLE IF NOT EXISTS trial_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    discord_id TEXT NOT NULL UNIQUE,
+    discord_username TEXT,
+    activated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    hits INTEGER NOT NULL DEFAULT 0,
+    total_parlays_seen INTEGER NOT NULL DEFAULT 0,
+    total_profit REAL NOT NULL DEFAULT 0.0,
+    graduated INTEGER NOT NULL DEFAULT 0,
+    graduated_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS trial_parlays (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    posted_at TEXT NOT NULL DEFAULT (datetime('now')),
+    matchday_date TEXT NOT NULL,
+    legs TEXT NOT NULL,
+    combined_odds REAL NOT NULL,
+    outcome TEXT,
+    resolved_at TEXT,
+    stake REAL NOT NULL DEFAULT 10.0,
+    profit REAL
+);
+"""
+
+
+def _get_db() -> sqlite3.Connection:
+    """Open a connection with WAL mode and return it."""
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(DB_PATH), timeout=10)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    return conn
+
+
+def _init_tables():
+    """Create trial tables idempotently."""
+    conn = _get_db()
+    try:
+        conn.executescript(_CREATE_TABLES)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Thread pool for blocking calls
+# ---------------------------------------------------------------------------
+_trial_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="trial")
+
+# ---------------------------------------------------------------------------
+# Helpers — RAG calls (same pattern as auto_push.py)
+# ---------------------------------------------------------------------------
+
+
+def _run_rag_sync(prompt: str, league: str) -> str:
+    """Synchronous RAG call — runs in thread pool."""
+    buf = io.StringIO()
+    try:
+        with redirect_stdout(buf):
+            rag.answer_once(prompt, default_league=league)
+    except Exception as exc:
+        log.error("Trial RAG query failed: %s", exc, exc_info=True)
+        return ""
+    return buf.getvalue().strip()
+
+
+async def _run_rag(prompt: str, league: str) -> str:
+    """Async wrapper — runs RAG in thread pool."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_trial_executor, _run_rag_sync, prompt, league)
+
+
+def _is_valid(text: str) -> bool:
+    """Check if RAG output has real content."""
+    if not text:
+        return False
+    low = text.lower()
+    return "no fixtures" not in low and "could not" not in low and "no odds" not in low
+
+
+def _ordinal(n: int) -> str:
+    if 11 <= n % 100 <= 13:
+        return f"{n}th"
+    return f"{n}{['th','st','nd','rd','th'][min(n % 10, 4)]}"
+
+
+def _today_phrase() -> str:
+    d = datetime.now().date()
+    return f"{_ordinal(d.day)} {d.strftime('%B')}"
+
+
+def _get_todays_leagues() -> Tuple[Optional[datetime], List[str]]:
+    """Find which leagues have fixtures today, and the first kickoff time."""
+    all_leagues = DOMESTIC_LEAGUES + ["UCL", "UEL", "UECL"]
+    first_kickoff = None
+    active_leagues: List[str] = []
+
+    for league in all_leagues:
+        try:
+            events, _ = fetch_events(league, target_date=date.today())
+            day_events = filter_events_by_exact_date(events, date.today())
+            if day_events:
+                active_leagues.append(league)
+                for ev in day_events:
+                    ko = ev.get("commence_time")
+                    if ko:
+                        try:
+                            ko_dt = datetime.fromisoformat(ko.replace("Z", "+00:00"))
+                            if first_kickoff is None or ko_dt < first_kickoff:
+                                first_kickoff = ko_dt
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+
+    return first_kickoff, active_leagues
+
+
+def _is_posting_window(first_kickoff) -> bool:
+    """Return True if we're 2-3.5 hours before first kickoff."""
+    if first_kickoff is None:
+        return True
+    now = datetime.now(timezone.utc)
+    if first_kickoff.tzinfo is None:
+        first_kickoff = first_kickoff.replace(tzinfo=timezone.utc)
+    hours_until = (first_kickoff - now).total_seconds() / 3600
+    return -0.5 <= hours_until <= 3.5
+
+
+# ---------------------------------------------------------------------------
+# Trial parlay generation
+# ---------------------------------------------------------------------------
+
+def _parse_parlay_legs(text: str) -> Tuple[List[str], float]:
+    """Parse RAG parlay output into (legs_list, combined_odds).
+
+    Returns ([], 0.0) if parsing fails.
+    """
+    legs: List[str] = []
+    combined_odds = 0.0
+
+    # Try to extract individual legs — look for numbered lines or bullet points
+    # Patterns: "1. Arsenal ML @ 1.30", "- Over 2.5 goals @ 1.35", "Leg 1: ..."
+    leg_patterns = [
+        re.compile(r"(?:^|\n)\s*(?:\d+[.)]\s*|[-*]\s*|Leg\s*\d+:\s*)(.+?)(?:\n|$)", re.I),
+    ]
+
+    for pat in leg_patterns:
+        matches = pat.findall(text)
+        if matches:
+            for m in matches:
+                # Clean up the leg text
+                leg = m.strip()
+                if leg and len(leg) > 5:
+                    # Remove trailing odds info for cleaner display
+                    legs.append(leg[:200])
+            if legs:
+                break
+
+    # If regex parsing failed, try to split on common separators
+    if not legs:
+        for line in text.split("\n"):
+            line = line.strip()
+            if not line:
+                continue
+            # Skip header/footer lines
+            if any(kw in line.lower() for kw in [
+                "parlay", "combined", "total odds", "method", "confidence",
+                "===", "---", "evidence", "explanation"
+            ]):
+                continue
+            # Lines with odds-like patterns are likely legs
+            if re.search(r"@\s*[\d.]+|odds|over|under|win|ml|btts", line, re.I):
+                legs.append(line[:200])
+
+    # Extract combined odds
+    odds_patterns = [
+        re.compile(r"combined\s*(?:decimal\s*)?odds[:\s]*(?:~\s*)?([\d.]+)", re.I),
+        re.compile(r"total\s*(?:decimal\s*)?odds[:\s]*(?:~\s*)?([\d.]+)", re.I),
+        re.compile(r"parlay\s*odds[:\s]*(?:~\s*)?([\d.]+)", re.I),
+        re.compile(r"([\d.]+)x\s*(?:combined|total|parlay)", re.I),
+    ]
+    for pat in odds_patterns:
+        m = pat.search(text)
+        if m:
+            try:
+                combined_odds = float(m.group(1))
+                break
+            except ValueError:
+                pass
+
+    # If we couldn't find explicit combined odds, try to compute from leg odds
+    if combined_odds == 0.0 and legs:
+        product = 1.0
+        found_any = False
+        for leg in legs:
+            odds_m = re.search(r"@\s*([\d.]+)", leg)
+            if odds_m:
+                try:
+                    product *= float(odds_m.group(1))
+                    found_any = True
+                except ValueError:
+                    pass
+        if found_any:
+            combined_odds = round(product, 2)
+
+    return legs[:4], combined_odds  # Cap at 4 legs max
+
+
+# ---------------------------------------------------------------------------
+# Database operations
+# ---------------------------------------------------------------------------
+
+def _get_trial_user(discord_id: str) -> Optional[Dict[str, Any]]:
+    """Fetch a trial user record, or None."""
+    conn = _get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM trial_users WHERE discord_id = ?", (discord_id,)
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def _activate_trial(discord_id: str, username: str):
+    """Insert a new trial user."""
+    conn = _get_db()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO trial_users (discord_id, discord_username) VALUES (?, ?)",
+            (discord_id, username),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _log_trial_parlay(matchday_date: str, legs: List[str], combined_odds: float):
+    """Log a trial parlay to the database."""
+    conn = _get_db()
+    try:
+        conn.execute(
+            "INSERT INTO trial_parlays (matchday_date, legs, combined_odds) VALUES (?, ?, ?)",
+            (matchday_date, json.dumps(legs), combined_odds),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _get_unresolved_parlays() -> List[Dict[str, Any]]:
+    """Fetch all unresolved trial parlays."""
+    conn = _get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM trial_parlays WHERE outcome IS NULL ORDER BY posted_at"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def _resolve_parlay(parlay_id: int, outcome: str, profit: float):
+    """Mark a trial parlay as resolved."""
+    conn = _get_db()
+    try:
+        conn.execute(
+            "UPDATE trial_parlays SET outcome = ?, profit = ?, resolved_at = datetime('now') "
+            "WHERE id = ?",
+            (outcome, profit, parlay_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _get_active_trial_users() -> List[Dict[str, Any]]:
+    """Fetch all non-graduated trial users."""
+    conn = _get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM trial_users WHERE graduated = 0"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def _get_hit_parlays_since(activated_at: str) -> List[Dict[str, Any]]:
+    """Fetch trial parlays that hit since a given activation date."""
+    conn = _get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM trial_parlays WHERE outcome = 'hit' AND resolved_at >= ? "
+            "ORDER BY resolved_at",
+            (activated_at,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def _get_all_resolved_since(activated_at: str) -> List[Dict[str, Any]]:
+    """Fetch all resolved trial parlays since activation."""
+    conn = _get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM trial_parlays WHERE outcome IS NOT NULL AND resolved_at >= ? "
+            "ORDER BY resolved_at",
+            (activated_at,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def _graduate_user(discord_id: str, hits: int, total_seen: int, total_profit: float):
+    """Mark a user as graduated."""
+    conn = _get_db()
+    try:
+        conn.execute(
+            "UPDATE trial_users SET graduated = 1, graduated_at = datetime('now'), "
+            "hits = ?, total_parlays_seen = ?, total_profit = ? "
+            "WHERE discord_id = ?",
+            (hits, total_seen, total_profit, discord_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _count_today_parlays() -> int:
+    """Count how many trial parlays were posted today."""
+    today = date.today().isoformat()
+    conn = _get_db()
+    try:
+        row = conn.execute(
+            "SELECT COUNT(*) as cnt FROM trial_parlays WHERE matchday_date = ?",
+            (today,),
+        ).fetchone()
+        return row["cnt"] if row else 0
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Resolution logic
+# ---------------------------------------------------------------------------
+
+def _resolve_trial_parlays_sync() -> int:
+    """Resolve unresolved trial parlays using the existing prediction_tracker.
+
+    Checks API-Football results for each leg. Returns number of parlays resolved.
+    """
+    try:
+        from prediction_tracker import _fetch_actual_results
+    except ImportError:
+        log.warning("prediction_tracker not available — cannot resolve trial parlays")
+        return 0
+
+    unresolved = _get_unresolved_parlays()
+    if not unresolved:
+        return 0
+
+    resolved_count = 0
+
+    for parlay in unresolved:
+        matchday = parlay["matchday_date"]
+        legs_json = parlay["legs"]
+        combined_odds = parlay["combined_odds"]
+        stake = parlay["stake"]
+
+        try:
+            legs = json.loads(legs_json)
+        except (json.JSONDecodeError, TypeError):
+            log.warning("Could not parse legs for trial parlay %d", parlay["id"])
+            continue
+
+        # Check if the matchday has passed (give 6 hours buffer for late matches)
+        try:
+            matchday_dt = datetime.strptime(matchday, "%Y-%m-%d")
+            cutoff = matchday_dt + timedelta(hours=30)  # next day 6am
+            if datetime.utcnow() < cutoff:
+                continue  # Too early to resolve
+        except ValueError:
+            continue
+
+        # Try to fetch results for this matchday
+        try:
+            results = _fetch_actual_results(matchday)
+        except Exception as exc:
+            log.warning("Failed to fetch results for %s: %s", matchday, exc)
+            continue
+
+        if not results:
+            continue
+
+        # Grade: check if all legs hit
+        # We match leg text against results using fuzzy team name matching
+        all_hit = True
+        any_resolved = False
+
+        for leg in legs:
+            leg_lower = leg.lower()
+
+            # Try to determine what the leg is about by pattern matching
+            # This is best-effort — parlay legs are free-text from RAG output
+            matched = False
+            for result in results:
+                home = result.get("home", "").lower()
+                away = result.get("away", "").lower()
+                home_goals = result.get("home_goals")
+                away_goals = result.get("away_goals")
+
+                if home_goals is None or away_goals is None:
+                    continue
+
+                total_goals = home_goals + away_goals
+
+                # Check if this result's teams appear in the leg
+                if not (home in leg_lower or away in leg_lower
+                        or _fuzzy_team_match(home, leg_lower)
+                        or _fuzzy_team_match(away, leg_lower)):
+                    continue
+
+                matched = True
+                any_resolved = True
+
+                # Grade the leg based on its type
+                if _grade_leg(leg_lower, home, away, home_goals, away_goals,
+                              total_goals, result):
+                    pass  # This leg hit
+                else:
+                    all_hit = False
+                break
+
+            if not matched:
+                # Could not match this leg to any result — skip entire parlay
+                all_hit = False
+                break
+
+        if not any_resolved:
+            continue
+
+        # Record outcome
+        outcome = "hit" if all_hit else "miss"
+        profit = round((combined_odds * stake) - stake, 2) if all_hit else round(-stake, 2)
+        _resolve_parlay(parlay["id"], outcome, profit)
+        resolved_count += 1
+        log.info("Trial parlay %d resolved as %s (profit: %.2f)",
+                 parlay["id"], outcome, profit)
+
+    return resolved_count
+
+
+def _fuzzy_team_match(team: str, text: str) -> bool:
+    """Check if a team name approximately appears in the text."""
+    # Short team names (3+ chars) — check word boundary
+    if len(team) >= 3:
+        parts = team.split()
+        for part in parts:
+            if len(part) >= 4 and part in text:
+                return True
+    return False
+
+
+def _grade_leg(
+    leg: str,
+    home: str, away: str,
+    home_goals: int, away_goals: int,
+    total_goals: int,
+    result: Dict[str, Any],
+) -> bool:
+    """Grade a single parlay leg against actual results.
+
+    Returns True if the leg hit, False otherwise. Best-effort parsing.
+    """
+    # --- Moneyline / Match Winner ---
+    ml_patterns = [
+        (r"(?:moneyline|ml|win|match winner)", None),
+    ]
+    if re.search(r"\b(?:ml|moneyline|win(?:ner)?)\b", leg):
+        if home in leg:
+            return home_goals > away_goals
+        elif away in leg:
+            return away_goals > home_goals
+        elif "draw" in leg:
+            return home_goals == away_goals
+
+    # --- Over/Under Goals ---
+    over_m = re.search(r"over\s+([\d.]+)\s*(?:goals?|total)", leg)
+    if over_m:
+        line = float(over_m.group(1))
+        return total_goals > line
+
+    under_m = re.search(r"under\s+([\d.]+)\s*(?:goals?|total)", leg)
+    if under_m:
+        line = float(under_m.group(1))
+        return total_goals < line
+
+    # --- BTTS ---
+    if "btts" in leg:
+        both_scored = home_goals > 0 and away_goals > 0
+        if "yes" in leg:
+            return both_scored
+        elif "no" in leg:
+            return not both_scored
+
+    # --- Over/Under (generic — could be corners, cards, SoT, goals) ---
+    # For corners/cards/SoT we don't have actuals in basic results
+    # so we skip those — they'll remain unresolved
+    generic_over = re.search(r"over\s+([\d.]+)", leg)
+    if generic_over and not over_m:
+        line = float(generic_over.group(1))
+        # If the leg mentions goals or no other stat, assume goals
+        if not any(kw in leg for kw in ["corner", "card", "shot", "sot", "foul"]):
+            return total_goals > line
+
+    generic_under = re.search(r"under\s+([\d.]+)", leg)
+    if generic_under and not under_m:
+        line = float(generic_under.group(1))
+        if not any(kw in leg for kw in ["corner", "card", "shot", "sot", "foul"]):
+            return total_goals < line
+
+    # --- Handicap/Spread ---
+    spread_m = re.search(r"([+-][\d.]+)\s*(?:spread|handicap|hcap)", leg)
+    if spread_m:
+        point = float(spread_m.group(1))
+        diff = home_goals - away_goals
+        if home in leg:
+            return (diff + point) > 0
+        elif away in leg:
+            return (-diff + point) > 0
+
+    # Could not determine — conservatively mark as miss
+    log.debug("Could not grade leg: %s", leg[:100])
+    return False
+
+
+# ---------------------------------------------------------------------------
+# Graduation check
+# ---------------------------------------------------------------------------
+
+async def _check_graduations(bot: commands.Bot):
+    """Check all active trial users and graduate those with 2+ hits."""
+    loop = asyncio.get_running_loop()
+
+    active_users = await loop.run_in_executor(_trial_executor, _get_active_trial_users)
+    if not active_users:
+        return
+
+    for user in active_users:
+        discord_id = user["discord_id"]
+        activated_at = user["activated_at"]
+
+        hit_parlays = await loop.run_in_executor(
+            _trial_executor, _get_hit_parlays_since, activated_at
+        )
+        all_resolved = await loop.run_in_executor(
+            _trial_executor, _get_all_resolved_since, activated_at
+        )
+
+        hits = len(hit_parlays)
+        total_seen = len(all_resolved)
+
+        if hits < 2:
+            continue
+
+        # Calculate total profit from hit parlays
+        total_profit = sum(p.get("profit", 0.0) for p in hit_parlays)
+
+        # Graduate this user
+        await loop.run_in_executor(
+            _trial_executor,
+            _graduate_user, discord_id, hits, total_seen, total_profit,
+        )
+
+        # Send graduation DM and remove role
+        await _send_graduation_dm(bot, discord_id, hit_parlays, total_profit)
+
+        log.info("Graduated trial user %s: %d hits, $%.2f profit",
+                 discord_id, hits, total_profit)
+
+
+async def _send_graduation_dm(
+    bot: commands.Bot,
+    discord_id: str,
+    hit_parlays: List[Dict[str, Any]],
+    total_profit: float,
+):
+    """Send graduation DM and remove TRIAL role."""
+    try:
+        discord_user = await bot.fetch_user(int(discord_id))
+    except Exception as exc:
+        log.warning("Could not fetch user %s for graduation DM: %s", discord_id, exc)
+        return
+
+    # Build hit details
+    hit_lines = []
+    for i, p in enumerate(hit_parlays[:2], 1):
+        try:
+            legs = json.loads(p["legs"])
+            legs_str = " + ".join(legs[:3])
+        except (json.JSONDecodeError, TypeError):
+            legs_str = "Parlay"
+        odds = p.get("combined_odds", 0)
+        profit = p.get("profit", 0)
+        hit_lines.append(
+            f"**Parlay {i}:** {legs_str} @ {odds:.2f} \u2192 HIT (+${profit:.2f})"
+        )
+
+    hit_details = "\n".join(hit_lines) if hit_lines else "2 winning parlays!"
+
+    em = discord.Embed(
+        title="Your Free Trial Results",
+        description=(
+            "\u2705 **2 winning parlays landed!**\n\n"
+            f"{hit_details}\n\n"
+            f"**Total profit on $10 stakes: +${total_profit:.2f}**\n\n"
+            "Ready to keep winning? Use `/subscribe` to unlock full access.\n\n"
+            "\U0001f94a **Rookie** \u2014 $9.99/mo (5 commands/day)\n"
+            "\U0001f4a1 **Tipster** \u2014 $14.99/mo (35 commands/day)\n"
+            "\U0001f40b **Whale** \u2014 $29.99/mo (unlimited + AI assistant)"
+        ),
+        color=COLOR_GREEN,
+    )
+    em.set_footer(text="Spick's Picks | Your trial has ended")
+
+    try:
+        await discord_user.send(embed=em)
+        log.info("Sent graduation DM to %s", discord_id)
+    except discord.Forbidden:
+        log.warning("Cannot DM user %s (DMs disabled)", discord_id)
+    except Exception as exc:
+        log.warning("Failed to send graduation DM to %s: %s", discord_id, exc)
+
+    # Remove TRIAL role from all mutual guilds
+    for guild in bot.guilds:
+        try:
+            member = guild.get_member(int(discord_id))
+            if member is None:
+                member = await guild.fetch_member(int(discord_id))
+        except Exception:
+            continue
+
+        if member is None:
+            continue
+
+        trial_role = discord.utils.find(
+            lambda r: r.name.upper() == ROLE_TRIAL.upper(), guild.roles
+        )
+        if trial_role and trial_role in member.roles:
+            try:
+                await member.remove_roles(trial_role, reason="Trial graduated")
+                log.info("Removed TRIAL role from %s in %s", member, guild.name)
+            except Exception as exc:
+                log.warning("Failed to remove TRIAL role from %s: %s", member, exc)
+
+
+# ---------------------------------------------------------------------------
+# Embed builders
+# ---------------------------------------------------------------------------
+
+def _build_trial_parlay_embed(
+    legs: List[str],
+    combined_odds: float,
+    parlay_num: int,
+    date_str: str,
+) -> discord.Embed:
+    """Build a clean embed for a trial/free-pick parlay."""
+    em = discord.Embed(
+        title=f"\U0001f3af  Free Pick #{parlay_num}",
+        description=f"**{date_str}** \u2022 Low-risk parlay",
+        color=COLOR_GREEN,
+    )
+
+    for i, leg in enumerate(legs, 1):
+        # Clean up the leg for display
+        display = leg.strip()
+        if len(display) > 200:
+            display = display[:197] + "..."
+        em.add_field(
+            name=f"Leg {i}",
+            value=display,
+            inline=False,
+        )
+
+    em.add_field(
+        name="Combined Odds",
+        value=f"**{combined_odds:.2f}x**",
+        inline=True,
+    )
+    em.add_field(
+        name="Stake",
+        value="$10.00 (tracked)",
+        inline=True,
+    )
+    em.add_field(
+        name="Potential Profit",
+        value=f"+${(combined_odds * 10) - 10:.2f}",
+        inline=True,
+    )
+
+    em.set_footer(text="Spick's Picks | Free Trial Pick | Use /subscribe for full access")
+    return em
+
+
+def _build_resolution_embed(
+    parlay: Dict[str, Any],
+    outcome: str,
+) -> discord.Embed:
+    """Build a resolution embed for a trial parlay."""
+    try:
+        legs = json.loads(parlay["legs"])
+    except (json.JSONDecodeError, TypeError):
+        legs = ["Unknown"]
+
+    odds = parlay.get("combined_odds", 0)
+    profit = parlay.get("profit", 0)
+
+    if outcome == "hit":
+        em = discord.Embed(
+            title="\u2705  Free Pick \u2014 HIT!",
+            description=(
+                f"**+${profit:.2f}** profit on $10 stake\n\n"
+                + "\n".join(f"\u2022 {leg}" for leg in legs)
+            ),
+            color=COLOR_GREEN,
+        )
+    else:
+        em = discord.Embed(
+            title="\u274c  Free Pick \u2014 Miss",
+            description=(
+                f"-$10.00\n\n"
+                + "\n".join(f"\u2022 {leg}" for leg in legs)
+            ),
+            color=COLOR_RED,
+        )
+
+    em.add_field(name="Odds", value=f"{odds:.2f}x", inline=True)
+    em.set_footer(text="Spick's Picks | Use /subscribe for full access")
+    return em
+
+
+# ---------------------------------------------------------------------------
+# Cog
+# ---------------------------------------------------------------------------
+
+class TrialCog(commands.Cog, name="trial"):
+    """Trial / free-picks user acquisition funnel."""
+
+    def __init__(self, bot: commands.Bot) -> None:
+        self.bot = bot
+        self._posted_today: Dict[str, str] = {}
+
+        # Initialize DB tables
+        try:
+            _init_tables()
+            log.info("Trial DB tables initialized")
+        except Exception as exc:
+            log.error("Failed to initialize trial DB: %s", exc)
+
+    def _already_posted(self, task_name: str) -> bool:
+        return self._posted_today.get(task_name) == date.today().isoformat()
+
+    def _mark_posted(self, task_name: str):
+        self._posted_today[task_name] = date.today().isoformat()
+
+    async def cog_load(self):
+        if CHANNEL_FREE_PICKS:
+            self.post_trial_parlays.start()
+            self.resolve_trial_parlays.start()
+            log.info("Trial tasks started (channel=%d)", CHANNEL_FREE_PICKS)
+        else:
+            log.warning("DISCORD_CHANNEL_FREE_PICKS not configured — trial tasks disabled")
+
+    async def cog_unload(self):
+        if self.post_trial_parlays.is_running():
+            self.post_trial_parlays.cancel()
+        if self.resolve_trial_parlays.is_running():
+            self.resolve_trial_parlays.cancel()
+
+    # ==================================================================
+    # /trial command
+    # ==================================================================
+
+    @app_commands.command(
+        name="trial",
+        description="Activate your free trial to see our free picks",
+    )
+    async def trial_cmd(self, interaction: discord.Interaction) -> None:
+        if not interaction.guild:
+            await interaction.response.send_message(
+                "This command can only be used in a server.", ephemeral=True,
+            )
+            return
+
+        member = interaction.user
+        if not isinstance(member, discord.Member):
+            await interaction.response.send_message(
+                "Could not determine your server roles.", ephemeral=True,
+            )
+            return
+
+        discord_id = str(member.id)
+        member_roles_lower = {r.name.lower() for r in member.roles}
+
+        # Check if already a paid subscriber
+        if member_roles_lower & _PAID_ROLE_NAMES:
+            em = discord.Embed(
+                title="Already Subscribed",
+                description=(
+                    "You already have a paid subscription!\n"
+                    "You have full access to all channels and features."
+                ),
+                color=COLOR_BLUE,
+            )
+            await interaction.response.send_message(embed=em, ephemeral=True)
+            return
+
+        # Check if already has TRIAL role
+        has_trial = any(r.name.upper() == ROLE_TRIAL.upper() for r in member.roles)
+        if has_trial:
+            em = discord.Embed(
+                title="Trial Already Active",
+                description=(
+                    "You're already on a free trial!\n\n"
+                    "Head to the **#free-picks** channel to see today's picks."
+                ),
+                color=COLOR_YELLOW,
+            )
+            await interaction.response.send_message(embed=em, ephemeral=True)
+            return
+
+        # Check if already graduated
+        existing = await asyncio.get_running_loop().run_in_executor(
+            _trial_executor, _get_trial_user, discord_id
+        )
+        if existing and existing.get("graduated"):
+            em = discord.Embed(
+                title="Trial Completed",
+                description=(
+                    "Your free trial has ended.\n\n"
+                    "Use `/subscribe` to unlock full access and keep winning!"
+                ),
+                color=COLOR_PURPLE,
+            )
+            await interaction.response.send_message(embed=em, ephemeral=True)
+            return
+
+        # Activate trial: assign role + insert DB record
+        trial_role = discord.utils.find(
+            lambda r: r.name.upper() == ROLE_TRIAL.upper(),
+            interaction.guild.roles,
+        )
+        if not trial_role:
+            log.error("TRIAL role '%s' not found in guild", ROLE_TRIAL)
+            await interaction.response.send_message(
+                "Trial system is not configured yet. Please contact an admin.",
+                ephemeral=True,
+            )
+            return
+
+        try:
+            await member.add_roles(trial_role, reason="Trial activated via /trial")
+        except discord.Forbidden:
+            log.error("Bot lacks permission to assign TRIAL role")
+            await interaction.response.send_message(
+                "I don't have permission to assign roles. Please contact an admin.",
+                ephemeral=True,
+            )
+            return
+        except Exception as exc:
+            log.error("Failed to assign TRIAL role: %s", exc)
+            await interaction.response.send_message(
+                "Something went wrong. Please try again later.",
+                ephemeral=True,
+            )
+            return
+
+        # Insert into DB
+        username = str(member)
+        await asyncio.get_running_loop().run_in_executor(
+            _trial_executor, _activate_trial, discord_id, username
+        )
+
+        em = discord.Embed(
+            title="Trial Activated!",
+            description=(
+                "You now have access to **#free-picks** where we post 2 parlays "
+                "every matchday. Once 2 of our picks land, we'll let you know "
+                "how much you would've made.\n\n"
+                "**Stake:** $10 per parlay (tracked automatically)\n\n"
+                "Head to **#free-picks** to see today's picks!"
+            ),
+            color=COLOR_GREEN,
+        )
+        em.set_footer(text="Spick's Picks | Free Trial")
+        await interaction.response.send_message(embed=em, ephemeral=True)
+        log.info("Trial activated for %s (%s)", member, discord_id)
+
+    # ==================================================================
+    # Scheduled task: Post trial parlays
+    # ==================================================================
+
+    @tasks.loop(minutes=30)
+    async def post_trial_parlays(self):
+        """Post 2 low-odds trial parlays to #free-picks each matchday."""
+        if self._already_posted("trial_parlays"):
+            return
+
+        ch = self.bot.get_channel(CHANNEL_FREE_PICKS)
+        if not ch:
+            return
+
+        first_kickoff, active_leagues = _get_todays_leagues()
+        if not active_leagues:
+            return
+
+        if not _is_posting_window(first_kickoff):
+            return
+
+        # Check we haven't already posted 2 today
+        loop = asyncio.get_running_loop()
+        today_count = await loop.run_in_executor(_trial_executor, _count_today_parlays)
+        if today_count >= 2:
+            self._mark_posted("trial_parlays")
+            return
+
+        date_str = _today_phrase()
+        today_iso = date.today().isoformat()
+        parlays_posted = 0
+
+        # Generate 2 safe parlays using the RAG engine
+        # Parlay 1: ultra-safe 2-leg parlay
+        prompts = [
+            (
+                f"For all league games on {date_str} across all leagues, "
+                "build a cross-league 2-leg parlay using ONLY the two strongest "
+                "high-confidence picks. Keep combined decimal odds between 1.4x and 1.7x. "
+                "Only use picks where the model probability is above 65%. "
+                "This is the safest possible parlay."
+            ),
+            (
+                f"For all league games on {date_str} across all leagues, "
+                "build a cross-league 2-leg parlay with combined odds between "
+                "1.5x and 1.8x. Only use high confidence picks with model probability "
+                "above 60%. Focus on moneyline or BTTS markets for reliability."
+            ),
+        ]
+
+        for i, prompt in enumerate(prompts):
+            if parlays_posted >= 2:
+                break
+
+            text = await _run_rag(prompt, "EPL")
+            if not _is_valid(text):
+                log.warning("Trial parlay prompt %d returned no usable output", i + 1)
+                continue
+
+            legs, combined_odds = _parse_parlay_legs(text)
+
+            if not legs:
+                log.warning("Could not parse legs from trial parlay %d", i + 1)
+                continue
+
+            # Validate odds are in safe range
+            if combined_odds < 1.2 or combined_odds > 2.0:
+                log.warning(
+                    "Trial parlay %d odds %.2f outside safe range, adjusting display",
+                    i + 1, combined_odds,
+                )
+                # Still post it — the odds might just be display issue
+                if combined_odds == 0:
+                    combined_odds = 1.60  # Default safe fallback
+
+            # Log to database
+            await loop.run_in_executor(
+                _trial_executor,
+                _log_trial_parlay, today_iso, legs, combined_odds,
+            )
+
+            # Build and post embed
+            parlays_posted += 1
+            em = _build_trial_parlay_embed(legs, combined_odds, parlays_posted, date_str)
+            try:
+                await ch.send(embed=em)
+                log.info("Posted trial parlay %d (odds: %.2f, legs: %d)",
+                         parlays_posted, combined_odds, len(legs))
+            except Exception as exc:
+                log.error("Failed to post trial parlay: %s", exc)
+
+        if parlays_posted > 0:
+            self._mark_posted("trial_parlays")
+            log.info("Posted %d trial parlays for %s", parlays_posted, today_iso)
+        else:
+            log.warning("Could not generate any trial parlays for %s", today_iso)
+
+    @post_trial_parlays.before_loop
+    async def _wait_trial_parlays(self):
+        await self.bot.wait_until_ready()
+
+    # ==================================================================
+    # Scheduled task: Resolve trial parlays + check graduations
+    # ==================================================================
+
+    @tasks.loop(time=dt_time(hour=23, minute=0))
+    async def resolve_trial_parlays(self):
+        """Resolve trial parlays and check for user graduations.
+
+        Runs at 23:00 UTC daily — most European matches are done by then.
+        """
+        loop = asyncio.get_running_loop()
+
+        # Step 1: Resolve unresolved parlays
+        try:
+            resolved = await loop.run_in_executor(
+                _trial_executor, _resolve_trial_parlays_sync
+            )
+            if resolved > 0:
+                log.info("Resolved %d trial parlays", resolved)
+        except Exception as exc:
+            log.error("Trial parlay resolution failed: %s", exc, exc_info=True)
+            return
+
+        # Step 2: Post resolution results to #free-picks
+        if resolved > 0:
+            ch = self.bot.get_channel(CHANNEL_FREE_PICKS)
+            if ch:
+                # Fetch recently resolved parlays
+                conn = _get_db()
+                try:
+                    rows = conn.execute(
+                        "SELECT * FROM trial_parlays WHERE resolved_at IS NOT NULL "
+                        "AND date(resolved_at) = date('now') ORDER BY resolved_at"
+                    ).fetchall()
+                    for row in rows:
+                        p = dict(row)
+                        em = _build_resolution_embed(p, p["outcome"])
+                        try:
+                            await ch.send(embed=em)
+                        except Exception as exc:
+                            log.error("Failed to post resolution embed: %s", exc)
+                finally:
+                    conn.close()
+
+        # Step 3: Check graduations (runs after resolution)
+        try:
+            await _check_graduations(self.bot)
+        except Exception as exc:
+            log.error("Graduation check failed: %s", exc, exc_info=True)
+
+    @resolve_trial_parlays.before_loop
+    async def _wait_resolve(self):
+        await self.bot.wait_until_ready()
+
+    # ==================================================================
+    # Manual trigger support (owner only)
+    # ==================================================================
+
+    @app_commands.command(
+        name="trial-trigger",
+        description="Manually trigger trial parlay posting or resolution (owner only)",
+    )
+    @app_commands.describe(action="What to trigger")
+    @app_commands.choices(action=[
+        app_commands.Choice(name="Post trial parlays", value="post"),
+        app_commands.Choice(name="Resolve parlays", value="resolve"),
+        app_commands.Choice(name="Check graduations", value="graduate"),
+    ])
+    async def trial_trigger(
+        self,
+        interaction: discord.Interaction,
+        action: app_commands.Choice[str],
+    ):
+        if not interaction.guild or interaction.user.id != interaction.guild.owner_id:
+            await interaction.response.send_message(
+                "Only the server owner can use this command.", ephemeral=True,
+            )
+            return
+
+        await interaction.response.defer(thinking=True, ephemeral=True)
+
+        if action.value == "post":
+            # Reset the posted flag and run
+            self._posted_today.pop("trial_parlays", None)
+            await self.post_trial_parlays()
+            await interaction.followup.send("Trial parlays posted.", ephemeral=True)
+
+        elif action.value == "resolve":
+            loop = asyncio.get_running_loop()
+            resolved = await loop.run_in_executor(
+                _trial_executor, _resolve_trial_parlays_sync
+            )
+            await interaction.followup.send(
+                f"Resolved {resolved} trial parlays.", ephemeral=True,
+            )
+
+        elif action.value == "graduate":
+            await _check_graduations(self.bot)
+            await interaction.followup.send(
+                "Graduation check complete.", ephemeral=True,
+            )
+
+
+# ---------------------------------------------------------------------------
+# Cog loader
+# ---------------------------------------------------------------------------
+
+async def setup(bot: commands.Bot) -> None:
+    await bot.add_cog(TrialCog(bot))
