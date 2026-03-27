@@ -399,6 +399,104 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "recommend_line",
+            "description": "Recommend the best over/under line for a stat (goals, corners, cards, sot) in a fixture. Returns the recommended side, line, odds, model probability, value edge, and confidence.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "home_team": {"type": "string"},
+                    "away_team": {"type": "string"},
+                    "league": {"type": "string"},
+                    "stat": {"type": "string", "enum": ["goals", "corners", "cards", "sot"]},
+                },
+                "required": ["home_team", "away_team", "league", "stat"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_recent_form",
+            "description": "Get a team's recent form stats from last 6 matches: goals, corners, cards, SoT averages and trends.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "team": {"type": "string"},
+                    "league": {"type": "string"},
+                },
+                "required": ["team", "league"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_referee_info",
+            "description": "Get referee assignment and profile for a fixture. Returns referee name, cards/match average, strictness ratio, fouls/match, cards/foul rate.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "home_team": {"type": "string"},
+                    "away_team": {"type": "string"},
+                    "league": {"type": "string"},
+                },
+                "required": ["home_team", "away_team", "league"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "project_team_corners",
+            "description": "Project corners for a SPECIFIC TEAM (not match total). Use this when the user asks about one team's corners, e.g. 'how many corners will Arsenal have'. Returns that team's individual corner projection.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "team": {"type": "string", "description": "The team to project corners for."},
+                    "opponent": {"type": "string", "description": "Their opponent."},
+                    "league": {"type": "string"},
+                    "is_home": {"type": "boolean", "description": "Whether the team is playing at home."},
+                },
+                "required": ["team", "opponent", "league", "is_home"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "project_team_cards",
+            "description": "Project cards for a SPECIFIC TEAM (not match total). Use this when the user asks about one team's cards. Returns that team's individual card projection.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "team": {"type": "string", "description": "The team to project cards for."},
+                    "opponent": {"type": "string", "description": "Their opponent."},
+                    "league": {"type": "string"},
+                    "is_home": {"type": "boolean", "description": "Whether the team is playing at home."},
+                },
+                "required": ["team", "opponent", "league", "is_home"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_h2h_stats",
+            "description": "Get head-to-head historical stats between two teams: recent meetings, average goals/corners/cards in past encounters.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "home_team": {"type": "string"},
+                    "away_team": {"type": "string"},
+                    "league": {"type": "string"},
+                },
+                "required": ["home_team", "away_team", "league"],
+            },
+        },
+    },
 ]
 
 # System prompt
@@ -410,7 +508,12 @@ You have tools to query real statistical models and live odds. Always call a too
 
 Tool tips:
 - get_fixtures: returns ALL upcoming fixtures. Use "team" param to find a specific team's next game.
-- To build a parlay, get fixtures first, then call projection tools for each, then combine.
+- IMPORTANT: project_corners/project_cards return MATCH TOTALS (both teams combined). If the user asks about ONE team's corners or cards, use project_team_corners or project_team_cards instead.
+- recommend_line: gives the best betting line with odds, probability, and value edge. Use this when the user asks "what line should I take" or "is over X a good bet".
+- get_recent_form: shows last 6 matches vs season average. Use to identify hot/cold streaks.
+- get_referee_info: referee strictness, cards/match, foul rate. Always check this for card-related questions.
+- get_h2h_stats: historical meetings between two teams. Check this for derby/rivalry matches.
+- To build a parlay, get fixtures first, then call projection/recommend tools for each, then combine.
 - You can call MULTIPLE tools in one turn.
 - For team names, use the canonical name (Arsenal, not "the gunners").
 - If unsure about a league: EPL for English, LaLiga for Spanish, SerieA for Italian, Bundesliga for German, Ligue1 for French.
@@ -563,6 +666,213 @@ def _execute_tool(name: str, args: Dict[str, Any]) -> str:
                     return json.dumps({"fixture": f"{ev.get('home_team')} vs {ev.get('away_team')}", "odds": odds_summary})
             return json.dumps({"error": f"No odds found for {args['home_team']} vs {args['away_team']}."})
 
+        elif name == "project_team_corners":
+            team = _resolve_team(args["team"]); opp = _resolve_team(args["opponent"])
+            league = args["league"]; is_home = args.get("is_home", True)
+            err = _validate_teams(team, opp, league)
+            if err: return json.dumps({"error": err})
+            try:
+                bl, sea, rec = rag.projected_team_corners(team, opp, league, is_home)
+                if bl is None: return json.dumps({"error": f"No corner data for {team}."})
+                return json.dumps({
+                    "team": team, "opponent": opp, "is_home": is_home,
+                    "projected_corners": round(bl, 2),
+                    "season": round(sea, 2) if sea else None,
+                    "recent": round(rec, 2) if rec else None,
+                    "note": f"This is {team}'s individual corner projection, not the match total.",
+                })
+            except Exception as exc:
+                return json.dumps({"error": f"Team corner projection failed: {exc}"})
+
+        elif name == "project_team_cards":
+            team = _resolve_team(args["team"]); opp = _resolve_team(args["opponent"])
+            league = args["league"]; is_home = args.get("is_home", True)
+            err = _validate_teams(team, opp, league)
+            if err: return json.dumps({"error": err})
+            try:
+                bl, sea, rec = rag.projected_team_cards(team, opp, league, is_home)
+                if bl is None: return json.dumps({"error": f"No card data for {team}."})
+                return json.dumps({
+                    "team": team, "opponent": opp, "is_home": is_home,
+                    "projected_cards": round(bl, 2),
+                    "season": round(sea, 2) if sea else None,
+                    "recent": round(rec, 2) if rec else None,
+                    "note": f"This is {team}'s individual card projection, not the match total.",
+                })
+            except Exception as exc:
+                return json.dumps({"error": f"Team card projection failed: {exc}"})
+
+        elif name == "recommend_line":
+            home = _resolve_team(args["home_team"]); away = _resolve_team(args["away_team"])
+            league = args["league"]; stat = args["stat"]
+            err = _validate_teams(home, away, league)
+            if err: return json.dumps({"error": err})
+
+            # Get projection
+            proj_fn = {"goals": rag.projected_total_goals, "corners": rag.projected_total_corners,
+                       "sot": rag.projected_total_sot}
+            if stat == "cards":
+                result = rag.projected_total_cards(home, away, league)
+                proj, _, _ = result[0], result[1], result[2]
+            elif stat in proj_fn:
+                proj, _, _ = proj_fn[stat](home, away, league)
+            else:
+                return json.dumps({"error": f"Unknown stat: {stat}"})
+
+            if proj is None:
+                return json.dumps({"error": f"No projection data for {stat} in {home} vs {away}."})
+
+            # Get odds and find best line
+            try:
+                events, _ = rag.fetch_events(league, set())
+            except Exception:
+                events = []
+
+            best = None
+            for ev in events:
+                if home.lower() in ev.get("home_team", "").lower() and away.lower() in ev.get("away_team", "").lower():
+                    options = rag.extract_total_line_options(ev, stat if stat != "goals" else "totals")
+                    if options:
+                        variance = None
+                        try:
+                            variance = rag.get_blended_variance(home, league, f"{stat}_var")
+                        except Exception:
+                            pass
+                        best = rag.choose_best_total_line(options, proj, variance)
+                    break
+
+            if best:
+                from prob_models import over_prob, implied_prob
+                model_p = best.get("_model_prob")
+                val_edge = best.get("_value_edge")
+                conf = rag.confidence_from_edge(
+                    abs(val_edge) if val_edge else 0,
+                    stat_group=stat,
+                    model_prob=model_p,
+                    value_edge_pct=val_edge
+                )
+                return json.dumps({
+                    "stat": stat, "projection": round(proj, 2),
+                    "recommended_side": best.get("side"), "line": best.get("point"),
+                    "odds": best.get("odds"), "bookmaker": best.get("bookmaker"),
+                    "model_prob": round(model_p, 3) if model_p else None,
+                    "implied_prob": round(best.get("_implied_prob", 0), 3) if best.get("_implied_prob") else None,
+                    "value_edge": round(val_edge, 3) if val_edge else None,
+                    "confidence": conf,
+                })
+            else:
+                # No odds — model-only recommendation
+                from prob_models import over_prob
+                nearest_line = round(proj * 2) / 2  # nearest 0.5
+                p_over = over_prob(proj, nearest_line)
+                side = "over" if p_over >= 0.5 else "under"
+                model_p = p_over if side == "over" else 1 - p_over
+                return json.dumps({
+                    "stat": stat, "projection": round(proj, 2),
+                    "recommended_side": side, "line": nearest_line,
+                    "odds": None, "bookmaker": None,
+                    "model_prob": round(model_p, 3),
+                    "value_edge": None,
+                    "confidence": "model-only (no odds available)",
+                    "note": "No bookmaker odds available. Line based on model projection only.",
+                })
+
+        elif name == "get_recent_form":
+            team = _resolve_team(args["team"])
+            league = args["league"]
+            try:
+                recent = rag._recent_stats(team, league, last_n=6)
+            except Exception:
+                recent = {}
+
+            if not recent:
+                return json.dumps({"error": f"No recent form data for {team} in {league}."})
+
+            # Extract key recent stats
+            form = {}
+            for key in ["goals_for_avg", "goals_against_avg", "corners_for_avg", "corners_against_avg",
+                        "cards_avg", "sot_for_avg", "sot_against_avg", "fouls_avg",
+                        "xg_for_avg", "xg_against_avg"]:
+                val = recent.get(key)
+                if val is not None:
+                    form[key] = round(float(val), 2)
+
+            # Get season profile for comparison
+            meta = rag.get_team_profile_meta(team, league) or {}
+            season = {}
+            for key, meta_key in [("goals_for_pm", "goals_for_pm"), ("corners_pm", "corners_pm"),
+                                   ("cards_per_90", "cards_per_90_team"), ("sot_for_pm", "sot_for_pm")]:
+                val = meta.get(meta_key)
+                if val is not None:
+                    season[key] = round(float(val), 2)
+
+            return json.dumps({
+                "team": team, "league": league,
+                "recent_6_matches": form,
+                "season_averages": season,
+                "note": "Compare recent to season to spot trends. Rising recent > season = hot form.",
+            })
+
+        elif name == "get_referee_info":
+            home = _resolve_team(args["home_team"]); away = _resolve_team(args["away_team"])
+            league = args["league"]
+            try:
+                from referee_data import get_referee_modifier
+                ref = get_referee_modifier(home, away, league, weight=0.25)
+                if ref.source == "profile" and ref.referee_name:
+                    return json.dumps({
+                        "referee": ref.referee_name,
+                        "avg_cards_per_match": round(ref.avg_cards_per_match, 2),
+                        "strictness_ratio": round(ref.strictness_ratio, 2),
+                        "strictness_label": "strict" if ref.strictness_ratio >= 1.10 else ("lenient" if ref.strictness_ratio <= 0.90 else "average"),
+                        "avg_fouls_per_match": round(ref.avg_fouls_per_match, 1),
+                        "cards_per_foul": round(ref.cards_per_foul, 3),
+                        "sample_size": ref.sample_size,
+                        "modifier": round(ref.multiplier, 3),
+                    })
+                else:
+                    return json.dumps({"referee": "Not yet assigned or data unavailable", "modifier": 1.0})
+            except Exception as exc:
+                return json.dumps({"error": f"Referee lookup failed: {exc}"})
+
+        elif name == "get_h2h_stats":
+            home = _resolve_team(args["home_team"]); away = _resolve_team(args["away_team"])
+            league = args["league"]
+            try:
+                # Query Chroma for fixture docs involving both teams
+                rows = rag.get_recent_team_fixture_rows(home, league, last_n=20)
+                h2h_matches = []
+                for row in rows:
+                    meta = row.get("meta", {})
+                    fixture = str(meta.get("fixture", ""))
+                    if away.lower() in fixture.lower():
+                        h2h_matches.append({
+                            "fixture": fixture,
+                            "date": meta.get("fixture_date", ""),
+                            "goals": meta.get("goals"),
+                            "corners": meta.get("corners"),
+                            "cards_total": meta.get("cards_total"),
+                        })
+
+                if not h2h_matches:
+                    return json.dumps({"message": f"No recent head-to-head data found for {home} vs {away} in Chroma.", "matches": []})
+
+                # Compute averages
+                def _avg(key):
+                    vals = [float(m[key]) for m in h2h_matches if m.get(key) is not None]
+                    return round(sum(vals) / len(vals), 2) if vals else None
+
+                return json.dumps({
+                    "home": home, "away": away, "league": league,
+                    "meetings_found": len(h2h_matches),
+                    "avg_goals_per_team": _avg("goals"),
+                    "avg_corners_per_team": _avg("corners"),
+                    "avg_cards_per_team": _avg("cards_total"),
+                    "recent_matches": h2h_matches[:5],
+                })
+            except Exception as exc:
+                return json.dumps({"error": f"H2H lookup failed: {exc}"})
+
         else:
             return json.dumps({"error": f"Unknown tool: {name}"})
 
@@ -694,38 +1004,10 @@ class WhaleChat(commands.Cog):
         if had_whale or not has_whale:
             return
 
-        log.info("New Whale detected: %s", after)
+        log.info("New Whale detected: %s — creating AI chat thread", after)
 
-        # Create thread proactively
-        thread = await _get_or_create_thread(self.bot, after)
-
-        # Send welcome DM
-        try:
-            em = discord.Embed(
-                title="Welcome to Whale tier 🐋",
-                description=(
-                    "You now have a **private AI analyst** that knows football inside out.\n\n"
-                    "Ask anything — build parlays, compare teams, find value bets, "
-                    "get fixture deep dives. Just type naturally, like texting a friend "
-                    "who happens to have a stats degree.\n\n"
-                    "Your private chat is ready. Tap the button below to open it."
-                ),
-                color=COLOR_PURPLE,
-            )
-            if thread:
-                em.add_field(
-                    name="Your chat thread",
-                    value=f"Go to {thread.mention} and start typing.",
-                    inline=False,
-                )
-            em.set_footer(text="Spick's Picks | Whale Exclusive")
-
-            view = StartChatButton(self.bot)
-            await after.send(embed=em, view=view)
-        except discord.Forbidden:
-            log.warning("Can't DM %s (DMs disabled). Thread created anyway.", after)
-        except Exception as exc:
-            log.warning("Failed to send Whale welcome DM to %s: %s", after, exc)
+        # Create thread proactively (DM is handled by tier_welcome.py)
+        await _get_or_create_thread(self.bot, after)
 
     # ------------------------------------------------------------------
     # on_message: listen in whale chat threads → GPT responds

@@ -27,10 +27,15 @@ from pydantic import BaseModel
 
 from users import (
     get_user_by_discord_id,
+    get_user_by_referral_code,
     get_user_by_stripe_customer,
+    grant_referral_reward,
+    record_referral,
     update_user_subscription,
     cancel_user_subscription,
     log_subscription_event,
+    REFERRAL_REWARDS,
+    TIER_HIERARCHY,
 )
 from discord_roles import assign_tier_role, remove_all_tier_roles
 from auth import get_current_user, require_auth
@@ -197,6 +202,9 @@ async def _handle_checkout_completed(event: Dict[str, Any]) -> None:
     # Assign Discord role
     await assign_tier_role(discord_id, tier)
 
+    # ── Process referral code (if present) ────────────────────────────
+    await _process_referral(session, discord_id)
+
 
 async def _handle_invoice_paid(event: Dict[str, Any]) -> None:
     """Handle invoice.paid — successful recurring payment."""
@@ -328,6 +336,208 @@ async def _handle_payment_failed(event: Dict[str, Any]) -> None:
     )
 
     log.info("payment_failed: discord=%s marked past_due", discord_id)
+
+
+# ---------------------------------------------------------------------------
+# Referral processing
+# ---------------------------------------------------------------------------
+
+# Next tier lookup for the tier_upgrade reward
+_NEXT_TIER = {"starter": "pro", "pro": "elite", "elite": "elite"}
+
+
+async def _process_referral(session: Dict[str, Any], referred_discord_id: str) -> None:
+    """Check for a referral code in checkout metadata and process the referral.
+
+    Called inside ``_handle_checkout_completed`` after the subscription is set up.
+    Handles all referral guards, recording, reward checking, and notification.
+    """
+    metadata = session.get("metadata") or {}
+    referral_code = (metadata.get("referral_code") or "").strip().upper()
+    if not referral_code:
+        return
+
+    event_id = session.get("id", "")
+    referred_username = metadata.get("discord_username", "")
+
+    # Look up referrer
+    referrer = get_user_by_referral_code(referral_code)
+    if referrer is None:
+        log.warning(
+            "referral: code %s not found (checkout %s)", referral_code, event_id
+        )
+        return
+
+    referrer_id = referrer["discord_id"]
+
+    # Record the referral (guards: no self-refer, no double-refer)
+    result = record_referral(
+        referrer_discord_id=referrer_id,
+        referred_discord_id=referred_discord_id,
+        referred_username=referred_username,
+        referral_code_used=referral_code,
+        stripe_event_id=event_id,
+    )
+
+    if result is None:
+        log.info(
+            "referral: record_referral returned None for %s -> %s (guard triggered)",
+            referrer_id,
+            referred_discord_id,
+        )
+        return
+
+    new_count = result["referral_count"]
+    reward = result.get("reward")
+
+    log.info(
+        "referral: recorded %s -> %s (code=%s, count=%d)",
+        referrer_id,
+        referred_discord_id,
+        referral_code,
+        new_count,
+    )
+
+    # Apply reward if a threshold was just crossed
+    reward_message = ""
+    if reward:
+        reward_type = reward["reward_type"]
+        reward_desc = reward["description"]
+        grant_referral_reward(referrer_id, reward_type)
+
+        if reward_type == "tier_upgrade":
+            current_tier = result.get("referrer_tier", "starter")
+            next_tier = _NEXT_TIER.get(current_tier, current_tier)
+            if next_tier != current_tier:
+                update_user_subscription(
+                    discord_id=referrer_id,
+                    tier=next_tier,
+                    status="active",
+                )
+                await assign_tier_role(referrer_id, next_tier)
+                reward_message = (
+                    f"Reward unlocked: **{reward_desc}**! "
+                    f"You have been upgraded from {current_tier.capitalize()} "
+                    f"to {next_tier.capitalize()}."
+                )
+            else:
+                reward_message = (
+                    f"Reward unlocked: **{reward_desc}**! "
+                    "You are already at the highest tier."
+                )
+        elif reward_type == "lifetime":
+            # Flag in DB — actual Stripe subscription changes handled manually
+            update_user_subscription(
+                discord_id=referrer_id,
+                tier=result.get("referrer_tier", "starter"),
+                status="active",
+                is_founding_member=1,  # reuse founding flag as lifetime marker
+            )
+            reward_message = f"Reward unlocked: **{reward_desc}**!"
+        else:
+            # 7_days or free_month — log for manual processing
+            reward_message = (
+                f"Reward unlocked: **{reward_desc}**! "
+                "This will be applied to your next billing cycle."
+            )
+
+        log.info(
+            "referral reward: %s earned '%s' at %d referrals",
+            referrer_id,
+            reward_type,
+            new_count,
+        )
+
+    # Notify referrer via Discord DM (best-effort)
+    await _notify_referrer(
+        referrer_discord_id=referrer_id,
+        referred_username=referred_username,
+        new_count=new_count,
+        reward_message=reward_message,
+    )
+
+
+async def _notify_referrer(
+    referrer_discord_id: str,
+    referred_username: str,
+    new_count: int,
+    reward_message: str = "",
+) -> None:
+    """Send a DM to the referrer notifying them of a successful referral.
+
+    Uses the Discord REST API (same pattern as discord_roles.py).
+    Best-effort — failures are logged but do not raise.
+    """
+    import aiohttp
+
+    bot_token = os.getenv("DISCORD_BOT_TOKEN", "")
+    if not bot_token:
+        log.debug("_notify_referrer: no bot token, skipping DM")
+        return
+
+    api_base = "https://discord.com/api/v10"
+    headers = {
+        "Authorization": f"Bot {bot_token}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            # Step 1: Open a DM channel with the referrer
+            dm_resp = await session.post(
+                f"{api_base}/users/@me/channels",
+                headers=headers,
+                json={"recipient_id": referrer_discord_id},
+            )
+            if dm_resp.status != 200:
+                log.warning(
+                    "_notify_referrer: could not open DM channel (status %d)",
+                    dm_resp.status,
+                )
+                return
+
+            dm_data = await dm_resp.json()
+            channel_id = dm_data.get("id")
+            if not channel_id:
+                return
+
+            # Step 2: Send the notification message
+            # Find next reward info
+            next_info = ""
+            for threshold, _, desc in REFERRAL_REWARDS:
+                if new_count < threshold:
+                    remaining = threshold - new_count
+                    next_info = f"\n\nNext reward: **{desc}** ({remaining} more referral{'s' if remaining != 1 else ''} needed)"
+                    break
+
+            content = (
+                f"Your referral **{referred_username or 'a friend'}** just subscribed! "
+                f"You now have **{new_count}** referral{'s' if new_count != 1 else ''}."
+            )
+            if reward_message:
+                content += f"\n\n{reward_message}"
+            if next_info:
+                content += next_info
+
+            msg_resp = await session.post(
+                f"{api_base}/channels/{channel_id}/messages",
+                headers=headers,
+                json={"content": content},
+            )
+            if msg_resp.status in (200, 201):
+                log.info("_notify_referrer: DM sent to %s", referrer_discord_id)
+            else:
+                log.warning(
+                    "_notify_referrer: DM send failed (status %d)",
+                    msg_resp.status,
+                )
+
+    except Exception:
+        log.debug(
+            "_notify_referrer: failed to DM %s",
+            referrer_discord_id,
+            exc_info=True,
+        )
 
 
 # ---------------------------------------------------------------------------

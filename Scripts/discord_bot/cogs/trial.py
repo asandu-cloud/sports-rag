@@ -966,7 +966,6 @@ class TrialCog(commands.Cog, name="trial"):
                 "You now have access to **#free-picks** where we post 2 parlays "
                 "every matchday. Once 2 of our picks land, we'll let you know "
                 "how much you would've made.\n\n"
-                "**Stake:** $10 per parlay (tracked automatically)\n\n"
                 "Head to **#free-picks** to see today's picks!"
             ),
             color=COLOR_GREEN,
@@ -974,6 +973,67 @@ class TrialCog(commands.Cog, name="trial"):
         em.set_footer(text="Spick's Picks | Free Trial")
         await interaction.response.send_message(embed=em, ephemeral=True)
         log.info("Trial activated for %s (%s)", member, discord_id)
+
+        # Send detailed DM with channel links
+        try:
+            # Find channel mentions
+            free_picks = None
+            bot_commands = None
+            subscribe = None
+            if interaction.guild:
+                for ch in interaction.guild.channels:
+                    if ch.name == "free-picks":
+                        free_picks = ch.mention
+                    elif ch.name == "bot-commands":
+                        bot_commands = ch.mention
+                    elif ch.name == "subscribe":
+                        subscribe = ch.mention
+
+            fp = free_picks or "**#free-picks**"
+            bc = bot_commands or "**#bot-commands**"
+            sc = subscribe or "**#subscribe**"
+
+            dm_em = discord.Embed(
+                title="Your Free Trial Has Started",
+                description=(
+                    "Here's exactly how this works."
+                ),
+                color=COLOR_GREEN,
+            )
+            dm_em.add_field(
+                name="What happens now",
+                value=(
+                    f"We post **2 safe parlays** in {fp} every matchday. "
+                    "These are low-odds, high-confidence picks designed to hit.\n\n"
+                    "We track every parlay automatically. When **2 of them land**, "
+                    "we'll DM you with exactly how much you would've made on a $10 stake."
+                ),
+                inline=False,
+            )
+            dm_em.add_field(
+                name="What you need to do",
+                value=(
+                    f"Nothing \u2014 just check {fp} before each matchday and follow along. "
+                    "You don't need to place any bets during the trial. Just watch the results."
+                ),
+                inline=False,
+            )
+            dm_em.add_field(
+                name="What happens after",
+                value=(
+                    "Once 2 parlays hit, we'll show you the profit and your trial ends. "
+                    f"Use the profit to pay for your first month \u2014 check {sc} for plans.\n\n"
+                    f"You can also explore the bot in {bc} \u2014 try `/market EPL goals` "
+                    "to see a preview of what subscribers get."
+                ),
+                inline=False,
+            )
+            dm_em.set_footer(text="Spick's Picks | No card required. No time limit. Just results.")
+            await member.send(embed=dm_em)
+        except discord.Forbidden:
+            log.warning("Can't DM %s (DMs disabled)", member)
+        except Exception as exc:
+            log.warning("Failed to send trial DM to %s: %s", member, exc)
 
     # ==================================================================
     # Scheduled task: Post trial parlays

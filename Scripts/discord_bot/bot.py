@@ -30,6 +30,7 @@ COGS = [
     "cogs.subscribe",
     "cogs.whale_chat",
     "cogs.trial",
+    "cogs.tier_welcome",
 ]
 
 

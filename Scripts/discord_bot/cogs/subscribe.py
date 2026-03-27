@@ -40,13 +40,22 @@ except ImportError:
 # Lazy user DB import — shared SQLite with the web app
 # ---------------------------------------------------------------------------
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "web_app"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "web_app"))
 try:
-    from users import get_user_by_discord_id, init_db, upsert_user
+    from users import (
+        get_user_by_discord_id,
+        get_user_by_referral_code,
+        generate_referral_code,
+        get_referral_stats,
+        init_db,
+        upsert_user,
+        REFERRAL_REWARDS,
+    )
 
     _HAS_USERS = True
 except ImportError:
     _HAS_USERS = False
+    REFERRAL_REWARDS = []
     log.warning("users module not available — account/cancel commands will be limited")
 
 # ---------------------------------------------------------------------------
@@ -94,11 +103,19 @@ def _create_checkout_session(
     price_id: str,
     discord_user_id: str,
     discord_username: str,
+    referral_code: Optional[str] = None,
 ) -> Optional[str]:
     """Create a Stripe Checkout Session and return the URL, or None on failure."""
     if not _HAS_STRIPE or not price_id:
         return None
     try:
+        metadata: Dict[str, str] = {
+            "discord_id": str(discord_user_id),
+            "discord_username": discord_username,
+        }
+        if referral_code:
+            metadata["referral_code"] = referral_code.upper()
+
         session = stripe.checkout.Session.create(
             mode="subscription",
             payment_method_types=["card"],
@@ -107,10 +124,7 @@ def _create_checkout_session(
             subscription_data={"trial_period_days": 7},
             success_url=_SUCCESS_URL + "?session_id={CHECKOUT_SESSION_ID}",
             cancel_url=_CANCEL_URL,
-            metadata={
-                "discord_id": str(discord_user_id),
-                "discord_username": discord_username,
-            },
+            metadata=metadata,
         )
         return session.url
     except Exception as exc:
@@ -256,6 +270,108 @@ def _build_account_embed(user: Optional[Dict[str, Any]]) -> discord.Embed:
 # ---------------------------------------------------------------------------
 
 
+class ReferralCodeModal(discord.ui.Modal, title="Referral Code (Optional)"):
+    """Modal that appears after plan selection to optionally collect a referral code."""
+
+    code_input = discord.ui.TextInput(
+        label="Have a referral code?",
+        placeholder="e.g. SPICK-SANDU-A7X3",
+        required=False,
+        max_length=30,
+    )
+
+    def __init__(self, selected_plan: str, price_id: str) -> None:
+        super().__init__()
+        self.selected_plan = selected_plan
+        self.price_id = price_id
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        referral_code: Optional[str] = None
+        raw_code = self.code_input.value.strip() if self.code_input.value else ""
+
+        if raw_code:
+            # Validate the referral code
+            if _HAS_USERS:
+                referrer = get_user_by_referral_code(raw_code)
+                if referrer is None:
+                    await interaction.response.send_message(
+                        f"Referral code **`{raw_code}`** is not valid. "
+                        "Proceeding without a referral code. "
+                        "Please re-run `/subscribe` if you want to try again.",
+                        ephemeral=True,
+                    )
+                    return
+                # Cannot refer yourself
+                if referrer["discord_id"] == str(interaction.user.id):
+                    await interaction.response.send_message(
+                        "You cannot use your own referral code. "
+                        "Proceeding without a referral code.",
+                        ephemeral=True,
+                    )
+                    return
+                # Check if user was already referred
+                referred_user = get_user_by_discord_id(str(interaction.user.id))
+                if referred_user and referred_user.get("referred_by"):
+                    await interaction.response.send_message(
+                        "You have already used a referral code on a previous subscription. "
+                        "Proceeding without applying a new one.",
+                        ephemeral=True,
+                    )
+                    return
+                referral_code = raw_code.upper()
+
+        await interaction.response.defer(ephemeral=True)
+
+        # Ensure user exists in DB before checkout
+        if _HAS_USERS:
+            upsert_user(
+                discord_id=str(interaction.user.id),
+                discord_username=str(interaction.user),
+            )
+
+        checkout_url = _create_checkout_session(
+            price_id=self.price_id,
+            discord_user_id=str(interaction.user.id),
+            discord_username=str(interaction.user),
+            referral_code=referral_code,
+        )
+
+        if checkout_url:
+            label = TIER_LABELS.get(self.selected_plan, self.selected_plan)
+            ref_note = ""
+            if referral_code:
+                ref_note = f"\nReferral code **`{referral_code}`** will be applied after payment."
+            em = discord.Embed(
+                title="Checkout Ready",
+                description=(
+                    f"**Plan:** {label}\n\n"
+                    f"[Click here to complete checkout]({checkout_url})\n\n"
+                    "You will have a **7-day free trial** before being charged.\n"
+                    "Your Discord roles will be updated automatically after payment."
+                    f"{ref_note}"
+                ),
+                color=COLOR_GREEN,
+            )
+            await interaction.followup.send(embed=em, ephemeral=True)
+        else:
+            await interaction.followup.send(
+                "Failed to create checkout session. Please try again later.",
+                ephemeral=True,
+            )
+
+    async def on_error(
+        self, interaction: discord.Interaction, error: Exception
+    ) -> None:
+        log.exception("ReferralCodeModal error: %s", error)
+        try:
+            await interaction.response.send_message(
+                "Something went wrong. Please try again.",
+                ephemeral=True,
+            )
+        except discord.errors.InteractionResponded:
+            pass
+
+
 class TierSelect(discord.ui.Select):
     """Dropdown menu for selecting a subscription plan."""
 
@@ -318,39 +434,9 @@ class TierSelect(discord.ui.Select):
             )
             return
 
-        await interaction.response.defer(ephemeral=True)
-
-        # Ensure user exists in DB before checkout
-        if _HAS_USERS:
-            upsert_user(
-                discord_id=str(interaction.user.id),
-                discord_username=str(interaction.user),
-            )
-
-        checkout_url = _create_checkout_session(
-            price_id=price_id,
-            discord_user_id=str(interaction.user.id),
-            discord_username=str(interaction.user),
-        )
-
-        if checkout_url:
-            label = TIER_LABELS.get(selected, selected)
-            em = discord.Embed(
-                title="Checkout Ready",
-                description=(
-                    f"**Plan:** {label}\n\n"
-                    f"[Click here to complete checkout]({checkout_url})\n\n"
-                    "You will have a **7-day free trial** before being charged.\n"
-                    "Your Discord roles will be updated automatically after payment."
-                ),
-                color=COLOR_GREEN,
-            )
-            await interaction.followup.send(embed=em, ephemeral=True)
-        else:
-            await interaction.followup.send(
-                "Failed to create checkout session. Please try again later.",
-                ephemeral=True,
-            )
+        # Show the referral code modal before creating checkout
+        modal = ReferralCodeModal(selected_plan=selected, price_id=price_id)
+        await interaction.response.send_modal(modal)
 
 
 class SubscribeView(discord.ui.View):
@@ -429,6 +515,113 @@ class SubscribeCog(commands.Cog, name="subscribe"):
         user = get_user_by_discord_id(str(interaction.user.id))
         embed = _build_account_embed(user)
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    # ── /referral ─────────────────────────────────────────────────────────
+
+    @app_commands.command(
+        name="referral",
+        description="Get your referral code and track rewards",
+    )
+    async def referral_cmd(self, interaction: discord.Interaction) -> None:
+        if not _HAS_USERS:
+            await interaction.response.send_message(
+                "Referral system is not available yet.",
+                ephemeral=True,
+            )
+            return
+
+        # Check the user is a paid subscriber via Discord roles
+        paid_roles = {"ROOKIE", "TIPSTER", "WHALE"}
+        member_roles = set()
+        if hasattr(interaction.user, "roles"):
+            member_roles = {r.name.upper() for r in interaction.user.roles}
+        is_paid = bool(paid_roles & member_roles)
+
+        if not is_paid:
+            # Fallback: check DB status
+            user = get_user_by_discord_id(str(interaction.user.id))
+            if not user or user.get("status") not in ("active", "trialing"):
+                em = discord.Embed(
+                    title="Subscribers Only",
+                    description=(
+                        "You need an active subscription to get a referral code.\n\n"
+                        "Use `/subscribe` to choose a plan first."
+                    ),
+                    color=COLOR_BLUE,
+                )
+                await interaction.response.send_message(embed=em, ephemeral=True)
+                return
+
+        await interaction.response.defer(ephemeral=True)
+
+        # Ensure user exists in DB
+        upsert_user(
+            discord_id=str(interaction.user.id),
+            discord_username=str(interaction.user),
+        )
+
+        code = generate_referral_code(str(interaction.user.id))
+        if not code:
+            await interaction.followup.send(
+                "Failed to generate referral code. Please try again later.",
+                ephemeral=True,
+            )
+            return
+
+        stats = get_referral_stats(str(interaction.user.id))
+        count = stats["total_referrals"]
+
+        # Build progress text
+        progress = f"**{count} referral{'s' if count != 1 else ''}**"
+        if stats["next_reward_at"] is not None:
+            remaining = stats["next_reward_at"] - count
+            progress += f" -- {remaining} more for: {stats['next_reward_description']}"
+        elif count >= REFERRAL_REWARDS[-1][0]:
+            progress += " -- All rewards unlocked!"
+
+        # Build reward tiers text
+        rewards_text = ""
+        for threshold, _, description in REFERRAL_REWARDS:
+            marker = "\u2705" if count >= threshold else "\u2b1c"
+            rewards_text += (
+                f"{marker} **{threshold}** referral{'s' if threshold != 1 else ''}"
+                f" \u2192 {description}\n"
+            )
+
+        em = discord.Embed(
+            title="Your Referral Code",
+            description=(
+                f"**`{code}`**\n\n"
+                "Share this with friends. When they subscribe using your code, "
+                "you earn rewards."
+            ),
+            color=COLOR_PURPLE,
+        )
+        em.add_field(name="Progress", value=progress, inline=False)
+        em.add_field(name="Reward Tiers", value=rewards_text, inline=False)
+        em.add_field(
+            name="How to share",
+            value=(
+                f"Tell your friend to run `/subscribe` and enter "
+                f"code **`{code}`** when prompted."
+            ),
+            inline=False,
+        )
+
+        # Show recent referrals if any
+        if stats["referrals"]:
+            recent_lines = []
+            for ref in stats["referrals"][:5]:
+                name = ref.get("referred_username") or "Unknown"
+                date = (ref.get("created_at") or "")[:10]
+                recent_lines.append(f"\u2022 {name} ({date})")
+            em.add_field(
+                name="Recent Referrals",
+                value="\n".join(recent_lines),
+                inline=False,
+            )
+
+        await interaction.followup.send(embed=em, ephemeral=True)
 
     # ── /cancel ───────────────────────────────────────────────────────────
 
