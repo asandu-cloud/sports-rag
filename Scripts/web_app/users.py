@@ -153,6 +153,7 @@ def init_db(db_path: Optional[str | Path] = None) -> None:
         conn.executescript(_SCHEMA_USERS + _SCHEMA_EVENTS + _SCHEMA_REFERRALS)
         conn.commit()
         _migrate_referral_columns(conn)
+        _migrate_email_auth_columns(conn)
         conn.close()
         logger.info("Database initialised at %s", _resolve_path(db_path))
     except Exception:
@@ -185,9 +186,45 @@ def _migrate_referral_columns(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_email_auth_columns(conn: sqlite3.Connection) -> None:
+    """Add email/password auth columns. Idempotent."""
+    migrations = [
+        "ALTER TABLE users ADD COLUMN password_hash TEXT",
+        "ALTER TABLE users ADD COLUMN auth_provider TEXT NOT NULL DEFAULT 'discord'",
+    ]
+    for stmt in migrations:
+        try:
+            conn.execute(stmt)
+        except sqlite3.OperationalError as exc:
+            if "duplicate column" in str(exc).lower():
+                pass
+            else:
+                logger.warning("Email auth migration failed: %s", exc)
+    # Email-based users need a unique email index for login
+    try:
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_provider "
+            "ON users(email) WHERE auth_provider = 'email'"
+        )
+    except Exception:
+        pass
+    conn.commit()
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+_ALLOWED_COLUMNS = frozenset({
+    "discord_id", "discord_username", "discord_avatar_url", "email",
+    "password_hash", "auth_provider",
+    "stripe_customer_id", "stripe_subscription_id",
+    "tier", "status", "trial_start", "trial_end",
+    "subscription_start", "subscription_end", "cancelled_at",
+    "is_founding_member", "created_at", "updated_at",
+    "referral_code", "referred_by", "referral_count",
+})
 
 
 def _row_to_dict(row: Optional[sqlite3.Row]) -> Optional[Dict[str, Any]]:
@@ -234,7 +271,12 @@ def upsert_user(
             fields["discord_avatar_url"] = discord_avatar_url
         if email is not None:
             fields["email"] = email
-        fields.update(kwargs)
+        # Validate kwargs column names to prevent SQL injection via dynamic keys
+        for key in kwargs:
+            if key not in _ALLOWED_COLUMNS:
+                logger.warning("upsert_user: rejected unknown column '%s'", key)
+                continue
+            fields[key] = kwargs[key]
         fields["updated_at"] = _now_iso()
 
         existing = conn.execute(
@@ -287,6 +329,83 @@ def get_user_by_discord_id(
         logger.exception(
             "get_user_by_discord_id failed for discord_id=%s", discord_id
         )
+        return None
+
+
+def create_email_user(
+    email: str,
+    password_hash: str,
+    *,
+    db_path: Optional[str | Path] = None,
+) -> Optional[Dict[str, Any]]:
+    """Create a new user with email/password auth (no Discord account).
+
+    Returns the new user dict, or ``None`` if the email is already taken.
+    """
+    try:
+        conn = get_db(db_path)
+        # Check for existing email user
+        existing = conn.execute(
+            "SELECT id FROM users WHERE email = ? AND auth_provider = 'email'",
+            (email,),
+        ).fetchone()
+        if existing:
+            conn.close()
+            return None  # email already registered
+
+        now = _now_iso()
+        conn.execute(
+            "INSERT INTO users (email, password_hash, auth_provider, "
+            "discord_id, tier, status, created_at, updated_at) "
+            "VALUES (?, ?, 'email', ?, 'free', 'active', ?, ?)",
+            (email, password_hash, f"email_{email}", now, now),
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT * FROM users WHERE email = ? AND auth_provider = 'email'",
+            (email,),
+        ).fetchone()
+        conn.close()
+        return _row_to_dict(row)
+    except Exception:
+        logger.exception("create_email_user failed for email=%s", email)
+        return None
+
+
+def get_user_by_email(
+    email: str,
+    *,
+    db_path: Optional[str | Path] = None,
+) -> Optional[Dict[str, Any]]:
+    """Return the email-auth user matching *email*, or ``None``."""
+    try:
+        conn = get_db(db_path)
+        row = conn.execute(
+            "SELECT * FROM users WHERE email = ? AND auth_provider = 'email'",
+            (email,),
+        ).fetchone()
+        conn.close()
+        return _row_to_dict(row)
+    except Exception:
+        logger.exception("get_user_by_email failed for email=%s", email)
+        return None
+
+
+def get_user_by_id(
+    user_id: int,
+    *,
+    db_path: Optional[str | Path] = None,
+) -> Optional[Dict[str, Any]]:
+    """Return the user matching *id*, or ``None``."""
+    try:
+        conn = get_db(db_path)
+        row = conn.execute(
+            "SELECT * FROM users WHERE id = ?", (user_id,),
+        ).fetchone()
+        conn.close()
+        return _row_to_dict(row)
+    except Exception:
+        logger.exception("get_user_by_id failed for id=%s", user_id)
         return None
 
 

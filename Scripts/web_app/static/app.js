@@ -26,6 +26,12 @@
 })();
 
 // ----- Utilities -----
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
 function showToast(msg, type = 'info') {
   const container = document.getElementById('toastContainer');
   const toast = document.createElement('div');
@@ -50,6 +56,11 @@ const router = {
     const landingNavEls = document.querySelectorAll('.landing-nav');
     const appNavEls = document.querySelectorAll('.app-nav');
     if (view === 'app') {
+      // Require login to access the app
+      if (!auth.isLoggedIn()) {
+        auth.showLoginModal();
+        return;
+      }
       landing.classList.add('hidden');
       app.classList.remove('hidden');
       landingNavEls.forEach(el => el.classList.add('hidden'));
@@ -80,26 +91,245 @@ const pricing = {
       el.textContent = el.dataset[interval];
     });
   },
-  subscribe(plan) {
-    // TODO: BACKEND — redirect to payment session
-    // Suggested: POST /api/checkout/session { plan }
-    // Then redirect to Stripe/LemonSqueezy checkout URL
+  async subscribe(plan) {
+    // Require Discord login before checkout
+    if (!auth.isLoggedIn()) {
+      showToast('Please log in with Discord first', 'info');
+      window.location.href = '/auth/discord/login';
+      return;
+    }
+
+    const interval = document.querySelector('.billing-btn.active')?.dataset.interval || 'monthly';
     showToast('Redirecting to checkout...', 'success');
-    // Example:
-    // fetch('/api/checkout/session', { method: 'POST', body: JSON.stringify({ plan }), headers: { 'Content-Type': 'application/json' } })
-    //   .then(r => r.json()).then(d => window.location.href = d.url);
+
+    try {
+      const resp = await fetch('/api/checkout/create-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + auth.getToken(),
+        },
+        body: JSON.stringify({ tier: plan, interval }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        showToast(err.detail || 'Checkout failed', 'error');
+        return;
+      }
+
+      const data = await resp.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (e) {
+      showToast('Checkout failed — please try again', 'error');
+    }
   }
 };
 
-// ----- Auth stub -----
+// ----- Auth -----
 const auth = {
-  // TODO: BACKEND — on page load, fetch /api/me and if logged in:
-  //   document.getElementById('loginBtn').classList.add('hidden');
-  //   document.getElementById('userBadge').classList.remove('hidden');
-  //   document.getElementById('userAvatar').src = user.avatar;
-  //   document.getElementById('userName').textContent = user.name;
-  showMenu() { showToast('Account menu coming soon', 'info'); }
+  _token: null,
+  _user: null,
+
+  async init() {
+    // 1. Check for one-time auth code in URL (from Discord OAuth redirect)
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (code) {
+      // Clean URL immediately so code doesn't linger in browser history
+      window.history.replaceState({}, '', window.location.pathname);
+      try {
+        const resp = await fetch('/auth/exchange', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code }),
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          this._token = data.token;
+          localStorage.setItem('jwt', data.token);
+        }
+      } catch (e) {
+        console.error('Auth code exchange failed:', e);
+      }
+    }
+
+    // 2. Check localStorage for existing token
+    if (!this._token) {
+      this._token = localStorage.getItem('jwt');
+    }
+
+    // 3. Validate token by fetching user profile
+    if (this._token) {
+      try {
+        const resp = await fetch('/auth/me', {
+          headers: { 'Authorization': 'Bearer ' + this._token },
+        });
+        if (resp.ok) {
+          this._user = await resp.json();
+          this._updateUI();
+          // If we came from OAuth, go to app view
+          if (code) router.go('app');
+          return;
+        }
+      } catch (e) {
+        console.error('Auth check failed:', e);
+      }
+      // Token invalid — clear it
+      this._token = null;
+      this._user = null;
+      localStorage.removeItem('jwt');
+    }
+  },
+
+  _updateUI() {
+    if (!this._user) return;
+    const loginBtn = document.getElementById('loginBtn');
+    const badge = document.getElementById('userBadge');
+    const avatar = document.getElementById('userAvatar');
+    const name = document.getElementById('userName');
+    if (loginBtn) loginBtn.classList.add('hidden');
+    if (badge) badge.classList.remove('hidden');
+    if (avatar) {
+      if (this._user.avatar_url) {
+        avatar.src = this._user.avatar_url;
+        avatar.style.display = '';
+      } else {
+        // Email users — hide avatar img, the name is enough
+        avatar.style.display = 'none';
+      }
+    }
+    if (name) name.textContent = this._user.username || this._user.email || '';
+  },
+
+  isLoggedIn() { return !!this._user; },
+  getToken() { return this._token; },
+  getTier() { return this._user ? this._user.tier : 'free'; },
+
+  logout() {
+    this._token = null;
+    this._user = null;
+    localStorage.removeItem('jwt');
+    const loginBtn = document.getElementById('loginBtn');
+    const badge = document.getElementById('userBadge');
+    if (loginBtn) loginBtn.classList.remove('hidden');
+    if (badge) badge.classList.add('hidden');
+    router.go('landing');
+    showToast('Logged out', 'info');
+  },
+
+  showMenu() {
+    if (!this._user) return;
+    if (confirm('Log out of SpickBot?')) this.logout();
+  },
+
+  requireLogin() {
+    if (this.isLoggedIn()) return true;
+    this.showLoginModal();
+    return false;
+  },
+
+  // ----- Login Modal -----
+  _isSignup: false,
+
+  showLoginModal() {
+    this._isSignup = false;
+    this._renderModalState();
+    document.getElementById('authModal').classList.remove('hidden');
+    document.getElementById('authBackdrop').classList.remove('hidden');
+    document.getElementById('authEmail').focus();
+  },
+
+  hideLoginModal() {
+    document.getElementById('authModal').classList.add('hidden');
+    document.getElementById('authBackdrop').classList.add('hidden');
+    document.getElementById('authError').classList.add('hidden');
+    document.getElementById('authForm').reset();
+  },
+
+  toggleMode() {
+    this._isSignup = !this._isSignup;
+    this._renderModalState();
+  },
+
+  _renderModalState() {
+    const title = document.getElementById('authModalTitle');
+    const btn = document.getElementById('authSubmitBtn');
+    const toggle = document.getElementById('authToggle');
+    const pw = document.getElementById('authPassword');
+    document.getElementById('authError').classList.add('hidden');
+    if (this._isSignup) {
+      title.textContent = 'Create your account';
+      btn.textContent = 'Sign Up';
+      toggle.innerHTML = 'Already have an account? <a href="#" onclick="event.preventDefault(); auth.toggleMode()">Log in</a>';
+      pw.setAttribute('autocomplete', 'new-password');
+      pw.setAttribute('minlength', '8');
+    } else {
+      title.textContent = 'Log in to SpickBot';
+      btn.textContent = 'Log In';
+      toggle.innerHTML = 'Don\'t have an account? <a href="#" onclick="event.preventDefault(); auth.toggleMode()">Sign up</a>';
+      pw.setAttribute('autocomplete', 'current-password');
+    }
+  },
+
+  async submitEmailForm() {
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+    const errorEl = document.getElementById('authError');
+    const btn = document.getElementById('authSubmitBtn');
+
+    if (!email || !password) return;
+
+    btn.disabled = true;
+    btn.textContent = this._isSignup ? 'Creating account...' : 'Logging in...';
+    errorEl.classList.add('hidden');
+
+    try {
+      const endpoint = this._isSignup ? '/auth/signup' : '/auth/login';
+      const resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        errorEl.textContent = data.detail || 'Something went wrong';
+        errorEl.classList.remove('hidden');
+        btn.disabled = false;
+        this._renderModalState();
+        return;
+      }
+
+      // Success — store token and load user
+      this._token = data.token;
+      localStorage.setItem('jwt', data.token);
+
+      const meResp = await fetch('/auth/me', {
+        headers: { 'Authorization': 'Bearer ' + this._token },
+      });
+      if (meResp.ok) {
+        this._user = await meResp.json();
+        this._updateUI();
+      }
+
+      this.hideLoginModal();
+      showToast(this._isSignup ? 'Account created!' : 'Welcome back!', 'success');
+    } catch (e) {
+      errorEl.textContent = 'Connection error — please try again';
+      errorEl.classList.remove('hidden');
+    }
+
+    btn.disabled = false;
+    this._renderModalState();
+  }
 };
+
+// Run auth init on page load
+auth.init();
 
 // ----- Bet Slip -----
 const slip = {
@@ -172,10 +402,10 @@ const slip = {
     }
     legsEl.innerHTML = this.legs.map(l => `
       <div class="slip-leg">
-        <div class="slip-leg-fixture">${l.fixture}</div>
-        <div class="slip-leg-pick">${l.pick}</div>
-        <div class="slip-leg-odds mono">${l.odds}</div>
-        <button class="slip-leg-remove" onclick="slip.remove('${l.key.replace(/'/g,"\'")}')">×</button>
+        <div class="slip-leg-fixture">${esc(l.fixture)}</div>
+        <div class="slip-leg-pick">${esc(l.pick)}</div>
+        <div class="slip-leg-odds mono">${esc(String(l.odds))}</div>
+        <button class="slip-leg-remove" onclick="slip.remove('${esc(l.key).replace(/'/g,"\\'")}')">×</button>
       </div>
     `).join('');
   },
@@ -363,7 +593,7 @@ const appModule = {
       const league = this.LEAGUES.find(l => l.id === leagueId) || { name: leagueId, color: '#666' };
       const group = document.createElement('div');
       group.className = 'league-group';
-      group.innerHTML = `<div class="league-header"><div class="league-header-left"><span class="league-stripe" style="background:${league.color}"></span><span class="league-name">${league.name}</span></div><span class="league-count mono">${fxs.length} matches</span></div>`;
+      group.innerHTML = `<div class="league-header"><div class="league-header-left"><span class="league-stripe" style="background:${esc(league.color)}"></span><span class="league-name">${esc(league.name)}</span></div><span class="league-count mono">${fxs.length} matches</span></div>`;
       fxs.forEach((f, i) => {
         const slipKey = f.id + '|' + f.pick;
         const inSlip = slip.legs.find(l => l.key === slipKey);
@@ -372,15 +602,15 @@ const appModule = {
         row.innerHTML = `
           <span class="fixture-num mono">${i + 1}</span>
           <div class="fixture-match">
-            <div class="fixture-teams">${f.home} <span class="fixture-vs">vs</span> ${f.away}</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--mono)">${f.time}</div>
+            <div class="fixture-teams">${esc(f.home)} <span class="fixture-vs">vs</span> ${esc(f.away)}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--mono)">${esc(f.time)}</div>
           </div>
-          <span class="fixture-pick-text">${f.pick}</span>
-          <span class="conf-badge ${f.conf}">${f.conf.toUpperCase()}</span>
-          <span class="fixture-odds-val mono">${f.odds}</span>
-          <span class="fixture-edge mono ${f.edge > 0 ? 'edge-pos' : ''}">+${f.edge}%</span>
-          <button class="fixture-add-btn${inSlip ? ' added' : ''}" data-slip-key="${slipKey}"
-            onclick="event.stopPropagation();appModule._toggleSlipFromFixture(${f.id})">
+          <span class="fixture-pick-text">${esc(f.pick)}</span>
+          <span class="conf-badge ${esc(f.conf)}">${esc(f.conf.toUpperCase())}</span>
+          <span class="fixture-odds-val mono">${esc(String(f.odds))}</span>
+          <span class="fixture-edge mono ${f.edge > 0 ? 'edge-pos' : ''}">+${esc(String(f.edge))}%</span>
+          <button class="fixture-add-btn${inSlip ? ' added' : ''}" data-slip-key="${esc(slipKey)}"
+            onclick="event.stopPropagation();appModule._toggleSlipFromFixture(${parseInt(f.id)})">
             ${inSlip ? '✓' : '+'}
           </button>
         `;
@@ -412,9 +642,9 @@ const appModule = {
 
     document.getElementById('matchHeader').innerHTML = `
       <div class="match-hero">
-        <div class="match-league-badge">${league.name}</div>
-        <div class="match-teams-title">${f.home} <span class="match-teams-vs">vs</span> ${f.away}</div>
-        <div class="match-meta">${f.time} · Today</div>
+        <div class="match-league-badge">${esc(league.name)}</div>
+        <div class="match-teams-title">${esc(f.home)} <span class="match-teams-vs">vs</span> ${esc(f.away)}</div>
+        <div class="match-meta">${esc(f.time)} · Today</div>
       </div>
     `;
 
@@ -448,22 +678,22 @@ const appModule = {
     container.innerHTML = `
       <div class="market-card">
         <div class="market-card-header">
-          <span class="market-card-title">${marketLabels[marketKey] || marketKey}</span>
+          <span class="market-card-title">${esc(marketLabels[marketKey] || marketKey)}</span>
         </div>
         ${lines.map(line => {
           const slipKey = f.id + '|' + line.pick;
           const inSlip = slip.legs.find(l => l.key === slipKey);
           return `<div class="market-line${line.rec ? ' recommended' : ''}">
             <div class="market-line-left">
-              <span class="market-line-pick">${line.pick}</span>
-              ${line.proj ? `<span class="market-line-proj">${line.proj}</span>` : ''}
-              ${line.conf ? `<span class="conf-badge ${line.conf}">${line.conf.toUpperCase()}</span>` : ''}
-              ${line.edge > 0 ? `<span class="value-badge ${line.edge > 6 ? 'strong' : 'good'}">+${line.edge}%</span>` : ''}
+              <span class="market-line-pick">${esc(line.pick)}</span>
+              ${line.proj ? `<span class="market-line-proj">${esc(line.proj)}</span>` : ''}
+              ${line.conf ? `<span class="conf-badge ${esc(line.conf)}">${esc(line.conf.toUpperCase())}</span>` : ''}
+              ${line.edge > 0 ? `<span class="value-badge ${line.edge > 6 ? 'strong' : 'good'}">+${esc(String(line.edge))}%</span>` : ''}
             </div>
             <div class="market-line-right">
-              <span class="market-line-odds mono">${line.odds}</span>
-              <button class="market-add-btn${inSlip ? ' added' : ''}" data-slip-key="${slipKey}"
-                onclick="appModule._toggleSlipFromMarket(${f.id},'${line.pick}',${line.odds})">
+              <span class="market-line-odds mono">${esc(String(line.odds))}</span>
+              <button class="market-add-btn${inSlip ? ' added' : ''}" data-slip-key="${esc(slipKey)}"
+                onclick="appModule._toggleSlipFromMarket(${parseInt(f.id)},'${esc(line.pick).replace(/'/g,"\\'")}',${parseFloat(line.odds)})">
                 ${inSlip ? '✓ Added' : '+ Add'}
               </button>
             </div>
@@ -502,16 +732,16 @@ const appModule = {
       const slipKey = f.id + '|' + line.pick;
       const inSlip = slip.legs.find(l => l.key === slipKey);
       return `<div class="fixture-row" style="cursor:pointer">
-        <span class="fixture-num mono" style="background:${league(f.league).color};border-radius:3px;padding:2px 4px;font-size:9px;color:#fff">${league(f.league).name}</span>
+        <span class="fixture-num mono" style="background:${esc(league(f.league).color)};border-radius:3px;padding:2px 4px;font-size:9px;color:#fff">${esc(league(f.league).name)}</span>
         <div class="fixture-match">
-          <div class="fixture-teams">${f.home} <span class="fixture-vs">vs</span> ${f.away}</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px">${line.pick}</div>
+          <div class="fixture-teams">${esc(f.home)} <span class="fixture-vs">vs</span> ${esc(f.away)}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(line.pick)}</div>
         </div>
-        <span class="conf-badge ${line.conf}">${line.conf.toUpperCase()}</span>
-        <span class="fixture-odds-val mono">${line.odds}</span>
-        <span class="fixture-edge mono edge-pos">+${line.edge}%</span>
-        <button class="fixture-add-btn${inSlip ? ' added' : ''}" data-slip-key="${slipKey}"
-          onclick="event.stopPropagation();appModule._toggleSlipFromMarket(${f.id},'${line.pick}',${line.odds})">
+        <span class="conf-badge ${esc(line.conf)}">${esc(line.conf.toUpperCase())}</span>
+        <span class="fixture-odds-val mono">${esc(String(line.odds))}</span>
+        <span class="fixture-edge mono edge-pos">+${esc(String(line.edge))}%</span>
+        <button class="fixture-add-btn${inSlip ? ' added' : ''}" data-slip-key="${esc(slipKey)}"
+          onclick="event.stopPropagation();appModule._toggleSlipFromMarket(${parseInt(f.id)},'${esc(line.pick).replace(/'/g,"\\'")}',${parseFloat(line.odds)})">
           ${inSlip ? '✓' : '+'}
         </button>
       </div>`;

@@ -1,8 +1,8 @@
 """
-Discord OAuth2 + JWT authentication — FastAPI APIRouter.
+Authentication — Discord OAuth2 + email/password + JWT.
 
-Handles Discord login flow, JWT token issuance, and auth dependencies
-for protecting endpoints by tier.
+Handles Discord login flow, email signup/login, JWT token issuance,
+and auth dependencies for protecting endpoints by tier.
 
 Env vars:
     DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_URI,
@@ -11,7 +11,9 @@ Env vars:
 
 from __future__ import annotations
 
+import hashlib
 import os
+import secrets
 import time
 
 from dotenv import load_dotenv
@@ -22,10 +24,14 @@ from urllib.parse import urlencode
 
 import httpx
 import jwt as pyjwt
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel, EmailStr
 
-from users import upsert_user, get_user_by_discord_id, init_db
+from users import (
+    upsert_user, get_user_by_discord_id, get_user_by_email,
+    get_user_by_id, create_email_user, init_db,
+)
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -36,8 +42,15 @@ log = logging.getLogger(__name__)
 DISCORD_CLIENT_ID: str = os.getenv("DISCORD_CLIENT_ID", "")
 DISCORD_CLIENT_SECRET: str = os.getenv("DISCORD_CLIENT_SECRET", "")
 DISCORD_REDIRECT_URI: str = os.getenv("DISCORD_REDIRECT_URI", "http://localhost:8000/auth/discord/callback")
-JWT_SECRET: str = os.getenv("JWT_SECRET", "change-me-in-production")
+JWT_SECRET: str = os.getenv("JWT_SECRET", "")
 FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:8000")
+
+# Fail loudly if JWT_SECRET is not configured or is the insecure default
+if not JWT_SECRET or JWT_SECRET == "change-me-in-production":
+    raise RuntimeError(
+        "JWT_SECRET must be set to a strong random value in the environment. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+    )
 
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_SECONDS = 86400  # 24 hours
@@ -56,24 +69,42 @@ TIER_HIERARCHY: Dict[str, int] = {
     "elite": 3,
 }
 
+# In-memory stores for OAuth state and one-time auth codes
+# In production, use Redis or a DB table with TTL
+_oauth_states: Dict[str, float] = {}   # state -> created_at
+_auth_codes: Dict[str, Dict] = {}      # code -> {jwt, created_at}
+_STATE_TTL = 600       # 10 minutes
+_CODE_TTL = 120        # 2 minutes
+
+
+def _cleanup_expired(store: Dict[str, Any], ttl: int) -> None:
+    """Remove expired entries from an in-memory TTL store."""
+    now = time.time()
+    expired = [k for k, v in store.items()
+               if now - (v if isinstance(v, (int, float)) else v.get("created_at", 0)) > ttl]
+    for k in expired:
+        store.pop(k, None)
+
 # ---------------------------------------------------------------------------
 # JWT helpers
 # ---------------------------------------------------------------------------
 
 
 def create_jwt(
-    discord_id: str,
+    user_id: str,
     username: str,
     tier: str = "free",
     status: str = "active",
+    auth_provider: str = "discord",
 ) -> str:
     """Create a signed JWT token with user claims."""
     now = int(time.time())
     payload = {
-        "sub": discord_id,
+        "sub": user_id,
         "username": username,
         "tier": tier,
         "status": status,
+        "auth_provider": auth_provider,
         "iat": now,
         "exp": now + JWT_EXPIRY_SECONDS,
     }
@@ -124,12 +155,23 @@ async def get_current_user(
     if payload is None:
         return None
 
-    discord_id = payload.get("sub")
-    if not discord_id:
+    subject = payload.get("sub")
+    if not subject:
         return None
 
+    auth_provider = payload.get("auth_provider", "discord")
+
     # Fetch fresh user record from DB (tier/status may have changed)
-    user = get_user_by_discord_id(discord_id)
+    if auth_provider == "email":
+        # For email users, sub is the user ID
+        try:
+            user = get_user_by_id(int(subject))
+        except (ValueError, TypeError):
+            return None
+    else:
+        # For Discord users, sub is the discord_id
+        user = get_user_by_discord_id(subject)
+
     if user is None:
         return None
 
@@ -189,24 +231,35 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.get("/discord/login")
 async def discord_login():
     """Redirect the user to Discord's OAuth2 authorize page."""
+    _cleanup_expired(_oauth_states, _STATE_TTL)
+    state = secrets.token_urlsafe(32)
+    _oauth_states[state] = time.time()
     params = urlencode({
         "client_id": DISCORD_CLIENT_ID,
         "redirect_uri": DISCORD_REDIRECT_URI,
         "response_type": "code",
         "scope": OAUTH_SCOPES,
+        "state": state,
     })
     return RedirectResponse(url=f"{DISCORD_AUTHORIZE_URL}?{params}")
 
 
 @router.get("/discord/callback")
-async def discord_callback(code: str):
+async def discord_callback(code: str, state: str = ""):
     """
     Handle the OAuth2 callback from Discord.
 
     Exchanges the authorization code for an access token, fetches the user's
     profile, upserts into the DB, generates a JWT, and redirects to the
-    frontend with the token as a query parameter.
+    frontend with a short-lived one-time code (NOT the JWT itself).
     """
+    # 0. Validate OAuth state to prevent CSRF
+    if not state or state not in _oauth_states:
+        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
+    state_created = _oauth_states.pop(state)
+    if time.time() - state_created > _STATE_TTL:
+        raise HTTPException(status_code=400, detail="OAuth state expired")
+
     # 1. Exchange code for access token
     token_data = {
         "client_id": DISCORD_CLIENT_ID,
@@ -224,15 +277,14 @@ async def discord_callback(code: str):
         )
 
         if token_resp.status_code != 200:
-            error_body = token_resp.text
             log.error(
                 "Discord token exchange failed: %s %s",
                 token_resp.status_code,
-                error_body,
+                token_resp.text,
             )
             raise HTTPException(
                 status_code=400,
-                detail=f"Discord OAuth failed: {error_body[:200]}",
+                detail="Discord authentication failed. Please try again.",
             )
 
         token_json = token_resp.json()
@@ -285,14 +337,39 @@ async def discord_callback(code: str):
 
     # 5. Generate JWT
     token = create_jwt(
-        discord_id=discord_id,
+        user_id=discord_id,
         username=username,
         tier=tier,
         status=status,
+        auth_provider="discord",
     )
 
-    # 6. Redirect to frontend with token
-    return RedirectResponse(url=f"{FRONTEND_URL}/app?token={token}", status_code=302)
+    # 6. Issue a one-time code (not the JWT itself) to avoid token leakage in URL
+    _cleanup_expired(_auth_codes, _CODE_TTL)
+    auth_code = secrets.token_urlsafe(48)
+    _auth_codes[auth_code] = {"jwt": token, "created_at": time.time()}
+
+    return RedirectResponse(url=f"{FRONTEND_URL}/app?code={auth_code}", status_code=302)
+
+
+@router.post("/exchange")
+async def exchange_code(request: Request):
+    """
+    Exchange a one-time auth code for a JWT token.
+
+    The frontend calls this after the OAuth redirect to securely obtain
+    the JWT without it appearing in the URL or browser history.
+    """
+    body = await request.json()
+    auth_code = body.get("code", "")
+
+    entry = _auth_codes.pop(auth_code, None)
+    if not entry:
+        raise HTTPException(status_code=400, detail="Invalid or expired auth code")
+    if time.time() - entry["created_at"] > _CODE_TTL:
+        raise HTTPException(status_code=400, detail="Auth code expired")
+
+    return {"token": entry["jwt"]}
 
 
 @router.get("/me")
@@ -300,11 +377,15 @@ async def get_me(user: Optional[Dict[str, Any]] = Depends(get_current_user)):
     """Return the current user's profile (refreshed from DB)."""
     if user is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    provider = user.get("auth_provider", "discord")
+    username = user.get("discord_username") or user.get("email", "").split("@")[0]
     return {
+        "id": user.get("id"),
         "discord_id": user.get("discord_id"),
-        "username": user.get("username"),
-        "avatar_url": user.get("avatar_url"),
+        "username": username,
+        "avatar_url": user.get("discord_avatar_url"),
         "email": user.get("email"),
+        "auth_provider": provider,
         "tier": user.get("tier", "free"),
         "status": user.get("status", "active"),
         "is_founding_member": bool(user.get("is_founding_member", 0)),
@@ -324,3 +405,105 @@ async def logout():
     be added later if needed.
     """
     return {"ok": True, "message": "Logged out — clear token on client"}
+
+
+# ---------------------------------------------------------------------------
+# Email/password authentication
+# ---------------------------------------------------------------------------
+
+_HASH_ITERATIONS = 260_000  # OWASP recommendation for PBKDF2-SHA256
+
+
+def _hash_password(password: str) -> str:
+    """Hash a password using PBKDF2-SHA256 with a random salt."""
+    salt = secrets.token_hex(16)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), _HASH_ITERATIONS)
+    return f"{salt}${dk.hex()}"
+
+
+def _verify_password(password: str, stored_hash: str) -> bool:
+    """Verify a password against a stored PBKDF2-SHA256 hash."""
+    try:
+        salt, dk_hex = stored_hash.split("$", 1)
+        dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), _HASH_ITERATIONS)
+        return secrets.compare_digest(dk.hex(), dk_hex)
+    except (ValueError, AttributeError):
+        return False
+
+
+class SignupRequest(BaseModel):
+    email: str
+    password: str
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+@router.post("/signup")
+async def email_signup(body: SignupRequest):
+    """
+    Create a new account with email and password.
+
+    Returns a JWT token on success.
+    """
+    email = body.email.strip().lower()
+    password = body.password
+
+    # Basic validation
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Invalid email address")
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    # Check if email is already taken
+    existing = get_user_by_email(email)
+    if existing:
+        raise HTTPException(status_code=409, detail="An account with this email already exists")
+
+    # Create user
+    pw_hash = _hash_password(password)
+    user = create_email_user(email, pw_hash)
+    if not user:
+        raise HTTPException(status_code=500, detail="Failed to create account")
+
+    # Generate JWT
+    token = create_jwt(
+        user_id=str(user["id"]),
+        username=email.split("@")[0],
+        tier=user.get("tier", "free"),
+        status=user.get("status", "active"),
+        auth_provider="email",
+    )
+
+    return {"token": token}
+
+
+@router.post("/login")
+async def email_login(body: LoginRequest):
+    """
+    Log in with email and password.
+
+    Returns a JWT token on success.
+    """
+    email = body.email.strip().lower()
+    password = body.password
+
+    user = get_user_by_email(email)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    stored_hash = user.get("password_hash", "")
+    if not _verify_password(password, stored_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    token = create_jwt(
+        user_id=str(user["id"]),
+        username=email.split("@")[0],
+        tier=user.get("tier", "free"),
+        status=user.get("status", "active"),
+        auth_provider="email",
+    )
+
+    return {"token": token}

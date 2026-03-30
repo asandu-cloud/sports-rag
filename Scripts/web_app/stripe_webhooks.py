@@ -118,10 +118,23 @@ async def stripe_webhook(request: Request):
     event_id = event.get("id", "unknown")
     event_type = event.get("type", "unknown")
 
-    # Deduplicate — Stripe may retry delivery
+    # Deduplicate — check DB first (survives restarts), then in-memory cache
     if event_id in _processed_events:
-        log.info("Stripe webhook: duplicate event %s, skipping", event_id)
+        log.info("Stripe webhook: duplicate event %s (cache), skipping", event_id)
         return {"status": "ok", "message": "duplicate event"}
+    try:
+        from users import get_db
+        _conn = get_db()
+        _existing = _conn.execute(
+            "SELECT 1 FROM subscription_events WHERE stripe_event_id = ?", (event_id,)
+        ).fetchone()
+        _conn.close()
+        if _existing:
+            _processed_events.add(event_id)
+            log.info("Stripe webhook: duplicate event %s (DB), skipping", event_id)
+            return {"status": "ok", "message": "duplicate event"}
+    except Exception:
+        pass  # DB check is best-effort; fall through to processing
     _processed_events.add(event_id)
 
     # Cap the in-memory set to prevent unbounded growth
