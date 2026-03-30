@@ -1004,10 +1004,71 @@ class WhaleChat(commands.Cog):
         if had_whale or not has_whale:
             return
 
-        log.info("New Whale detected: %s — creating AI chat thread", after)
+        log.info("New Whale detected: %s — creating AI chat thread + sending DM", after)
 
-        # Create thread proactively (DM is handled by tier_welcome.py)
-        await _get_or_create_thread(self.bot, after)
+        # Create thread proactively
+        thread = await _get_or_create_thread(self.bot, after)
+
+        # Send Whale welcome DM with thread link
+        try:
+            # Resolve channel mentions
+            def _ch(name):
+                for guild in self.bot.guilds:
+                    for ch in guild.channels:
+                        if ch.name == name:
+                            return ch.mention
+                return f"**#{name}**"
+
+            newsletter = _ch("newsletter")
+            whale_den = _ch("whale-den")
+
+            em = discord.Embed(
+                title="Welcome to Whale tier \U0001f40b",
+                description=(
+                    "You now have the full arsenal. Everything in Tipster, plus tools "
+                    "that nobody else in this server has access to."
+                ),
+                color=COLOR_PURPLE,
+            )
+            em.add_field(
+                name="Your private AI analyst",
+                value=(
+                    "You have a dedicated chat thread where you can ask anything in plain English \u2014 "
+                    "\"build me a 3-leg parlay for Saturday around 3x odds\" or "
+                    "\"is BTTS a good bet for Bayern vs Dortmund?\" Just type. No commands needed.\n\n"
+                    + (f"\u2192 **Go to {thread.mention} and start typing.**" if thread
+                       else "\u2192 **Go to #whale-ai and open your thread to start.**")
+                ),
+                inline=False,
+            )
+            em.add_field(
+                name="What else you get",
+                value=(
+                    f"{newsletter} \u2014 Every matchday morning, you get a briefing sourced from "
+                    "local sports media across Europe. Injury updates, lineup hints, tactical changes \u2014 "
+                    "in English, from Kicker, Marca, L'Equipe and more.\n\n"
+                    "**Unlimited commands** \u2014 No daily cap. Use `/analyze` for single-fixture "
+                    "deep dives that break down where the edge comes from.\n\n"
+                    f"{whale_den} \u2014 The smallest room in the server. Just you and the other Whales."
+                ),
+                inline=False,
+            )
+            em.add_field(
+                name="One tip",
+                value=(
+                    "Start by typing something in your AI chat thread. Ask about this weekend's fixtures. "
+                    "See how it feels to have a stats team in your pocket."
+                ),
+                inline=False,
+            )
+            em.set_footer(text="Spick's Picks | Welcome to the inner circle.")
+
+            view = StartChatButton(self.bot)
+            await after.send(embed=em, view=view)
+        except discord.Forbidden:
+            log.warning("Can't DM %s (DMs disabled). Thread created anyway.", after)
+        except Exception as exc:
+            log.warning("Failed to send Whale welcome DM to %s: %s", after, exc)
 
     # ------------------------------------------------------------------
     # on_message: listen in whale chat threads → GPT responds

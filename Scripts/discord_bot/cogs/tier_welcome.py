@@ -25,7 +25,8 @@ for _role_name, _tier in ROLE_TO_TIER.items():
     _TIER_ROLE_NAMES.setdefault(_tier, set()).add(_role_name.lower())
 
 # We only send DMs for these tiers
-_WELCOME_TIERS = {"starter", "pro", "elite"}
+# Whale DM is handled by whale_chat.py (needs thread link)
+_WELCOME_TIERS = {"starter", "pro"}
 
 
 def _detect_new_tier(before: discord.Member, after: discord.Member) -> str | None:
