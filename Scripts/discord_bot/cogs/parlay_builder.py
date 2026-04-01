@@ -102,21 +102,26 @@ _events_cache: Dict[str, Tuple[float, list]] = {}
 _CACHE_TTL = 300  # 5 minutes
 
 
-def _get_events_cached(league: str) -> list:
-    """Fetch today's events for a league with a short TTL cache."""
+def _get_events_cached(league: str, target_date: Optional[date] = None) -> list:
+    """Fetch events for a league on a specific date with a short TTL cache."""
+    from datetime import date as _date
+    if target_date is None:
+        target_date = _date.today()
+
+    cache_key = f"{league}|{target_date.isoformat()}"
     now = time.time()
-    if league in _events_cache:
-        ts, events = _events_cache[league]
+    if cache_key in _events_cache:
+        ts, events = _events_cache[cache_key]
         if now - ts < _CACHE_TTL:
             return events
 
     try:
-        events, _notes = rag.fetch_events(league, set(rag.DEFAULT_MARKETS))
-        _events_cache[league] = (now, events)
+        events, _notes = rag.fetch_events(league, set(rag.DEFAULT_MARKETS), target_date=target_date)
+        _events_cache[cache_key] = (now, events)
         return events
     except Exception as exc:
         import logging
-        logging.getLogger("parlay_builder").warning("Event fetch failed for %s: %s", league, exc)
+        logging.getLogger("parlay_builder").warning("Event fetch failed for %s on %s: %s", league, target_date, exc)
         return []
 
 

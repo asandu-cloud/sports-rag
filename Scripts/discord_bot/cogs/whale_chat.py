@@ -185,7 +185,8 @@ def _fetch_upcoming_from_api(league: str, team_filter: str = "") -> List[Dict]:
         return []
 
     try:
-        url = f"https://v3.football.api-sports.io/fixtures?league={api_id}&season=2025&next=10"
+        current_season = date.today().year if date.today().month >= 7 else date.today().year - 1
+        url = f"https://v3.football.api-sports.io/fixtures?league={api_id}&season={current_season}&next=10"
         req = urllib.request.Request(url, headers={"x-apisports-key": api_key})
         resp = urllib.request.urlopen(req, timeout=15)
         data = json.loads(resp.read())
@@ -497,6 +498,39 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "build_parlay",
+            "description": "Build an optimized parlay for a league. Returns scored legs with combined odds, KB quality, and value edges. Specify number of legs and optional target odds multiplier.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "league": {"type": "string", "enum": ["EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1", "UCL", "UEL", "UECL"]},
+                    "legs": {"type": "integer", "description": "Number of legs (default 4).", "default": 4},
+                    "target_odds": {"type": "number", "description": "Target combined odds multiplier (e.g. 3.0 for 3x). Optional."},
+                    "market": {"type": "string", "description": "Optional: focus on a market group (goals, corners, cards, sot, mixed).", "default": "mixed"},
+                },
+                "required": ["league"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "recommend_spread",
+            "description": "Recommend the best handicap/spread line for a fixture. Returns recommended team, handicap line, odds, model probability, value edge, and confidence.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "home_team": {"type": "string"},
+                    "away_team": {"type": "string"},
+                    "league": {"type": "string"},
+                },
+                "required": ["home_team", "away_team", "league"],
+            },
+        },
+    },
 ]
 
 # System prompt
@@ -507,14 +541,16 @@ You're chatting with a Whale-tier subscriber in their private thread. Be convers
 You have tools to query real statistical models and live odds. Always call a tool before answering — never invent numbers.
 
 Tool tips:
-- get_fixtures: returns ALL upcoming fixtures. Use "team" param to find a specific team's next game.
+- get_fixtures: returns upcoming fixtures for ONE league. Use "team" param to find a specific team's next game. Use "date" param (YYYY-MM-DD) to target a specific day.
+- CRITICAL: When the user asks about fixtures without specifying a league (e.g. "what games are on this weekend"), call get_fixtures for ALL 5 domestic leagues (EPL, LaLiga, SerieA, Bundesliga, Ligue1) in parallel. Never default to just EPL.
 - IMPORTANT: project_corners/project_cards return MATCH TOTALS (both teams combined). If the user asks about ONE team's corners or cards, use project_team_corners or project_team_cards instead.
 - recommend_line: gives the best betting line with odds, probability, and value edge. Use this when the user asks "what line should I take" or "is over X a good bet".
 - get_recent_form: shows last 6 matches vs season average. Use to identify hot/cold streaks.
 - get_referee_info: referee strictness, cards/match, foul rate. Always check this for card-related questions.
 - get_h2h_stats: historical meetings between two teams. Check this for derby/rivalry matches.
-- To build a parlay, get fixtures first, then call projection/recommend tools for each, then combine.
-- You can call MULTIPLE tools in one turn.
+- build_parlay: builds an optimized parlay with scored legs. Specify league, legs (default 4), target_odds, and optional market focus.
+- recommend_spread: gives the best handicap/spread line with odds, probability, and value edge.
+- You can call MULTIPLE tools in one turn — use this to check all leagues simultaneously.
 - For team names, use the canonical name (Arsenal, not "the gunners").
 - If unsure about a league: EPL for English, LaLiga for Spanish, SerieA for Italian, Bundesliga for German, Ligue1 for French.
 
@@ -533,6 +569,21 @@ Style:
 # Tool execution
 # ---------------------------------------------------------------------------
 
+def _fetch_events_upcoming(league: str, rag_module) -> list:
+    """Fetch events for a league, searching up to 7 days ahead if today has none."""
+    from datetime import timedelta
+    today = date.today()
+    for offset in range(0, 8):
+        d = today + timedelta(days=offset)
+        try:
+            events, _ = rag_module.fetch_events(league, set(), target_date=d)
+            if events:
+                return events
+        except Exception:
+            pass
+    return []
+
+
 def _execute_tool(name: str, args: Dict[str, Any]) -> str:
     """Execute a tool call and return JSON string result."""
     rag = _ensure_rag()
@@ -540,27 +591,52 @@ def _execute_tool(name: str, args: Dict[str, Any]) -> str:
     try:
         if name == "get_fixtures":
             league = args["league"]
-            target_date = args.get("date")
+            target_date_str = args.get("date")
             team_filter = args.get("team", "").lower()
 
-            try:
-                events, _ = rag.fetch_events(league, set())
-            except Exception:
-                events = []
+            from datetime import timedelta
 
+            # Determine which dates to query
+            if target_date_str:
+                try:
+                    dates_to_check = [date.fromisoformat(target_date_str)]
+                except ValueError:
+                    dates_to_check = [date.today()]
+            else:
+                # No date specified — fetch next 7 days
+                today = date.today()
+                dates_to_check = [today + timedelta(days=d) for d in range(7)]
+
+            # Fetch fixtures across all target dates
+            events = []
+            for d in dates_to_check:
+                try:
+                    day_events, _ = rag.fetch_events(league, set(), target_date=d)
+                    events.extend(day_events)
+                except Exception:
+                    pass
+
+            # Fallback to API-Football direct if nothing found
             if not events:
                 events = _fetch_upcoming_from_api(league, team_filter)
 
-            filtered = []
+            # Deduplicate by fixture id
+            seen_ids = set()
+            unique_events = []
             for ev in events:
+                eid = ev.get("id") or ev.get("_fixture_id") or f"{ev.get('home_team')}_{ev.get('away_team')}"
+                if eid not in seen_ids:
+                    seen_ids.add(eid)
+                    unique_events.append(ev)
+
+            filtered = []
+            for ev in unique_events:
                 ct = ev.get("commence_time", "") or ev.get("date", "")
-                home = ev.get("home_team", "")
-                away = ev.get("away_team", "")
-                if target_date and ct and ct[:10] != target_date[:10]:
+                home_name = ev.get("home_team", "")
+                away_name = ev.get("away_team", "")
+                if team_filter and team_filter not in home_name.lower() and team_filter not in away_name.lower():
                     continue
-                if team_filter and team_filter not in home.lower() and team_filter not in away.lower():
-                    continue
-                filtered.append({"home_team": home, "away_team": away, "commence_time": ct})
+                filtered.append({"home_team": home_name, "away_team": away_name, "commence_time": ct})
 
             filtered.sort(key=lambda x: x.get("commence_time", ""))
 
@@ -569,6 +645,7 @@ def _execute_tool(name: str, args: Dict[str, Any]) -> str:
                     "fixtures": [], "count": 0, "league": league,
                     "message": f"No upcoming fixtures found for {league}" +
                                (f" involving {team_filter}" if team_filter else "") +
+                               (f" on {target_date_str}" if target_date_str else " in the next 7 days") +
                                ". Could be an international break or off-season.",
                 })
 
@@ -645,10 +722,7 @@ def _execute_tool(name: str, args: Dict[str, Any]) -> str:
             return json.dumps({"blended_diff": round(bl, 2), "season_diff": round(s, 2) if s else None, "recent_diff": round(r, 2) if r else None, "note": "positive = home favored"})
 
         elif name == "get_odds":
-            try:
-                events, _ = rag.fetch_events(args["league"], set())
-            except Exception:
-                events = []
+            events = _fetch_events_upcoming(args["league"], rag)
             if not events:
                 return json.dumps({"error": f"No odds available for {args['league']} right now. Odds are only available when fixtures are scheduled."})
             home = _resolve_team(args["home_team"]).lower()
@@ -723,21 +797,27 @@ def _execute_tool(name: str, args: Dict[str, Any]) -> str:
                 return json.dumps({"error": f"No projection data for {stat} in {home} vs {away}."})
 
             # Get odds and find best line
-            try:
-                events, _ = rag.fetch_events(league, set())
-            except Exception:
-                events = []
+            events = _fetch_events_upcoming(league, rag)
+
+            # Map stat name to the stat_group expected by extract_total_line_options
+            # and the variance key expected by get_blended_variance
+            _STAT_TO_GROUP = {"goals": "goals", "corners": "corners", "cards": "cards", "sot": "sot"}
+            _STAT_TO_VAR_KEY = {"goals": "goals_var", "corners": "corners_for_var",
+                                "cards": "cards_var", "sot": "sot_for_var"}
+            stat_group = _STAT_TO_GROUP.get(stat, stat)
+            var_key = _STAT_TO_VAR_KEY.get(stat)
 
             best = None
             for ev in events:
                 if home.lower() in ev.get("home_team", "").lower() and away.lower() in ev.get("away_team", "").lower():
-                    options = rag.extract_total_line_options(ev, stat if stat != "goals" else "totals")
+                    options = rag.extract_total_line_options(ev, stat_group)
                     if options:
                         variance = None
-                        try:
-                            variance = rag.get_blended_variance(home, league, f"{stat}_var")
-                        except Exception:
-                            pass
+                        if var_key:
+                            try:
+                                variance = rag.get_blended_variance(home, league, var_key)
+                            except Exception:
+                                pass
                         best = rag.choose_best_total_line(options, proj, variance)
                     break
 
@@ -839,39 +919,169 @@ def _execute_tool(name: str, args: Dict[str, Any]) -> str:
             home = _resolve_team(args["home_team"]); away = _resolve_team(args["away_team"])
             league = args["league"]
             try:
-                # Query Chroma for fixture docs involving both teams
-                rows = rag.get_recent_team_fixture_rows(home, league, last_n=20)
+                # Fetch fixture rows for BOTH teams, then cross-reference
+                home_rows = rag.get_recent_team_fixture_rows(home, league, limit=30)
+                away_rows = rag.get_recent_team_fixture_rows(away, league, limit=30)
+
+                # Find fixtures where both teams appear
                 h2h_matches = []
-                for row in rows:
+                seen = set()
+                for row in home_rows + away_rows:
                     meta = row.get("meta", {})
                     fixture = str(meta.get("fixture", ""))
-                    if away.lower() in fixture.lower():
+                    fixture_date = str(meta.get("fixture_date", ""))
+                    key = f"{fixture_date}|{fixture}"
+                    if key in seen:
+                        continue
+                    if home.lower() in fixture.lower() and away.lower() in fixture.lower():
+                        seen.add(key)
                         h2h_matches.append({
                             "fixture": fixture,
-                            "date": meta.get("fixture_date", ""),
+                            "date": fixture_date,
+                            "team": meta.get("team", ""),
                             "goals": meta.get("goals"),
                             "corners": meta.get("corners"),
                             "cards_total": meta.get("cards_total"),
                         })
 
                 if not h2h_matches:
-                    return json.dumps({"message": f"No recent head-to-head data found for {home} vs {away} in Chroma.", "matches": []})
+                    return json.dumps({"message": f"No recent head-to-head data found for {home} vs {away}.", "matches": []})
 
-                # Compute averages
                 def _avg(key):
                     vals = [float(m[key]) for m in h2h_matches if m.get(key) is not None]
                     return round(sum(vals) / len(vals), 2) if vals else None
 
+                # Count unique meetings (2 rows per match — one per team)
+                unique_dates = set(m["date"] for m in h2h_matches if m["date"])
+                n_meetings = len(unique_dates) if unique_dates else len(h2h_matches) // 2
+
                 return json.dumps({
                     "home": home, "away": away, "league": league,
-                    "meetings_found": len(h2h_matches),
+                    "meetings_found": n_meetings,
                     "avg_goals_per_team": _avg("goals"),
                     "avg_corners_per_team": _avg("corners"),
                     "avg_cards_per_team": _avg("cards_total"),
-                    "recent_matches": h2h_matches[:5],
+                    "recent_matches": h2h_matches[:10],
                 })
             except Exception as exc:
                 return json.dumps({"error": f"H2H lookup failed: {exc}"})
+
+        elif name == "build_parlay":
+            league = args["league"]
+            legs = args.get("legs", 4)
+            target_odds = args.get("target_odds")
+            market = args.get("market", "mixed")
+
+            try:
+                # Fetch and enrich events (search up to 7 days ahead)
+                events = _fetch_events_upcoming(league, rag)
+                if not events:
+                    return json.dumps({"error": f"No upcoming fixtures with odds for {league} in the next 7 days."})
+
+                rag.enrich_events_for_groups(events, league, {"corners", "cards", "sot", "btts"})
+
+                # Build constraint spec from parameters
+                query_parts = [f"{legs}-leg parlay"]
+                if target_odds:
+                    query_parts.append(f"around {target_odds}x")
+                if market and market != "mixed":
+                    query_parts.append(f"{market} focus")
+                query_str = " ".join(query_parts)
+                c = rag.parse_constraints(query_str, default_league=league)
+
+                # Build candidates and select
+                candidates = rag.build_candidates(events)
+                if not candidates:
+                    return json.dumps({"error": "No valid betting candidates found."})
+
+                selected, notes = rag.select_parlay(candidates, legs, c)
+                if not selected:
+                    return json.dumps({"error": "Could not build a valid parlay. Try fewer legs or different markets."})
+
+                # Format result
+                combined_odds = 1.0
+                parlay_legs = []
+                for leg in selected:
+                    combined_odds *= leg.odds
+                    quality = rag.kb_leg_quality(leg, league)
+                    group = rag.market_group_from_key(leg.market_key)
+                    parlay_legs.append({
+                        "fixture": leg.fixture,
+                        "pick": f"{leg.outcome} {leg.point}" if leg.point else leg.outcome,
+                        "odds": round(leg.odds, 2),
+                        "market": group,
+                        "bookmaker": leg.bookmaker,
+                        "kb_quality": round(quality, 3),
+                    })
+
+                return json.dumps({
+                    "league": league,
+                    "legs": parlay_legs,
+                    "combined_odds": round(combined_odds, 2),
+                    "leg_count": len(selected),
+                    "notes": notes[:3] if notes else [],
+                })
+            except Exception as exc:
+                return json.dumps({"error": f"Parlay build failed: {exc}"})
+
+        elif name == "recommend_spread":
+            home = _resolve_team(args["home_team"]); away = _resolve_team(args["away_team"])
+            league = args["league"]
+            err = _validate_teams(home, away, league)
+            if err: return json.dumps({"error": err})
+
+            try:
+                diff_bl, diff_s, diff_r = rag.projected_goal_difference(home, away, league)
+                if diff_bl is None:
+                    return json.dumps({"error": f"No projection data for {home} vs {away}."})
+
+                # Get odds
+                events = _fetch_events_upcoming(league, rag)
+
+                best = None
+                for ev in events:
+                    if home.lower() in ev.get("home_team", "").lower() and away.lower() in ev.get("away_team", "").lower():
+                        options = rag.extract_spread_line_options(ev)
+                        if options:
+                            best = rag.choose_best_spread_line(options, diff_bl, home)
+                        break
+
+                if best:
+                    conf = rag.confidence_from_edge(
+                        abs(best.get("_value_edge", 0)),
+                        stat_group="goals",
+                        model_prob=best.get("_model_prob"),
+                        value_edge_pct=best.get("_value_edge"),
+                    )
+                    return json.dumps({
+                        "projected_goal_diff": round(diff_bl, 2),
+                        "season_diff": round(diff_s, 2) if diff_s else None,
+                        "recent_diff": round(diff_r, 2) if diff_r else None,
+                        "recommended_team": best.get("team"),
+                        "line": best.get("point"),
+                        "odds": best.get("odds"),
+                        "bookmaker": best.get("bookmaker"),
+                        "model_prob": round(best.get("_model_prob", 0), 3) if best.get("_model_prob") else None,
+                        "value_edge": round(best.get("_value_edge", 0), 3) if best.get("_value_edge") else None,
+                        "confidence": conf,
+                        "note": "positive diff = home favored",
+                    })
+                else:
+                    # Model-only fallback
+                    side = home if diff_bl > 0 else away
+                    nearest_line = round(abs(diff_bl) * 2) / 2
+                    if diff_bl > 0:
+                        nearest_line = -nearest_line  # home favored = negative handicap
+                    return json.dumps({
+                        "projected_goal_diff": round(diff_bl, 2),
+                        "recommended_team": side,
+                        "line": nearest_line,
+                        "odds": None,
+                        "confidence": "model-only (no odds available)",
+                        "note": "No bookmaker spread odds available.",
+                    })
+            except Exception as exc:
+                return json.dumps({"error": f"Spread recommendation failed: {exc}"})
 
         else:
             return json.dumps({"error": f"Unknown tool: {name}"})
@@ -887,7 +1097,13 @@ def _execute_tool(name: str, args: Dict[str, Any]) -> str:
 
 def _build_messages(thread_history: List[Dict[str, str]], user_message: str) -> List[Dict]:
     """Build the messages array for GPT, including thread history as context."""
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    today = date.today()
+    date_context = (
+        f"\n\nToday is {today.strftime('%A, %B %d, %Y')}. "
+        f"Use this to interpret relative dates like 'today', 'tomorrow', 'this weekend', 'Saturday', etc. "
+        f"When the user asks about upcoming fixtures, pass the appropriate date to get_fixtures."
+    )
+    messages = [{"role": "system", "content": SYSTEM_PROMPT + date_context}]
     for msg in thread_history[-15:]:
         messages.append(msg)
     messages.append({"role": "user", "content": user_message})
@@ -907,7 +1123,7 @@ def _chat_with_tools(messages: List[Dict], max_rounds: int = 8) -> str:
                 tools=TOOLS,
                 tool_choice="auto",
                 temperature=0.3,
-                max_tokens=1000,
+                max_tokens=2000,
             )
         except Exception as exc:
             log.error("GPT API error: %s", exc)

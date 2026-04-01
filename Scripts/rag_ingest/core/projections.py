@@ -201,8 +201,11 @@ def _venue_blend(venue_rate: Optional[float], overall_rate: Optional[float], ble
 
 def _ml_blend_weight(stat: str) -> float:
     """Resolve ML blend weight for a stat. Uses dynamic R2-based weight if enabled,
-    otherwise falls back to static SCORING_WEIGHTS["ml"]["blend_weight"]."""
+    otherwise falls back to static SCORING_WEIGHTS["ml"]["blend_weight"].
+    Stats in ml_skip_stats are forced to 0.0 regardless of dynamic_blend."""
     mw = SCORING_WEIGHTS["ml"]
+    if stat in mw.get("skip_stats", set()):
+        return 0.0
     if mw.get("dynamic_blend", False):
         return get_dynamic_blend_weight(stat)
     return mw.get("blend_weight", 0.0)
@@ -222,6 +225,24 @@ def _trend_adjustment(hr: Dict, ar: Dict, slope_key: str) -> float:
     if a_slope is not None:
         adj += tw * a_slope
     return adj
+
+
+def _blend_total_with_divergence(stat: str, season_total: Optional[float], recent_total: Optional[float]) -> Optional[float]:
+    """Match rag_cli_v2 total-stat blending: shift toward recent when form meaningfully diverges."""
+    if season_total is not None and recent_total is not None:
+        base_season_w, base_recent_w = _stat_blend(stat)
+        divergence = abs(recent_total - season_total) / max(season_total, 1.0)
+        if divergence > 0.20:
+            shift = min(0.30, (divergence - 0.20) * 1.0)
+            blend_season = base_season_w - shift
+            blend_recent = base_recent_w + shift
+        else:
+            blend_season = base_season_w
+            blend_recent = base_recent_w
+        return blend_season * season_total + blend_recent * recent_total
+    if season_total is not None:
+        return season_total
+    return recent_total
 
 
 # ===================================================================
@@ -437,14 +458,8 @@ def projected_total_sot(home: str, away: str, league: str, knockout_ctx: Optiona
     else:
         recent_total = None
 
-    bs, br = _stat_blend("sot")
-    if season_total is not None and recent_total is not None:
-        blended = bs * season_total + br * recent_total
-    elif season_total is not None:
-        blended = season_total
-    elif recent_total is not None:
-        blended = recent_total
-    else:
+    blended = _blend_total_with_divergence("sot", season_total, recent_total)
+    if blended is None:
         return None, None, None
 
     # Trend adjustment
@@ -482,14 +497,8 @@ def projected_total_corners(home: str, away: str, league: str, knockout_ctx: Opt
     else:
         recent_total = None
 
-    bs, br = _stat_blend("corners")
-    if season_total is not None and recent_total is not None:
-        blended = bs * season_total + br * recent_total
-    elif season_total is not None:
-        blended = season_total
-    elif recent_total is not None:
-        blended = recent_total
-    else:
+    blended = _blend_total_with_divergence("corners", season_total, recent_total)
+    if blended is None:
         return None, None, None
 
     # Trend adjustment
@@ -536,14 +545,8 @@ def projected_total_cards(home: str, away: str, league: str, knockout_ctx: Optio
     else:
         recent_total = None
 
-    bs, br = _stat_blend("cards")
-    if season_total is not None and recent_total is not None:
-        blended = bs * season_total + br * recent_total
-    elif season_total is not None:
-        blended = season_total
-    elif recent_total is not None:
-        blended = recent_total
-    else:
+    blended = _blend_total_with_divergence("cards", season_total, recent_total)
+    if blended is None:
         return None, None, None, ref_mod
 
     # Trend adjustment
@@ -717,14 +720,8 @@ def projected_total_goals(home: str, away: str, league: str, knockout_ctx: Optio
     a_xg = ar.get("xg_for_avg")
     recent_total = (h_xg + a_xg) if (h_xg is not None and a_xg is not None) else None
 
-    bs, br = _stat_blend("goals")
-    if season_total is not None and recent_total is not None:
-        blended = bs * season_total + br * recent_total
-    elif season_total is not None:
-        blended = season_total
-    elif recent_total is not None:
-        blended = recent_total
-    else:
+    blended = _blend_total_with_divergence("goals", season_total, recent_total)
+    if blended is None:
         return None, None, None
 
     # Trend adjustment

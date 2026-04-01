@@ -156,10 +156,12 @@ def _norm_merge_str(series: pd.Series) -> pd.Series:
     """
     Robust normalizer for merge keys: to string, lower, collapse spaces, strip.
     Keeps dtype as object (plain Python strings), avoiding float64 surprises.
+    Also normalizes "1.FC" → "1. fc" so dot-space variants match.
     """
     return (
         series.astype(str)
               .str.lower()
+              .str.replace(r"\.(\S)", r". \1", regex=True)  # "1.fc" → "1. fc"
               .str.replace(r"\s+", " ", regex=True)
               .str.strip()
     )
@@ -240,6 +242,16 @@ def merge_team_with_fixture(team_df, fixture_df):
         if col in fx.columns and col not in keep_cols:
             keep_cols.append(col)
     merged = df.merge(fx[keep_cols], on=["fixture_norm", "team_norm"], how="left")
+
+    # --- 5b) Resolve duplicate columns (_x/_y from merge) — prefer fixture stats
+    for col in required_fx_cols:
+        cx, cy = f"{col}_x", f"{col}_y"
+        if cx in merged.columns or cy in merged.columns:
+            merged[col] = merged.get(cy)
+            if col in merged and merged[col].isna().any() and cx in merged:
+                merged[col] = merged[col].fillna(merged[cx])
+    merged.drop(columns=[c for c in merged.columns if c.endswith("_x") or c.endswith("_y")],
+                inplace=True, errors="ignore")
 
     # --- 6) Guarantee numeric safety post-merge
     for col in ["shots_on", "shots_total", "corners", "possession",

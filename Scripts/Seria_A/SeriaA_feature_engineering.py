@@ -152,17 +152,25 @@ def engineer_team_core_features(df):
     return team_fixture
 
 
+# Team name aliases: maps player data name → fixture data name.
+# Applied before merge key normalization (case-insensitive).
+_TEAM_ALIASES = {
+    "Verona": "Hellas Verona",
+}
+
 def _norm_merge_str(series: pd.Series) -> pd.Series:
     """
     Robust normalizer for merge keys: to string, lower, collapse spaces, strip.
     Keeps dtype as object (plain Python strings), avoiding float64 surprises.
+    Applies team name aliases for known mismatches between player and fixture data.
     """
-    return (
+    normed = (
         series.astype(str)
               .str.lower()
               .str.replace(r"\s+", " ", regex=True)
               .str.strip()
     )
+    return normed.replace(_TEAM_ALIASES)
 
 def merge_team_with_fixture(team_df, fixture_df):
     """
@@ -208,7 +216,16 @@ def merge_team_with_fixture(team_df, fixture_df):
             fx["away_team"].astype(str).str.strip()
         )
 
-    # --- 3) Build normalized merge keys on BOTH sides (fixture, team)
+    # --- 3) Apply team name aliases before building merge keys
+    #    Resolves mismatches between player and fixture data sources
+    #    (e.g. "Verona" in player data vs "Hellas Verona" in fixture data).
+    df["team"] = df["team"].replace(_TEAM_ALIASES)
+    # Also fix team names inside fixture strings
+    # Use negative lookbehind to avoid "Hellas Verona" → "Hellas Hellas Verona"
+    df["fixture"] = df["fixture"].str.replace(
+        r"(?<!Hellas )Verona", "Hellas Verona", case=False, regex=True)
+
+    # --- 3b) Build normalized merge keys on BOTH sides (fixture, team)
     df["fixture_norm"] = _norm_merge_str(df["fixture"])
     df["team_norm"]    = _norm_merge_str(df["team"])
     fx["fixture_norm"] = _norm_merge_str(fx["fixture"])
@@ -240,6 +257,16 @@ def merge_team_with_fixture(team_df, fixture_df):
         if col in fx.columns and col not in keep_cols:
             keep_cols.append(col)
     merged = df.merge(fx[keep_cols], on=["fixture_norm", "team_norm"], how="left")
+
+    # --- 5b) Resolve duplicate columns (_x/_y from merge) — prefer fixture stats
+    for col in required_fx_cols:
+        cx, cy = f"{col}_x", f"{col}_y"
+        if cx in merged.columns or cy in merged.columns:
+            merged[col] = merged.get(cy)
+            if col in merged and merged[col].isna().any() and cx in merged:
+                merged[col] = merged[col].fillna(merged[cx])
+    merged.drop(columns=[c for c in merged.columns if c.endswith("_x") or c.endswith("_y")],
+                inplace=True, errors="ignore")
 
     # --- 6) Guarantee numeric safety post-merge
     for col in ["shots_on", "shots_total", "corners", "possession",

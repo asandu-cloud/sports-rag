@@ -92,6 +92,11 @@ ELO_K = 32.0  # Football has ~38 games/season — K=32 responds faster than ches
 # Below this threshold, Ridge generalizes better on small data.
 LGB_MIN_SAMPLES = 5000
 
+# Per-stat model type override.  Stats in this set always use Ridge
+# regardless of sample count.  Use when LightGBM consistently under-
+# performs Ridge for a stat (e.g. due to feature noise sensitivity).
+FORCE_RIDGE_STATS: set = {"corners"}  # LightGBM overfits on corners; Ridge consistently scores 0.60-0.72
+
 # Base composite features per team (available per-match and in team_profile metadata).
 TEAM_FEATURES_BASE = [
     "possession", "control_index", "dominance_index", "form_index_team",
@@ -436,7 +441,7 @@ def _extract_features(home_row: dict, away_row: dict,
                       gameweek_progress: float = 0.5,
                       h2h_avg: float = 0.0,
                       ) -> Optional[np.ndarray]:
-    """Build feature vector for one fixture (v2 — 54 features).
+    """Build feature vector for one fixture (v2 — 58 features).
 
     Uses composite features and activity metrics per team (no same-stat
     features that would leak target info at training time).
@@ -568,6 +573,27 @@ def _extract_features(home_row: dict, away_row: dict,
     # 7. Head-to-head history (1 feature — avg total for stat in past meetings)
     feats.append(float(h2h_avg))
 
+    # 8. Stat-specific direct features (4 features — own avg + opponent's own avg)
+    #    Uses cumulative profile fields (season averages), NOT per-match raw
+    #    values (which would leak the target).
+    #    For each team: own production rate + opponent's production rate.
+    #    The opponent's own rate tells the model "how active is my opponent in
+    #    this stat?" which directly predicts their contribution to the match total.
+    _STAT_OWN_FIELD = {
+        "goals":   "goals_for_pm",
+        "corners": "corners_pm",
+        "cards":   "cards_per_90_team",
+        "sot":     "sot_for_pm",
+    }
+    own_avg_f = _STAT_OWN_FIELD.get(stat, "goals_for_pm")
+    feats.append(_safe_float(home_row.get(own_avg_f)))    # home team's season avg for stat
+    feats.append(_safe_float(away_row.get(own_avg_f)))    # away team's season avg for stat
+    # Opponent's OWN production avg (not concession rate)
+    _opp_for_home2 = opp_away_row if opp_away_row else away_row
+    _opp_for_away2 = opp_home_row if opp_home_row else home_row
+    feats.append(_safe_float(_opp_for_home2.get(own_avg_f)))  # away team's own stat avg
+    feats.append(_safe_float(_opp_for_away2.get(own_avg_f)))  # home team's own stat avg
+
     # -----------------------------------------------------------------------
     arr = np.array(feats, dtype=np.float64)
     if not np.all(np.isfinite(arr)):
@@ -608,7 +634,8 @@ def build_regression_models(leagues: Optional[List[str]] = None,
             for h, a in pairs:
                 all_pairs.append((h, a, league))
 
-    # Sort all pairs chronologically for time-series CV
+    # Sort all pairs chronologically for time-series CV.
+    # Undated fixtures sort to the front (empty string < any date).
     all_pairs.sort(key=lambda t: str(t[0].get("fixture_date", "")))
 
     if len(all_pairs) < 50:
@@ -660,9 +687,17 @@ def build_regression_models(leagues: Optional[List[str]] = None,
             if a_team:
                 team_last_date[a_team] = fx_date
 
-    # 2. Referee profiles (for cards features)
-    print("  Loading referee profiles...")
+    # 2. Referee profiles + fixture→referee map (for cards features)
+    print("  Loading referee profiles + fixture→referee map...")
     referee_profiles = _load_referee_profiles()
+    fixture_referee_map: Dict[str, str] = {}  # str(fixture_id) → referee_name_lower
+    fx_ref_path = ROOT / "Index" / "fixture_referee_map.json"
+    if fx_ref_path.exists():
+        try:
+            fixture_referee_map = json.loads(fx_ref_path.read_text())
+            print(f"  Loaded {len(fixture_referee_map)} fixture→referee mappings.")
+        except Exception:
+            pass
 
     # 3. H2H history tracker (populated per-stat during training loop)
     # 4. Team match counter for gameweek progress
@@ -671,6 +706,45 @@ def build_regression_models(leagues: Optional[List[str]] = None,
     models: Dict[str, object] = {}
     r2_meta: Dict[str, float] = {}
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # ------------------------------------------------------------------
+    # Build running per-team accumulators (one tracker per team, shared
+    # across all stats).  Snapshot BEFORE each fixture → no future leak.
+    # This populates the *_pm / *_against_pm fields that _extract_features
+    # reads for opp_cross and venue_rate v2 features.
+    # ------------------------------------------------------------------
+    print("  Building per-team cumulative trackers for v2 features...")
+    team_trackers: Dict[str, _TeamCumulativeTracker] = {}
+    # First pass: populate trackers (chronological, same order as training)
+    # We store snapshots keyed by (fixture_key, team) so the stat loop can
+    # enrich rows without re-walking.
+    _tracker_snapshots: Dict[str, dict] = {}  # key = f"{fx_key}|{team_lower}"
+    for home_row, away_row, league in all_pairs:
+        h_team = (home_row.get("team") or "").lower().strip()
+        a_team = (away_row.get("team") or "").lower().strip()
+        fx_key = str(home_row.get("fixture_id") or home_row.get("fixture", ""))
+
+        # Ensure trackers exist
+        if h_team and h_team not in team_trackers:
+            team_trackers[h_team] = _TeamCumulativeTracker()
+        if a_team and a_team not in team_trackers:
+            team_trackers[a_team] = _TeamCumulativeTracker()
+
+        # Snapshot BEFORE this fixture (what we'd know at prediction time).
+        # Only store when tracker has >=2 matches — with 0-1 matches the
+        # snapshot is mostly defaults and pollutes training features.
+        if h_team and team_trackers[h_team].match_count >= 2:
+            _tracker_snapshots[f"{fx_key}|{h_team}"] = team_trackers[h_team].snapshot_profile_meta()
+        if a_team and team_trackers[a_team].match_count >= 2:
+            _tracker_snapshots[f"{fx_key}|{a_team}"] = team_trackers[a_team].snapshot_profile_meta()
+
+        # Update trackers AFTER snapshot (no future leakage)
+        if h_team:
+            team_trackers[h_team].update(home_row, is_home=True, opp_row=away_row)
+        if a_team:
+            team_trackers[a_team].update(away_row, is_home=False, opp_row=home_row)
+
+    print(f"  Tracked {len(team_trackers)} teams, {len(_tracker_snapshots)} snapshots.")
 
     for stat in STAT_TYPES:
         X_list, y_list = [], []
@@ -703,15 +777,29 @@ def build_regression_models(leagues: Optional[List[str]] = None,
             # V2 context: rest days
             rest = rest_days_map.get(fx_key)
 
-            # V2 context: referee (use fixture_id to find referee — not available
-            # in fixture rows, so we default to league averages during training.
-            # At inference time, referee_data.py provides live assignment.)
-            ref_info = None  # default = neutral
+            # V2 context: referee — look up from fixture→referee map + profiles
+            ref_info = None
+            ref_name = fixture_referee_map.get(fx_key)
+            if ref_name and ref_name in referee_profiles:
+                rp = referee_profiles[ref_name]
+                ref_info = {
+                    "strictness_ratio": rp.get("strictness_ratio", 1.0),
+                    "cards_per_foul": rp.get("cards_per_foul", 0.15),
+                }
+
+            # V2 context: enrich rows with cumulative *_pm fields so that
+            # _extract_features can read venue_rate and opp_cross features.
+            # Merge snapshot fields into shallow copies; unenriched rows
+            # keep raw fixture values (v2 features default to 0.0).
+            h_snap = _tracker_snapshots.get(f"{fx_key}|{h_team}", {})
+            a_snap = _tracker_snapshots.get(f"{fx_key}|{a_team}", {})
+            h_enriched = {**home_row, **h_snap} if h_snap else home_row
+            a_enriched = {**away_row, **a_snap} if a_snap else away_row
 
             feats = _extract_features(
-                home_row, away_row, elo=elo, stat=stat, league=league,
-                opp_home_row=home_row,   # home row IS the opponent context for away
-                opp_away_row=away_row,   # away row IS the opponent context for home
+                h_enriched, a_enriched, elo=elo, stat=stat, league=league,
+                opp_home_row=a_enriched,
+                opp_away_row=h_enriched,
                 rest_days=rest,
                 referee_info=ref_info,
                 gameweek_progress=gw_progress,
@@ -747,7 +835,11 @@ def build_regression_models(leagues: Optional[List[str]] = None,
 
         tscv = TimeSeriesSplit(n_splits=5)
 
-        if use_lgb:
+        # Per-stat model selection: honour FORCE_RIDGE_STATS override
+        stat_use_lgb = use_lgb and stat not in FORCE_RIDGE_STATS
+        stat_model_type = "LightGBM" if stat_use_lgb else "Ridge"
+
+        if stat_use_lgb:
             best_model, best_r2 = _train_lgb(X, y, tscv, stat,
                                               sample_weights=sample_weights)
         else:
@@ -761,10 +853,10 @@ def build_regression_models(leagues: Optional[List[str]] = None,
 
         print(f"  [{stat}] R2={r2_scores.mean():.3f} (+/-{r2_scores.std():.3f})  "
               f"MAE={mae_scores.mean():.2f} (+/-{mae_scores.std():.2f})  "
-              f"model={model_type}  n={len(y)}  features={X.shape[1]}")
+              f"model={stat_model_type}  n={len(y)}  features={X.shape[1]}")
 
         # Train on full data with recency weights
-        if use_lgb:
+        if stat_use_lgb:
             best_model.fit(X, y, sample_weight=sample_weights)
         else:
             # Pipeline: need to pass weight to the Ridge step
@@ -777,7 +869,7 @@ def build_regression_models(leagues: Optional[List[str]] = None,
         r2_meta[stat] = round(float(r2_scores.mean()), 4)
 
         # Save feature importance (LightGBM only)
-        if use_lgb and hasattr(best_model, 'feature_importances_'):
+        if stat_use_lgb and hasattr(best_model, 'feature_importances_'):
             _save_feature_importance(best_model, stat, X.shape[1])
 
     # Save R2 metadata
@@ -803,10 +895,14 @@ def _train_lgb(X: np.ndarray, y: np.ndarray, tscv, stat: str,
     best_r2 = -999.0
 
     param_grid = [
-        {"n_estimators": 200, "max_depth": 3, "learning_rate": 0.05, "min_child_samples": 40},
-        {"n_estimators": 300, "max_depth": 4, "learning_rate": 0.05, "min_child_samples": 30},
-        {"n_estimators": 100, "max_depth": 3, "learning_rate": 0.1, "min_child_samples": 50},
-        {"n_estimators": 400, "max_depth": 3, "learning_rate": 0.03, "min_child_samples": 40},
+        {"n_estimators": 200, "max_depth": 3, "learning_rate": 0.05, "min_child_samples": 40,
+         "reg_alpha": 0.1, "reg_lambda": 1.0},
+        {"n_estimators": 300, "max_depth": 4, "learning_rate": 0.05, "min_child_samples": 30,
+         "reg_alpha": 0.0, "reg_lambda": 1.0},
+        {"n_estimators": 100, "max_depth": 3, "learning_rate": 0.1, "min_child_samples": 50,
+         "reg_alpha": 0.1, "reg_lambda": 2.0},
+        {"n_estimators": 400, "max_depth": 3, "learning_rate": 0.03, "min_child_samples": 40,
+         "reg_alpha": 0.05, "reg_lambda": 1.5},
     ]
 
     for params in param_grid:
@@ -866,7 +962,7 @@ def _save_feature_importance(model, stat: str, n_features: int) -> None:
 
 
 def _get_feature_names() -> List[str]:
-    """Build feature name list matching _extract_features() output order (v2 — 54 features)."""
+    """Build feature name list matching _extract_features() output order (v2 — 58 features)."""
     names = []
     # Original 38 features
     for prefix in ["home", "away"]:
@@ -900,6 +996,11 @@ def _get_feature_names() -> List[str]:
     names.append("referee_cards_per_foul")
     names.append("gameweek_progress")
     names.append("h2h_avg")
+    # Stat-specific direct features (4 new)
+    names.append("stat_direct_home_own")
+    names.append("stat_direct_away_own")
+    names.append("stat_direct_home_opp")
+    names.append("stat_direct_away_opp")
     return names
 
 
@@ -981,7 +1082,9 @@ class _TeamCumulativeTracker:
     __slots__ = ("_sums", "_counts", "_home_sums", "_home_counts",
                  "_away_sums", "_away_counts",
                  "_opp_conceded_sums", "_opp_conceded_counts",
-                 "_recent_goals", "_recent_cards")
+                 "_recent_goals", "_recent_cards",
+                 "_recent_corners", "_recent_corners_conceded",
+                 "_recent_sot", "_recent_shots")
 
     def __init__(self):
         # Overall accumulators: stat_field -> running_sum
@@ -997,9 +1100,13 @@ class _TeamCumulativeTracker:
         # Keys: "goals", "corners", "cards_total", "sot"
         self._opp_conceded_sums: Dict[str, float] = {}
         self._opp_conceded_counts: Dict[str, int] = {}
-        # Recent form: last-5 goals and cards (FIFO)
+        # Recent form: last-5 per stat (FIFO)
         self._recent_goals: List[float] = []
         self._recent_cards: List[float] = []
+        self._recent_corners: List[float] = []
+        self._recent_corners_conceded: List[float] = []
+        self._recent_sot: List[float] = []
+        self._recent_shots: List[float] = []
 
     @property
     def match_count(self) -> int:
@@ -1061,6 +1168,13 @@ class _TeamCumulativeTracker:
         # matches_played (for gameweek_progress)
         meta["matches_played"] = float(self.match_count)
 
+        # Rolling window stats (last 5 matches)
+        meta["recent_corners_avg"] = self.avg_corners_last_5()
+        meta["recent_corners_conceded_avg"] = self.avg_corners_conceded_last_5()
+        meta["recent_corners_std"] = self.std_corners_last_5()
+        meta["recent_sot_avg"] = self.avg_sot_last_5()
+        meta["recent_shots_avg"] = self.avg_shots_last_5()
+
         return meta
 
     def update(self, row: dict, is_home: bool, opp_row: dict) -> None:
@@ -1105,13 +1219,25 @@ class _TeamCumulativeTracker:
         self._opp_conceded_sums["sot"] = self._opp_conceded_sums.get("sot", 0.0) + opp_sot
         self._opp_conceded_counts["sot"] = self._opp_conceded_counts.get("sot", 0) + 1
 
-        # -- Recent form (last 5) --
+        # -- Recent form (last 5 per stat, FIFO) --
         self._recent_goals.append(_safe_float(row.get("goals")))
         if len(self._recent_goals) > 5:
             self._recent_goals.pop(0)
         self._recent_cards.append(_safe_float(row.get("cards_total")))
         if len(self._recent_cards) > 5:
             self._recent_cards.pop(0)
+        self._recent_corners.append(_safe_float(row.get("corners")))
+        if len(self._recent_corners) > 5:
+            self._recent_corners.pop(0)
+        self._recent_corners_conceded.append(_safe_float(opp_row.get("corners")))
+        if len(self._recent_corners_conceded) > 5:
+            self._recent_corners_conceded.pop(0)
+        self._recent_sot.append(sot_val)
+        if len(self._recent_sot) > 5:
+            self._recent_sot.pop(0)
+        self._recent_shots.append(_safe_float(row.get("shots_total")))
+        if len(self._recent_shots) > 5:
+            self._recent_shots.pop(0)
 
     def avg_goals_last_5(self) -> float:
         if not self._recent_goals:
@@ -1122,6 +1248,32 @@ class _TeamCumulativeTracker:
         if not self._recent_cards:
             return 2.0
         return sum(self._recent_cards) / len(self._recent_cards)
+
+    def avg_corners_last_5(self) -> float:
+        if not self._recent_corners:
+            return 5.0
+        return sum(self._recent_corners) / len(self._recent_corners)
+
+    def avg_corners_conceded_last_5(self) -> float:
+        if not self._recent_corners_conceded:
+            return 5.0
+        return sum(self._recent_corners_conceded) / len(self._recent_corners_conceded)
+
+    def std_corners_last_5(self) -> float:
+        if len(self._recent_corners) < 2:
+            return 0.0
+        m = sum(self._recent_corners) / len(self._recent_corners)
+        return (sum((x - m) ** 2 for x in self._recent_corners) / len(self._recent_corners)) ** 0.5
+
+    def avg_sot_last_5(self) -> float:
+        if not self._recent_sot:
+            return 4.0
+        return sum(self._recent_sot) / len(self._recent_sot)
+
+    def avg_shots_last_5(self) -> float:
+        if not self._recent_shots:
+            return 10.0
+        return sum(self._recent_shots) / len(self._recent_shots)
 
 
 def _build_cumulative_training_data(

@@ -247,21 +247,22 @@ def fetch_completed_fixtures(league_id: int, season: int = SEASON) -> List[dict]
 
 def build_referee_profiles_for_league(
     league: str, season: int = SEASON,
-) -> Tuple[Dict[str, dict], float, int]:
+) -> Tuple[Dict[str, dict], float, int, Dict[int, str]]:
     """Build referee profiles for one league.
 
-    Returns (per_referee_accum, league_avg_cards, matched_count).
+    Returns (per_referee_accum, league_avg_cards, matched_count, fixture_ref_map).
     per_referee_accum: { ref_name_lower: { name, country, cards, fouls, yellows, reds, matches } }
+    fixture_ref_map: { fixture_id: referee_name_lower } for ML training lookup.
     """
     league_id = LEAGUE_TO_API_ID.get(league)
     if league_id is None:
-        return {}, 0.0, 0
+        return {}, 0.0, 0, {}
 
     # Step 1: fetch fixtures from API-Football → get referee per fixture
     fixtures = fetch_completed_fixtures(league_id, season)
     if not fixtures:
         print(f"[referee_data] No completed fixtures from API-Football for {league}")
-        return {}, 0.0, 0
+        return {}, 0.0, 0, {}
 
     # Build two maps from API data: by fixture_id and by team-name pair
     fixture_ref_by_id: Dict[int, Tuple[str, Optional[str]]] = {}
@@ -340,7 +341,12 @@ def build_referee_profiles_for_league(
     print(f"  [{league}] Matched {matched}/{len(fixture_ref_by_id) or len(fixture_ref_by_name)} fixtures, "
           f"{len(ref_accum)} referees, league avg {league_avg:.2f} cards/match")
 
-    return ref_accum, league_avg, matched
+    # Build fixture_id → referee_name mapping for ML training
+    fx_ref_map: Dict[int, str] = {}
+    for fid, (ref_name, _country) in fixture_ref_by_id.items():
+        fx_ref_map[int(fid)] = ref_name
+
+    return ref_accum, league_avg, matched, fx_ref_map
 
 
 def build_all_referee_profiles(
@@ -356,9 +362,12 @@ def build_all_referee_profiles(
     all_cards_total = 0
     all_matches_total = 0
 
+    all_fixture_ref_map: Dict[int, str] = {}  # fixture_id → referee_name
+
     for lg in leagues:
         print(f"Building referee profiles for {lg}...")
-        accum, _lg_avg, _matched = build_referee_profiles_for_league(lg, season)
+        accum, _lg_avg, _matched, fx_map = build_referee_profiles_for_league(lg, season)
+        all_fixture_ref_map.update(fx_map)
         for ref_name, data in accum.items():
             if ref_name not in merged:
                 merged[ref_name] = {
@@ -411,6 +420,12 @@ def build_all_referee_profiles(
             cards_per_foul=round(cpf, 4),
             last_updated=today_str,
         )
+
+    # Save fixture→referee map for ML training
+    fx_map_path = PROFILES_PATH.parent / "fixture_referee_map.json"
+    fx_map_serializable = {str(k): v for k, v in all_fixture_ref_map.items()}
+    fx_map_path.write_text(json.dumps(fx_map_serializable, indent=2))
+    print(f"Saved {len(all_fixture_ref_map)} fixture→referee mappings to {fx_map_path}")
 
     return profiles
 

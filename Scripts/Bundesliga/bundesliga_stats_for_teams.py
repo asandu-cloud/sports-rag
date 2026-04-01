@@ -135,7 +135,8 @@ def aggregate_team_stats(team_fixture_data):
 
     # --- Convert numeric-like columns ---
     for col in df.columns:
-        if col not in ["fixture", "team", "home_team", "away_team", "final_score"]:
+        if col not in ["fixture_id", "fixture", "fixture_date_utc", "fixture_date",
+                       "team", "home_team", "away_team", "final_score", "final_score_string"]:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
     # --- 1️⃣ Compute team "for" averages ---
@@ -148,7 +149,7 @@ def aggregate_team_stats(team_fixture_data):
 
     # --- 2️⃣ Compute team "against" averages ---
     paired = (
-        df.merge(df, on="fixture", suffixes=("_team", "_opp"))
+        df.merge(df, on="fixture_id", suffixes=("_team", "_opp"))
         .query("team_team != team_opp")
         .reset_index(drop=True)
     )
@@ -180,7 +181,7 @@ def aggregate_team_stats(team_fixture_data):
 
     # --- 4️⃣ Round numeric columns for readability ---
     numeric_cols = merged.select_dtypes(include=["float", "int"]).columns
-    merged[numeric_cols] = merged[numeric_cols].round(1)
+    merged[numeric_cols] = merged[numeric_cols].round(2)
 
     # --- 5️⃣ Sort alphabetically ---
     merged = merged.sort_values(by="team").reset_index(drop=True)

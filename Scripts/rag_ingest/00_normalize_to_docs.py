@@ -470,6 +470,7 @@ def doc_from_team_profile(
         "dominance_index": row.get("dominance_index"),
         "aggression_index_norm": row.get("aggression_index_norm"),
         "form_index_team": row.get("form_index_team"),
+        "expected_goals": row.get("expected_goals"),
         "goals_for_pm": row.get("goals_for_pm"),
         "goals_against_pm": goals_against_pm,  # actual goals conceded (opponent-join)
         "corners_pm": row.get("corners_pm"),
@@ -489,6 +490,10 @@ def doc_from_team_profile(
         "cards_away_pm": cards_away_pm,
         "shots_for_pm": row.get("shots_for_pm"),
         "sot_for_pm": row.get("sot_for_pm"),
+        "_sot_ratio_for": row.get("_sot_ratio_for"),
+        "_conv_rate_for": row.get("_conv_rate_for"),
+        "pass_accuracy_pct": row.get("pass_accuracy_pct"),
+        "cards_pm": row.get("cards_pm"),
         "sot_against_pm": sot_against_pm,
         "possession": row.get("possession"),
         "archetype": row.get("archetype"),
@@ -515,6 +520,238 @@ def _maybe_int(x):
         return int(float(x))
     except (TypeError, ValueError):
         return x
+
+
+def _maybe_float(x):
+    try:
+        return float(x)
+    except (TypeError, ValueError):
+        return None
+
+
+def _mean_or_none(values: List[Optional[float]]) -> Optional[float]:
+    valid = [float(v) for v in values if v is not None]
+    if not valid:
+        return None
+    return sum(valid) / len(valid)
+
+
+def _pick_first_numeric(row: dict, keys: List[str], default: Optional[float] = None) -> Optional[float]:
+    for key in keys:
+        value = _maybe_float(row.get(key))
+        if value is not None:
+            return value
+    return default
+
+
+def _team_row_is_home(row: dict) -> bool:
+    team = (row.get("team") or "").lower().strip()
+    home_team = (row.get("home_team") or "").lower().strip()
+    if team and home_team:
+        return team == home_team
+    venue, _ = infer_home_away(row.get("fixture", ""), row.get("team", ""))
+    return venue == "home"
+
+
+def synthesize_team_profile_rows(team_rows: List[dict], league: str, season: str) -> List[dict]:
+    """
+    Build season-to-date team profile rows directly from team_engineered_features_*.
+    This avoids drift when team_profiles_* snapshots are not regenerated.
+    """
+    grouped: Dict[str, List[dict]] = {}
+    for row in team_rows:
+        team = (row.get("team") or "").strip()
+        if team:
+            grouped.setdefault(team, []).append(row)
+
+    profile_rows: List[dict] = []
+    for team in sorted(grouped):
+        rows = grouped[team]
+        matches_played = len(rows)
+        if matches_played == 0:
+            continue
+
+        goals = sum((_pick_first_numeric(r, ["goals"], 0.0) or 0.0) for r in rows)
+        assists = sum((_pick_first_numeric(r, ["assists"], 0.0) or 0.0) for r in rows)
+        fouls_committed = sum((_pick_first_numeric(r, ["fouls_committed"], 0.0) or 0.0) for r in rows)
+        yellow_cards = sum((_pick_first_numeric(r, ["yellow_cards"], 0.0) or 0.0) for r in rows)
+        red_cards = sum((_pick_first_numeric(r, ["red_cards"], 0.0) or 0.0) for r in rows)
+        corners = sum((_pick_first_numeric(r, ["corners"], 0.0) or 0.0) for r in rows)
+        shots_for = sum((_pick_first_numeric(r, ["shots_total_x", "shots_total"], 0.0) or 0.0) for r in rows)
+        sot_for = sum((_pick_first_numeric(r, ["shots_on_x", "shots_on"], 0.0) or 0.0) for r in rows)
+        passes_total = sum((_pick_first_numeric(r, ["passes_total"], 0.0) or 0.0) for r in rows)
+        accurate_passes = sum((_pick_first_numeric(r, ["accurate_passes"], 0.0) or 0.0) for r in rows)
+        sum_minutes = sum((_pick_first_numeric(r, ["minutes"], 0.0) or 0.0) for r in rows)
+
+        cards_total_sum = 0.0
+        for row in rows:
+            cards_total = _pick_first_numeric(row, ["cards_total"])
+            if cards_total is None:
+                cards_total = (_pick_first_numeric(row, ["yellow_cards"], 0.0) or 0.0) + (
+                    _pick_first_numeric(row, ["red_cards"], 0.0) or 0.0
+                )
+            cards_total_sum += cards_total or 0.0
+
+        expected_goals = _mean_or_none([_pick_first_numeric(r, ["expected_goals"]) for r in rows])
+        goals_prevented = _mean_or_none([_pick_first_numeric(r, ["goals_prevented"]) for r in rows])
+        possession = _mean_or_none([_pick_first_numeric(r, ["possession"]) for r in rows])
+        dominance_index = _mean_or_none([_pick_first_numeric(r, ["dominance_index"]) for r in rows])
+        control_index = _mean_or_none([_pick_first_numeric(r, ["control_index"]) for r in rows])
+        aggression_index_norm = _mean_or_none([_pick_first_numeric(r, ["aggression_index_norm"]) for r in rows])
+        fouls_per_90_team = _mean_or_none([_pick_first_numeric(r, ["fouls_per_90_team"]) for r in rows])
+        cards_per_90_team = _mean_or_none([_pick_first_numeric(r, ["cards_per_90_team"]) for r in rows])
+        cards_per_foul_team = _mean_or_none([_pick_first_numeric(r, ["cards_per_foul_team"]) for r in rows])
+        fouls_per_duel_team = _mean_or_none([_pick_first_numeric(r, ["fouls_per_duel_team"]) for r in rows])
+        avg_goals_last_5 = _mean_or_none([_pick_first_numeric(r, ["avg_goals_last_5"]) for r in rows])
+        avg_cards_last_5 = _mean_or_none([_pick_first_numeric(r, ["avg_cards_last_5"]) for r in rows])
+        form_index_team = _mean_or_none([_pick_first_numeric(r, ["form_index_team"]) for r in rows])
+
+        pass_acc_values = []
+        sot_ratio_values = []
+        conv_rate_values = []
+        home_rows = 0
+        away_rows = 0
+        for row in rows:
+            pass_acc = _pick_first_numeric(row, ["pass_accuracy_team"])
+            if pass_acc is None:
+                row_passes = _pick_first_numeric(row, ["passes_total"], 0.0) or 0.0
+                row_accurate = _pick_first_numeric(row, ["accurate_passes"], 0.0) or 0.0
+                if row_passes > 0:
+                    pass_acc = 100.0 * row_accurate / row_passes
+            elif pass_acc <= 1.0:
+                pass_acc *= 100.0
+            if pass_acc is not None:
+                pass_acc_values.append(pass_acc)
+
+            shots = _pick_first_numeric(row, ["shots_total_x", "shots_total"], 0.0) or 0.0
+            sot = _pick_first_numeric(row, ["shots_on_x", "shots_on"], 0.0) or 0.0
+            goals_for_row = _pick_first_numeric(row, ["goals"], 0.0) or 0.0
+
+            sot_ratio = _pick_first_numeric(row, ["shot_on_target_ratio"])
+            if sot_ratio is None and shots > 0:
+                sot_ratio = sot / shots
+            if sot_ratio is not None:
+                sot_ratio_values.append(sot_ratio)
+
+            conv_rate = _pick_first_numeric(row, ["goal_conversion_rate"])
+            if conv_rate is None and shots > 0:
+                conv_rate = goals_for_row / shots
+            if conv_rate is not None:
+                conv_rate_values.append(conv_rate)
+
+            if _team_row_is_home(row):
+                home_rows += 1
+            else:
+                away_rows += 1
+
+        goals_for_pm = goals / matches_played
+        assists_pm = assists / matches_played
+        shots_for_pm = shots_for / matches_played
+        sot_for_pm = sot_for / matches_played
+        corners_pm = corners / matches_played
+        fouls_pm = fouls_committed / matches_played
+        yellows_pm = yellow_cards / matches_played
+        reds_pm = red_cards / matches_played
+        cards_pm = cards_total_sum / matches_played
+        pass_accuracy_pct = 100.0 * accurate_passes / passes_total if passes_total > 0 else _mean_or_none(pass_acc_values)
+        fouls_per_90_calc = None
+        cards_per_90_calc = None
+        if sum_minutes > 0:
+            team_min_denom = sum_minutes / (90.0 * 11.0)
+            if team_min_denom > 0:
+                fouls_per_90_calc = fouls_committed / team_min_denom
+                cards_per_90_calc = cards_total_sum / team_min_denom
+
+        if control_index is not None and control_index >= 0.55:
+            archetype = "possession-aggressive" if (aggression_index_norm or 0.0) >= 0.25 else "possession-disciplined"
+        elif (possession is not None and possession <= 0.45) or (dominance_index is not None and dominance_index < 0.45):
+            archetype = "low-block-counter"
+        else:
+            archetype = "transition-pace"
+
+        style_tags = []
+        if possession is not None and possession >= 0.55:
+            style_tags.append("possession-heavy")
+        if possession is not None and possession <= 0.45:
+            style_tags.append("counter-oriented")
+        if aggression_index_norm is not None and aggression_index_norm >= 0.25:
+            style_tags.append("aggressive")
+        if cards_pm >= 3.0:
+            style_tags.append("card-prone")
+        if cards_pm < 1.5 and fouls_pm < 10:
+            style_tags.append("disciplined")
+        if control_index is not None and control_index >= 0.60:
+            style_tags.append("control-high")
+        if dominance_index is not None and dominance_index >= 0.60:
+            style_tags.append("dominant")
+        sot_ratio_mean = _mean_or_none(sot_ratio_values)
+        if sot_ratio_mean is not None and sot_ratio_mean >= 0.40:
+            style_tags.append("efficient-finishing")
+
+        summary_parts = [
+            f"{team}: {matches_played} matches",
+            f"{goals_for_pm:.2f} goals/match",
+            f"xG {expected_goals:.2f}/match" if expected_goals is not None else None,
+            f"possession {possession:.0%}" if possession is not None else None,
+            f"SOT ratio {sot_ratio_mean:.2f}" if sot_ratio_mean is not None else None,
+            f"control {control_index:.2f}" if control_index is not None else None,
+            f"dominance {dominance_index:.2f}" if dominance_index is not None else None,
+            f"cards {cards_pm:.2f}/match",
+            f"fouls {fouls_pm:.1f}/match",
+            f"tags: {', '.join(style_tags) if style_tags else 'no special tags'}",
+        ]
+
+        profile_rows.append({
+            "entity_type": "team",
+            "league": league,
+            "season": season,
+            "team": team,
+            "matches_played": matches_played,
+            "goals": goals,
+            "assists": assists,
+            "goals_for_pm": goals_for_pm,
+            "assists_pm": assists_pm,
+            "shots_for_pm": shots_for_pm,
+            "sot_for_pm": sot_for_pm,
+            "expected_goals": expected_goals,
+            "goals_prevented": goals_prevented,
+            "possession": possession,
+            "pass_accuracy_pct": pass_accuracy_pct,
+            "_sot_ratio_for": sot_ratio_mean,
+            "_conv_rate_for": _mean_or_none(conv_rate_values),
+            "dominance_index": dominance_index,
+            "control_index": control_index,
+            "aggression_index_norm": aggression_index_norm,
+            "corners_pm": corners_pm,
+            "fouls_committed": fouls_committed,
+            "fouls_pm": fouls_pm,
+            "yellows_pm": yellows_pm,
+            "reds_pm": reds_pm,
+            "cards_pm": cards_pm,
+            "fouls_per_90_team": fouls_per_90_team if fouls_per_90_team is not None else fouls_pm,
+            "cards_per_90_team": cards_per_90_team if cards_per_90_team is not None else cards_pm,
+            "cards_per_foul_team": cards_per_foul_team,
+            "fouls_per_duel_team": fouls_per_duel_team,
+            "avg_goals_last_5": avg_goals_last_5,
+            "avg_cards_last_5": avg_cards_last_5,
+            "form_index_team": form_index_team,
+            "archetype": archetype,
+            "style_tags": style_tags,
+            "summary_nl": " | ".join(part for part in summary_parts if part),
+            "sum_minutes": sum_minutes,
+            "yellow_cards": yellow_cards,
+            "red_cards": red_cards,
+            "corners": corners,
+            "passes_total": passes_total,
+            "accurate_passes": accurate_passes,
+            "cards_total_sum": cards_total_sum,
+            "fouls_per_90_calc": fouls_per_90_calc,
+            "cards_per_90_calc": cards_per_90_calc,
+            "home_matches_played": home_rows,
+            "away_matches_played": away_rows,
+        })
+
+    return profile_rows
     
 # --- new helper at top-level, near other utils ---
 def build_fixture_team_map(team_rows: list[dict]) -> dict:
@@ -1085,7 +1322,7 @@ def compute_fouls_home_away_pm(team_rows: list[dict]) -> dict:
 
 
 # --------- DISCOVERY & NORMALIZATION ---------
-def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
+def normalize_feature_engineering_dir(dir_path: str, season_year: Optional[int] = None) -> List[dict]:
     """
     Normalize a single *_feature_engineering folder into doclets.
     - Auto-detects the four input files (JSON/JSONL preferred; CSV fallback).
@@ -1100,17 +1337,25 @@ def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
 
     # Helper: best file match with priority to JSON/JSONL
     def pick(patterns: List[str]) -> Optional[Path]:
+        candidates: List[Path] = []
         # Try JSON/JSONL first
         for pat in patterns:
             for ext in (".json", ".jsonl"):
-                hit = list(p.glob(pat + ext))
-                if hit:
-                    return hit[0]
+                candidates.extend(p.glob(pat + ext))
+        if season_year is not None:
+            candidates = [c for c in candidates if find_year_token(c.name) == season_year]
+        if candidates:
+            candidates = sorted(candidates, key=lambda x: (find_year_token(x.name) or -1, x.name), reverse=True)
+            return candidates[0]
         # Fallback to CSV
+        csv_candidates: List[Path] = []
         for pat in patterns:
-            hit = list(p.glob(pat + ".csv"))
-            if hit:
-                return hit[0]
+            csv_candidates.extend(p.glob(pat + ".csv"))
+        if season_year is not None:
+            csv_candidates = [c for c in csv_candidates if find_year_token(c.name) == season_year]
+        if csv_candidates:
+            csv_candidates = sorted(csv_candidates, key=lambda x: (find_year_token(x.name) or -1, x.name), reverse=True)
+            return csv_candidates[0]
         return None
 
     # Discover files
@@ -1242,38 +1487,47 @@ def normalize_feature_engineering_dir(dir_path: str) -> List[dict]:
             )
 
     # -----------------------------
-    # TEAM PROFILES (inject corners_against_pm + corner_edge_pm)
+    # TEAM PROFILES
+    # Prefer synthesizing season-to-date profiles from fresh team fixture rows.
+    # Fall back to team_profiles_* only when engineered rows are unavailable.
     # -----------------------------
-    if f_team_prof:
+    team_profile_rows: List[dict] = []
+    team_profile_source = None
+    if team_rows:
+        team_profile_rows = synthesize_team_profile_rows(team_rows, league=league, season=season_hint)
+        team_profile_source = str(f_team_eng) if f_team_eng else str(p)
+    elif f_team_prof:
         if f_team_prof.suffix == ".jsonl":
-            iterator = read_jsonl(str(f_team_prof))
+            team_profile_rows = list(read_jsonl(str(f_team_prof)))
         elif f_team_prof.suffix == ".json":
-            iterator = read_json(str(f_team_prof))
+            team_profile_rows = read_json(str(f_team_prof))
         else:
-            iterator = read_csv_rows(str(f_team_prof))
-        for r in iterator:
-            docs.append(
-                doc_from_team_profile(
-                    r,
-                    season_hint=season_hint,
-                    source_file=str(f_team_prof),
-                    c_against_pm_map=c_against_pm_map,
-                    cards_induced_pm_map=cards_induced_pm_map,
-                    corners_ha_pm_map=corners_ha_pm_map,
-                    sot_against_pm_map=sot_against_pm_map,
-                    cards_ha_pm_map=cards_ha_pm_map,
-                    stat_var_map=stat_var_map,
-                    goals_against_pm_map=goals_against_pm_map,
-                    goals_ha_pm_map=goals_ha_pm_map,
-                    sot_ha_pm_map=sot_ha_pm_map,
-                    xg_ha_pm_map=xg_ha_pm_map,
-                    matches_played_map=matches_played_map,
-                    corners_against_ha_pm_map=corners_against_ha_pm_map,
-                    sot_against_ha_pm_map=sot_against_ha_pm_map,
-                    cards_induced_ha_pm_map=cards_induced_ha_pm_map,
-                    fouls_ha_pm_map=fouls_ha_pm_map,
-                )
+            team_profile_rows = read_csv_rows(str(f_team_prof))
+        team_profile_source = str(f_team_prof)
+
+    for r in team_profile_rows:
+        docs.append(
+            doc_from_team_profile(
+                r,
+                season_hint=season_hint,
+                source_file=team_profile_source or str(p),
+                c_against_pm_map=c_against_pm_map,
+                cards_induced_pm_map=cards_induced_pm_map,
+                corners_ha_pm_map=corners_ha_pm_map,
+                sot_against_pm_map=sot_against_pm_map,
+                cards_ha_pm_map=cards_ha_pm_map,
+                stat_var_map=stat_var_map,
+                goals_against_pm_map=goals_against_pm_map,
+                goals_ha_pm_map=goals_ha_pm_map,
+                sot_ha_pm_map=sot_ha_pm_map,
+                xg_ha_pm_map=xg_ha_pm_map,
+                matches_played_map=matches_played_map,
+                corners_against_ha_pm_map=corners_against_ha_pm_map,
+                sot_against_ha_pm_map=sot_against_ha_pm_map,
+                cards_induced_ha_pm_map=cards_induced_ha_pm_map,
+                fouls_ha_pm_map=fouls_ha_pm_map,
             )
+        )
 
     # -----------------------------
     # GLOBAL data dictionary (single doc)
@@ -1344,7 +1598,7 @@ def main():
                 continue
 
         t_dir = _time.time()
-        docs = normalize_feature_engineering_dir(str(d))
+        docs = normalize_feature_engineering_dir(str(d), season_year=args.season)
         season_token = "unknown"
         if docs:
             s = next((x["metadata"].get("season") for x in docs if x["metadata"].get("season")), None)

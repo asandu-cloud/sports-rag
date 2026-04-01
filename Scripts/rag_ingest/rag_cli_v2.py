@@ -274,7 +274,7 @@ SCORING_WEIGHTS = {
         "soft_prefer_miss": 0.35,
         "conservative_threshold": 1.25,
         "conservative_penalty": 24.0,
-        "kb_quality_weight": 0.75,
+        "kb_quality_weight": 1.2,
         "ml_spread_stack_penalty": 6.0,
         "hard_exclude_penalty": 25.0,
         "forbid_spread_penalty": 30.0,
@@ -433,6 +433,7 @@ SCORING_WEIGHTS = {
     "pool": {
         "default_anchor": 1.55,
         "quality_bonus": 0.12,
+        "min_kb_quality": 0.0,  # legs with KB quality <= this are rejected from the pool
         "cap": 220,
         "beam_width": 60,
         "brute_force_threshold": 50000,
@@ -457,9 +458,8 @@ SCORING_WEIGHTS = {
     },
     "ml": {
         "blend_weight": 0.0,  # static fallback (used when dynamic_blend=False). Set >0 to force blend.
-        "dynamic_blend": False,  # DISABLED: backtesting shows train/serve skew makes ML hurt all stats.
-                                 # Season-only projections beat ML-blended on MAE, bias, and skill.
-                                 # Re-enable after fixing _profile_meta_to_fixture_row distribution mismatch.
+        "dynamic_blend": True,  # R2-based per-stat blend: cards=12.5%, sot=20%, corners=0% (R2<0.20).
+        "skip_stats": {"goals"},  # Goals heuristic already beats ML — skip to avoid adding bias.
         "elo_signal_weight": 0.15,  # Elo signal still active (doesn't suffer from the same skew)
         "elo_scale": 400.0,
         "min_elo_diff": 20,
@@ -1415,41 +1415,23 @@ def odds_get(path: str, params: Dict) -> Tuple[Optional[object], Optional[str]]:
         return None, f"Odds API request failed: {exc}"
 
 
-def fetch_events(league: str, markets: Set[str]) -> Tuple[List[Dict], List[str]]:
+def fetch_events(league: str, markets: Set[str],
+                  target_date: Optional[date] = None) -> Tuple[List[Dict], List[str]]:
     """Fetch events and odds. Uses API-Football as primary provider (richer markets),
     falls back to The Odds API if API-Football returns no results."""
     from datetime import date as _date
 
-    # Primary: API-Football (has corners, cards, SoT, player props, correct score)
+    if target_date is None:
+        target_date = _date.today()
+
     try:
         from odds_provider import fetch_events_apifootball
-        af_events, af_notes = fetch_events_apifootball(league, _date.today())
-        if af_events:
-            return af_events, af_notes
+        return fetch_events_apifootball(league, target_date)
     except ImportError:
-        pass
+        return [], ["odds_provider module not available."]
     except Exception as exc:
         log.warning("API-Football odds failed for %s: %s", league, exc)
-
-    # Fallback: The Odds API
-    notes: List[str] = []
-    sport_key = LEAGUE_TO_ODDS_SPORT.get(league, LEAGUE_TO_ODDS_SPORT["EPL"])
-    requested = sorted(markets)
-
-    market_str = ",".join(requested)
-    rows, err = odds_get(f"/sports/{sport_key}/odds", {"markets": market_str})
-    if err:
-        fallback = ",".join(DEFAULT_MARKETS)
-        rows_fb, err_fb = odds_get(f"/sports/{sport_key}/odds", {"markets": fallback})
-        if err_fb:
-            notes.append(err)
-            return [], notes
-        rows = rows_fb
-        notes.append(f"Requested markets '{market_str}' not fully supported. Fell back to '{fallback}'.")
-    if not isinstance(rows, list):
-        notes.append("Unexpected odds payload shape.")
-        return [], notes
-    return rows, notes
+        return [], [f"API-Football error: {exc}"]
 
 
 def fetch_events_multi(leagues: List[str], markets: Set[str]) -> Tuple[List[Dict], List[str]]:
@@ -1500,43 +1482,43 @@ def event_market_groups(event: Dict) -> Set[str]:
 
 
 def discover_event_market_keys(league: str, event_id: str) -> Tuple[Set[str], Optional[str]]:
+    """Discover available market keys for an event via API-Football odds re-fetch."""
     cache_key = (league, event_id)
     cached = _event_market_keys_cache.get(cache_key)
     if cached is not None:
         return set(cached), None
 
-    sport_key = LEAGUE_TO_ODDS_SPORT.get(league, LEAGUE_TO_ODDS_SPORT["EPL"])
-    payload, err = odds_get(f"/sports/{sport_key}/events/{event_id}/markets", {})
+    try:
+        from odds_provider import enrich_event_odds
+    except ImportError:
+        return set(), "odds_provider module not available."
+
+    # Build a minimal event dict for enrich_event_odds
+    event = {"id": event_id, "_fixture_id": int(event_id), "bookmakers": [],
+             "home_team": "", "away_team": ""}
+    keys, err = enrich_event_odds(event, league)
     if err:
         return set(), err
-    keys = extract_market_keys(payload)
     _event_market_keys_cache[cache_key] = set(keys)
     return keys, None
 
 
 def fetch_event_odds_for_market_keys(league: str, event_id: str, market_keys: Set[str]) -> Tuple[Optional[Dict], Optional[str]]:
+    """Fetch odds for specific markets via API-Football. Returns event dict with bookmakers."""
     if not market_keys:
         return None, "No market keys requested."
-    sorted_keys = tuple(sorted(market_keys))
-    cache_key = (league, event_id, sorted_keys)
-    cached = _event_odds_cache.get(cache_key)
-    if cached is not None:
-        return copy.deepcopy(cached), None
 
-    sport_key = LEAGUE_TO_ODDS_SPORT.get(league, LEAGUE_TO_ODDS_SPORT["EPL"])
-    payload, err = odds_get(
-        f"/sports/{sport_key}/events/{event_id}/odds",
-        {"markets": ",".join(sorted_keys)},
-    )
+    try:
+        from odds_provider import enrich_event_odds
+    except ImportError:
+        return None, "odds_provider module not available."
+
+    event = {"id": event_id, "_fixture_id": int(event_id), "bookmakers": [],
+             "home_team": "", "away_team": ""}
+    keys, err = enrich_event_odds(event, league)
     if err:
         return None, err
-    if isinstance(payload, dict):
-        _event_odds_cache[cache_key] = payload
-        return copy.deepcopy(payload), None
-    if isinstance(payload, list) and payload and isinstance(payload[0], dict):
-        _event_odds_cache[cache_key] = payload[0]
-        return copy.deepcopy(payload[0]), None
-    return None, "Unexpected event odds payload shape."
+    return event, None
 
 
 def merge_bookmakers(base: List[Dict], extra: List[Dict]) -> List[Dict]:
@@ -1581,53 +1563,29 @@ def merge_bookmakers(base: List[Dict], extra: List[Dict]) -> List[Dict]:
 
 def enrich_events_for_groups(events: List[Dict], league: str, desired_groups: Set[str]) -> Tuple[List[Dict], List[str]]:
     """
-    For groups like corners/cards that are often unavailable at sport-level odds,
-    discover event-level market keys and fetch event-specific odds.
+    For groups like corners/cards that are often unavailable in the initial fetch,
+    re-fetch per-fixture odds from API-Football and merge new markets in.
     """
     if not desired_groups:
         return events, []
 
+    try:
+        from odds_provider import enrich_event_odds
+    except ImportError:
+        return events, ["odds_provider module not available for enrichment."]
+
     notes: List[str] = []
-    out: List[Dict] = []
     for ev in events:
         existing_groups = event_market_groups(ev)
         missing = {g for g in desired_groups if g not in existing_groups}
         if not missing:
-            out.append(ev)
             continue
 
-        event_id = str(ev.get("id") or "")
-        if not event_id:
-            out.append(ev)
-            continue
-
-        keys, err = discover_event_market_keys(league, event_id)
+        all_keys, err = enrich_event_odds(ev, league)
         if err:
-            notes.append(f"{ev.get('home_team')} vs {ev.get('away_team')}: market discovery failed ({err})")
-            out.append(ev)
-            continue
+            notes.append(f"{ev.get('home_team')} vs {ev.get('away_team')}: enrichment failed ({err})")
 
-        wanted_keys = {k for k in keys if market_group_from_key(k) in missing}
-        if not wanted_keys:
-            notes.append(
-                f"{ev.get('home_team')} vs {ev.get('away_team')}: no {', '.join(sorted(missing))} keys returned by provider."
-            )
-            out.append(ev)
-            continue
-
-        ev_payload, err2 = fetch_event_odds_for_market_keys(league, event_id, wanted_keys)
-        if err2 or not ev_payload:
-            notes.append(
-                f"{ev.get('home_team')} vs {ev.get('away_team')}: failed fetching event odds for discovered keys."
-            )
-            out.append(ev)
-            continue
-
-        merged = dict(ev)
-        merged["bookmakers"] = merge_bookmakers(ev.get("bookmakers", []) or [], ev_payload.get("bookmakers", []) or [])
-        out.append(merged)
-
-    return out, notes
+    return events, notes
 
 
 def totals_key_matches_group(market_key: str, stat_group: str) -> bool:
@@ -2521,7 +2479,7 @@ def select_parlay(candidates: List[CandidateLeg], leg_count: int, c: ConstraintS
     pre_filter_count = len(candidates)
 
     # Minimum odds floor for parlay legs
-    _PARLAY_MIN_ODDS = 1.35
+    _PARLAY_MIN_ODDS = 1.30
     candidates = [leg for leg in candidates if leg.odds >= _PARLAY_MIN_ODDS]
 
     # require_total_corner_keys: only keep legs whose market key contains both "corner" and "total"
@@ -2559,6 +2517,21 @@ def select_parlay(candidates: List[CandidateLeg], leg_count: int, c: ConstraintS
     if not candidates:
         return [], ["No candidates remain after applying market constraints (hard filter)."]
 
+    # Quality gate: compute KB quality for all candidates and reject legs
+    # where the model disagrees with the bet (negative quality).
+    _pre_quality_count = len(candidates)
+    _quality_map: Dict[CandidateLeg, float] = {}
+    for leg in candidates:
+        _quality_map[leg] = kb_leg_quality(leg, _leg_league(leg, c.league))
+    min_q = SCORING_WEIGHTS["pool"].get("min_kb_quality", 0.0)
+    candidates = [leg for leg in candidates if _quality_map[leg] > min_q]
+    _quality_dropped = _pre_quality_count - len(candidates)
+    if _quality_dropped > 0:
+        notes.append(f"Quality-filtered {_quality_dropped} negative-signal legs ({len(candidates)} remaining).")
+
+    if not candidates:
+        return [], ["No candidates with positive model signal remain after quality filter."]
+
     # Reduce search size while keeping odds diversity.
     by_bucket: Dict[Tuple[str, str], List[CandidateLeg]] = {}
     for row in sorted(candidates, key=lambda x: x.odds):
@@ -2595,9 +2568,10 @@ def select_parlay(candidates: List[CandidateLeg], leg_count: int, c: ConstraintS
         pool.extend(dedup)
 
     # Final cap by proximity-to-target odds + KB quality, not raw low odds.
+    # Reuse quality scores from the pre-filter where available.
     leg_quality: Dict[CandidateLeg, float] = {}
     for leg in pool:
-        leg_quality[leg] = kb_leg_quality(leg, _leg_league(leg, c.league))
+        leg_quality[leg] = _quality_map.get(leg) if leg in _quality_map else kb_leg_quality(leg, _leg_league(leg, c.league))
 
     pw = SCORING_WEIGHTS["pool"]
 
@@ -3069,8 +3043,11 @@ def safe_float(x) -> Optional[float]:
 
 def _ml_blend_weight(stat: str) -> float:
     """Resolve ML blend weight for a stat. Uses dynamic R2-based weight if enabled,
-    otherwise falls back to static SCORING_WEIGHTS["ml"]["blend_weight"]."""
+    otherwise falls back to static SCORING_WEIGHTS["ml"]["blend_weight"].
+    Stats in ml_skip_stats are forced to 0.0 regardless of dynamic_blend."""
     mw = SCORING_WEIGHTS["ml"]
+    if stat in mw.get("skip_stats", set()):
+        return 0.0
     if mw.get("dynamic_blend", False):
         return get_dynamic_blend_weight(stat)
     return mw.get("blend_weight", 0.0)
@@ -7327,19 +7304,59 @@ def answer_once(user_q: str, default_league: str = "EPL") -> None:
         elif totals_stat_group == "sot":
             c.hard_include_groups = {"sot"}
             c.hard_exclude_groups = {"moneyline", "spreads", "corners", "cards", "totals"}
+    # Parse target date BEFORE fetching events so we query the right day.
+    explicit_date = parse_explicit_date(user_q)
+    # Also check time_window for day-name keywords (today, tomorrow, saturday, etc.)
+    target_fetch_date = explicit_date
+    if target_fetch_date is None and c.time_window not in ("upcoming", ""):
+        from datetime import timedelta as _td
+        _today = date.today()
+        if c.time_window == "today":
+            target_fetch_date = _today
+        elif c.time_window == "tomorrow":
+            target_fetch_date = _today + _td(days=1)
+
     if c.leagues:
         events_raw, notes = fetch_events_multi(c.leagues, c.requested_markets)
     else:
-        events_raw, notes = fetch_events(c.league, c.requested_markets)
+        events_raw, notes = fetch_events(c.league, c.requested_markets,
+                                          target_date=target_fetch_date)
         for ev in events_raw:
             ev["_league"] = c.league
+
+    # If no events for the target date, try a 7-day lookahead
+    if not events_raw and target_fetch_date is None:
+        from datetime import timedelta as _td
+        _today = date.today()
+        all_lookahead: List[Dict] = []
+        all_lookahead_notes: List[str] = []
+        for offset in range(1, 8):
+            d = _today + _td(days=offset)
+            if c.leagues:
+                day_events: List[Dict] = []
+                for lg in c.leagues:
+                    lg_events, lg_notes = fetch_events(lg, c.requested_markets, target_date=d)
+                    for ev in lg_events:
+                        ev["_league"] = lg
+                    day_events.extend(lg_events)
+                    all_lookahead_notes.extend(lg_notes)
+                all_lookahead.extend(day_events)
+            else:
+                day_events, day_notes = fetch_events(c.league, c.requested_markets,
+                                                      target_date=d)
+                for ev in day_events:
+                    ev["_league"] = c.league
+                all_lookahead.extend(day_events)
+                all_lookahead_notes.extend(day_notes)
+        if all_lookahead:
+            events_raw = all_lookahead
+            notes = all_lookahead_notes
+
     if not events_raw:
         print("Could not fetch odds events.")
         for n in notes:
             print("-", n)
         return
-
-    explicit_date = parse_explicit_date(user_q)
     if explicit_date is not None:
         events = filter_events_by_exact_date(events_raw, explicit_date)
         notes.append(f"Applied explicit date filter: {explicit_date.isoformat()}.")

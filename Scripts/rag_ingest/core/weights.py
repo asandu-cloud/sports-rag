@@ -47,7 +47,7 @@ SCORING_WEIGHTS = {
         "soft_prefer_miss": 0.35,
         "conservative_threshold": 1.25,
         "conservative_penalty": 24.0,
-        "kb_quality_weight": 0.75,
+        "kb_quality_weight": 1.2,
         "ml_spread_stack_penalty": 6.0,
         "hard_exclude_penalty": 25.0,
         "forbid_spread_penalty": 30.0,
@@ -206,6 +206,7 @@ SCORING_WEIGHTS = {
     "pool": {
         "default_anchor": 1.55,
         "quality_bonus": 0.12,
+        "min_kb_quality": 0.0,  # legs with KB quality <= this are rejected from the pool
         "cap": 220,
         "beam_width": 60,
         "brute_force_threshold": 50000,
@@ -230,10 +231,15 @@ SCORING_WEIGHTS = {
     },
     "ml": {
         "blend_weight": 0.0,  # static fallback (used when dynamic_blend=False). Set >0 to force blend.
-        "dynamic_blend": False,  # DISABLED: backtesting shows train/serve skew hurts all stats
+        "dynamic_blend": True,  # R2-based per-stat blend: cards=12.5%, sot=20%, corners=0% (R2<0.20).
+        "skip_stats": {"goals"},  # Goals heuristic already beats ML — skip to avoid adding bias.
         "elo_signal_weight": 0.15,
         "elo_scale": 400.0,
         "min_elo_diff": 20,
+    },
+    "market_blend": {
+        "model_weight": 0.70,
+        "market_weight": 0.30,
     },
     "recency": {
         "alpha": 0.85,  # exponential decay per match (most recent=1.0, next=0.85, then 0.72...)

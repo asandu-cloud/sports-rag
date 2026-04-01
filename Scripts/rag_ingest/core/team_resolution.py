@@ -704,7 +704,6 @@ def get_recent_team_fixture_rows(team_name: str, league: str, limit: int = 8,
                 fixture_date = str(m.get("fixture_date") or "")
                 key = f"{fixture_date}|{fixture}"
                 dedup[key] = {"meta": m, "text": d or ""}
-            return dedup
         return dedup
 
     dedup = _fetch(target_season)

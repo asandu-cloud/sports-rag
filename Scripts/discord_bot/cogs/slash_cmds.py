@@ -57,6 +57,370 @@ async def _run_rag(prompt: str, league: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Full match analysis pipeline
+# ---------------------------------------------------------------------------
+
+# OpenAI client (shared with whale_chat pattern)
+try:
+    from openai import OpenAI as _OpenAI
+    _analysis_client = _OpenAI(api_key=__import__("os").getenv("OPENAI_API_KEY", ""))
+    _ANALYSIS_MODEL = __import__("os").getenv("WHALE_CHAT_MODEL",
+                                               __import__("os").getenv("RAG_CHAT_MODEL", "gpt-4o-mini"))
+except ImportError:
+    _analysis_client = None
+    _ANALYSIS_MODEL = ""
+
+
+def _safe_round(val, decimals=2):
+    if val is None:
+        return None
+    try:
+        return round(float(val), decimals)
+    except (TypeError, ValueError):
+        return None
+
+
+def _build_match_analysis_sync(home: str, away: str, league: str,
+                                target_date: date) -> Dict:
+    """Run ALL projections and odds extraction for a single fixture.
+    Returns a structured dict with every market's data. Synchronous."""
+
+    analysis: Dict = {"home": home, "away": away, "league": league}
+
+    # --- Resolve team names ---
+    home = rag.canonical_team_name(home) or home
+    away = rag.canonical_team_name(away) or away
+    analysis["home"] = home
+    analysis["away"] = away
+
+    # --- Team profiles ---
+    h_meta = rag.get_team_profile_meta(home, league) or {}
+    a_meta = rag.get_team_profile_meta(away, league) or {}
+    analysis["home_profile"] = {
+        k: _safe_round(h_meta.get(k)) for k in [
+            "goals_for_pm", "goals_against_pm", "corners_pm", "corners_against_pm",
+            "cards_per_90_team", "sot_for_pm", "sot_against_pm", "possession",
+            "dominance_index", "control_index", "form_index_team",
+            "xg_home_pm", "corners_home_pm", "corners_away_pm",
+        ] if h_meta.get(k) is not None
+    }
+    analysis["away_profile"] = {
+        k: _safe_round(a_meta.get(k)) for k in [
+            "goals_for_pm", "goals_against_pm", "corners_pm", "corners_against_pm",
+            "cards_per_90_team", "sot_for_pm", "sot_against_pm", "possession",
+            "dominance_index", "control_index", "form_index_team",
+            "xg_away_pm", "corners_home_pm", "corners_away_pm",
+        ] if a_meta.get(k) is not None
+    }
+
+    # --- Recent form (last 6) ---
+    h_recent = rag._recent_stats(home, league, last_n=6) or {}
+    a_recent = rag._recent_stats(away, league, last_n=6) or {}
+    analysis["home_recent"] = {k: _safe_round(v) for k, v in h_recent.items()
+                                if v is not None and isinstance(v, (int, float))}
+    analysis["away_recent"] = {k: _safe_round(v) for k, v in a_recent.items()
+                                if v is not None and isinstance(v, (int, float))}
+
+    # --- Core projections ---
+    # Goals
+    try:
+        g_bl, g_s, g_r = rag.projected_total_goals(home, away, league)
+        analysis["goals"] = {"projected": _safe_round(g_bl), "season": _safe_round(g_s),
+                             "recent": _safe_round(g_r)}
+    except Exception:
+        analysis["goals"] = None
+
+    # Corners
+    try:
+        c_bl, c_s, c_r = rag.projected_total_corners(home, away, league)
+        analysis["corners"] = {"projected": _safe_round(c_bl), "season": _safe_round(c_s),
+                               "recent": _safe_round(c_r)}
+    except Exception:
+        analysis["corners"] = None
+
+    # Cards
+    try:
+        k_bl, k_s, k_r, ref_mod = rag.projected_total_cards(home, away, league)
+        analysis["cards"] = {"projected": _safe_round(k_bl), "season": _safe_round(k_s),
+                             "recent": _safe_round(k_r)}
+        if ref_mod and ref_mod.source == "profile" and ref_mod.referee_name:
+            analysis["referee"] = {
+                "name": ref_mod.referee_name,
+                "avg_cards": _safe_round(ref_mod.avg_cards_per_match),
+                "strictness": _safe_round(ref_mod.strictness_ratio),
+                "cards_per_foul": _safe_round(ref_mod.cards_per_foul, 3),
+                "avg_fouls": _safe_round(ref_mod.avg_fouls_per_match, 1),
+                "sample_size": ref_mod.sample_size,
+            }
+    except Exception:
+        analysis["cards"] = None
+
+    # SoT
+    try:
+        s_bl, s_s, s_r = rag.projected_total_sot(home, away, league)
+        analysis["sot"] = {"projected": _safe_round(s_bl), "season": _safe_round(s_s),
+                           "recent": _safe_round(s_r)}
+    except Exception:
+        analysis["sot"] = None
+
+    # BTTS
+    try:
+        p_btts, h_g, a_g, _, _ = rag.projected_btts_prob(home, away, league)
+        analysis["btts"] = {"btts_yes_prob": _safe_round(p_btts, 3),
+                            "home_goals_proj": _safe_round(h_g),
+                            "away_goals_proj": _safe_round(a_g)}
+    except Exception:
+        analysis["btts"] = None
+
+    # Moneyline
+    try:
+        p_h, p_d, p_a, _, _ = rag.projected_moneyline_probs(home, away, league)
+        analysis["moneyline"] = {"home_win": _safe_round(p_h, 3),
+                                  "draw": _safe_round(p_d, 3),
+                                  "away_win": _safe_round(p_a, 3)}
+    except Exception:
+        analysis["moneyline"] = None
+
+    # Spread/handicap
+    try:
+        d_bl, d_s, d_r = rag.projected_goal_difference(home, away, league)
+        analysis["spread"] = {"projected_diff": _safe_round(d_bl),
+                              "season_diff": _safe_round(d_s),
+                              "recent_diff": _safe_round(d_r)}
+    except Exception:
+        analysis["spread"] = None
+
+    # Correct score (top 5)
+    try:
+        cs_probs, cs_h, cs_a = rag.projected_correct_score_probs(home, away, league)
+        if cs_probs:
+            top5 = sorted(cs_probs.items(), key=lambda x: x[1], reverse=True)[:5]
+            analysis["correct_score"] = {
+                "top_scorelines": [{"score": f"{h}-{a}", "prob": _safe_round(p, 3)}
+                                   for (h, a), p in top5],
+            }
+    except Exception:
+        analysis["correct_score"] = None
+
+    # Per-team corners
+    try:
+        hc_bl, hc_s, hc_r = rag.projected_team_corners(home, away, league, is_home=True)
+        ac_bl, ac_s, ac_r = rag.projected_team_corners(away, home, league, is_home=False)
+        analysis["team_corners"] = {
+            "home": {"projected": _safe_round(hc_bl), "season": _safe_round(hc_s)},
+            "away": {"projected": _safe_round(ac_bl), "season": _safe_round(ac_s)},
+        }
+    except Exception:
+        analysis["team_corners"] = None
+
+    # Per-team cards
+    try:
+        hk_bl, hk_s, hk_r = rag.projected_team_cards(home, away, league, is_home=True)
+        ak_bl, ak_s, ak_r = rag.projected_team_cards(away, home, league, is_home=False)
+        analysis["team_cards"] = {
+            "home": {"projected": _safe_round(hk_bl), "season": _safe_round(hk_s)},
+            "away": {"projected": _safe_round(ak_bl), "season": _safe_round(ak_s)},
+        }
+    except Exception:
+        analysis["team_cards"] = None
+
+    # --- Odds extraction + best lines ---
+    try:
+        events, _ = rag.fetch_events(league, set(), target_date=target_date)
+    except Exception:
+        events = []
+
+    event = None
+    for ev in events:
+        if (home.lower() in ev.get("home_team", "").lower() and
+                away.lower() in ev.get("away_team", "").lower()):
+            event = ev
+            break
+
+    if event:
+        analysis["kickoff"] = event.get("commence_time", "")
+
+        # Enrich with all markets
+        try:
+            rag.enrich_events_for_groups([event], league, {"corners", "cards", "sot", "btts"})
+        except Exception:
+            pass
+
+        # Goals line
+        _extract_best_line(analysis, event, "goals", "totals",
+                           analysis.get("goals", {}).get("projected"), home, league)
+        # Corners line
+        _extract_best_line(analysis, event, "corners", "corners",
+                           analysis.get("corners", {}).get("projected"), home, league)
+        # Cards line
+        _extract_best_line(analysis, event, "cards", "cards",
+                           analysis.get("cards", {}).get("projected"), home, league)
+        # SoT line
+        _extract_best_line(analysis, event, "sot", "sot",
+                           analysis.get("sot", {}).get("projected"), home, league)
+
+        # Spread line
+        if analysis.get("spread", {}).get("projected_diff") is not None:
+            try:
+                sp_options = rag.extract_spread_line_options(event)
+                if sp_options:
+                    best = rag.choose_best_spread_line(sp_options,
+                                                       analysis["spread"]["projected_diff"], home)
+                    if best:
+                        analysis["spread"]["best_line"] = {
+                            "team": best.get("team"), "point": best.get("point"),
+                            "odds": best.get("odds"), "bookmaker": best.get("bookmaker"),
+                            "model_prob": _safe_round(best.get("_model_prob"), 3),
+                            "value_edge": _safe_round(best.get("_value_edge"), 3),
+                        }
+            except Exception:
+                pass
+
+        # BTTS odds
+        if analysis.get("btts", {}).get("btts_yes_prob") is not None:
+            try:
+                btts_options = rag.extract_btts_odds(event)
+                if btts_options:
+                    best = rag.choose_best_btts_side(btts_options,
+                                                      analysis["btts"]["btts_yes_prob"])
+                    if best:
+                        analysis["btts"]["best_side"] = {
+                            "side": best.get("side"), "odds": best.get("odds"),
+                            "bookmaker": best.get("bookmaker"),
+                            "model_prob": _safe_round(best.get("_model_prob"), 3),
+                            "value_edge": _safe_round(best.get("_value_edge"), 3),
+                        }
+            except Exception:
+                pass
+
+        # Moneyline odds
+        if analysis.get("moneyline"):
+            try:
+                ml_options = rag.extract_moneyline_odds(event)
+                if ml_options:
+                    ml = analysis["moneyline"]
+                    best = rag.choose_best_moneyline_side(
+                        ml["home_win"] or 0, ml["draw"] or 0, ml["away_win"] or 0,
+                        ml_options, home, away)
+                    if best:
+                        analysis["moneyline"]["best_side"] = {
+                            "side": best.get("recommended"), "odds": best.get("odds"),
+                            "bookmaker": best.get("bookmaker"),
+                            "model_prob": _safe_round(best.get("_model_prob"), 3),
+                            "value_edge": _safe_round(best.get("_value_edge"), 3),
+                        }
+            except Exception:
+                pass
+
+    return analysis
+
+
+def _extract_best_line(analysis: Dict, event: Dict, stat: str, stat_group: str,
+                        projection: Optional[float], home: str, league: str):
+    """Helper: extract best over/under line for a stat and attach to analysis dict."""
+    if projection is None:
+        return
+    try:
+        options = rag.extract_total_line_options(event, stat_group)
+        if not options:
+            return
+        variance = None
+        var_keys = {"goals": "goals_var", "corners": "corners_for_var",
+                    "cards": "cards_var", "sot": "sot_for_var"}
+        vk = var_keys.get(stat)
+        if vk:
+            try:
+                variance = rag.get_blended_variance(home, league, vk)
+            except Exception:
+                pass
+        best = rag.choose_best_total_line(options, projection, variance)
+        if best:
+            key = f"{stat}_line" if stat != "goals" else "goals_line"
+            analysis[key] = {
+                "side": best.get("side"), "point": best.get("point"),
+                "odds": best.get("odds"), "bookmaker": best.get("bookmaker"),
+                "model_prob": _safe_round(best.get("_model_prob"), 3),
+                "value_edge": _safe_round(best.get("_value_edge"), 3),
+                "confidence": rag.confidence_from_edge(
+                    abs(best.get("_value_edge", 0) or 0), stat_group=stat,
+                    model_prob=best.get("_model_prob"),
+                    value_edge_pct=best.get("_value_edge")),
+            }
+    except Exception:
+        pass
+
+
+_ANALYSIS_SYSTEM_PROMPT = """You are Spick, an expert football betting analyst writing a comprehensive pre-match report.
+
+You will receive structured data from statistical models covering every market for a fixture. Your job is to write a natural, insightful analysis that a serious bettor would find valuable.
+
+Rules:
+- ONLY use the numbers provided in the data. Never invent statistics.
+- If a field is null or missing, skip that section gracefully.
+- Write in a confident, concise tone. No hedging or disclaimers.
+- Use the team names, not pronouns.
+- Display odds in decimal format.
+- When a value edge exists, highlight it clearly.
+- Structure the report with these sections (skip any with no data):
+
+◆ MATCH OVERVIEW — One-paragraph context: who's favored, why, headline pick.
+
+◆ MONEYLINE — Win probabilities for each outcome. Best value side with odds and edge.
+
+◆ GOALS — Projected total, best over/under line, BTTS verdict with probability.
+
+◆ CORNERS — Match total + per-team projections. Best line.
+
+◆ CARDS — Match total + per-team. Referee impact (if assigned). Best line.
+
+◆ SHOTS ON TARGET — Projected total, best line.
+
+◆ HANDICAP — Projected goal difference, best spread line.
+
+◆ CORRECT SCORE — Top 3 most likely scorelines with probabilities.
+
+◆ BEST VALUE — The single highest-edge pick across all markets. State the pick, odds, model probability, and value edge clearly.
+
+Keep the full report under 600 words. Use ━ separators between sections."""
+
+
+def _generate_analysis_report_sync(analysis: Dict) -> str:
+    """Generate a written match analysis report from structured data via GPT."""
+    import json as _json
+
+    if not _analysis_client:
+        return "AI analysis unavailable — OpenAI not configured."
+
+    data_str = _json.dumps(analysis, indent=2, default=str)
+
+    try:
+        resp = _analysis_client.chat.completions.create(
+            model=_ANALYSIS_MODEL,
+            messages=[
+                {"role": "system", "content": _ANALYSIS_SYSTEM_PROMPT},
+                {"role": "user", "content": f"Write a full match analysis report from this data:\n\n{data_str}"},
+            ],
+            temperature=0.3,
+            max_tokens=2000,
+        )
+        return resp.choices[0].message.content or "(No response from AI)"
+    except Exception as exc:
+        return f"Analysis generation failed: {exc}"
+
+
+async def _run_full_analysis(home: str, away: str, league: str,
+                              target_date: date) -> str:
+    """Async wrapper for the full analysis pipeline."""
+    import asyncio
+    loop = asyncio.get_running_loop()
+    analysis = await loop.run_in_executor(
+        None, _build_match_analysis_sync, home, away, league, target_date)
+    report = await loop.run_in_executor(
+        None, _generate_analysis_report_sync, analysis)
+    return report
+
+
+# ---------------------------------------------------------------------------
 # Date parsing — flexible input
 # ---------------------------------------------------------------------------
 
@@ -132,12 +496,11 @@ def _get_events_cached(league: str, target: date, upcoming_only: bool = True) ->
                 return _filter_upcoming(evts)
             return evts
     try:
-        events, _ = rag.fetch_events(league, set(rag.DEFAULT_MARKETS))
-        filtered = rag.filter_events_by_exact_date(events, target)
-        _event_cache[key] = (now_ts, filtered)
+        events, _ = rag.fetch_events(league, set(rag.DEFAULT_MARKETS), target_date=target)
+        _event_cache[key] = (now_ts, events)
         if upcoming_only:
-            return _filter_upcoming(filtered)
-        return filtered
+            return _filter_upcoming(events)
+        return events
     except Exception:
         return []
 
@@ -494,28 +857,30 @@ class SlashCommands(commands.Cog):
         thread = await get_or_create_private_thread(interaction)
         await interaction.response.defer(thinking=True)
         target = _parse_date(date)
-        phrase = _date_phrase(target)
         home, away = _parse_match(match)
-        market_key = market.value if market else "overview"
 
-        template = _ANALYZE_PROMPTS.get(market_key, _ANALYZE_PROMPTS["overview"])
-        prompt = template.format(
-            home=home, away=away, league=league.value, date=phrase,
+        # Run the full analysis pipeline: all projections → GPT narrative
+        report = await _run_full_analysis(home, away, league.value, target)
+
+        # Build embed
+        em = discord.Embed(
+            title=f"Match Analysis: {home} vs {away}",
+            description=report[:4096],
+            color=COLOR_GREEN,
         )
-        text = await _run_rag(prompt, league.value)
+        em.set_footer(text=f"{league.value} | Spick's Picks")
 
-        label = _MARKET_LABELS.get(market_key, "Match Analysis")
-        if market_key == "overview":
-            label = "Match Analysis"
-        embeds = rag_output_to_embeds(label, text, league=league.value)
         if thread:
             await interaction.followup.send(
-                f"Results posted in your private thread {thread.mention}.",
+                f"Analysis posted in your private thread {thread.mention}.",
                 ephemeral=True,
             )
-            await thread.send(embeds=embeds)
+            await thread.send(embed=em)
+            # If report exceeds embed limit, send overflow as text
+            if len(report) > 4096:
+                await thread.send(report[4096:])
         else:
-            await interaction.followup.send(embeds=embeds, ephemeral=True)
+            await interaction.followup.send(embed=em, ephemeral=True)
 
     @analyze.autocomplete("match")
     async def _analyze_match_autocomplete(
