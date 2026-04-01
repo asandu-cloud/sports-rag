@@ -37,6 +37,7 @@ load_dotenv()
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT_DIR = ROOT / "Output"
 PROFILES_PATH = ROOT / "Index" / "referee_profiles.json"
+FIXTURE_REFEREE_DETAIL_PATH = ROOT / "Index" / "fixture_referee_detail.json"
 
 LEAGUE_TO_API_ID: Dict[str, int] = {
     "EPL": 39,
@@ -247,22 +248,23 @@ def fetch_completed_fixtures(league_id: int, season: int = SEASON) -> List[dict]
 
 def build_referee_profiles_for_league(
     league: str, season: int = SEASON,
-) -> Tuple[Dict[str, dict], float, int, Dict[int, str]]:
+) -> Tuple[Dict[str, dict], float, int, Dict[int, str], List[dict]]:
     """Build referee profiles for one league.
 
-    Returns (per_referee_accum, league_avg_cards, matched_count, fixture_ref_map).
+    Returns (per_referee_accum, league_avg_cards, matched_count, fixture_ref_map, fixture_detail_rows).
     per_referee_accum: { ref_name_lower: { name, country, cards, fouls, yellows, reds, matches } }
     fixture_ref_map: { fixture_id: referee_name_lower } for ML training lookup.
+    fixture_detail_rows: list of per-fixture dicts with referee + card data for backtest use.
     """
     league_id = LEAGUE_TO_API_ID.get(league)
     if league_id is None:
-        return {}, 0.0, 0, {}
+        return {}, 0.0, 0, {}, []
 
     # Step 1: fetch fixtures from API-Football → get referee per fixture
     fixtures = fetch_completed_fixtures(league_id, season)
     if not fixtures:
         print(f"[referee_data] No completed fixtures from API-Football for {league}")
-        return {}, 0.0, 0, {}
+        return {}, 0.0, 0, {}, []
 
     # Build two maps from API data: by fixture_id and by team-name pair
     fixture_ref_by_id: Dict[int, Tuple[str, Optional[str]]] = {}
@@ -290,7 +292,7 @@ def build_referee_profiles_for_league(
     # Step 2: load our team fixture stats → build card maps
     team_rows = _load_team_fixture_stats(league)
     if not team_rows:
-        return {}, 0.0, 0
+        return {}, 0.0, 0, {}, []
     card_map_by_id = _build_fixture_card_map(team_rows)
     card_map_by_name = _build_fixture_card_map_by_name(team_rows) if not card_map_by_id else {}
 
@@ -298,8 +300,10 @@ def build_referee_profiles_for_league(
     ref_accum: Dict[str, dict] = {}
     all_match_cards = 0
     matched = 0
+    fixture_detail_rows: List[dict] = []  # per-fixture detail for backtest export
 
-    def _accum_match(ref_name: str, ref_country: Optional[str], card_data: dict) -> None:
+    def _accum_match(ref_name: str, ref_country: Optional[str], card_data: dict,
+                     fixture_id: Optional[int] = None) -> None:
         nonlocal matched, all_match_cards
         matched += 1
         all_match_cards += card_data["total_cards"]
@@ -319,12 +323,25 @@ def build_referee_profiles_for_league(
         acc["reds"] += card_data["total_reds"]
         acc["matches"] += 1
 
+        # Build fixture detail row (snapshot of referee running averages computed later)
+        if fixture_id is not None:
+            fixture_detail_rows.append({
+                "fixture_id": fixture_id,
+                "league": league,
+                "season": season,
+                "referee_name": ref_name,
+                "total_cards": card_data["total_cards"],
+                "total_yellows": card_data["total_yellows"],
+                "total_reds": card_data["total_reds"],
+                "total_fouls": card_data["total_fouls"],
+            })
+
     if card_map_by_id:
         # Primary path: match by fixture_id (EPL and leagues with fixture_id)
         for fid, (ref_name, ref_country) in fixture_ref_by_id.items():
             card_data = card_map_by_id.get(fid)
             if card_data is not None:
-                _accum_match(ref_name, ref_country, card_data)
+                _accum_match(ref_name, ref_country, card_data, fixture_id=fid)
     else:
         # Fallback path: match by team names (LaLiga, Bundesliga, Ligue1, etc.)
         for name_key, ref_list in fixture_ref_by_name.items():
@@ -346,7 +363,72 @@ def build_referee_profiles_for_league(
     for fid, (ref_name, _country) in fixture_ref_by_id.items():
         fx_ref_map[int(fid)] = ref_name
 
-    return ref_accum, league_avg, matched, fx_ref_map
+    return ref_accum, league_avg, matched, fx_ref_map, fixture_detail_rows
+
+
+def _dedup_referee_names(merged: Dict[str, dict]) -> Tuple[Dict[str, dict], Dict[str, str]]:
+    """Merge referee name variants that share (first_initial, last_name).
+
+    API-Football returns "M. Oliver" for European competitions and
+    "Michael Oliver" for domestic leagues.  This merges them under the
+    longest (most complete) name variant.
+
+    Returns (deduped_merged, remap) where remap maps old names → canonical name.
+    """
+    from collections import defaultdict
+
+    # Group by (first_initial, last_name)
+    groups: Dict[Tuple[str, str], List[str]] = defaultdict(list)
+    for name in merged:
+        parts = name.split()
+        if len(parts) < 2:
+            groups[("", name)].append(name)
+            continue
+        initial = parts[0].rstrip(".")[:1]
+        last = parts[-1]
+        groups[(initial, last)].append(name)
+
+    deduped: Dict[str, dict] = {}
+    remap: Dict[str, str] = {}
+
+    for (_initial, _last), names in groups.items():
+        if len(names) == 1:
+            canonical = names[0]
+            deduped[canonical] = merged[canonical]
+            remap[canonical] = canonical
+            continue
+
+        # Pick canonical: longest name (prefer full name over abbreviated)
+        canonical = max(names, key=len)
+
+        # Merge all entries into canonical
+        combined = {
+            "name": canonical,
+            "country": None,
+            "leagues": set(),
+            "cards": 0, "fouls": 0, "yellows": 0, "reds": 0,
+            "matches": 0,
+        }
+        for n in names:
+            m = merged[n]
+            combined["leagues"] |= m["leagues"]
+            combined["cards"] += m["cards"]
+            combined["fouls"] += m["fouls"]
+            combined["yellows"] += m["yellows"]
+            combined["reds"] += m["reds"]
+            combined["matches"] += m["matches"]
+            if m.get("country") and not combined["country"]:
+                combined["country"] = m["country"]
+            remap[n] = canonical
+
+        deduped[canonical] = combined
+
+    n_merged = len(merged) - len(deduped)
+    if n_merged > 0:
+        print(f"  [dedup] Merged {n_merged} duplicate referee entries "
+              f"({len(merged)} → {len(deduped)} unique referees)")
+
+    return deduped, remap
 
 
 def build_all_referee_profiles(
@@ -363,11 +445,13 @@ def build_all_referee_profiles(
     all_matches_total = 0
 
     all_fixture_ref_map: Dict[int, str] = {}  # fixture_id → referee_name
+    all_fixture_detail_rows: List[dict] = []   # per-fixture detail rows
 
     for lg in leagues:
         print(f"Building referee profiles for {lg}...")
-        accum, _lg_avg, _matched, fx_map = build_referee_profiles_for_league(lg, season)
+        accum, _lg_avg, _matched, fx_map, fx_detail = build_referee_profiles_for_league(lg, season)
         all_fixture_ref_map.update(fx_map)
+        all_fixture_detail_rows.extend(fx_detail)
         for ref_name, data in accum.items():
             if ref_name not in merged:
                 merged[ref_name] = {
@@ -389,6 +473,13 @@ def build_all_referee_profiles(
 
         all_cards_total += sum(d["cards"] for d in accum.values())
         all_matches_total += sum(d["matches"] for d in accum.values())
+
+    # --- Dedup: merge name variants (e.g. "m. oliver" + "michael oliver") ---
+    merged, name_remap = _dedup_referee_names(merged)
+    # Update fixture detail rows and fixture_ref_map to use canonical names
+    for row in all_fixture_detail_rows:
+        row["referee_name"] = name_remap.get(row.get("referee_name", ""), row.get("referee_name", ""))
+    all_fixture_ref_map = {k: name_remap.get(v, v) for k, v in all_fixture_ref_map.items()}
 
     global_avg = all_cards_total / all_matches_total if all_matches_total > 0 else 4.0
     today_str = date.today().isoformat()
@@ -427,7 +518,47 @@ def build_all_referee_profiles(
     fx_map_path.write_text(json.dumps(fx_map_serializable, indent=2))
     print(f"Saved {len(all_fixture_ref_map)} fixture→referee mappings to {fx_map_path}")
 
+    # Enrich fixture detail rows with referee profile stats and save
+    _save_fixture_referee_detail(all_fixture_detail_rows, profiles)
+
     return profiles
+
+
+def _save_fixture_referee_detail(
+    detail_rows: List[dict],
+    profiles: Dict[str, "RefereeProfile"],
+) -> None:
+    """Enrich per-fixture rows with referee profile stats and persist.
+
+    Each row gets: avg_cards_per_match, avg_yellows_per_match, avg_reds_per_match,
+    avg_fouls_per_match, cards_per_foul, strictness_ratio, sample_size.
+    """
+    enriched: List[dict] = []
+    for row in detail_rows:
+        ref_name = row.get("referee_name", "")
+        prof = profiles.get(ref_name)
+        enriched_row = dict(row)
+        if prof:
+            enriched_row["avg_cards_per_match"] = prof.avg_cards_per_match
+            enriched_row["avg_yellows_per_match"] = prof.avg_yellows_per_match
+            enriched_row["avg_reds_per_match"] = prof.avg_reds_per_match
+            enriched_row["avg_fouls_per_match"] = prof.avg_fouls_per_match
+            enriched_row["cards_per_foul"] = prof.cards_per_foul
+            enriched_row["strictness_ratio"] = prof.strictness_ratio
+            enriched_row["sample_size"] = prof.total_matches
+        else:
+            enriched_row["avg_cards_per_match"] = 0.0
+            enriched_row["avg_yellows_per_match"] = 0.0
+            enriched_row["avg_reds_per_match"] = 0.0
+            enriched_row["avg_fouls_per_match"] = 0.0
+            enriched_row["cards_per_foul"] = 0.0
+            enriched_row["strictness_ratio"] = 1.0
+            enriched_row["sample_size"] = 0
+        enriched.append(enriched_row)
+
+    FIXTURE_REFEREE_DETAIL_PATH.parent.mkdir(parents=True, exist_ok=True)
+    FIXTURE_REFEREE_DETAIL_PATH.write_text(json.dumps(enriched, indent=2))
+    print(f"Saved {len(enriched)} fixture-referee detail rows to {FIXTURE_REFEREE_DETAIL_PATH}")
 
 
 # ---------------------------------------------------------------------------
@@ -453,6 +584,52 @@ def load_profiles(path: Path = PROFILES_PATH) -> Dict[str, RefereeProfile]:
     except Exception as exc:
         print(f"[referee_data] Failed to load profiles: {exc}")
         return {}
+
+
+# ---------------------------------------------------------------------------
+# Historical fixture-level referee lookup (for backtests)
+# ---------------------------------------------------------------------------
+
+_fixture_referee_detail_cache: Optional[Dict[int, dict]] = None
+
+
+def load_fixture_referee_detail() -> Dict[int, dict]:
+    """Load fixture_referee_detail.json and return {fixture_id: detail_row}.
+
+    Used by backtests to look up the referee profile that was active at match time.
+    """
+    global _fixture_referee_detail_cache
+    if _fixture_referee_detail_cache is not None:
+        return _fixture_referee_detail_cache
+
+    if not FIXTURE_REFEREE_DETAIL_PATH.exists():
+        _fixture_referee_detail_cache = {}
+        return _fixture_referee_detail_cache
+
+    try:
+        rows = json.loads(FIXTURE_REFEREE_DETAIL_PATH.read_text())
+        by_id: Dict[int, dict] = {}
+        for row in rows:
+            fid = row.get("fixture_id")
+            if fid is not None:
+                by_id[int(fid)] = row
+        _fixture_referee_detail_cache = by_id
+        return by_id
+    except Exception as exc:
+        print(f"[referee_data] Failed to load fixture referee detail: {exc}")
+        _fixture_referee_detail_cache = {}
+        return _fixture_referee_detail_cache
+
+
+def get_fixture_referee_detail(fixture_id: int) -> Optional[dict]:
+    """Look up historical referee data for a specific fixture.
+
+    Returns dict with: fixture_id, league, season, referee_name,
+    avg_cards_per_match, avg_yellows_per_match, avg_reds_per_match,
+    avg_fouls_per_match, cards_per_foul, strictness_ratio, sample_size.
+    """
+    detail = load_fixture_referee_detail()
+    return detail.get(int(fixture_id))
 
 
 # ---------------------------------------------------------------------------

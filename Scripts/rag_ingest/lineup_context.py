@@ -60,6 +60,23 @@ _CONTRIBUTION_CACHE_TTL = 900  # 15 minutes
 # ---------------------------------------------------------------------------
 
 @dataclass
+class CardRiskProfile:
+    """Expected-XI card-risk summary for one team.
+
+    Built from player_profile metadata (starter_cards_per_90, starter_fouls_per_90,
+    minutes_risk, recent_role_trend, position) so it works before confirmed lineups.
+    """
+    team_starter_cards_per_90: float = 0.0    # sum of starter cards_per_90 (expected XI)
+    team_starter_fouls_per_90: float = 0.0    # sum of starter fouls_per_90
+    high_card_risk_players: int = 0           # starters with cards_per_90 >= 0.25
+    high_foul_players: int = 0                # starters with fouls_per_90 >= 1.5
+    position_risk_score: float = 0.0          # positional card-risk score (DM/CB/FB weighted)
+    minutes_risk_factor: float = 1.0          # 1.0 = normal, <1 = rotation risk
+    evidence_lines: List[str] = field(default_factory=list)
+    n_players: int = 0                        # number of player profiles evaluated
+
+
+@dataclass
 class LineupContext:
     """Lineup-aware adjustment context for a fixture."""
     home_starters: List[str] = field(default_factory=list)
@@ -74,6 +91,9 @@ class LineupContext:
     away_missing_key: List[str] = field(default_factory=list)
     source: str = "unavailable"    # "lineups" or "unavailable"
     is_available: bool = False
+    # Card-risk profiles (available even when lineups are not confirmed)
+    home_card_risk: Optional["CardRiskProfile"] = None
+    away_card_risk: Optional["CardRiskProfile"] = None
 
 
 # ---------------------------------------------------------------------------
@@ -587,6 +607,13 @@ def get_lineup_context(
     ctx.home_missing_key = home_missing
     ctx.away_missing_key = away_missing
 
+    # Compute card risk profiles (works even without confirmed lineups)
+    try:
+        ctx.home_card_risk = compute_card_risk_profile(home, league, home_shares)
+        ctx.away_card_risk = compute_card_risk_profile(away, league, away_shares)
+    except Exception as exc:
+        log.warning("Card risk computation failed: %s", exc)
+
     _lineup_cache[cache_key] = (time.time(), ctx)
 
     log.info(
@@ -640,3 +667,179 @@ def lineup_evidence_line(ctx: LineupContext) -> Optional[str]:
         return None
 
     return "Lineup adj: " + " | ".join(parts) + "."
+
+
+# ---------------------------------------------------------------------------
+# Card-risk profiling (works before confirmed lineups)
+# ---------------------------------------------------------------------------
+
+# Position weights for card risk: defensive midfielders, centre-backs, full-backs
+# get more cards on average than attackers or goalkeepers
+_POSITION_CARD_WEIGHTS = {
+    "Goalkeeper": 0.02,
+    "Defender": 0.18,       # CB/FB blended
+    "Midfielder": 0.22,     # DM/CM/AM blended
+    "Attacker": 0.10,
+}
+
+
+def _safe_float(val, default: float = 0.0) -> float:
+    if val is None:
+        return default
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return default
+
+
+def compute_card_risk_profile(
+    team: str,
+    league: str,
+    contribution_shares: Optional[Dict[str, Dict[str, float]]] = None,
+) -> CardRiskProfile:
+    """Build an expected-XI card-risk profile from player_profile metadata.
+
+    Uses starter_cards_per_90, starter_fouls_per_90, minutes_risk,
+    recent_role_trend, and position — all available in player_profile docs.
+    Works before confirmed lineups (uses likely starters based on minutes).
+    """
+    profile = CardRiskProfile()
+
+    try:
+        col = _get_chroma_collection()
+    except Exception as exc:
+        log.warning("Chroma unavailable for card risk profile: %s", exc)
+        return profile
+
+    # Fetch player profiles for this team
+    variants = _team_variants(team)
+    player_rows: List[Dict] = []
+
+    for tv in variants:
+        where = _build_where(league, [
+            {"doc_type": "player_profile"},
+            {"team": tv},
+        ])
+        try:
+            res = col.get(where=where, include=["metadatas"], limit=40)
+        except Exception:
+            continue
+        for m in (res.get("metadatas") or []):
+            if m:
+                player_rows.append(m)
+        if player_rows:
+            break
+
+    if not player_rows:
+        return profile
+
+    # Deduplicate by player_id
+    seen_ids = set()
+    unique_rows: List[Dict] = []
+    for row in player_rows:
+        pid = row.get("player_id")
+        if pid and pid in seen_ids:
+            continue
+        if pid:
+            seen_ids.add(pid)
+        unique_rows.append(row)
+
+    # Identify likely starters: sort by minutes_risk (or total_minutes) descending,
+    # take top 11 outfield + GK
+    def _sort_key(row):
+        mr = _safe_float(row.get("minutes_risk"), 0.0)
+        tm = _safe_float(row.get("total_minutes"), 0.0)
+        return (mr, tm)
+
+    unique_rows.sort(key=_sort_key, reverse=True)
+    likely_starters = unique_rows[:11]  # top 11 by playing time
+
+    total_cards_90 = 0.0
+    total_fouls_90 = 0.0
+    high_card_risk = 0
+    high_foul = 0
+    position_risk = 0.0
+    minutes_risk_sum = 0.0
+    minutes_risk_count = 0
+    evidence_parts: List[str] = []
+
+    for row in likely_starters:
+        pname = row.get("player_name", "Unknown")
+        pos = row.get("position", "")
+        cards_90 = _safe_float(row.get("starter_cards_per_90") or row.get("cards_per_90"), 0.0)
+        fouls_90 = _safe_float(row.get("starter_fouls_per_90"), 0.0)
+        mr = _safe_float(row.get("minutes_risk"), 1.0)
+
+        total_cards_90 += cards_90
+        total_fouls_90 += fouls_90
+
+        if cards_90 >= 0.25:
+            high_card_risk += 1
+            evidence_parts.append(f"{pname} ({pos}): {cards_90:.2f} cards/90")
+
+        if fouls_90 >= 1.5:
+            high_foul += 1
+
+        # Position risk score
+        pos_w = _POSITION_CARD_WEIGHTS.get(pos, 0.12)
+        position_risk += pos_w * cards_90
+
+        if mr > 0:
+            minutes_risk_sum += mr
+            minutes_risk_count += 1
+
+    profile.team_starter_cards_per_90 = round(total_cards_90, 3)
+    profile.team_starter_fouls_per_90 = round(total_fouls_90, 3)
+    profile.high_card_risk_players = high_card_risk
+    profile.high_foul_players = high_foul
+    profile.position_risk_score = round(position_risk, 3)
+    profile.minutes_risk_factor = round(
+        minutes_risk_sum / minutes_risk_count if minutes_risk_count > 0 else 1.0, 3
+    )
+    profile.n_players = len(likely_starters)
+
+    if evidence_parts:
+        profile.evidence_lines = [f"High-card starters: {'; '.join(evidence_parts[:3])}"]
+    if high_card_risk >= 3:
+        profile.evidence_lines.append(f"{high_card_risk} starters with cards/90 >= 0.25")
+
+    return profile
+
+
+def get_card_risk_profiles(
+    home: str,
+    away: str,
+    league: str,
+) -> Tuple[CardRiskProfile, CardRiskProfile]:
+    """Get card-risk profiles for both teams (no API call needed).
+
+    Works before confirmed lineups by using player_profile metadata
+    to estimate expected-XI card risk.
+    """
+    try:
+        home_risk = compute_card_risk_profile(home, league)
+    except Exception:
+        home_risk = CardRiskProfile()
+    try:
+        away_risk = compute_card_risk_profile(away, league)
+    except Exception:
+        away_risk = CardRiskProfile()
+    return home_risk, away_risk
+
+
+def card_risk_evidence_line(ctx: "LineupContext") -> Optional[str]:
+    """Generate card-risk evidence line from lineup context."""
+    parts: List[str] = []
+
+    for side, risk in [("Home", ctx.home_card_risk), ("Away", ctx.away_card_risk)]:
+        if risk is None or risk.n_players == 0:
+            continue
+        if risk.high_card_risk_players >= 2:
+            parts.append(
+                f"{side}: {risk.high_card_risk_players} high-card-risk starters "
+                f"({risk.team_starter_cards_per_90:.2f} cards/90 total)"
+            )
+
+    if not parts:
+        return None
+    return "Card risk: " + " | ".join(parts) + "."

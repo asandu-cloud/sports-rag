@@ -25,6 +25,7 @@ try:
         projected_goal_difference,
         projected_moneyline_probs,
         projected_total_cards,
+        projected_total_cards_detail,
         projected_total_corners,
         projected_total_goals,
         projected_total_sot,
@@ -303,7 +304,16 @@ def leg_evidence(leg: Any, league: str) -> List[str]:
         if h_recent_sot is not None and a_recent_sot is not None:
             lines.append(f"Recent 6-match SoT: {getattr(leg, 'home_team', '')} {h_recent_sot:.2f}, {getattr(leg, 'away_team', '')} {a_recent_sot:.2f}.")
     elif g == "cards":
-        cards_total, _, _, cards_ref_mod = projected_total_cards(getattr(leg, "home_team", ""), getattr(leg, "away_team", ""), league)
+        # Use detail helper for richer evidence
+        try:
+            detail = projected_total_cards_detail(getattr(leg, "home_team", ""), getattr(leg, "away_team", ""), league)
+        except Exception:
+            detail = None
+        if detail is None:
+            cards_total, _, _, cards_ref_mod = projected_total_cards(getattr(leg, "home_team", ""), getattr(leg, "away_team", ""), league)
+        else:
+            cards_total = detail.get("total_cards")
+            cards_ref_mod = detail.get("referee_modifier")
         if cards_total is not None:
             lines.append(f"Projected combined cards: {cards_total:.2f}.")
             if getattr(leg, "point", None) is not None:
@@ -312,6 +322,15 @@ def leg_evidence(leg: Any, league: str) -> List[str]:
                     lines.append(f"Line fit: projected {cards_total:.2f} vs over {getattr(leg, 'point'):g}.")
                 elif "under" in direction:
                     lines.append(f"Line fit: projected {cards_total:.2f} vs under {getattr(leg, 'point'):g}.")
+            # Yellow/red split from detail
+            if detail:
+                t_y = detail.get("total_yellows")
+                t_r = detail.get("total_reds")
+                if t_y is not None and t_r is not None:
+                    lines.append(f"Split: ~{t_y:.2f} yellows + ~{t_r:.2f} reds.")
+                conf = detail.get("confidence_bucket", "low")
+                if conf == "low":
+                    lines.append("Cards confidence: low — higher uncertainty in projection.")
         h_cards, a_cards = v(hm, "cards_per_90_team"), v(am, "cards_per_90_team")
         if h_cards is not None and a_cards is not None:
             lines.append(f"Cards/90: {getattr(leg, 'home_team', '')} {h_cards:.2f}, {getattr(leg, 'away_team', '')} {a_cards:.2f}.")
@@ -321,7 +340,8 @@ def leg_evidence(leg: Any, league: str) -> List[str]:
                 direction_word = "stricter" if getattr(cards_ref_mod, "multiplier", 1.0) > 1.0 else "more lenient"
                 lines.append(
                     f"Referee: {str(getattr(cards_ref_mod, 'referee_name', '')).title()} is {direction_word} than average "
-                    f"({float(getattr(cards_ref_mod, 'strictness_ratio', 1.0)):.2f}x)."
+                    f"({float(getattr(cards_ref_mod, 'strictness_ratio', 1.0)):.2f}x, "
+                    f"{getattr(cards_ref_mod, 'confidence', 0):.0%} confidence)."
                 )
         h_recent_cards, a_recent_cards = hr.get("cards_avg"), ar.get("cards_avg")
         if h_recent_cards is not None and a_recent_cards is not None:

@@ -4529,17 +4529,29 @@ def projected_total_corners(home: str, away: str, league: str, knockout_ctx: Opt
     return blended, season_total, recent_total
 
 
-def projected_total_cards(
+def projected_total_cards_detail(
     home: str,
     away: str,
     league: str,
     knockout_ctx: Optional[KnockoutContext] = None,
     ref_mod: Optional[RefereeModifier] = None,
-) -> Tuple[Optional[float], Optional[float], Optional[float], RefereeModifier]:
+    lineup_ctx=None,
+) -> Dict:
+    """Rich cards projection — mirrors core.projections.projected_total_cards_detail().
+
+    Returns dict with: total_cards, total_yellows, total_reds, season_total,
+    recent_total, referee_modifier, lineup_card_context, uncertainty,
+    confidence_bucket, warnings.
+    """
     pw = SCORING_WEIGHTS["projection"]
     rw = SCORING_WEIGHTS["referee"]
+    ctm = SCORING_WEIGHTS.get("cards_total_model", {})
+    cyr = SCORING_WEIGHTS.get("cards_yellow_red_split", {})
+    ccf = SCORING_WEIGHTS.get("cards_confidence", {})
     hm = _profile_meta(home, league)
     am = _profile_meta(away, league)
+
+    warnings: list = []
 
     if ref_mod is None:
         ref_mod = get_referee_modifier(home, away, league,
@@ -4551,11 +4563,29 @@ def projected_total_cards(
 
     hr = _recent_stats(home, league, last_n=6)
     ar = _recent_stats(away, league, last_n=6)
+
+    # Yellow/red split from profiles
+    h_yellows_pm = safe_float((hm or {}).get("yellows_pm"))
+    a_yellows_pm = safe_float((am or {}).get("yellows_pm"))
+    h_reds_pm = safe_float((hm or {}).get("reds_pm"))
+    a_reds_pm = safe_float((am or {}).get("reds_pm"))
+    season_yellows = (h_yellows_pm + a_yellows_pm) if (h_yellows_pm is not None and a_yellows_pm is not None) else None
+    season_reds = (h_reds_pm + a_reds_pm) if (h_reds_pm is not None and a_reds_pm is not None) else None
+
+    # Recent yellow/red averages
+    recent_yellows = None
+    recent_reds = None
+    h_ry, a_ry = hr.get("yellows_avg"), ar.get("yellows_avg")
+    h_rr, a_rr = hr.get("reds_avg"), ar.get("reds_avg")
+    if h_ry is not None and a_ry is not None:
+        recent_yellows = h_ry + a_ry
+    if h_rr is not None and a_rr is not None:
+        recent_reds = h_rr + a_rr
+
     h_recent_cards = hr.get("cards_avg")
     a_recent_cards = ar.get("cards_avg")
     h_recent_opp_induced = ar.get("cards_induced_avg")
     a_recent_opp_induced = hr.get("cards_induced_avg")
-    # Blend each team's recent cards with opponent's recent card-inducing tendency
     if h_recent_cards is not None and a_recent_cards is not None:
         h_recent_proj = 0.6 * h_recent_cards + 0.4 * (
             h_recent_opp_induced if h_recent_opp_induced is not None else a_recent_cards
@@ -4568,12 +4598,10 @@ def projected_total_cards(
         recent_total = None
 
     if season_total is not None and recent_total is not None:
-        # Dynamic blend: increase recent weight when form diverges from season avg
         base_season_w, base_recent_w = _stat_blend("cards")
         divergence = abs(recent_total - season_total) / max(season_total, 1.0)
-        # When divergence > 20%, shift blend toward recent (up to 60/40)
         if divergence > 0.20:
-            shift = min(0.30, (divergence - 0.20) * 1.0)  # max 30% shift
+            shift = min(0.30, (divergence - 0.20) * 1.0)
             blend_season = base_season_w - shift
             blend_recent = base_recent_w + shift
         else:
@@ -4585,20 +4613,36 @@ def projected_total_cards(
     elif recent_total is not None:
         blended = recent_total
     else:
-        return None, None, None, ref_mod
+        return {
+            "total_cards": None, "total_yellows": None, "total_reds": None,
+            "season_total": None, "recent_total": None,
+            "referee_modifier": ref_mod, "lineup_card_context": None,
+            "uncertainty": 999.0, "confidence_bucket": "low", "warnings": ["insufficient data"],
+        }
 
     # Trend adjustment
     blended += _trend_adjustment(hr, ar, "cards_slope")
 
-    # Referee anchor: blend the referee's own avg cards/match into the projection.
-    # This gives the referee direct influence beyond the multiplicative modifier,
-    # especially for strict/lenient refs with enough sample.
+    # Red-card adjustment
+    reds_base = ctm.get("reds_base_rate", 0.18)
+    reds_cap = ctm.get("reds_cap", 0.60)
+    if season_reds is not None and recent_reds is not None:
+        reds_est = 0.70 * season_reds + 0.30 * recent_reds
+    elif season_reds is not None:
+        reds_est = season_reds
+    elif recent_reds is not None:
+        reds_est = recent_reds
+    else:
+        reds_est = reds_base
+    reds_est = min(reds_est, reds_cap)
+
+    # Referee anchor
     if (ref_mod.source == "profile" and ref_mod.avg_cards_per_match > 0
             and ref_mod.sample_size >= rw.get("min_sample_size", 5)):
         ref_anchor_w = rw.get("anchor_weight", 0.15) * ref_mod.confidence
         blended = (1.0 - ref_anchor_w) * blended + ref_anchor_w * ref_mod.avg_cards_per_match
 
-    # Foul-based card estimate: predicted_fouls × referee cards_per_foul
+    # Foul-based card estimate
     cpf = ref_mod.cards_per_foul if ref_mod.source == "profile" else 0.0
     if cpf > 0 and ref_mod.sample_size >= rw.get("min_sample_size", 5):
         pc = SCORING_WEIGHTS["projection_cards"]
@@ -4617,6 +4661,36 @@ def projected_total_cards(
             foul_w = pc.get("foul_card_blend", 0.15) * ref_mod.confidence
             blended = (1.0 - foul_w) * blended + foul_w * foul_based_total
 
+    # Recent induced-card component
+    induced_w = ctm.get("induced_weight", 0.12)
+    if induced_w > 0 and h_recent_opp_induced is not None and a_recent_opp_induced is not None:
+        induced_signal = h_recent_opp_induced + a_recent_opp_induced
+        blended = (1.0 - induced_w) * blended + induced_w * induced_signal
+
+    # Lineup card-risk component
+    lineup_card_context = None
+    lineup_risk_w = ctm.get("lineup_risk_weight", 0.08)
+    lineup_risk_cap = ctm.get("lineup_risk_cap", 0.25)
+    if lineup_ctx is not None:
+        h_risk = getattr(lineup_ctx, "home_card_risk", None)
+        a_risk = getattr(lineup_ctx, "away_card_risk", None)
+        if h_risk and a_risk and (getattr(h_risk, "n_players", 0) > 0 or getattr(a_risk, "n_players", 0) > 0):
+            combined_risk_90 = (
+                getattr(h_risk, "team_starter_cards_per_90", 0.0) +
+                getattr(a_risk, "team_starter_cards_per_90", 0.0)
+            )
+            lineup_card_context = {
+                "home_cards_per_90": getattr(h_risk, "team_starter_cards_per_90", 0.0),
+                "away_cards_per_90": getattr(a_risk, "team_starter_cards_per_90", 0.0),
+                "home_high_risk": getattr(h_risk, "high_card_risk_players", 0),
+                "away_high_risk": getattr(a_risk, "high_card_risk_players", 0),
+                "combined_risk_90": combined_risk_90,
+            }
+            if combined_risk_90 > 0:
+                risk_delta = combined_risk_90 - blended
+                adj = max(-lineup_risk_cap, min(lineup_risk_cap, lineup_risk_w * risk_delta))
+                blended += adj
+
     # ML blend
     ml_w = _ml_blend_weight("cards")
     if ml_w > 0:
@@ -4628,7 +4702,67 @@ def projected_total_cards(
     if knockout_ctx and knockout_ctx.is_knockout and knockout_ctx.cards_modifier != 1.0:
         blended *= knockout_ctx.cards_modifier
 
-    return blended, season_total, recent_total, ref_mod
+    # Yellow/red split from final total
+    if season_yellows is not None and season_total is not None and season_total > 0:
+        yellow_ratio = season_yellows / season_total
+    else:
+        yellow_ratio = cyr.get("default_yellow_ratio", 0.92)
+    yellow_ratio = max(cyr.get("min_yellow_ratio", 0.80),
+                       min(cyr.get("max_yellow_ratio", 0.98), yellow_ratio))
+    total_yellows = blended * yellow_ratio
+    total_reds = blended * (1.0 - yellow_ratio)
+
+    # Uncertainty & confidence
+    uncertainty = ccf.get("uncertainty_base", 0.8)
+    if ref_mod.source != "profile":
+        uncertainty += ccf.get("uncertainty_no_referee", 0.3)
+        warnings.append("No referee assigned — cards projection has higher uncertainty")
+    if lineup_card_context is None:
+        uncertainty += ccf.get("uncertainty_no_lineup", 0.1)
+    n_home = hr.get("n", 0)
+    n_away = ar.get("n", 0)
+    if n_home < 10 or n_away < 10:
+        uncertainty += ccf.get("uncertainty_low_sample", 0.2)
+        warnings.append("Low sample size for one or both teams")
+
+    ref_conf = ref_mod.confidence if ref_mod.source == "profile" else 0.0
+    if ref_conf >= ccf.get("referee_high_confidence", 0.70) and n_home >= 5 and n_away >= 5:
+        confidence_bucket = "high"
+    elif ref_conf >= ccf.get("referee_medium_confidence", 0.35) or (n_home >= 5 and n_away >= 5):
+        confidence_bucket = "medium"
+    else:
+        confidence_bucket = "low"
+
+    return {
+        "total_cards": round(blended, 3),
+        "total_yellows": round(total_yellows, 3),
+        "total_reds": round(total_reds, 3),
+        "season_total": round(season_total, 3) if season_total is not None else None,
+        "recent_total": round(recent_total, 3) if recent_total is not None else None,
+        "referee_modifier": ref_mod,
+        "lineup_card_context": lineup_card_context,
+        "uncertainty": round(uncertainty, 3),
+        "confidence_bucket": confidence_bucket,
+        "warnings": warnings,
+    }
+
+
+def projected_total_cards(
+    home: str,
+    away: str,
+    league: str,
+    knockout_ctx: Optional[KnockoutContext] = None,
+    ref_mod: Optional[RefereeModifier] = None,
+) -> Tuple[Optional[float], Optional[float], Optional[float], RefereeModifier]:
+    """Backward-compatible wrapper — returns (blended, season_total, recent_total, ref_mod)."""
+    detail = projected_total_cards_detail(home, away, league,
+                                          knockout_ctx=knockout_ctx, ref_mod=ref_mod)
+    return (
+        detail["total_cards"],
+        detail["season_total"],
+        detail["recent_total"],
+        detail["referee_modifier"],
+    )
 
 
 # ---- Per-team blended projections (for team totals lines) ----
@@ -4717,6 +4851,7 @@ def projected_team_cards(
     cdw = tlw.get("cards_direct", {})
     cow = tlw.get("cards_output", {})
     csw = tlw.get("cards_share", {})
+    csm = SCORING_WEIGHTS.get("cards_share_model", {})
     hm = _profile_meta(team if is_home else opponent, league)
     am = _profile_meta(opponent if is_home else team, league)
     team_meta = hm if is_home else am
@@ -4819,9 +4954,13 @@ def projected_team_cards(
 
     season_proj = season_total * season_share if (season_total is not None and season_share is not None) else season_direct
     recent_proj = recent_total * recent_share if (recent_total is not None and recent_share is not None) else recent_direct
+
+    # Use cards_share_model weights if available, fall back to cards_output
+    match_anchor_w = csm.get("match_anchor_weight", cow.get("share_weight", 0.50))
+    stabilizer_w = csm.get("direct_stabilizer_weight", cow.get("stabilizer_weight", 0.50))
     blended = _weighted_component_blend([
-        (share_anchor, cow.get("share_weight", 0.50)),
-        (stabilizer, cow.get("stabilizer_weight", 0.50)),
+        (share_anchor, match_anchor_w),
+        (stabilizer, stabilizer_w),
     ])
     if blended is None:
         return None, None, None

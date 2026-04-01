@@ -110,6 +110,10 @@ def main():
         help="Run 01_embed_and_upsert.py --all-leagues --skip-existing after normalization."
     )
     parser.add_argument(
+        "--build-referees", action="store_true",
+        help="Rebuild referee profiles + fixture-referee detail (after feature engineering, before normalize)."
+    )
+    parser.add_argument(
         "--retrain-ml", action="store_true",
         help="Retrain ML models (Elo + regression) after normalize/embed."
     )
@@ -138,6 +142,16 @@ def main():
 
                 # Stage 2: Feature engineering
                 run_script(scripts["feature_eng"], season, f"{lg} feature engineering")
+
+    # Stage 2.5: Build referee profiles + fixture-referee detail
+    if args.build_referees:
+        print(f"\n{'='*60}")
+        print("BUILDING REFEREE PROFILES + FIXTURE DETAIL")
+        print(f"{'='*60}")
+        ref_script = ROOT / "Scripts" / "rag_ingest" / "referee_data.py"
+        cmd = [sys.executable, str(ref_script), "--build"]
+        print(f"  [RUN] {' '.join(cmd)}")
+        subprocess.run(cmd, cwd=str(ROOT))
 
     # Stage 3: Normalize (incremental when single season, full when multiple)
     if args.normalize:

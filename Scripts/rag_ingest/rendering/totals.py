@@ -28,25 +28,31 @@ except ImportError:
 try:
     from core.projections import (
         projected_total_goals, projected_total_corners, projected_total_cards,
-        projected_total_sot,
+        projected_total_sot, projected_total_cards_detail,
     )
 except ImportError:
     try:
         from Scripts.rag_ingest.core.projections import (
             projected_total_goals, projected_total_corners, projected_total_cards,
-            projected_total_sot,
+            projected_total_sot, projected_total_cards_detail,
         )
     except ImportError:
         try:
             from rag_cli_v2 import (
                 projected_total_goals, projected_total_corners, projected_total_cards,
-                projected_total_sot,
+                projected_total_sot, projected_total_cards_detail,
             )
         except ImportError:
             def projected_total_goals(*a, **kw): return (None, None, None)
             def projected_total_corners(*a, **kw): return (None, None, None)
             def projected_total_cards(*a, **kw): return (None, None, None, None)
             def projected_total_sot(*a, **kw): return (None, None, None)
+            def projected_total_cards_detail(*a, **kw): return {
+                "total_cards": None, "total_yellows": None, "total_reds": None,
+                "season_total": None, "recent_total": None, "referee_modifier": None,
+                "lineup_card_context": None, "uncertainty": 999.0,
+                "confidence_bucket": "low", "warnings": [],
+            }
 
 try:
     from core.odds_extraction import extract_total_line_options, extract_goal_interval_odds
@@ -194,6 +200,7 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
                 ko_ctx = None
 
         _cards_ref_mod = None
+        _cards_detail = None
         if group == "goals":
             proj_total, season_total, recent_total = projected_total_goals(home, away, league, knockout_ctx=ko_ctx)
         elif group == "corners":
@@ -201,7 +208,11 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
         elif group == "sot":
             proj_total, season_total, recent_total = projected_total_sot(home, away, league, knockout_ctx=ko_ctx)
         else:
-            proj_total, season_total, recent_total, _cards_ref_mod = projected_total_cards(home, away, league, knockout_ctx=ko_ctx)
+            _cards_detail = projected_total_cards_detail(home, away, league, knockout_ctx=ko_ctx)
+            proj_total = _cards_detail.get("total_cards")
+            season_total = _cards_detail.get("season_total")
+            recent_total = _cards_detail.get("recent_total")
+            _cards_ref_mod = _cards_detail.get("referee_modifier")
 
         if proj_total is None:
             lines.append(f"- {fixture}: insufficient profile data to project totals.")
@@ -235,22 +246,30 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
         if recent_total is not None:
             lines.append(f"  Recent 6-match: {recent_total:.2f}.")
 
-        # Referee profile for cards totals
-        if group == "cards":
+        # Referee profile and card detail for cards totals
+        if group == "cards" and _cards_detail:
+            # Yellow/red split
+            t_yellows = _cards_detail.get("total_yellows")
+            t_reds = _cards_detail.get("total_reds")
+            if t_yellows is not None and t_reds is not None:
+                lines.append(f"  Yellow/red split: ~{t_yellows:.2f} yellows + ~{t_reds:.2f} reds.")
+
             if _cards_ref_mod and _cards_ref_mod.source == "profile":
                 ref_name = (_cards_ref_mod.referee_name or "Unknown").title()
                 ref_avg = _cards_ref_mod.avg_cards_per_match
                 ref_strict = _cards_ref_mod.strictness_ratio
                 ref_n = _cards_ref_mod.sample_size
+                ref_conf = _cards_ref_mod.confidence
                 if ref_strict >= 1.10:
                     label = "strict"
                 elif ref_strict <= 0.90:
                     label = "lenient"
                 else:
                     label = "average"
+                conf_label = "high" if ref_conf >= 0.70 else ("medium" if ref_conf >= 0.35 else "low")
                 lines.append(
                     f"  Referee: {ref_name} — {ref_avg:.2f} cards/match ({label}, "
-                    f"{ref_strict:.2f}x league avg, {ref_n} matches)."
+                    f"{ref_strict:.2f}x league avg, {ref_n} matches, {conf_label} confidence)."
                 )
                 ref_cpf = _cards_ref_mod.cards_per_foul
                 if ref_cpf > 0:
@@ -260,6 +279,23 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
                     )
             else:
                 lines.append("  Referee: not yet assigned or API-Football key not set.")
+
+            # Lineup card risk
+            lcc = _cards_detail.get("lineup_card_context")
+            if lcc:
+                lines.append(
+                    f"  Lineup card risk: {lcc.get('combined_risk_90', 0):.2f} combined cards/90 "
+                    f"(high-risk starters: {lcc.get('home_high_risk', 0)} home, {lcc.get('away_high_risk', 0)} away)."
+                )
+
+            # Uncertainty and warnings
+            uncertainty = _cards_detail.get("uncertainty", 0)
+            conf_bucket = _cards_detail.get("confidence_bucket", "low")
+            if conf_bucket == "low":
+                lines.append(f"  ⚠ Low confidence (uncertainty: {uncertainty:.2f}). Treat as estimate only.")
+            card_warnings = _cards_detail.get("warnings", [])
+            for w in card_warnings:
+                lines.append(f"  Note: {w}")
 
         if best:
             side = str(best.get("side") or "").title()
@@ -271,8 +307,12 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
             val_edge = best.get("_value_edge")
             ev = best.get("_ev")
             conf = confidence_from_edge(edge, stat_group=group, model_prob=model_p, value_edge_pct=val_edge)
+            # Suppress "Recommended" label for low-confidence cards
+            rec_label = "Recommended"
+            if group == "cards" and _cards_detail and _cards_detail.get("confidence_bucket") == "low":
+                rec_label = "Estimate"
             lines.append(
-                f"  Recommended: {side} {point:g} @ {odds:.2f} ({best.get('bookmaker')}, {best.get('market_key')})."
+                f"  {rec_label}: {side} {point:g} @ {odds:.2f} ({best.get('bookmaker')}, {best.get('market_key')})."
             )
             if model_p is not None and implied_p is not None and val_edge is not None:
                 lines.append(

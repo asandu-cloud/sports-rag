@@ -778,6 +778,8 @@ def get_team_recent_stats(team_name: str, league: str, last_n: int = 6,
     cards_vals = [_numeric(m.get("cards_per_90_team")) for m in metas]
     goals_vals = [_numeric(m.get("xg_for")) for m in metas]
     cards_induced_vals = []
+    yellows_induced_vals = []
+    reds_induced_vals = []
     for m in metas:
         opp = str(m.get("opponent") or "")
         fixture = str(m.get("fixture") or "")
@@ -785,9 +787,40 @@ def get_team_recent_stats(team_name: str, league: str, last_n: int = 6,
         season = str(m.get("season") or "")
         if not opp or not fixture:
             cards_induced_vals.append(None)
+            yellows_induced_vals.append(None)
+            reds_induced_vals.append(None)
             continue
         opp_meta = _get_team_fixture_meta(opp, league, fixture, fixture_date, season=season)
         cards_induced_vals.append(_numeric((opp_meta or {}).get("cards_per_90_team")))
+        yellows_induced_vals.append(_numeric((opp_meta or {}).get("yellow_cards")))
+        reds_induced_vals.append(_numeric((opp_meta or {}).get("red_cards")))
+
+    # Yellow/red card series (use metadata fields added by normalize rebuild;
+    # gracefully degrade to None if not yet available)
+    yellows_vals = [_numeric(m.get("yellow_cards")) for m in metas]
+    reds_vals = [_numeric(m.get("red_cards")) for m in metas]
+    fouls_vals = [_numeric(m.get("fouls_per_90_team")) for m in metas]
+
+    # cards_per_foul per fixture
+    cpf_vals = []
+    for c, f in zip(cards_vals, fouls_vals):
+        if c is not None and f is not None and f > 0:
+            cpf_vals.append(c / f)
+        else:
+            cpf_vals.append(None)
+
+    # fouls_drawn: opponent's fouls committed against this team
+    fouls_drawn_vals = []
+    for m in metas:
+        opp = str(m.get("opponent") or "")
+        fixture = str(m.get("fixture") or "")
+        fixture_date = str(m.get("fixture_date") or "")
+        season_str = str(m.get("season") or "")
+        if not opp or not fixture:
+            fouls_drawn_vals.append(None)
+            continue
+        opp_meta = _get_team_fixture_meta(opp, league, fixture, fixture_date, season=season_str)
+        fouls_drawn_vals.append(_numeric((opp_meta or {}).get("fouls_per_90_team")))
 
     stats = {
         "n": len(metas),
@@ -802,9 +835,16 @@ def get_team_recent_stats(team_name: str, league: str, last_n: int = 6,
         "aggression_avg": _weighted_avg([_numeric(m.get("aggression_index_norm")) for m in metas], alpha),
         "control_avg": _weighted_avg([_numeric(m.get("control_index")) for m in metas], alpha),
         "form_avg": _weighted_avg([_numeric(m.get("form_index_team")) for m in metas], alpha),
-        "fouls_avg": _weighted_avg([_numeric(m.get("fouls_per_90_team")) for m in metas], alpha),
+        "fouls_avg": _weighted_avg(fouls_vals, alpha),
         "possession_avg": _weighted_avg([_numeric(m.get("possession")) for m in metas], alpha),
         "xg_for_avg": _weighted_avg(goals_vals, alpha),
+        # Yellow/red card breakdown
+        "yellows_avg": _weighted_avg(yellows_vals, alpha),
+        "reds_avg": _weighted_avg(reds_vals, alpha),
+        "yellows_induced_avg": _weighted_avg(yellows_induced_vals, alpha),
+        "reds_induced_avg": _weighted_avg(reds_induced_vals, alpha),
+        "cards_per_foul_avg": _weighted_avg(cpf_vals, alpha),
+        "fouls_drawn_avg": _weighted_avg(fouls_drawn_vals, alpha),
         # Trend slopes (positive = improving, units per match)
         "corners_for_slope": _linear_slope(corners_for_vals),
         "sot_for_slope": _linear_slope(sot_for_vals),
@@ -838,6 +878,8 @@ def get_team_recent_variance(team_name: str, league: str, last_n: int = 8) -> Di
         "sot_for_var": _var([_numeric(m.get("sot_for")) for m in metas]),
         "goals_var": _var([_numeric(m.get("xg_for")) for m in metas]),
         "cards_var": _var([_numeric(m.get("cards_per_90_team")) for m in metas]),
+        "yellows_var": _var([_numeric(m.get("yellow_cards")) for m in metas]),
+        "reds_var": _var([_numeric(m.get("red_cards")) for m in metas]),
     }
     _team_recent_var_cache[cache_key] = result
     return result

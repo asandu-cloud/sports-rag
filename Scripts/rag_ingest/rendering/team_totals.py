@@ -262,6 +262,21 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
         else:
             lines.append("    Referee: not yet assigned or API-Football key not set.")
 
+        # Get match-total detail for context
+        try:
+            from core.projections import projected_total_cards_detail as _ptcd
+        except ImportError:
+            try:
+                from Scripts.rag_ingest.core.projections import projected_total_cards_detail as _ptcd
+            except ImportError:
+                _ptcd = None
+        _match_detail = None
+        if _ptcd:
+            try:
+                _match_detail = _ptcd(home, away, league, ref_mod=ref_mod)
+            except Exception:
+                pass
+
         _card_projs = {}
         for team, opp, is_home in [(home, away, True), (away, home, False)]:
             k_bl, k_sea, k_rec = projected_team_cards(team, opp, league, is_home,
@@ -323,10 +338,24 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
                             f"        Alt: {adj_side} {adj_line:g} — P = {adj_p:.1%}."
                         )
 
-        # Match total cards summary
+        # Match total cards summary with detail context
         if len(_card_projs) == 2:
             _k_vals = list(_card_projs.values())
-            lines.append(f"    Match total: {_k_vals[0] + _k_vals[1]:.1f} projected cards.")
+            match_total_sum = _k_vals[0] + _k_vals[1]
+            lines.append(f"    Match total: {match_total_sum:.1f} projected cards.")
+            if _match_detail:
+                mt_anchor = _match_detail.get("total_cards")
+                if mt_anchor is not None:
+                    lines.append(f"    Match-total anchor: {mt_anchor:.2f}.")
+                t_y = _match_detail.get("total_yellows")
+                t_r = _match_detail.get("total_reds")
+                if t_y is not None and t_r is not None:
+                    lines.append(f"    Yellow/red split: ~{t_y:.2f} yellows + ~{t_r:.2f} reds.")
+                conf_bucket = _match_detail.get("confidence_bucket", "low")
+                if conf_bucket == "low":
+                    lines.append("    ⚠ Low confidence — treat team-card lines as estimates only.")
+                for w in (_match_detail.get("warnings") or []):
+                    lines.append(f"    Note: {w}")
 
     lines.append("Method: per-team Poisson/NegBin probability model from local KB.")
     return "\n".join(lines)

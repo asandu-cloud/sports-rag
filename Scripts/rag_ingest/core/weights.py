@@ -287,6 +287,44 @@ SCORING_WEIGHTS = {
         "elo_scale": 400.0,
         "min_elo_diff": 20,
     },
+    "cards_total_model": {
+        # Yellow-card base model: match total yellows is the primary anchor
+        "yellows_base_weight": 0.82,      # weight on yellow-card season projection
+        "reds_add_weight": 0.18,          # weight on red-card additive adjustment
+        "reds_base_rate": 0.18,           # league-average reds per match (both teams)
+        "reds_cap": 0.60,                 # max reds contribution to total
+        # Recent induced-card component
+        "induced_weight": 0.12,           # weight on recent induced-cards signal
+        # Lineup card-risk component
+        "lineup_risk_weight": 0.08,       # weight on lineup card-risk adjustment
+        "lineup_risk_cap": 0.25,          # max absolute adjustment from lineup risk
+    },
+    "cards_yellow_red_split": {
+        # Season yellow/red split estimation
+        "default_yellow_ratio": 0.92,     # typical yellows / total cards
+        "default_red_ratio": 0.08,        # typical reds / total cards
+        "min_yellow_ratio": 0.80,         # floor
+        "max_yellow_ratio": 0.98,         # ceiling
+    },
+    "cards_share_model": {
+        # Team share of match-total cards (extends existing cards_share)
+        "match_anchor_weight": 0.55,      # weight on match-total-derived share
+        "direct_stabilizer_weight": 0.45, # weight on direct team-card stabilizer
+        "yellows_share_weight": 0.70,     # weight on yellow-card share signal
+        "reds_share_weight": 0.30,        # weight on red-card share signal
+    },
+    "cards_confidence": {
+        # Confidence gating for cards recommendations
+        "min_fixtures_season": 5,         # min season fixtures for season anchor
+        "min_fixtures_recent": 3,         # min recent fixtures for recent anchor
+        "referee_high_confidence": 0.70,  # referee confidence threshold for "high"
+        "referee_medium_confidence": 0.35, # threshold for "medium"
+        "low_confidence_suppress": True,  # suppress "Recommended" when low confidence
+        "uncertainty_base": 0.8,          # base uncertainty (cards per match)
+        "uncertainty_no_referee": 0.3,    # additional uncertainty when no referee
+        "uncertainty_no_lineup": 0.1,     # additional uncertainty when no lineup
+        "uncertainty_low_sample": 0.2,    # additional uncertainty when <10 fixtures
+    },
     "market_blend": {
         "model_weight": 0.70,
         "market_weight": 0.30,

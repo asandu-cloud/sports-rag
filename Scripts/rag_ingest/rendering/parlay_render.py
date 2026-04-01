@@ -351,17 +351,39 @@ def leg_evidence(leg: CandidateLeg, league: str) -> List[str]:
         if h_opp_induced is not None and a_opp_induced is not None:
             lines.append(f"Opp cards induced/match: {leg.home_team} {h_opp_induced:.2f}, {leg.away_team} {a_opp_induced:.2f}.")
 
-        cards_total, cards_season, cards_recent, cards_ref_mod = projected_total_cards(
-            leg.home_team, leg.away_team, league
-        )
+        # Use detail helper for richer cards evidence
+        try:
+            from core.projections import projected_total_cards_detail as _ptcd_render
+        except ImportError:
+            _ptcd_render = None
+        _detail = None
+        if _ptcd_render:
+            try:
+                _detail = _ptcd_render(leg.home_team, leg.away_team, league)
+            except Exception:
+                pass
+        if _detail:
+            cards_total = _detail.get("total_cards")
+            cards_ref_mod = _detail.get("referee_modifier")
+        else:
+            cards_total, _, _, cards_ref_mod = projected_total_cards(
+                leg.home_team, leg.away_team, league
+            )
         if cards_total is not None:
             lines.append(f"Projected combined cards: {cards_total:.2f}.")
+            if _detail:
+                t_y = _detail.get("total_yellows")
+                t_r = _detail.get("total_reds")
+                if t_y is not None and t_r is not None:
+                    lines.append(f"Split: ~{t_y:.2f} yellows + ~{t_r:.2f} reds.")
             if leg.point is not None:
                 direction = leg.outcome.lower()
                 if "over" in direction:
                     lines.append(f"Line fit: projected {cards_total:.2f} vs over {leg.point:g}.")
                 elif "under" in direction:
                     lines.append(f"Line fit: projected {cards_total:.2f} vs under {leg.point:g}.")
+            if _detail and _detail.get("confidence_bucket") == "low":
+                lines.append("Cards confidence: low — higher uncertainty.")
 
         # Referee evidence for cards
         if cards_ref_mod.source == "profile" and cards_ref_mod.referee_name:
@@ -370,7 +392,8 @@ def leg_evidence(leg: CandidateLeg, league: str) -> List[str]:
                 direction_word = "stricter" if cards_ref_mod.multiplier > 1.0 else "more lenient"
                 lines.append(
                     f"Referee: {cards_ref_mod.referee_name.title()} is {direction_word} than avg "
-                    f"({cards_ref_mod.strictness_ratio:.2f}x, {cards_ref_mod.sample_size} matches)."
+                    f"({cards_ref_mod.strictness_ratio:.2f}x, {cards_ref_mod.sample_size} matches, "
+                    f"{cards_ref_mod.confidence:.0%} confidence)."
                 )
                 if cards_ref_mod.cards_per_foul > 0:
                     lines.append(

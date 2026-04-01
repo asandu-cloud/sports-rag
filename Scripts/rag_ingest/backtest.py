@@ -184,18 +184,37 @@ def project_fixture(home: str, away: str, league: str) -> Dict:
         result["proj_corners_season"] = None
         result["proj_corners_recent"] = None
 
-    # Cards
+    # Cards (use detail helper for richer output)
     try:
-        cards_bl, cards_s, cards_r, ref_mod = rag.projected_total_cards(home, away, league)
-        result["proj_cards"] = cards_bl
-        result["proj_cards_season"] = cards_s
-        result["proj_cards_recent"] = cards_r
-        result["ref_multiplier"] = ref_mod.multiplier if ref_mod else None
+        detail_fn = getattr(rag, "projected_total_cards_detail", None)
+        if detail_fn:
+            detail = detail_fn(home, away, league)
+            result["proj_cards"] = detail.get("total_cards")
+            result["proj_cards_season"] = detail.get("season_total")
+            result["proj_cards_recent"] = detail.get("recent_total")
+            ref_mod = detail.get("referee_modifier")
+            result["ref_multiplier"] = ref_mod.multiplier if ref_mod else None
+            result["ref_source"] = getattr(ref_mod, "source", "unavailable") if ref_mod else "unavailable"
+            result["ref_confidence"] = getattr(ref_mod, "confidence", 0.0) if ref_mod else 0.0
+            result["proj_cards_yellows"] = detail.get("total_yellows")
+            result["proj_cards_reds"] = detail.get("total_reds")
+            result["cards_uncertainty"] = detail.get("uncertainty")
+            result["cards_confidence_bucket"] = detail.get("confidence_bucket")
+        else:
+            cards_bl, cards_s, cards_r, ref_mod = rag.projected_total_cards(home, away, league)
+            result["proj_cards"] = cards_bl
+            result["proj_cards_season"] = cards_s
+            result["proj_cards_recent"] = cards_r
+            result["ref_multiplier"] = ref_mod.multiplier if ref_mod else None
+            result["ref_source"] = getattr(ref_mod, "source", "unavailable") if ref_mod else "unavailable"
+            result["ref_confidence"] = getattr(ref_mod, "confidence", 0.0) if ref_mod else 0.0
     except Exception:
         result["proj_cards"] = None
         result["proj_cards_season"] = None
         result["proj_cards_recent"] = None
         result["ref_multiplier"] = None
+        result["ref_source"] = "unavailable"
+        result["ref_confidence"] = 0.0
 
     # SoT
     try:
@@ -481,6 +500,30 @@ def run_backtest(
             metrics[stat] = compute_metrics(league_results, stat)
 
         print_report(metrics, league)
+
+        # Cards slices: referee assigned vs missing, high/low confidence
+        _cards_ref_assigned = [r for r in league_results if r.get("ref_source") == "profile"]
+        _cards_ref_missing = [r for r in league_results if r.get("ref_source") != "profile"]
+        _cards_high_conf = [r for r in league_results if r.get("cards_confidence_bucket") == "high"]
+        _cards_low_conf = [r for r in league_results if r.get("cards_confidence_bucket") == "low"]
+
+        if _cards_ref_assigned:
+            m = compute_metrics(_cards_ref_assigned, "cards")
+            if m.get("n", 0) > 0:
+                print(f"  CARDS — Referee assigned ({m['n']} fixtures): MAE={m['mae']:.3f} RMSE={m['rmse']:.3f} Skill={m.get('skill_vs_naive', 0):+.1%}")
+        if _cards_ref_missing:
+            m = compute_metrics(_cards_ref_missing, "cards")
+            if m.get("n", 0) > 0:
+                print(f"  CARDS — Referee missing  ({m['n']} fixtures): MAE={m['mae']:.3f} RMSE={m['rmse']:.3f} Skill={m.get('skill_vs_naive', 0):+.1%}")
+        if _cards_high_conf:
+            m = compute_metrics(_cards_high_conf, "cards")
+            if m.get("n", 0) > 0:
+                print(f"  CARDS — High confidence  ({m['n']} fixtures): MAE={m['mae']:.3f} RMSE={m['rmse']:.3f} Skill={m.get('skill_vs_naive', 0):+.1%}")
+        if _cards_low_conf:
+            m = compute_metrics(_cards_low_conf, "cards")
+            if m.get("n", 0) > 0:
+                print(f"  CARDS — Low confidence   ({m['n']} fixtures): MAE={m['mae']:.3f} RMSE={m['rmse']:.3f} Skill={m.get('skill_vs_naive', 0):+.1%}")
+
         all_results.extend(league_results)
 
     # Cross-league aggregate

@@ -356,6 +356,11 @@ def doc_from_team_engineered(row: dict, league: str, season: str, source_file: s
         "cards_per_90_team": cards_per_90,
         "fouls_per_90_team": fouls_per_90,
         "aggression_index_norm": aggression_norm,
+        # Yellow/red card breakdown for cards workflow
+        "yellow_cards": _maybe_float(yc_for),
+        "red_cards": _maybe_float(rc_for),
+        "cards_total": _maybe_float((int(float(yc_for or 0)) + int(float(rc_for or 0))) if yc_for is not None or rc_for is not None else None),
+        "fouls_committed": _maybe_float(fouls_for),
 
         "control_index": control_idx,
         "form_index_team": form_idx_team,
@@ -451,6 +456,7 @@ def doc_from_team_profile(
         f"Corner Edge/Match (For - Against):{corner_edge_pm}\n"
         f"Dominance:{row.get('dominance_index')} Control:{row.get('control_index')} Archetype:{row.get('archetype')}\n"
         f"Fouls/90:{row.get('fouls_per_90_team')} Cards/90:{row.get('cards_per_90_team')} Cards/Foul:{row.get('cards_per_foul_team')} Cards/Match:{row.get('cards_pm')}\n"
+        f"Yellows/Match:{row.get('yellows_pm')} Reds/Match:{row.get('reds_pm')}\n"
         f"Cards Home/Match:{cards_home_pm} | Cards Away/Match:{cards_away_pm}\n"
         f"Opp Cards Induced/Match:{cards_induced_pm}\n"
         f"Corners Against Home/Match:{corners_against_home_pm} | Corners Against Away/Match:{corners_against_away_pm}\n"
@@ -494,6 +500,8 @@ def doc_from_team_profile(
         "_conv_rate_for": row.get("_conv_rate_for"),
         "pass_accuracy_pct": row.get("pass_accuracy_pct"),
         "cards_pm": row.get("cards_pm"),
+        "yellows_pm": row.get("yellows_pm"),
+        "reds_pm": row.get("reds_pm"),
         "sot_against_pm": sot_against_pm,
         "possession": row.get("possession"),
         "archetype": row.get("archetype"),

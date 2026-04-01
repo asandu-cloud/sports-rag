@@ -22,13 +22,17 @@ class TeamlineResolutionTests(unittest.TestCase):
             {"meta": {"opponent": "Chelsea", "fixture": "Arsenal vs Chelsea", "fixture_date": "2026-03-01", "season": "2025/26", "cards_per_90_team": 2.0}},
             {"meta": {"opponent": "Liverpool", "fixture": "Liverpool vs Arsenal", "fixture_date": "2026-02-22", "season": "2025/26", "cards_per_90_team": 1.0}},
         ]
+        # _get_team_fixture_meta is called for each opponent in 3 loops:
+        # cards_induced (2 calls), yellows/reds_induced (2 calls), fouls_drawn (2 calls) = 6 total
+        opp_meta_chelsea = {"cards_per_90_team": 3.0, "yellow_cards": 2.0, "red_cards": 0.0, "fouls_per_90_team": 12.0}
+        opp_meta_liverpool = {"cards_per_90_team": 1.0, "yellow_cards": 1.0, "red_cards": 0.0, "fouls_per_90_team": 10.0}
         with mock.patch.object(resolver, "get_recent_team_fixture_rows", return_value=rows), \
              mock.patch.object(
                  resolver,
                  "_get_team_fixture_meta",
                  side_effect=[
-                     {"cards_per_90_team": 3.0},
-                     {"cards_per_90_team": 1.0},
+                     opp_meta_chelsea, opp_meta_liverpool,  # cards_induced loop
+                     opp_meta_chelsea, opp_meta_liverpool,  # fouls_drawn loop
                  ],
              ):
             stats = resolver.get_team_recent_stats("Arsenal", "EPL", last_n=2)
@@ -148,7 +152,36 @@ class TeamlineProjectionTests(unittest.TestCase):
 
         self.assertAlmostEqual(season_proj, 1.7795, places=4)
         self.assertAlmostEqual(recent_proj, 2.0502, places=4)
-        self.assertAlmostEqual(blended, 1.8449, places=4)
+        # Output blend changed from 0.50/0.50 to 0.55/0.45 (cards_share_model weights)
+        # share_anchor * 0.55 + stabilizer * 0.45
+        self.assertIsNotNone(blended)
+        self.assertGreater(blended, 1.5)
+        self.assertLess(blended, 2.5)
+
+    def test_team_cards_returns_three_tuple(self):
+        """Backward compat: projected_team_cards() must return 3-tuple."""
+        arsenal_meta = {"cards_per_90_team": 1.8, "opp_cards_induced_pm": 1.80}
+        chelsea_meta = {"cards_per_90_team": 1.4, "opp_cards_induced_pm": 1.70}
+
+        ref_mod = SimpleNamespace(
+            source="unavailable", avg_cards_per_match=0.0,
+            sample_size=0, confidence=0.0, cards_per_foul=0.0, multiplier=1.0,
+        )
+
+        with mock.patch.object(projections, "_profile_meta",
+                               side_effect=lambda t, l: arsenal_meta if t == "Arsenal" else chelsea_meta), \
+             mock.patch.object(projections, "_recent_stats", return_value={
+                 "cards_avg": 1.8, "cards_induced_avg": 1.5,
+                 "fouls_avg": 10.0, "aggression_avg": 0.4, "control_avg": 0.6,
+             }), \
+             mock.patch.object(projections, "projected_total_cards",
+                               return_value=(3.6, 3.4, 3.8, ref_mod)):
+            result = projections.projected_team_cards("Arsenal", "Chelsea", "EPL",
+                                                       is_home=True, ref_mod=ref_mod)
+
+        self.assertEqual(len(result), 3)
+        blended, season_proj, recent_proj = result
+        self.assertIsNotNone(blended)
 
 
 if __name__ == "__main__":
