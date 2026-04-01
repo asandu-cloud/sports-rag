@@ -995,7 +995,8 @@ def consolidated_fixture_embeds(
                 detail_parts.append(f"{model_m.group(1)} model")
             if edge_m:
                 detail_parts.append(f"{edge_m.group(1)} edge")
-            line += f"\n{' \u2022 '.join(detail_parts)}"
+            detail_line = " \u2022 ".join(detail_parts)
+            line += f"\n{detail_line}"
 
             formatted_lines.append((line_conf, line))
 
@@ -1389,6 +1390,84 @@ def parlay_embed(text: str, league: str = "Mixed") -> List[discord.Embed]:
         embeds = embeds[:10]
 
     return embeds
+
+
+def structured_parlay_embeds(result, league: Optional[str] = None) -> List[discord.Embed]:
+    """Render a structured parlay result without regex reparsing."""
+    selected_legs = list(getattr(result, "selected_legs", []) or [])
+    request = getattr(result, "request", None)
+    display_league = league or getattr(request, "display_league", None) or "Mixed"
+    league_logo = _get_league_logo(display_league) if display_league else None
+
+    if not selected_legs:
+        return parlay_error_embeds("No parlay legs were selected.", [], league=display_league)
+
+    slip = discord.Embed(
+        title="\U0001f3b0  Parlay Slip",
+        color=COLOR_PURPLE,
+    )
+    slip.set_author(name=f"League: {display_league}", icon_url=league_logo)
+
+    for index, leg in enumerate(selected_legs, start=1):
+        confidence = getattr(leg, "confidence", None)
+        model_prob = getattr(leg, "model_prob", None)
+        conf_line = ""
+        if confidence:
+            conf_line = f"\n{_conf_bar(confidence)} {_conf_label(confidence)}"
+            if model_prob is not None:
+                conf_line += f" \u2022 {model_prob:.0%}"
+
+        warning = getattr(leg, "warning", None)
+        warning_line = f"\n\u26a0\ufe0f {warning}" if warning else ""
+        league_badge = f"[{getattr(leg, 'league', '')}] " if getattr(leg, "league", "") and getattr(leg, "league", "") != display_league else ""
+
+        slip.add_field(
+            name=f"Leg {index}  {league_badge}",
+            value=(
+                f"**{getattr(leg, 'fixture', '')}**\n"
+                f"\U0001f4cb {getattr(leg, 'pick_display', '')}\n"
+                f"\U0001f4b0 {getattr(leg, 'odds', 0.0):.2f} ({getattr(leg, 'bookmaker', 'Book') or 'Book'})"
+                f"{conf_line}{warning_line}"
+            ),
+            inline=False,
+        )
+
+    slip.add_field(
+        name="\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+        value=f"**Combined Odds: {getattr(result, 'combined_odds', 0.0):.2f}x**",
+        inline=False,
+    )
+
+    confidence_breakdown = str(getattr(result, "confidence_breakdown", "") or "").strip()
+    if confidence_breakdown:
+        slip.add_field(name="\u2b50 Confidence", value=confidence_breakdown, inline=True)
+
+    cross_warnings = list(getattr(result, "cross_warnings", []) or [])
+    if cross_warnings:
+        warning_text = _truncate("; ".join(cross_warnings), 1024)
+        slip.add_field(name="\u26a0\ufe0f Warnings", value=warning_text, inline=True)
+
+    summary = str(getattr(result, "summary_text", "") or "").strip()
+    if summary:
+        slip.add_field(name="\U0001f4a1 Why", value=_truncate(summary, 1024), inline=False)
+
+    slip.set_footer(text="Spick's Picks", icon_url=league_logo)
+    return [slip]
+
+
+def parlay_error_embeds(message: str, notes: Optional[List[str]] = None, league: str = "Mixed") -> List[discord.Embed]:
+    """Render a structured parlay failure state."""
+    league_logo = _get_league_logo(league) if league else None
+    em = discord.Embed(
+        title="\U0001f3b0  Parlay Slip",
+        description=message,
+        color=COLOR_BLUE,
+    )
+    if league_logo:
+        em.set_author(name=f"League: {league}", icon_url=league_logo)
+    if notes:
+        em.add_field(name="Notes", value=_truncate("\n".join(f"\u2022 {note}" for note in notes), 1024), inline=False)
+    return [em]
 
 
 def value_alert_embed(text: str, league: str) -> discord.Embed:

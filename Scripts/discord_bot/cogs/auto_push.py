@@ -23,10 +23,11 @@ import rag_cli_v2 as rag  # noqa: E402  (kept for text-based workflows: parlays,
 # Core modules for direct structured access (no stdout capture needed)
 from core.events import fetch_events, filter_events_by_exact_date  # noqa: E402
 from core.weights import DOMESTIC_LEAGUES as _CORE_DOMESTIC, EUROPEAN_COMPETITIONS  # noqa: E402
+from core.parlay_service import ParlayBuildError, build_parlay, build_parlay_request  # noqa: E402
 
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1]))
 from embeds import (  # noqa: E402
-    rag_output_to_embeds, parlay_embed, value_alert_embed,
+    rag_output_to_embeds, structured_parlay_embeds, value_alert_embed,
     consolidated_fixture_embeds, consolidated_score_embeds,
     parse_fixture_picks, parse_correct_score_picks, parse_interval_picks,
 )
@@ -102,6 +103,77 @@ async def _run_rag(prompt: str, league: str) -> str:
     """Async wrapper — runs RAG in thread pool so event loop stays free."""
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(_rag_executor, _run_rag_sync, prompt, league)
+
+
+async def _build_structured_parlay(request):
+    """Run structured parlay generation in the same executor used for blocking tasks."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_rag_executor, build_parlay, request)
+
+
+def _auto_parlay_presets(target_date: date, leagues: list) -> list:
+    """Return the three scheduled parlay presets for #parlays."""
+    leagues = list(leagues or [])
+    return [
+        {
+            "request": build_parlay_request(
+                league_value="cross-league",
+                leagues_override=leagues,
+                display_league="Cross-League",
+                target_date=target_date,
+                legs=2,
+                odds=1.9,
+                market="mixed",
+                source_command="auto_push",
+                target_mode="max",
+                min_model_prob=0.65,
+                allowed_confidences=["high"],
+                risk_profile="lock",
+            ),
+            "title": "\U0001f512  The Lock (~1.8x)",
+            "color": COLOR_GREEN,
+        },
+        {
+            "request": build_parlay_request(
+                league_value="cross-league",
+                leagues_override=leagues,
+                display_league="Cross-League",
+                target_date=target_date,
+                legs=3,
+                odds=None,
+                target_min=2.0,
+                target_max=3.0,
+                market="mixed",
+                source_command="auto_push",
+                target_mode="none",
+                allowed_confidences=["high", "medium"],
+                risk_profile="safe",
+            ),
+            "title": "\U0001f6e1\ufe0f  Safe Parlay (~2.5x)",
+            "color": COLOR_BLUE,
+        },
+        {
+            "request": build_parlay_request(
+                league_value="cross-league",
+                leagues_override=leagues,
+                display_league="Cross-League",
+                target_date=target_date,
+                legs=4,
+                odds=None,
+                target_min=4.0,
+                target_max=6.0,
+                market="mixed",
+                source_command="auto_push",
+                target_mode="none",
+                allowed_groups=["totals", "corners", "cards"],
+                soft_prefer_groups=["totals", "corners", "cards"],
+                required_group_counts={"totals": 1, "corners": 1, "cards": 1},
+                risk_profile="standard",
+            ),
+            "title": "\U0001f3b2  Standard Parlay (~5x)",
+            "color": COLOR_PURPLE,
+        },
+    ]
 
 
 def _ordinal(n: int) -> str:
@@ -979,37 +1051,22 @@ class AutoPush(commands.Cog):
         if not _is_posting_window(first_kickoff):
             return
 
+        target_date = date.today()
         date_str = _today_phrase()
+        built = []
+        for preset in _auto_parlay_presets(target_date, active_leagues):
+            try:
+                result = await _build_structured_parlay(preset["request"])
+            except ParlayBuildError as exc:
+                log.warning("Auto parlay '%s' failed: %s | %s", preset["title"], exc.message, "; ".join(exc.notes))
+                continue
+            except Exception as exc:
+                log.error("Auto parlay '%s' failed: %s", preset["title"], exc, exc_info=True)
+                continue
+            built.append((preset, result))
 
-        # 1. THE LOCK — ultra-safe, ~1.8x odds
-        lock_text = await _run_rag(
-            f"For all league games on {date_str} across all leagues, "
-            "build a cross-league 2-leg parlay using ONLY the two strongest "
-            "high-confidence picks. Keep combined decimal odds at or below 1.9x. "
-            "Prioritize picks where the model probability is above 65%. "
-            "This is the safest possible parlay.",
-            "EPL",
-        )
-
-        # 2. SAFE — conservative, 2-3x odds
-        safe_text = await _run_rag(
-            f"For all league games on {date_str} across all leagues, "
-            "build a cross-league 3-leg parlay with combined odds between "
-            "2.0x and 3.0x. Only use high or medium confidence picks.",
-            "EPL",
-        )
-
-        # 3. STANDARD — balanced risk, 4-6x odds
-        std_text = await _run_rag(
-            f"For all league games on {date_str} across all leagues, "
-            "build a cross-league 4-leg parlay with combined odds between "
-            "4x and 6x. Mix goals, corners, and cards markets for diversity.",
-            "EPL",
-        )
-
-        has_any = _is_valid(lock_text) or _is_valid(safe_text) or _is_valid(std_text)
-        if not has_any:
-            log.warning("All 3 parlay prompts returned no usable output.")
+        if not built:
+            log.warning("All 3 structured parlay presets failed.")
             return
 
         self._mark_posted("parlay")
@@ -1022,22 +1079,10 @@ class AutoPush(commands.Cog):
         header.set_footer(text="Spick | Auto-generated from model projections")
         await channel.send(embed=header)
 
-        if _is_valid(lock_text):
-            for em in parlay_embed(lock_text, league="Cross-League"):
-                em.title = "\U0001f512  The Lock (~1.8x)"
-                em.color = COLOR_GREEN
-                await channel.send(embed=em)
-
-        if _is_valid(safe_text):
-            for em in parlay_embed(safe_text, league="Cross-League"):
-                em.title = "\U0001f6e1\ufe0f  Safe Parlay (~2.5x)"
-                em.color = COLOR_BLUE
-                await channel.send(embed=em)
-
-        if _is_valid(std_text):
-            for em in parlay_embed(std_text, league="Cross-League"):
-                em.title = "\U0001f3b2  Standard Parlay (~5x)"
-                em.color = COLOR_PURPLE
+        for preset, result in built:
+            for em in structured_parlay_embeds(result, league="Cross-League"):
+                em.title = preset["title"]
+                em.color = preset["color"]
                 await channel.send(embed=em)
 
     @daily_parlay.before_loop
@@ -1694,30 +1739,20 @@ class AutoPush(commands.Cog):
 
         log.info("Posting parlays (manual trigger)...")
 
-        lock_text = await _run_rag(
-            f"For all league games on {date_str} across all leagues, "
-            "build a cross-league 2-leg parlay using ONLY the two strongest "
-            "high-confidence picks. Keep combined decimal odds at or below 1.9x. "
-            "Prioritize picks where the model probability is above 65%. "
-            "This is the safest possible parlay.",
-            "EPL",
-        )
-        safe_text = await _run_rag(
-            f"For all league games on {date_str} across all leagues, "
-            "build a cross-league 3-leg parlay with combined odds between "
-            "2.0x and 3.0x. Only use high or medium confidence picks.",
-            "EPL",
-        )
-        std_text = await _run_rag(
-            f"For all league games on {date_str} across all leagues, "
-            "build a cross-league 4-leg parlay with combined odds between "
-            "4x and 6x. Mix goals, corners, and cards markets for diversity.",
-            "EPL",
-        )
+        built = []
+        for preset in _auto_parlay_presets(date.today(), leagues):
+            try:
+                result = await _build_structured_parlay(preset["request"])
+            except ParlayBuildError as exc:
+                log.warning("Manual auto parlay '%s' failed: %s | %s", preset["title"], exc.message, "; ".join(exc.notes))
+                continue
+            except Exception as exc:
+                log.error("Manual auto parlay '%s' failed: %s", preset["title"], exc, exc_info=True)
+                continue
+            built.append((preset, result))
 
-        has_any = _is_valid(lock_text) or _is_valid(safe_text) or _is_valid(std_text)
-        if not has_any:
-            log.warning("All 3 parlay prompts returned no usable output.")
+        if not built:
+            log.warning("All 3 structured parlay presets failed.")
             return
 
         header = discord.Embed(
@@ -1728,22 +1763,10 @@ class AutoPush(commands.Cog):
         header.set_footer(text="Spick | Auto-generated from model projections")
         await channel.send(embed=header)
 
-        if _is_valid(lock_text):
-            for em in parlay_embed(lock_text, league="Cross-League"):
-                em.title = "\U0001f512  The Lock (~1.8x)"
-                em.color = COLOR_GREEN
-                await channel.send(embed=em)
-
-        if _is_valid(safe_text):
-            for em in parlay_embed(safe_text, league="Cross-League"):
-                em.title = "\U0001f6e1\ufe0f  Safe Parlay (~2.5x)"
-                em.color = COLOR_BLUE
-                await channel.send(embed=em)
-
-        if _is_valid(std_text):
-            for em in parlay_embed(std_text, league="Cross-League"):
-                em.title = "\U0001f3b2  Standard Parlay (~5x)"
-                em.color = COLOR_PURPLE
+        for preset, result in built:
+            for em in structured_parlay_embeds(result, league="Cross-League"):
+                em.title = preset["title"]
+                em.color = preset["color"]
                 await channel.send(embed=em)
 
         self._mark_posted("parlay")

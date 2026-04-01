@@ -14,7 +14,6 @@ Database:  Index/predictions.db  (shared SQLite — trial tables created idempot
 from __future__ import annotations
 
 import asyncio
-import io
 import json
 import logging
 import os
@@ -22,7 +21,6 @@ import re
 import sqlite3
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import redirect_stdout
 from datetime import date, datetime, timedelta, time as dt_time, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -39,9 +37,8 @@ _BOT_DIR = _SCRIPT_DIR.parent
 _PROJECT_ROOT = _BOT_DIR.parents[1]
 
 sys.path.insert(0, str(_PROJECT_ROOT / "Scripts" / "rag_ingest"))
-import rag_cli_v2 as rag  # noqa: E402
-
 from core.events import fetch_events, filter_events_by_exact_date  # noqa: E402
+from core.parlay_service import ParlayBuildError, build_parlay, build_parlay_request  # noqa: E402
 
 sys.path.insert(0, str(_BOT_DIR))
 from config import (  # noqa: E402
@@ -123,34 +120,14 @@ def _init_tables():
 _trial_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="trial")
 
 # ---------------------------------------------------------------------------
-# Helpers — RAG calls (same pattern as auto_push.py)
+# Helpers — structured parlay generation
 # ---------------------------------------------------------------------------
 
 
-def _run_rag_sync(prompt: str, league: str) -> str:
-    """Synchronous RAG call — runs in thread pool."""
-    buf = io.StringIO()
-    try:
-        with redirect_stdout(buf):
-            rag.answer_once(prompt, default_league=league)
-    except Exception as exc:
-        log.error("Trial RAG query failed: %s", exc, exc_info=True)
-        return ""
-    return buf.getvalue().strip()
-
-
-async def _run_rag(prompt: str, league: str) -> str:
-    """Async wrapper — runs RAG in thread pool."""
+async def _build_structured_trial_parlay(request):
+    """Async wrapper for structured trial parlay generation."""
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(_trial_executor, _run_rag_sync, prompt, league)
-
-
-def _is_valid(text: str) -> bool:
-    """Check if RAG output has real content."""
-    if not text:
-        return False
-    low = text.lower()
-    return "no fixtures" not in low and "could not" not in low and "no odds" not in low
+    return await loop.run_in_executor(_trial_executor, build_parlay, request)
 
 
 def _ordinal(n: int) -> str:
@@ -202,84 +179,58 @@ def _is_posting_window(first_kickoff) -> bool:
     return -0.5 <= hours_until <= 3.5
 
 
-# ---------------------------------------------------------------------------
-# Trial parlay generation
-# ---------------------------------------------------------------------------
-
-def _parse_parlay_legs(text: str) -> Tuple[List[str], float]:
-    """Parse RAG parlay output into (legs_list, combined_odds).
-
-    Returns ([], 0.0) if parsing fails.
-    """
+def _trial_leg_strings(result) -> List[str]:
+    """Convert structured parlay legs into stored/displayed trial strings."""
     legs: List[str] = []
-    combined_odds = 0.0
+    for leg in getattr(result, "selected_legs", []) or []:
+        line = f"{leg.fixture} | {leg.pick_display} @ {leg.odds:.2f}"
+        legs.append(line[:200])
+    return legs[:4]
 
-    # Try to extract individual legs — look for numbered lines or bullet points
-    # Patterns: "1. Arsenal ML @ 1.30", "- Over 2.5 goals @ 1.35", "Leg 1: ..."
-    leg_patterns = [
-        re.compile(r"(?:^|\n)\s*(?:\d+[.)]\s*|[-*]\s*|Leg\s*\d+:\s*)(.+?)(?:\n|$)", re.I),
+
+def _trial_parlay_presets(target_date: date, leagues: List[str]) -> List[dict]:
+    """Return the two low-risk trial presets for #free-picks."""
+    leagues = list(leagues or [])
+    return [
+        {
+            "request": build_parlay_request(
+                league_value="cross-league",
+                leagues_override=leagues,
+                display_league="Cross-League",
+                target_date=target_date,
+                legs=2,
+                odds=None,
+                target_min=1.4,
+                target_max=1.7,
+                market="mixed",
+                source_command="trial",
+                target_mode="none",
+                min_model_prob=0.65,
+                allowed_confidences=["high"],
+                risk_profile="trial-safe",
+            ),
+        },
+        {
+            "request": build_parlay_request(
+                league_value="cross-league",
+                leagues_override=leagues,
+                display_league="Cross-League",
+                target_date=target_date,
+                legs=2,
+                odds=None,
+                target_min=1.5,
+                target_max=1.8,
+                market="mixed",
+                source_command="trial",
+                target_mode="none",
+                min_model_prob=0.60,
+                allowed_confidences=["high"],
+                allowed_groups=["moneyline", "btts"],
+                soft_prefer_groups=["moneyline", "btts"],
+                risk_profile="trial-safe",
+            ),
+        },
     ]
-
-    for pat in leg_patterns:
-        matches = pat.findall(text)
-        if matches:
-            for m in matches:
-                # Clean up the leg text
-                leg = m.strip()
-                if leg and len(leg) > 5:
-                    # Remove trailing odds info for cleaner display
-                    legs.append(leg[:200])
-            if legs:
-                break
-
-    # If regex parsing failed, try to split on common separators
-    if not legs:
-        for line in text.split("\n"):
-            line = line.strip()
-            if not line:
-                continue
-            # Skip header/footer lines
-            if any(kw in line.lower() for kw in [
-                "parlay", "combined", "total odds", "method", "confidence",
-                "===", "---", "evidence", "explanation"
-            ]):
-                continue
-            # Lines with odds-like patterns are likely legs
-            if re.search(r"@\s*[\d.]+|odds|over|under|win|ml|btts", line, re.I):
-                legs.append(line[:200])
-
-    # Extract combined odds
-    odds_patterns = [
-        re.compile(r"combined\s*(?:decimal\s*)?odds[:\s]*(?:~\s*)?([\d.]+)", re.I),
-        re.compile(r"total\s*(?:decimal\s*)?odds[:\s]*(?:~\s*)?([\d.]+)", re.I),
-        re.compile(r"parlay\s*odds[:\s]*(?:~\s*)?([\d.]+)", re.I),
-        re.compile(r"([\d.]+)x\s*(?:combined|total|parlay)", re.I),
-    ]
-    for pat in odds_patterns:
-        m = pat.search(text)
-        if m:
-            try:
-                combined_odds = float(m.group(1))
-                break
-            except ValueError:
-                pass
-
-    # If we couldn't find explicit combined odds, try to compute from leg odds
-    if combined_odds == 0.0 and legs:
-        product = 1.0
-        found_any = False
-        for leg in legs:
-            odds_m = re.search(r"@\s*([\d.]+)", leg)
-            if odds_m:
-                try:
-                    product *= float(odds_m.group(1))
-                    found_any = True
-                except ValueError:
-                    pass
-        if found_any:
-            combined_odds = round(product, 2)
-
-    return legs[:4], combined_odds  # Cap at 4 legs max
 
 
 # ---------------------------------------------------------------------------
@@ -1067,37 +1018,23 @@ class TrialCog(commands.Cog, name="trial"):
         today_iso = date.today().isoformat()
         parlays_posted = 0
 
-        # Generate 2 safe parlays using the RAG engine
-        # Parlay 1: ultra-safe 2-leg parlay
-        prompts = [
-            (
-                f"For all league games on {date_str} across all leagues, "
-                "build a cross-league 2-leg parlay using ONLY the two strongest "
-                "high-confidence picks. Keep combined decimal odds between 1.4x and 1.7x. "
-                "Only use picks where the model probability is above 65%. "
-                "This is the safest possible parlay."
-            ),
-            (
-                f"For all league games on {date_str} across all leagues, "
-                "build a cross-league 2-leg parlay with combined odds between "
-                "1.5x and 1.8x. Only use high confidence picks with model probability "
-                "above 60%. Focus on moneyline or BTTS markets for reliability."
-            ),
-        ]
-
-        for i, prompt in enumerate(prompts):
+        for i, preset in enumerate(_trial_parlay_presets(date.today(), active_leagues)):
             if parlays_posted >= 2:
                 break
 
-            text = await _run_rag(prompt, "EPL")
-            if not _is_valid(text):
-                log.warning("Trial parlay prompt %d returned no usable output", i + 1)
+            try:
+                result = await _build_structured_trial_parlay(preset["request"])
+            except ParlayBuildError as exc:
+                log.warning("Trial parlay preset %d failed: %s | %s", i + 1, exc.message, "; ".join(exc.notes))
+                continue
+            except Exception as exc:
+                log.error("Trial parlay preset %d failed: %s", i + 1, exc, exc_info=True)
                 continue
 
-            legs, combined_odds = _parse_parlay_legs(text)
-
+            legs = _trial_leg_strings(result)
+            combined_odds = float(getattr(result, "combined_odds", 0.0) or 0.0)
             if not legs:
-                log.warning("Could not parse legs from trial parlay %d", i + 1)
+                log.warning("Could not derive legs from structured trial parlay %d", i + 1)
                 continue
 
             # Validate odds are in safe range

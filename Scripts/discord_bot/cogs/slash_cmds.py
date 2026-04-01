@@ -299,15 +299,18 @@ def _build_match_analysis_sync(home: str, away: str, league: str,
                 ml_options = rag.extract_moneyline_odds(event)
                 if ml_options:
                     ml = analysis["moneyline"]
-                    best = rag.choose_best_moneyline_side(
+                    result = rag.choose_best_moneyline_side(
                         ml["home_win"] or 0, ml["draw"] or 0, ml["away_win"] or 0,
                         ml_options, home, away)
-                    if best:
+                    rec = result.get("recommended") if result else None
+                    if rec:
                         analysis["moneyline"]["best_side"] = {
-                            "side": best.get("recommended"), "odds": best.get("odds"),
-                            "bookmaker": best.get("bookmaker"),
-                            "model_prob": _safe_round(best.get("_model_prob"), 3),
-                            "value_edge": _safe_round(best.get("_value_edge"), 3),
+                            "side": rec.get("side"),
+                            "team": rec.get("team"),
+                            "odds": rec.get("best_odds"),
+                            "bookmaker": rec.get("bookmaker"),
+                            "model_prob": _safe_round(rec.get("model_prob"), 3),
+                            "value_edge": _safe_round(rec.get("value_edge"), 3),
                         }
             except Exception:
                 pass

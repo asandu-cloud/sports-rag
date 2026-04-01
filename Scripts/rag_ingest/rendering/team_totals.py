@@ -190,7 +190,7 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
             if c_sea is not None:
                 lines.append(f"      Season model: {c_sea:.2f}.")
             if c_rec is not None:
-                lines.append(f"      Recent 6-match: {c_rec:.2f}.")
+                lines.append(f"      Recent/context anchor: {c_rec:.2f}.")
             t_var = get_blended_variance(team, league, "corners_for_var")
             options = extract_team_total_line_options(ev, team, "corners")
             best = choose_best_total_line(options, c_bl, t_var) if options else None
@@ -277,7 +277,7 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
             if k_sea is not None:
                 lines.append(f"      Season model: {k_sea:.2f}.")
             if k_rec is not None:
-                lines.append(f"      Recent 6-match: {k_rec:.2f}.")
+                lines.append(f"      Recent/context anchor: {k_rec:.2f}.")
             t_var = get_blended_variance(team, league, "cards_var")
             options = extract_team_total_line_options(ev, team, "cards")
             best = choose_best_total_line(options, k_bl, t_var) if options else None

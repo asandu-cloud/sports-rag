@@ -133,11 +133,12 @@ def _whale_welcome() -> discord.Embed:
         color=COLOR_PURPLE,
     )
     em.add_field(
-        name="Your private AI analyst",
+        name="Your private stats desk",
         value=(
             "You have a dedicated chat thread where you can ask anything in plain English \u2014 "
-            "\"build me a 3-leg parlay for Saturday around 3x odds\" or "
-            "\"is BTTS a good bet for Bayern vs Dortmund?\" Just type. No commands needed.\n\n"
+            "\"break down Arsenal vs Chelsea for goals, corners and cards\" or "
+            "\"who has the stronger recent form in Bayern vs Dortmund?\" Just type. No commands needed.\n\n"
+            "Whale chat is stats-first: it helps you build your own read rather than pushing picks.\n\n"
             "\u2192 **Go to #whale-ai and open your thread to start.**"
         ),
         inline=False,
@@ -285,11 +286,12 @@ class TierWelcome(commands.Cog):
             color=COLOR_PURPLE,
         )
         em.add_field(
-            name="Your private AI analyst",
+            name="Your private stats desk",
             value=(
                 "You have a dedicated chat thread where you can ask anything in plain English \u2014 "
-                "\"build me a 3-leg parlay for Saturday around 3x odds\" or "
-                "\"is BTTS a good bet for Bayern vs Dortmund?\" Just type. No commands needed.\n\n"
+                "\"break down Arsenal vs Chelsea for goals, corners and cards\" or "
+                "\"who has the stronger recent form in Bayern vs Dortmund?\" Just type. No commands needed.\n\n"
+                "Whale chat is stats-first: it helps you build your own read rather than pushing picks.\n\n"
                 f"\u2192 **Go to {whale_ai} and open your thread to start.**"
             ),
             inline=False,

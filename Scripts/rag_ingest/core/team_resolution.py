@@ -57,6 +57,7 @@ _team_meta_cache: Dict[Tuple[str, str], Dict] = {}
 _team_profile_doc_cache: Dict[Tuple[str, str], Dict] = {}
 _team_recent_stats_cache: Dict[Tuple, Dict] = {}
 _team_recent_var_cache: Dict[Tuple, Dict] = {}
+_team_fixture_meta_cache: Dict[Tuple[str, str, str, str, str], Optional[Dict]] = {}
 _domestic_league_cache: Dict[str, Optional[str]] = {}
 _chroma_client = None
 _chroma_collection = None
@@ -618,19 +619,20 @@ def get_blended_profile_meta(team_name: str, competition: str) -> Dict:
     return blended
 
 
-def get_blended_recent_stats(team_name: str, competition: str, last_n: int = 6) -> Dict:
+def get_blended_recent_stats(team_name: str, competition: str, last_n: int = 6,
+                             venue: Optional[str] = None) -> Dict:
     """For European competitions, blend domestic + European recent stats."""
     if competition not in EUROPEAN_COMPETITIONS:
-        return get_team_recent_stats(team_name, competition, last_n)
+        return get_team_recent_stats(team_name, competition, last_n, venue=venue)
 
     ew = SCORING_WEIGHTS["european"]
-    euro_stats = get_team_recent_stats(team_name, competition, last_n)
+    euro_stats = get_team_recent_stats(team_name, competition, last_n, venue=venue)
     domestic_lg = resolve_domestic_league(team_name)
 
     if not domestic_lg:
         return euro_stats  # Non-top-5 team
 
-    domestic_stats = get_team_recent_stats(team_name, domestic_lg, last_n)
+    domestic_stats = get_team_recent_stats(team_name, domestic_lg, last_n, venue=venue)
     if not domestic_stats or domestic_stats.get("n", 0) == 0:
         return euro_stats
     if not euro_stats or euro_stats.get("n", 0) == 0:
@@ -664,11 +666,12 @@ def _profile_meta(team: str, league: str) -> Dict:
     return get_team_profile_meta(team, league)
 
 
-def _recent_stats(team: str, league: str, last_n: int = 6) -> Dict:
+def _recent_stats(team: str, league: str, last_n: int = 6,
+                  venue: Optional[str] = None) -> Dict:
     """Recent stats -- auto-blends for European competitions."""
     if league in EUROPEAN_COMPETITIONS:
-        return get_blended_recent_stats(team, league, last_n)
-    return get_team_recent_stats(team, league, last_n)
+        return get_blended_recent_stats(team, league, last_n, venue=venue)
+    return get_team_recent_stats(team, league, last_n, venue=venue)
 
 
 # ---------------------------------------------------------------------------
@@ -717,6 +720,39 @@ def get_recent_team_fixture_rows(team_name: str, league: str, limit: int = 8,
     return rows[:limit]
 
 
+def _get_team_fixture_meta(team_name: str, league: str, fixture: str,
+                           fixture_date: str = "", season: Optional[str] = None) -> Optional[Dict]:
+    """Fetch one team_fixture metadata row for a specific team+fixture."""
+    cache_key = (
+        league,
+        canonical_team_name(team_name).lower(),
+        str(fixture or ""),
+        str(fixture_date or ""),
+        str(season or ""),
+    )
+    if cache_key in _team_fixture_meta_cache:
+        return _team_fixture_meta_cache[cache_key]
+
+    col = get_collection_handle(create_if_missing=True)
+    variants = _kb_team_variants(team_name)
+    for v in variants:
+        filters: List[Dict] = [{"doc_type": "team_fixture"}, {"team": v}, {"fixture": fixture}]
+        if fixture_date:
+            filters.append({"fixture_date": fixture_date})
+        if season:
+            filters.append({"season": season})
+        where = build_where(league, extra_filters=filters)
+        res = col.get(where=where, include=["metadatas"], limit=4)
+        metas = res.get("metadatas") or []
+        if metas:
+            meta = metas[0] or None
+            _team_fixture_meta_cache[cache_key] = meta
+            return meta
+
+    _team_fixture_meta_cache[cache_key] = None
+    return None
+
+
 def get_team_recent_stats(team_name: str, league: str, last_n: int = 6,
                           venue: Optional[str] = None) -> Dict:
     cache_key = (league, canonical_team_name(team_name).lower(), int(last_n),
@@ -741,6 +777,17 @@ def get_team_recent_stats(team_name: str, league: str, last_n: int = 6,
     sot_for_vals = [_numeric(m.get("sot_for")) for m in metas]
     cards_vals = [_numeric(m.get("cards_per_90_team")) for m in metas]
     goals_vals = [_numeric(m.get("xg_for")) for m in metas]
+    cards_induced_vals = []
+    for m in metas:
+        opp = str(m.get("opponent") or "")
+        fixture = str(m.get("fixture") or "")
+        fixture_date = str(m.get("fixture_date") or "")
+        season = str(m.get("season") or "")
+        if not opp or not fixture:
+            cards_induced_vals.append(None)
+            continue
+        opp_meta = _get_team_fixture_meta(opp, league, fixture, fixture_date, season=season)
+        cards_induced_vals.append(_numeric((opp_meta or {}).get("cards_per_90_team")))
 
     stats = {
         "n": len(metas),
@@ -751,9 +798,12 @@ def get_team_recent_stats(team_name: str, league: str, last_n: int = 6,
         "shots_against_avg": _weighted_avg([_numeric(m.get("shots_against")) for m in metas], alpha),
         "sot_against_avg": _weighted_avg([_numeric(m.get("sot_against")) for m in metas], alpha),
         "cards_avg": _weighted_avg(cards_vals, alpha),
+        "cards_induced_avg": _weighted_avg(cards_induced_vals, alpha),
+        "aggression_avg": _weighted_avg([_numeric(m.get("aggression_index_norm")) for m in metas], alpha),
         "control_avg": _weighted_avg([_numeric(m.get("control_index")) for m in metas], alpha),
         "form_avg": _weighted_avg([_numeric(m.get("form_index_team")) for m in metas], alpha),
         "fouls_avg": _weighted_avg([_numeric(m.get("fouls_per_90_team")) for m in metas], alpha),
+        "possession_avg": _weighted_avg([_numeric(m.get("possession")) for m in metas], alpha),
         "xg_for_avg": _weighted_avg(goals_vals, alpha),
         # Trend slopes (positive = improving, units per match)
         "corners_for_slope": _linear_slope(corners_for_vals),

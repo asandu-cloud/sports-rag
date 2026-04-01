@@ -3,10 +3,8 @@ market focus, same-game parlays, and follow-up action buttons."""
 
 from __future__ import annotations
 
-import io
 import sys
 import time
-from contextlib import redirect_stdout
 from datetime import datetime, date, timedelta
 from typing import Dict, List, Optional, Tuple
 
@@ -16,11 +14,20 @@ from discord.ext import commands
 
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[2] / "rag_ingest"))
 import rag_cli_v2 as rag  # noqa: E402
+from core.parlay_service import (  # noqa: E402
+    ParlayBuildError,
+    ParlaySessionStore,
+    build_and_store_parlay,
+    build_parlay_request,
+    derive_followup_request,
+)
 
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1]))
-from embeds import parlay_embed  # noqa: E402
-from config import ALL_LEAGUES, COLOR_PURPLE, COLOR_BLUE  # noqa: E402
-from cogs.access import premium_only, pooled_command, tier_required, get_or_create_private_thread, _has_premium_role  # noqa: E402
+from embeds import parlay_error_embeds, structured_parlay_embeds  # noqa: E402
+from config import ALL_LEAGUES, COLOR_PURPLE  # noqa: E402
+from cogs.access import pooled_command, get_or_create_private_thread  # noqa: E402
+
+_SESSION_STORE = ParlaySessionStore()
 
 
 # ---------------------------------------------------------------------------
@@ -79,19 +86,60 @@ def _date_phrase(d: date) -> str:
     return f"{_ordinal(d.day)} {d.strftime('%B')}"
 
 
-def _run_rag_sync(prompt: str, league: str) -> str:
-    """Synchronous RAG call — never call from event loop directly."""
-    buf = io.StringIO()
-    with redirect_stdout(buf):
-        rag.answer_once(prompt, default_league=league)
-    return buf.getvalue().strip() or "(No output from model)"
+async def _send_parlay_result(
+    interaction: discord.Interaction,
+    result,
+    thread: Optional[discord.Thread],
+) -> None:
+    """Send a structured parlay result to the thread or ephemeral fallback."""
+    display_league = result.request.display_league
+    embeds = structured_parlay_embeds(result, league=display_league)
+    view = ParlayFollowUpView(
+        session_id=result.session_id,
+        league=display_league,
+        date_phrase=result.request.date_phrase,
+        thread_id=thread.id if thread else None,
+    )
+    if thread:
+        await interaction.followup.send(
+            f"Parlay posted in your private thread {thread.mention}.",
+            ephemeral=True,
+        )
+        message = await thread.send(embeds=embeds, view=view)
+        _SESSION_STORE.update_message_context(
+            result.session_id,
+            message_id=message.id,
+            channel_id=getattr(message.channel, "id", None),
+            thread_id=getattr(message.channel, "id", None),
+        )
+    else:
+        await interaction.followup.send(embeds=embeds, view=view, ephemeral=True)
 
 
-async def _run_rag(prompt: str, league: str) -> str:
-    """Async wrapper — runs RAG in thread pool so event loop stays free."""
+async def _send_parlay_error(
+    interaction: discord.Interaction,
+    message: str,
+    notes: Optional[List[str]],
+    *,
+    league: str,
+    thread: Optional[discord.Thread],
+) -> None:
+    embeds = parlay_error_embeds(message, notes or [], league=league)
+    if thread:
+        await interaction.followup.send(
+            f"Could not build your parlay. Details were posted in {thread.mention}.",
+            ephemeral=True,
+        )
+        await thread.send(embeds=embeds)
+    else:
+        await interaction.followup.send(embeds=embeds, ephemeral=True)
+
+
+async def _build_structured(request):
+    """Run the structured parlay builder off the event loop."""
     import asyncio
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, _run_rag_sync, prompt, league)
+    return await loop.run_in_executor(None, build_and_store_parlay, request, _SESSION_STORE)
 
 
 # ---------------------------------------------------------------------------
@@ -194,138 +242,102 @@ async def _match_autocomplete(
 class ParlayFollowUpView(discord.ui.View):
     """Follow-up action buttons attached to every parlay response."""
 
-    def __init__(self, league: str, date_phrase: str,
-                 thread: Optional[discord.Thread] = None,
-                 previous_parlay: str = ""):
-        super().__init__(timeout=300)  # 5 minutes
+    def __init__(self, session_id: int, league: str, date_phrase: str, thread_id: Optional[int] = None):
+        super().__init__(timeout=None)
+        self.session_id = int(session_id)
         self.league = league
         self.date_phrase = date_phrase
-        self.thread = thread
-        self.previous_parlay = previous_parlay  # raw text of the parlay output
+        self.thread_id = thread_id
+        self.add_leg.custom_id = f"parlay:add_leg:{self.session_id}"
+        self.swap_weakest.custom_id = f"parlay:swap_weakest:{self.session_id}"
+        self.safer.custom_id = f"parlay:safer:{self.session_id}"
+        self.riskier.custom_id = f"parlay:riskier:{self.session_id}"
 
-    async def _send_to_thread(
-        self,
-        interaction: discord.Interaction,
-        embeds: list,
-        view: "ParlayFollowUpView",
-    ):
-        """Send results to the user's private thread (or ephemeral fallback)."""
-        if self.thread:
+    async def _resolve_thread(self, interaction: discord.Interaction):
+        if not self.thread_id:
+            return None
+        channel = interaction.client.get_channel(self.thread_id)
+        if channel is not None:
+            return channel
+        try:
+            return await interaction.client.fetch_channel(self.thread_id)
+        except Exception:
+            return None
+
+    async def _publish_result(self, interaction: discord.Interaction, result) -> None:
+        embeds = structured_parlay_embeds(result, league=self.league)
+        view = ParlayFollowUpView(
+            session_id=result.session_id,
+            league=result.request.display_league,
+            date_phrase=result.request.date_phrase,
+            thread_id=result.request.thread_id,
+        )
+        thread = await self._resolve_thread(interaction)
+        if thread is not None:
             await interaction.followup.send(
-                f"Updated parlay posted in your private thread {self.thread.mention}.",
+                f"Updated parlay posted in your private thread {thread.mention}.",
                 ephemeral=True,
             )
-            await self.thread.send(embeds=embeds, view=view)
+            message = await thread.send(embeds=embeds, view=view)
+            _SESSION_STORE.update_message_context(
+                result.session_id,
+                message_id=message.id,
+                channel_id=getattr(message.channel, "id", None),
+                thread_id=getattr(message.channel, "id", None),
+            )
         else:
             await interaction.followup.send(embeds=embeds, view=view, ephemeral=True)
 
+    async def _publish_error(self, interaction: discord.Interaction, message: str, notes: Optional[List[str]] = None) -> None:
+        embeds = parlay_error_embeds(message, notes or [], league=self.league)
+        thread = await self._resolve_thread(interaction)
+        if thread is not None:
+            await interaction.followup.send(
+                f"Could not update your parlay. Details were posted in {thread.mention}.",
+                ephemeral=True,
+            )
+            await thread.send(embeds=embeds)
+        else:
+            await interaction.followup.send(embeds=embeds, ephemeral=True)
+
+    async def _handle_action(self, interaction: discord.Interaction, action: str) -> None:
+        await interaction.response.defer(thinking=True)
+        record = _SESSION_STORE.get_session(self.session_id)
+        if record is None:
+            await self._publish_error(interaction, "This parlay session is no longer available.")
+            return
+
+        try:
+            request = derive_followup_request(record, action)
+            request.discord_user_id = interaction.user.id
+            request.guild_id = interaction.guild.id if interaction.guild else None
+            request.channel_id = interaction.channel.id if interaction.channel else None
+            request.thread_id = self.thread_id or getattr(interaction.channel, "id", None)
+            result = await _build_structured(request)
+        except ParlayBuildError as exc:
+            await self._publish_error(interaction, exc.message, exc.notes)
+            return
+        except Exception as exc:
+            await self._publish_error(interaction, f"Parlay update failed: {exc}")
+            return
+
+        await self._publish_result(interaction, result)
+
     @discord.ui.button(label="Add a leg", style=discord.ButtonStyle.green, emoji="\u2795")
     async def add_leg(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(thinking=True)
-        if self.previous_parlay:
-            import re
-            legs = re.findall(
-                r"Leg\s+\d+:.*?\|.*?@\s*[\d.]+\s*\([^)]+\)(?:\s*\([^)]+\))?",
-                self.previous_parlay,
-            )
-            n_legs = len(legs)
-            legs_text = "\n".join(legs) if legs else self.previous_parlay[:500]
-            prompt = (
-                f"For {self.league} games on {self.date_phrase}, "
-                f"I have this {n_legs}-leg parlay:\n{legs_text}\n\n"
-                f"Add one more leg to make it a {n_legs + 1}-leg parlay. "
-                "Pick a strong high-confidence leg from a different fixture than the existing legs."
-            )
-        else:
-            prompt = (
-                f"For {self.league} games on {self.date_phrase}, "
-                "build a 5-leg parlay with high confidence picks."
-            )
-        text = await _run_rag(prompt, self.league)
-        embeds = parlay_embed(text, league=self.league)
-        view = ParlayFollowUpView(self.league, self.date_phrase, self.thread, previous_parlay=text)
-        await self._send_to_thread(interaction, embeds, view)
+        await self._handle_action(interaction, "add_leg")
 
     @discord.ui.button(label="Swap weakest", style=discord.ButtonStyle.blurple, emoji="\U0001f504")
     async def swap_weakest(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(thinking=True)
-        # Include the previous parlay so the model knows which leg to swap
-        if self.previous_parlay:
-            # Extract legs from previous output to identify the weakest
-            import re
-            legs = re.findall(
-                r"Leg\s+\d+:.*?\|.*?@\s*[\d.]+\s*\([^)]+\)(?:\s*\([^)]+\))?",
-                self.previous_parlay,
-            )
-            legs_text = "\n".join(legs) if legs else self.previous_parlay[:500]
-            prompt = (
-                f"For {self.league} games on {self.date_phrase}, "
-                f"I have this parlay:\n{legs_text}\n\n"
-                "Identify the weakest leg (lowest confidence or smallest edge) "
-                "and replace it with a stronger alternative from the same or different fixture. "
-                "Keep the other legs unchanged and rebuild the parlay."
-            )
-        else:
-            prompt = (
-                f"For {self.league} games on {self.date_phrase}, "
-                "build a parlay with 4 legs, replacing any weak picks with stronger alternatives."
-            )
-        text = await _run_rag(prompt, self.league)
-        embeds = parlay_embed(text, league=self.league)
-        view = ParlayFollowUpView(self.league, self.date_phrase, self.thread, previous_parlay=text)
-        await self._send_to_thread(interaction, embeds, view)
+        await self._handle_action(interaction, "swap_weakest")
 
     @discord.ui.button(label="Safer", style=discord.ButtonStyle.grey, emoji="\U0001f6e1\ufe0f")
     async def safer(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(thinking=True)
-        if self.previous_parlay:
-            import re
-            legs = re.findall(
-                r"Leg\s+\d+:.*?\|.*?@\s*[\d.]+\s*\([^)]+\)(?:\s*\([^)]+\))?",
-                self.previous_parlay,
-            )
-            legs_text = "\n".join(legs) if legs else self.previous_parlay[:500]
-            prompt = (
-                f"For {self.league} games on {self.date_phrase}, "
-                f"I have this parlay:\n{legs_text}\n\n"
-                "Make it safer — keep the same fixtures but pick shorter-odds, "
-                "higher-probability lines. Cap combined odds at 2.5x."
-            )
-        else:
-            prompt = (
-                f"For {self.league} games on {self.date_phrase}, "
-                "build a safe parlay with combined odds around 2.5x using only high confidence picks."
-            )
-        text = await _run_rag(prompt, self.league)
-        embeds = parlay_embed(text, league=self.league)
-        view = ParlayFollowUpView(self.league, self.date_phrase, self.thread, previous_parlay=text)
-        await self._send_to_thread(interaction, embeds, view)
+        await self._handle_action(interaction, "safer")
 
     @discord.ui.button(label="Riskier", style=discord.ButtonStyle.red, emoji="\U0001f3b2")
     async def riskier(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(thinking=True)
-        if self.previous_parlay:
-            import re
-            legs = re.findall(
-                r"Leg\s+\d+:.*?\|.*?@\s*[\d.]+\s*\([^)]+\)(?:\s*\([^)]+\))?",
-                self.previous_parlay,
-            )
-            legs_text = "\n".join(legs) if legs else self.previous_parlay[:500]
-            prompt = (
-                f"For {self.league} games on {self.date_phrase}, "
-                f"I have this parlay:\n{legs_text}\n\n"
-                "Make it riskier — keep the same fixtures but pick longer-odds, "
-                "higher-upside lines. Push combined odds up to around 5.0x-7.0x."
-            )
-        else:
-            prompt = (
-                f"For {self.league} games on {self.date_phrase}, "
-                "build a risky parlay with combined odds around 6.0x mixing different markets."
-            )
-        text = await _run_rag(prompt, self.league)
-        embeds = parlay_embed(text, league=self.league)
-        view = ParlayFollowUpView(self.league, self.date_phrase, self.thread, previous_parlay=text)
-        await self._send_to_thread(interaction, embeds, view)
+        await self._handle_action(interaction, "riskier")
 
 
 # ---------------------------------------------------------------------------
@@ -441,17 +453,6 @@ class BuildMarketSelectView(discord.ui.View):
 
 # Step 4: Risk level / execute
 
-_MARKET_CONSTRAINTS = {
-    "totals": "using only full-game over/under goals totals lines",
-    "corners": "with ONLY CORNER TOTALS, one corner total per game, full-game markets only",
-    "cards": "with ONLY CARD TOTALS, one card total per game, full-game markets only",
-    "sot": "using ONLY shots on target totals, one SoT leg per game, full-game markets only",
-    "btts": "using only BTTS Yes/No picks",
-    "moneyline": "using only moneyline picks",
-    "mixed": "mixing goals, corners, and cards markets, at least two different fixtures",
-}
-
-
 class BuildOddsTargetView(discord.ui.View):
     """Step 4 view: pick a risk level and execute the parlay query."""
 
@@ -463,37 +464,57 @@ class BuildOddsTargetView(discord.ui.View):
         self.market = market
         self.thread = thread
 
-    async def _build(self, interaction: discord.Interaction, legs: int, odds: float):
+    async def _build(self, interaction: discord.Interaction, legs: int, odds: float, risk_profile: str):
         await interaction.response.defer(thinking=True)
-        dp = _date_phrase(self.target_date)
-        constraint = _MARKET_CONSTRAINTS.get(self.market, "")
-        prompt = (
-            f"For all {self.league} games on {dp}, make a {legs}-leg parlay "
-            f"{constraint} with combined decimal odds at or below {odds}x."
+        request = build_parlay_request(
+            league_value=self.league,
+            target_date=self.target_date,
+            legs=legs,
+            odds=odds,
+            market=self.market,
+            match=None,
+            source_command="build",
+            target_mode="max",
+            risk_profile=risk_profile,
+            discord_user_id=interaction.user.id,
+            guild_id=interaction.guild.id if interaction.guild else None,
+            channel_id=interaction.channel.id if interaction.channel else None,
+            thread_id=self.thread.id if self.thread else None,
         )
-        text = await _run_rag(prompt, self.league)
-        embeds = parlay_embed(text, league=self.league)
-        view = ParlayFollowUpView(self.league, dp, self.thread, previous_parlay=text)
-        if self.thread:
-            await interaction.followup.send(
-                f"Parlay posted in your private thread {self.thread.mention}.",
-                ephemeral=True,
+        try:
+            result = await _build_structured(request)
+        except ParlayBuildError as exc:
+            await _send_parlay_error(
+                interaction,
+                exc.message,
+                exc.notes,
+                league=self.league,
+                thread=self.thread,
             )
-            await self.thread.send(embeds=embeds, view=view)
-        else:
-            await interaction.followup.send(embeds=embeds, view=view, ephemeral=True)
+            return
+        except Exception as exc:
+            await _send_parlay_error(
+                interaction,
+                f"Parlay build failed: {exc}",
+                [],
+                league=self.league,
+                thread=self.thread,
+            )
+            return
+
+        await _send_parlay_result(interaction, result, self.thread)
 
     @discord.ui.button(label="Safe (3-leg, ~2.5x)", style=discord.ButtonStyle.green)
     async def safe(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self._build(interaction, 3, 2.5)
+        await self._build(interaction, 3, 2.5, "safe")
 
     @discord.ui.button(label="Standard (4-leg, ~4x)", style=discord.ButtonStyle.blurple)
     async def standard(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self._build(interaction, 4, 4.0)
+        await self._build(interaction, 4, 4.0, "standard")
 
     @discord.ui.button(label="Risky (5-leg, ~7x)", style=discord.ButtonStyle.red)
     async def risky(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self._build(interaction, 5, 7.0)
+        await self._build(interaction, 5, 7.0, "risky")
 
 
 # ---------------------------------------------------------------------------
@@ -522,6 +543,18 @@ class ParlayBuilder(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
+    async def cog_load(self):
+        for record in _SESSION_STORE.list_persistent_sessions():
+            if not record.message_id:
+                continue
+            view = ParlayFollowUpView(
+                session_id=record.id,
+                league=record.result.request.display_league,
+                date_phrase=record.result.request.date_phrase,
+                thread_id=record.thread_id,
+            )
+            self.bot.add_view(view, message_id=int(record.message_id))
 
     # --- /build ---
 
@@ -572,63 +605,46 @@ class ParlayBuilder(commands.Cog):
         await interaction.response.defer(thinking=True)
 
         target_date = _parse_date(date)
-        dp = _date_phrase(target_date)
         lg = league.value
         market_val = market.value if market else None
+        target_mode = "around" if (lg == "cross-league" or match) else "max"
+        request = build_parlay_request(
+            league_value=lg,
+            target_date=target_date,
+            legs=legs or 4,
+            odds=odds,
+            market=market_val,
+            match=match,
+            source_command="parlay",
+            target_mode=target_mode,
+            risk_profile="standard",
+            discord_user_id=interaction.user.id,
+            guild_id=interaction.guild.id if interaction.guild else None,
+            channel_id=interaction.channel.id if interaction.channel else None,
+            thread_id=thread.id if thread else None,
+        )
+        try:
+            result = await _build_structured(request)
+        except ParlayBuildError as exc:
+            await _send_parlay_error(
+                interaction,
+                exc.message,
+                exc.notes,
+                league="Cross-League" if lg == "cross-league" else lg,
+                thread=thread,
+            )
+            return
+        except Exception as exc:
+            await _send_parlay_error(
+                interaction,
+                f"Parlay build failed: {exc}",
+                [],
+                league="Cross-League" if lg == "cross-league" else lg,
+                thread=thread,
+            )
+            return
 
-        # Build the prompt based on context
-        if lg == "cross-league":
-            prompt = (
-                f"For all top 5 league games on {dp}, build a cross-league parlay "
-                f"with {legs} legs and combined odds around {odds}x."
-            )
-            if market_val and market_val != "mixed":
-                constraint = _MARKET_CONSTRAINTS.get(market_val, "")
-                prompt = (
-                    f"For all top 5 league games on {dp}, build a cross-league parlay "
-                    f"{constraint} with {legs} legs and combined odds around {odds}x."
-                )
-            display_league = "Cross-League"
-            rag_league = "EPL"
-        elif match:
-            prompt = (
-                f"Build a {legs}-leg same-game parlay for {match} in {lg} on {dp} "
-                f"with combined odds around {odds}x."
-            )
-            if market_val and market_val != "mixed":
-                constraint = _MARKET_CONSTRAINTS.get(market_val, "")
-                prompt = (
-                    f"Build a {legs}-leg same-game parlay for {match} in {lg} on {dp} "
-                    f"{constraint} with combined odds around {odds}x."
-                )
-            display_league = lg
-            rag_league = lg
-        else:
-            if market_val and market_val != "mixed":
-                constraint = _MARKET_CONSTRAINTS.get(market_val, "")
-                prompt = (
-                    f"For all {lg} games on {dp}, make a {legs}-leg parlay "
-                    f"{constraint} with combined decimal odds at or below {odds}x."
-                )
-            else:
-                prompt = (
-                    f"For all {lg} games on {dp}, make a {legs}-leg parlay "
-                    f"with combined decimal odds at or below {odds}x."
-                )
-            display_league = lg
-            rag_league = lg
-
-        text = await _run_rag(prompt, rag_league)
-        embeds = parlay_embed(text, league=display_league)
-        view = ParlayFollowUpView(display_league, dp, thread, previous_parlay=text)
-        if thread:
-            await interaction.followup.send(
-                f"Parlay posted in your private thread {thread.mention}.",
-                ephemeral=True,
-            )
-            await thread.send(embeds=embeds, view=view)
-        else:
-            await interaction.followup.send(embeds=embeds, view=view, ephemeral=True)
+        await _send_parlay_result(interaction, result, thread)
 
     @parlay_cmd.autocomplete("match")
     async def _parlay_match_ac(
