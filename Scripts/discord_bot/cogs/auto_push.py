@@ -1054,7 +1054,13 @@ class AutoPush(commands.Cog):
         target_date = date.today()
         date_str = _today_phrase()
         built = []
+        used_leg_refs = []  # accumulate legs across parlays to prevent repetition
         for preset in _auto_parlay_presets(target_date, active_leagues):
+            # Inject previously-used legs as exclusions for risk diversification
+            if used_leg_refs:
+                preset["request"].excluded_legs = list(
+                    set(preset["request"].excluded_legs) | set(used_leg_refs)
+                )
             try:
                 result = await _build_structured_parlay(preset["request"])
             except ParlayBuildError as exc:
@@ -1064,6 +1070,9 @@ class AutoPush(commands.Cog):
                 log.error("Auto parlay '%s' failed: %s", preset["title"], exc, exc_info=True)
                 continue
             built.append((preset, result))
+            # Collect used legs so subsequent parlays cannot repeat them
+            for leg in result.selected_legs:
+                used_leg_refs.append(leg.ref)
 
         if not built:
             log.warning("All 3 structured parlay presets failed.")

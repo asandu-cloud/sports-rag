@@ -123,6 +123,13 @@ PLAYER_PROP_WEIGHTS = {
     "min_qualified_apps_limited": 3,
     "min_total_minutes": 180,
 
+    # Stricter gating for player props
+    "min_expected_minutes_for_rec": 45,       # skip recommendations if projected < 45 min
+    "min_expected_minutes_for_1_5": 70,       # need ~70 min for 1.5+ lines
+    "bench_skip_entirely": True,              # skip bench players completely
+    "rotation_max_line": 0.5,                 # rotation players only get 0.5 lines
+    "low_start_rate_threshold": 0.30,         # below this, treat as bench
+
     # --- Enhanced matchup weights ---
     # Cards matchup model
     "cards_foul_rate_weight": 0.35,          # foul-rate pathway share
@@ -194,6 +201,50 @@ STAT_EMOJIS = {
     "cards": "\U0001f7e8",
     "fouls": "\U0001f6d1",
 }
+
+
+# ---------------------------------------------------------------------------
+# Role heuristics (penalty taker, set-piece creator, high-usage)
+# ---------------------------------------------------------------------------
+
+def infer_player_roles(player_meta: Dict, player_text: str = "") -> Dict[str, bool]:
+    """Infer player roles from existing metadata.
+
+    Returns dict with: probable_penalty_taker, probable_set_piece, high_usage_creator.
+    These are heuristic — based on statistical patterns, not confirmed data.
+    """
+    roles = {
+        "probable_penalty_taker": False,
+        "probable_set_piece": False,
+        "high_usage_creator": False,
+    }
+
+    goals_90 = _safe_float(player_meta.get("starter_goals_per_90") or player_meta.get("goals_per_90"), 0.0)
+    shots_90 = _safe_float(player_meta.get("shots_per_90"), 0.0)
+    assists_90 = _safe_float(player_meta.get("starter_assists_per_90") or player_meta.get("assists_per_90"), 0.0)
+    position = (player_meta.get("position") or "").upper()
+
+    # Penalty taker heuristic: high goals/shot ratio (>0.25) suggests penalty involvement
+    # Normal conversion ~0.10-0.15; penalty takers inflate this
+    if shots_90 > 0 and goals_90 / shots_90 > 0.25 and goals_90 >= 0.30:
+        roles["probable_penalty_taker"] = True
+
+    # Set-piece creator: midfielder/attacker with high assist rate
+    if assists_90 >= 0.25 and position in ("M", "F", "MIDFIELDER", "ATTACKER"):
+        roles["probable_set_piece"] = True
+
+    # High-usage creator: high combined g+a rate
+    if (goals_90 + assists_90) >= 0.60:
+        roles["high_usage_creator"] = True
+
+    # Text-based detection: look for "penalty" or "free kick" mentions
+    text_lower = player_text.lower() if player_text else ""
+    if "penalty" in text_lower or "pen taker" in text_lower:
+        roles["probable_penalty_taker"] = True
+    if "free kick" in text_lower or "set piece" in text_lower or "set-piece" in text_lower:
+        roles["probable_set_piece"] = True
+
+    return roles
 
 
 # ---------------------------------------------------------------------------
@@ -759,6 +810,14 @@ def projected_player_stat(
     if recent_trend == "benched" and role not in ("nailed_on", "starter"):
         return None  # skip players trending to bench -- unreliable
 
+    # Stricter gating: skip bench players entirely if configured
+    if pw.get("bench_skip_entirely", True) and role in ("bench",):
+        return None
+
+    # Stricter gating: low start_rate treated as bench
+    if start_rate < pw.get("low_start_rate_threshold", 0.30) and role not in ("nailed_on", "starter"):
+        return None
+
     data_quality = "full" if qualified_apps >= pw["min_qualified_apps"] else "limited"
 
     # --- Player's own per-90 rate (prefer starter-only rates) ---
@@ -797,6 +856,11 @@ def projected_player_stat(
         expected_minutes = avg_minutes * pw["rotation_minutes_discount"]
     else:  # bench
         expected_minutes = avg_minutes * pw["bench_minutes_discount"]
+
+    # --- Minutes feasibility check ---
+    min_minutes_for_rec = pw.get("min_expected_minutes_for_rec", 45)
+    if expected_minutes < min_minutes_for_rec:
+        return None  # not enough expected playing time for a meaningful prop
 
     # --- Scale rate to expected minutes ---
     minutes_factor = expected_minutes / 90.0
@@ -1008,8 +1072,16 @@ def recommend_player_prop(
     best_side = "over"
     best_prob = p_over_05
 
+    # Line feasibility: rotation players capped at 0.5 lines
+    rotation_max = pw.get("rotation_max_line", 0.5)
+    is_rotation = projection.minutes_risk in ("rotation",)
+
+    # Minutes-based line cap: need enough expected minutes for higher lines
+    min_min_1_5 = pw.get("min_expected_minutes_for_1_5", 70)
+    can_rec_1_5 = projection.minutes_projection >= min_min_1_5 and not is_rotation
+
     # For SoT: if P(2+) is strong enough, recommend Over 1.5 instead
-    if projection.stat == "sot" and projection.prob_over_1_5:
+    if projection.stat == "sot" and projection.prob_over_1_5 and can_rec_1_5:
         p_15 = projection.prob_over_1_5
         if p_15 >= 0.40:
             best_line = 1.5

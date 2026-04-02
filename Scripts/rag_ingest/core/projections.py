@@ -273,6 +273,51 @@ def _clamp(value: float, lower: float, upper: float) -> float:
     return max(lower, min(upper, value))
 
 
+def compute_stat_confidence(
+    stat: str,
+    home: str,
+    away: str,
+    league: str,
+    ref_mod=None,
+) -> str:
+    """Compute confidence bucket for any stat projection.
+
+    Returns "high", "medium", or "low" based on:
+    - Sample size (recent fixture count)
+    - Referee data availability (for cards)
+    - Stat-specific thresholds
+
+    This extends the cards-specific confidence gating to all stats.
+    """
+    hr = _recent_stats(home, league, last_n=6)
+    ar = _recent_stats(away, league, last_n=6)
+    n_home = hr.get("n", 0)
+    n_away = ar.get("n", 0)
+
+    if stat == "cards":
+        # Cards use the detail helper's confidence bucket (richer logic)
+        ref_conf = 0.0
+        if ref_mod is not None:
+            ref_conf = getattr(ref_mod, "confidence", 0.0) if getattr(ref_mod, "source", "") == "profile" else 0.0
+        ccf = SCORING_WEIGHTS.get("cards_confidence", {})
+        if ref_conf >= ccf.get("referee_high_confidence", 0.70) and n_home >= 5 and n_away >= 5:
+            return "high"
+        elif ref_conf >= ccf.get("referee_medium_confidence", 0.35) or (n_home >= 5 and n_away >= 5):
+            return "medium"
+        return "low"
+
+    # General stat confidence: based on sample size and profile data availability
+    hm = _profile_meta(home, league)
+    am = _profile_meta(away, league)
+    has_profiles = bool(hm) and bool(am)
+
+    if has_profiles and n_home >= 8 and n_away >= 8:
+        return "high"
+    elif has_profiles and n_home >= 4 and n_away >= 4:
+        return "medium"
+    return "low"
+
+
 def _share_from_scores(
     team_score: Optional[float],
     opp_score: Optional[float],
@@ -485,7 +530,7 @@ def projected_goals(home_meta: Dict, away_meta: Dict) -> Tuple[Optional[float], 
 #  Match-total projections (blended season + recent + ML)
 # ===================================================================
 
-def projected_total_sot(home: str, away: str, league: str, knockout_ctx: Optional[KnockoutContext] = None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+def projected_total_sot(home: str, away: str, league: str, knockout_ctx: Optional[KnockoutContext] = None, league_ctx=None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     hm = _profile_meta(home, league)
     am = _profile_meta(away, league)
     h_proj, a_proj = projected_sot(hm, am)
@@ -521,10 +566,16 @@ def projected_total_sot(home: str, away: str, league: str, knockout_ctx: Optiona
     if knockout_ctx and knockout_ctx.is_knockout and knockout_ctx.sot_modifier != 1.0:
         blended *= knockout_ctx.sot_modifier
 
+    # League context adjustment (rest, congestion, stake, regime)
+    if league_ctx is not None:
+        adj = getattr(league_ctx, "adjustments", {}).get("sot", 1.0)
+        if adj != 1.0:
+            blended *= adj
+
     return blended, season_total, recent_total
 
 
-def projected_total_corners(home: str, away: str, league: str, knockout_ctx: Optional[KnockoutContext] = None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+def projected_total_corners(home: str, away: str, league: str, knockout_ctx: Optional[KnockoutContext] = None, league_ctx=None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     hm = _profile_meta(home, league)
     am = _profile_meta(away, league)
     h_proj, a_proj = projected_corners(hm, am)
@@ -560,6 +611,12 @@ def projected_total_corners(home: str, away: str, league: str, knockout_ctx: Opt
     if knockout_ctx and knockout_ctx.is_knockout and knockout_ctx.corners_modifier != 1.0:
         blended *= knockout_ctx.corners_modifier
 
+    # League context adjustment
+    if league_ctx is not None:
+        adj = getattr(league_ctx, "adjustments", {}).get("corners", 1.0)
+        if adj != 1.0:
+            blended *= adj
+
     return blended, season_total, recent_total
 
 
@@ -570,6 +627,7 @@ def projected_total_cards_detail(
     knockout_ctx: Optional[KnockoutContext] = None,
     ref_mod: Optional[RefereeModifier] = None,
     lineup_ctx=None,
+    league_ctx=None,
 ) -> Dict:
     """Rich cards projection returning a detail dict.
 
@@ -753,6 +811,12 @@ def projected_total_cards_detail(
     # ---- Knockout adjustment ----
     if knockout_ctx and knockout_ctx.is_knockout and knockout_ctx.cards_modifier != 1.0:
         blended *= knockout_ctx.cards_modifier
+
+    # ---- League context adjustment ----
+    if league_ctx is not None:
+        adj = getattr(league_ctx, "adjustments", {}).get("cards", 1.0)
+        if adj != 1.0:
+            blended *= adj
 
     # ---- Re-derive yellow/red from final blended total ----
     if season_yellows is not None and season_total is not None and season_total > 0:
@@ -1022,7 +1086,7 @@ def projected_team_cards(
     return blended, season_proj, recent_proj
 
 
-def projected_total_goals(home: str, away: str, league: str, knockout_ctx: Optional[KnockoutContext] = None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+def projected_total_goals(home: str, away: str, league: str, knockout_ctx: Optional[KnockoutContext] = None, league_ctx=None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     pw = SCORING_WEIGHTS["projection"]
     hm = _profile_meta(home, league)
     am = _profile_meta(away, league)
@@ -1053,6 +1117,12 @@ def projected_total_goals(home: str, away: str, league: str, knockout_ctx: Optio
     # Knockout round context adjustment
     if knockout_ctx and knockout_ctx.is_knockout and knockout_ctx.goals_modifier != 1.0:
         blended *= knockout_ctx.goals_modifier
+
+    # League context adjustment
+    if league_ctx is not None:
+        adj = getattr(league_ctx, "adjustments", {}).get("goals", 1.0)
+        if adj != 1.0:
+            blended *= adj
 
     return blended, season_total, recent_total
 

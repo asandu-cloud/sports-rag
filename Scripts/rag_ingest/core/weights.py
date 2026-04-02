@@ -325,6 +325,16 @@ SCORING_WEIGHTS = {
         "uncertainty_no_lineup": 0.1,     # additional uncertainty when no lineup
         "uncertainty_low_sample": 0.2,    # additional uncertainty when <10 fixtures
     },
+    "league_context": {
+        "short_rest_penalty": 0.03,        # 3% reduction per short-rest team (<=3 days)
+        "congestion_threshold": 4,         # fixtures in 14-day window to trigger penalty
+        "congestion_penalty": 0.02,        # 2% reduction per congested team
+        "rest_adjustment_floor": 0.90,     # max 10% total rest-based reduction
+        "regime_shift_weight": 0.08,       # how much regime shift influences projection
+        "regime_shift_cap": 0.06,          # max 6% regime-based adjustment
+        "adjustment_floor": 0.85,          # absolute floor for combined adjustment
+        "adjustment_ceiling": 1.15,        # absolute ceiling for combined adjustment
+    },
     "market_blend": {
         "model_weight": 0.70,
         "market_weight": 0.30,

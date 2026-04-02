@@ -1017,10 +1017,17 @@ class TrialCog(commands.Cog, name="trial"):
         date_str = _today_phrase()
         today_iso = date.today().isoformat()
         parlays_posted = 0
+        used_leg_refs = []  # accumulate legs to prevent repetition across free picks
 
         for i, preset in enumerate(_trial_parlay_presets(date.today(), active_leagues)):
             if parlays_posted >= 2:
                 break
+
+            # Inject previously-used legs as exclusions for risk diversification
+            if used_leg_refs:
+                preset["request"].excluded_legs = list(
+                    set(preset["request"].excluded_legs) | set(used_leg_refs)
+                )
 
             try:
                 result = await _build_structured_trial_parlay(preset["request"])
@@ -1030,6 +1037,10 @@ class TrialCog(commands.Cog, name="trial"):
             except Exception as exc:
                 log.error("Trial parlay preset %d failed: %s", i + 1, exc, exc_info=True)
                 continue
+
+            # Collect used legs so subsequent free picks cannot repeat them
+            for leg in (result.selected_legs if hasattr(result, "selected_legs") else []):
+                used_leg_refs.append(leg.ref)
 
             legs = _trial_leg_strings(result)
             combined_odds = float(getattr(result, "combined_odds", 0.0) or 0.0)

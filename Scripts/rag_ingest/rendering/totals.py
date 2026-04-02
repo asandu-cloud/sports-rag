@@ -55,6 +55,14 @@ except ImportError:
             }
 
 try:
+    from core.projections import compute_stat_confidence
+except ImportError:
+    try:
+        from Scripts.rag_ingest.core.projections import compute_stat_confidence
+    except ImportError:
+        def compute_stat_confidence(*a, **kw): return "medium"
+
+try:
     from core.odds_extraction import extract_total_line_options, extract_goal_interval_odds
 except ImportError:
     try:
@@ -218,6 +226,16 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
             lines.append(f"- {fixture}: insufficient profile data to project totals.")
             continue
 
+        # Compute general confidence bucket for all stats
+        _stat_confidence = "medium"
+        if group == "cards" and _cards_detail:
+            _stat_confidence = _cards_detail.get("confidence_bucket", "medium")
+        else:
+            try:
+                _stat_confidence = compute_stat_confidence(group, home, away, league)
+            except Exception:
+                pass
+
         # Knockout context evidence
         if ko_ctx and ko_ctx.is_knockout:
             ko_line = knockout_evidence_line(ko_ctx)
@@ -240,6 +258,8 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
         options = extract_total_line_options(ev, group)
         best = choose_best_total_line(options, proj_total, combined_var)
         lines.append(f"- {fixture}: projected total {proj_total:.2f}.")
+        if _stat_confidence == "low" and group != "cards":  # cards already has its own warning
+            lines.append(f"  Note: low confidence — limited data for one or both teams.")
 
         if season_total is not None:
             lines.append(f"  Season model: {season_total:.2f}.")
@@ -307,9 +327,9 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
             val_edge = best.get("_value_edge")
             ev = best.get("_ev")
             conf = confidence_from_edge(edge, stat_group=group, model_prob=model_p, value_edge_pct=val_edge)
-            # Suppress "Recommended" label for low-confidence cards
+            # Suppress "Recommended" label for low-confidence projections
             rec_label = "Recommended"
-            if group == "cards" and _cards_detail and _cards_detail.get("confidence_bucket") == "low":
+            if _stat_confidence == "low":
                 rec_label = "Estimate"
             lines.append(
                 f"  {rec_label}: {side} {point:g} @ {odds:.2f} ({best.get('bookmaker')}, {best.get('market_key')})."
