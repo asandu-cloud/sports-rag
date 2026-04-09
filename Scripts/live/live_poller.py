@@ -19,7 +19,7 @@ import logging
 import os
 import sys
 import threading
-import time
+from contextlib import suppress
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -62,6 +62,29 @@ try:
 except ImportError:
     pass
 
+_HAS_ALERTS = False
+detect_alerts: Optional[Callable] = None
+try:
+    from live.live_alerts import detect_alerts as _detect_alerts  # type: ignore[import]
+    detect_alerts = _detect_alerts
+    _HAS_ALERTS = True
+except ImportError:
+    pass
+
+_HAS_LIVE_ODDS = False
+fetch_live_fixture_odds: Optional[Callable] = None
+try:
+    from live.live_odds import fetch_live_fixture_odds as _fetch_live_fixture_odds  # type: ignore[import]
+    fetch_live_fixture_odds = _fetch_live_fixture_odds
+    _HAS_LIVE_ODDS = True
+except Exception as _live_odds_import_exc:  # catch all — transitive imports can raise non-ImportError
+    # logger isn't defined yet at this point in the module; defer via logging.getLogger
+    logging.getLogger("live_poller").error(
+        "Live odds module failed to import — live odds disabled: %s",
+        _live_odds_import_exc,
+        exc_info=True,
+    )
+
 # ---------------------------------------------------------------------------
 # Optional: pre-match projections from rag_cli_v2
 # ---------------------------------------------------------------------------
@@ -71,6 +94,7 @@ try:
         _profile_meta,
         projected_btts_prob,
         projected_goals,
+        projected_moneyline_probs,
         projected_total_cards,
         projected_total_corners,
         projected_total_goals,
@@ -177,6 +201,10 @@ class LiveMatchState:
     prior_home_goals: Optional[float] = None
     prior_away_goals: Optional[float] = None
     prior_btts_prob: Optional[float] = None
+    prior_moneyline: Optional[Dict[str, float]] = None
+    live_odds: Dict[str, Any] = field(default_factory=dict)
+    live_odds_updated_at: Optional[str] = None
+    live_odds_source: Optional[str] = None
 
     # Metadata
     last_updated: Optional[str] = None   # ISO timestamp of last detail poll
@@ -201,6 +229,11 @@ class LiveSnapshot:
     projected_total_cards: Optional[float] = None
     projected_total_sot: Optional[float] = None
     alerts: List[Dict[str, Any]] = field(default_factory=list)
+    live_odds: Dict[str, Any] = field(default_factory=dict)
+    live_odds_source: Optional[str] = None
+    recommendation_mode: Optional[str] = None
+    recommendation_pricing_source: Optional[str] = None
+    has_priced_recommendation: bool = False
     momentum_home: float = 0.0
     momentum_away: float = 0.0
     raw: Dict[str, Any] = field(default_factory=dict)
@@ -328,6 +361,45 @@ def _parse_team_stats(statistics: list) -> TeamLiveStats:
     )
 
 
+def _card_counts_from_events(
+    events: List[MatchEvent],
+    home_team: str,
+    away_team: str,
+) -> Tuple[int, int, int, int]:
+    """Count yellow/red cards per team from the events list.
+
+    API-Football's ``statistics`` array (Yellow Cards / Red Cards) lags match
+    events by several minutes because stats are aggregated after the fact while
+    events post in near real-time. We use events as the authoritative floor for
+    card counts so the live engine doesn't recommend Under lines before the
+    aggregated stats catch up.
+
+    Returns ``(home_yellow, home_red, away_yellow, away_red)``.
+    """
+    hy = hr = ay = ar = 0
+    home_lower = (home_team or "").lower().strip()
+    away_lower = (away_team or "").lower().strip()
+    for ev in events:
+        if ev.event_type not in (EventType.YELLOW_CARD.value, EventType.RED_CARD.value):
+            continue
+        team_lower = (ev.team or "").lower().strip()
+        is_home = team_lower == home_lower or (home_lower and team_lower in home_lower)
+        is_away = team_lower == away_lower or (away_lower and team_lower in away_lower)
+        if not is_home and not is_away:
+            continue
+        if ev.event_type == EventType.YELLOW_CARD.value:
+            if is_home:
+                hy += 1
+            else:
+                ay += 1
+        else:  # RED_CARD
+            if is_home:
+                hr += 1
+            else:
+                ar += 1
+    return hy, hr, ay, ar
+
+
 def _parse_events(events_raw: list) -> List[MatchEvent]:
     """Parse API-Football events array into MatchEvent list."""
     parsed: List[MatchEvent] = []
@@ -428,14 +500,28 @@ def _compute_priors(home: str, away: str, league: str, state: LiveMatchState) ->
     except Exception as exc:
         logger.warning("Prior BTTS failed for %s vs %s: %s", home, away, exc)
 
+    try:
+        result = projected_moneyline_probs(home, away, league) if projected_moneyline_probs else None
+        if result:
+            p_home, p_draw, p_away = result[:3]
+            if None not in (p_home, p_draw, p_away):
+                state.prior_moneyline = {
+                    "home_win": float(p_home),
+                    "draw": float(p_draw),
+                    "away_win": float(p_away),
+                }
+    except Exception as exc:
+        logger.warning("Prior moneyline failed for %s vs %s: %s", home, away, exc)
+
     logger.info(
-        "Priors computed for %s vs %s [%s]: goals=%.2f corners=%.2f cards=%.2f sot=%.2f btts=%.2f",
+        "Priors computed for %s vs %s [%s]: goals=%.2f corners=%.2f cards=%.2f sot=%.2f btts=%.2f ml=%s",
         home, away, league,
         state.prior_total_goals or 0,
         state.prior_total_corners or 0,
         state.prior_total_cards or 0,
         state.prior_total_sot or 0,
         state.prior_btts_prob or 0,
+        ("set" if state.prior_moneyline else "none"),
     )
 
 
@@ -450,7 +536,7 @@ class LivePoller:
     read snapshots while the poller writes them.
     """
 
-    def __init__(self, auto_subscribe: bool = True):
+    def __init__(self, auto_subscribe: bool = True, store: Optional[Any] = None):
         # Match states keyed by API-Football fixture_id
         self.states: Dict[int, LiveMatchState] = {}
         # Latest snapshot per fixture
@@ -466,6 +552,7 @@ class LivePoller:
         self._lock = threading.Lock()
         self._running = False
         self._auto_subscribe = auto_subscribe
+        self._store = store
 
         # Metrics
         self._poll_count = 0
@@ -475,6 +562,8 @@ class LivePoller:
 
         # aiohttp session (created on start)
         self._session: Optional[Any] = None
+        self._discovery_task: Optional[asyncio.Task] = None
+        self._detail_task: Optional[asyncio.Task] = None
 
         # Callbacks for snapshot updates (SSE push)
         self._on_snapshot: List[Callable] = []
@@ -543,11 +632,117 @@ class LivePoller:
             "errors": self._errors,
             "has_live_engine": _HAS_LIVE_ENGINE,
             "has_rag_priors": _HAS_RAG,
+            "has_alert_engine": _HAS_ALERTS,
+            "has_live_store": self._store is not None,
+            "has_live_odds": _HAS_LIVE_ODDS,
         }
 
     def on_snapshot(self, callback: Callable) -> None:
         """Register a callback for snapshot updates: callback(fixture_id, snapshot)."""
         self._on_snapshot.append(callback)
+
+    def _persist_fixture(self, state: LiveMatchState) -> None:
+        if self._store is None:
+            return
+        try:
+            self._store.ensure_fixture(
+                state.fixture_id,
+                state.league,
+                state.home_team,
+                state.away_team,
+                state.kickoff_utc,
+            )
+        except Exception as exc:
+            logger.debug("Live store ensure_fixture failed for %d: %s", state.fixture_id, exc)
+
+    def _persist_state(self, state: LiveMatchState) -> None:
+        if self._store is None:
+            return
+        try:
+            self._store.record_state(
+                state.fixture_id,
+                state.to_dict(),
+                status=state.status,
+                elapsed_min=state.elapsed_min,
+            )
+        except Exception as exc:
+            logger.debug("Live store record_state failed for %d: %s", state.fixture_id, exc)
+
+    def _persist_snapshot(self, fixture_id: int, snapshot: Any) -> None:
+        if self._store is None:
+            return
+        try:
+            snapshot_payload = snapshot.to_dict() if hasattr(snapshot, "to_dict") else asdict(snapshot)
+            self._store.record_snapshot(
+                fixture_id,
+                snapshot_payload,
+                snapshot_ts=str(getattr(snapshot, "timestamp", "")),
+                elapsed_min=getattr(snapshot, "elapsed_min", None),
+                score=getattr(snapshot, "score", None),
+            )
+            self._store.record_alerts(
+                fixture_id,
+                str(getattr(snapshot, "timestamp", "")),
+                getattr(snapshot, "alerts", []) or [],
+            )
+        except Exception as exc:
+            logger.debug("Live store record_snapshot failed for %d: %s", fixture_id, exc)
+
+    def _persist_live_odds(self, fixture_id: int, odds_payload: Dict[str, Any]) -> None:
+        if self._store is None:
+            return
+        try:
+            self._store.record_live_odds(
+                fixture_id,
+                odds_payload,
+                captured_at=str(odds_payload.get("captured_at") or datetime.now(timezone.utc).isoformat()),
+            )
+        except Exception as exc:
+            logger.debug("Live store record_live_odds failed for %d: %s", fixture_id, exc)
+
+    def _mark_finished(self, fixture_id: int) -> None:
+        if self._store is None:
+            return
+        try:
+            self._store.mark_finished(fixture_id)
+        except Exception as exc:
+            logger.debug("Live store mark_finished failed for %d: %s", fixture_id, exc)
+
+    def _attach_snapshot_alerts(self, fixture_id: int, snapshot: Any, state: LiveMatchState) -> Any:
+        live_odds_source = state.live_odds_source or (state.live_odds or {}).get("source")
+        try:
+            snapshot.live_odds = state.live_odds or {}
+            snapshot.live_odds_source = live_odds_source
+            snapshot.recommendation_mode = None
+            snapshot.recommendation_pricing_source = None
+            snapshot.has_priced_recommendation = False
+        except Exception:
+            pass
+        if not (_HAS_ALERTS and detect_alerts is not None and _HAS_LIVE_ENGINE):
+            return snapshot
+        try:
+            previous = None
+            history = self.snapshot_history.get(fixture_id, [])
+            if history:
+                previous = history[-1]
+            engine_state = self._to_engine_state(state)
+            alerts = detect_alerts(snapshot, previous, engine_state)
+            snapshot.alerts = alerts or []
+            live_bet = next((a for a in snapshot.alerts if a.get("type") == "live_bet"), None)
+            if live_bet is not None:
+                snapshot.recommendation_mode = live_bet.get("mode")
+                snapshot.recommendation_pricing_source = live_bet.get("pricing_source")
+                snapshot.has_priced_recommendation = bool(live_bet.get("mode") == "odds_aware")
+        except Exception as exc:
+            logger.warning("Alert attachment failed for fixture %d: %s", fixture_id, exc)
+            try:
+                snapshot.alerts = []
+                snapshot.recommendation_mode = None
+                snapshot.recommendation_pricing_source = None
+                snapshot.has_priced_recommendation = False
+            except Exception:
+                pass
+        return snapshot
 
     # -- Lifecycle ----------------------------------------------------------
 
@@ -572,12 +767,21 @@ class LivePoller:
             "LivePoller started (discovery=%ds, detail=%ds, auto_subscribe=%s)",
             DISCOVERY_POLL_INTERVAL, DETAIL_POLL_INTERVAL, self._auto_subscribe,
         )
-        asyncio.create_task(self._discovery_loop())
-        asyncio.create_task(self._detail_loop())
+        self._discovery_task = asyncio.create_task(self._discovery_loop(), name="live-discovery-loop")
+        self._detail_task = asyncio.create_task(self._detail_loop(), name="live-detail-loop")
 
     async def stop(self) -> None:
         """Stop all polling loops and clean up."""
         self._running = False
+        for task in (self._discovery_task, self._detail_task):
+            if task is not None:
+                task.cancel()
+        for task in (self._discovery_task, self._detail_task):
+            if task is not None:
+                with suppress(asyncio.CancelledError):
+                    await task
+        self._discovery_task = None
+        self._detail_task = None
         if self._session is not None:
             try:
                 await self._session.close()
@@ -593,6 +797,8 @@ class LivePoller:
         while self._running:
             try:
                 await self._poll_discovery()
+            except asyncio.CancelledError:
+                raise
             except Exception as exc:
                 self._errors += 1
                 logger.error("Discovery poll error: %s", exc, exc_info=True)
@@ -642,6 +848,7 @@ class LivePoller:
                     )
                     self.archived.add(fixture_id)
                     self.subscribers.discard(fixture_id)
+                    self._mark_finished(fixture_id)
                 continue
 
             if status_short not in LIVE_STATUSES:
@@ -674,6 +881,9 @@ class LivePoller:
                     self.states[fixture_id] = state
                     self.snapshot_history[fixture_id] = []
 
+                self._persist_fixture(state)
+                self._persist_state(state)
+
                 logger.info(
                     "New live fixture %d: %s vs %s [%s] (status=%s, elapsed=%d)",
                     fixture_id, home_name, away_name, league_name,
@@ -698,6 +908,8 @@ class LivePoller:
                     continue
                 try:
                     await self._poll_detail(fid)
+                except asyncio.CancelledError:
+                    raise
                 except Exception as exc:
                     self._errors += 1
                     logger.error("Detail poll error for fixture %d: %s", fid, exc, exc_info=True)
@@ -730,6 +942,7 @@ class LivePoller:
             logger.info("Fixture %d finished during detail poll", fixture_id)
             self.archived.add(fixture_id)
             self.subscribers.discard(fixture_id)
+            self._mark_finished(fixture_id)
 
         # Parse team statistics
         # API-Football returns statistics as list of 2 items: [home_stats, away_stats]
@@ -761,6 +974,39 @@ class LivePoller:
         # Parse events
         events = _parse_events(events_raw)
 
+        # Reconcile card counts from events — the events feed posts in near
+        # real-time whereas the `statistics` array lags 2-5 minutes. Take the
+        # max so we never under-report cards while waiting for stats to catch
+        # up (which would otherwise cause the engine to recommend Under lines
+        # based on a stale zero count).
+        state_obj = self.states.get(fixture_id)
+        home_name_for_cards = state_obj.home_team if state_obj else ""
+        away_name_for_cards = state_obj.away_team if state_obj else ""
+        ev_hy, ev_hr, ev_ay, ev_ar = _card_counts_from_events(
+            events, home_name_for_cards, away_name_for_cards,
+        )
+        stats_hy = home_team_stats.yellow_cards
+        stats_hr = home_team_stats.red_cards
+        stats_ay = away_team_stats.yellow_cards
+        stats_ar = away_team_stats.red_cards
+        home_team_stats.yellow_cards = max(stats_hy, ev_hy)
+        home_team_stats.red_cards = max(stats_hr, ev_hr)
+        away_team_stats.yellow_cards = max(stats_ay, ev_ay)
+        away_team_stats.red_cards = max(stats_ar, ev_ar)
+        if (
+            (ev_hy > stats_hy) or (ev_hr > stats_hr)
+            or (ev_ay > stats_ay) or (ev_ar > stats_ar)
+        ):
+            logger.info(
+                "Fixture %d card stats backfilled from events: "
+                "home y=%d->%d r=%d->%d | away y=%d->%d r=%d->%d",
+                fixture_id,
+                stats_hy, home_team_stats.yellow_cards,
+                stats_hr, home_team_stats.red_cards,
+                stats_ay, away_team_stats.yellow_cards,
+                stats_ar, away_team_stats.red_cards,
+            )
+
         # Update state under lock
         now_iso = datetime.now(timezone.utc).isoformat()
         with self._lock:
@@ -776,15 +1022,55 @@ class LivePoller:
             state.events = events
             state.last_updated = now_iso
 
+        if _HAS_LIVE_ODDS and fetch_live_fixture_odds is not None:
+            try:
+                odds_snapshot, odds_err = await fetch_live_fixture_odds(
+                    fixture_id,
+                    state.home_team,
+                    state.away_team,
+                    session=self._session,
+                )
+            except Exception as exc:
+                logger.warning("Live odds fetch raised for fixture %d: %s", fixture_id, exc, exc_info=True)
+                odds_snapshot, odds_err = None, str(exc)
+            if odds_snapshot:
+                with self._lock:
+                    state.live_odds = odds_snapshot
+                    state.live_odds_updated_at = str(odds_snapshot.get("captured_at") or now_iso)
+                    state.live_odds_source = str(odds_snapshot.get("source") or "")
+                self._persist_live_odds(fixture_id, odds_snapshot)
+                # One-line observability summary: how many offers per market group
+                totals = (odds_snapshot or {}).get("totals", {}) or {}
+                logger.info(
+                    "Live odds applied fixture=%d source=%s totals(g=%d/c=%d/cd=%d/s=%d) btts=%d ml=%d",
+                    fixture_id,
+                    odds_snapshot.get("source", "?"),
+                    len(totals.get("goals") or []),
+                    len(totals.get("corners") or []),
+                    len(totals.get("cards") or []),
+                    len(totals.get("sot") or []),
+                    len(odds_snapshot.get("btts") or []),
+                    len(odds_snapshot.get("moneyline") or []),
+                )
+            elif odds_err:
+                logger.warning("No live odds for fixture %d: %s", fixture_id, odds_err)
+        else:
+            logger.debug("Live odds module disabled (_HAS_LIVE_ODDS=%s)", _HAS_LIVE_ODDS)
+
+        self._persist_state(state)
+
         # Compute snapshot via live engine
         snapshot = self._try_compute_snapshot(state)
         if snapshot is not None:
+            snapshot = self._attach_snapshot_alerts(fixture_id, snapshot, state)
             with self._lock:
                 self.snapshots[fixture_id] = snapshot
                 history = self.snapshot_history.setdefault(fixture_id, [])
                 history.append(snapshot)
                 if len(history) > SNAPSHOT_HISTORY_SIZE:
                     self.snapshot_history[fixture_id] = history[-SNAPSHOT_HISTORY_SIZE:]
+
+            self._persist_snapshot(fixture_id, snapshot)
 
             # Notify callbacks
             for cb in self._on_snapshot:
@@ -878,6 +1164,10 @@ class LivePoller:
             prior_cards=state.prior_total_cards,
             prior_sot=state.prior_total_sot,
             prior_btts_prob=state.prior_btts_prob,
+            prior_moneyline=state.prior_moneyline,
+            live_odds=state.live_odds,
+            live_odds_updated_at=state.live_odds_updated_at,
+            live_odds_source=state.live_odds_source,
         )
         return engine_state
 
@@ -893,6 +1183,8 @@ class LivePoller:
                 projected_total_corners=state.prior_total_corners,
                 projected_total_cards=state.prior_total_cards,
                 projected_total_sot=state.prior_total_sot,
+                live_odds=state.live_odds,
+                live_odds_source=state.live_odds_source,
             )
 
         try:
@@ -912,6 +1204,8 @@ class LivePoller:
                 projected_total_corners=state.prior_total_corners,
                 projected_total_cards=state.prior_total_cards,
                 projected_total_sot=state.prior_total_sot,
+                live_odds=state.live_odds,
+                live_odds_source=state.live_odds_source,
             )
 
 

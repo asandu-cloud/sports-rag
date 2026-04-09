@@ -1044,7 +1044,7 @@ class WhaleChat(commands.Cog):
                 ),
                 inline=False,
             )
-            em.set_footer(text="Spick's Picks | Welcome to the inner circle.")
+            em.set_footer(text="Spix's Picks | Welcome to the inner circle.")
 
             view = StartChatButton(self.bot)
             await after.send(embed=em, view=view)

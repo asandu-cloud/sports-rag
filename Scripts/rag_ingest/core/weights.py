@@ -181,6 +181,34 @@ SCORING_WEIGHTS = {
             "possession": 1.60,
             "opp_sot_against": 0.23,
         },
+        "corners_direct": {
+            "season": 0.65,
+            "recent": 0.35,
+        },
+        "corners_output": {
+            "match_anchor_weight": 0.55,
+            "direct_stabilizer_weight": 0.45,
+        },
+        "corners_share": {
+            "season_blend": 0.65,
+            "recent_blend": 0.35,
+            "shrink": 0.06,
+            "floor": 0.28,
+            "ceiling": 0.72,
+            # Season share features
+            "season_own": 0.35,
+            "season_opp_allow": 0.40,
+            "season_control": 0.10,
+            "season_dominance": 0.08,
+            "season_possession": 0.07,
+            # Recent share features
+            "recent_own": 0.40,
+            "recent_opp_allow": 0.35,
+            "recent_shots": 0.05,
+            "recent_sot": 0.05,
+            "recent_control": 0.08,
+            "recent_possession": 0.07,
+        },
         "cards_direct": {
             "season": 0.65,
             "recent": 0.35,
@@ -225,6 +253,17 @@ SCORING_WEIGHTS = {
         "short_price_penalty": 1.5,
         "ideal_range_bonus": 0.20,
         "outside_ideal_bonus": 0.12,
+    },
+    "moneyline_selection": {
+        # Winner prediction and value-side identification are separate.
+        "min_value_edge": 0.03,
+        "min_ev": 0.05,
+        "min_model_prob_home_away": 0.40,
+        "min_model_prob_draw": 0.32,
+        "longshot_odds_threshold": 4.50,
+        "longshot_min_model_prob": 0.20,
+        "longshot_extra_edge": 0.05,
+        "longshot_extra_ev": 0.10,
     },
     "confidence": {
         "edge_high": 0.75,

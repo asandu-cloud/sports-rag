@@ -105,10 +105,12 @@ def _fetch_standings(league: str) -> list:
 
     api_id = LEAGUE_TO_API_ID.get(league)
     if not api_id or requests is None:
+        _standings_cache[league] = (time.time(), [])
         return []
 
     api_key = _get_api_key()
     if not api_key:
+        _standings_cache[league] = (time.time(), [])
         return []
 
     try:
@@ -121,6 +123,7 @@ def _fetch_standings(league: str) -> list:
         resp.raise_for_status()
         data = resp.json().get("response", [])
         if not data:
+            _standings_cache[league] = (time.time(), [])
             return []
         standings = data[0].get("league", {}).get("standings", [[]])[0]
         _standings_cache[league] = (time.time(), standings)
@@ -128,6 +131,7 @@ def _fetch_standings(league: str) -> list:
         return standings
     except Exception as exc:
         log.warning("Failed to fetch standings for %s: %s", league, exc)
+        _standings_cache[league] = (time.time(), [])
         return []
 
 

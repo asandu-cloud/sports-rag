@@ -42,6 +42,14 @@ except ImportError:
     from Scripts.rag_ingest.core.team_resolution import _profile_meta
 
 try:
+    from league_context import get_league_context
+except ImportError:
+    try:
+        from Scripts.rag_ingest.league_context import get_league_context
+    except ImportError:
+        get_league_context = None
+
+try:
     from referee_data import (
         load_fixture_referee_detail, RefereeModifier,
         compute_referee_modifier, load_profiles,
@@ -164,8 +172,13 @@ def _build_ref_mod_from_history(fixture_id) -> Optional[RefereeModifier]:
     return compute_referee_modifier(ref_name, weight=0.35)
 
 
-def project_cards(home: str, away: str, league: str,
-                  fixture_id=None) -> Dict:
+def project_cards(
+    home: str,
+    away: str,
+    league: str,
+    fixture_id=None,
+    fixture_date: Optional[str] = None,
+) -> Dict:
     """Run cards projections for a fixture.
 
     If fixture_id is provided, looks up the historical referee assignment
@@ -177,9 +190,20 @@ def project_cards(home: str, away: str, league: str,
     ref_mod = None
     if fixture_id is not None:
         ref_mod = _build_ref_mod_from_history(fixture_id)
+    league_ctx = None
+    if get_league_context is not None:
+        try:
+            league_ctx = get_league_context(home, away, league, target_date=fixture_date)
+        except Exception:
+            league_ctx = None
 
     try:
-        detail = projected_total_cards_detail(home, away, league, ref_mod=ref_mod)
+        detail = projected_total_cards_detail(
+            home, away, league,
+            ref_mod=ref_mod,
+            league_ctx=league_ctx,
+            fixture_date=fixture_date,
+        )
         result["proj_total"] = detail.get("total_cards")
         result["proj_yellows"] = detail.get("total_yellows")
         result["proj_reds"] = detail.get("total_reds")
@@ -202,15 +226,23 @@ def project_cards(home: str, away: str, league: str,
 
     # Team cards (also pass ref_mod for consistency)
     try:
-        h_bl, h_sea, h_rec = projected_team_cards(home, away, league, is_home=True,
-                                                    ref_mod=ref_mod)
+        h_bl, h_sea, h_rec = projected_team_cards(
+            home, away, league, is_home=True,
+            ref_mod=ref_mod,
+            league_ctx=league_ctx,
+            fixture_date=fixture_date,
+        )
         result["proj_home_cards"] = h_bl
     except Exception:
         result["proj_home_cards"] = None
 
     try:
-        a_bl, a_sea, a_rec = projected_team_cards(away, home, league, is_home=False,
-                                                    ref_mod=ref_mod)
+        a_bl, a_sea, a_rec = projected_team_cards(
+            away, home, league, is_home=False,
+            ref_mod=ref_mod,
+            league_ctx=league_ctx,
+            fixture_date=fixture_date,
+        )
         result["proj_away_cards"] = a_bl
     except Exception:
         result["proj_away_cards"] = None
@@ -380,7 +412,11 @@ def run_cards_backtest(
 
             try:
                 fid = fixture.get("fixture_id")
-                projections = project_cards(home, away, league, fixture_id=fid)
+                projections = project_cards(
+                    home, away, league,
+                    fixture_id=fid,
+                    fixture_date=fixture.get("fixture_date"),
+                )
             except Exception as e:
                 errors += 1
                 continue

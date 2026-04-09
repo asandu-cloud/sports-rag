@@ -598,13 +598,13 @@ def get_active_subscribers(
 
 
 def _generate_code_string(username: str) -> str:
-    """Build a referral code like ``SPICK-SANDU-A7X3`` (always uppercase)."""
+    """Build a referral code like ``SPIX-SANDU-A7X3`` (always uppercase)."""
     # Clean username: take first 5 alphanumeric chars
     clean = "".join(ch for ch in (username or "USER") if ch.isalnum())[:5].upper()
     if not clean:
         clean = "USER"
     suffix = "".join(random.choices(string.ascii_uppercase + string.digits, k=4))
-    return f"SPICK-{clean}-{suffix}"
+    return f"SPIX-{clean}-{suffix}"
 
 
 def generate_referral_code(

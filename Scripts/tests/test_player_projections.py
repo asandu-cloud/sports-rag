@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "rag_ingest"))
 from Scripts.rag_ingest.player_projections import (
     PLAYER_PROP_WEIGHTS,
     infer_player_roles,
+    projected_player_stat,
 )
 
 
@@ -57,6 +58,42 @@ class PlayerGatingTests(unittest.TestCase):
     def test_rotation_max_line(self):
         """Rotation players should be capped at 0.5 lines."""
         self.assertEqual(PLAYER_PROP_WEIGHTS.get("rotation_max_line", 0.5), 0.5)
+
+
+class PlayerProjectionRoleUsageTests(unittest.TestCase):
+    def test_penalty_role_increases_goal_projection(self):
+        player_meta = {
+            "player_name": "Test Forward",
+            "player_id": 10,
+            "team": "Home",
+            "position": "F",
+            "minutes_risk": "starter",
+            "start_rate": 0.82,
+            "total_minutes": 900,
+            "qualified_appearances": 10,
+            "appearances_total": 12,
+            "avg_minutes_per_appearance": 81,
+            "starter_goals_per_90": 0.24,
+            "shots_per_90": 1.2,
+        }
+        team_meta = {"goals_for_pm": 1.7, "xg_home_pm": 1.8, "xg_away_pm": 1.4}
+        opp_meta = {"goals_against_pm": 1.3, "sot_against_pm": 4.1}
+
+        base = projected_player_stat(
+            player_meta, team_meta, opp_meta,
+            stat="goals", league="EPL", is_home=True,
+            player_text="",
+        )
+        with_penalties = projected_player_stat(
+            player_meta, team_meta, opp_meta,
+            stat="goals", league="EPL", is_home=True,
+            player_text="Primary penalty taker",
+        )
+
+        self.assertIsNotNone(base)
+        self.assertIsNotNone(with_penalties)
+        self.assertGreater(with_penalties.projection, base.projection)
+        self.assertTrue(with_penalties.evidence["probable_penalty_taker"])
 
 
 if __name__ == "__main__":

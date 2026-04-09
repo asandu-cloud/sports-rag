@@ -31,6 +31,7 @@ COGS = [
     "cogs.whale_chat",
     "cogs.trial",
     "cogs.tier_welcome",
+    "cogs.promo_parlay",
 ]
 
 

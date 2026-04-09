@@ -28,6 +28,12 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 try:
+    import pandas as pd
+    _HAS_PANDAS = True
+except ImportError:
+    _HAS_PANDAS = False
+
+try:
     from sklearn.linear_model import Ridge
     from sklearn.model_selection import cross_val_score
     from sklearn.pipeline import Pipeline
@@ -1030,6 +1036,31 @@ def _append_training_history(r2_meta: Dict[str, float], model_type: str) -> None
         json.dump(history, f, indent=2)
 
 
+def _prepare_model_input(model: object, feats: np.ndarray):
+    """Preserve feature names for estimators that were fitted with them."""
+    if not _HAS_PANDAS:
+        return [feats]
+
+    feature_names = None
+    if hasattr(model, "feature_name_"):
+        try:
+            feature_names = list(getattr(model, "feature_name_"))
+        except Exception:
+            feature_names = None
+    elif hasattr(model, "feature_names_in_"):
+        try:
+            feature_names = list(getattr(model, "feature_names_in_"))
+        except Exception:
+            feature_names = None
+
+    if not feature_names:
+        return [feats]
+
+    if len(feature_names) != len(feats):
+        feature_names = _get_feature_names()[:len(feats)]
+    return pd.DataFrame([feats], columns=feature_names)
+
+
 # ---------------------------------------------------------------------------
 # Cumulative-profile training (fixes train/serve distribution mismatch)
 # ---------------------------------------------------------------------------
@@ -1740,7 +1771,7 @@ def ml_predict_total(home: str, away: str, league: str, stat: str,
                                   scaler.mean_ + 2.0 * scaler.scale_)
         else:
             feats_input = feats
-        pred = float(model.predict([feats_input])[0])
+        pred = float(model.predict(_prepare_model_input(model, feats_input))[0])
         lo, hi = PRED_CLAMP.get(stat, (0.0, 20.0))
         return max(lo, min(hi, pred))
     except Exception:
@@ -1923,7 +1954,7 @@ def main():
                 h2h_avg=0.0,
             )
             if feats is not None:
-                pred = max(0.0, float(model.predict([feats])[0]))
+                pred = max(0.0, float(model.predict(_prepare_model_input(model, feats))[0]))
                 print(f"  {stat}: {pred:.2f} predicted total {elo_str}")
             else:
                 print(f"  {stat}: feature extraction failed")

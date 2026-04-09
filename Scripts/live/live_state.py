@@ -4,7 +4,7 @@ These are pure data containers with no business logic.  The engine
 (live_engine.py) reads LiveMatchState and produces LiveSnapshot.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -20,6 +20,9 @@ class MatchEvent:
     player: str
     detail: str       # "Normal Goal", "Yellow Card", "Second Yellow",
                       # "Own Goal", "Penalty - Scored", etc.
+
+    def to_dict(self) -> Dict:
+        return asdict(self)
 
 
 @dataclass
@@ -69,6 +72,9 @@ class LiveMatchState:
     prior_sot: Optional[float] = None           # projected total SoT
     prior_btts_prob: Optional[float] = None     # P(both teams score)
     prior_moneyline: Optional[Dict[str, float]] = None  # {"home_win", "draw", "away_win"}
+    live_odds: Dict = field(default_factory=dict)
+    live_odds_updated_at: Optional[str] = None
+    live_odds_source: Optional[str] = None
 
     last_updated: Optional[datetime] = None
     poll_count: int = 0
@@ -116,6 +122,12 @@ class LiveMatchState:
         """Return events from the last *window_min* minutes."""
         cutoff = max(0, self.elapsed_min - window_min)
         return [e for e in self.events if e.minute >= cutoff]
+
+    def to_dict(self) -> Dict:
+        data = asdict(self)
+        if self.last_updated is not None:
+            data["last_updated"] = self.last_updated.isoformat()
+        return data
 
 
 @dataclass
@@ -180,7 +192,19 @@ class LiveSnapshot:
     # Alerts
     alerts: List[Dict] = field(default_factory=list)
 
+    # Current live prices summary
+    live_odds: Dict = field(default_factory=dict)
+    live_odds_source: Optional[str] = None
+
+    # Recommendation metadata
+    recommendation_mode: Optional[str] = None
+    recommendation_pricing_source: Optional[str] = None
+    has_priced_recommendation: bool = False
+
     # Recent events (last 15 min, serialized for display)
     recent_events: List[Dict] = field(default_factory=list)
 
     timestamp: str = ""
+
+    def to_dict(self) -> Dict:
+        return asdict(self)

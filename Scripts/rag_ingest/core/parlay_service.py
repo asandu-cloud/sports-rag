@@ -238,7 +238,9 @@ def build_parlay_request(
     default_league = leagues[0]
     display_name = display_league or ("Cross-League" if is_cross_league or len(leagues) > 1 else league_value)
     same_game_only = bool(match)
-    require_unique_events = not same_game_only
+    # General parlays should optimize for the best available legs on the slate,
+    # even if that means taking multiple non-contradictory legs from one fixture.
+    require_unique_events = False
     return ParlayBuildRequest(
         league_scope=league_value,
         leagues=leagues,
@@ -283,7 +285,7 @@ def derive_followup_request(record: ParlaySessionRecord, action: str) -> ParlayB
             locked_legs=selected_refs,
             excluded_legs=[],
             allowed_event_ids=[],
-            prefer_new_fixture=not base.same_game_only,
+            prefer_new_fixture=False,
             action_type="add_leg",
             risk_profile=base.risk_profile,
             parent_session_id=record.id,

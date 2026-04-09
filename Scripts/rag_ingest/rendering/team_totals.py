@@ -138,6 +138,17 @@ except ImportError:
         def knockout_evidence_line(ctx) -> None:
             return None
 
+try:
+    from league_context import get_league_context, league_context_evidence_line
+except ImportError:
+    try:
+        from Scripts.rag_ingest.league_context import get_league_context, league_context_evidence_line
+    except ImportError:
+        def get_league_context(*args, **kwargs):
+            return None
+        def league_context_evidence_line(ctx):
+            return None
+
 
 # ---------------------------------------------------------------------------
 # Exported function
@@ -151,7 +162,13 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
     for ev in events:
         home = str(ev.get("home_team") or "Home")
         away = str(ev.get("away_team") or "Away")
+        fixture_date = str(ev.get("commence_time") or ev.get("fixture_date") or "")
         lines.append(f"\n=== {home} vs {away} ===")
+        league_ctx = None
+        try:
+            league_ctx = get_league_context(home, away, league, target_date=fixture_date)
+        except Exception:
+            league_ctx = None
 
         # Knockout round context for European competitions
         ko_ctx = None
@@ -169,6 +186,9 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
                 _note = _euro_data_source_note(_t, league)
                 if _note:
                     lines.append(f"  {_t}: {_note}")
+        ctx_line = league_context_evidence_line(league_ctx) if league_ctx is not None else None
+        if ctx_line:
+            lines.append(f"  {ctx_line}")
 
         rw = SCORING_WEIGHTS["referee"]
         ref_mod = get_referee_modifier(home, away, league,
@@ -178,7 +198,10 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
         lines.append("  CORNERS:")
         _corner_projs = {}
         for team, opp, is_home in [(home, away, True), (away, home, False)]:
-            c_bl, c_sea, c_rec = projected_team_corners(team, opp, league, is_home)
+            c_bl, c_sea, c_rec = projected_team_corners(
+                team, opp, league, is_home,
+                league_ctx=league_ctx, fixture_date=fixture_date,
+            )
             # Apply knockout modifier
             if ko_ctx and ko_ctx.is_knockout and ko_ctx.corners_modifier != 1.0 and c_bl is not None:
                 c_bl *= ko_ctx.corners_modifier
@@ -273,14 +296,23 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
         _match_detail = None
         if _ptcd:
             try:
-                _match_detail = _ptcd(home, away, league, ref_mod=ref_mod)
+                _match_detail = _ptcd(
+                    home, away, league,
+                    ref_mod=ref_mod,
+                    league_ctx=league_ctx,
+                    fixture_date=fixture_date,
+                )
             except Exception:
                 pass
 
         _card_projs = {}
         for team, opp, is_home in [(home, away, True), (away, home, False)]:
-            k_bl, k_sea, k_rec = projected_team_cards(team, opp, league, is_home,
-                                                       ref_mod=ref_mod)
+            k_bl, k_sea, k_rec = projected_team_cards(
+                team, opp, league, is_home,
+                ref_mod=ref_mod,
+                league_ctx=league_ctx,
+                fixture_date=fixture_date,
+            )
             # Apply knockout modifier
             if ko_ctx and ko_ctx.is_knockout and ko_ctx.cards_modifier != 1.0 and k_bl is not None:
                 k_bl *= ko_ctx.cards_modifier

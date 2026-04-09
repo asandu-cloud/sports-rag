@@ -45,7 +45,8 @@ if str(_SCRIPTS_DIR) not in sys.path:
 if str(_LIVE_DIR) not in sys.path:
     sys.path.insert(0, str(_LIVE_DIR))
 
-from live.live_poller import LivePoller, LiveMatchState, LiveSnapshot
+from live.live_poller import LiveMatchState, LiveSnapshot
+from live.live_runtime import get_live_poller
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -63,7 +64,7 @@ if not logger.handlers:
 # ---------------------------------------------------------------------------
 # Poller singleton
 # ---------------------------------------------------------------------------
-poller = LivePoller(auto_subscribe=True)
+poller = get_live_poller(auto_subscribe=True)
 
 # ---------------------------------------------------------------------------
 # Pydantic response models
@@ -96,6 +97,9 @@ class HealthResponse(BaseModel):
     errors: int
     has_live_engine: bool
     has_rag_priors: bool
+    has_alert_engine: bool
+    has_live_store: bool
+    has_live_odds: bool
 
 
 # ---------------------------------------------------------------------------
@@ -201,7 +205,9 @@ async def get_fixture_snapshot(fixture_id: int):
                     "total_cards": state.prior_total_cards,
                     "total_sot": state.prior_total_sot,
                     "btts_prob": state.prior_btts_prob,
+                    "moneyline": state.prior_moneyline,
                 },
+                "live_odds": state.live_odds,
             }
         raise HTTPException(
             status_code=404,

@@ -1,6 +1,6 @@
 
 // ============================================================
-// SpickBot — stub JS for preview (app.js not included)
+// SpixBot — stub JS for preview (app.js not included)
 // ============================================================
 
 // ----- Active users counter -----
@@ -222,7 +222,7 @@ const auth = {
 
   showMenu() {
     if (!this._user) return;
-    if (confirm('Log out of SpickBot?')) this.logout();
+    if (confirm('Log out of SpixBot?')) this.logout();
   },
 
   requireLogin() {
@@ -267,7 +267,7 @@ const auth = {
       pw.setAttribute('autocomplete', 'new-password');
       pw.setAttribute('minlength', '8');
     } else {
-      title.textContent = 'Log in to SpickBot';
+      title.textContent = 'Log in to SpixBot';
       btn.textContent = 'Log In';
       toggle.innerHTML = 'Don\'t have an account? <a href="#" onclick="event.preventDefault(); auth.toggleMode()">Sign up</a>';
       pw.setAttribute('autocomplete', 'current-password');

@@ -48,7 +48,7 @@ class ParlayServiceTests(unittest.TestCase):
         self.assertEqual(request.display_league, "Cross-League")
         self.assertEqual(request.leagues, service.TOP5_LEAGUES)
         self.assertEqual(request.default_league, "EPL")
-        self.assertTrue(request.require_unique_events)
+        self.assertFalse(request.require_unique_events)
         self.assertFalse(request.same_game_only)
         self.assertEqual(request.target_mode, "around")
 
@@ -218,7 +218,7 @@ class ParlayServiceTests(unittest.TestCase):
         add_req = service.derive_followup_request(record, "add_leg")
         self.assertEqual(add_req.legs_requested, 4)
         self.assertEqual(len(add_req.locked_legs), 3)
-        self.assertTrue(add_req.prefer_new_fixture)
+        self.assertFalse(add_req.prefer_new_fixture)
 
         swap_req = service.derive_followup_request(record, "swap_weakest")
         self.assertEqual(len(swap_req.locked_legs), 2)
@@ -256,6 +256,20 @@ class ParlayServiceTests(unittest.TestCase):
         self.assertEqual(constraint.required_group_counts["totals"], 1)
         self.assertIn("totals", constraint.soft_prefer_groups)
         self.assertIn("sot", constraint.hard_exclude_groups)
+
+    def test_combo_valid_allows_non_conflicting_same_fixture_when_unique_events_disabled(self):
+        combo = [
+            _candidate("fixture-1", "PSG vs Toulouse", "totals", "Over", 1.85, 2.5, league="Ligue1"),
+            _candidate("fixture-1", "PSG vs Toulouse", "corners", "Over", 1.90, 9.5, league="Ligue1"),
+        ]
+        self.assertTrue(service.rag.combo_valid(combo, require_unique_events=False))
+
+    def test_combo_valid_still_blocks_same_fixture_market_family_overlap(self):
+        combo = [
+            _candidate("fixture-1", "PSG vs Toulouse", "totals", "Over", 1.85, 2.5, league="Ligue1"),
+            _candidate("fixture-1", "PSG vs Toulouse", "totals_alt", "Over", 1.95, 3.5, league="Ligue1"),
+        ]
+        self.assertFalse(service.rag.combo_valid(combo, require_unique_events=False))
 
     def test_llm_summary_rejects_unsafe_output(self):
         request = service.build_parlay_request(

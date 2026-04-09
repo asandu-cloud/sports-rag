@@ -754,6 +754,12 @@ def live_prob_embed(
     else:
         em.description = f"Unknown market: {market}. Use: goals, corners, cards, sot, btts, moneyline"
 
+    pricing_source = getattr(snapshot, "live_odds_source", None) or (getattr(snapshot, "live_odds", None) or {}).get("source")
+    if pricing_source == "inplay":
+        em.add_field(name="Pricing Context", value="Using live in-play prices", inline=False)
+    elif pricing_source == "prematch_fallback":
+        em.add_field(name="Pricing Context", value="Live prices unavailable; probabilities only", inline=False)
+
     footer_parts = ["Matchwise Live"]
     if league:
         footer_parts.append(league)
@@ -762,11 +768,60 @@ def live_prob_embed(
 
 
 # ---------------------------------------------------------------------------
+def extract_live_bet_picks(snapshot: Any) -> List[Dict[str, Any]]:
+    """Return structured live-bet picks from the snapshot alert payload."""
+    picks: List[Dict[str, Any]] = []
+    for alert in getattr(snapshot, "alerts", []) or []:
+        if alert.get("type") != "live_bet":
+            continue
+        market = alert.get("pick") or alert.get("message", "").split("\n", 1)[0].replace("LIVE BET: ", "").strip()
+        prob = float(alert.get("prob", 0.0) or 0.0)
+        confidence = str(alert.get("confidence") or ("Strong Edge" if prob >= 0.65 else "Leaning"))
+        mode = str(alert.get("mode") or "model_only")
+        pricing_source = str(alert.get("pricing_source") or "none")
+        edge = alert.get("edge")
+        ev = alert.get("ev")
+        bookmaker = alert.get("bookmaker")
+        odds = alert.get("odds")
+        reason = str(alert.get("reason") or "")
+        mode_note = str(alert.get("mode_note") or "")
+
+        details = reason
+        if mode == "odds_aware" and odds is not None and bookmaker:
+            edge_str = f"{float(edge):+.1%}" if edge is not None else "—"
+            ev_str = f"{float(ev):+.2f}" if ev is not None else "—"
+            details = f"{reason}\nBook: {bookmaker} @ {_f2(float(odds))} | Edge {edge_str} | EV {ev_str}"
+        elif mode_note:
+            details = f"{reason}\n{mode_note}"
+
+        score = float(edge if edge is not None else prob)
+        picks.append(
+            {
+                "market": market,
+                "prob": prob,
+                "confidence": confidence,
+                "color": "high" if confidence == "Strong Edge" else "medium",
+                "reason": details.strip(),
+                "mode": mode,
+                "pricing_source": pricing_source,
+                "bookmaker": bookmaker,
+                "odds": odds,
+                "edge": edge,
+                "ev": ev,
+                "_score": score,
+            }
+        )
+
+    picks.sort(key=lambda p: (p["mode"] != "odds_aware", -float(p["_score"])))
+    return picks
+
+
+# ---------------------------------------------------------------------------
 # G. Live Stats Embed (raw stats for /livestats)
 # ---------------------------------------------------------------------------
 
 def live_bets_embed(snapshot: Any, state: Any) -> discord.Embed:
-    """Recommended live bets for a fixture based on current projections."""
+    """Recommended live bets for a fixture based on the poller's alert payload."""
     home = getattr(snapshot, "home_team", "?")
     away = getattr(snapshot, "away_team", "?")
     league = getattr(snapshot, "league", "")
@@ -778,187 +833,23 @@ def live_bets_embed(snapshot: Any, state: Any) -> discord.Embed:
         color=COLOR_GREEN,
     )
 
-    picks = []
-
-    def _best_line_pick(prob_dict, stat_emoji, stat_name, projected, observed, remaining=None):
-        """Find the single best actionable line for a stat.
-
-        Instead of showing every line above 60%, find the TIGHTEST contested
-        line — the one closest to the projection where the model has a
-        directional opinion. This is where real betting value lives.
-        """
-        if not prob_dict or projected is None:
-            return None
-
-        best = None
-        best_score = -1
-
-        for line_str, p_over in sorted(prob_dict.items(), key=lambda x: float(x[0])):
-            line = float(line_str)
-            # Skip lines already cleared (e.g., Over 1.5 when 3 goals scored)
-            if line < observed:
-                continue
-
-            # The actionable probability is whichever side is stronger
-            if p_over >= 0.55:
-                side = "Over"
-                prob = p_over
-            elif (1.0 - p_over) >= 0.55:
-                side = "Under"
-                prob = 1.0 - p_over
-            else:
-                continue  # too close to call
-
-            # Score: reward lines where probability is strong but NOT trivially obvious.
-            # Best picks are in the 55-80% range on a contested line.
-            # 98% on Under 4.5 is useless. 62% on Under 2.5 is actionable.
-            closeness_to_projection = 1.0 / (1.0 + abs(projected - line))
-            actionability = prob if prob < 0.85 else (0.85 - (prob - 0.85) * 2)  # penalize trivial
-            score = actionability * closeness_to_projection
-
-            if score > best_score:
-                best_score = score
-                rem_str = f", {_f1(remaining)} remaining" if remaining is not None else ""
-                best = {
-                    "market": f"{stat_emoji} {side} {line_str} {stat_name}",
-                    "prob": prob,
-                    "confidence": "Strong Edge" if prob >= 0.65 else "Leaning",
-                    "color": "high" if prob >= 0.65 else "medium",
-                    "reason": f"Projected {_f1(projected)} total ({observed} so far{rem_str})",
-                }
-
-        return best
-
-    # --- Goals: best single line ---
-    prob_goals = getattr(snapshot, "prob_over_goals", {}) or {}
-    proj_goals = getattr(snapshot, "projected_total_goals", None)
-    observed_goals = _observed_count(state, "goals")
-    rem_goals = getattr(snapshot, "remaining_goals", None)
-    goal_pick = _best_line_pick(prob_goals, "\u26bd", "Goals", proj_goals, observed_goals, rem_goals)
-    if goal_pick:
-        picks.append(goal_pick)
-
-    # --- Corners: best single line ---
-    prob_corners = getattr(snapshot, "prob_over_corners", {}) or {}
-    proj_corners = getattr(snapshot, "projected_total_corners", None)
-    observed_corners = _observed_count(state, "corners")
-    rem_corners = getattr(snapshot, "remaining_corners", None)
-    corner_pick = _best_line_pick(prob_corners, "\U0001f4d0", "Corners", proj_corners, observed_corners, rem_corners)
-    if corner_pick:
-        picks.append(corner_pick)
-
-    # --- Cards: best single line ---
-    prob_cards = getattr(snapshot, "prob_over_cards", {}) or {}
-    proj_cards = getattr(snapshot, "projected_total_cards", None)
-    observed_cards = _observed_count(state, "cards")
-    rem_cards = getattr(snapshot, "remaining_cards", None)
-    card_pick = _best_line_pick(prob_cards, "\U0001f7e8", "Cards", proj_cards, observed_cards, rem_cards)
-    if card_pick:
-        picks.append(card_pick)
-
-    # --- BTTS pick ---
-    btts_prob = getattr(snapshot, "btts_prob", None)
-    pre_btts = getattr(snapshot, "pre_match_btts_prob", None)
-    if btts_prob is not None:
-        # Check if both teams scored — handles both poller state (home_stats.goals)
-        # and engine state (goals_home) formats
-        hs = getattr(state, "home_stats", None)
-        as_ = getattr(state, "away_stats", None)
-        if hs and as_:
-            goals_h = getattr(hs, "goals", 0)
-            goals_a = getattr(as_, "goals", 0)
-        else:
-            goals_h = getattr(state, "goals_home", 0)
-            goals_a = getattr(state, "goals_away", 0)
-        if goals_h >= 1 and goals_a >= 1:
-            pass  # BTTS already cashed — do NOT recommend
-        elif btts_prob >= 0.60:
-            picks.append({
-                "market": "\U0001f91d BTTS Yes",
-                "prob": btts_prob,
-                "confidence": "Strong Edge" if btts_prob >= 0.75 else "Leaning",
-                "color": "high" if btts_prob >= 0.75 else "medium",
-                "reason": f"P(BTTS Yes) = {_pct(btts_prob)} (was {_pct(pre_btts)} pre-match)",
-            })
-        elif (1.0 - btts_prob) >= 0.65:
-            picks.append({
-                "market": "\U0001f91d BTTS No",
-                "prob": 1.0 - btts_prob,
-                "confidence": "Strong Edge" if (1.0 - btts_prob) >= 0.80 else "Leaning",
-                "color": "high" if (1.0 - btts_prob) >= 0.80 else "medium",
-                "reason": f"P(BTTS No) = {_pct(1.0 - btts_prob)} (was {_pct(1.0 - pre_btts if pre_btts else None)} pre-match)",
-            })
-
-    # --- Moneyline pick ---
-    ml = getattr(snapshot, "moneyline", None)
-    pre_ml = getattr(snapshot, "pre_match_moneyline", None)
-    if ml:
-        best_side = max(ml.items(), key=lambda x: x[1])
-        side_label = {"home_win": f"{home} Win", "draw": "Draw", "away_win": f"{away} Win"}.get(best_side[0], best_side[0])
-        pre_val = pre_ml.get(best_side[0]) if pre_ml else None
-        if best_side[1] >= 0.55:
-            picks.append({
-                "market": f"\U0001f3c6 {side_label}",
-                "prob": best_side[1],
-                "confidence": "Strong Edge" if best_side[1] >= 0.70 else "Leaning",
-                "color": "high" if best_side[1] >= 0.70 else "medium",
-                "reason": f"Model: {_pct(best_side[1])} (was {_pct(pre_val)} pre-match)",
-            })
-
-    # --- Next Goal / No More Goals ---
-    ng = getattr(snapshot, "next_goal_probs", None)
-    if ng and elapsed >= 15:
-        p_home_ng = ng.get("next_home", 0)
-        p_away_ng = ng.get("next_away", 0)
-        p_none_ng = ng.get("no_more", 0)
-        p_goal = 1.0 - p_none_ng
-        exp_min = ng.get("expected_min_to_next", 99)
-
-        if p_goal > 0:
-            home_share = p_home_ng / p_goal
-            away_share = p_away_ng / p_goal
-        else:
-            home_share = away_share = 0.5
-
-        if home_share >= 0.62 and p_goal >= 0.45:
-            picks.append({
-                "market": f"\u26bd Next Goal: {home}",
-                "prob": p_home_ng,
-                "confidence": "Strong Edge" if home_share >= 0.72 else "Leaning",
-                "color": "high" if home_share >= 0.72 else "medium",
-                "reason": f"{home_share:.0%} of next-goal probability. ~{exp_min:.0f} min expected",
-            })
-        elif away_share >= 0.62 and p_goal >= 0.45:
-            picks.append({
-                "market": f"\u26bd Next Goal: {away}",
-                "prob": p_away_ng,
-                "confidence": "Strong Edge" if away_share >= 0.72 else "Leaning",
-                "color": "high" if away_share >= 0.72 else "medium",
-                "reason": f"{away_share:.0%} of next-goal probability. ~{exp_min:.0f} min expected",
-            })
-        elif p_none_ng >= 0.55 and elapsed >= 65:
-            picks.append({
-                "market": "\u26bd No More Goals",
-                "prob": p_none_ng,
-                "confidence": "Strong Edge" if p_none_ng >= 0.70 else "Leaning",
-                "color": "high" if p_none_ng >= 0.70 else "medium",
-                "reason": f"P(no more goals) = {_pct(p_none_ng)} at {elapsed:.0f}'",
-            })
-
-    # --- Sort by probability descending, take top 6 ---
-    picks.sort(key=lambda p: p["prob"], reverse=True)
-    picks = picks[:6]
+    picks = extract_live_bet_picks(snapshot)[:6]
 
     if not picks:
-        em.description = "No strong live bets identified for this fixture right now. Probabilities are too close to call."
+        source = getattr(snapshot, "live_odds_source", None) or (getattr(snapshot, "live_odds", None) or {}).get("source")
+        if source == "prematch_fallback":
+            em.description = "No live-priced recommendation right now. Live prices are unavailable, so the model is staying in projection-only mode."
+        else:
+            em.description = "No strong live recommendation identified for this fixture right now."
         em.color = COLOR_BLUE
     else:
         for i, pick in enumerate(picks, 1):
             badge = "\U0001f7e2" if pick["color"] == "high" else "\U0001f7e1"
+            mode_label = "Live-priced" if pick["mode"] == "odds_aware" else "Model-only"
             em.add_field(
                 name=f"{badge} {pick['market']}",
                 value=(
-                    f"**{pick['confidence']}** \u2014 {_pct(pick['prob'])}\n"
+                    f"**{pick['confidence']}** \u2014 {_pct(pick['prob'])} | {mode_label}\n"
                     f"{pick['reason']}"
                 ),
                 inline=False,
@@ -988,6 +879,11 @@ def live_bets_embed(snapshot: Any, state: Any) -> discord.Embed:
     footer_parts = ["Matchwise Live"]
     if league:
         footer_parts.append(league)
+    source = getattr(snapshot, "live_odds_source", None) or (getattr(snapshot, "live_odds", None) or {}).get("source")
+    if source == "inplay":
+        footer_parts.append("Live priced")
+    elif source == "prematch_fallback":
+        footer_parts.append("No live prices")
     footer_parts.append(f"Updated {getattr(snapshot, 'timestamp', '')[:19]}")
     em.set_footer(text=" | ".join(footer_parts))
     return em
@@ -1022,17 +918,18 @@ def live_bets_all_embed(fixtures_with_picks: list) -> List[discord.Embed]:
 
     for pick in all_picks:
         badge = "\U0001f7e2" if pick["color"] == "high" else "\U0001f7e1"
+        mode_label = "Live-priced" if pick["mode"] == "odds_aware" else "Model-only"
         header.add_field(
             name=f"{badge} {pick['market']}",
             value=(
                 f"**{pick['fixture']}** [{pick.get('league', '')}]\n"
-                f"**{pick['confidence']}** \u2014 {_pct(pick['prob'])}\n"
+                f"**{pick['confidence']}** \u2014 {_pct(pick['prob'])} | {mode_label}\n"
                 f"{pick['reason']}"
             ),
             inline=False,
         )
 
-    header.set_footer(text="Matchwise Live | Sorted by model probability")
+    header.set_footer(text="Matchwise Live | Ranked by priced edge, then model confidence")
     return embeds
 
 

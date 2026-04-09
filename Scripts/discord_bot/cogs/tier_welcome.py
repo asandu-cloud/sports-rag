@@ -54,7 +54,7 @@ def _detect_new_tier(before: discord.Member, after: discord.Member) -> str | Non
 
 def _rookie_welcome() -> discord.Embed:
     em = discord.Embed(
-        title="Welcome to Spick's Picks \U0001f94a",
+        title="Welcome to Spix's Picks \U0001f94a",
         description=(
             "You just unlocked access to data-driven predictions across 5 European leagues."
         ),
@@ -82,13 +82,13 @@ def _rookie_welcome() -> discord.Embed:
         ),
         inline=False,
     )
-    em.set_footer(text="Spick's Picks | See you on matchday.")
+    em.set_footer(text="Spix's Picks | See you on matchday.")
     return em
 
 
 def _tipster_welcome() -> discord.Embed:
     em = discord.Embed(
-        title="Welcome to Spick's Picks \U0001f4a1",
+        title="Welcome to Spix's Picks \U0001f4a1",
         description=(
             "You just joined the tier that most serious bettors land on. "
             "Here's what you've unlocked."
@@ -119,7 +119,7 @@ def _tipster_welcome() -> discord.Embed:
         ),
         inline=False,
     )
-    em.set_footer(text="Spick's Picks | See you in the lounge.")
+    em.set_footer(text="Spix's Picks | See you in the lounge.")
     return em
 
 
@@ -163,7 +163,7 @@ def _whale_welcome() -> discord.Embed:
         ),
         inline=False,
     )
-    em.set_footer(text="Spick's Picks | Welcome to the inner circle.")
+    em.set_footer(text="Spix's Picks | Welcome to the inner circle.")
     return em
 
 
@@ -204,7 +204,7 @@ class TierWelcome(commands.Cog):
         bc = _ch(self.bot, "bot-commands")
 
         em = discord.Embed(
-            title="Welcome to Spick's Picks \U0001f94a",
+            title="Welcome to Spix's Picks \U0001f94a",
             description="You just unlocked access to data-driven predictions across 5 European leagues.",
             color=COLOR_GREEN,
         )
@@ -227,7 +227,7 @@ class TierWelcome(commands.Cog):
             value=f"Check {bp} first. See our track record before you place anything. That's what we'd do.",
             inline=False,
         )
-        em.set_footer(text="Spick's Picks | See you on matchday.")
+        em.set_footer(text="Spix's Picks | See you on matchday.")
         return em
 
     def _build_tipster_dm(self) -> discord.Embed:
@@ -240,7 +240,7 @@ class TierWelcome(commands.Cog):
         wins = _ch(self.bot, "wins")
 
         em = discord.Embed(
-            title="Welcome to Spick's Picks \U0001f4a1",
+            title="Welcome to Spix's Picks \U0001f4a1",
             description="You just joined the tier that most serious bettors land on. Here's what you've unlocked.",
             color=COLOR_BLUE,
         )
@@ -268,7 +268,7 @@ class TierWelcome(commands.Cog):
             ),
             inline=False,
         )
-        em.set_footer(text="Spick's Picks | See you in the lounge.")
+        em.set_footer(text="Spix's Picks | See you in the lounge.")
         return em
 
     def _build_whale_dm(self) -> discord.Embed:
@@ -316,7 +316,7 @@ class TierWelcome(commands.Cog):
             ),
             inline=False,
         )
-        em.set_footer(text="Spick's Picks | Welcome to the inner circle.")
+        em.set_footer(text="Spix's Picks | Welcome to the inner circle.")
         return em
 
     @commands.Cog.listener()
@@ -345,6 +345,58 @@ class TierWelcome(commands.Cog):
             log.warning("Can't DM %s (DMs disabled)", after)
         except Exception as exc:
             log.warning("Failed to send %s welcome DM to %s: %s", new_tier, after, exc)
+
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member):
+        """Send an onboarding DM when a new user joins the server."""
+        em = discord.Embed(
+            title="Welcome to Spix's Picks",
+            description=(
+                "We use AI models to analyze every match across Europe's top leagues "
+                "— and turn that into daily betting picks, parlays, and player props.\n\n"
+                "Here's how to get started:"
+            ),
+            color=0x2ECC71,
+        )
+        em.add_field(
+            name="Start Your Free Trial",
+            value=(
+                "Run `/trial` in any channel to activate your free trial. "
+                "We'll post 2 curated parlays for you every matchday — no card required, no time limit.\n\n"
+                "Once 2 of our picks hit, we'll show you exactly how much you would've made. "
+                "Then you can decide whether you want to pay for a subscription. "
+                "That's our idea of a free trial — helping you pay for your first subscription through free hits."
+            ),
+            inline=False,
+        )
+        em.add_field(
+            name="Browse the Commands",
+            value=(
+                "`/fixtures` — see today's upcoming matches\n"
+                "`/market` — get a prediction for any league and market (1 free per day)\n"
+                "`/help` — full guide to every command and tier"
+            ),
+            inline=False,
+        )
+        em.add_field(
+            name="Ready for More?",
+            value=(
+                "Run `/subscribe` to unlock full access — daily picks, parlays, "
+                "player props, team lines, and more.\n"
+                "Use `/referral` after subscribing to earn free months."
+            ),
+            inline=False,
+        )
+        em.set_footer(text="Spix's Picks | Powered by data, not gut feeling")
+
+        try:
+            await member.send(embed=em)
+            log.info("Sent onboarding DM to new member %s", member)
+        except discord.Forbidden:
+            log.warning("Can't DM %s (DMs disabled)", member)
+        except Exception as exc:
+            log.warning("Failed to send onboarding DM to %s: %s", member, exc)
 
 
 async def setup(bot: commands.Bot):

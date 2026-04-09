@@ -109,7 +109,7 @@ def render_moneyline_answer(user_q: str, league: str, events: List[Dict]) -> str
 
         lines.append(f"\n=== {fixture} ===")
         lines.append(f"  Goal projections: {home} {h_proj:.2f} — {away} {a_proj:.2f}")
-        lines.append(f"  Model: P(Home) = {p_home:.1%}  P(Draw) = {p_draw:.1%}  P(Away) = {p_away:.1%}")
+        lines.append(f"  Model: {home} {p_home:.1%} | Draw {p_draw:.1%} | {away} {p_away:.1%}")
         if league in EUROPEAN_COMPETITIONS:
             for _t in (home, away):
                 _note = _euro_data_source_note(_t, league)
@@ -131,7 +131,9 @@ def render_moneyline_answer(user_q: str, league: str, events: List[Dict]) -> str
         # Odds
         market_odds = extract_moneyline_odds(ev)
         result = choose_best_moneyline_side(p_home, p_draw, p_away, market_odds, home, away)
-        rec = result["recommended"]
+        rec = result.get("bet_recommendation")
+        most_likely = result.get("most_likely") or {"team": home, "model_prob": p_home}
+        best_value = result.get("best_value")
 
         if market_odds:
             lines.append(f"  Odds comparison:")
@@ -144,18 +146,41 @@ def render_moneyline_answer(user_q: str, league: str, events: List[Dict]) -> str
                         f"@ {side_data['best_odds']:.2f} ({side_data['bookmaker']}){ve_str}{ev_str}"
                     )
 
-            conf = confidence_from_edge(
-                abs(rec["value_edge"] or 0), stat_group="goals",
-                model_prob=rec["model_prob"],
-                value_edge_pct=rec["value_edge"],
+            lines.append(
+                f"  Most likely winner: {most_likely['team']} ({most_likely['model_prob']:.1%})"
             )
-            lines.append(f"  >>> Recommended: {rec['team']} @ {rec['best_odds']:.2f} ({conf} confidence)")
+            if best_value and best_value.get("best_odds") is not None:
+                ve = best_value.get("value_edge")
+                ev_val = best_value.get("ev")
+                ve_str = f" | Edge: {ve:+.1%}" if ve is not None else ""
+                ev_str = f" | EV: {ev_val:+.3f}" if ev_val is not None else ""
+                lines.append(
+                    f"  Best value side: {best_value['team']} @ {best_value['best_odds']:.2f} "
+                    f"({best_value['bookmaker']}){ve_str}{ev_str}"
+                )
+
+            if rec:
+                conf = confidence_from_edge(
+                    abs(rec["value_edge"] or 0), stat_group="goals",
+                    model_prob=rec["model_prob"],
+                    value_edge_pct=rec["value_edge"],
+                )
+                lines.append(
+                    f"  Verdict: Recommended: {rec['team']} @ {rec['best_odds']:.2f} "
+                    f"({conf} confidence)"
+                )
+            else:
+                lines.append("  Verdict: No moneyline bet.")
+                reason = result.get("no_bet_reason")
+                if reason:
+                    lines.append(f"  Reason: {reason}")
         else:
             favored = max(
                 [("home", p_home, home), ("draw", p_draw, "Draw"), ("away", p_away, away)],
                 key=lambda x: x[1],
             )
-            lines.append(f"  >>> Recommended: {favored[2]} ({favored[1]:.1%}) — no moneyline odds in feed (model-only)")
+            lines.append(f"  Most likely winner: {favored[2]} ({favored[1]:.1%})")
+            lines.append("  Verdict: No moneyline odds in feed — model-only lean.")
 
     lines.append("\nMethod: Poisson/NegBin scoreline matrix from local KB → 3-way outcome probabilities.")
     return "\n".join(lines)

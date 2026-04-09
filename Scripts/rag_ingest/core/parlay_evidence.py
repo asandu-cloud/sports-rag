@@ -29,6 +29,7 @@ try:
         projected_total_corners,
         projected_total_goals,
         projected_total_sot,
+        compute_margin_std,
     )
 except ImportError:
     try:
@@ -42,6 +43,7 @@ except ImportError:
             projected_total_corners,
             projected_total_goals,
             projected_total_sot,
+            compute_margin_std,
         )
     except ImportError:
         try:
@@ -55,6 +57,7 @@ except ImportError:
                 projected_total_corners,
                 projected_total_goals,
                 projected_total_sot,
+                compute_margin_std,
             )
         except ImportError:
             from rag_cli_v2 import (  # type: ignore[import]
@@ -68,6 +71,7 @@ except ImportError:
                 projected_total_goals,
                 projected_total_sot,
             )
+            compute_margin_std = None  # type: ignore[assignment]
 
 try:
     from .team_resolution import _profile_meta, _recent_stats, _numeric, get_team_recent_variance
@@ -216,11 +220,16 @@ def leg_standalone_confidence(leg: Any, league: str) -> Dict[str, Any]:
                     }
                 )
         elif g == "spreads" and getattr(leg, "point", None) is not None:
-            proj_diff, _, _ = projected_goal_difference(getattr(leg, "home_team", ""), getattr(leg, "away_team", ""), league)
+            _home = getattr(leg, "home_team", "")
+            _away = getattr(leg, "away_team", "")
+            proj_diff, _, _ = projected_goal_difference(_home, _away, league)
             if proj_diff is not None:
                 from math import erf, sqrt
 
-                margin_std = SCORING_WEIGHTS["prob"].get("margin_std_default", 1.25)
+                if compute_margin_std is not None and _home and _away and league:
+                    margin_std = compute_margin_std(_home, _away, league)
+                else:
+                    margin_std = SCORING_WEIGHTS["prob"].get("margin_std_default", 1.25)
                 cover_z = (proj_diff + float(getattr(leg, "point"))) / margin_std
                 model_p = 0.5 * (1.0 + erf(cover_z / sqrt(2.0)))
                 if str(getattr(leg, "outcome", "")).lower().startswith(str(getattr(leg, "away_team", "")).lower()):

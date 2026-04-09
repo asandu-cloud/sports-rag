@@ -175,9 +175,17 @@ def _build_match_analysis_sync(home: str, away: str, league: str,
     # Moneyline
     try:
         p_h, p_d, p_a, _, _ = rag.projected_moneyline_probs(home, away, league)
-        analysis["moneyline"] = {"home_win": _safe_round(p_h, 3),
-                                  "draw": _safe_round(p_d, 3),
-                                  "away_win": _safe_round(p_a, 3)}
+        ml_pairs = [
+            {"side": "home", "team": home, "prob": _safe_round(p_h, 3)},
+            {"side": "draw", "team": "Draw", "prob": _safe_round(p_d, 3)},
+            {"side": "away", "team": away, "prob": _safe_round(p_a, 3)},
+        ]
+        analysis["moneyline"] = {
+            "home_win": _safe_round(p_h, 3),
+            "draw": _safe_round(p_d, 3),
+            "away_win": _safe_round(p_a, 3),
+            "most_likely": max(ml_pairs, key=lambda x: x["prob"] or 0.0),
+        }
     except Exception:
         analysis["moneyline"] = None
 
@@ -302,7 +310,30 @@ def _build_match_analysis_sync(home: str, away: str, league: str,
                     result = rag.choose_best_moneyline_side(
                         ml["home_win"] or 0, ml["draw"] or 0, ml["away_win"] or 0,
                         ml_options, home, away)
-                    rec = result.get("recommended") if result else None
+                    if result:
+                        best_value = result.get("best_value")
+                        most_likely = result.get("most_likely")
+                        rec = result.get("bet_recommendation") or result.get("recommended")
+                        if most_likely:
+                            ml["most_likely"] = {
+                                "side": most_likely.get("side"),
+                                "team": most_likely.get("team"),
+                                "prob": _safe_round(most_likely.get("model_prob"), 3),
+                            }
+                        if best_value:
+                            ml["best_value"] = {
+                                "side": best_value.get("side"),
+                                "team": best_value.get("team"),
+                                "odds": best_value.get("best_odds"),
+                                "bookmaker": best_value.get("bookmaker"),
+                                "model_prob": _safe_round(best_value.get("model_prob"), 3),
+                                "value_edge": _safe_round(best_value.get("value_edge"), 3),
+                                "ev": _safe_round(best_value.get("ev"), 3),
+                            }
+                        if result.get("no_bet_reason"):
+                            ml["no_bet_reason"] = result.get("no_bet_reason")
+                    else:
+                        rec = None
                     if rec:
                         analysis["moneyline"]["best_side"] = {
                             "side": rec.get("side"),
@@ -353,7 +384,7 @@ def _extract_best_line(analysis: Dict, event: Dict, stat: str, stat_group: str,
         pass
 
 
-_ANALYSIS_SYSTEM_PROMPT = """You are Spick, an expert football betting analyst writing a comprehensive pre-match report.
+_ANALYSIS_SYSTEM_PROMPT = """You are Spix, an expert football betting analyst writing a comprehensive pre-match report.
 
 You will receive structured data from statistical models covering every market for a fixture. Your job is to write a natural, insightful analysis that a serious bettor would find valuable.
 
@@ -871,7 +902,7 @@ class SlashCommands(commands.Cog):
             description=report[:4096],
             color=COLOR_GREEN,
         )
-        em.set_footer(text=f"{league.value} | Spick's Picks")
+        em.set_footer(text=f"{league.value} | Spix's Picks")
 
         if thread:
             await interaction.followup.send(
@@ -925,15 +956,15 @@ class SlashCommands(commands.Cog):
         text = await _run_rag(prompt, league.value)
 
         label = _MARKET_LABELS.get(market.value, market.value.title())
-        embeds = rag_output_to_embeds(label, text, league=league.value)
+        embeds, files = rag_output_to_embeds(label, text, league=league.value)
         if thread:
             await interaction.followup.send(
                 f"Results posted in your private thread {thread.mention}.",
                 ephemeral=True,
             )
-            await thread.send(embeds=embeds)
+            await thread.send(embeds=embeds, files=files)
         else:
-            await interaction.followup.send(embeds=embeds, ephemeral=True)
+            await interaction.followup.send(embeds=embeds, files=files, ephemeral=True)
 
     # -----------------------------------------------------------------------
     # /compare — Head-to-head stat comparison
@@ -972,7 +1003,7 @@ class SlashCommands(commands.Cog):
         )
         text = await _run_rag(prompt, league.value)
 
-        embeds = rag_output_to_embeds(
+        embeds, files = rag_output_to_embeds(
             f"Comparison: {stat_label.title()}", text, league=league.value,
         )
         if thread:
@@ -980,9 +1011,9 @@ class SlashCommands(commands.Cog):
                 f"Results posted in your private thread {thread.mention}.",
                 ephemeral=True,
             )
-            await thread.send(embeds=embeds)
+            await thread.send(embeds=embeds, files=files)
         else:
-            await interaction.followup.send(embeds=embeds, ephemeral=True)
+            await interaction.followup.send(embeds=embeds, files=files, ephemeral=True)
 
     @compare.autocomplete("match")
     async def _compare_match_autocomplete(
@@ -1034,15 +1065,15 @@ class SlashCommands(commands.Cog):
         text = await _run_rag(prompt, league.value)
 
         label = _PROP_LABELS.get(prop.value, "Player Props")
-        embeds = rag_output_to_embeds(label, text, league=league.value)
+        embeds, files = rag_output_to_embeds(label, text, league=league.value)
         if thread:
             await interaction.followup.send(
                 f"Results posted in your private thread {thread.mention}.",
                 ephemeral=True,
             )
-            await thread.send(embeds=embeds)
+            await thread.send(embeds=embeds, files=files)
         else:
-            await interaction.followup.send(embeds=embeds, ephemeral=True)
+            await interaction.followup.send(embeds=embeds, files=files, ephemeral=True)
 
     @players.autocomplete("match")
     async def _players_match_autocomplete(
@@ -1094,15 +1125,15 @@ class SlashCommands(commands.Cog):
             )
 
         text = await _run_rag(prompt, lg)
-        embeds = rag_output_to_embeds("Team Lines", text, league=lg)
+        embeds, files = rag_output_to_embeds("Team Lines", text, league=lg)
         if thread:
             await interaction.followup.send(
                 f"Results posted in your private thread {thread.mention}.",
                 ephemeral=True,
             )
-            await thread.send(embeds=embeds)
+            await thread.send(embeds=embeds, files=files)
         else:
-            await interaction.followup.send(embeds=embeds, ephemeral=True)
+            await interaction.followup.send(embeds=embeds, files=files, ephemeral=True)
 
     @teamlines.autocomplete("match")
     async def _teamlines_match_ac(

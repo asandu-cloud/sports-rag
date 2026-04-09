@@ -22,8 +22,19 @@ NOT included (removed as noise):
 import time
 from typing import Dict, List, Optional
 
-from live_config import ALERT_COOLDOWN_SECONDS
-from live_state import LiveMatchState, LiveSnapshot
+try:
+    from live.live_config import ALERT_COOLDOWN_SECONDS  # type: ignore
+    from live.live_odds import best_btts_offer, best_moneyline_offer, best_total_offer  # type: ignore
+    from live.live_state import LiveMatchState, LiveSnapshot  # type: ignore
+except ImportError:
+    try:
+        from Scripts.live.live_config import ALERT_COOLDOWN_SECONDS  # type: ignore
+        from Scripts.live.live_odds import best_btts_offer, best_moneyline_offer, best_total_offer  # type: ignore
+        from Scripts.live.live_state import LiveMatchState, LiveSnapshot  # type: ignore
+    except ImportError:
+        from live_config import ALERT_COOLDOWN_SECONDS
+        from live_odds import best_btts_offer, best_moneyline_offer, best_total_offer
+        from live_state import LiveMatchState, LiveSnapshot
 
 
 # ---------------------------------------------------------------------------
@@ -53,8 +64,181 @@ def clear_cooldowns(fixture_id: Optional[int] = None) -> None:
         _alert_cooldowns = {k: v for k, v in _alert_cooldowns.items() if k[0] != fixture_id}
 
 
-def _make_alert(alert_type: str, message: str, severity: str, minute: float) -> Dict:
-    return {"type": alert_type, "message": message, "severity": severity, "minute": int(minute)}
+def _make_alert(alert_type: str, message: str, severity: str, minute: float, **extra: object) -> Dict:
+    alert = {"type": alert_type, "message": message, "severity": severity, "minute": int(minute)}
+    alert.update(extra)
+    return alert
+
+
+def _expected_value(model_prob: float, decimal_odds: float) -> float:
+    return (model_prob * decimal_odds) - 1.0
+
+
+def _live_odds_source(current: LiveSnapshot, state: LiveMatchState) -> str:
+    source = (
+        getattr(current, "live_odds_source", None)
+        or getattr(state, "live_odds_source", None)
+        or (getattr(current, "live_odds", None) or {}).get("source")
+        or (getattr(state, "live_odds", None) or {}).get("source")
+    )
+    if source in {"inplay", "prematch_fallback"}:
+        return str(source)
+    return "none"
+
+
+def _can_use_live_prices(pricing_source: str) -> bool:
+    return pricing_source == "inplay"
+
+
+def _attach_fallback_context(candidate: Optional[Dict], pricing_source: str) -> Optional[Dict]:
+    if candidate is None:
+        return None
+    enriched = dict(candidate)
+    enriched["mode"] = str(enriched.get("mode") or "model_only")
+    enriched["pricing_source"] = pricing_source
+    if pricing_source == "prematch_fallback":
+        enriched["mode_note"] = "Live odds unavailable; using model-only projections while pre-match prices are stale."
+    elif pricing_source == "none":
+        enriched["mode_note"] = "Live odds unavailable; using model-only projections."
+    return enriched
+
+
+def _priced_total_candidate(
+    live_odds: Dict,
+    stat_group: str,
+    prob_dict: Dict[str, float],
+    projected_total: Optional[float],
+    observed: int,
+    stat_name: str,
+    emoji: str,
+) -> Optional[Dict]:
+    if not live_odds or not prob_dict or projected_total is None:
+        return None
+
+    best = None
+    best_score = -999.0
+
+    for line_str, p_over in prob_dict.items():
+        line = float(line_str)
+        if line < observed:
+            continue
+
+        for side, model_prob in (("over", float(p_over)), ("under", float(1.0 - p_over))):
+            if model_prob < 0.55 or model_prob > 0.88:
+                continue
+            offer = best_total_offer(live_odds, stat_group, line, side)
+            if not offer:
+                continue
+            edge = model_prob - float(offer["fair_prob"])
+            ev = _expected_value(model_prob, float(offer["odds"]))
+            if edge < 0.04 or ev < 0.03:
+                continue
+            closeness = 1.0 / (1.0 + abs(projected_total - line))
+            score = (edge * 2.0) + ev + (closeness * 0.10)
+            if score > best_score:
+                best_score = score
+                side_label = "Over" if side == "over" else "Under"
+                best = {
+                    "pick": f"{emoji} {side_label} {line_str} {stat_name}",
+                    "prob": model_prob,
+                    "odds": float(offer["odds"]),
+                    "bookmaker": offer["bookmaker"],
+                    "edge": edge,
+                    "ev": ev,
+                    "reason": (
+                        f"Model {model_prob:.0%} vs fair {offer['fair_prob']:.0%} "
+                        f"at {offer['odds']:.2f} ({offer['bookmaker']}) | "
+                        f"Proj {projected_total:.1f}, observed {observed}"
+                    ),
+                    "shift": edge,
+                    "mode": "odds_aware",
+                    "pricing_source": "inplay",
+                }
+    return best
+
+
+def _priced_btts_candidate(live_odds: Dict, current: LiveSnapshot, state: LiveMatchState) -> Optional[Dict]:
+    if not live_odds or current.btts_prob is None:
+        return None
+    if state.goals_home >= 1 and state.goals_away >= 1:
+        return None
+
+    best = None
+    best_score = -999.0
+    for side, model_prob in (("yes", float(current.btts_prob)), ("no", float(1.0 - current.btts_prob))):
+        if model_prob < 0.55 or model_prob > 0.88:
+            continue
+        offer = best_btts_offer(live_odds, side)
+        if not offer:
+            continue
+        edge = model_prob - float(offer["fair_prob"])
+        ev = _expected_value(model_prob, float(offer["odds"]))
+        if edge < 0.04 or ev < 0.03:
+            continue
+        score = (edge * 2.0) + ev
+        if score > best_score:
+            best_score = score
+            side_label = "Yes" if side == "yes" else "No"
+            best = {
+                "pick": f"🤝 BTTS {side_label}",
+                "prob": model_prob,
+                "odds": float(offer["odds"]),
+                "bookmaker": offer["bookmaker"],
+                "edge": edge,
+                "ev": ev,
+                "reason": (
+                    f"Model {model_prob:.0%} vs fair {offer['fair_prob']:.0%} "
+                    f"at {offer['odds']:.2f} ({offer['bookmaker']})"
+                ),
+                "shift": edge,
+                "mode": "odds_aware",
+                "pricing_source": "inplay",
+            }
+    return best
+
+
+def _priced_moneyline_candidate(live_odds: Dict, current: LiveSnapshot, state: LiveMatchState) -> Optional[Dict]:
+    if not live_odds or not current.moneyline:
+        return None
+
+    sides = [
+        ("home", "home_win", f"🏆 {state.home_team} Win", 0.42, 0.04, 0.03),
+        ("draw", "draw", "🏆 Draw", 0.25, 0.06, 0.05),
+        ("away", "away_win", f"🏆 {state.away_team} Win", 0.42, 0.04, 0.03),
+    ]
+
+    best = None
+    best_score = -999.0
+    for odds_side, model_key, label, min_prob, min_edge, min_ev in sides:
+        model_prob = float(current.moneyline.get(model_key, 0.0))
+        if model_prob < min_prob or model_prob > 0.88:
+            continue
+        offer = best_moneyline_offer(live_odds, odds_side)
+        if not offer:
+            continue
+        edge = model_prob - float(offer["fair_prob"])
+        ev = _expected_value(model_prob, float(offer["odds"]))
+        if edge < min_edge or ev < min_ev:
+            continue
+        score = (edge * 2.0) + ev
+        if score > best_score:
+            best_score = score
+            best = {
+                "pick": label,
+                "prob": model_prob,
+                "odds": float(offer["odds"]),
+                "bookmaker": offer["bookmaker"],
+                "edge": edge,
+                "ev": ev,
+                "reason": (
+                    f"Model {model_prob:.0%} vs fair {offer['fair_prob']:.0%} "
+                    f"at {offer['odds']:.2f} ({offer['bookmaker']})"
+                ),
+                "shift": edge,
+                "mode": "odds_aware",
+                "pricing_source": "inplay",
+            }
+    return best
 
 
 # ---------------------------------------------------------------------------
@@ -80,58 +264,98 @@ def _find_best_live_bet(
     if elapsed < 10 or elapsed > 85:
         return alerts
 
+    live_odds = getattr(current, "live_odds", None) or getattr(state, "live_odds", None) or {}
+    pricing_source = _live_odds_source(current, state)
+    allow_priced_candidates = _can_use_live_prices(pricing_source)
+
     # --- Check each market for the best actionable bet ---
 
     # Goals
-    best_goal_bet = _best_actionable_line(
+    best_goal_bet = (
+        _priced_total_candidate(
+            live_odds,
+            "goals",
+            current.prob_over_goals or {},
+            current.projected_total_goals,
+            state.total_goals,
+            "Goals",
+            "⚽",
+        )
+        if allow_priced_candidates
+        else None
+    ) or _attach_fallback_context(_best_actionable_line(
         current.prob_over_goals or {},
         current.projected_total_goals,
         state.total_goals,
         "Goals",
         "⚽",
-    )
+    ), pricing_source)
 
     # Corners
-    best_corner_bet = _best_actionable_line(
+    best_corner_bet = (
+        _priced_total_candidate(
+            live_odds,
+            "corners",
+            current.prob_over_corners or {},
+            current.projected_total_corners,
+            state.total_corners,
+            "Corners",
+            "📐",
+        )
+        if allow_priced_candidates
+        else None
+    ) or _attach_fallback_context(_best_actionable_line(
         current.prob_over_corners or {},
         current.projected_total_corners,
         state.total_corners,
         "Corners",
         "📐",
-    )
+    ), pricing_source)
 
     # Cards
-    best_card_bet = _best_actionable_line(
+    best_card_bet = (
+        _priced_total_candidate(
+            live_odds,
+            "cards",
+            current.prob_over_cards or {},
+            current.projected_total_cards,
+            state.total_cards,
+            "Cards",
+            "🟨",
+        )
+        if allow_priced_candidates
+        else None
+    ) or _attach_fallback_context(_best_actionable_line(
         current.prob_over_cards or {},
         current.projected_total_cards,
         state.total_cards,
         "Cards",
         "🟨",
-    )
+    ), pricing_source)
 
     # BTTS — only if NOT already cashed
-    btts_bet = None
+    btts_bet = _priced_btts_candidate(live_odds, current, state) if allow_priced_candidates else None
     both_scored = state.goals_home >= 1 and state.goals_away >= 1
-    if not both_scored and current.btts_prob is not None:
+    if btts_bet is None and not both_scored and current.btts_prob is not None:
         pre_btts = current.pre_match_btts_prob or 0.5
         if current.btts_prob >= 0.62 and abs(current.btts_prob - pre_btts) >= 0.08:
-            btts_bet = {
+            btts_bet = _attach_fallback_context({
                 "pick": "🤝 BTTS Yes",
                 "prob": current.btts_prob,
                 "reason": f"P(BTTS) = {current.btts_prob:.0%} (was {pre_btts:.0%} pre-match)",
                 "shift": current.btts_prob - pre_btts,
-            }
+            }, pricing_source)
         elif (1.0 - current.btts_prob) >= 0.65 and abs(current.btts_prob - pre_btts) >= 0.08:
-            btts_bet = {
+            btts_bet = _attach_fallback_context({
                 "pick": "🤝 BTTS No",
                 "prob": 1.0 - current.btts_prob,
                 "reason": f"P(BTTS No) = {1.0 - current.btts_prob:.0%} (was {1.0 - pre_btts:.0%} pre-match)",
                 "shift": (1.0 - current.btts_prob) - (1.0 - pre_btts),
-            }
+            }, pricing_source)
 
     # Moneyline — only if significant shift from pre-match
-    ml_bet = None
-    if current.moneyline and current.pre_match_moneyline:
+    ml_bet = _priced_moneyline_candidate(live_odds, current, state) if allow_priced_candidates else None
+    if ml_bet is None and current.moneyline and current.pre_match_moneyline:
         for side in ("home_win", "draw", "away_win"):
             live_p = current.moneyline.get(side, 0)
             pre_p = current.pre_match_moneyline.get(side, 0)
@@ -140,16 +364,16 @@ def _find_best_live_bet(
                 label = {"home_win": f"🏆 {state.home_team} Win",
                          "draw": "🏆 Draw",
                          "away_win": f"🏆 {state.away_team} Win"}.get(side, side)
-                ml_bet = {
+                ml_bet = _attach_fallback_context({
                     "pick": label,
                     "prob": live_p,
                     "reason": f"Model: {live_p:.0%} (was {pre_p:.0%} pre-match, +{shift:.0%} shift)",
                     "shift": shift,
-                }
+                }, pricing_source)
                 break  # only the best ML bet
 
     # Next goal / no more goals bet
-    next_goal_bet = _find_next_goal_bet(current, state)
+    next_goal_bet = _attach_fallback_context(_find_next_goal_bet(current, state), pricing_source)
 
     # Collect all candidates and pick the single best
     candidates = []
@@ -160,22 +384,54 @@ def _find_best_live_bet(
     if not candidates:
         return alerts
 
-    # Sort by: probability shift (how much the live info changed things) × probability
-    candidates.sort(key=lambda b: abs(b.get("shift", 0)) * b["prob"], reverse=True)
+    # Price-aware candidates rank by edge first; model-only candidates fall back to shift.
+    candidates.sort(
+        key=lambda b: (
+            float(b.get("edge", -999.0)),
+            abs(float(b.get("shift", 0.0))) * float(b.get("prob", 0.0)),
+        ),
+        reverse=True,
+    )
     best = candidates[0]
 
-    # Only fire if the shift is meaningful (live info adds value over pre-match)
-    if abs(best.get("shift", 0)) < 0.05:
+    # Odds-aware alerts need a real edge; model-only fallbacks still require meaningful shift.
+    if best.get("mode") == "odds_aware":
+        if float(best.get("edge", 0.0)) < 0.04 or float(best.get("ev", 0.0)) < 0.03:
+            return alerts
+    elif abs(best.get("shift", 0)) < 0.05:
         return alerts
 
     alert_key = f"live_bet_{best['pick']}"
     if _can_fire(state.fixture_id, alert_key):
-        conf = "Strong Edge" if best["prob"] >= 0.65 else "Leaning"
+        if best.get("mode") == "odds_aware":
+            conf = "Strong Edge" if float(best.get("edge", 0.0)) >= 0.08 else "Leaning"
+            msg = (
+                f"LIVE BET: {best['pick']} — {conf} "
+                f"(model {best['prob']:.0%}, edge {best.get('edge', 0.0):+.1%}, EV {best.get('ev', 0.0):+.2f})\n"
+                f"{best['reason']}"
+            )
+        else:
+            conf = "Strong Edge" if best["prob"] >= 0.65 else "Leaning"
+            mode_note = best.get("mode_note")
+            msg = f"LIVE BET: {best['pick']} — {conf} ({best['prob']:.0%})\n{best['reason']}"
+            if mode_note:
+                msg = f"{msg}\n{mode_note}"
         alerts.append(_make_alert(
             "live_bet",
-            f"LIVE BET: {best['pick']} — {conf} ({best['prob']:.0%})\n{best['reason']}",
+            msg,
             "warning" if conf == "Strong Edge" else "info",
             elapsed,
+            pick=best.get("pick"),
+            prob=float(best.get("prob", 0.0)),
+            confidence=conf,
+            reason=best.get("reason"),
+            mode=best.get("mode", "model_only"),
+            pricing_source=best.get("pricing_source", pricing_source),
+            bookmaker=best.get("bookmaker"),
+            odds=best.get("odds"),
+            edge=best.get("edge"),
+            ev=best.get("ev"),
+            mode_note=best.get("mode_note"),
         ))
         _mark_fired(state.fixture_id, alert_key)
 

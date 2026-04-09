@@ -191,7 +191,11 @@ def run_league_eval(
                 continue
 
             try:
-                projections = project_fixture(home, away, league)
+                projections = project_fixture(
+                    home, away, league,
+                    fixture_date=fixture.get("fixture_date"),
+                    fixture_id=fixture.get("fixture_id"),
+                )
             except Exception:
                 continue
 

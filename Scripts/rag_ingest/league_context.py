@@ -20,6 +20,8 @@ from typing import Dict, List, Optional, Tuple
 
 log = logging.getLogger("league_context")
 
+_league_context_cache: Dict[Tuple[str, str, str, str], "LeagueContext"] = {}
+
 # ---------------------------------------------------------------------------
 # Imports with fallbacks
 # ---------------------------------------------------------------------------
@@ -127,11 +129,6 @@ def _compute_rest_days(team: str, league: str, target_date: Optional[str] = None
             except ValueError:
                 continue
 
-    if not dates:
-        return None, 0
-
-    dates.sort(reverse=True)  # most recent first
-
     if target_date:
         try:
             ref = datetime.strptime(target_date[:10], "%Y-%m-%d")
@@ -139,6 +136,12 @@ def _compute_rest_days(team: str, league: str, target_date: Optional[str] = None
             ref = datetime.now()
     else:
         ref = datetime.now()
+
+    dates = [d for d in dates if d <= ref]
+    if not dates:
+        return None, 0
+
+    dates.sort(reverse=True)  # most recent first
 
     rest_days = min(REST_DAYS_CAP, max(1, (ref - dates[0]).days))
     congestion = sum(1 for d in dates if (ref - d).days <= CONGESTION_WINDOW_DAYS)
@@ -172,15 +175,51 @@ def _safe_float(val, default=None):
         return default
 
 
-def _compute_regime_shift(team: str, league: str) -> Dict[str, float]:
+def _recent_rows_before(team: str, league: str, target_date: Optional[str], limit: int = 5) -> List[Dict]:
+    rows = get_recent_team_fixture_rows(team, league, limit=25)
+    if not rows:
+        return []
+    if not target_date:
+        return rows[:limit]
+    try:
+        ref = datetime.strptime(target_date[:10], "%Y-%m-%d")
+    except ValueError:
+        return rows[:limit]
+    filtered: List[Dict] = []
+    for row in rows:
+        meta = row.get("meta") or {}
+        fd = str(meta.get("fixture_date") or "")
+        if len(fd) < 10:
+            continue
+        try:
+            row_dt = datetime.strptime(fd[:10], "%Y-%m-%d")
+        except ValueError:
+            continue
+        if row_dt <= ref:
+            filtered.append(row)
+        if len(filtered) >= limit:
+            break
+    return filtered
+
+
+def _compute_regime_shift(team: str, league: str, target_date: Optional[str] = None) -> Dict[str, float]:
     """Compute regime shift: (recent_5 - season) / season for key stats.
 
     Positive = team trending up. Negative = trending down.
     """
-    recent = _recent_stats(team, league, last_n=5)
+    recent_rows = _recent_rows_before(team, league, target_date, limit=5)
     profile = _profile_meta(team, league)
-    if not recent or not profile:
+    if not recent_rows or not profile:
         return {}
+
+    recent = {
+        "corners_for_avg": _safe_float(sum((_safe_float((r.get("meta") or {}).get("corners_for"), 0.0) or 0.0) for r in recent_rows) / len(recent_rows)),
+        "cards_avg": _safe_float(sum((_safe_float((r.get("meta") or {}).get("cards_total"), 0.0) or 0.0) for r in recent_rows) / len(recent_rows)),
+        "sot_for_avg": _safe_float(sum((_safe_float((r.get("meta") or {}).get("sot_for"), 0.0) or 0.0) for r in recent_rows) / len(recent_rows)),
+        "xg_for_avg": _safe_float(sum((_safe_float((r.get("meta") or {}).get("xg_for"), 0.0) or 0.0) for r in recent_rows) / len(recent_rows)),
+        "control_avg": _safe_float(sum((_safe_float((r.get("meta") or {}).get("control_index"), 0.0) or 0.0) for r in recent_rows) / len(recent_rows)),
+        "possession_avg": _safe_float(sum((_safe_float((r.get("meta") or {}).get("possession"), 0.0) or 0.0) for r in recent_rows) / len(recent_rows)),
+    }
 
     season_map = {
         "corners_for_avg": "corners_pm",
@@ -218,6 +257,12 @@ def get_league_context(
     Aggregates rest days, congestion, stake context, and regime shift.
     Returns bounded adjustments that can be applied to projections.
     """
+    date_key = (target_date or "")[:10]
+    cache_key = (home.strip().lower(), away.strip().lower(), league, date_key)
+    cached = _league_context_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     ctx = LeagueContext()
     lcw = SCORING_WEIGHTS.get("league_context", {})
     evidence = []
@@ -278,8 +323,8 @@ def get_league_context(
             log.debug("Stake context failed: %s", exc)
 
     # --- Regime shift ---
-    ctx.home_regime_shift = _compute_regime_shift(home, league)
-    ctx.away_regime_shift = _compute_regime_shift(away, league)
+    ctx.home_regime_shift = _compute_regime_shift(home, league, target_date)
+    ctx.away_regime_shift = _compute_regime_shift(away, league, target_date)
 
     # Compute regime adjustment per stat: average of home + away deltas, bounded
     regime_weight = lcw.get("regime_shift_weight", 0.08)
@@ -308,6 +353,7 @@ def get_league_context(
     ctx.evidence = evidence
     ctx.warnings = warnings
     ctx.source = "computed"
+    _league_context_cache[cache_key] = ctx
 
     return ctx
 

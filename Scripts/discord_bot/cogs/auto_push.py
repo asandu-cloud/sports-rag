@@ -9,6 +9,8 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
+import os
+import requests
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import redirect_stdout
@@ -38,6 +40,7 @@ from config import (  # noqa: E402
     CHANNEL_TEAM_LINES,
     CHANNEL_BEST_PICKS,
     CHANNEL_NEWSLETTER,
+    CHANNEL_HIGH_RISK,
     # Legacy aliases (all map to the channels above via config.py)
     CHANNEL_PARLAY_OF_DAY,
     CHANNEL_MATCHDAY_DIGEST,
@@ -76,6 +79,47 @@ log = logging.getLogger("auto_push")
 
 # Thread pool for blocking RAG calls — keeps the async event loop free
 _rag_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="rag")
+
+
+# ---------------------------------------------------------------------------
+# Make.com webhook
+# ---------------------------------------------------------------------------
+
+def send_picks_to_make(league: str, top: list, commence_time: str, make_webhook_url: str):
+    """
+    Fires structured pick payload to Make.com webhook.
+    Call this after the Discord embed is sent.
+    """
+    payload = {
+        "date": datetime.utcnow().strftime("%Y-%m-%d"),
+        "competition": league,
+        "kickoff": commence_time,
+        "picks": [
+            {
+                "fixture": p["fixture"],
+                "market": p["market"],
+                "bet_type": p["pick"],
+                "odds": p["odds"],
+                "model_confidence": p["model_p"],
+                "edge_percent": p["edge"],
+                "edge_rating": p["conf"],
+            }
+            for p in top
+        ],
+        "total_picks_analyzed": len(top),
+    }
+
+    try:
+        response = requests.post(
+            make_webhook_url,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=10,
+        )
+        response.raise_for_status()
+        log.info("[Make webhook] Sent %d picks for %s: %s", len(top), league, response.status_code)
+    except requests.exceptions.RequestException as e:
+        log.error("[Make webhook] Failed to send picks for %s: %s", league, e)
 
 
 # ---------------------------------------------------------------------------
@@ -198,12 +242,14 @@ def _is_valid(text: str) -> bool:
 def _get_todays_leagues() -> tuple:
     """Find which leagues have fixtures today, and the first kickoff time.
 
-    Returns (first_kickoff_dt_or_None, active_leagues_list).
+    Returns (first_kickoff_dt_or_None, active_leagues_list, kickoff_map).
+    kickoff_map: {"Home vs Away": "2026-04-08T19:45:00+00:00", ...}
     Scans all domestic + European leagues, only returns those with matches.
     """
     all_leagues = DOMESTIC_LEAGUES + ["UCL", "UEL", "UECL"]
     first_kickoff = None
     active_leagues = []
+    kickoff_map: dict[str, str] = {}
 
     for league in all_leagues:
         try:
@@ -213,6 +259,11 @@ def _get_todays_leagues() -> tuple:
                 active_leagues.append(league)
                 for ev in day_events:
                     ko = ev.get("commence_time")
+                    # Build kickoff_map keyed by fixture name
+                    home = ev.get("home_team", "")
+                    away = ev.get("away_team", "")
+                    if home and away and ko:
+                        kickoff_map[f"{home} vs {away}"] = ko
                     if ko:
                         try:
                             ko_dt = datetime.fromisoformat(ko.replace("Z", "+00:00"))
@@ -228,7 +279,7 @@ def _get_todays_leagues() -> tuple:
     else:
         log.info("No fixtures found in any league today.")
 
-    return first_kickoff, active_leagues
+    return first_kickoff, active_leagues, kickoff_map
 
 
 def _is_posting_window(first_kickoff) -> bool:
@@ -257,13 +308,16 @@ async def _post_market_for_leagues(
         text = await _run_rag(prompt, league)
         if not _is_valid(text):
             continue
-        embeds = rag_output_to_embeds(
+        embeds, files = rag_output_to_embeds(
             title_template.format(league=league),
             text,
             league=league,
         )
-        for em in embeds:
-            await channel.send(embed=em)
+        if files:
+            await channel.send(embeds=embeds, files=files)
+        else:
+            for em in embeds:
+                await channel.send(embed=em)
 
 
 async def _post_consolidated_predictions(
@@ -680,7 +734,7 @@ def _build_player_props_embed(
                 inline=True,
             )
 
-    footer_parts = [league, "Spick's Picks"]
+    footer_parts = [league, "Spix's Picks"]
     if footer_extra:
         footer_parts.append(footer_extra)
     em.set_footer(text=" \u2502 ".join(footer_parts))
@@ -813,7 +867,7 @@ def _build_best_picks_embeds(breakdown: dict, date_str: str) -> list:
     if conf_lines:
         em.add_field(name="By Confidence", value="\n".join(conf_lines), inline=False)
 
-    em.set_footer(text=f"{total} predictions graded | Spick's Picks")
+    em.set_footer(text=f"{total} predictions graded | Spix's Picks")
 
     embeds = [em]
 
@@ -843,7 +897,7 @@ def _build_best_picks_embeds(breakdown: dict, date_str: str) -> list:
                 miss_lines.append(f"**{lg}** {m['fixture']} — {m['pick']}{prob_str}")
             em2.add_field(name="Upsets / Misses", value="\n".join(miss_lines), inline=False)
 
-        em2.set_footer(text="Spick's Picks")
+        em2.set_footer(text="Spix's Picks")
         embeds.append(em2)
 
     return embeds
@@ -905,7 +959,7 @@ class AutoPush(commands.Cog):
         Checks every 30 min. Posts once per day when within the pre-kickoff window.
         #daily-picks gets all market predictions, #player-props gets prop picks.
         """
-        first_kickoff, active_leagues = _get_todays_leagues()
+        first_kickoff, active_leagues, kickoff_map = _get_todays_leagues()
         if not active_leagues:
             return
 
@@ -917,11 +971,15 @@ class AutoPush(commands.Cog):
 
         # --- #daily-picks: all market predictions ---
         if CHANNEL_DAILY_PICKS and not self._already_posted("daily_picks"):
-            await self._post_daily_picks(leagues, date_str)
+            await self._post_daily_picks(leagues, date_str, kickoff_map)
 
         # --- #team-lines: per-team corners & cards with odds ---
         if CHANNEL_TEAM_LINES and not self._already_posted("team_lines"):
             await self._post_team_lines(leagues, date_str)
+
+        # --- #high-risk: best unit bets in 1.85-2.40 odds range ---
+        if CHANNEL_HIGH_RISK and not self._already_posted("high_risk"):
+            await self._post_high_risk(leagues, date_str, kickoff_map)
 
         # Player props are posted separately — 30 min before each kickoff
         # via the player_props_pre_match task
@@ -947,7 +1005,7 @@ class AutoPush(commands.Cog):
             return
 
         now = datetime.now(timezone.utc)
-        _, active_leagues = _get_todays_leagues()
+        _, active_leagues, _ = _get_todays_leagues()
         if not active_leagues:
             return
 
@@ -1045,7 +1103,7 @@ class AutoPush(commands.Cog):
         if self._already_posted("parlay"):
             return
 
-        first_kickoff, active_leagues = _get_todays_leagues()
+        first_kickoff, active_leagues, _ = _get_todays_leagues()
         if not active_leagues:
             return
         if not _is_posting_window(first_kickoff):
@@ -1085,7 +1143,7 @@ class AutoPush(commands.Cog):
             description=f"**{date_str}** — 3 parlays ranked by risk level",
             color=COLOR_GREEN,
         )
-        header.set_footer(text="Spick | Auto-generated from model projections")
+        header.set_footer(text="Spix | Auto-generated from model projections")
         await channel.send(embed=header)
 
         for preset, result in built:
@@ -1108,7 +1166,7 @@ class AutoPush(commands.Cog):
         if not channel:
             return
 
-        _, active_leagues = _get_todays_leagues()
+        _, active_leagues, _ = _get_todays_leagues()
         if not active_leagues:
             return
 
@@ -1120,12 +1178,15 @@ class AutoPush(commands.Cog):
             )
             text = await _run_rag(prompt, league)
             if _is_valid(text):
-                embeds = rag_output_to_embeds(
+                embeds, files = rag_output_to_embeds(
                     f"Goals Totals — {league}", text, league=league,
                     footer=f"Auto-posted | {date_str}",
                 )
-                for em in embeds:
-                    await channel.send(embed=em)
+                if files:
+                    await channel.send(embeds=embeds, files=files)
+                else:
+                    for em in embeds:
+                        await channel.send(embed=em)
 
     @daily_digest.before_loop
     async def _wait_digest(self):
@@ -1141,7 +1202,7 @@ class AutoPush(commands.Cog):
         if not channel:
             return
 
-        _, active_leagues = _get_todays_leagues()
+        _, active_leagues, _ = _get_todays_leagues()
         if not active_leagues:
             return
 
@@ -1267,7 +1328,7 @@ class AutoPush(commands.Cog):
             ),
             inline=False,
         )
-        em.set_footer(text="Spick's Picks Track Record | Updated daily at noon CET")
+        em.set_footer(text="Spix's Picks Track Record | Updated daily at noon CET")
         await channel.send(embed=em)
 
     @daily_track_record.before_loop
@@ -1341,7 +1402,7 @@ class AutoPush(commands.Cog):
         so running frequently is safe and lightweight.
         """
         try:
-            first_kickoff, active_leagues = _get_todays_leagues()
+            first_kickoff, active_leagues, _ = _get_todays_leagues()
             if not active_leagues:
                 return
 
@@ -1364,19 +1425,31 @@ class AutoPush(commands.Cog):
     # NEWSLETTER DIGEST — matchday intel from local news sources (WHALE only)
     # ===================================================================
 
-    @tasks.loop(time=dt_time(hour=9, minute=0))
+    @tasks.loop(minutes=30)
     async def newsletter_digest(self):
-        """Post matchday newsletter digest to #newsletter (WHALE only channel)."""
+        """Post matchday newsletter digest to #newsletter (WHALE only channel).
+
+        Polls every 30 min and posts ~2 hours before first kickoff.
+        """
         channel = self.bot.get_channel(CHANNEL_NEWSLETTER)
         if not channel:
             return
 
-        first_kickoff, active_leagues = _get_todays_leagues()
+        first_kickoff, active_leagues, _ = _get_todays_leagues()
         if not active_leagues:
             return
 
         if self._already_posted("newsletter"):
             return
+
+        # Post ~2 hours before first kickoff
+        if first_kickoff is not None:
+            now = datetime.now(timezone.utc)
+            if first_kickoff.tzinfo is None:
+                first_kickoff = first_kickoff.replace(tzinfo=timezone.utc)
+            hours_until = (first_kickoff - now).total_seconds() / 3600
+            if hours_until > 2.5 or hours_until < -0.5:
+                return
 
         log.info("Generating matchday newsletter for %d leagues...", len(active_leagues))
         loop = asyncio.get_running_loop()
@@ -1398,7 +1471,7 @@ class AutoPush(commands.Cog):
                 description=digest_text[:4096],
                 color=COLOR_BLUE,
             )
-            em.set_footer(text=f"Spick's Picks \u2502 Sources: local sports media \u2502 WHALE exclusive")
+            em.set_footer(text=f"Spix's Picks \u2502 Sources: local sports media \u2502 WHALE exclusive")
             try:
                 await channel.send(embed=em)
             except Exception as exc:
@@ -1429,6 +1502,8 @@ class AutoPush(commands.Cog):
         discord.app_commands.Choice(name="Best Picks Recap", value="best_picks_recap"),
         discord.app_commands.Choice(name="CLV Capture", value="clv_capture"),
         discord.app_commands.Choice(name="Newsletter", value="newsletter"),
+        discord.app_commands.Choice(name="High Risk", value="high_risk"),
+        discord.app_commands.Choice(name="Free Picks", value="free_picks"),
         discord.app_commands.Choice(name="Everything", value="everything"),
     ])
     async def trigger(
@@ -1469,7 +1544,7 @@ class AutoPush(commands.Cog):
                 if not _HAS_NEWSLETTER:
                     await interaction.followup.send("Newsletter module not available.", ephemeral=True)
                     return
-                _, active_leagues = _get_todays_leagues()
+                _, active_leagues, _ = _get_todays_leagues()
                 if not active_leagues:
                     active_leagues = ["EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1"]
                 loop = asyncio.get_running_loop()
@@ -1485,13 +1560,28 @@ class AutoPush(commands.Cog):
                             description=text[:4096],
                             color=COLOR_BLUE,
                         )
-                        em.set_footer(text="Spick's Picks \u2502 WHALE exclusive")
+                        em.set_footer(text="Spix's Picks \u2502 WHALE exclusive")
                         await nl_channel.send(embed=em)
                         posted_count += 1
                 await interaction.followup.send(
                     f"Newsletter posted: {posted_count} league(s).", ephemeral=True)
             except Exception as exc:
                 log.error("Manual newsletter trigger failed: %s", exc, exc_info=True)
+                await interaction.followup.send(f"Error: {exc}", ephemeral=True)
+            return
+
+        # Free picks — delegates to TrialCog (trial.py)
+        if task.value == "free_picks":
+            trial_cog = self.bot.get_cog("trial")
+            if trial_cog is None:
+                await interaction.followup.send("Trial cog not loaded.", ephemeral=True)
+                return
+            try:
+                trial_cog._posted_today.pop("trial_parlays", None)
+                await trial_cog.post_trial_parlays(force=True)
+                await interaction.followup.send("Free picks posted.", ephemeral=True)
+            except Exception as exc:
+                log.error("Manual free picks trigger failed: %s", exc, exc_info=True)
                 await interaction.followup.send(f"Error: {exc}", ephemeral=True)
             return
 
@@ -1536,7 +1626,7 @@ class AutoPush(commands.Cog):
             return
 
         date_str = _today_phrase()
-        _, active_leagues = _get_todays_leagues()
+        _, active_leagues, kickoff_map = _get_todays_leagues()
         if not active_leagues:
             await interaction.followup.send(
                 "No fixtures found in any league today.", ephemeral=True)
@@ -1547,12 +1637,17 @@ class AutoPush(commands.Cog):
         posted = []
         try:
             if task.value in ("daily_picks", "everything"):
-                await self._post_daily_picks(leagues, date_str)
+                await self._post_daily_picks(leagues, date_str, kickoff_map)
                 posted.append("daily picks")
 
             if task.value in ("team_lines", "everything"):
                 await self._post_team_lines(leagues, date_str)
                 posted.append("team lines")
+
+            if task.value in ("high_risk", "everything"):
+                self._posted_today.pop("high_risk", None)
+                await self._post_high_risk(leagues, date_str, kickoff_map)
+                posted.append("high risk")
 
             if task.value in ("parlays", "everything"):
                 self._posted_today.pop("parlay", None)
@@ -1599,6 +1694,16 @@ class AutoPush(commands.Cog):
                     log.error("Best picks recap failed: %s", exc)
                 posted.append("best picks recap")
 
+            if task.value == "everything":
+                trial_cog = self.bot.get_cog("trial")
+                if trial_cog:
+                    try:
+                        trial_cog._posted_today.pop("trial_parlays", None)
+                        await trial_cog.post_trial_parlays(force=True)
+                        posted.append("free picks")
+                    except Exception as exc:
+                        log.error("Free picks failed: %s", exc)
+
             await interaction.followup.send(
                 f"Posted: {', '.join(posted)}.", ephemeral=True)
 
@@ -1606,8 +1711,9 @@ class AutoPush(commands.Cog):
             log.error("Manual trigger failed: %s", exc, exc_info=True)
             await interaction.followup.send(f"Error: {exc}", ephemeral=True)
 
-    async def _post_daily_picks(self, leagues: list, date_str: str):
+    async def _post_daily_picks(self, leagues: list, date_str: str, kickoff_map: dict | None = None):
         """Post curated top picks per league — 5-8 best bets in ONE embed per league."""
+        kickoff_map = kickoff_map or {}
         ch = self.bot.get_channel(CHANNEL_DAILY_PICKS)
         if not ch:
             log.warning("CHANNEL_DAILY_PICKS not configured")
@@ -1671,6 +1777,7 @@ class AutoPush(commands.Cog):
                         "model_p": model_p,
                         "edge": edge_val,
                         "conf": conf,
+                        "kickoff": kickoff_map.get(fixture, ""),
                     })
 
             if not all_picks:
@@ -1725,19 +1832,157 @@ class AutoPush(commands.Cog):
                 edge_str = f"+{p['edge']:.1f}%" if p["edge"] > 0 else ""
 
                 em.add_field(
-                    name=f"{p['emoji']}  {p['fixture']}",
+                    name=f"{p['emoji']} {p['label']}  \u2014  {p['fixture']}",
                     value=(
-                        f"**{p['pick']}** {odds_str}\n"
+                        f"\U0001f4cb Pick: **{p['pick']}** {odds_str}\n"
                         f"{meter} {conf_label} \u2022 {p['model_p']:.0f}% model"
                         + (f" \u2022 {edge_str} edge" if edge_str else "")
                     ),
                     inline=False,
                 )
 
-            em.set_footer(text=f"{league} \u2502 Spick's Picks \u2502 {len(all_picks)} picks analyzed, top {len(top)} shown")
+            em.set_footer(text=f"{league} \u2502 Spix's Picks \u2502 {len(all_picks)} picks analyzed, top {len(top)} shown")
             await ch.send(embed=em)
 
+            # Fire picks to Make.com for automated content generation
+            make_url = os.getenv("MAKE_WEBHOOK_URL", "")
+            if make_url:
+                earliest_ko = min((p["kickoff"] for p in top if p["kickoff"]), default="")
+                send_picks_to_make(
+                    league=league,
+                    top=top,
+                    commence_time=earliest_ko,
+                    make_webhook_url=make_url,
+                )
+
         self._mark_posted("daily_picks")
+
+    async def _post_high_risk(self, leagues: list, date_str: str, kickoff_map: dict | None = None):
+        """Post the 5 best unit bets across all leagues in the 1.85-2.40 odds range to #high-risk."""
+        kickoff_map = kickoff_map or {}
+        ch = self.bot.get_channel(CHANNEL_HIGH_RISK)
+        if not ch:
+            log.warning("CHANNEL_HIGH_RISK not configured")
+            return
+
+        _ALL_QUERIES = {
+            "moneyline": ("For every {league} game on {date}, show me moneyline probabilities and the best value pick.", "\U0001f3c6"),
+            "btts": ("For every {league} game on {date}, should I take BTTS Yes or No?", "\U0001f91d"),
+            "spreads": ("For every {league} game on {date}, recommend a handicap line.", "\U0001f4cf"),
+            "sot": ("For every {league} game on {date}, recommend a shots on target over/under line.", "\U0001f3af"),
+            "goals": ("Give me the over/under goals line I should take for each {league} game on {date}.", "\u26bd"),
+            "corners": ("For every {league} game on {date}, recommend a corner totals line.", "\U0001f4d0"),
+            "cards": ("For every {league} game on {date}, recommend a cards over/under line.", "\U0001f7e8"),
+        }
+
+        _MARKET_LABELS = {
+            "moneyline": "Winner", "btts": "BTTS", "spreads": "Handicap",
+            "sot": "SoT", "goals": "Goals", "corners": "Corners", "cards": "Cards",
+        }
+
+        MIN_ODDS = 1.85
+        MAX_ODDS = 2.40
+
+        # Collect across ALL leagues into one pool
+        all_candidates = []
+
+        for league in leagues:
+            log.info("Collecting high-risk picks for %s...", league)
+
+            for market_key, (prompt_tpl, emoji) in _ALL_QUERIES.items():
+                prompt = prompt_tpl.format(league=league, date=date_str)
+                text = await _run_rag(prompt, league)
+                if not _is_valid(text):
+                    continue
+                picks = parse_fixture_picks(text)
+                for fixture, line in picks.items():
+                    if not line:
+                        continue
+                    import re
+                    pick_m = re.search(r"\*\*(.+?)\*\*", line)
+                    odds_m = re.search(r"@\s*([\d.]+)", line)
+                    model_m = re.search(r"([\d.]+)%\s*model", line)
+                    edge_m = re.search(r"edge\s*([+\-][\d.]+)%", line)
+                    conf = "low"
+                    if re.search(r"\bhigh\b", line, re.I):
+                        conf = "high"
+                    elif re.search(r"\bmedium\b", line, re.I):
+                        conf = "medium"
+
+                    pick_text = pick_m.group(1) if pick_m else "?"
+                    odds_val = float(odds_m.group(1)) if odds_m else 0
+                    model_p = float(model_m.group(1)) if model_m else 0
+                    edge_val = float(edge_m.group(1)) if edge_m else 0
+
+                    # Filter to the 1.85-2.40 odds band
+                    if not (MIN_ODDS <= odds_val <= MAX_ODDS):
+                        continue
+
+                    label = _MARKET_LABELS.get(market_key, market_key.title())
+                    all_candidates.append({
+                        "fixture": fixture,
+                        "market": market_key,
+                        "label": label,
+                        "emoji": emoji,
+                        "pick": pick_text,
+                        "odds": odds_val,
+                        "model_p": model_p,
+                        "edge": edge_val,
+                        "conf": conf,
+                        "league": league,
+                        "kickoff": kickoff_map.get(fixture, ""),
+                    })
+
+        if not all_candidates:
+            log.info("No high-risk picks found in the %.2f-%.2f odds range", MIN_ODDS, MAX_ODDS)
+            self._mark_posted("high_risk")
+            return
+
+        # Rank by confidence tier then edge — take top 5 across all leagues
+        conf_rank = {"high": 2, "medium": 1, "low": 0}
+        all_candidates.sort(key=lambda p: (
+            conf_rank.get(p["conf"], 0),
+            p["edge"],
+        ), reverse=True)
+        top = all_candidates[:5]
+
+        em = discord.Embed(
+            title="\U0001f525  High-Risk Unit Bets",
+            description=(
+                f"**{date_str}** \u2022 Top {len(top)} bets in the "
+                f"{MIN_ODDS:.2f}\u2013{MAX_ODDS:.2f} odds range"
+            ),
+            color=COLOR_RED,
+        )
+
+        for i, p in enumerate(top, 1):
+            if p["conf"] == "high":
+                meter = "\u25cf\u25cf\u25cf\u25cf\u25cb"
+                conf_label = "Strong Edge"
+            elif p["conf"] == "medium":
+                meter = "\u25cf\u25cf\u25cf\u25cb\u25cb"
+                conf_label = "Leaning"
+            else:
+                meter = "\u25cf\u25cb\u25cb\u25cb\u25cb"
+                conf_label = "Speculative"
+
+            odds_str = f"@ {p['odds']:.2f}" if p["odds"] else ""
+            edge_str = f"+{p['edge']:.1f}%" if p["edge"] > 0 else ""
+
+            em.add_field(
+                name=f"{p['emoji']} {p['label']}  \u2014  {p['fixture']} [{p['league']}]",
+                value=(
+                    f"\U0001f4cb Pick: **{p['pick']}** {odds_str}\n"
+                    f"{meter} {conf_label} \u2022 {p['model_p']:.0f}% model"
+                    + (f" \u2022 {edge_str} edge" if edge_str else "")
+                ),
+                inline=False,
+            )
+
+        em.set_footer(text=f"Spix's Picks \u2502 {len(all_candidates)} picks in range, top {len(top)} shown")
+        await ch.send(embed=em)
+
+        self._mark_posted("high_risk")
 
     async def _post_parlays_now(self, leagues: list, date_str: str):
         """Post parlays immediately — bypasses time window check (for /trigger)."""
@@ -1769,7 +2014,7 @@ class AutoPush(commands.Cog):
             description=f"**{date_str}** \u2014 3 parlays ranked by risk level",
             color=COLOR_GREEN,
         )
-        header.set_footer(text="Spick | Auto-generated from model projections")
+        header.set_footer(text="Spix | Auto-generated from model projections")
         await channel.send(embed=header)
 
         for preset, result in built:
@@ -1873,7 +2118,7 @@ class AutoPush(commands.Cog):
                     pass
                 em.add_field(name="\u200b", value=fixture_text[:1024], inline=False)
 
-            em.set_footer(text=f"{league} \u2502 Spick's Picks")
+            em.set_footer(text=f"{league} \u2502 Spix's Picks")
             await ch.send(embed=em)
 
         self._mark_posted("team_lines")
@@ -2010,7 +2255,7 @@ class AutoPush(commands.Cog):
         except Exception:
             pass
 
-        em.set_footer(text=f"Based on {total} resolved predictions \u2502 Spick's Picks")
+        em.set_footer(text=f"Based on {total} resolved predictions \u2502 Spix's Picks")
         await channel.send(embed=em)
 
 

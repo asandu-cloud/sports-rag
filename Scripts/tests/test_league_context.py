@@ -70,20 +70,29 @@ class RestDaysTests(unittest.TestCase):
 
 class RegimeShiftTests(unittest.TestCase):
     def test_no_data_returns_empty(self):
-        with mock.patch("Scripts.rag_ingest.league_context._recent_stats", return_value={}), \
+        with mock.patch("Scripts.rag_ingest.league_context.get_recent_team_fixture_rows", return_value=[]), \
              mock.patch("Scripts.rag_ingest.league_context._profile_meta", return_value={}):
             shift = _compute_regime_shift("Team", "EPL")
         self.assertEqual(shift, {})
 
     def test_positive_shift_detected(self):
-        recent = {"corners_for_avg": 7.0, "cards_avg": 3.0,
-                  "sot_for_avg": 5.0, "xg_for_avg": 2.0,
-                  "control_avg": 0.60, "possession_avg": 0.55}
+        recent_rows = [
+            {"meta": {
+                "fixture_date": "2026-03-01",
+                "corners_for": 7.0,
+                "cards_total": 3.0,
+                "sot_for": 5.0,
+                "xg_for": 2.0,
+                "control_index": 0.60,
+                "possession": 0.55,
+            }}
+            for _ in range(5)
+        ]
         profile = {"corners_pm": 5.0, "cards_per_90_team": 2.0,
                    "sot_for_pm": 4.0, "goals_for_pm": 1.5,
                    "control_index": 0.55, "possession": 0.52}
 
-        with mock.patch("Scripts.rag_ingest.league_context._recent_stats", return_value=recent), \
+        with mock.patch("Scripts.rag_ingest.league_context.get_recent_team_fixture_rows", return_value=recent_rows), \
              mock.patch("Scripts.rag_ingest.league_context._profile_meta", return_value=profile):
             shift = _compute_regime_shift("Team", "EPL")
 

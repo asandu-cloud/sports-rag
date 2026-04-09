@@ -154,6 +154,17 @@ except ImportError:
         def knockout_evidence_line(ctx) -> None:
             return None
 
+try:
+    from league_context import get_league_context, league_context_evidence_line
+except ImportError:
+    try:
+        from Scripts.rag_ingest.league_context import get_league_context, league_context_evidence_line
+    except ImportError:
+        def get_league_context(*args, **kwargs):
+            return None
+        def league_context_evidence_line(ctx):
+            return None
+
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -197,6 +208,12 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
         home = str(ev.get("home_team") or "Home")
         away = str(ev.get("away_team") or "Away")
         fixture = f"{home} vs {away}"
+        fixture_date = str(ev.get("commence_time") or ev.get("fixture_date") or "")
+        league_ctx = None
+        try:
+            league_ctx = get_league_context(home, away, league, target_date=fixture_date)
+        except Exception:
+            league_ctx = None
 
         # Knockout round context for European competitions
         ko_ctx = None
@@ -210,13 +227,25 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
         _cards_ref_mod = None
         _cards_detail = None
         if group == "goals":
-            proj_total, season_total, recent_total = projected_total_goals(home, away, league, knockout_ctx=ko_ctx)
+            proj_total, season_total, recent_total = projected_total_goals(
+                home, away, league, knockout_ctx=ko_ctx,
+                league_ctx=league_ctx, fixture_date=fixture_date,
+            )
         elif group == "corners":
-            proj_total, season_total, recent_total = projected_total_corners(home, away, league, knockout_ctx=ko_ctx)
+            proj_total, season_total, recent_total = projected_total_corners(
+                home, away, league, knockout_ctx=ko_ctx,
+                league_ctx=league_ctx, fixture_date=fixture_date,
+            )
         elif group == "sot":
-            proj_total, season_total, recent_total = projected_total_sot(home, away, league, knockout_ctx=ko_ctx)
+            proj_total, season_total, recent_total = projected_total_sot(
+                home, away, league, knockout_ctx=ko_ctx,
+                league_ctx=league_ctx, fixture_date=fixture_date,
+            )
         else:
-            _cards_detail = projected_total_cards_detail(home, away, league, knockout_ctx=ko_ctx)
+            _cards_detail = projected_total_cards_detail(
+                home, away, league, knockout_ctx=ko_ctx,
+                league_ctx=league_ctx, fixture_date=fixture_date,
+            )
             proj_total = _cards_detail.get("total_cards")
             season_total = _cards_detail.get("season_total")
             recent_total = _cards_detail.get("recent_total")
@@ -241,6 +270,9 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
             ko_line = knockout_evidence_line(ko_ctx)
             if ko_line:
                 lines.append(f"  {ko_line}")
+        ctx_line = league_context_evidence_line(league_ctx) if league_ctx is not None else None
+        if ctx_line:
+            lines.append(f"  {ctx_line}")
 
         # European data source note
         if league in EUROPEAN_COMPETITIONS:

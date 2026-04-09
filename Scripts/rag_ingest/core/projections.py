@@ -130,6 +130,34 @@ except ImportError:
             sot_modifier: float = 1.0
             source: str = "none"
 
+# league_context
+try:
+    from league_context import get_league_context
+    _HAS_LEAGUE_CONTEXT = True
+except ImportError:
+    try:
+        from Scripts.rag_ingest.league_context import get_league_context
+        _HAS_LEAGUE_CONTEXT = True
+    except ImportError:
+        _HAS_LEAGUE_CONTEXT = False
+
+        def get_league_context(*args, **kwargs):
+            return None
+
+# lineup_context card-risk fallback
+try:
+    from lineup_context import get_card_risk_profiles
+    _HAS_LINEUP_RISK = True
+except ImportError:
+    try:
+        from Scripts.rag_ingest.lineup_context import get_card_risk_profiles
+        _HAS_LINEUP_RISK = True
+    except ImportError:
+        _HAS_LINEUP_RISK = False
+
+        def get_card_risk_profiles(*args, **kwargs):
+            return None, None
+
 
 # ---- Module-level cache (mirrors the one in rag_cli_v2.py) ----
 _team_recent_var_cache: Dict[tuple, Dict] = {}
@@ -271,6 +299,43 @@ def _weighted_component_blend(components: List[Tuple[Optional[float], float]]) -
 
 def _clamp(value: float, lower: float, upper: float) -> float:
     return max(lower, min(upper, value))
+
+
+def _resolve_league_context(
+    home: str,
+    away: str,
+    league: str,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
+):
+    if league_ctx is not None:
+        return league_ctx
+    if not _HAS_LEAGUE_CONTEXT:
+        return None
+    try:
+        return get_league_context(home, away, league, target_date=fixture_date)
+    except Exception:
+        return None
+
+
+def _extract_card_risk_context(home_risk, away_risk) -> Optional[Dict]:
+    if home_risk is None or away_risk is None:
+        return None
+    n_home = int(getattr(home_risk, "n_players", 0) or 0)
+    n_away = int(getattr(away_risk, "n_players", 0) or 0)
+    if n_home <= 0 and n_away <= 0:
+        return None
+    return {
+        "home_cards_per_90": float(getattr(home_risk, "team_starter_cards_per_90", 0.0) or 0.0),
+        "away_cards_per_90": float(getattr(away_risk, "team_starter_cards_per_90", 0.0) or 0.0),
+        "home_high_risk": int(getattr(home_risk, "high_card_risk_players", 0) or 0),
+        "away_high_risk": int(getattr(away_risk, "high_card_risk_players", 0) or 0),
+        "combined_risk_90": float(
+            (getattr(home_risk, "team_starter_cards_per_90", 0.0) or 0.0)
+            + (getattr(away_risk, "team_starter_cards_per_90", 0.0) or 0.0)
+        ),
+        "source": "expected_xi",
+    }
 
 
 def compute_stat_confidence(
@@ -530,7 +595,15 @@ def projected_goals(home_meta: Dict, away_meta: Dict) -> Tuple[Optional[float], 
 #  Match-total projections (blended season + recent + ML)
 # ===================================================================
 
-def projected_total_sot(home: str, away: str, league: str, knockout_ctx: Optional[KnockoutContext] = None, league_ctx=None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+def projected_total_sot(
+    home: str,
+    away: str,
+    league: str,
+    knockout_ctx: Optional[KnockoutContext] = None,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
+) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+    league_ctx = _resolve_league_context(home, away, league, league_ctx=league_ctx, fixture_date=fixture_date)
     hm = _profile_meta(home, league)
     am = _profile_meta(away, league)
     h_proj, a_proj = projected_sot(hm, am)
@@ -566,16 +639,18 @@ def projected_total_sot(home: str, away: str, league: str, knockout_ctx: Optiona
     if knockout_ctx and knockout_ctx.is_knockout and knockout_ctx.sot_modifier != 1.0:
         blended *= knockout_ctx.sot_modifier
 
-    # League context adjustment (rest, congestion, stake, regime)
-    if league_ctx is not None:
-        adj = getattr(league_ctx, "adjustments", {}).get("sot", 1.0)
-        if adj != 1.0:
-            blended *= adj
-
     return blended, season_total, recent_total
 
 
-def projected_total_corners(home: str, away: str, league: str, knockout_ctx: Optional[KnockoutContext] = None, league_ctx=None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+def projected_total_corners(
+    home: str,
+    away: str,
+    league: str,
+    knockout_ctx: Optional[KnockoutContext] = None,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
+) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+    league_ctx = _resolve_league_context(home, away, league, league_ctx=league_ctx, fixture_date=fixture_date)
     hm = _profile_meta(home, league)
     am = _profile_meta(away, league)
     h_proj, a_proj = projected_corners(hm, am)
@@ -628,6 +703,7 @@ def projected_total_cards_detail(
     ref_mod: Optional[RefereeModifier] = None,
     lineup_ctx=None,
     league_ctx=None,
+    fixture_date: Optional[str] = None,
 ) -> Dict:
     """Rich cards projection returning a detail dict.
 
@@ -650,6 +726,7 @@ def projected_total_cards_detail(
     ctm = SCORING_WEIGHTS.get("cards_total_model", {})
     cyr = SCORING_WEIGHTS.get("cards_yellow_red_split", {})
     ccf = SCORING_WEIGHTS.get("cards_confidence", {})
+    league_ctx = _resolve_league_context(home, away, league, league_ctx=league_ctx, fixture_date=fixture_date)
     hm = _profile_meta(home, league)
     am = _profile_meta(away, league)
 
@@ -780,26 +857,22 @@ def projected_total_cards_detail(
     lineup_card_context = None
     lineup_risk_w = ctm.get("lineup_risk_weight", 0.08)
     lineup_risk_cap = ctm.get("lineup_risk_cap", 0.25)
-    if lineup_ctx is not None:
-        h_risk = getattr(lineup_ctx, "home_card_risk", None)
-        a_risk = getattr(lineup_ctx, "away_card_risk", None)
-        if h_risk and a_risk and (h_risk.n_players > 0 or a_risk.n_players > 0):
-            combined_risk_90 = (
-                getattr(h_risk, "team_starter_cards_per_90", 0.0) +
-                getattr(a_risk, "team_starter_cards_per_90", 0.0)
-            )
-            lineup_card_context = {
-                "home_cards_per_90": getattr(h_risk, "team_starter_cards_per_90", 0.0),
-                "away_cards_per_90": getattr(a_risk, "team_starter_cards_per_90", 0.0),
-                "home_high_risk": getattr(h_risk, "high_card_risk_players", 0),
-                "away_high_risk": getattr(a_risk, "high_card_risk_players", 0),
-                "combined_risk_90": combined_risk_90,
-            }
-            # Adjust: if lineup risk diverges from projection, nudge toward it
-            if combined_risk_90 > 0:
-                risk_delta = combined_risk_90 - blended
-                adj = max(-lineup_risk_cap, min(lineup_risk_cap, lineup_risk_w * risk_delta))
-                blended += adj
+    h_risk = getattr(lineup_ctx, "home_card_risk", None) if lineup_ctx is not None else None
+    a_risk = getattr(lineup_ctx, "away_card_risk", None) if lineup_ctx is not None else None
+    if (h_risk is None or a_risk is None) and _HAS_LINEUP_RISK:
+        try:
+            h_risk, a_risk = get_card_risk_profiles(home, away, league)
+        except Exception:
+            h_risk, a_risk = None, None
+    lineup_card_context = _extract_card_risk_context(h_risk, a_risk)
+    if lineup_card_context is not None:
+        if getattr(lineup_ctx, "source", "") == "lineups":
+            lineup_card_context["source"] = "confirmed_xi"
+        combined_risk_90 = lineup_card_context["combined_risk_90"]
+        if combined_risk_90 > 0:
+            risk_delta = combined_risk_90 - blended
+            adj = max(-lineup_risk_cap, min(lineup_risk_cap, lineup_risk_w * risk_delta))
+            blended += adj
 
     # ---- ML blend ----
     ml_w = _ml_blend_weight("cards")
@@ -811,12 +884,6 @@ def projected_total_cards_detail(
     # ---- Knockout adjustment ----
     if knockout_ctx and knockout_ctx.is_knockout and knockout_ctx.cards_modifier != 1.0:
         blended *= knockout_ctx.cards_modifier
-
-    # ---- League context adjustment ----
-    if league_ctx is not None:
-        adj = getattr(league_ctx, "adjustments", {}).get("cards", 1.0)
-        if adj != 1.0:
-            blended *= adj
 
     # ---- Re-derive yellow/red from final blended total ----
     if season_yellows is not None and season_total is not None and season_total > 0:
@@ -869,10 +936,15 @@ def projected_total_cards(
     league: str,
     knockout_ctx: Optional[KnockoutContext] = None,
     ref_mod: Optional[RefereeModifier] = None,
+    lineup_ctx=None,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
 ) -> Tuple[Optional[float], Optional[float], Optional[float], RefereeModifier]:
     """Backward-compatible wrapper — returns (blended, season_total, recent_total, ref_mod)."""
     detail = projected_total_cards_detail(home, away, league,
-                                          knockout_ctx=knockout_ctx, ref_mod=ref_mod)
+                                          knockout_ctx=knockout_ctx, ref_mod=ref_mod,
+                                          lineup_ctx=lineup_ctx, league_ctx=league_ctx,
+                                          fixture_date=fixture_date)
     return (
         detail["total_cards"],
         detail["season_total"],
@@ -884,19 +956,44 @@ def projected_total_cards(
 # ---- Per-team blended projections (for team totals lines) ----
 
 def projected_team_corners(
-    team: str, opponent: str, league: str, is_home: bool,
+    team: str,
+    opponent: str,
+    league: str,
+    is_home: bool,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
 ) -> Tuple[Optional[float], Optional[float], Optional[float]]:
-    """Per-team corner projection with season, recent, and style-pressure anchors."""
+    """Per-team corner projection anchored to match total + team share + stabilizer.
+
+    Architecture mirrors projected_team_cards:
+      1. Get match total from projected_total_corners()
+      2. Compute team share via season + recent feature scoring
+      3. share_anchor = match_total * share
+      4. stabilizer = direct per-team season/recent tendency
+      5. final = anchor_weight * share_anchor + stabilizer_weight * stabilizer
+    """
     tlw = SCORING_WEIGHTS.get("team_lines", {})
-    cmw = tlw.get("corners_model", {})
-    csw = tlw.get("corners_style", {})
+    csw = tlw.get("corners_share", {})
+    cdw = tlw.get("corners_direct", {})
+    cow = tlw.get("corners_output", {})
+    home_name = team if is_home else opponent
+    away_name = opponent if is_home else team
+    league_ctx = _resolve_league_context(home_name, away_name, league,
+                                          league_ctx=league_ctx, fixture_date=fixture_date)
     hm = _profile_meta(team if is_home else opponent, league)
     am = _profile_meta(opponent if is_home else team, league)
     team_meta = hm if is_home else am
     opp_meta = am if is_home else hm
 
+    # ---- Step 1: Get match total (the anchor) ----
+    total_blended, season_total, recent_total = projected_total_corners(
+        home_name, away_name, league,
+        league_ctx=league_ctx, fixture_date=fixture_date,
+    )
+
+    # ---- Step 2: Per-team base data for share + stabilizer ----
     h_proj, a_proj = projected_corners(hm, am)
-    season_proj = h_proj if is_home else a_proj
+    season_direct = h_proj if is_home else a_proj
 
     venue = "home" if is_home else "away"
     opp_venue = "away" if is_home else "home"
@@ -911,56 +1008,99 @@ def projected_team_corners(
     recent_opp_allow = opp_recent.get("corners_against_avg")
     recent_own_w = tlw.get("corners_recent_own", 0.50)
     if recent_team_for is not None and recent_opp_allow is not None:
-        recent_proj = recent_own_w * recent_team_for + (1.0 - recent_own_w) * recent_opp_allow
+        recent_direct = recent_own_w * recent_team_for + (1.0 - recent_own_w) * recent_opp_allow
     else:
-        recent_proj = recent_team_for if recent_team_for is not None else recent_opp_allow
+        recent_direct = recent_team_for if recent_team_for is not None else recent_opp_allow
 
-    style_proj = _weighted_sum([
-        (csw.get("shots", 0.0), recent_stats.get("shots_for_avg") or safe_float(team_meta.get("shots_for_pm"))),
-        (csw.get("sot", 0.0), recent_stats.get("sot_for_avg") or safe_float(team_meta.get("sot_for_pm"))),
-        (csw.get("control", 0.0), recent_stats.get("control_avg") or safe_float(team_meta.get("control_index"))),
-        (csw.get("dominance", 0.0), safe_float(team_meta.get("dominance_index"))),
-        (csw.get("possession", 0.0), recent_stats.get("possession_avg") or safe_float(team_meta.get("possession"))),
-        (
-            csw.get("opp_sot_against", 0.0),
-            opp_recent.get("sot_against_avg")
-            or safe_float(opp_meta.get("sot_against_away_pm" if is_home else "sot_against_home_pm"))
-            or safe_float(opp_meta.get("sot_against_pm")),
-        ),
+    # ---- Step 3: Team share via feature scoring ----
+    vb = SCORING_WEIGHTS["projection"].get("corners_venue_blend", 0.50)
+
+    def _season_corner_share_score(meta: Dict, other_meta: Dict, home_side: bool) -> Optional[float]:
+        return _weighted_sum([
+            (csw.get("season_own", 0.35), _venue_blend(
+                safe_float(meta.get("corners_home_pm" if home_side else "corners_away_pm")),
+                safe_float(meta.get("corners_pm")),
+                vb,
+            )),
+            (csw.get("season_opp_allow", 0.40), _venue_blend(
+                safe_float(other_meta.get("corners_against_away_pm" if home_side else "corners_against_home_pm")),
+                safe_float(other_meta.get("corners_against_pm")),
+                vb,
+            )),
+            (csw.get("season_control", 0.10), safe_float(meta.get("control_index"))),
+            (csw.get("season_dominance", 0.08), safe_float(meta.get("dominance_index"))),
+            (csw.get("season_possession", 0.07), safe_float(meta.get("possession"))),
+        ])
+
+    def _recent_corner_share_score(team_recent: Dict, opp_rec: Dict) -> Optional[float]:
+        return _weighted_sum([
+            (csw.get("recent_own", 0.40), team_recent.get("corners_for_avg")),
+            (csw.get("recent_opp_allow", 0.35), opp_rec.get("corners_against_avg")),
+            (csw.get("recent_shots", 0.05), team_recent.get("shots_for_avg")),
+            (csw.get("recent_sot", 0.05), team_recent.get("sot_for_avg")),
+            (csw.get("recent_control", 0.08), team_recent.get("control_avg")),
+            (csw.get("recent_possession", 0.07), team_recent.get("possession_avg")),
+        ])
+
+    team_season_score = _season_corner_share_score(team_meta, opp_meta, is_home)
+    opp_season_score = _season_corner_share_score(opp_meta, team_meta, not is_home)
+    season_share = _share_from_scores(
+        team_season_score, opp_season_score,
+        shrink=csw.get("shrink", 0.06),
+        floor=csw.get("floor", 0.28),
+        ceiling=csw.get("ceiling", 0.72),
+    )
+
+    team_recent_score = _recent_corner_share_score(recent_stats, opp_recent)
+    opp_recent_score = _recent_corner_share_score(opp_recent, recent_stats)
+    recent_share = _share_from_scores(
+        team_recent_score, opp_recent_score,
+        shrink=csw.get("shrink", 0.06),
+        floor=csw.get("floor", 0.28),
+        ceiling=csw.get("ceiling", 0.72),
+    )
+
+    share_blended = _weighted_component_blend([
+        (season_share, csw.get("season_blend", 0.65)),
+        (recent_share, csw.get("recent_blend", 0.35)),
+    ])
+    share_anchor = (total_blended * share_blended
+                    if (total_blended is not None and share_blended is not None) else None)
+
+    # ---- Step 4: Stabilizer (direct per-team tendency) ----
+    stabilizer = _weighted_component_blend([
+        (season_direct, cdw.get("season", 0.65)),
+        (recent_direct, cdw.get("recent", 0.35)),
     ])
 
+    # ---- Step 5: Final blend ----
     blended = _weighted_component_blend([
-        (season_proj, cmw.get("season", 0.43)),
-        (recent_proj, cmw.get("recent", 0.34)),
-        (style_proj, cmw.get("style", 0.23)),
+        (share_anchor, cow.get("match_anchor_weight", 0.55)),
+        (stabilizer, cow.get("direct_stabilizer_weight", 0.45)),
     ])
     if blended is None:
         return None, None, None
 
-    trend = recent_stats.get("corners_for_slope")
-    if trend is not None:
-        trend_cap = cmw.get("trend_cap", 0.25)
-        blended += _clamp(cmw.get("trend_nudge", 0.06) * trend, -trend_cap, trend_cap)
+    # Backward-compatible season_proj / recent_proj
+    season_proj = (season_total * season_share
+                   if (season_total is not None and season_share is not None) else season_direct)
+    recent_proj = (recent_total * recent_share
+                   if (recent_total is not None and recent_share is not None) else recent_direct)
 
-    # ML proportional split
-    ml_w = _ml_blend_weight("corners")
-    if ml_w > 0:
-        home_name = team if is_home else opponent
-        away_name = opponent if is_home else team
-        ml_proj = ml_predict_total(home_name, away_name, league, "corners",
-                                   home_meta=hm, away_meta=am)
-        if ml_proj is not None and h_proj is not None and a_proj is not None:
-            total_season = h_proj + a_proj
-            if total_season > 0:
-                team_share = (h_proj if is_home else a_proj) / total_season
-                blended = (1.0 - ml_w) * blended + ml_w * (ml_proj * team_share)
+    # League context already applied inside projected_total_corners — no re-application
 
     return blended, season_proj, recent_proj
 
 
 def projected_team_cards(
-    team: str, opponent: str, league: str, is_home: bool,
+    team: str,
+    opponent: str,
+    league: str,
+    is_home: bool,
     ref_mod: "RefereeModifier" = None,
+    lineup_ctx=None,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
 ) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """Per-team card projection from match-total anchor + team share + stabilizer."""
     tlw = SCORING_WEIGHTS.get("team_lines", {})
@@ -975,6 +1115,7 @@ def projected_team_cards(
 
     home_name = team if is_home else opponent
     away_name = opponent if is_home else team
+    league_ctx = _resolve_league_context(home_name, away_name, league, league_ctx=league_ctx, fixture_date=fixture_date)
 
     vb = SCORING_WEIGHTS["projection_cards"].get("venue_blend", 0.0)
     own_overall = safe_float(team_meta.get("cards_per_90_team"))
@@ -1007,7 +1148,8 @@ def projected_team_cards(
 
     # Use match-total anchor from detail helper
     total_blended, season_total, recent_total, ref_mod = projected_total_cards(
-        home_name, away_name, league, ref_mod=ref_mod
+        home_name, away_name, league, ref_mod=ref_mod,
+        lineup_ctx=lineup_ctx, league_ctx=league_ctx, fixture_date=fixture_date
     )
 
     def _season_share_score(meta: Dict, other_meta: Dict, home_side: bool) -> Optional[float]:
@@ -1086,7 +1228,15 @@ def projected_team_cards(
     return blended, season_proj, recent_proj
 
 
-def projected_total_goals(home: str, away: str, league: str, knockout_ctx: Optional[KnockoutContext] = None, league_ctx=None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+def projected_total_goals(
+    home: str,
+    away: str,
+    league: str,
+    knockout_ctx: Optional[KnockoutContext] = None,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
+) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+    league_ctx = _resolve_league_context(home, away, league, league_ctx=league_ctx, fixture_date=fixture_date)
     pw = SCORING_WEIGHTS["projection"]
     hm = _profile_meta(home, league)
     am = _profile_meta(away, league)
@@ -1117,12 +1267,6 @@ def projected_total_goals(home: str, away: str, league: str, knockout_ctx: Optio
     # Knockout round context adjustment
     if knockout_ctx and knockout_ctx.is_knockout and knockout_ctx.goals_modifier != 1.0:
         blended *= knockout_ctx.goals_modifier
-
-    # League context adjustment
-    if league_ctx is not None:
-        adj = getattr(league_ctx, "adjustments", {}).get("goals", 1.0)
-        if adj != 1.0:
-            blended *= adj
 
     return blended, season_total, recent_total
 
@@ -1282,3 +1426,47 @@ def projected_goal_difference(home: str, away: str, league: str) -> Tuple[Option
     if recent_diff is not None:
         return recent_diff, None, recent_diff
     return None, None, None
+
+
+# ---------------------------------------------------------------------------
+#  Dynamic margin standard deviation for spread cover probability
+# ---------------------------------------------------------------------------
+
+_EUROPEAN_COMPETITIONS = {"UCL", "UEL", "UECL"}
+_EURO_COMP_UPLIFT = 0.15  # extra std for cross-confederation matchups
+_MARGIN_STD_FLOOR = 1.15
+_MARGIN_STD_CAP = 1.85
+
+
+def compute_margin_std(home: str, away: str, league: str) -> float:
+    """Compute match-specific goal-difference standard deviation.
+
+    Uses blended (season 70% + recent 30%) goals variance from both teams.
+    Match-level variance of (home_goals - away_goals) ≈ Var(home) + Var(away)
+    assuming independence.  European competitions get an uplift because
+    cross-confederation matchups and knockout formats produce higher variance.
+
+    Falls back to the static default (1.25) when data is unavailable.
+    """
+    default = SCORING_WEIGHTS["prob"].get("margin_std_default", 1.25)
+
+    h_var = get_blended_variance(home, league, "goals_var")
+    a_var = get_blended_variance(away, league, "goals_var")
+
+    if h_var is None and a_var is None:
+        std = default
+    else:
+        # If only one side is available, double it as a rough proxy
+        if h_var is None:
+            match_var = 2.0 * a_var
+        elif a_var is None:
+            match_var = 2.0 * h_var
+        else:
+            match_var = h_var + a_var
+        std = match_var ** 0.5
+
+    # European competition uplift
+    if league in _EUROPEAN_COMPETITIONS:
+        std += _EURO_COMP_UPLIFT
+
+    return max(_MARGIN_STD_FLOOR, min(_MARGIN_STD_CAP, std))

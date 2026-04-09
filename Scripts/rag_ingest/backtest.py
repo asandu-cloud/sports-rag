@@ -21,7 +21,6 @@ import argparse
 import csv
 import json
 import math
-import os
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -37,6 +36,23 @@ from prob_models import over_prob, under_prob
 # We import projection functions from rag_cli_v2.  These pull from Chroma
 # and ML models, so the Chroma DB must be populated.
 import rag_cli_v2 as rag
+
+try:
+    from league_context import get_league_context
+except ImportError:
+    try:
+        from Scripts.rag_ingest.league_context import get_league_context
+    except ImportError:
+        get_league_context = None
+
+try:
+    from referee_data import load_fixture_referee_detail, compute_referee_modifier
+except ImportError:
+    try:
+        from Scripts.rag_ingest.referee_data import load_fixture_referee_detail, compute_referee_modifier
+    except ImportError:
+        load_fixture_referee_detail = None
+        compute_referee_modifier = None
 
 # ---------------------------------------------------------------------------
 # League ↔ data file mapping
@@ -155,16 +171,53 @@ def load_fixture_pairs(league: str, season_year: int) -> List[Dict]:
 # ---------------------------------------------------------------------------
 # Run projections for a fixture
 # ---------------------------------------------------------------------------
-def project_fixture(home: str, away: str, league: str) -> Dict:
+def _historical_ref_mod(fixture_id) -> Optional[object]:
+    """Build a referee modifier from the stored historical assignment for a fixture."""
+    if fixture_id is None or load_fixture_referee_detail is None or compute_referee_modifier is None:
+        return None
+    try:
+        detail = load_fixture_referee_detail()
+        row = detail.get(int(fixture_id))
+    except Exception:
+        return None
+    if not row:
+        return None
+    ref_name = row.get("referee_name")
+    if not ref_name:
+        return None
+    try:
+        return compute_referee_modifier(ref_name, weight=0.35)
+    except Exception:
+        return None
+
+
+def project_fixture(
+    home: str,
+    away: str,
+    league: str,
+    fixture_date: Optional[str] = None,
+    fixture_id=None,
+) -> Dict:
     """
     Run all projection functions for a fixture.
     Returns dict with projected totals (or None if unavailable).
     """
     result = {}
+    league_ctx = None
+    if get_league_context is not None:
+        try:
+            league_ctx = get_league_context(home, away, league, target_date=fixture_date)
+        except Exception:
+            league_ctx = None
+    ref_mod = _historical_ref_mod(fixture_id)
 
     # Goals
     try:
-        goals_bl, goals_s, goals_r = rag.projected_total_goals(home, away, league)
+        goals_bl, goals_s, goals_r = rag.projected_total_goals(
+            home, away, league,
+            league_ctx=league_ctx,
+            fixture_date=fixture_date,
+        )
         result["proj_goals"] = goals_bl
         result["proj_goals_season"] = goals_s
         result["proj_goals_recent"] = goals_r
@@ -175,7 +228,11 @@ def project_fixture(home: str, away: str, league: str) -> Dict:
 
     # Corners
     try:
-        corners_bl, corners_s, corners_r = rag.projected_total_corners(home, away, league)
+        corners_bl, corners_s, corners_r = rag.projected_total_corners(
+            home, away, league,
+            league_ctx=league_ctx,
+            fixture_date=fixture_date,
+        )
         result["proj_corners"] = corners_bl
         result["proj_corners_season"] = corners_s
         result["proj_corners_recent"] = corners_r
@@ -188,7 +245,12 @@ def project_fixture(home: str, away: str, league: str) -> Dict:
     try:
         detail_fn = getattr(rag, "projected_total_cards_detail", None)
         if detail_fn:
-            detail = detail_fn(home, away, league)
+            detail = detail_fn(
+                home, away, league,
+                ref_mod=ref_mod,
+                league_ctx=league_ctx,
+                fixture_date=fixture_date,
+            )
             result["proj_cards"] = detail.get("total_cards")
             result["proj_cards_season"] = detail.get("season_total")
             result["proj_cards_recent"] = detail.get("recent_total")
@@ -201,7 +263,12 @@ def project_fixture(home: str, away: str, league: str) -> Dict:
             result["cards_uncertainty"] = detail.get("uncertainty")
             result["cards_confidence_bucket"] = detail.get("confidence_bucket")
         else:
-            cards_bl, cards_s, cards_r, ref_mod = rag.projected_total_cards(home, away, league)
+            cards_bl, cards_s, cards_r, ref_mod = rag.projected_total_cards(
+                home, away, league,
+                ref_mod=ref_mod,
+                league_ctx=league_ctx,
+                fixture_date=fixture_date,
+            )
             result["proj_cards"] = cards_bl
             result["proj_cards_season"] = cards_s
             result["proj_cards_recent"] = cards_r
@@ -218,7 +285,11 @@ def project_fixture(home: str, away: str, league: str) -> Dict:
 
     # SoT
     try:
-        sot_bl, sot_s, sot_r = rag.projected_total_sot(home, away, league)
+        sot_bl, sot_s, sot_r = rag.projected_total_sot(
+            home, away, league,
+            league_ctx=league_ctx,
+            fixture_date=fixture_date,
+        )
         result["proj_sot"] = sot_bl
         result["proj_sot_season"] = sot_s
         result["proj_sot_recent"] = sot_r
@@ -226,6 +297,29 @@ def project_fixture(home: str, away: str, league: str) -> Dict:
         result["proj_sot"] = None
         result["proj_sot_season"] = None
         result["proj_sot_recent"] = None
+
+    if league_ctx is not None:
+        result["home_rest_days"] = league_ctx.home_rest_days
+        result["away_rest_days"] = league_ctx.away_rest_days
+        result["home_short_rest"] = league_ctx.home_short_rest
+        result["away_short_rest"] = league_ctx.away_short_rest
+        result["any_short_rest"] = league_ctx.home_short_rest or league_ctx.away_short_rest
+        result["stake_description"] = league_ctx.stake_description
+        result["ctx_goals_adj"] = league_ctx.adjustments.get("goals")
+        result["ctx_corners_adj"] = league_ctx.adjustments.get("corners")
+        result["ctx_cards_adj"] = league_ctx.adjustments.get("cards")
+        result["ctx_sot_adj"] = league_ctx.adjustments.get("sot")
+    else:
+        result["home_rest_days"] = None
+        result["away_rest_days"] = None
+        result["home_short_rest"] = None
+        result["away_short_rest"] = None
+        result["any_short_rest"] = None
+        result["stake_description"] = ""
+        result["ctx_goals_adj"] = None
+        result["ctx_corners_adj"] = None
+        result["ctx_cards_adj"] = None
+        result["ctx_sot_adj"] = None
 
     return result
 
@@ -474,7 +568,11 @@ def run_backtest(
 
             # Run projections
             try:
-                projections = project_fixture(home, away, league)
+                projections = project_fixture(
+                    home, away, league,
+                    fixture_date=fixture.get("fixture_date"),
+                    fixture_id=fixture.get("fixture_id"),
+                )
             except Exception as e:
                 errors += 1
                 if verbose:
@@ -523,6 +621,32 @@ def run_backtest(
             m = compute_metrics(_cards_low_conf, "cards")
             if m.get("n", 0) > 0:
                 print(f"  CARDS — Low confidence   ({m['n']} fixtures): MAE={m['mae']:.3f} RMSE={m['rmse']:.3f} Skill={m.get('skill_vs_naive', 0):+.1%}")
+
+        _short_rest = [r for r in league_results if r.get("any_short_rest") is True]
+        _normal_rest = [r for r in league_results if r.get("any_short_rest") is False]
+        if _short_rest and _normal_rest:
+            for stat in ["goals", "corners", "cards"]:
+                m_short = compute_metrics(_short_rest, stat)
+                m_norm = compute_metrics(_normal_rest, stat)
+                if m_short.get("n", 0) >= 5 and m_norm.get("n", 0) >= 5:
+                    print(
+                        f"  {stat.upper():<6} — Short rest ({m_short['n']} fixtures): "
+                        f"MAE={m_short['mae']:.3f} Skill={m_short.get('skill_vs_naive', 0):+.1%} | "
+                        f"Normal rest ({m_norm['n']}): MAE={m_norm['mae']:.3f} Skill={m_norm.get('skill_vs_naive', 0):+.1%}"
+                    )
+
+        _high_stakes = [r for r in league_results if r.get("stake_description")]
+        _neutral_stakes = [r for r in league_results if not r.get("stake_description")]
+        if _high_stakes and _neutral_stakes:
+            for stat in ["goals", "corners", "cards"]:
+                m_stakes = compute_metrics(_high_stakes, stat)
+                m_neutral = compute_metrics(_neutral_stakes, stat)
+                if m_stakes.get("n", 0) >= 5 and m_neutral.get("n", 0) >= 5:
+                    print(
+                        f"  {stat.upper():<6} — Stake context ({m_stakes['n']} fixtures): "
+                        f"MAE={m_stakes['mae']:.3f} Skill={m_stakes.get('skill_vs_naive', 0):+.1%} | "
+                        f"Neutral ({m_neutral['n']}): MAE={m_neutral['mae']:.3f} Skill={m_neutral.get('skill_vs_naive', 0):+.1%}"
+                    )
 
         all_results.extend(league_results)
 

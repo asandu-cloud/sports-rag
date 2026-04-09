@@ -8,13 +8,14 @@ load_dotenv()
 # Discord bot token — set in .env as DISCORD_BOT_TOKEN
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "")
 
-# Channel IDs for auto-push (6 channels)
+# Channel IDs for auto-push (7 channels)
 CHANNEL_DAILY_PICKS = int(os.getenv("DISCORD_CHANNEL_DAILY_PICKS", "0"))    # all market predictions
 CHANNEL_PARLAYS = int(os.getenv("DISCORD_CHANNEL_PARLAYS", "0"))            # parlays + value alerts
 CHANNEL_PLAYER_PROPS = int(os.getenv("DISCORD_CHANNEL_PLAYER_PROPS", "0"))  # player prop picks
 CHANNEL_TEAM_LINES = int(os.getenv("DISCORD_CHANNEL_TEAM_LINES", "0"))      # per-team corner & card lines
 CHANNEL_BEST_PICKS = int(os.getenv("DISCORD_CHANNEL_BEST_PICKS", "0"))      # daily track record summary
 CHANNEL_NEWSLETTER = int(os.getenv("DISCORD_CHANNEL_NEWSLETTER", "0"))      # matchday intel (WHALE only)
+CHANNEL_HIGH_RISK = int(os.getenv("DISCORD_CHANNEL_HIGH_RISK", "0"))        # best 1.85-2.4 odds unit bets
 
 # Legacy channel IDs (kept for backward compatibility, map to new channels)
 CHANNEL_PARLAY_OF_DAY = int(os.getenv("DISCORD_CHANNEL_PARLAYS",

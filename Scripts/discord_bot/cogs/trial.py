@@ -189,10 +189,16 @@ def _trial_leg_strings(result) -> List[str]:
 
 
 def _trial_parlay_presets(target_date: date, leagues: List[str]) -> List[dict]:
-    """Return the two low-risk trial presets for #free-picks."""
+    """Return ordered low-risk trial presets for #free-picks.
+
+    The first two are the primary daily free picks. The later presets are
+    controlled fallbacks so the scheduler can still reach two posts on thinner
+    slates without drifting into longshot territory.
+    """
     leagues = list(leagues or [])
     return [
         {
+            "name": "safe_mixed_primary",
             "request": build_parlay_request(
                 league_value="cross-league",
                 leagues_override=leagues,
@@ -211,6 +217,7 @@ def _trial_parlay_presets(target_date: date, leagues: List[str]) -> List[dict]:
             ),
         },
         {
+            "name": "safe_moneyline_btts_primary",
             "request": build_parlay_request(
                 league_value="cross-league",
                 leagues_override=leagues,
@@ -226,6 +233,46 @@ def _trial_parlay_presets(target_date: date, leagues: List[str]) -> List[dict]:
                 min_model_prob=0.60,
                 allowed_confidences=["high"],
                 allowed_groups=["moneyline", "btts"],
+                soft_prefer_groups=["moneyline", "btts"],
+                risk_profile="trial-safe",
+            ),
+        },
+        {
+            "name": "safe_mixed_fallback",
+            "request": build_parlay_request(
+                league_value="cross-league",
+                leagues_override=leagues,
+                display_league="Cross-League",
+                target_date=target_date,
+                legs=2,
+                odds=None,
+                target_min=1.4,
+                target_max=1.8,
+                market="mixed",
+                source_command="trial",
+                target_mode="none",
+                min_model_prob=0.60,
+                allowed_confidences=["high", "medium"],
+                risk_profile="trial-safe",
+            ),
+        },
+        {
+            "name": "safe_focus_fallback",
+            "request": build_parlay_request(
+                league_value="cross-league",
+                leagues_override=leagues,
+                display_league="Cross-League",
+                target_date=target_date,
+                legs=2,
+                odds=None,
+                target_min=1.45,
+                target_max=1.85,
+                market="mixed",
+                source_command="trial",
+                target_mode="none",
+                min_model_prob=0.58,
+                allowed_confidences=["high", "medium"],
+                allowed_groups=["moneyline", "btts", "totals"],
                 soft_prefer_groups=["moneyline", "btts"],
                 risk_profile="trial-safe",
             ),
@@ -366,6 +413,32 @@ def _count_today_parlays() -> int:
             (today,),
         ).fetchone()
         return row["cnt"] if row else 0
+    finally:
+        conn.close()
+
+
+def _get_today_parlay_signatures() -> List[Tuple[str, ...]]:
+    """Return exact leg signatures already posted today.
+
+    This lets the scheduler retry later in the day without reposting the same
+    free pick if only one parlay succeeded on an earlier attempt.
+    """
+    today = date.today().isoformat()
+    conn = _get_db()
+    try:
+        rows = conn.execute(
+            "SELECT legs FROM trial_parlays WHERE matchday_date = ? ORDER BY posted_at",
+            (today,),
+        ).fetchall()
+        signatures: List[Tuple[str, ...]] = []
+        for row in rows:
+            try:
+                legs = json.loads(row["legs"])
+            except (json.JSONDecodeError, TypeError):
+                continue
+            if isinstance(legs, list) and legs:
+                signatures.append(tuple(str(leg) for leg in legs))
+        return signatures
     finally:
         conn.close()
 
@@ -651,7 +724,7 @@ async def _send_graduation_dm(
         ),
         color=COLOR_GREEN,
     )
-    em.set_footer(text="Spick's Picks | Your trial has ended")
+    em.set_footer(text="Spix's Picks | Your trial has ended")
 
     try:
         await discord_user.send(embed=em)
@@ -728,7 +801,7 @@ def _build_trial_parlay_embed(
         inline=True,
     )
 
-    em.set_footer(text="Spick's Picks | Free Trial Pick | Use /subscribe for full access")
+    em.set_footer(text="Spix's Picks | Free Trial Pick | Use /subscribe for full access")
     return em
 
 
@@ -765,7 +838,7 @@ def _build_resolution_embed(
         )
 
     em.add_field(name="Odds", value=f"{odds:.2f}x", inline=True)
-    em.set_footer(text="Spick's Picks | Use /subscribe for full access")
+    em.set_footer(text="Spix's Picks | Use /subscribe for full access")
     return em
 
 
@@ -921,7 +994,7 @@ class TrialCog(commands.Cog, name="trial"):
             ),
             color=COLOR_GREEN,
         )
-        em.set_footer(text="Spick's Picks | Free Trial")
+        em.set_footer(text="Spix's Picks | Free Trial")
         await interaction.response.send_message(embed=em, ephemeral=True)
         log.info("Trial activated for %s (%s)", member, discord_id)
 
@@ -979,7 +1052,7 @@ class TrialCog(commands.Cog, name="trial"):
                 ),
                 inline=False,
             )
-            dm_em.set_footer(text="Spick's Picks | No card required. No time limit. Just results.")
+            dm_em.set_footer(text="Spix's Picks | No card required. No time limit. Just results.")
             await member.send(embed=dm_em)
         except discord.Forbidden:
             log.warning("Can't DM %s (DMs disabled)", member)
@@ -991,61 +1064,91 @@ class TrialCog(commands.Cog, name="trial"):
     # ==================================================================
 
     @tasks.loop(minutes=30)
-    async def post_trial_parlays(self):
-        """Post 2 low-odds trial parlays to #free-picks each matchday."""
-        if self._already_posted("trial_parlays"):
+    async def post_trial_parlays(self, *, force: bool = False):
+        """Post 2 low-odds trial parlays to #free-picks each matchday.
+
+        Parameters
+        ----------
+        force : bool
+            When True (manual trigger), skip posting-window and count guards.
+        """
+        if not force and self._already_posted("trial_parlays"):
             return
 
         ch = self.bot.get_channel(CHANNEL_FREE_PICKS)
         if not ch:
+            log.warning("CHANNEL_FREE_PICKS not found — cannot post trial parlays")
             return
 
         first_kickoff, active_leagues = _get_todays_leagues()
         if not active_leagues:
+            log.info("No active leagues today — skipping trial parlays")
             return
 
-        if not _is_posting_window(first_kickoff):
+        if not force and not _is_posting_window(first_kickoff):
             return
 
-        # Check we haven't already posted 2 today
         loop = asyncio.get_running_loop()
-        today_count = await loop.run_in_executor(_trial_executor, _count_today_parlays)
-        if today_count >= 2:
-            self._mark_posted("trial_parlays")
-            return
+        existing_today = 0
+        existing_signatures: List[Tuple[str, ...]] = []
+
+        # Check we haven't already posted 2 today (skip on manual trigger)
+        if not force:
+            existing_today = await loop.run_in_executor(_trial_executor, _count_today_parlays)
+            if existing_today >= 2:
+                self._mark_posted("trial_parlays")
+                return
+            existing_signatures = await loop.run_in_executor(
+                _trial_executor, _get_today_parlay_signatures
+            )
 
         date_str = _today_phrase()
         today_iso = date.today().isoformat()
         parlays_posted = 0
-        used_leg_refs = []  # accumulate legs to prevent repetition across free picks
+        remaining_slots = 2 if force else max(0, 2 - existing_today)
+        if remaining_slots <= 0:
+            self._mark_posted("trial_parlays")
+            return
+        seen_signatures = set(existing_signatures)
 
         for i, preset in enumerate(_trial_parlay_presets(date.today(), active_leagues)):
-            if parlays_posted >= 2:
+            if parlays_posted >= remaining_slots:
                 break
-
-            # Inject previously-used legs as exclusions for risk diversification
-            if used_leg_refs:
-                preset["request"].excluded_legs = list(
-                    set(preset["request"].excluded_legs) | set(used_leg_refs)
-                )
 
             try:
                 result = await _build_structured_trial_parlay(preset["request"])
             except ParlayBuildError as exc:
-                log.warning("Trial parlay preset %d failed: %s | %s", i + 1, exc.message, "; ".join(exc.notes))
+                log.warning(
+                    "Trial parlay preset %d (%s) failed: %s | %s",
+                    i + 1,
+                    preset.get("name", "unnamed"),
+                    exc.message,
+                    "; ".join(exc.notes),
+                )
                 continue
             except Exception as exc:
-                log.error("Trial parlay preset %d failed: %s", i + 1, exc, exc_info=True)
+                log.error(
+                    "Trial parlay preset %d (%s) failed: %s",
+                    i + 1,
+                    preset.get("name", "unnamed"),
+                    exc,
+                    exc_info=True,
+                )
                 continue
-
-            # Collect used legs so subsequent free picks cannot repeat them
-            for leg in (result.selected_legs if hasattr(result, "selected_legs") else []):
-                used_leg_refs.append(leg.ref)
 
             legs = _trial_leg_strings(result)
             combined_odds = float(getattr(result, "combined_odds", 0.0) or 0.0)
             if not legs:
                 log.warning("Could not derive legs from structured trial parlay %d", i + 1)
+                continue
+
+            leg_signature = tuple(legs)
+            if leg_signature in seen_signatures:
+                log.info(
+                    "Skipping duplicate trial parlay from preset %d (%s)",
+                    i + 1,
+                    preset.get("name", "unnamed"),
+                )
                 continue
 
             # Validate odds are in safe range
@@ -1066,17 +1169,26 @@ class TrialCog(commands.Cog, name="trial"):
 
             # Build and post embed
             parlays_posted += 1
-            em = _build_trial_parlay_embed(legs, combined_odds, parlays_posted, date_str)
+            seen_signatures.add(leg_signature)
+            parlay_num = existing_today + parlays_posted
+            em = _build_trial_parlay_embed(legs, combined_odds, parlay_num, date_str)
             try:
                 await ch.send(embed=em)
                 log.info("Posted trial parlay %d (odds: %.2f, legs: %d)",
-                         parlays_posted, combined_odds, len(legs))
+                         parlay_num, combined_odds, len(legs))
             except Exception as exc:
                 log.error("Failed to post trial parlay: %s", exc)
 
-        if parlays_posted > 0:
+        total_posted_today = existing_today + parlays_posted
+        if total_posted_today >= 2:
             self._mark_posted("trial_parlays")
-            log.info("Posted %d trial parlays for %s", parlays_posted, today_iso)
+            log.info("Posted %d total trial parlays for %s", total_posted_today, today_iso)
+        elif parlays_posted > 0:
+            log.warning(
+                "Only %d/2 trial parlays are available for %s so far; will retry on the next scheduler tick.",
+                total_posted_today,
+                today_iso,
+            )
         else:
             log.warning("Could not generate any trial parlays for %s", today_iso)
 
@@ -1166,9 +1278,9 @@ class TrialCog(commands.Cog, name="trial"):
         await interaction.response.defer(thinking=True, ephemeral=True)
 
         if action.value == "post":
-            # Reset the posted flag and run
+            # Reset the posted flag and run with force=True to skip window guards
             self._posted_today.pop("trial_parlays", None)
-            await self.post_trial_parlays()
+            await self.post_trial_parlays(force=True)
             await interaction.followup.send("Trial parlays posted.", ephemeral=True)
 
         elif action.value == "resolve":

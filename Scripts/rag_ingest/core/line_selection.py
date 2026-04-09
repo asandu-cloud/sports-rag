@@ -36,6 +36,14 @@ except ImportError:
         value_edge, expected_value,
     )
 
+try:
+    from core.projections import compute_margin_std
+except ImportError:
+    try:
+        from projections import compute_margin_std
+    except ImportError:
+        compute_margin_std = None  # type: ignore[assignment]
+
 
 # ===================================================================
 #  Small helpers
@@ -178,12 +186,16 @@ def _best_model_only_line(projection: float,
     return best_side, best_line, best_prob
 
 
-def _best_model_only_spread(proj_diff: float, home: str, away: str) -> Tuple[str, str, float]:
+def _best_model_only_spread(proj_diff: float, home: str, away: str,
+                            league: str = "") -> Tuple[str, str, float]:
     """Pick the strongest (team, handicap_display, cover_prob) for model-only spread.
 
     Evaluates half-integer handicaps within +/-1.0 of |proj_diff|.
     """
-    margin_std = SCORING_WEIGHTS["prob"]["margin_std_default"]
+    if compute_margin_std is not None and home and away and league:
+        margin_std = compute_margin_std(home, away, league)
+    else:
+        margin_std = SCORING_WEIGHTS["prob"]["margin_std_default"]
     best_team = home if proj_diff >= 0 else away
     best_hc = "-0.5" if proj_diff >= 0 else "+0.5"
     best_prob = 0.5
@@ -335,9 +347,10 @@ def choose_best_moneyline_side(
     market_odds: List[Dict],
     home: str, away: str,
 ) -> Dict:
-    """Score home/draw/away and pick the best value moneyline bet."""
+    """Separate winner prediction from value identification and bet verdict."""
     model_probs = {"home": p_home, "draw": p_draw, "away": p_away}
     team_labels = {"home": home, "draw": "Draw", "away": away}
+    mw = SCORING_WEIGHTS.get("moneyline_selection", {})
 
     # Group odds by side, pick best (highest) per side
     best_per_side: Dict[str, Dict] = {}
@@ -379,15 +392,45 @@ def choose_best_moneyline_side(
             entry["ev"] = expected_value(model_probs[side], bps["odds"])
         candidates.append(entry)
 
-    # Pick best: model probability is the primary driver, value edge is secondary.
-    # A Draw at +2% edge should NOT beat a Home Win at 55% probability.
-    # Score = model_prob * 3.0 + value_edge_bonus - negative_ev_penalty
+    most_likely = max(candidates, key=lambda c: (c["model_prob"], c.get("value_edge") or 0.0))
+
+    value_candidates = [c for c in candidates if c["best_odds"] is not None]
+    best_value = None
+    if value_candidates:
+        best_value = max(
+            value_candidates,
+            key=lambda c: (
+                c.get("ev") if c.get("ev") is not None else float("-inf"),
+                c.get("value_edge") if c.get("value_edge") is not None else float("-inf"),
+                c["model_prob"],
+            ),
+        )
+
+    # Pick actual betting recommendation with explicit minimum bars.
     best = None
     best_score = -999.0
+    no_bet_reason = "No market prices available."
     for c in candidates:
         model_p = c["model_prob"]
         ve = c["value_edge"]
         ev_val = c["ev"]
+        odds = c["best_odds"]
+
+        if odds is None or ve is None or ev_val is None:
+            c["_eligible"] = False
+            continue
+
+        min_prob = mw.get(
+            "min_model_prob_draw" if c["side"] == "draw" else "min_model_prob_home_away",
+            0.40 if c["side"] != "draw" else 0.32,
+        )
+        min_edge = mw.get("min_value_edge", 0.03)
+        min_ev = mw.get("min_ev", 0.05)
+
+        if odds >= mw.get("longshot_odds_threshold", 4.5):
+            min_prob = max(min_prob, mw.get("longshot_min_model_prob", 0.20))
+            min_edge += mw.get("longshot_extra_edge", 0.05)
+            min_ev += mw.get("longshot_extra_ev", 0.10)
 
         # Model conviction is the dominant signal
         conviction = (model_p - 0.33) * 3.0  # 3-way: baseline is 33%, not 50%
@@ -405,25 +448,52 @@ def choose_best_moneyline_side(
             draw_penalty = 0.5
 
         score = conviction + edge_bonus - ev_penalty - draw_penalty
+        c["_eligible"] = bool(model_p >= min_prob and ve >= min_edge and ev_val >= min_ev)
+        c["_score"] = score
 
-        if score > best_score:
+        if c["_eligible"] and score > best_score:
             best_score = score
             best = c
 
-    return {"recommended": best, "all_sides": candidates}
+    if best is None:
+        if best_value is None:
+            no_bet_reason = "No priced side cleared the moneyline filters."
+        elif (best_value.get("best_odds") or 0.0) >= mw.get("longshot_odds_threshold", 4.5) and best_value["model_prob"] < mw.get("longshot_min_model_prob", 0.20):
+            no_bet_reason = "Longshot value is positive, but the win probability is too low."
+        elif best_value.get("ev") is not None and best_value["ev"] < mw.get("min_ev", 0.05):
+            no_bet_reason = "Best value side does not clear the minimum EV threshold."
+        elif best_value.get("value_edge") is not None and best_value["value_edge"] < mw.get("min_value_edge", 0.03):
+            no_bet_reason = "Best value side does not clear the minimum value-edge threshold."
+        elif best_value["side"] == "draw":
+            no_bet_reason = "Draw is priced attractively, but model conviction is not high enough."
+        else:
+            no_bet_reason = "No side clears the moneyline betting thresholds."
+
+    return {
+        "most_likely": most_likely,
+        "best_value": best_value,
+        "bet_recommendation": best,
+        "recommended": best,  # backward compatibility for older callers
+        "no_bet_reason": no_bet_reason if best is None else None,
+        "all_sides": candidates,
+    }
 
 
 # ===================================================================
 #  Spread / Handicap line selection
 # ===================================================================
 
-def choose_best_spread_line(options: List[Dict], projected_diff: float, home_team: str) -> Optional[Dict]:
+def choose_best_spread_line(options: List[Dict], projected_diff: float, home_team: str,
+                            away_team: str = "", league: str = "") -> Optional[Dict]:
     """Score available spread lines and return the best one."""
     if not options:
         return None
     sw = SCORING_WEIGHTS["spreads_line"]
     pw = SCORING_WEIGHTS["prob"]
-    margin_std = pw["margin_std_default"]
+    if compute_margin_std is not None and home_team and away_team and league:
+        margin_std = compute_margin_std(home_team, away_team, league)
+    else:
+        margin_std = pw["margin_std_default"]
 
     filtered = [o for o in options if (o.get("odds") or 0) >= sw["min_odds_hard"]]
     if not filtered:

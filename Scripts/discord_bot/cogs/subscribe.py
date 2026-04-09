@@ -155,7 +155,7 @@ def _create_portal_session(stripe_customer_id: str) -> Optional[str]:
 def _build_subscribe_embed() -> discord.Embed:
     """Build the rich embed showing all three tiers."""
     em = discord.Embed(
-        title="Spick's Picks \u2014 Choose Your Plan",
+        title="Spix's Picks \u2014 Choose Your Plan",
         description=(
             "Start your **7-day free trial**. Cancel anytime.\n"
             "Select a plan below to get started."
@@ -275,7 +275,7 @@ class ReferralCodeModal(discord.ui.Modal, title="Referral Code (Optional)"):
 
     code_input = discord.ui.TextInput(
         label="Have a referral code?",
-        placeholder="e.g. SPICK-SANDU-A7X3",
+        placeholder="e.g. SPIX-SANDU-A7X3",
         required=False,
         max_length=30,
     )

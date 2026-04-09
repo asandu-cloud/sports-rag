@@ -155,6 +155,15 @@ PLAYER_PROP_WEIGHTS = {
 
     # Style matchup interaction
     "matchup_weight": 0.20,                  # overall matchup modifier weight
+
+    # Role heuristics (small bounded nudges only)
+    "role_penalty_taker_goal_boost": 0.08,
+    "role_set_piece_assist_boost": 0.10,
+    "role_set_piece_sot_boost": 0.03,
+    "role_high_usage_goal_boost": 0.05,
+    "role_high_usage_sot_boost": 0.06,
+    "role_high_usage_assist_boost": 0.05,
+    "role_boost_cap": 1.18,
 }
 
 # Position relevance multipliers per stat — prevents absurd recs like
@@ -870,6 +879,7 @@ def projected_player_stat(
 
     # --- Parse player profile text for extra matchup fields ---
     parsed_text = _parse_player_profile_text(player_text)
+    inferred_roles = infer_player_roles(player_meta, player_text)
 
     # --- Recent form blend (compute recent rate first, used by all pathways) ---
     recent_rate = _compute_recent_rate(recent_fixtures, stat, min_minutes=30)
@@ -968,6 +978,28 @@ def projected_player_stat(
         final_projection *= style_mod
         extra_evidence["style_matchup_modifier"] = round(style_mod, 3)
 
+    # --- Role heuristics (bounded, league-only, no hard overrides) ---
+    role_multiplier = 1.0
+    if stat == "goals":
+        if inferred_roles.get("probable_penalty_taker"):
+            role_multiplier += pw.get("role_penalty_taker_goal_boost", 0.0)
+        if inferred_roles.get("high_usage_creator"):
+            role_multiplier += pw.get("role_high_usage_goal_boost", 0.0)
+    elif stat == "assists":
+        if inferred_roles.get("probable_set_piece"):
+            role_multiplier += pw.get("role_set_piece_assist_boost", 0.0)
+        if inferred_roles.get("high_usage_creator"):
+            role_multiplier += pw.get("role_high_usage_assist_boost", 0.0)
+    elif stat == "sot":
+        if inferred_roles.get("probable_set_piece"):
+            role_multiplier += pw.get("role_set_piece_sot_boost", 0.0)
+        if inferred_roles.get("high_usage_creator"):
+            role_multiplier += pw.get("role_high_usage_sot_boost", 0.0)
+    role_multiplier = min(role_multiplier, pw.get("role_boost_cap", 1.18))
+    if role_multiplier != 1.0:
+        final_projection *= role_multiplier
+        extra_evidence["role_multiplier"] = round(role_multiplier, 3)
+
     # --- Collect recent raw stat values for display ---
     recent_form_values = _collect_recent_values(recent_fixtures, stat, limit=6)
 
@@ -1000,6 +1032,9 @@ def projected_player_stat(
         "position_relevance": round(pos_relevance, 2),
         "qualified_apps": qualified_apps,
         "total_apps": total_apps,
+        "probable_penalty_taker": inferred_roles.get("probable_penalty_taker", False),
+        "probable_set_piece": inferred_roles.get("probable_set_piece", False),
+        "high_usage_creator": inferred_roles.get("high_usage_creator", False),
     }
     # Merge extra evidence from enhanced models
     evidence.update(extra_evidence)
@@ -1765,6 +1800,16 @@ def _build_rationale(
                    f"Opponent {ev['opponent_multiplier']:.2f}x | "
                    f"Venue {ev.get('venue_factor', 1.0):.2f}x | "
                    f"Position {ev.get('position_relevance', 1.0):.0%}")
+
+    role_tags = []
+    if ev.get("probable_penalty_taker"):
+        role_tags.append("penalty duty")
+    if ev.get("probable_set_piece"):
+        role_tags.append("set-piece role")
+    if ev.get("high_usage_creator"):
+        role_tags.append("high-usage role")
+    if role_tags:
+        rat.append("Role signal: " + ", ".join(role_tags))
 
     rat.append(f"Minutes: {projection.minutes_risk} "
                f"({projection.start_probability:.0%} start rate, "

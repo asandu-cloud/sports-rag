@@ -103,7 +103,7 @@ def render_spreads_line_answer(user_q: str, league: str, events: List[Dict]) -> 
             lines.append(f"  Reasoning: Recent 6-match xG diff {recent_diff:+.2f}.")
 
         options = extract_spread_line_options(ev)
-        best = choose_best_spread_line(options, proj_diff, home)
+        best = choose_best_spread_line(options, proj_diff, home, away_team=away, league=league)
         if best:
             team = best["team"]
             point = best["point"]
@@ -128,7 +128,7 @@ def render_spreads_line_answer(user_q: str, league: str, events: List[Dict]) -> 
             else:
                 lines.append(f"  Model edge {edge:+.2f} ({conf} confidence).")
         else:
-            sp_team, sp_hc, sp_cp = _best_model_only_spread(proj_diff, home, away)
+            sp_team, sp_hc, sp_cp = _best_model_only_spread(proj_diff, home, away, league=league)
             lines.append(
                 f"  Recommended: {sp_team} {sp_hc} "
                 f"(model-only, P(cover) = {sp_cp:.1%})."

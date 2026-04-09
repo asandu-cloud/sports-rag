@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+import hashlib
+import io
 import json
+import logging
 import os
 import re
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import discord
 
 from config import COLOR_GREEN, COLOR_YELLOW, COLOR_RED, COLOR_BLUE, COLOR_PURPLE
+
+_embed_log = logging.getLogger("embeds")
 
 # ── Logo data (lazy-loaded) ─────────────────────────────────────────────────
 
@@ -65,6 +71,123 @@ def _get_league_logo(league: str) -> Optional[str]:
         if stored_key.lower() == league.lower():
             return url
     return None
+
+
+# ── Matchup composite image ────────────────────────────────────────────────
+
+_COMPOSITE_CACHE_DIR = Path(os.path.join(
+    os.path.dirname(__file__), os.pardir, os.pardir, "Index", "fixture_composites",
+))
+
+# In-memory cache: {cache_key: image_bytes}
+_composite_cache: Dict[str, bytes] = {}
+
+
+def _download_image_bytes(url: str, timeout: int = 8) -> Optional[bytes]:
+    """Download image bytes from a URL. Returns None on failure."""
+    try:
+        import requests
+        resp = requests.get(url, timeout=timeout)
+        if resp.status_code == 200 and resp.content:
+            return resp.content
+    except Exception:
+        pass
+    return None
+
+
+def _build_matchup_composite(
+    home_logo_url: Optional[str],
+    away_logo_url: Optional[str],
+) -> Optional[bytes]:
+    """Build a composite PNG: home_crest + 'vs' + away_crest.
+
+    Returns PNG bytes or None if Pillow is unavailable or images can't be fetched.
+    Uses a 256x96 canvas with crests at 80x80.
+    """
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError:
+        return None
+
+    if not home_logo_url and not away_logo_url:
+        return None
+
+    WIDTH, HEIGHT = 256, 96
+    CREST_SIZE = 80
+    BG_COLOR = (47, 49, 54, 0)  # transparent background
+
+    canvas = Image.new("RGBA", (WIDTH, HEIGHT), BG_COLOR)
+    draw = ImageDraw.Draw(canvas)
+
+    def _paste_crest(url: Optional[str], x: int, y: int) -> None:
+        if not url:
+            return
+        img_bytes = _download_image_bytes(url)
+        if not img_bytes:
+            return
+        try:
+            crest = Image.open(io.BytesIO(img_bytes)).convert("RGBA")
+            crest = crest.resize((CREST_SIZE, CREST_SIZE), Image.LANCZOS)
+            canvas.paste(crest, (x, y), crest)
+        except Exception:
+            pass
+
+    # Home crest on the left
+    _paste_crest(home_logo_url, 16, (HEIGHT - CREST_SIZE) // 2)
+    # Away crest on the right
+    _paste_crest(away_logo_url, WIDTH - CREST_SIZE - 16, (HEIGHT - CREST_SIZE) // 2)
+
+    # "vs" text in the center
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 20)
+    except Exception:
+        try:
+            font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 20)
+        except Exception:
+            font = ImageFont.load_default()
+
+    bbox = draw.textbbox((0, 0), "vs", font=font)
+    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    draw.text(((WIDTH - tw) // 2, (HEIGHT - th) // 2), "vs",
+              fill=(200, 200, 200, 255), font=font)
+
+    buf = io.BytesIO()
+    canvas.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def get_matchup_file(
+    home_team: Optional[str],
+    away_team: Optional[str],
+    fixture_key: str = "",
+) -> Optional[Tuple[bytes, str]]:
+    """Get or build a matchup composite image.
+
+    Returns (png_bytes, filename) or None.
+    Uses in-memory cache keyed by teams.
+    """
+    if not home_team and not away_team:
+        return None
+
+    cache_key = f"{(home_team or '').lower()}_{(away_team or '').lower()}"
+    if cache_key in _composite_cache:
+        png = _composite_cache[cache_key]
+        fname = f"matchup_{hashlib.md5(cache_key.encode()).hexdigest()[:8]}.png"
+        return png, fname
+
+    home_url = _get_team_logo(home_team) if home_team else None
+    away_url = _get_team_logo(away_team) if away_team else None
+
+    if not home_url and not away_url:
+        return None
+
+    png = _build_matchup_composite(home_url, away_url)
+    if not png:
+        return None
+
+    _composite_cache[cache_key] = png
+    fname = f"matchup_{hashlib.md5(cache_key.encode()).hexdigest()[:8]}.png"
+    return png, fname
 
 
 def _parse_teams_from_fixture(fixture: str) -> Tuple[Optional[str], Optional[str]]:
@@ -258,9 +381,36 @@ def _extract_confidence(block: str) -> str:
     return m.group(1).title() if m else "\u2014"
 
 
-def _extract_moneyline_probs(block: str) -> Dict[str, str]:
+def _extract_labeled_line(block: str, label: str) -> Optional[str]:
+    m = re.search(rf"{re.escape(label)}:\s*(.+)", block)
+    return m.group(1).strip() if m else None
+
+
+def _split_name_prob(text: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+    if not text:
+        return None, None
+    m = re.match(r"(.+?)\s*\(([\d.]+%)\)", text)
+    if m:
+        return m.group(1).strip(), m.group(2)
+    return text.strip(), None
+
+
+def _extract_moneyline_probs(block: str, home: Optional[str] = None, away: Optional[str] = None) -> Dict[str, str]:
     """Extract 3-way moneyline probabilities."""
     out: Dict[str, str] = {}
+    if home:
+        m = re.search(rf"Model:\s*.*?{re.escape(home)}\s+([\d.]+%)", block)
+        if m:
+            out["home"] = m.group(1)
+    m = re.search(r"Model:\s*.*?Draw\s+([\d.]+%)", block)
+    if m:
+        out["draw"] = m.group(1)
+    if away:
+        m = re.search(rf"Model:\s*.*?{re.escape(away)}\s+([\d.]+%)", block)
+        if m:
+            out["away"] = m.group(1)
+    if out:
+        return out
     m = re.search(r"P\(Home\)\s*=\s*([\d.]+%)", block)
     if m:
         out["home"] = m.group(1)
@@ -305,22 +455,30 @@ def _bet_card_embed(
     league: str = "",
     market_emoji: str = "\u26bd",
     extra_fields: Optional[List[Tuple[str, str, bool]]] = None,
-) -> discord.Embed:
-    """Build a single bet-card embed for one fixture with logo support."""
+) -> Tuple[discord.Embed, Optional[discord.File]]:
+    """Build a single bet-card embed for one fixture with logo support.
+
+    Returns (embed, file) where file is the matchup composite image (or None).
+    """
     color, bar, conf_desc = _conf(f"{confidence} confidence" if confidence != "\u2014" else "")
 
     em = discord.Embed(color=color)
+    attached_file: Optional[discord.File] = None
 
-    # Clean fixture name as author — no emoji prefix
+    # Author line: fixture name (no icon — composite in thumbnail shows both crests)
+    # Thumbnail (top-right): matchup composite (both crests) or league logo fallback
     league_logo = _get_league_logo(league) if league else None
+    home, away = _parse_teams_from_fixture(fixture)
+
     em.set_author(name=fixture)
 
-    # Set home team logo as thumbnail
-    home, away = _parse_teams_from_fixture(fixture)
-    if home:
-        home_logo = _get_team_logo(home)
-        if home_logo:
-            em.set_thumbnail(url=home_logo)
+    matchup = get_matchup_file(home, away) if (home or away) else None
+    if matchup:
+        png_bytes, fname = matchup
+        attached_file = discord.File(io.BytesIO(png_bytes), filename=fname)
+        em.set_thumbnail(url=f"attachment://{fname}")
+    elif league_logo:
+        em.set_thumbnail(url=league_logo)
 
     if pick:
         em.add_field(name="\U0001f4cb Pick", value=f"**{pick}**", inline=True)
@@ -346,14 +504,14 @@ def _bet_card_embed(
         footer_parts.append(league)
     if projection:
         footer_parts.append(f"Projection: {projection}")
-    footer_parts.append("Spick's Picks")
+    footer_parts.append("Spix's Picks")
     league_logo_footer = _get_league_logo(league) if league else None
     em.set_footer(
         text=" \u2502 ".join(footer_parts),
         icon_url=league_logo_footer,
     )
 
-    return em
+    return em, attached_file
 
 
 # ── Main public functions ────────────────────────────────────────────────────
@@ -523,7 +681,7 @@ def player_prop_embeds(
             )
 
         em.set_footer(
-            text=f"{league} \u2502 Spick's Picks" if league else "Spick's Picks",
+            text=f"{league} \u2502 Spix's Picks" if league else "Spix's Picks",
             icon_url=league_logo,
         )
         embeds.append(em)
@@ -800,7 +958,7 @@ def team_totals_embeds(
             )
 
         em.set_footer(
-            text=f"{league} \u2502 Spick's Picks" if league else "Spick's Picks",
+            text=f"{league} \u2502 Spix's Picks" if league else "Spix's Picks",
             icon_url=league_logo,
         )
         embeds.append(em)
@@ -1026,7 +1184,7 @@ def consolidated_fixture_embeds(
         # All markets in description
         em.description = "\n\n".join(line for _, line in formatted_lines)
 
-        em.set_footer(text=f"{league} \u2502 Spick's Picks")
+        em.set_footer(text=f"{league} \u2502 Spix's Picks")
         embeds.append(em)
 
     if len(embeds) > 10:
@@ -1086,7 +1244,7 @@ def consolidated_score_embeds(
                          inline=False)
 
         em.set_footer(
-            text=f"{league} \u2502 Spick's Picks",
+            text=f"{league} \u2502 Spix's Picks",
             icon_url=league_logo,
         )
         embeds.append(em)
@@ -1113,8 +1271,20 @@ def parse_fixture_picks(text: str) -> Dict[str, str]:
         model = _extract_model_line(block)
         confidence = _extract_confidence(block)
         projection = _extract_projection(block)
+        most_likely = _extract_labeled_line(block, "Most likely winner")
+        best_value = _extract_labeled_line(block, "Best value side")
+        verdict = _extract_labeled_line(block, "Verdict") or ""
 
-        if not pick and not projection:
+        if most_likely:
+            likely_team, likely_prob = _split_name_prob(most_likely)
+            pick = likely_team or pick
+            if not (verdict and likely_team and f"Recommended: {likely_team}" in verdict):
+                odds = None
+                confidence = "\u2014"
+            if likely_prob:
+                model["model_p"] = likely_prob
+
+        if not pick and not projection and not most_likely:
             continue
 
         # Build compact one-liner
@@ -1132,6 +1302,10 @@ def parse_fixture_picks(text: str) -> Dict[str, str]:
         conf_lower = confidence.lower() if confidence != "\u2014" else ""
         if conf_lower:
             parts.append(conf_lower)
+        if verdict.lower().startswith("no moneyline bet"):
+            parts.append("no bet")
+        if best_value:
+            parts.append(f"value {best_value.replace('@', 'at')}")
 
         result[fixture] = " | ".join(parts) if parts else ""
 
@@ -1171,19 +1345,21 @@ def rag_output_to_embeds(
     text: str,
     league: str = "",
     footer: Optional[str] = None,
-) -> List[discord.Embed]:
+) -> Tuple[List[discord.Embed], List[discord.File]]:
     """Convert RAG text output into bet-card-style Discord embeds.
 
     Parses fixtures and builds one embed per fixture. Falls back to
     a plain code-block embed if parsing fails.
-    """
-    # Route player prop output to dedicated parser
-    if "Player Prop Predictions" in text:
-        return player_prop_embeds(title, text, league)
 
-    # Route team totals output to dedicated parser
+    Returns (embeds, files) where files are matchup composite images.
+    """
+    # Route player prop output to dedicated parser (no composite files)
+    if "Player Prop Predictions" in text:
+        return player_prop_embeds(title, text, league), []
+
+    # Route team totals output to dedicated parser (no composite files)
     if "Per-Team Totals Lines" in text:
-        return team_totals_embeds(title, text, league)
+        return team_totals_embeds(title, text, league), []
 
     # Detect market type for emoji
     title_lower = title.lower()
@@ -1210,6 +1386,7 @@ def rag_output_to_embeds(
 
     blocks = _split_fixture_blocks(text)
     embeds: List[discord.Embed] = []
+    files: List[discord.File] = []
 
     league_logo = _get_league_logo(league) if league else None
 
@@ -1229,16 +1406,35 @@ def rag_output_to_embeds(
         model = _extract_model_line(block)
         confidence = _extract_confidence(block)
         projection = _extract_projection(block)
+        home, away = _parse_teams_from_fixture(fixture)
 
         # Special handling for moneyline
-        ml_probs = _extract_moneyline_probs(block)
+        ml_probs = _extract_moneyline_probs(block, home, away)
+        most_likely = _extract_labeled_line(block, "Most likely winner")
+        best_value = _extract_labeled_line(block, "Best value side")
+        verdict = _extract_labeled_line(block, "Verdict")
         extra: List[Tuple[str, str, bool]] = []
         if ml_probs:
+            label_map = {"home": home or "Home", "draw": "Draw", "away": away or "Away"}
+            icon_map = {"home": "\U0001f3e0", "draw": "\U0001f91d", "away": "\u2708\ufe0f"}
             prob_line = " | ".join(
-                f"{'\U0001f3e0' if k == 'home' else '\U0001f91d' if k == 'draw' else '\u2708\ufe0f'} {v}"
+                f"{icon_map[k]} {label_map[k]} {v}"
                 for k, v in ml_probs.items()
             )
             extra.append(("\U0001f4ca Win Probabilities", prob_line, False))
+            likely_team, likely_prob = _split_name_prob(most_likely)
+            if likely_team:
+                pick = likely_team
+                model["model_p"] = likely_prob or model.get("model_p")
+                if not (verdict and f"Recommended: {likely_team}" in verdict):
+                    odds = None
+                    confidence = "\u2014"
+            if most_likely:
+                extra.append(("\U0001f3c6 Most Likely Winner", most_likely, False))
+            if best_value:
+                extra.append(("\U0001f4a1 Value Side", best_value, False))
+            if verdict:
+                extra.append(("\U0001f6d1 Verdict", verdict, False))
 
         # Special handling for correct score
         scores = _extract_correct_scores(block)
@@ -1252,7 +1448,7 @@ def rag_output_to_embeds(
             iv_text = "\n".join(f"`{band:<15}` {prob}" for band, prob in intervals)
             extra.append(("\U0001f4ca Intervals", _truncate(iv_text, 1024), False))
 
-        em = _bet_card_embed(
+        em, attached_file = _bet_card_embed(
             fixture=fixture,
             pick=pick,
             odds=odds,
@@ -1266,12 +1462,14 @@ def rag_output_to_embeds(
             extra_fields=extra if extra else None,
         )
         embeds.append(em)
+        if attached_file is not None:
+            files.append(attached_file)
 
     # Discord limit: max 10 embeds per message
     if len(embeds) > 10:
         embeds = embeds[:10]
 
-    return embeds
+    return embeds, files
 
 
 def parlay_embed(text: str, league: str = "Mixed") -> List[discord.Embed]:
@@ -1380,7 +1578,7 @@ def parlay_embed(text: str, league: str = "Mixed") -> List[discord.Embed]:
         slip.add_field(name="\U0001f4a1 Why", value=_truncate(why, 1024), inline=False)
 
     slip.set_footer(
-        text="Spick's Picks",
+        text="Spix's Picks",
         icon_url=league_logo,
     )
     embeds.append(slip)
@@ -1425,8 +1623,8 @@ def structured_parlay_embeds(result, league: Optional[str] = None) -> List[disco
             name=f"Leg {index}  {league_badge}",
             value=(
                 f"**{getattr(leg, 'fixture', '')}**\n"
-                f"\U0001f4cb {getattr(leg, 'pick_display', '')}\n"
-                f"\U0001f4b0 {getattr(leg, 'odds', 0.0):.2f} ({getattr(leg, 'bookmaker', 'Book') or 'Book'})"
+                f"\U0001f4cb Pick: {getattr(leg, 'pick_display', '')}\n"
+                f"\U0001f4b0 Odds: {getattr(leg, 'odds', 0.0):.2f} ({getattr(leg, 'bookmaker', 'Book') or 'Book'})"
                 f"{conf_line}{warning_line}"
             ),
             inline=False,
@@ -1434,13 +1632,13 @@ def structured_parlay_embeds(result, league: Optional[str] = None) -> List[disco
 
     slip.add_field(
         name="\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
-        value=f"**Combined Odds: {getattr(result, 'combined_odds', 0.0):.2f}x**",
+        value=f"**\U0001f4b5 Combined Odds: {getattr(result, 'combined_odds', 0.0):.2f}x**",
         inline=False,
     )
 
     confidence_breakdown = str(getattr(result, "confidence_breakdown", "") or "").strip()
     if confidence_breakdown:
-        slip.add_field(name="\u2b50 Confidence", value=confidence_breakdown, inline=True)
+        slip.add_field(name="\u2b50 Confidence Breakdown", value=confidence_breakdown, inline=True)
 
     cross_warnings = list(getattr(result, "cross_warnings", []) or [])
     if cross_warnings:
@@ -1449,9 +1647,9 @@ def structured_parlay_embeds(result, league: Optional[str] = None) -> List[disco
 
     summary = str(getattr(result, "summary_text", "") or "").strip()
     if summary:
-        slip.add_field(name="\U0001f4a1 Why", value=_truncate(summary, 1024), inline=False)
+        slip.add_field(name="\U0001f4a1 Why This Parlay", value=_truncate(summary, 1024), inline=False)
 
-    slip.set_footer(text="Spick's Picks", icon_url=league_logo)
+    slip.set_footer(text="Spix's Picks", icon_url=league_logo)
     return [slip]
 
 
@@ -1516,7 +1714,7 @@ def value_alert_embed(text: str, league: str) -> discord.Embed:
         em.add_field(name="\U0001f4c8 Edge", value=model["edge"], inline=True)
 
     em.set_footer(
-        text=f"{league} \u2502 Spick's Picks \u2502 Value Alert",
+        text=f"{league} \u2502 Spix's Picks \u2502 Value Alert",
         icon_url=league_logo,
     )
     return em
@@ -1567,7 +1765,7 @@ def fixture_list_embed(
 
     em.description = "\n".join(lines)
     em.set_footer(
-        text=f"{len(fixtures)} fixture(s) \u2502 Use /analyze to drill into a match \u2502 Spick's Picks",
+        text=f"{len(fixtures)} fixture(s) \u2502 Use /analyze to drill into a match \u2502 Spix's Picks",
         icon_url=league_logo,
     )
     return em
@@ -1589,7 +1787,7 @@ def _fallback_embeds(
         league_logo = _get_league_logo(league) if league else None
         if league:
             em.set_author(name=f"League: {league}", icon_url=league_logo)
-        em.set_footer(text=footer or "Spick's Picks")
+        em.set_footer(text=footer or "Spix's Picks")
         return [em]
 
     color = _conf(text)[0]
@@ -1617,7 +1815,7 @@ def _fallback_embeds(
             em.set_author(name=f"League: {league}", icon_url=league_logo)
         if i == len(chunks) - 1:
             em.set_footer(
-                text=footer or "Spick's Picks",
+                text=footer or "Spix's Picks",
                 icon_url=league_logo if league else None,
             )
         embeds.append(em)

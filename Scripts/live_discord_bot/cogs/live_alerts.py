@@ -11,7 +11,7 @@ import logging
 import sys
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, Optional, Set
 
 import discord
 from discord.ext import commands, tasks
@@ -31,18 +31,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from config import CHANNEL_LIVE_ALERTS, CHANNEL_LIVE_SCORES, LIVE_POLL_INTERVAL
 
 # ---------------------------------------------------------------------------
-# Live engine imports (graceful degradation)
-# ---------------------------------------------------------------------------
-_HAS_ALERTS = False
-detect_alerts = None
-try:
-    from live.live_alerts import detect_alerts as _detect_alerts
-    detect_alerts = _detect_alerts
-    _HAS_ALERTS = True
-except ImportError:
-    pass
-
-# ---------------------------------------------------------------------------
 # Embed builders
 # ---------------------------------------------------------------------------
 from embeds import (
@@ -51,6 +39,7 @@ from embeds import (
     live_alert_embed,
     match_start_embed,
 )
+from live.live_runtime import get_live_poller
 
 log = logging.getLogger("live_bot.alerts_cog")
 
@@ -61,7 +50,7 @@ class LiveAlertsCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.poller = None  # LivePoller instance, initialized in cog_load
-        self._prev_snapshots: Dict[int, Any] = {}  # fixture_id -> previous snapshot
+        self._last_alert_snapshot_ts: Dict[int, str] = {}
         self._known_fixtures: Set[int] = set()  # fixtures we have posted "match started" for
         self._prev_event_counts: Dict[int, int] = {}  # fixture_id -> event count at last check
         self._finished: Set[int] = set()  # fixtures we have posted "full time" for
@@ -69,8 +58,7 @@ class LiveAlertsCog(commands.Cog):
     async def cog_load(self) -> None:
         """Initialize the LivePoller and start the alert loop."""
         try:
-            from live.live_poller import LivePoller
-            self.poller = LivePoller(auto_subscribe=True)
+            self.poller = get_live_poller(auto_subscribe=True)
             await self.poller.start()
             log.info("LivePoller started inside alerts cog")
         except Exception as exc:
@@ -126,27 +114,19 @@ class LiveAlertsCog(commands.Cog):
             # --- Goal detection ---
             await self._check_for_goals(fid, state, snapshot, scores_channel)
 
-            # --- Alert detection ---
-            if snapshot is not None and _HAS_ALERTS and detect_alerts is not None:
-                prev = self._prev_snapshots.get(fid)
-                try:
-                    # detect_alerts expects the engine's LiveMatchState, but we
-                    # have the poller's LiveMatchState. Build a bridge object.
-                    engine_state = self._to_engine_state(state, snapshot)
-                    alerts = detect_alerts(snapshot, prev, engine_state)
-                except Exception as exc:
-                    log.warning("detect_alerts failed for fixture %d: %s", fid, exc)
-                    alerts = []
-
-                for alert in alerts:
-                    if alerts_channel:
-                        try:
-                            em = live_alert_embed(alert, snapshot, state)
-                            await alerts_channel.send(embed=em)
-                        except Exception as exc:
-                            log.warning("Failed to post alert for %d: %s", fid, exc)
-
-                self._prev_snapshots[fid] = snapshot
+            # --- Alert posting (already computed inside the poller) ---
+            if snapshot is not None:
+                snapshot_ts = str(getattr(snapshot, "timestamp", "") or "")
+                if snapshot_ts and snapshot_ts != self._last_alert_snapshot_ts.get(fid):
+                    alerts = list(getattr(snapshot, "alerts", []) or [])
+                    for alert in alerts:
+                        if alerts_channel:
+                            try:
+                                em = live_alert_embed(alert, snapshot, state)
+                                await alerts_channel.send(embed=em)
+                            except Exception as exc:
+                                log.warning("Failed to post alert for %d: %s", fid, exc)
+                    self._last_alert_snapshot_ts[fid] = snapshot_ts
 
         # --- Full time detection ---
         archived_ids = getattr(self.poller, "archived", set())
@@ -215,92 +195,6 @@ class LiveAlertsCog(commands.Cog):
         if ch is None:
             log.debug("Channel %d not found (bot may not have access)", channel_id)
         return ch
-
-    def _to_engine_state(self, poller_state: Any, snapshot: Any) -> Any:
-        """Bridge the poller's LiveMatchState to the engine's LiveMatchState.
-
-        The engine's detect_alerts expects live_state.LiveMatchState with flat
-        fields (goals_home, corners_home, etc.), while the poller uses
-        home_stats/away_stats sub-objects. This method creates a compatible
-        object.
-        """
-        try:
-            from live.live_state import LiveMatchState as EngineState
-        except ImportError:
-            # If we can't import the engine state, return the poller state
-            # and hope for the best (detect_alerts uses getattr defensively)
-            return poller_state
-
-        hs = getattr(poller_state, "home_stats", None)
-        as_ = getattr(poller_state, "away_stats", None)
-
-        kwargs = dict(
-            fixture_id=getattr(poller_state, "fixture_id", 0),
-            league=getattr(poller_state, "league", ""),
-            home_team=getattr(poller_state, "home_team", ""),
-            away_team=getattr(poller_state, "away_team", ""),
-            status=getattr(poller_state, "status", ""),
-            elapsed_min=float(getattr(poller_state, "elapsed_min", 0)),
-        )
-
-        if hs:
-            kwargs["goals_home"] = getattr(hs, "goals", 0)
-            kwargs["corners_home"] = getattr(hs, "corners", 0)
-            kwargs["cards_home"] = getattr(hs, "yellow_cards", 0) + getattr(hs, "red_cards", 0)
-            kwargs["sot_home"] = getattr(hs, "sot", 0)
-            kwargs["shots_home"] = getattr(hs, "shots", 0)
-            kwargs["fouls_home"] = getattr(hs, "fouls", 0)
-            kwargs["possession_home"] = getattr(hs, "possession", 50.0)
-            kwargs["red_cards_home"] = getattr(hs, "red_cards", 0)
-
-        if as_:
-            kwargs["goals_away"] = getattr(as_, "goals", 0)
-            kwargs["corners_away"] = getattr(as_, "corners", 0)
-            kwargs["cards_away"] = getattr(as_, "yellow_cards", 0) + getattr(as_, "red_cards", 0)
-            kwargs["sot_away"] = getattr(as_, "sot", 0)
-            kwargs["shots_away"] = getattr(as_, "shots", 0)
-            kwargs["fouls_away"] = getattr(as_, "fouls", 0)
-            kwargs["possession_away"] = getattr(as_, "possession", 50.0)
-            kwargs["red_cards_away"] = getattr(as_, "red_cards", 0)
-
-        # Transfer pre-match priors
-        kwargs["prior_goals"] = getattr(poller_state, "prior_total_goals", None)
-        kwargs["prior_corners"] = getattr(poller_state, "prior_total_corners", None)
-        kwargs["prior_cards"] = getattr(poller_state, "prior_total_cards", None)
-        kwargs["prior_sot"] = getattr(poller_state, "prior_total_sot", None)
-        kwargs["prior_goals_home"] = getattr(poller_state, "prior_home_goals", None)
-        kwargs["prior_goals_away"] = getattr(poller_state, "prior_away_goals", None)
-        kwargs["prior_btts_prob"] = getattr(poller_state, "prior_btts_prob", None)
-
-        # Transfer events (convert poller MatchEvent to engine MatchEvent)
-        poller_events = getattr(poller_state, "events", [])
-        try:
-            from live.live_state import MatchEvent as EngineEvent
-            engine_events = []
-            for ev in poller_events:
-                if hasattr(ev, "__dataclass_fields__"):
-                    # Poller's MatchEvent has team (name), engine's has team_side
-                    team_name = getattr(ev, "team", "")
-                    # Determine side from team name
-                    home_name = getattr(poller_state, "home_team", "")
-                    team_side = "home" if team_name == home_name else "away"
-                    engine_events.append(EngineEvent(
-                        minute=getattr(ev, "minute", 0),
-                        event_type=getattr(ev, "event_type", ""),
-                        team_side=team_side,
-                        player=getattr(ev, "player", "") or "",
-                        detail=getattr(ev, "detail", "") or "",
-                    ))
-            kwargs["events"] = engine_events
-        except ImportError:
-            pass
-
-        try:
-            return EngineState(**kwargs)
-        except Exception as exc:
-            log.debug("Failed to construct engine state: %s", exc)
-            return poller_state
-
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(LiveAlertsCog(bot))

@@ -453,6 +453,17 @@ SCORING_WEIGHTS = {
         "ideal_range_bonus": 0.20,
         "outside_ideal_bonus": 0.12,
     },
+    "moneyline_selection": {
+        # Winner prediction and value-side identification are separate.
+        "min_value_edge": 0.03,
+        "min_ev": 0.05,
+        "min_model_prob_home_away": 0.40,
+        "min_model_prob_draw": 0.32,
+        "longshot_odds_threshold": 4.50,
+        "longshot_min_model_prob": 0.20,
+        "longshot_extra_edge": 0.05,
+        "longshot_extra_ev": 0.10,
+    },
     "confidence": {
         "edge_high": 0.75,
         "edge_medium": 0.35,
@@ -3404,10 +3415,22 @@ def _share_from_scores(
     return _clamp(shrunk, floor, ceiling)
 
 
-def projected_total_sot(home: str, away: str, league: str, knockout_ctx: Optional[KnockoutContext] = None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+def projected_total_sot(
+    home: str,
+    away: str,
+    league: str,
+    knockout_ctx: Optional[KnockoutContext] = None,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
+) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """Delegate to core.projections — single source of truth."""
     from core.projections import projected_total_sot as _core_projected_total_sot
-    return _core_projected_total_sot(home, away, league, knockout_ctx=knockout_ctx)
+    return _core_projected_total_sot(
+        home, away, league,
+        knockout_ctx=knockout_ctx,
+        league_ctx=league_ctx,
+        fixture_date=fixture_date,
+    )
 
 
 def leg_label(leg: CandidateLeg) -> str:
@@ -4054,7 +4077,11 @@ def _leg_standalone_confidence(leg: CandidateLeg, league: str) -> Dict:
             proj_diff, _, _ = projected_goal_difference(leg.home_team, leg.away_team, league)
             if proj_diff is not None and leg.point is not None:
                 from math import erf, sqrt
-                margin_std = SCORING_WEIGHTS["prob"].get("margin_std_default", 1.25)
+                try:
+                    from core.projections import compute_margin_std as _cms
+                    margin_std = _cms(leg.home_team, leg.away_team, league)
+                except ImportError:
+                    margin_std = SCORING_WEIGHTS["prob"].get("margin_std_default", 1.25)
                 # Home covers if diff > -point
                 cover_z = (proj_diff + leg.point) / margin_std
                 model_p = 0.5 * (1.0 + erf(cover_z / sqrt(2.0)))
@@ -4423,10 +4450,22 @@ def is_player_prop_query(user_q: str) -> bool:
     return has_player_keyword or sot_hit
 
 
-def projected_total_corners(home: str, away: str, league: str, knockout_ctx: Optional[KnockoutContext] = None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+def projected_total_corners(
+    home: str,
+    away: str,
+    league: str,
+    knockout_ctx: Optional[KnockoutContext] = None,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
+) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """Delegate to core.projections — single source of truth."""
     from core.projections import projected_total_corners as _core_projected_total_corners
-    return _core_projected_total_corners(home, away, league, knockout_ctx=knockout_ctx)
+    return _core_projected_total_corners(
+        home, away, league,
+        knockout_ctx=knockout_ctx,
+        fixture_date=fixture_date,
+        league_ctx=league_ctx,
+    )
 
 
 def projected_total_cards_detail(
@@ -4436,11 +4475,19 @@ def projected_total_cards_detail(
     knockout_ctx: Optional[KnockoutContext] = None,
     ref_mod: Optional[RefereeModifier] = None,
     lineup_ctx=None,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
 ) -> Dict:
     """Delegate to core.projections — single source of truth."""
     from core.projections import projected_total_cards_detail as _core_ptcd
-    return _core_ptcd(home, away, league, knockout_ctx=knockout_ctx,
-                      ref_mod=ref_mod, lineup_ctx=lineup_ctx)
+    return _core_ptcd(
+        home, away, league,
+        knockout_ctx=knockout_ctx,
+        ref_mod=ref_mod,
+        lineup_ctx=lineup_ctx,
+        league_ctx=league_ctx,
+        fixture_date=fixture_date,
+    )
 
 
 def projected_total_cards(
@@ -4449,10 +4496,15 @@ def projected_total_cards(
     league: str,
     knockout_ctx: Optional[KnockoutContext] = None,
     ref_mod: Optional[RefereeModifier] = None,
+    lineup_ctx=None,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
 ) -> Tuple[Optional[float], Optional[float], Optional[float], RefereeModifier]:
     """Backward-compatible wrapper — returns (blended, season_total, recent_total, ref_mod)."""
     detail = projected_total_cards_detail(home, away, league,
-                                          knockout_ctx=knockout_ctx, ref_mod=ref_mod)
+                                          knockout_ctx=knockout_ctx, ref_mod=ref_mod,
+                                          lineup_ctx=lineup_ctx, league_ctx=league_ctx,
+                                          fixture_date=fixture_date)
     return (
         detail["total_cards"],
         detail["season_total"],
@@ -4464,20 +4516,41 @@ def projected_total_cards(
 # ---- Per-team blended projections (for team totals lines) ----
 
 def projected_team_corners(
-    team: str, opponent: str, league: str, is_home: bool,
+    team: str,
+    opponent: str,
+    league: str,
+    is_home: bool,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
 ) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """Delegate to core.projections — single source of truth."""
     from core.projections import projected_team_corners as _core_ptc
-    return _core_ptc(team, opponent, league, is_home)
+    return _core_ptc(
+        team, opponent, league, is_home,
+        league_ctx=league_ctx,
+        fixture_date=fixture_date,
+    )
 
 
 def projected_team_cards(
-    team: str, opponent: str, league: str, is_home: bool,
+    team: str,
+    opponent: str,
+    league: str,
+    is_home: bool,
     ref_mod: "RefereeModifier" = None,
+    lineup_ctx=None,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
 ) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """Delegate to core.projections — single source of truth."""
     from core.projections import projected_team_cards as _core_ptk
-    return _core_ptk(team, opponent, league, is_home, ref_mod=ref_mod)
+    return _core_ptk(
+        team, opponent, league, is_home,
+        ref_mod=ref_mod,
+        lineup_ctx=lineup_ctx,
+        league_ctx=league_ctx,
+        fixture_date=fixture_date,
+    )
 
 
 def _trend_adjustment(hr: Dict, ar: Dict, slope_key: str) -> float:
@@ -4496,10 +4569,22 @@ def _trend_adjustment(hr: Dict, ar: Dict, slope_key: str) -> float:
     return adj
 
 
-def projected_total_goals(home: str, away: str, league: str, knockout_ctx: Optional[KnockoutContext] = None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+def projected_total_goals(
+    home: str,
+    away: str,
+    league: str,
+    knockout_ctx: Optional[KnockoutContext] = None,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
+) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """Delegate to core.projections — single source of truth."""
     from core.projections import projected_total_goals as _core_ptg
-    return _core_ptg(home, away, league, knockout_ctx=knockout_ctx)
+    return _core_ptg(
+        home, away, league,
+        knockout_ctx=knockout_ctx,
+        league_ctx=league_ctx,
+        fixture_date=fixture_date,
+    )
 
 
 def projected_btts_prob(home: str, away: str, league: str) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[float]]:
@@ -4997,12 +5082,17 @@ def _best_model_only_line(projection: float,
     return best_side, best_line, best_prob
 
 
-def _best_model_only_spread(proj_diff: float, home: str, away: str) -> Tuple[str, str, float]:
+def _best_model_only_spread(proj_diff: float, home: str, away: str,
+                            league: str = "") -> Tuple[str, str, float]:
     """Pick the strongest (team, handicap_display, cover_prob) for model-only spread.
 
     Evaluates half-integer handicaps within ±1.0 of |proj_diff|.
     """
-    margin_std = SCORING_WEIGHTS["prob"]["margin_std_default"]
+    try:
+        from core.projections import compute_margin_std as _cms
+        margin_std = _cms(home, away, league) if league else SCORING_WEIGHTS["prob"]["margin_std_default"]
+    except ImportError:
+        margin_std = SCORING_WEIGHTS["prob"]["margin_std_default"]
     best_team = home if proj_diff >= 0 else away
     best_hc = "-0.5" if proj_diff >= 0 else "+0.5"
     best_prob = 0.5
@@ -5227,9 +5317,10 @@ def choose_best_moneyline_side(
     market_odds: List[Dict],
     home: str, away: str,
 ) -> Dict:
-    """Score home/draw/away and pick the best value moneyline bet."""
+    """Separate winner prediction from value identification and bet verdict."""
     model_probs = {"home": p_home, "draw": p_draw, "away": p_away}
     team_labels = {"home": home, "draw": "Draw", "away": away}
+    mw = SCORING_WEIGHTS.get("moneyline_selection", {})
 
     # Group odds by side, pick best (highest) per side
     best_per_side: Dict[str, Dict] = {}
@@ -5271,15 +5362,45 @@ def choose_best_moneyline_side(
             entry["ev"] = expected_value(model_probs[side], bps["odds"])
         candidates.append(entry)
 
-    # Pick best: model probability is the primary driver, value edge is secondary.
-    # A Draw at +2% edge should NOT beat a Home Win at 55% probability.
-    # Score = model_prob * 3.0 + value_edge_bonus - negative_ev_penalty
+    most_likely = max(candidates, key=lambda c: (c["model_prob"], c.get("value_edge") or 0.0))
+
+    value_candidates = [c for c in candidates if c["best_odds"] is not None]
+    best_value = None
+    if value_candidates:
+        best_value = max(
+            value_candidates,
+            key=lambda c: (
+                c.get("ev") if c.get("ev") is not None else float("-inf"),
+                c.get("value_edge") if c.get("value_edge") is not None else float("-inf"),
+                c["model_prob"],
+            ),
+        )
+
+    # Pick actual betting recommendation with explicit minimum bars.
     best = None
     best_score = -999.0
+    no_bet_reason = "No market prices available."
     for c in candidates:
         model_p = c["model_prob"]
         ve = c["value_edge"]
         ev_val = c["ev"]
+        odds = c["best_odds"]
+
+        if odds is None or ve is None or ev_val is None:
+            c["_eligible"] = False
+            continue
+
+        min_prob = mw.get(
+            "min_model_prob_draw" if c["side"] == "draw" else "min_model_prob_home_away",
+            0.40 if c["side"] != "draw" else 0.32,
+        )
+        min_edge = mw.get("min_value_edge", 0.03)
+        min_ev = mw.get("min_ev", 0.05)
+
+        if odds >= mw.get("longshot_odds_threshold", 4.5):
+            min_prob = max(min_prob, mw.get("longshot_min_model_prob", 0.20))
+            min_edge += mw.get("longshot_extra_edge", 0.05)
+            min_ev += mw.get("longshot_extra_ev", 0.10)
 
         # Model conviction is the dominant signal
         conviction = (model_p - 0.33) * 3.0  # 3-way: baseline is 33%, not 50%
@@ -5297,12 +5418,35 @@ def choose_best_moneyline_side(
             draw_penalty = 0.5
 
         score = conviction + edge_bonus - ev_penalty - draw_penalty
+        c["_eligible"] = bool(model_p >= min_prob and ve >= min_edge and ev_val >= min_ev)
+        c["_score"] = score
 
-        if score > best_score:
+        if c["_eligible"] and score > best_score:
             best_score = score
             best = c
 
-    return {"recommended": best, "all_sides": candidates}
+    if best is None:
+        if best_value is None:
+            no_bet_reason = "No priced side cleared the moneyline filters."
+        elif (best_value.get("best_odds") or 0.0) >= mw.get("longshot_odds_threshold", 4.5) and best_value["model_prob"] < mw.get("longshot_min_model_prob", 0.20):
+            no_bet_reason = "Longshot value is positive, but the win probability is too low."
+        elif best_value.get("ev") is not None and best_value["ev"] < mw.get("min_ev", 0.05):
+            no_bet_reason = "Best value side does not clear the minimum EV threshold."
+        elif best_value.get("value_edge") is not None and best_value["value_edge"] < mw.get("min_value_edge", 0.03):
+            no_bet_reason = "Best value side does not clear the minimum value-edge threshold."
+        elif best_value["side"] == "draw":
+            no_bet_reason = "Draw is priced attractively, but model conviction is not high enough."
+        else:
+            no_bet_reason = "No side clears the moneyline betting thresholds."
+
+    return {
+        "most_likely": most_likely,
+        "best_value": best_value,
+        "bet_recommendation": best,
+        "recommended": best,  # backward compatibility for older callers
+        "no_bet_reason": no_bet_reason if best is None else None,
+        "all_sides": candidates,
+    }
 
 
 def extract_spread_line_options(event: Dict) -> List[Dict]:
@@ -5344,13 +5488,18 @@ def _normal_cdf(x: float) -> float:
     return 0.5 * (1.0 + erf(x / sqrt(2.0)))
 
 
-def choose_best_spread_line(options: List[Dict], projected_diff: float, home_team: str) -> Optional[Dict]:
+def choose_best_spread_line(options: List[Dict], projected_diff: float, home_team: str,
+                            away_team: str = "", league: str = "") -> Optional[Dict]:
     """Score available spread lines and return the best one."""
     if not options:
         return None
     sw = SCORING_WEIGHTS["spreads_line"]
     pw = SCORING_WEIGHTS["prob"]
-    margin_std = pw["margin_std_default"]
+    try:
+        from core.projections import compute_margin_std as _cms
+        margin_std = _cms(home_team, away_team, league) if (home_team and away_team and league) else pw["margin_std_default"]
+    except ImportError:
+        margin_std = pw["margin_std_default"]
 
     filtered = [o for o in options if (o.get("odds") or 0) >= sw["min_odds_hard"]]
     if not filtered:
@@ -5883,7 +6032,7 @@ def render_spreads_line_answer(user_q: str, league: str, events: List[Dict]) -> 
             lines.append(f"  Reasoning: Recent 6-match xG diff {recent_diff:+.2f}.")
 
         options = extract_spread_line_options(ev)
-        best = choose_best_spread_line(options, proj_diff, home)
+        best = choose_best_spread_line(options, proj_diff, home, away_team=away, league=league)
         if best:
             team = best["team"]
             point = best["point"]
@@ -5908,7 +6057,7 @@ def render_spreads_line_answer(user_q: str, league: str, events: List[Dict]) -> 
             else:
                 lines.append(f"  Model edge {edge:+.2f} ({conf} confidence).")
         else:
-            sp_team, sp_hc, sp_cp = _best_model_only_spread(proj_diff, home, away)
+            sp_team, sp_hc, sp_cp = _best_model_only_spread(proj_diff, home, away, league=league)
             lines.append(
                 f"  Recommended: {sp_team} {sp_hc} "
                 f"(model-only, P(cover) = {sp_cp:.1%})."
@@ -6063,7 +6212,7 @@ def render_moneyline_answer(user_q: str, league: str, events: List[Dict]) -> str
 
         lines.append(f"\n=== {fixture} ===")
         lines.append(f"  Goal projections: {home} {h_proj:.2f} — {away} {a_proj:.2f}")
-        lines.append(f"  Model: P(Home) = {p_home:.1%}  P(Draw) = {p_draw:.1%}  P(Away) = {p_away:.1%}")
+        lines.append(f"  Model: {home} {p_home:.1%} | Draw {p_draw:.1%} | {away} {p_away:.1%}")
         if league in EUROPEAN_COMPETITIONS:
             for _t in (home, away):
                 _note = _euro_data_source_note(_t, league)
@@ -6085,7 +6234,9 @@ def render_moneyline_answer(user_q: str, league: str, events: List[Dict]) -> str
         # Odds
         market_odds = extract_moneyline_odds(ev)
         result = choose_best_moneyline_side(p_home, p_draw, p_away, market_odds, home, away)
-        rec = result["recommended"]
+        rec = result.get("bet_recommendation")
+        most_likely = result.get("most_likely") or {"team": home, "model_prob": p_home}
+        best_value = result.get("best_value")
 
         if market_odds:
             lines.append(f"  Odds comparison:")
@@ -6098,18 +6249,41 @@ def render_moneyline_answer(user_q: str, league: str, events: List[Dict]) -> str
                         f"@ {side_data['best_odds']:.2f} ({side_data['bookmaker']}){ve_str}{ev_str}"
                     )
 
-            conf = confidence_from_edge(
-                abs(rec["value_edge"] or 0), stat_group="goals",
-                model_prob=rec["model_prob"],
-                value_edge_pct=rec["value_edge"],
+            lines.append(
+                f"  Most likely winner: {most_likely['team']} ({most_likely['model_prob']:.1%})"
             )
-            lines.append(f"  >>> Recommended: {rec['team']} @ {rec['best_odds']:.2f} ({conf} confidence)")
+            if best_value and best_value.get("best_odds") is not None:
+                ve = best_value.get("value_edge")
+                ev_val = best_value.get("ev")
+                ve_str = f" | Edge: {ve:+.1%}" if ve is not None else ""
+                ev_str = f" | EV: {ev_val:+.3f}" if ev_val is not None else ""
+                lines.append(
+                    f"  Best value side: {best_value['team']} @ {best_value['best_odds']:.2f} "
+                    f"({best_value['bookmaker']}){ve_str}{ev_str}"
+                )
+
+            if rec:
+                conf = confidence_from_edge(
+                    abs(rec["value_edge"] or 0), stat_group="goals",
+                    model_prob=rec["model_prob"],
+                    value_edge_pct=rec["value_edge"],
+                )
+                lines.append(
+                    f"  Verdict: Recommended: {rec['team']} @ {rec['best_odds']:.2f} "
+                    f"({conf} confidence)"
+                )
+            else:
+                lines.append("  Verdict: No moneyline bet.")
+                reason = result.get("no_bet_reason")
+                if reason:
+                    lines.append(f"  Reason: {reason}")
         else:
             favored = max(
                 [("home", p_home, home), ("draw", p_draw, "Draw"), ("away", p_away, away)],
                 key=lambda x: x[1],
             )
-            lines.append(f"  >>> Recommended: {favored[2]} ({favored[1]:.1%}) — no moneyline odds in feed (model-only)")
+            lines.append(f"  Most likely winner: {favored[2]} ({favored[1]:.1%})")
+            lines.append("  Verdict: No moneyline odds in feed — model-only lean.")
 
     lines.append("\nMethod: Poisson/NegBin scoreline matrix from local KB → 3-way outcome probabilities.")
     return "\n".join(lines)
