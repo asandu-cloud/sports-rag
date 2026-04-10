@@ -197,6 +197,33 @@ def log_prediction(
     """
     try:
         conn = _get_db(db_path)
+        prediction_date = date.today().isoformat()
+        existing = conn.execute(
+            """SELECT id
+               FROM predictions
+               WHERE prediction_date = ?
+                 AND home_team = ?
+                 AND away_team = ?
+                 AND league = ?
+                 AND market = ?
+                 AND pick = ?
+                 AND source = ?
+               ORDER BY id DESC
+               LIMIT 1""",
+            (
+                prediction_date,
+                home_team,
+                away_team,
+                league,
+                market,
+                pick,
+                source,
+            ),
+        ).fetchone()
+        if existing:
+            conn.close()
+            return int(existing["id"])
+
         cur = conn.execute(
             """INSERT INTO predictions
                (fixture_id, home_team, away_team, league, kickoff,
@@ -209,7 +236,7 @@ def log_prediction(
                 market, pick, side, line, odds, bookmaker,
                 model_prob, implied_prob, value_edge, confidence,
                 projected_total, source, season,
-                date.today().isoformat(),
+                prediction_date,
             ),
         )
         conn.commit()

@@ -459,7 +459,10 @@ def _build_spread_prediction(
             return SpreadPrediction()
 
         options = extract_spread_line_options(event)
-        best = choose_best_spread_line(options, blended_diff, home) if options else None
+        best = (
+            choose_best_spread_line(options, blended_diff, home, away_team=away, league=league)
+            if options else None
+        )
 
         if best:
             model_prob = _safe(best.get("_model_prob"))

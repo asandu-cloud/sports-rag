@@ -37,12 +37,13 @@ except ImportError:
     )
 
 try:
-    from core.projections import compute_margin_std
+    from core.projections import compute_margin_std, projected_correct_score_probs
 except ImportError:
     try:
-        from projections import compute_margin_std
+        from projections import compute_margin_std, projected_correct_score_probs
     except ImportError:
         compute_margin_std = None  # type: ignore[assignment]
+        projected_correct_score_probs = None  # type: ignore[assignment]
 
 
 # ===================================================================
@@ -214,6 +215,343 @@ def _best_model_only_spread(proj_diff: float, home: str, away: str,
             best_team, best_hc, best_prob = away, f"+{handicap_abs:g}", p_away
 
     return best_team, best_hc, best_prob
+
+
+def _split_asian_handicap_line(point: float) -> List[float]:
+    """Split quarter-goal Asian handicaps into two half-stake sub-lines."""
+    point = round(float(point) * 4.0) / 4.0
+    sign = 1.0 if point >= 0 else -1.0
+    abs_point = abs(point)
+    whole = int(abs_point)
+    frac = round(abs_point - whole, 2)
+
+    if abs(frac - 0.25) < 0.01:
+        return [
+            sign * whole,
+            sign * (whole + 0.5),
+        ]
+    if abs(frac - 0.75) < 0.01:
+        return [
+            sign * (whole + 0.5),
+            sign * (whole + 1.0),
+        ]
+    return [point]
+
+
+def _single_line_outcome(team_margin: int, line: float) -> str:
+    adjusted = team_margin + line
+    if adjusted > 0:
+        return "win"
+    if adjusted < 0:
+        return "loss"
+    return "push"
+
+
+def _asian_outcome_profile(team_margin: int, line: float) -> str:
+    sub_lines = _split_asian_handicap_line(line)
+    outcomes = [_single_line_outcome(team_margin, sub_line) for sub_line in sub_lines]
+    if len(outcomes) == 1:
+        if outcomes[0] == "win":
+            return "full_win"
+        if outcomes[0] == "loss":
+            return "full_loss"
+        return "push"
+
+    win_count = outcomes.count("win")
+    loss_count = outcomes.count("loss")
+    push_count = outcomes.count("push")
+    if win_count == 2:
+        return "full_win"
+    if loss_count == 2:
+        return "full_loss"
+    if push_count == 2:
+        return "push"
+    if win_count == 1 and push_count == 1:
+        return "half_win"
+    if loss_count == 1 and push_count == 1:
+        return "half_loss"
+    # Quarter-line combinations cannot produce win+loss on valid Asian splits,
+    # but degrade safely if a malformed line slips through.
+    if win_count > loss_count:
+        return "half_win"
+    if loss_count > win_count:
+        return "half_loss"
+    return "push"
+
+
+def _empty_spread_profile() -> Dict[str, float]:
+    return {
+        "full_win": 0.0,
+        "half_win": 0.0,
+        "push": 0.0,
+        "half_loss": 0.0,
+        "full_loss": 0.0,
+    }
+
+
+def _score_matrix_spread_profile(home: str, away: str, league: str,
+                                 is_home: bool, line: float) -> Optional[Dict[str, float]]:
+    if projected_correct_score_probs is None or not (home and away and league):
+        return None
+
+    probs, _, _ = projected_correct_score_probs(home, away, league, max_goals=6)
+    if not probs:
+        return None
+
+    profile = _empty_spread_profile()
+    total_prob = 0.0
+    for (home_goals, away_goals), prob in probs.items():
+        total_prob += prob
+        team_margin = (home_goals - away_goals) if is_home else (away_goals - home_goals)
+        bucket = _asian_outcome_profile(team_margin, line)
+        profile[bucket] += prob
+
+    if total_prob <= 0:
+        return None
+
+    for key in profile:
+        profile[key] /= total_prob
+    return profile
+
+
+def _normal_spread_profile(mean_margin: float, margin_std: float,
+                           line: float) -> Dict[str, float]:
+    """Fallback Asian handicap profile from a continuity-corrected normal model."""
+    profile = _empty_spread_profile()
+    sub_lines = _split_asian_handicap_line(line)
+    weight = 1.0 / max(len(sub_lines), 1)
+
+    for sub_line in sub_lines:
+        if abs(sub_line * 2 - round(sub_line * 2)) < 1e-6 and abs(sub_line - round(sub_line)) > 1e-6:
+            threshold = -sub_line
+            win_prob = 1.0 - _normal_cdf((threshold - mean_margin) / margin_std)
+            loss_prob = 1.0 - win_prob
+            profile["full_win"] += win_prob * weight
+            profile["full_loss"] += loss_prob * weight
+            continue
+
+        push_margin = -sub_line
+        push_low = push_margin - 0.5
+        push_high = push_margin + 0.5
+        push_prob = max(0.0, _normal_cdf((push_high - mean_margin) / margin_std) -
+                        _normal_cdf((push_low - mean_margin) / margin_std))
+        win_prob = max(0.0, 1.0 - _normal_cdf((push_high - mean_margin) / margin_std))
+        loss_prob = max(0.0, 1.0 - win_prob - push_prob)
+        profile["full_win"] += win_prob * weight
+        profile["push"] += push_prob * weight
+        profile["full_loss"] += loss_prob * weight
+
+    if len(sub_lines) == 2:
+        half_win = min(profile["full_win"], profile["push"])
+        half_loss = min(profile["full_loss"], profile["push"])
+        if half_win > 0:
+            profile["full_win"] -= half_win
+            profile["push"] -= half_win
+            profile["half_win"] += half_win
+        if half_loss > 0:
+            profile["full_loss"] -= half_loss
+            profile["push"] -= half_loss
+            profile["half_loss"] += half_loss
+
+    return profile
+
+
+def _spread_expected_value(profile: Dict[str, float], odds: float) -> float:
+    win_profit = odds - 1.0
+    return (
+        profile["full_win"] * win_profit
+        + profile["half_win"] * (win_profit * 0.5)
+        - profile["half_loss"] * 0.5
+        - profile["full_loss"]
+    )
+
+
+def _equivalent_binary_prob(ev: float, odds: float) -> float:
+    if odds <= 0:
+        return 0.0
+    return max(0.0, min(1.0, (ev + 1.0) / odds))
+
+
+def select_best_spread_recommendation(
+    options: List[Dict],
+    projected_diff: float,
+    home_team: str,
+    away_team: str = "",
+    league: str = "",
+) -> Dict[str, Optional[Dict]]:
+    """Score handicap lines and decide whether any spread is actually bettable."""
+    if not options:
+        return {
+            "best_value": None,
+            "bet_recommendation": None,
+            "recommended": None,
+            "no_bet_reason": "No priced spread lines available.",
+            "all_lines": [],
+        }
+
+    sw = SCORING_WEIGHTS["spreads_line"]
+    pw = SCORING_WEIGHTS["prob"]
+    if compute_margin_std is not None and home_team and away_team and league:
+        margin_std = compute_margin_std(home_team, away_team, league)
+    else:
+        margin_std = pw["margin_std_default"]
+
+    filtered = [o for o in options if (o.get("odds") or 0) >= sw["min_odds_hard"]]
+    if not filtered:
+        return {
+            "best_value": None,
+            "bet_recommendation": None,
+            "recommended": None,
+            "no_bet_reason": "No spread line clears the minimum odds floor.",
+            "all_lines": [],
+        }
+
+    primary = [o for o in filtered if "alternate" not in str(o.get("market_key") or "").lower()]
+    options_use = primary if primary else filtered
+
+    _sp_lookup: Dict[Tuple, float] = {}
+    for _o in options_use:
+        _bm = str(_o.get("bookmaker") or "")
+        _tm = str(_o.get("team") or "").lower().strip()
+        _pt = _o.get("point") or 0
+        _od = _o.get("odds")
+        if _od is not None and _tm:
+            _sp_lookup[(_bm, _tm, _pt)] = float(_od)
+
+    _sp_fair_signed: Dict[Tuple, float] = {}
+    _sp_done: set = set()
+    for _o in options_use:
+        _bm = str(_o.get("bookmaker") or "")
+        _tm = str(_o.get("team") or "").lower().strip()
+        _pt = _o.get("point") or 0
+        _od = float(_o.get("odds") or 0)
+
+        key_self = (_bm, _pt, _tm)
+        if key_self in _sp_done:
+            continue
+
+        opp_entry = None
+        for (_bm2, _tm2, _pt2), _od2 in _sp_lookup.items():
+            if (
+                _bm2 == _bm
+                and _tm2 != _tm
+                and abs(abs(_pt2) - abs(_pt)) < 0.001
+                and ((_pt < 0 and _pt2 > 0) or (_pt > 0 and _pt2 < 0))
+            ):
+                opp_entry = (_tm2, _pt2, _od2)
+                break
+
+        if opp_entry:
+            _tm2, _pt2, _od2 = opp_entry
+            _fa, _fb = remove_vig_two_way(_od, _od2)
+            _sp_fair_signed[key_self] = _fa
+            _sp_fair_signed[(_bm, _pt2, _tm2)] = _fb
+            _sp_done.add(key_self)
+            _sp_done.add((_bm, _pt2, _tm2))
+
+    def _get_sp_fair(bookmaker: str, point: float, team: str) -> Optional[float]:
+        return _sp_fair_signed.get((bookmaker, point, team.lower().strip()))
+
+    best = None
+    best_score = None
+    best_value = None
+    best_value_score = None
+
+    for opt in options_use:
+        team = str(opt.get("team") or "")
+        point = safe_float(opt.get("point"))
+        odds = safe_float(opt.get("odds"))
+        if not team or point is None or odds is None:
+            continue
+
+        is_home = team.lower().strip() == home_team.lower().strip()
+        sign = 1.0 if is_home else -1.0
+        goal_edge = sign * projected_diff + point
+
+        matrix_profile = _score_matrix_spread_profile(home_team, away_team, league, is_home, point)
+        profile = matrix_profile or _normal_spread_profile(sign * projected_diff, margin_std, point)
+        ev = _spread_expected_value(profile, odds)
+        model_p = _equivalent_binary_prob(ev, odds)
+        implied_p = _get_sp_fair(str(opt.get("bookmaker") or ""), point, team) or implied_prob(odds)
+        val_edge = value_edge(model_p, implied_p)
+
+        edge_term = goal_edge * sw["edge_weight"]
+        proximity_term = abs(point) * sw["proximity_penalty"]
+        if odds < sw["min_odds_preferred"]:
+            odds_term = -sw["short_price_penalty"] * (sw["min_odds_preferred"] - odds)
+        elif sw["ideal_odds_low"] <= odds <= sw["ideal_odds_high"]:
+            odds_term = sw["ideal_range_bonus"] * (odds - 1.0)
+        else:
+            odds_term = sw["outside_ideal_bonus"] * (odds - 1.0)
+
+        prob_term = val_edge * pw["value_edge_weight"]
+        ev_term = ev * sw.get("positive_ev_weight", 2.2) if ev > 0 else 0.0
+        ev_penalty = abs(ev) * pw["negative_ev_penalty"] if ev < 0 else 0.0
+        model_prob_bonus = (model_p - sw.get("min_model_prob", 0.56)) * pw["model_prob_weight"]
+
+        min_model_prob = sw.get("min_model_prob", 0.56)
+        min_edge = sw.get("min_value_edge", 0.015)
+        min_ev = sw.get("min_ev", 0.015)
+        if odds < sw["min_odds_preferred"]:
+            min_model_prob += sw.get("short_price_extra_model_prob", 0.02)
+            min_ev += sw.get("short_price_extra_ev", 0.01)
+
+        eligible = bool(
+            model_p >= min_model_prob
+            and val_edge >= min_edge
+            and ev >= min_ev
+            and abs(goal_edge) >= sw.get("min_goal_edge", 0.18)
+        )
+
+        score = (
+            model_prob_bonus
+            + prob_term
+            + ev_term
+            + odds_term
+            + edge_term * 0.35
+            - proximity_term * 0.30
+            - ev_penalty
+        )
+
+        opt["_model_prob"] = model_p
+        opt["_implied_prob"] = implied_p
+        opt["_value_edge"] = val_edge
+        opt["_ev"] = ev
+        opt["_goal_edge"] = goal_edge
+        opt["_push_prob"] = profile["push"]
+        opt["_positive_return_prob"] = profile["full_win"] + profile["half_win"]
+        opt["_settlement_profile"] = profile
+        opt["_eligible"] = eligible
+        opt["_score"] = score
+
+        if best_value is None or (ev, model_p) > best_value_score:
+            best_value = opt
+            best_value_score = (ev, model_p)
+
+        if eligible and (best is None or score > best_score):
+            best = opt
+            best_score = score
+
+    no_bet_reason = None
+    if best is None:
+        if best_value is None:
+            no_bet_reason = "No valid spread lines remained after filtering."
+        elif best_value.get("_ev", -1.0) < sw.get("min_ev", 0.015):
+            no_bet_reason = "Best spread line does not clear the minimum EV threshold."
+        elif best_value.get("_value_edge", -1.0) < sw.get("min_value_edge", 0.015):
+            no_bet_reason = "Best spread line does not clear the minimum value-edge threshold."
+        elif best_value.get("_model_prob", 0.0) < sw.get("min_model_prob", 0.56):
+            no_bet_reason = "Best spread line is priced attractively, but cover conviction is too thin."
+        else:
+            no_bet_reason = "No spread line clears the betting thresholds."
+
+    return {
+        "best_value": best_value,
+        "bet_recommendation": best,
+        "recommended": best,
+        "no_bet_reason": no_bet_reason if best is None else None,
+        "all_lines": options_use,
+    }
 
 
 # ===================================================================
@@ -485,120 +823,11 @@ def choose_best_moneyline_side(
 
 def choose_best_spread_line(options: List[Dict], projected_diff: float, home_team: str,
                             away_team: str = "", league: str = "") -> Optional[Dict]:
-    """Score available spread lines and return the best one."""
-    if not options:
-        return None
-    sw = SCORING_WEIGHTS["spreads_line"]
-    pw = SCORING_WEIGHTS["prob"]
-    if compute_margin_std is not None and home_team and away_team and league:
-        margin_std = compute_margin_std(home_team, away_team, league)
-    else:
-        margin_std = pw["margin_std_default"]
-
-    filtered = [o for o in options if (o.get("odds") or 0) >= sw["min_odds_hard"]]
-    if not filtered:
-        return None
-
-    primary = [o for o in filtered if "alternate" not in str(o.get("market_key") or "").lower()]
-    options_use = primary if primary else filtered
-
-    # Pre-compute vig-free implied probabilities for spread pairs.
-    # Each option has (team, signed_point, odds). The matching pair for
-    # "TeamA at point X" is "TeamB at point -X" from the same bookmaker.
-    # Build a lookup: (bookmaker, team, signed_point) -> odds
-    _sp_lookup: Dict[Tuple, float] = {}
-    for _o in options_use:
-        _bm = str(_o.get("bookmaker") or "")
-        _tm = str(_o.get("team") or "").lower().strip()
-        _pt = _o.get("point") or 0
-        _od = _o.get("odds")
-        if _od is not None and _tm:
-            _sp_lookup[(_bm, _tm, _pt)] = float(_od)
-
-    # Build fair implied probabilities by pairing each option with its
-    # counterpart: same bookmaker, same abs(point), opposite sign, different team.
-    # Key: (bookmaker, signed_point, team) -> fair_implied_probability
-    _sp_fair_signed: Dict[Tuple, float] = {}
-    _sp_done: set = set()
-    for _o in options_use:
-        _bm = str(_o.get("bookmaker") or "")
-        _tm = str(_o.get("team") or "").lower().strip()
-        _pt = _o.get("point") or 0
-        _od = float(_o.get("odds") or 0)
-
-        key_self = (_bm, _pt, _tm)
-        if key_self in _sp_done:
-            continue
-
-        opp_entry = None
-        for (_bm2, _tm2, _pt2), _od2 in _sp_lookup.items():
-            if (_bm2 == _bm
-                    and _tm2 != _tm
-                    and abs(abs(_pt2) - abs(_pt)) < 0.001
-                    and ((_pt < 0 and _pt2 > 0) or (_pt > 0 and _pt2 < 0))):
-                opp_entry = (_tm2, _pt2, _od2)
-                break
-
-        if opp_entry:
-            _tm2, _pt2, _od2 = opp_entry
-            _fa, _fb = remove_vig_two_way(_od, _od2)
-            _sp_fair_signed[key_self] = _fa
-            _sp_fair_signed[(_bm, _pt2, _tm2)] = _fb
-            _sp_done.add(key_self)
-            _sp_done.add((_bm, _pt2, _tm2))
-
-    # Wrapper to look up fair implied by signed point
-    def _get_sp_fair(bookmaker: str, point: float, team: str) -> Optional[float]:
-        return _sp_fair_signed.get((bookmaker, point, team.lower().strip()))
-
-    _sp_fair = {}  # legacy compat: not used in lookup below
-
-    best, best_score = None, None
-    for opt in options_use:
-        team = str(opt.get("team") or "")
-        point = opt["point"]
-        odds = opt["odds"]
-
-        is_home = team.lower().strip() == home_team.lower().strip()
-        sign = 1.0 if is_home else -1.0
-        edge = sign * projected_diff + point
-
-        edge_term = edge * sw["edge_weight"]
-        dist = abs(point)
-        proximity_term = dist * sw["proximity_penalty"]
-
-        if odds < sw["min_odds_preferred"]:
-            odds_term = -sw["short_price_penalty"] * (sw["min_odds_preferred"] - odds)
-        elif sw["ideal_odds_low"] <= odds <= sw["ideal_odds_high"]:
-            odds_term = sw["ideal_range_bonus"] * (odds - 1.0)
-        else:
-            odds_term = sw["outside_ideal_bonus"] * (odds - 1.0)
-
-        # --- Spread cover probability (normal approximation of goal difference, vig-adjusted) ---
-        margin_mean = sign * projected_diff
-        cover_threshold = -point
-        model_p = 1.0 - _normal_cdf((cover_threshold - margin_mean) / margin_std)
-        implied_p = _get_sp_fair(str(opt.get("bookmaker") or ""), point, team) or implied_prob(odds)
-        val_edge = value_edge(model_p, implied_p)
-        ev = expected_value(model_p, odds)
-
-        prob_term = val_edge * pw["value_edge_weight"]
-        ev_penalty = abs(ev) * pw["negative_ev_penalty"] if ev < 0 else 0.0
-        # Reward higher absolute model probability — prevents thin-edge recs
-        model_prob_bonus = (model_p - pw["min_model_prob"]) * pw["model_prob_weight"]
-
-        score = (edge_term - proximity_term + odds_term + prob_term
-                 - ev_penalty + model_prob_bonus)
-
-        opt["_model_prob"] = model_p
-        opt["_implied_prob"] = implied_p
-        opt["_value_edge"] = val_edge
-        opt["_ev"] = ev
-
-        if best is None or score > best_score:
-            best = opt
-            best_score = score
-    return best
+    """Backward-compatible wrapper returning the actual recommended spread line."""
+    result = select_best_spread_recommendation(
+        options, projected_diff, home_team, away_team=away_team, league=league,
+    )
+    return result.get("bet_recommendation")
 
 
 # ===================================================================

@@ -253,6 +253,13 @@ SCORING_WEIGHTS = {
         "short_price_penalty": 1.5,
         "ideal_range_bonus": 0.20,
         "outside_ideal_bonus": 0.12,
+        "positive_ev_weight": 2.2,
+        "min_model_prob": 0.56,
+        "min_value_edge": 0.015,
+        "min_ev": 0.015,
+        "min_goal_edge": 0.18,
+        "short_price_extra_model_prob": 0.02,
+        "short_price_extra_ev": 0.01,
     },
     "moneyline_selection": {
         # Winner prediction and value-side identification are separate.

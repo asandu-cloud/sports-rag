@@ -46,17 +46,28 @@ except ImportError:
             def extract_spread_line_options(*a, **kw): return []
 
 try:
-    from core.line_selection import choose_best_spread_line, confidence_from_edge, _best_model_only_spread
+    from core.line_selection import (
+        choose_best_spread_line, confidence_from_edge, _best_model_only_spread,
+        select_best_spread_recommendation,
+    )
 except ImportError:
     try:
-        from Scripts.rag_ingest.core.line_selection import choose_best_spread_line, confidence_from_edge, _best_model_only_spread
+        from Scripts.rag_ingest.core.line_selection import (
+            choose_best_spread_line, confidence_from_edge, _best_model_only_spread,
+            select_best_spread_recommendation,
+        )
     except ImportError:
         try:
-            from rag_cli_v2 import choose_best_spread_line, confidence_from_edge, _best_model_only_spread
+            from rag_cli_v2 import (
+                choose_best_spread_line, confidence_from_edge, _best_model_only_spread,
+                select_best_spread_recommendation,
+            )
         except ImportError:
             def choose_best_spread_line(*a, **kw): return None
             def confidence_from_edge(*a, **kw): return "low"
             def _best_model_only_spread(*a, **kw): return ("Home", "+0.5", 0.50)
+            def select_best_spread_recommendation(*a, **kw):
+                return {"bet_recommendation": None, "best_value": None, "no_bet_reason": "Spread selector unavailable."}
 
 try:
     from rendering.evidence import _euro_data_source_note
@@ -103,7 +114,10 @@ def render_spreads_line_answer(user_q: str, league: str, events: List[Dict]) -> 
             lines.append(f"  Reasoning: Recent 6-match xG diff {recent_diff:+.2f}.")
 
         options = extract_spread_line_options(ev)
-        best = choose_best_spread_line(options, proj_diff, home, away_team=away, league=league)
+        spread_result = select_best_spread_recommendation(
+            options, proj_diff, home, away_team=away, league=league,
+        )
+        best = spread_result.get("bet_recommendation")
         if best:
             team = best["team"]
             point = best["point"]
@@ -123,16 +137,31 @@ def render_spreads_line_answer(user_q: str, league: str, events: List[Dict]) -> 
                 lines.append(
                     f"  Model: P({team} covers {point:+g}) = {model_p:.1%} | Fair implied: {implied_p:.1%} | Value edge: {val_edge:+.1%}"
                 )
+            if best.get("_push_prob"):
+                lines.append(f"  Push probability: {best['_push_prob']:.1%}.")
             if ev is not None:
                 lines.append(f"  Expected value: {ev:+.3f} per unit staked ({conf} confidence).")
             else:
                 lines.append(f"  Model edge {edge:+.2f} ({conf} confidence).")
         else:
+            best_value = spread_result.get("best_value")
+            if best_value:
+                bv_team = best_value["team"]
+                bv_point = best_value["point"]
+                bv_odds = best_value["odds"]
+                lines.append(
+                    f"  Best value line: {bv_team} {bv_point:+g} @ {bv_odds:.2f} ({best_value['bookmaker']}, {best_value['market_key']})."
+                )
+                if best_value.get("_model_prob") is not None and best_value.get("_value_edge") is not None:
+                    lines.append(
+                        f"  Pricing check: {best_value['_model_prob']:.1%} equivalent cover | Value edge: {best_value['_value_edge']:+.1%} | EV: {best_value.get('_ev', 0.0):+.3f}"
+                    )
+            lines.append(f"  Verdict: No spread bet — {spread_result.get('no_bet_reason') or 'No spread line clears the betting thresholds.'}")
             sp_team, sp_hc, sp_cp = _best_model_only_spread(proj_diff, home, away, league=league)
             lines.append(
-                f"  Recommended: {sp_team} {sp_hc} "
+                f"  Model lean: {sp_team} {sp_hc} "
                 f"(model-only, P(cover) = {sp_cp:.1%})."
             )
 
-    lines.append("Method: normal probability model for goal-difference from local KB + available spread lines.")
+    lines.append("Method: scoreline matrix + Asian handicap settlement model from local KB projections and available spread lines.")
     return "\n".join(lines)

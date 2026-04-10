@@ -1265,6 +1265,8 @@ def parse_fixture_picks(text: str) -> Dict[str, str]:
     result: Dict[str, str] = {}
 
     for block in blocks:
+        if "no spread bet" in block.lower():
+            continue
         fixture = _parse_fixture_name(block)
         pick = _extract_pick(block)
         odds = _extract_odds(block)
@@ -1435,6 +1437,18 @@ def rag_output_to_embeds(
                 extra.append(("\U0001f4a1 Value Side", best_value, False))
             if verdict:
                 extra.append(("\U0001f6d1 Verdict", verdict, False))
+
+        if ("spread" in title_lower or "handicap" in title_lower) and verdict and "no spread bet" in verdict.lower():
+            pick = "No spread bet"
+            odds = None
+            confidence = "\u2014"
+            extra.append(("\U0001f6d1 Verdict", verdict, False))
+            spread_best_value = _extract_labeled_line(block, "Best value line")
+            if spread_best_value:
+                extra.append(("\U0001f4a1 Best Value", spread_best_value, False))
+            spread_lean = _extract_labeled_line(block, "Model lean")
+            if spread_lean:
+                extra.append(("\U0001f9ed Model Lean", spread_lean, False))
 
         # Special handling for correct score
         scores = _extract_correct_scores(block)

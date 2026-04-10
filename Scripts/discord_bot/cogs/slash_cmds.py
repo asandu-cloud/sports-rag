@@ -272,8 +272,14 @@ def _build_match_analysis_sync(home: str, away: str, league: str,
             try:
                 sp_options = rag.extract_spread_line_options(event)
                 if sp_options:
-                    best = rag.choose_best_spread_line(sp_options,
-                                                       analysis["spread"]["projected_diff"], home)
+                    spread_result = rag.select_best_spread_recommendation(
+                        sp_options,
+                        analysis["spread"]["projected_diff"],
+                        home,
+                        away_team=away,
+                        league=league,
+                    )
+                    best = spread_result.get("bet_recommendation")
                     if best:
                         analysis["spread"]["best_line"] = {
                             "team": best.get("team"), "point": best.get("point"),
@@ -281,6 +287,16 @@ def _build_match_analysis_sync(home: str, away: str, league: str,
                             "model_prob": _safe_round(best.get("_model_prob"), 3),
                             "value_edge": _safe_round(best.get("_value_edge"), 3),
                         }
+                    best_value = spread_result.get("best_value")
+                    if best_value:
+                        analysis["spread"]["best_value"] = {
+                            "team": best_value.get("team"), "point": best_value.get("point"),
+                            "odds": best_value.get("odds"), "bookmaker": best_value.get("bookmaker"),
+                            "model_prob": _safe_round(best_value.get("_model_prob"), 3),
+                            "value_edge": _safe_round(best_value.get("_value_edge"), 3),
+                        }
+                    if spread_result.get("no_bet_reason"):
+                        analysis["spread"]["no_bet_reason"] = spread_result.get("no_bet_reason")
             except Exception:
                 pass
 
