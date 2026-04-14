@@ -94,6 +94,11 @@ SCORING_WEIGHTS = {
         "outside_ideal_bonus": 0.10,
         "far_threshold": 3.5,
         "far_penalty": 1.3,
+        "min_model_prob": 0.56,
+        "min_value_edge": 0.02,
+        "min_ev": 0.02,
+        "short_price_extra_model_prob": 0.02,
+        "short_price_extra_ev": 0.01,
     },
     "projection": {
         "corners_own": 0.6,
@@ -271,6 +276,13 @@ SCORING_WEIGHTS = {
         "longshot_min_model_prob": 0.20,
         "longshot_extra_edge": 0.05,
         "longshot_extra_ev": 0.10,
+    },
+    "btts_selection": {
+        "min_model_prob": 0.56,
+        "min_value_edge": 0.02,
+        "min_ev": 0.02,
+        "strong_conviction_threshold": 0.60,
+        "against_model_penalty_weight": 6.0,
     },
     "confidence": {
         "edge_high": 0.75,

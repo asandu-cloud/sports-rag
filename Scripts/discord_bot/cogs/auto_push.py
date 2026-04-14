@@ -21,6 +21,7 @@ from discord.ext import commands, tasks
 
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[2] / "rag_ingest"))
 import rag_cli_v2 as rag  # noqa: E402  (kept for text-based workflows: parlays, player props)
+from rendering.market_dispatch import render_market_answer_sync  # noqa: E402
 
 # Core modules for direct structured access (no stdout capture needed)
 from core.events import fetch_events, filter_events_by_exact_date  # noqa: E402
@@ -147,6 +148,12 @@ async def _run_rag(prompt: str, league: str) -> str:
     """Async wrapper — runs RAG in thread pool so event loop stays free."""
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(_rag_executor, _run_rag_sync, prompt, league)
+
+
+async def _render_market_answer(league: str, market: str, target_date: date) -> str:
+    """Run deterministic market rendering in the shared executor."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_rag_executor, render_market_answer_sync, league, market, target_date)
 
 
 async def _build_structured_parlay(request):
@@ -303,9 +310,25 @@ async def _post_market_for_leagues(
     date_str: str,
 ):
     """Post a market analysis to a channel for each league that has fixtures."""
+    market_map = {
+        "goals": "totals",
+        "totals": "totals",
+        "corners": "corners",
+        "cards": "cards",
+        "shots on target": "sot",
+        "sot": "sot",
+        "btts": "btts",
+        "moneyline": "moneyline",
+        "handicap": "spreads",
+        "spread": "spreads",
+        "correct score": "correctscore",
+        "interval": "intervals",
+        "team line": "teamlines",
+    }
+    prompt_key = prompt_template.lower()
+    market = next((value for key, value in market_map.items() if key in prompt_key), "totals")
     for league in leagues:
-        prompt = prompt_template.format(league=league, date=date_str)
-        text = await _run_rag(prompt, league)
+        text = await _render_market_answer(league, market, date.today())
         if not _is_valid(text):
             continue
         embeds, files = rag_output_to_embeds(
@@ -331,30 +354,18 @@ async def _post_consolidated_predictions(
     with all markets as compact lines.
     """
     _MARKET_QUERIES = {
-        "moneyline": (
-            "For every {league} game on {date}, show me moneyline "
-            "probabilities and the best value pick."
-        ),
-        "btts": (
-            "For every {league} game on {date}, should I take "
-            "BTTS Yes or No?"
-        ),
-        "spreads": (
-            "For every {league} game on {date}, recommend a handicap line."
-        ),
-        "sot": (
-            "For every {league} game on {date}, recommend a shots on target "
-            "over/under line."
-        ),
+        "moneyline": "moneyline",
+        "btts": "btts",
+        "spreads": "spreads",
+        "sot": "sot",
     }
 
     for league in leagues:
         # Run all 4 market queries, parse picks per fixture
         fixture_data: dict = {}  # {fixture: {market: compact_line}}
 
-        for market_key, prompt_tpl in _MARKET_QUERIES.items():
-            prompt = prompt_tpl.format(league=league, date=date_str)
-            text = await _run_rag(prompt, league)
+        for market_key, render_key in _MARKET_QUERIES.items():
+            text = await _render_market_answer(league, render_key, date.today())
             if not _is_valid(text):
                 continue
             picks = parse_fixture_picks(text)
@@ -384,11 +395,7 @@ async def _post_consolidated_scores(
         fixture_data: dict = {}
 
         # Correct score
-        text = await _run_rag(
-            f"For every {league} game on {date_str}, predict the most "
-            "likely correct score.",
-            league,
-        )
+        text = await _render_market_answer(league, "correctscore", date.today())
         if _is_valid(text):
             for fixture, cs_str in parse_correct_score_picks(text).items():
                 if fixture not in fixture_data:
@@ -396,11 +403,7 @@ async def _post_consolidated_scores(
                 fixture_data[fixture]["correct_score"] = cs_str
 
         # Goal intervals
-        text = await _run_rag(
-            f"For every {league} game on {date_str}, show me goal "
-            "interval probabilities.",
-            league,
-        )
+        text = await _render_market_answer(league, "intervals", date.today())
         if _is_valid(text):
             for fixture, iv_str in parse_interval_picks(text).items():
                 if fixture not in fixture_data:
@@ -1721,13 +1724,13 @@ class AutoPush(commands.Cog):
 
         # Market queries — we run all markets, collect all picks, rank, take top 5-8
         _ALL_QUERIES = {
-            "moneyline": ("For every {league} game on {date}, show me moneyline probabilities and the best value pick.", "\U0001f3c6"),
-            "btts": ("For every {league} game on {date}, should I take BTTS Yes or No?", "\U0001f91d"),
-            "spreads": ("For every {league} game on {date}, recommend a handicap line.", "\U0001f4cf"),
-            "sot": ("For every {league} game on {date}, recommend a shots on target over/under line.", "\U0001f3af"),
-            "goals": ("Give me the over/under goals line I should take for each {league} game on {date}.", "\u26bd"),
-            "corners": ("For every {league} game on {date}, recommend a corner totals line.", "\U0001f4d0"),
-            "cards": ("For every {league} game on {date}, recommend a cards over/under line.", "\U0001f7e8"),
+            "moneyline": ("moneyline", "\U0001f3c6"),
+            "btts": ("btts", "\U0001f91d"),
+            "spreads": ("spreads", "\U0001f4cf"),
+            "sot": ("sot", "\U0001f3af"),
+            "goals": ("totals", "\u26bd"),
+            "corners": ("corners", "\U0001f4d0"),
+            "cards": ("cards", "\U0001f7e8"),
         }
 
         _MARKET_LABELS = {
@@ -1740,14 +1743,15 @@ class AutoPush(commands.Cog):
             # Collect ALL picks: (fixture, market, pick_text, odds, model_p, edge, conf, emoji)
             all_picks = []
 
-            for market_key, (prompt_tpl, emoji) in _ALL_QUERIES.items():
-                prompt = prompt_tpl.format(league=league, date=date_str)
-                text = await _run_rag(prompt, league)
+            for market_key, (render_key, emoji) in _ALL_QUERIES.items():
+                text = await _render_market_answer(league, render_key, date.today())
                 if not _is_valid(text):
                     continue
                 picks = parse_fixture_picks(text)
                 for fixture, line in picks.items():
                     if not line:
+                        continue
+                    if "no bet" in line.lower():
                         continue
                     # Parse components from the compact line
                     import re
@@ -1866,13 +1870,13 @@ class AutoPush(commands.Cog):
             return
 
         _ALL_QUERIES = {
-            "moneyline": ("For every {league} game on {date}, show me moneyline probabilities and the best value pick.", "\U0001f3c6"),
-            "btts": ("For every {league} game on {date}, should I take BTTS Yes or No?", "\U0001f91d"),
-            "spreads": ("For every {league} game on {date}, recommend a handicap line.", "\U0001f4cf"),
-            "sot": ("For every {league} game on {date}, recommend a shots on target over/under line.", "\U0001f3af"),
-            "goals": ("Give me the over/under goals line I should take for each {league} game on {date}.", "\u26bd"),
-            "corners": ("For every {league} game on {date}, recommend a corner totals line.", "\U0001f4d0"),
-            "cards": ("For every {league} game on {date}, recommend a cards over/under line.", "\U0001f7e8"),
+            "moneyline": ("moneyline", "\U0001f3c6"),
+            "btts": ("btts", "\U0001f91d"),
+            "spreads": ("spreads", "\U0001f4cf"),
+            "sot": ("sot", "\U0001f3af"),
+            "goals": ("totals", "\u26bd"),
+            "corners": ("corners", "\U0001f4d0"),
+            "cards": ("cards", "\U0001f7e8"),
         }
 
         _MARKET_LABELS = {
@@ -1889,14 +1893,15 @@ class AutoPush(commands.Cog):
         for league in leagues:
             log.info("Collecting high-risk picks for %s...", league)
 
-            for market_key, (prompt_tpl, emoji) in _ALL_QUERIES.items():
-                prompt = prompt_tpl.format(league=league, date=date_str)
-                text = await _run_rag(prompt, league)
+            for market_key, (render_key, emoji) in _ALL_QUERIES.items():
+                text = await _render_market_answer(league, render_key, date.today())
                 if not _is_valid(text):
                     continue
                 picks = parse_fixture_picks(text)
                 for fixture, line in picks.items():
                     if not line:
+                        continue
+                    if "no bet" in line.lower():
                         continue
                     import re
                     pick_m = re.search(r"\*\*(.+?)\*\*", line)

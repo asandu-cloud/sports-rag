@@ -75,17 +75,35 @@ except ImportError:
             def extract_goal_interval_odds(*a, **kw): return {}
 
 try:
-    from core.line_selection import choose_best_total_line, confidence_from_edge, _best_model_only_line
+    from core.line_selection import (
+        choose_best_total_line, confidence_from_edge, _best_model_only_line,
+        select_best_total_recommendation,
+    )
 except ImportError:
     try:
-        from Scripts.rag_ingest.core.line_selection import choose_best_total_line, confidence_from_edge, _best_model_only_line
+        from Scripts.rag_ingest.core.line_selection import (
+            choose_best_total_line, confidence_from_edge, _best_model_only_line,
+            select_best_total_recommendation,
+        )
     except ImportError:
         try:
             from rag_cli_v2 import choose_best_total_line, confidence_from_edge, _best_model_only_line
+            def select_best_total_recommendation(options, projection_total, combined_var=None):
+                best = choose_best_total_line(options, projection_total, combined_var)
+                return {
+                    "best_value": best,
+                    "bet_recommendation": best,
+                    "recommended": best,
+                    "no_bet_reason": None if best else "No totals line available.",
+                    "all_lines": options,
+                }
         except ImportError:
             def choose_best_total_line(*a, **kw): return None
             def confidence_from_edge(*a, **kw): return "low"
             def _best_model_only_line(*a, **kw): return ("Over", 2.5, 0.50)
+            def select_best_total_recommendation(*a, **kw):
+                return {"best_value": None, "bet_recommendation": None, "recommended": None,
+                        "no_bet_reason": "Totals selector unavailable.", "all_lines": []}
 
 try:
     from core.team_resolution import get_blended_variance, requested_stat_group
@@ -288,7 +306,8 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
         combined_var = (h_v + a_v) if (h_v is not None and a_v is not None) else None
 
         options = extract_total_line_options(ev, group)
-        best = choose_best_total_line(options, proj_total, combined_var)
+        total_result = select_best_total_recommendation(options, proj_total, combined_var)
+        best = total_result.get("bet_recommendation")
         lines.append(f"- {fixture}: projected total {proj_total:.2f}.")
         if _stat_confidence == "low" and group != "cards":  # cards already has its own warning
             lines.append(f"  Note: low confidence — limited data for one or both teams.")
@@ -374,6 +393,10 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
                 lines.append(f"  Expected value: {ev:+.3f} per unit staked ({conf} confidence).")
             else:
                 lines.append(f"  Model edge {edge:+.2f} ({conf} confidence).")
+        elif options:
+            reason = total_result.get("no_bet_reason") or "No totals line clears the betting thresholds."
+            lines.append(f"  Verdict: No totals bet.")
+            lines.append(f"  Reason: {reason}")
         else:
             side, anchor, mp = _best_model_only_line(proj_total, combined_var)
             lines.append(

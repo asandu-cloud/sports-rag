@@ -1265,7 +1265,8 @@ def parse_fixture_picks(text: str) -> Dict[str, str]:
     result: Dict[str, str] = {}
 
     for block in blocks:
-        if "no spread bet" in block.lower():
+        verdict = _extract_labeled_line(block, "Verdict") or ""
+        if verdict.lower().startswith("no ") or "no spread bet" in block.lower():
             continue
         fixture = _parse_fixture_name(block)
         pick = _extract_pick(block)
@@ -1275,8 +1276,6 @@ def parse_fixture_picks(text: str) -> Dict[str, str]:
         projection = _extract_projection(block)
         most_likely = _extract_labeled_line(block, "Most likely winner")
         best_value = _extract_labeled_line(block, "Best value side")
-        verdict = _extract_labeled_line(block, "Verdict") or ""
-
         if most_likely:
             likely_team, likely_prob = _split_name_prob(most_likely)
             pick = likely_team or pick

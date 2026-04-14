@@ -48,17 +48,35 @@ except ImportError:
             def extract_team_total_line_options(*a, **kw): return []
 
 try:
-    from core.line_selection import choose_best_total_line, confidence_from_edge, _best_model_only_line
+    from core.line_selection import (
+        choose_best_total_line, confidence_from_edge, _best_model_only_line,
+        select_best_total_recommendation,
+    )
 except ImportError:
     try:
-        from Scripts.rag_ingest.core.line_selection import choose_best_total_line, confidence_from_edge, _best_model_only_line
+        from Scripts.rag_ingest.core.line_selection import (
+            choose_best_total_line, confidence_from_edge, _best_model_only_line,
+            select_best_total_recommendation,
+        )
     except ImportError:
         try:
             from rag_cli_v2 import choose_best_total_line, confidence_from_edge, _best_model_only_line
+            def select_best_total_recommendation(options, projection_total, combined_var=None):
+                best = choose_best_total_line(options, projection_total, combined_var)
+                return {
+                    "best_value": best,
+                    "bet_recommendation": best,
+                    "recommended": best,
+                    "no_bet_reason": None if best else "No team total line available.",
+                    "all_lines": options,
+                }
         except ImportError:
             def choose_best_total_line(*a, **kw): return None
             def confidence_from_edge(*a, **kw): return "low"
             def _best_model_only_line(*a, **kw): return ("Over", 2.5, 0.50)
+            def select_best_total_recommendation(*a, **kw):
+                return {"best_value": None, "bet_recommendation": None, "recommended": None,
+                        "no_bet_reason": "Team-total selector unavailable.", "all_lines": []}
 
 try:
     from core.team_resolution import get_blended_variance
@@ -216,7 +234,8 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
                 lines.append(f"      Recent/context anchor: {c_rec:.2f}.")
             t_var = get_blended_variance(team, league, "corners_for_var")
             options = extract_team_total_line_options(ev, team, "corners")
-            best = choose_best_total_line(options, c_bl, t_var) if options else None
+            selection = select_best_total_recommendation(options, c_bl, t_var) if options else None
+            best = selection.get("bet_recommendation") if selection else None
             if best:
                 side = str(best.get("side") or "").title()
                 pt = float(best.get("point"))
@@ -241,6 +260,29 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
                     lines.append(f"      EV: {ev_val:+.3f} per unit ({conf} confidence).")
                 else:
                     lines.append(f"      Edge {edge:+.2f} ({conf} confidence).")
+            elif options:
+                best_value = selection.get("best_value") if selection else None
+                if best_value:
+                    lines.append(
+                        f"      Best value line: {str(best_value.get('side') or '').title()} "
+                        f"{float(best_value.get('point')):g} @ {float(best_value.get('odds')):.2f} "
+                        f"({best_value.get('bookmaker')}, {best_value.get('market_key')})."
+                    )
+                    if best_value.get("_model_prob") is not None and best_value.get("_value_edge") is not None:
+                        lines.append(
+                            f"      Pricing check: {best_value['_model_prob']:.1%} model | "
+                            f"Value edge: {best_value['_value_edge']:+.1%} | "
+                            f"EV: {best_value.get('_ev', 0.0):+.3f}"
+                        )
+                lines.append(
+                    f"      Verdict: No {team} corners bet — "
+                    f"{selection.get('no_bet_reason') or 'No team-total line clears the betting thresholds.'}"
+                )
+                side, anchor, mp = _best_model_only_line(c_bl, t_var)
+                lines.append(
+                    f"      Model lean: {side} {anchor:g} "
+                    f"(model-only, P({side} {anchor:g}) = {mp:.1%})."
+                )
             else:
                 side, anchor, mp = _best_model_only_line(c_bl, t_var)
                 conf = "high" if mp >= 0.65 else ("medium" if mp >= 0.55 else "low")
@@ -327,7 +369,8 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
                 lines.append(f"      Recent/context anchor: {k_rec:.2f}.")
             t_var = get_blended_variance(team, league, "cards_var")
             options = extract_team_total_line_options(ev, team, "cards")
-            best = choose_best_total_line(options, k_bl, t_var) if options else None
+            selection = select_best_total_recommendation(options, k_bl, t_var) if options else None
+            best = selection.get("bet_recommendation") if selection else None
             if best:
                 side = str(best.get("side") or "").title()
                 pt = float(best.get("point"))
@@ -352,6 +395,29 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
                     lines.append(f"      EV: {ev_val:+.3f} per unit ({conf} confidence).")
                 else:
                     lines.append(f"      Edge {edge:+.2f} ({conf} confidence).")
+            elif options:
+                best_value = selection.get("best_value") if selection else None
+                if best_value:
+                    lines.append(
+                        f"      Best value line: {str(best_value.get('side') or '').title()} "
+                        f"{float(best_value.get('point')):g} @ {float(best_value.get('odds')):.2f} "
+                        f"({best_value.get('bookmaker')}, {best_value.get('market_key')})."
+                    )
+                    if best_value.get("_model_prob") is not None and best_value.get("_value_edge") is not None:
+                        lines.append(
+                            f"      Pricing check: {best_value['_model_prob']:.1%} model | "
+                            f"Value edge: {best_value['_value_edge']:+.1%} | "
+                            f"EV: {best_value.get('_ev', 0.0):+.3f}"
+                        )
+                lines.append(
+                    f"      Verdict: No {team} cards bet — "
+                    f"{selection.get('no_bet_reason') or 'No team-total line clears the betting thresholds.'}"
+                )
+                side, anchor, mp = _best_model_only_line(k_bl, t_var)
+                lines.append(
+                    f"      Model lean: {side} {anchor:g} "
+                    f"(model-only, P({side} {anchor:g}) = {mp:.1%})."
+                )
             else:
                 side, anchor, mp = _best_model_only_line(k_bl, t_var)
                 conf = "high" if mp >= 0.65 else ("medium" if mp >= 0.55 else "low")

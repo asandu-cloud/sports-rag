@@ -68,8 +68,20 @@ def _normal_cdf(x: float) -> float:
 
 def choose_best_total_line(options: List[Dict], projection_total: float,
                            combined_var: Optional[float] = None) -> Optional[Dict]:
+    result = select_best_total_recommendation(options, projection_total, combined_var)
+    return result.get("bet_recommendation")
+
+
+def select_best_total_recommendation(options: List[Dict], projection_total: float,
+                                     combined_var: Optional[float] = None) -> Dict[str, Optional[Dict]]:
     if not options:
-        return None
+        return {
+            "best_value": None,
+            "bet_recommendation": None,
+            "recommended": None,
+            "no_bet_reason": "No priced totals lines available.",
+            "all_lines": [],
+        }
     tw = SCORING_WEIGHTS["totals_line"]
     pw = SCORING_WEIGHTS["prob"]
 
@@ -80,7 +92,13 @@ def choose_best_total_line(options: List[Dict], projection_total: float,
             continue
         filtered.append(opt)
     if not filtered:
-        return None
+        return {
+            "best_value": None,
+            "bet_recommendation": None,
+            "recommended": None,
+            "no_bet_reason": "No totals line clears the minimum odds floor.",
+            "all_lines": [],
+        }
 
     primary = [o for o in filtered if "alternate" not in str(o.get("market_key") or "").lower()]
     options_use = primary if primary else filtered
@@ -105,6 +123,8 @@ def choose_best_total_line(options: List[Dict], projection_total: float,
 
     best = None
     best_score = None
+    best_value = None
+    best_value_score = None
     for opt in options_use:
         side = str(opt.get("side") or "")
         point = safe_float(opt.get("point"))
@@ -141,6 +161,14 @@ def choose_best_total_line(options: List[Dict], projection_total: float,
         # Reward higher absolute model probability — prevents thin-edge recs
         model_prob_bonus = (model_p - pw["min_model_prob"]) * pw["model_prob_weight"]
 
+        min_model_prob = tw.get("min_model_prob", pw.get("min_model_prob", 0.55))
+        min_edge = tw.get("min_value_edge", pw.get("min_value_edge", 0.02))
+        min_ev = tw.get("min_ev", 0.02)
+        if odds < tw["min_odds_preferred"]:
+            min_model_prob += tw.get("short_price_extra_model_prob", 0.02)
+            min_ev += tw.get("short_price_extra_ev", 0.01)
+        eligible = bool(model_p >= min_model_prob and val_edge >= min_edge and ev >= min_ev)
+
         score = (edge_term - proximity_penalty + odds_term - far_penalty
                  + prob_term - ev_penalty + model_prob_bonus)
 
@@ -149,11 +177,36 @@ def choose_best_total_line(options: List[Dict], projection_total: float,
         opt["_implied_prob"] = implied_p
         opt["_value_edge"] = val_edge
         opt["_ev"] = ev
+        opt["_eligible"] = eligible
+        opt["_score"] = score
 
-        if best is None or score > float(best_score):
+        if best_value is None or (ev, model_p, val_edge) > best_value_score:
+            best_value = opt
+            best_value_score = (ev, model_p, val_edge)
+
+        if eligible and (best is None or score > float(best_score)):
             best = opt
             best_score = score
-    return best
+    no_bet_reason = None
+    if best is None:
+        if best_value is None:
+            no_bet_reason = "No valid totals lines remained after filtering."
+        elif best_value.get("_ev", -1.0) < tw.get("min_ev", 0.02):
+            no_bet_reason = "Best totals line does not clear the minimum EV threshold."
+        elif best_value.get("_value_edge", -1.0) < tw.get("min_value_edge", pw.get("min_value_edge", 0.02)):
+            no_bet_reason = "Best totals line does not clear the minimum value-edge threshold."
+        elif best_value.get("_model_prob", 0.0) < tw.get("min_model_prob", pw.get("min_model_prob", 0.55)):
+            no_bet_reason = "Best totals line is priced attractively, but model conviction is too thin."
+        else:
+            no_bet_reason = "No totals line clears the betting thresholds."
+
+    return {
+        "best_value": best_value,
+        "bet_recommendation": best,
+        "recommended": best,
+        "no_bet_reason": no_bet_reason if best is None else None,
+        "all_lines": options_use,
+    }
 
 
 # ===================================================================
@@ -559,6 +612,11 @@ def select_best_spread_recommendation(
 # ===================================================================
 
 def choose_best_btts_side(options: List[Dict], p_btts_yes: float) -> Optional[Dict]:
+    result = select_best_btts_recommendation(options, p_btts_yes)
+    return result.get("bet_recommendation")
+
+
+def select_best_btts_recommendation(options: List[Dict], p_btts_yes: float) -> Dict[str, Optional[Dict]]:
     """Score BTTS Yes/No options and return the best one with probability data attached.
 
     BTTS is a directional bet — the model's conviction (probability) must drive the
@@ -567,8 +625,15 @@ def choose_best_btts_side(options: List[Dict], p_btts_yes: float) -> Optional[Di
     used as a tiebreaker and to flag when the model-preferred side is overpriced.
     """
     if not options:
-        return None
+        return {
+            "best_value": None,
+            "bet_recommendation": None,
+            "recommended": None,
+            "no_bet_reason": "No BTTS prices available.",
+            "all_sides": [],
+        }
     pw = SCORING_WEIGHTS["prob"]
+    bw = SCORING_WEIGHTS.get("btts_selection", {})
 
     # Build vig-free implied probs from Yes/No pairs per bookmaker
     _pair_map: Dict[str, Dict[str, float]] = {}
@@ -594,6 +659,8 @@ def choose_best_btts_side(options: List[Dict], p_btts_yes: float) -> Optional[Di
     # Step 2: Score all options, but heavily weight model conviction
     best = None
     best_score = None
+    best_value = None
+    best_value_score = None
     for opt in options:
         side = str(opt.get("side") or "").lower().strip()
         odds = safe_float(opt.get("odds"))
@@ -615,20 +682,57 @@ def choose_best_btts_side(options: List[Dict], p_btts_yes: float) -> Optional[Di
 
         # Strong penalty for recommending opposite of model conviction
         against_model_penalty = 0.0
-        if side != model_preferred_side and model_conviction >= 0.55:
-            against_model_penalty = (model_conviction - 0.50) * 6.0
+        if side != model_preferred_side and model_conviction >= bw.get("strong_conviction_threshold", 0.60):
+            against_model_penalty = (model_conviction - 0.50) * bw.get("against_model_penalty_weight", 6.0)
 
         score = conviction_score + edge_bonus - ev_penalty - against_model_penalty
+
+        min_model_prob = bw.get("min_model_prob", 0.56)
+        min_edge = bw.get("min_value_edge", pw.get("min_value_edge", 0.02))
+        min_ev = bw.get("min_ev", 0.02)
+        eligible = bool(
+            model_p >= min_model_prob
+            and val_edge >= min_edge
+            and ev >= min_ev
+            and side == model_preferred_side
+        )
 
         opt["_model_prob"] = model_p
         opt["_implied_prob"] = implied_p
         opt["_value_edge"] = val_edge
         opt["_ev"] = ev
+        opt["_eligible"] = eligible
+        opt["_score"] = score
 
-        if best is None or score > best_score:
+        if best_value is None or (ev, model_p, val_edge) > best_value_score:
+            best_value = opt
+            best_value_score = (ev, model_p, val_edge)
+
+        if eligible and (best is None or score > best_score):
             best = opt
             best_score = score
-    return best
+    no_bet_reason = None
+    if best is None:
+        if best_value is None:
+            no_bet_reason = "No valid BTTS lines remained after filtering."
+        elif best_value.get("_ev", -1.0) < bw.get("min_ev", 0.02):
+            no_bet_reason = "Best BTTS side does not clear the minimum EV threshold."
+        elif best_value.get("_value_edge", -1.0) < bw.get("min_value_edge", pw.get("min_value_edge", 0.02)):
+            no_bet_reason = "Best BTTS side does not clear the minimum value-edge threshold."
+        elif best_value.get("_model_prob", 0.0) < bw.get("min_model_prob", 0.56):
+            no_bet_reason = "BTTS conviction is too thin for a recommendation."
+        elif best_value.get("side") != model_preferred_side:
+            no_bet_reason = "The attractive price is on the side opposite the model lean."
+        else:
+            no_bet_reason = "No BTTS side clears the betting thresholds."
+
+    return {
+        "best_value": best_value,
+        "bet_recommendation": best,
+        "recommended": best,
+        "no_bet_reason": no_bet_reason if best is None else None,
+        "all_sides": options,
+    }
 
 
 # ===================================================================

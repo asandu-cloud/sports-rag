@@ -4594,184 +4594,70 @@ def projected_total_goals(
     )
 
 
-def projected_btts_prob(home: str, away: str, league: str) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[float]]:
-    """
-    Project P(BTTS Yes) = P(Home >= 1) * P(Away >= 1) using independent Poisson/NegBin.
-    Returns (p_btts_yes, h_proj, a_proj, h_season, a_season).
-    """
-    pw = SCORING_WEIGHTS["projection"]
-    hm = _profile_meta(home, league)
-    am = _profile_meta(away, league)
-
-    h_season, a_season = projected_goals(hm, am)
-
-    hr = _recent_stats(home, league, last_n=6)
-    ar = _recent_stats(away, league, last_n=6)
-    h_xg = hr.get("xg_for_avg")
-    a_xg = ar.get("xg_for_avg")
-
-    def _blend(season_val, recent_val):
-        if season_val is not None and recent_val is not None:
-            return pw["blend_season"] * season_val + pw["blend_recent"] * recent_val
-        return season_val if season_val is not None else recent_val
-
-    h_proj = _blend(h_season, h_xg)
-    a_proj = _blend(a_season, a_xg)
-
-    if h_proj is None or a_proj is None:
-        return None, None, None, h_season, a_season
-
-    # ML blend: split ML total proportionally between home/away
-    ml_w = _ml_blend_weight("goals")
-    if ml_w > 0:
-        ml_proj = ml_predict_total(home, away, league, "goals", home_meta=hm, away_meta=am)
-        if ml_proj is not None and (h_proj + a_proj) > 0:
-            ratio_h = h_proj / (h_proj + a_proj)
-            h_proj = (1.0 - ml_w) * h_proj + ml_w * (ml_proj * ratio_h)
-            a_proj = (1.0 - ml_w) * a_proj + ml_w * (ml_proj * (1.0 - ratio_h))
-
-    # Per-team variance for distribution selection (Bayesian blend: season + recent)
-    h_var = get_blended_variance(home, league, "goals_var")
-    a_var = get_blended_variance(away, league, "goals_var")
-
-    # Dixon-Coles bivariate model for BTTS (accounts for low-score correlation)
-    try:
-        from prob_models import dixon_coles_btts_prob
-        p_btts_yes = dixon_coles_btts_prob(h_proj, a_proj)
-    except ImportError:
-        # Fallback to independent Poisson
-        p_home_scores = over_prob(h_proj, 0.5, h_var)
-        p_away_scores = over_prob(a_proj, 0.5, a_var)
-        p_btts_yes = p_home_scores * p_away_scores
-
-    return p_btts_yes, h_proj, a_proj, h_season, a_season
+def projected_btts_prob(
+    home: str,
+    away: str,
+    league: str,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
+) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[float]]:
+    """Delegate to core.projections — single source of truth."""
+    from core.projections import projected_btts_prob as _core_btts
+    return _core_btts(
+        home, away, league,
+        league_ctx=league_ctx,
+        fixture_date=fixture_date,
+    )
 
 
 def projected_correct_score_probs(
-    home: str, away: str, league: str, max_goals: int = 6,
+    home: str,
+    away: str,
+    league: str,
+    max_goals: int = 6,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
 ) -> Tuple[Optional[Dict[Tuple[int, int], float]], Optional[float], Optional[float]]:
-    """
-    Compute P(Home=i, Away=j) for all i,j in [0, max_goals] using independent
-    Poisson/NegBin per team.  Returns (prob_matrix, h_proj, a_proj).
-    """
-    pw = SCORING_WEIGHTS["projection"]
-    hm = _profile_meta(home, league)
-    am = _profile_meta(away, league)
-    h_season, a_season = projected_goals(hm, am)
-
-    hr = _recent_stats(home, league, last_n=6)
-    ar = _recent_stats(away, league, last_n=6)
-    h_xg = hr.get("xg_for_avg")
-    a_xg = ar.get("xg_for_avg")
-
-    def _blend(season_val, recent_val):
-        if season_val is not None and recent_val is not None:
-            return pw["blend_season"] * season_val + pw["blend_recent"] * recent_val
-        return season_val if season_val is not None else recent_val
-
-    h_proj = _blend(h_season, h_xg)
-    a_proj = _blend(a_season, a_xg)
-    if h_proj is None or a_proj is None:
-        return None, None, None
-
-    # ML blend (same pipeline as projected_btts_prob)
-    ml_w = _ml_blend_weight("goals")
-    if ml_w > 0:
-        ml_proj = ml_predict_total(home, away, league, "goals", home_meta=hm, away_meta=am)
-        if ml_proj is not None and (h_proj + a_proj) > 0:
-            ratio_h = h_proj / (h_proj + a_proj)
-            h_proj = (1.0 - ml_w) * h_proj + ml_w * (ml_proj * ratio_h)
-            a_proj = (1.0 - ml_w) * a_proj + ml_w * (ml_proj * (1.0 - ratio_h))
-
-    # Per-team variance for distribution selection (Bayesian blend: season + recent)
-    h_var = get_blended_variance(home, league, "goals_var")
-    a_var = get_blended_variance(away, league, "goals_var")
-
-    def _team_pmf(lam, var, k):
-        if var is not None and var > lam and lam > 0:
-            r, p = negbin_from_mean_var(lam, var)
-            return negbin_pmf(k, r, p)
-        return poisson_pmf(k, lam)
-
-    # Dixon-Coles bivariate model (corrects for low-score correlation)
-    try:
-        from prob_models import dixon_coles_scoreline_matrix
-        matrix = dixon_coles_scoreline_matrix(h_proj, a_proj, rho=-0.10, max_goals=max_goals)
-        probs: Dict[Tuple[int, int], float] = {}
-        for i in range(max_goals + 1):
-            for j in range(max_goals + 1):
-                probs[(i, j)] = matrix[i][j]
-    except ImportError:
-        # Fallback to independent Poisson
-        probs = {}
-        for i in range(max_goals + 1):
-            p_h = _team_pmf(h_proj, h_var, i)
-            for j in range(max_goals + 1):
-                p_a = _team_pmf(a_proj, a_var, j)
-                probs[(i, j)] = p_h * p_a
-
-    return probs, h_proj, a_proj
+    """Delegate to core.projections — single source of truth."""
+    from core.projections import projected_correct_score_probs as _core_csp
+    return _core_csp(
+        home, away, league,
+        max_goals=max_goals,
+        league_ctx=league_ctx,
+        fixture_date=fixture_date,
+    )
 
 
 def projected_moneyline_probs(
-    home: str, away: str, league: str,
+    home: str,
+    away: str,
+    league: str,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
 ) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[float]]:
-    """
-    Compute P(Home Win), P(Draw), P(Away Win) from the Poisson/NegBin scoreline matrix.
-    Returns (p_home, p_draw, p_away, h_proj, a_proj).
-    """
-    probs, h_proj, a_proj = projected_correct_score_probs(home, away, league)
-    if probs is None:
-        return None, None, None, None, None
-
-    p_home = sum(p for (h, a), p in probs.items() if h > a)
-    p_draw = sum(p for (h, a), p in probs.items() if h == a)
-    p_away = sum(p for (h, a), p in probs.items() if h < a)
-
-    return p_home, p_draw, p_away, h_proj, a_proj
+    """Delegate to core.projections — single source of truth."""
+    from core.projections import projected_moneyline_probs as _core_mlp
+    return _core_mlp(
+        home, away, league,
+        league_ctx=league_ctx,
+        fixture_date=fixture_date,
+    )
 
 
-def projected_goal_difference(home: str, away: str, league: str) -> Tuple[Optional[float], Optional[float], Optional[float]]:
-    """
-    Project expected goal difference (home - away). Positive = home favored.
-    Returns (blended_diff, season_diff, recent_diff).
-    """
-    pw = SCORING_WEIGHTS["projection_spreads"]
-    hm = _profile_meta(home, league)
-    am = _profile_meta(away, league)
-
-    h_g = safe_float(hm.get("goals_for_pm"))
-    a_g = safe_float(am.get("goals_for_pm"))
-    h_form = safe_float(hm.get("form_index_team"))
-    a_form = safe_float(am.get("form_index_team"))
-    h_dom = safe_float(hm.get("dominance_index"))
-    a_dom = safe_float(am.get("dominance_index"))
-
-    # Home advantage for goal difference
-    proj_w = SCORING_WEIGHTS["projection"]
-    ha = proj_w.get("home_advantage", 0.0) * 2  # full spread: +ha home, -ha away = 2*ha diff
-
-    season_diff = None
-    if h_g is not None and a_g is not None:
-        season_diff = (h_g - a_g) + ha
-        if h_form is not None and a_form is not None:
-            season_diff += (h_form - a_form) * pw["form_w"]
-        if h_dom is not None and a_dom is not None:
-            season_diff += (h_dom - a_dom) * pw["dominance_w"]
-
-    hr = _recent_stats(home, league, last_n=6)
-    ar = _recent_stats(away, league, last_n=6)
-    h_xg = hr.get("xg_for_avg")
-    a_xg = ar.get("xg_for_avg")
-    recent_diff = (h_xg - a_xg) if (h_xg is not None and a_xg is not None) else None
-
-    if season_diff is not None and recent_diff is not None:
-        return (pw["blend_season"] * season_diff + pw["blend_recent"] * recent_diff), season_diff, recent_diff
-    if season_diff is not None:
-        return season_diff, season_diff, None
-    if recent_diff is not None:
-        return recent_diff, None, recent_diff
-    return None, None, None
+def projected_goal_difference(
+    home: str,
+    away: str,
+    league: str,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
+) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+    """Delegate to core.projections — single source of truth."""
+    from core.projections import projected_goal_difference as _core_pgd
+    return _core_pgd(
+        home, away, league,
+        league_ctx=league_ctx,
+        fixture_date=fixture_date,
+    )
 
 
 def extract_total_line_options(event: Dict, stat_group: str) -> List[Dict]:
@@ -4964,102 +4850,15 @@ def extract_team_total_line_options(
     return out
 
 
+def select_best_total_recommendation(options: List[Dict], projection_total: float,
+                                     combined_var: Optional[float] = None) -> Dict[str, Optional[Dict]]:
+    from core.line_selection import select_best_total_recommendation as _core_select_total
+    return _core_select_total(options, projection_total, combined_var)
+
+
 def choose_best_total_line(options: List[Dict], projection_total: float,
                            combined_var: Optional[float] = None) -> Optional[Dict]:
-    if not options:
-        return None
-    tw = SCORING_WEIGHTS["totals_line"]
-    pw = SCORING_WEIGHTS["prob"]
-
-    filtered: List[Dict] = []
-    for opt in options:
-        odds = safe_float(opt.get("odds"))
-        if odds is None or odds < tw["min_odds_hard"]:
-            continue
-        filtered.append(opt)
-    if not filtered:
-        return None
-
-    primary = [o for o in filtered if "alternate" not in str(o.get("market_key") or "").lower()]
-    options_use = primary if primary else filtered
-
-    # Pre-compute vig-free implied probabilities for over/under pairs
-    _pair_map: Dict[Tuple, Dict[str, float]] = {}
-    for _o in options_use:
-        _bm = str(_o.get("bookmaker") or "")
-        _pt = safe_float(_o.get("point"))
-        _sd = str(_o.get("side") or "").lower()
-        _od = safe_float(_o.get("odds"))
-        if _pt is not None and _od is not None:
-            _pair_map.setdefault((_bm, _pt), {})[_sd] = _od
-    _fair_implied: Dict[Tuple, float] = {}
-    for (_bm, _pt), _sides in _pair_map.items():
-        _ov = _sides.get("over")
-        _un = _sides.get("under")
-        if _ov is not None and _un is not None:
-            _f_ov, _f_un = remove_vig_two_way(_ov, _un)
-            _fair_implied[(_bm, _pt, "over")] = _f_ov
-            _fair_implied[(_bm, _pt, "under")] = _f_un
-
-    best = None
-    best_score = None
-    for opt in options_use:
-        side = str(opt.get("side") or "")
-        point = safe_float(opt.get("point"))
-        odds = safe_float(opt.get("odds"))
-        if point is None or odds is None:
-            continue
-        edge = projection_total - point if side == "over" else point - projection_total
-
-        dist = abs(projection_total - point)
-        proximity_penalty = dist * tw["proximity_penalty"]
-        edge_term = edge * tw["edge_weight"]
-
-        if odds < tw["min_odds_preferred"]:
-            odds_term = -tw["short_price_penalty"] * (tw["min_odds_preferred"] - odds)
-        elif tw["ideal_odds_low"] <= odds <= tw["ideal_odds_high"]:
-            odds_term = tw["ideal_range_bonus"] * (odds - 1.0)
-        else:
-            odds_term = tw["outside_ideal_bonus"] * (odds - 1.0)
-
-        far_penalty = 0.0
-        if dist >= tw["far_threshold"]:
-            far_penalty = (dist - tw["far_threshold"]) * tw["far_penalty"]
-
-        # --- Probability-aware scoring (vig-adjusted) ---
-        model_p = (over_prob(projection_total, point, combined_var) if side == "over"
-                   else under_prob(projection_total, point, combined_var))
-        fair_key = (str(opt.get("bookmaker") or ""), point, side.lower())
-        implied_p = _fair_implied.get(fair_key) or implied_prob(odds)
-        val_edge = value_edge(model_p, implied_p)
-        ev = expected_value(model_p, odds)
-
-        prob_term = val_edge * pw["value_edge_weight"]
-        ev_penalty = abs(ev) * pw["negative_ev_penalty"] if ev < 0 else 0.0
-
-        # Model probability is the DOMINANT signal — a bet that cashes is worth
-        # more than a bet with a big edge that doesn't. Scale it aggressively
-        # so an 85% prob bet always beats a 55% prob bet regardless of edge.
-        model_prob_bonus = (model_p - 0.50) * pw["model_prob_weight"]
-
-        # Minimum probability gate — reject bets below 55% entirely
-        if model_p < pw["min_model_prob"]:
-            model_prob_bonus -= 5.0  # heavy penalty, effectively disqualifies
-
-        score = (model_prob_bonus + prob_term + odds_term
-                 + edge_term * 0.3 - proximity_penalty * 0.3
-                 - far_penalty - ev_penalty)
-
-        # Attach probability data for rendering
-        opt["_model_prob"] = model_p
-        opt["_implied_prob"] = implied_p
-        opt["_value_edge"] = val_edge
-        opt["_ev"] = ev
-
-        if best is None or score > float(best_score):
-            best = opt
-            best_score = score
-    return best
+    return select_best_total_recommendation(options, projection_total, combined_var).get("bet_recommendation")
 
 
 def _best_model_only_line(projection: float,
@@ -5145,77 +4944,13 @@ def extract_btts_odds(event: Dict) -> List[Dict]:
     return out
 
 
+def select_best_btts_recommendation(options: List[Dict], p_btts_yes: float) -> Dict[str, Optional[Dict]]:
+    from core.line_selection import select_best_btts_recommendation as _core_select_btts
+    return _core_select_btts(options, p_btts_yes)
+
+
 def choose_best_btts_side(options: List[Dict], p_btts_yes: float) -> Optional[Dict]:
-    """Score BTTS Yes/No options and return the best one with probability data attached.
-
-    BTTS is a directional bet — the model's conviction (probability) must drive the
-    recommendation, not just value edge. A 72% BTTS Yes probability should almost always
-    recommend Yes, regardless of whether No has a marginally better edge. Value edge is
-    used as a tiebreaker and to flag when the model-preferred side is overpriced.
-    """
-    if not options:
-        return None
-    pw = SCORING_WEIGHTS["prob"]
-
-    # Build vig-free implied probs from Yes/No pairs per bookmaker
-    _pair_map: Dict[str, Dict[str, float]] = {}
-    for o in options:
-        bm = str(o.get("bookmaker") or "")
-        side = str(o.get("side") or "").lower().strip()
-        odds = safe_float(o.get("odds"))
-        if odds is not None and side:
-            _pair_map.setdefault(bm, {})[side] = odds
-    _fair_implied: Dict[Tuple[str, str], float] = {}
-    for bm, sides in _pair_map.items():
-        yes_odds = sides.get("yes")
-        no_odds = sides.get("no")
-        if yes_odds is not None and no_odds is not None:
-            f_yes, f_no = remove_vig_two_way(yes_odds, no_odds)
-            _fair_implied[(bm, "yes")] = f_yes
-            _fair_implied[(bm, "no")] = f_no
-
-    # Step 1: Determine the model's preferred side based on probability
-    model_preferred_side = "yes" if p_btts_yes >= 0.50 else "no"
-    model_conviction = max(p_btts_yes, 1.0 - p_btts_yes)
-
-    # Step 2: Score all options, but heavily weight model conviction
-    best = None
-    best_score = None
-    for opt in options:
-        side = str(opt.get("side") or "").lower().strip()
-        odds = safe_float(opt.get("odds"))
-        if not side or odds is None or odds <= 1.0:
-            continue
-
-        model_p = p_btts_yes if side == "yes" else (1.0 - p_btts_yes)
-        bm = str(opt.get("bookmaker") or "")
-        implied_p = _fair_implied.get((bm, side)) or implied_prob(odds)
-        val_edge = value_edge(model_p, implied_p)
-        ev = expected_value(model_p, odds)
-
-        # Score: model probability is the PRIMARY driver (weight 4.0)
-        # Value edge is secondary (weight 1.0)
-        # Penalize going against model conviction heavily
-        conviction_score = (model_p - 0.50) * pw.get("model_prob_weight", 4.0)
-        edge_bonus = val_edge * pw.get("value_edge_weight", 2.0) if val_edge > 0 else 0.0
-        ev_penalty = abs(ev) * pw["negative_ev_penalty"] if ev < 0 else 0.0
-
-        # Strong penalty for recommending opposite of model conviction
-        against_model_penalty = 0.0
-        if side != model_preferred_side and model_conviction >= 0.55:
-            against_model_penalty = (model_conviction - 0.50) * 6.0
-
-        score = conviction_score + edge_bonus - ev_penalty - against_model_penalty
-
-        opt["_model_prob"] = model_p
-        opt["_implied_prob"] = implied_p
-        opt["_value_edge"] = val_edge
-        opt["_ev"] = ev
-
-        if best is None or score > best_score:
-            best = opt
-            best_score = score
-    return best
+    return select_best_btts_recommendation(options, p_btts_yes).get("bet_recommendation")
 
 
 def extract_correct_score_odds(event: Dict) -> Dict[Tuple[int, int], List[Dict]]:
@@ -5692,7 +5427,8 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
         combined_var = (h_v + a_v) if (h_v is not None and a_v is not None) else None
 
         options = extract_total_line_options(ev, group)
-        best = choose_best_total_line(options, proj_total, combined_var)
+        total_result = select_best_total_recommendation(options, proj_total, combined_var)
+        best = total_result.get("bet_recommendation")
         lines.append(f"- {fixture}: projected total {proj_total:.2f}.")
 
         if season_total is not None:
@@ -5752,6 +5488,29 @@ def render_totals_line_answer(user_q: str, league: str, events: List[Dict]) -> s
                 lines.append(f"  Expected value: {ev:+.3f} per unit staked ({conf} confidence).")
             else:
                 lines.append(f"  Model edge {edge:+.2f} ({conf} confidence).")
+        elif options:
+            best_value = total_result.get("best_value")
+            if best_value:
+                lines.append(
+                    f"  Best value line: {str(best_value.get('side') or '').title()} "
+                    f"{float(best_value.get('point')):g} @ {float(best_value.get('odds')):.2f} "
+                    f"({best_value.get('bookmaker')}, {best_value.get('market_key')})."
+                )
+                if best_value.get("_model_prob") is not None and best_value.get("_value_edge") is not None:
+                    lines.append(
+                        f"  Pricing check: {best_value['_model_prob']:.1%} model | "
+                        f"Value edge: {best_value['_value_edge']:+.1%} | "
+                        f"EV: {best_value.get('_ev', 0.0):+.3f}"
+                    )
+            lines.append(
+                f"  Verdict: No {group} bet. "
+                f"{total_result.get('no_bet_reason') or 'No totals line clears the betting thresholds.'}"
+            )
+            side, anchor, mp = _best_model_only_line(proj_total, combined_var)
+            lines.append(
+                f"  Model lean: {side} {anchor:g} "
+                f"(model-only, P({side} {anchor:g}) = {mp:.1%})."
+            )
         else:
             side, anchor, mp = _best_model_only_line(proj_total, combined_var)
             lines.append(
@@ -6022,7 +5781,8 @@ def render_btts_answer(user_q: str, league: str, events: List[Dict]) -> str:
             lines.append(f"  Season projections: {home} {h_season:.2f}, {away} {a_season:.2f}.")
 
         btts_options = extract_btts_odds(ev)
-        best = choose_best_btts_side(btts_options, p_btts)
+        btts_result = select_best_btts_recommendation(btts_options, p_btts) if btts_options else None
+        best = btts_result.get("bet_recommendation") if btts_result else None
 
         if best:
             side = str(best.get("side") or "").title()
@@ -6048,6 +5808,28 @@ def render_btts_answer(user_q: str, league: str, events: List[Dict]) -> str:
                 lines.append(f"  Expected value: {ev_val:+.3f} per unit staked ({conf} confidence).")
             else:
                 lines.append(f"  Confidence: {conf}.")
+        elif btts_options:
+            best_value = btts_result.get("best_value") if btts_result else None
+            if best_value:
+                side = str(best_value.get("side") or "").title()
+                odds = float(best_value.get("odds"))
+                lines.append(
+                    f"  Best value side: BTTS {side} @ {odds:.2f} "
+                    f"({best_value.get('bookmaker')}, {best_value.get('market_key')})."
+                )
+                if best_value.get("_model_prob") is not None and best_value.get("_value_edge") is not None:
+                    lines.append(
+                        f"  Pricing check: {best_value['_model_prob']:.1%} model | "
+                        f"Value edge: {best_value['_value_edge']:+.1%} | "
+                        f"EV: {best_value.get('_ev', 0.0):+.3f}"
+                    )
+            lines.append(
+                f"  Verdict: No BTTS bet. "
+                f"{btts_result.get('no_bet_reason') or 'No BTTS side clears the betting thresholds.'}"
+            )
+            rec = "Yes" if p_btts >= 0.50 else "No"
+            rec_prob = p_btts if rec == "Yes" else (1.0 - p_btts)
+            lines.append(f"  Model lean: BTTS {rec} ({rec_prob:.1%} model probability).")
         else:
             # Model-only: recommend the side the model is more confident about
             rec = "Yes" if p_btts >= 0.50 else "No"

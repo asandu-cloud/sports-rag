@@ -46,16 +46,37 @@ except ImportError:
             def extract_btts_odds(*a, **kw): return []
 
 try:
-    from core.line_selection import choose_best_btts_side, confidence_from_edge
+    from core.line_selection import (
+        choose_best_btts_side, confidence_from_edge, select_best_btts_recommendation,
+    )
 except ImportError:
     try:
-        from Scripts.rag_ingest.core.line_selection import choose_best_btts_side, confidence_from_edge
+        from Scripts.rag_ingest.core.line_selection import (
+            choose_best_btts_side, confidence_from_edge, select_best_btts_recommendation,
+        )
     except ImportError:
         try:
             from rag_cli_v2 import choose_best_btts_side, confidence_from_edge
+            def select_best_btts_recommendation(options, p_btts_yes):
+                best = choose_best_btts_side(options, p_btts_yes)
+                return {
+                    "best_value": best,
+                    "bet_recommendation": best,
+                    "recommended": best,
+                    "no_bet_reason": None if best else "No BTTS price clears the betting thresholds.",
+                    "all_sides": options,
+                }
         except ImportError:
             def choose_best_btts_side(*a, **kw): return None
             def confidence_from_edge(*a, **kw): return "low"
+            def select_best_btts_recommendation(*a, **kw):
+                return {
+                    "best_value": None,
+                    "bet_recommendation": None,
+                    "recommended": None,
+                    "no_bet_reason": "BTTS selector unavailable.",
+                    "all_sides": [],
+                }
 
 try:
     from rendering.evidence import _euro_data_source_note
@@ -103,7 +124,8 @@ def render_btts_answer(user_q: str, league: str, events: List[Dict]) -> str:
             lines.append(f"  Season projections: {home} {h_season:.2f}, {away} {a_season:.2f}.")
 
         btts_options = extract_btts_odds(ev)
-        best = choose_best_btts_side(btts_options, p_btts)
+        result = select_best_btts_recommendation(btts_options, p_btts) if btts_options else None
+        best = result.get("bet_recommendation") if result else None
 
         if best:
             side = str(best.get("side") or "").title()
@@ -129,6 +151,27 @@ def render_btts_answer(user_q: str, league: str, events: List[Dict]) -> str:
                 lines.append(f"  Expected value: {ev_val:+.3f} per unit staked ({conf} confidence).")
             else:
                 lines.append(f"  Confidence: {conf}.")
+        elif btts_options:
+            best_value = result.get("best_value") if result else None
+            if best_value:
+                side = str(best_value.get("side") or "").title()
+                odds = float(best_value.get("odds"))
+                lines.append(
+                    f"  Best value side: BTTS {side} @ {odds:.2f} "
+                    f"({best_value.get('bookmaker')}, {best_value.get('market_key')})."
+                )
+                if best_value.get("_model_prob") is not None and best_value.get("_value_edge") is not None:
+                    lines.append(
+                        f"  Pricing check: {best_value['_model_prob']:.1%} model | "
+                        f"Value edge: {best_value['_value_edge']:+.1%} | "
+                        f"EV: {best_value.get('_ev', 0.0):+.3f}"
+                    )
+            lines.append(
+                f"  Verdict: No BTTS bet. {result.get('no_bet_reason') or 'No BTTS side clears the betting thresholds.'}"
+            )
+            rec = "Yes" if p_btts >= 0.50 else "No"
+            rec_prob = p_btts if rec == "Yes" else (1.0 - p_btts)
+            lines.append(f"  Model lean: BTTS {rec} ({rec_prob:.1%} model probability).")
         else:
             # Model-only: recommend the side the model is more confident about
             rec = "Yes" if p_btts >= 0.50 else "No"
@@ -141,5 +184,5 @@ def render_btts_answer(user_q: str, league: str, events: List[Dict]) -> str:
                 f"  (No BTTS odds available in current feed; model-only projection.)"
             )
 
-    lines.append("Method: independent Poisson probability model for per-team scoring from local KB.")
+    lines.append("Method: Dixon-Coles score model from local KB projections.")
     return "\n".join(lines)

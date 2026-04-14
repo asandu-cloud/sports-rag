@@ -34,21 +34,21 @@ try:
     from core.projections import (
         projected_total_goals, projected_total_corners, projected_total_cards,
         projected_total_sot, projected_goal_difference, projected_moneyline_probs,
-        projected_btts_prob, projected_corners, projected_cards,
+        projected_btts_prob, projected_corners, projected_cards, compute_margin_std,
     )
 except ImportError:
     try:
         from Scripts.rag_ingest.core.projections import (
             projected_total_goals, projected_total_corners, projected_total_cards,
             projected_total_sot, projected_goal_difference, projected_moneyline_probs,
-            projected_btts_prob, projected_corners, projected_cards,
+            projected_btts_prob, projected_corners, projected_cards, compute_margin_std,
         )
     except ImportError:
         try:
             from rag_cli_v2 import (
                 projected_total_goals, projected_total_corners, projected_total_cards,
                 projected_total_sot, projected_goal_difference, projected_moneyline_probs,
-                projected_btts_prob, projected_corners, projected_cards,
+                projected_btts_prob, projected_corners, projected_cards, compute_margin_std,
             )
         except ImportError:
             def projected_total_goals(*a, **kw): return (None, None, None)
@@ -60,6 +60,7 @@ except ImportError:
             def projected_btts_prob(*a, **kw): return (None, None, None, None, None)
             def projected_corners(*a, **kw): return (None, None)
             def projected_cards(*a, **kw): return (None, None)
+            def compute_margin_std(*a, **kw): return SCORING_WEIGHTS["prob"]["margin_std_default"]
 
 try:
     from core.team_resolution import _profile_meta, _recent_stats, _numeric, get_team_recent_variance
@@ -85,6 +86,27 @@ except ImportError:
     except ImportError:
         def over_prob(*a, **kw): return 0.5
         def under_prob(*a, **kw): return 0.5
+
+try:
+    from core.line_selection import (
+        _score_matrix_spread_profile, _normal_spread_profile,
+        _spread_expected_value, _equivalent_binary_prob,
+    )
+except ImportError:
+    try:
+        from Scripts.rag_ingest.core.line_selection import (
+            _score_matrix_spread_profile, _normal_spread_profile,
+            _spread_expected_value, _equivalent_binary_prob,
+        )
+    except ImportError:
+        def _score_matrix_spread_profile(*a, **kw): return None
+        def _normal_spread_profile(*a, **kw):
+            return {
+                "full_win": 0.0, "half_win": 0.0, "push": 0.0,
+                "half_loss": 0.0, "full_loss": 1.0,
+            }
+        def _spread_expected_value(*a, **kw): return -1.0
+        def _equivalent_binary_prob(*a, **kw): return 0.5
 
 try:
     from ml_edge import get_elo_edge
@@ -708,6 +730,90 @@ def kb_leg_quality(leg: CandidateLeg, league: str) -> float:
 
 
 # ---------------------------------------------------------------------------
+# combo probability helpers
+# ---------------------------------------------------------------------------
+
+
+def _leg_side(leg: CandidateLeg) -> Optional[str]:
+    outcome = (leg.outcome or "").strip().lower()
+    home = (leg.home_team or "").strip().lower()
+    away = (leg.away_team or "").strip().lower()
+    if outcome in {"draw", "tie", "x"}:
+        return "draw"
+    if outcome == home or (home and outcome.startswith(home)):
+        return "home"
+    if outcome == away or (away and outcome.startswith(away)):
+        return "away"
+    return None
+
+
+def _combo_leg_model_probability(leg: CandidateLeg, fallback_league: str) -> Optional[float]:
+    leg_lg = _leg_league(leg, fallback_league)
+    g = market_group_from_key(leg.market_key)
+
+    if leg.point is not None and g in ("corners", "cards", "sot", "totals"):
+        proj_funcs = {
+            "corners": lambda: projected_total_corners(leg.home_team, leg.away_team, leg_lg),
+            "cards": lambda: projected_total_cards(leg.home_team, leg.away_team, leg_lg),
+            "sot": lambda: projected_total_sot(leg.home_team, leg.away_team, leg_lg),
+            "totals": lambda: projected_total_goals(leg.home_team, leg.away_team, leg_lg),
+        }
+        proj_result = proj_funcs[g]()
+        proj_total = proj_result[0] if proj_result else None
+        if proj_total is None:
+            return None
+        var_key = {
+            "corners": "corners_for_var",
+            "cards": "cards_var",
+            "sot": "sot_for_var",
+            "totals": "goals_var",
+        }[g]
+        h_var = get_team_recent_variance(leg.home_team, leg_lg)
+        a_var = get_team_recent_variance(leg.away_team, leg_lg)
+        h_v = h_var.get(var_key)
+        a_v = a_var.get(var_key)
+        combined_var = (h_v + a_v) if (h_v is not None and a_v is not None) else None
+        is_over = "over" in (leg.outcome or "").lower()
+        return over_prob(proj_total, leg.point, combined_var) if is_over else under_prob(proj_total, leg.point, combined_var)
+
+    if g == "btts":
+        result = projected_btts_prob(leg.home_team, leg.away_team, leg_lg)
+        p_btts = result[0] if result else None
+        if p_btts is None:
+            return None
+        return p_btts if (leg.outcome or "").strip().lower() == "yes" else (1.0 - p_btts)
+
+    if g == "moneyline":
+        p_home, p_draw, p_away, _, _ = projected_moneyline_probs(leg.home_team, leg.away_team, leg_lg)
+        side = _leg_side(leg)
+        if side == "home":
+            return p_home
+        if side == "away":
+            return p_away
+        if side == "draw":
+            return p_draw
+        return None
+
+    if g == "spreads" and leg.point is not None:
+        side = _leg_side(leg)
+        if side not in {"home", "away"}:
+            return None
+        is_home = side == "home"
+        proj_diff, _, _ = projected_goal_difference(leg.home_team, leg.away_team, leg_lg)
+        if proj_diff is None:
+            return None
+        sign = 1.0 if is_home else -1.0
+        margin_std = compute_margin_std(leg.home_team, leg.away_team, leg_lg)
+        profile = _score_matrix_spread_profile(leg.home_team, leg.away_team, leg_lg, is_home, leg.point)
+        if profile is None:
+            profile = _normal_spread_profile(sign * proj_diff, margin_std, leg.point)
+        ev = _spread_expected_value(profile, leg.odds)
+        return _equivalent_binary_prob(ev, leg.odds)
+
+    return None
+
+
+# ---------------------------------------------------------------------------
 # score_combo
 # ---------------------------------------------------------------------------
 
@@ -776,32 +882,10 @@ def score_combo(combo: List[CandidateLeg], c: ConstraintSpec, leg_quality: Dict[
     joint_prob = 1.0
     any_prob = False
     for leg in combo:
-        g = market_group_from_key(leg.market_key)
-        if leg.point is not None and g in ("corners", "cards", "sot", "totals"):
-            leg_lg = _leg_league(leg, c.league)
-            proj_funcs = {
-                "corners": lambda l=leg, lg=leg_lg: projected_total_corners(l.home_team, l.away_team, lg),
-                "cards": lambda l=leg, lg=leg_lg: projected_total_cards(l.home_team, l.away_team, lg),
-                "sot": lambda l=leg, lg=leg_lg: projected_total_sot(l.home_team, l.away_team, lg),
-                "totals": lambda l=leg, lg=leg_lg: projected_total_goals(l.home_team, l.away_team, lg),
-            }
-            proj_result = proj_funcs[g]()
-            proj_total = proj_result[0] if proj_result else None
-            if proj_total is not None:
-                is_over = "over" in leg.outcome.lower()
-                _stat_var_key = {"corners": "corners_for_var", "cards": "cards_var",
-                                 "sot": "sot_for_var", "totals": "goals_var"}[g]
-                h_var = get_team_recent_variance(leg.home_team, leg_lg)
-                a_var = get_team_recent_variance(leg.away_team, leg_lg)
-                h_v = h_var.get(_stat_var_key)
-                a_v = a_var.get(_stat_var_key)
-                combined_var = (h_v + a_v) if (h_v is not None and a_v is not None) else None
-                model_p = (over_prob(proj_total, leg.point, combined_var) if is_over
-                           else under_prob(proj_total, leg.point, combined_var))
-                joint_prob *= model_p
-                any_prob = True
-            else:
-                joint_prob *= 0.5
+        model_p = _combo_leg_model_probability(leg, c.league)
+        if model_p is not None:
+            joint_prob *= model_p
+            any_prob = True
         else:
             joint_prob *= 0.5
     if any_prob:

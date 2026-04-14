@@ -8,7 +8,8 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "rag_ingest"))
 
-from Scripts.rag_ingest.core import projections as core_proj
+import rag_cli_v2 as rag
+from core import projections as core_proj
 
 
 class ProjectionParityTests(unittest.TestCase):
@@ -58,6 +59,24 @@ class ProjectionParityTests(unittest.TestCase):
 
         self.assertEqual(len(core_result), 3)
         self.assertIsNotNone(core_result[0])
+
+    def test_btts_calls_core(self):
+        with mock.patch.object(core_proj, "projected_btts_prob", return_value=("ok", 1, 2, 3, 4)) as patched:
+            result = rag.projected_btts_prob("Home", "Away", "EPL", fixture_date="2026-04-10")
+        patched.assert_called_once_with("Home", "Away", "EPL", league_ctx=None, fixture_date="2026-04-10")
+        self.assertEqual(result, ("ok", 1, 2, 3, 4))
+
+    def test_moneyline_calls_core(self):
+        with mock.patch.object(core_proj, "projected_moneyline_probs", return_value=(0.5, 0.2, 0.3, 1.4, 0.9)) as patched:
+            result = rag.projected_moneyline_probs("Home", "Away", "EPL", fixture_date="2026-04-10")
+        patched.assert_called_once_with("Home", "Away", "EPL", league_ctx=None, fixture_date="2026-04-10")
+        self.assertEqual(result, (0.5, 0.2, 0.3, 1.4, 0.9))
+
+    def test_goal_difference_calls_core(self):
+        with mock.patch.object(core_proj, "projected_goal_difference", return_value=(0.4, 0.2, 0.1)) as patched:
+            result = rag.projected_goal_difference("Home", "Away", "EPL", fixture_date="2026-04-10")
+        patched.assert_called_once_with("Home", "Away", "EPL", league_ctx=None, fixture_date="2026-04-10")
+        self.assertEqual(result, (0.4, 0.2, 0.1))
 
     def test_total_corners_calls_core(self):
         profile, recent = self._mock_profile_and_recent()

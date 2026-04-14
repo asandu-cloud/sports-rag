@@ -620,19 +620,20 @@ def get_blended_profile_meta(team_name: str, competition: str) -> Dict:
 
 
 def get_blended_recent_stats(team_name: str, competition: str, last_n: int = 6,
-                             venue: Optional[str] = None) -> Dict:
+                             venue: Optional[str] = None,
+                             target_date: Optional[str] = None) -> Dict:
     """For European competitions, blend domestic + European recent stats."""
     if competition not in EUROPEAN_COMPETITIONS:
-        return get_team_recent_stats(team_name, competition, last_n, venue=venue)
+        return get_team_recent_stats(team_name, competition, last_n, venue=venue, target_date=target_date)
 
     ew = SCORING_WEIGHTS["european"]
-    euro_stats = get_team_recent_stats(team_name, competition, last_n, venue=venue)
+    euro_stats = get_team_recent_stats(team_name, competition, last_n, venue=venue, target_date=target_date)
     domestic_lg = resolve_domestic_league(team_name)
 
     if not domestic_lg:
         return euro_stats  # Non-top-5 team
 
-    domestic_stats = get_team_recent_stats(team_name, domestic_lg, last_n, venue=venue)
+    domestic_stats = get_team_recent_stats(team_name, domestic_lg, last_n, venue=venue, target_date=target_date)
     if not domestic_stats or domestic_stats.get("n", 0) == 0:
         return euro_stats
     if not euro_stats or euro_stats.get("n", 0) == 0:
@@ -667,11 +668,12 @@ def _profile_meta(team: str, league: str) -> Dict:
 
 
 def _recent_stats(team: str, league: str, last_n: int = 6,
-                  venue: Optional[str] = None) -> Dict:
+                  venue: Optional[str] = None,
+                  target_date: Optional[str] = None) -> Dict:
     """Recent stats -- auto-blends for European competitions."""
     if league in EUROPEAN_COMPETITIONS:
-        return get_blended_recent_stats(team, league, last_n, venue=venue)
-    return get_team_recent_stats(team, league, last_n, venue=venue)
+        return get_blended_recent_stats(team, league, last_n, venue=venue, target_date=target_date)
+    return get_team_recent_stats(team, league, last_n, venue=venue, target_date=target_date)
 
 
 # ---------------------------------------------------------------------------
@@ -679,7 +681,8 @@ def _recent_stats(team: str, league: str, last_n: int = 6,
 # ---------------------------------------------------------------------------
 
 def get_recent_team_fixture_rows(team_name: str, league: str, limit: int = 8,
-                                  season: Optional[str] = None) -> List[Dict]:
+                                  season: Optional[str] = None,
+                                  target_date: Optional[str] = None) -> List[Dict]:
     col = get_collection_handle(create_if_missing=True)
     variants = _kb_team_variants(team_name)
 
@@ -716,6 +719,12 @@ def get_recent_team_fixture_rows(team_name: str, league: str, limit: int = 8,
         dedup = _fetch(None)
 
     rows = list(dedup.values())
+    if target_date:
+        cutoff = str(target_date)[:10]
+        rows = [
+            row for row in rows
+            if str((row.get("meta") or {}).get("fixture_date") or "")[:10] <= cutoff
+        ]
     rows.sort(key=lambda x: ((x.get("meta") or {}).get("fixture_date") or ""), reverse=True)
     return rows[:limit]
 
@@ -754,16 +763,22 @@ def _get_team_fixture_meta(team_name: str, league: str, fixture: str,
 
 
 def get_team_recent_stats(team_name: str, league: str, last_n: int = 6,
-                          venue: Optional[str] = None) -> Dict:
-    cache_key = (league, canonical_team_name(team_name).lower(), int(last_n),
-                 venue or "all")
+                          venue: Optional[str] = None,
+                          target_date: Optional[str] = None) -> Dict:
+    cache_key = (
+        league,
+        canonical_team_name(team_name).lower(),
+        int(last_n),
+        venue or "all",
+        str(target_date or "")[:10],
+    )
     cached = _team_recent_stats_cache.get(cache_key)
     if cached is not None:
         return cached
 
     # Fetch more rows when venue-filtering so we still get enough after filtering
     fetch_limit = max(last_n * 3, 12) if venue else max(last_n, 4)
-    rows = get_recent_team_fixture_rows(team_name, league, limit=fetch_limit)
+    rows = get_recent_team_fixture_rows(team_name, league, limit=fetch_limit, target_date=target_date)
     if venue:
         rows = [r for r in rows
                 if (r.get("meta") or {}).get("home_away", "").lower() == venue.lower()]
@@ -855,14 +870,20 @@ def get_team_recent_stats(team_name: str, league: str, last_n: int = 6,
     return stats
 
 
-def get_team_recent_variance(team_name: str, league: str, last_n: int = 8) -> Dict:
+def get_team_recent_variance(team_name: str, league: str, last_n: int = 8,
+                             target_date: Optional[str] = None) -> Dict:
     """Compute per-stat variance from recent fixtures for distribution modeling."""
-    cache_key = (league, canonical_team_name(team_name).lower(), int(last_n))
+    cache_key = (
+        league,
+        canonical_team_name(team_name).lower(),
+        int(last_n),
+        str(target_date or "")[:10],
+    )
     cached = _team_recent_var_cache.get(cache_key)
     if cached is not None:
         return cached
 
-    rows = get_recent_team_fixture_rows(team_name, league, limit=last_n)
+    rows = get_recent_team_fixture_rows(team_name, league, limit=last_n, target_date=target_date)
     metas = [(r.get("meta") or {}) for r in rows]
 
     def _var(values):
@@ -885,12 +906,13 @@ def get_team_recent_variance(team_name: str, league: str, last_n: int = 8) -> Di
     return result
 
 
-def get_blended_variance(team_name: str, league: str, stat_key: str) -> Optional[float]:
+def get_blended_variance(team_name: str, league: str, stat_key: str,
+                         fixture_date: Optional[str] = None) -> Optional[float]:
     """Bayesian blend of season variance (prior) with recent variance (update).
     Returns blended variance for distribution selection (Poisson vs NegBin)."""
     season_var_key = {"goals_var": "goals_var", "corners_for_var": "corners_var",
                       "cards_var": "cards_var", "sot_for_var": "sot_var"}.get(stat_key)
-    recent_dict = get_team_recent_variance(team_name, league)
+    recent_dict = get_team_recent_variance(team_name, league, target_date=fixture_date)
     recent_var = recent_dict.get(stat_key)
     season_var = None
     if season_var_key:

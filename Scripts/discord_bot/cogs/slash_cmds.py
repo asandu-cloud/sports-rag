@@ -29,6 +29,7 @@ from discord.ext import commands
 # ---------------------------------------------------------------------------
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[2] / "rag_ingest"))
 import rag_cli_v2 as rag  # noqa: E402
+from rendering.market_dispatch import render_market_answer_sync  # noqa: E402
 
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1]))
 from embeds import rag_output_to_embeds, parlay_embed  # noqa: E402
@@ -54,6 +55,13 @@ async def _run_rag(prompt: str, league: str) -> str:
     from concurrent.futures import ThreadPoolExecutor
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, _run_rag_sync, prompt, league)
+
+
+async def _render_market_answer(league: str, market: str, target_date: date) -> str:
+    """Async wrapper for deterministic market rendering."""
+    import asyncio
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, render_market_answer_sync, league, market, target_date)
 
 
 # ---------------------------------------------------------------------------
@@ -86,6 +94,7 @@ def _build_match_analysis_sync(home: str, away: str, league: str,
     Returns a structured dict with every market's data. Synchronous."""
 
     analysis: Dict = {"home": home, "away": away, "league": league}
+    fixture_date_str = target_date.isoformat()
 
     # --- Resolve team names ---
     home = rag.canonical_team_name(home) or home
@@ -124,7 +133,7 @@ def _build_match_analysis_sync(home: str, away: str, league: str,
     # --- Core projections ---
     # Goals
     try:
-        g_bl, g_s, g_r = rag.projected_total_goals(home, away, league)
+        g_bl, g_s, g_r = rag.projected_total_goals(home, away, league, fixture_date=fixture_date_str)
         analysis["goals"] = {"projected": _safe_round(g_bl), "season": _safe_round(g_s),
                              "recent": _safe_round(g_r)}
     except Exception:
@@ -132,7 +141,7 @@ def _build_match_analysis_sync(home: str, away: str, league: str,
 
     # Corners
     try:
-        c_bl, c_s, c_r = rag.projected_total_corners(home, away, league)
+        c_bl, c_s, c_r = rag.projected_total_corners(home, away, league, fixture_date=fixture_date_str)
         analysis["corners"] = {"projected": _safe_round(c_bl), "season": _safe_round(c_s),
                                "recent": _safe_round(c_r)}
     except Exception:
@@ -140,7 +149,7 @@ def _build_match_analysis_sync(home: str, away: str, league: str,
 
     # Cards
     try:
-        k_bl, k_s, k_r, ref_mod = rag.projected_total_cards(home, away, league)
+        k_bl, k_s, k_r, ref_mod = rag.projected_total_cards(home, away, league, fixture_date=fixture_date_str)
         analysis["cards"] = {"projected": _safe_round(k_bl), "season": _safe_round(k_s),
                              "recent": _safe_round(k_r)}
         if ref_mod and ref_mod.source == "profile" and ref_mod.referee_name:
@@ -157,7 +166,7 @@ def _build_match_analysis_sync(home: str, away: str, league: str,
 
     # SoT
     try:
-        s_bl, s_s, s_r = rag.projected_total_sot(home, away, league)
+        s_bl, s_s, s_r = rag.projected_total_sot(home, away, league, fixture_date=fixture_date_str)
         analysis["sot"] = {"projected": _safe_round(s_bl), "season": _safe_round(s_s),
                            "recent": _safe_round(s_r)}
     except Exception:
@@ -165,7 +174,7 @@ def _build_match_analysis_sync(home: str, away: str, league: str,
 
     # BTTS
     try:
-        p_btts, h_g, a_g, _, _ = rag.projected_btts_prob(home, away, league)
+        p_btts, h_g, a_g, _, _ = rag.projected_btts_prob(home, away, league, fixture_date=fixture_date_str)
         analysis["btts"] = {"btts_yes_prob": _safe_round(p_btts, 3),
                             "home_goals_proj": _safe_round(h_g),
                             "away_goals_proj": _safe_round(a_g)}
@@ -174,7 +183,7 @@ def _build_match_analysis_sync(home: str, away: str, league: str,
 
     # Moneyline
     try:
-        p_h, p_d, p_a, _, _ = rag.projected_moneyline_probs(home, away, league)
+        p_h, p_d, p_a, _, _ = rag.projected_moneyline_probs(home, away, league, fixture_date=fixture_date_str)
         ml_pairs = [
             {"side": "home", "team": home, "prob": _safe_round(p_h, 3)},
             {"side": "draw", "team": "Draw", "prob": _safe_round(p_d, 3)},
@@ -191,7 +200,7 @@ def _build_match_analysis_sync(home: str, away: str, league: str,
 
     # Spread/handicap
     try:
-        d_bl, d_s, d_r = rag.projected_goal_difference(home, away, league)
+        d_bl, d_s, d_r = rag.projected_goal_difference(home, away, league, fixture_date=fixture_date_str)
         analysis["spread"] = {"projected_diff": _safe_round(d_bl),
                               "season_diff": _safe_round(d_s),
                               "recent_diff": _safe_round(d_r)}
@@ -200,7 +209,7 @@ def _build_match_analysis_sync(home: str, away: str, league: str,
 
     # Correct score (top 5)
     try:
-        cs_probs, cs_h, cs_a = rag.projected_correct_score_probs(home, away, league)
+        cs_probs, cs_h, cs_a = rag.projected_correct_score_probs(home, away, league, fixture_date=fixture_date_str)
         if cs_probs:
             top5 = sorted(cs_probs.items(), key=lambda x: x[1], reverse=True)[:5]
             analysis["correct_score"] = {
@@ -212,8 +221,8 @@ def _build_match_analysis_sync(home: str, away: str, league: str,
 
     # Per-team corners
     try:
-        hc_bl, hc_s, hc_r = rag.projected_team_corners(home, away, league, is_home=True)
-        ac_bl, ac_s, ac_r = rag.projected_team_corners(away, home, league, is_home=False)
+        hc_bl, hc_s, hc_r = rag.projected_team_corners(home, away, league, is_home=True, fixture_date=fixture_date_str)
+        ac_bl, ac_s, ac_r = rag.projected_team_corners(away, home, league, is_home=False, fixture_date=fixture_date_str)
         analysis["team_corners"] = {
             "home": {"projected": _safe_round(hc_bl), "season": _safe_round(hc_s)},
             "away": {"projected": _safe_round(ac_bl), "season": _safe_round(ac_s)},
@@ -223,8 +232,8 @@ def _build_match_analysis_sync(home: str, away: str, league: str,
 
     # Per-team cards
     try:
-        hk_bl, hk_s, hk_r = rag.projected_team_cards(home, away, league, is_home=True)
-        ak_bl, ak_s, ak_r = rag.projected_team_cards(away, home, league, is_home=False)
+        hk_bl, hk_s, hk_r = rag.projected_team_cards(home, away, league, is_home=True, fixture_date=fixture_date_str)
+        ak_bl, ak_s, ak_r = rag.projected_team_cards(away, home, league, is_home=False, fixture_date=fixture_date_str)
         analysis["team_cards"] = {
             "home": {"projected": _safe_round(hk_bl), "season": _safe_round(hk_s)},
             "away": {"projected": _safe_round(ak_bl), "season": _safe_round(ak_s)},
@@ -305,8 +314,11 @@ def _build_match_analysis_sync(home: str, away: str, league: str,
             try:
                 btts_options = rag.extract_btts_odds(event)
                 if btts_options:
-                    best = rag.choose_best_btts_side(btts_options,
-                                                      analysis["btts"]["btts_yes_prob"])
+                    btts_result = rag.select_best_btts_recommendation(
+                        btts_options,
+                        analysis["btts"]["btts_yes_prob"],
+                    )
+                    best = btts_result.get("bet_recommendation")
                     if best:
                         analysis["btts"]["best_side"] = {
                             "side": best.get("side"), "odds": best.get("odds"),
@@ -314,6 +326,16 @@ def _build_match_analysis_sync(home: str, away: str, league: str,
                             "model_prob": _safe_round(best.get("_model_prob"), 3),
                             "value_edge": _safe_round(best.get("_value_edge"), 3),
                         }
+                    best_value = btts_result.get("best_value")
+                    if best_value:
+                        analysis["btts"]["best_value"] = {
+                            "side": best_value.get("side"), "odds": best_value.get("odds"),
+                            "bookmaker": best_value.get("bookmaker"),
+                            "model_prob": _safe_round(best_value.get("_model_prob"), 3),
+                            "value_edge": _safe_round(best_value.get("_value_edge"), 3),
+                        }
+                    if btts_result.get("no_bet_reason"):
+                        analysis["btts"]["no_bet_reason"] = btts_result.get("no_bet_reason")
             except Exception:
                 pass
 
@@ -383,7 +405,8 @@ def _extract_best_line(analysis: Dict, event: Dict, stat: str, stat_group: str,
                 variance = rag.get_blended_variance(home, league, vk)
             except Exception:
                 pass
-        best = rag.choose_best_total_line(options, projection, variance)
+        result = rag.select_best_total_recommendation(options, projection, variance)
+        best = result.get("bet_recommendation")
         if best:
             key = f"{stat}_line" if stat != "goals" else "goals_line"
             analysis[key] = {
@@ -395,6 +418,18 @@ def _extract_best_line(analysis: Dict, event: Dict, stat: str, stat_group: str,
                     abs(best.get("_value_edge", 0) or 0), stat_group=stat,
                     model_prob=best.get("_model_prob"),
                     value_edge_pct=best.get("_value_edge")),
+            }
+        elif result.get("best_value") or result.get("no_bet_reason"):
+            key = f"{stat}_line" if stat != "goals" else "goals_line"
+            best_value = result.get("best_value")
+            analysis[key] = {
+                "no_bet_reason": result.get("no_bet_reason"),
+                "best_value": {
+                    "side": best_value.get("side"), "point": best_value.get("point"),
+                    "odds": best_value.get("odds"), "bookmaker": best_value.get("bookmaker"),
+                    "model_prob": _safe_round(best_value.get("_model_prob"), 3),
+                    "value_edge": _safe_round(best_value.get("_value_edge"), 3),
+                } if best_value else None,
             }
     except Exception:
         pass
@@ -965,11 +1000,7 @@ class SlashCommands(commands.Cog):
         thread = await get_or_create_private_thread(interaction)
         await interaction.response.defer(thinking=True)
         target = _parse_date(date)
-        phrase = _date_phrase(target)
-
-        template = _MARKET_PROMPTS.get(market.value, _MARKET_PROMPTS["totals"])
-        prompt = template.format(league=league.value, date=phrase)
-        text = await _run_rag(prompt, league.value)
+        text = await _render_market_answer(league.value, market.value, target)
 
         label = _MARKET_LABELS.get(market.value, market.value.title())
         embeds, files = rag_output_to_embeds(label, text, league=league.value)

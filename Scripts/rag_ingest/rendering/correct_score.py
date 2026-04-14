@@ -128,5 +128,5 @@ def render_correct_score_answer(user_q: str, league: str, events: List[Dict]) ->
         p_away_win = sum(p for (h, a), p in probs.items() if h < a)
         lines.append(f"  Result probabilities: Home win {p_home_win:.1%} | Draw {p_draw:.1%} | Away win {p_away_win:.1%}")
 
-    lines.append("\nMethod: independent Poisson/NegBin probability model per team from local KB.")
+    lines.append("\nMethod: Dixon-Coles scoreline matrix from local KB projections.")
     return "\n".join(lines)
