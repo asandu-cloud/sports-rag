@@ -108,6 +108,31 @@ except Exception as exc:
     log.warning("Subscription system failed to initialize: %s", exc)
 
 # ---------------------------------------------------------------------------
+# V2: mount the live-match router so /api/live/* is served by this process
+# alongside /api/fixtures, /api/parlay, etc. The same router is re-exported
+# from Scripts/live/live_api.py so a standalone live process still works.
+# ---------------------------------------------------------------------------
+try:
+    import sys as _sys
+    from pathlib import Path as _Path
+    _scripts_dir = _Path(__file__).resolve().parents[1]
+    if str(_scripts_dir) not in _sys.path:
+        _sys.path.insert(0, str(_scripts_dir))
+    from web_app.routers.live import router as live_router
+    app.include_router(live_router)
+    log.info("Live router mounted at /api/live/*")
+except Exception as _live_exc:
+    log.warning("Live router not mounted: %s", _live_exc)
+
+# V3: platform health endpoint
+try:
+    from web_app.routers.health import router as health_router
+    app.include_router(health_router)
+    log.info("Health router mounted at /api/health/*")
+except Exception as _health_exc:
+    log.warning("Health router not mounted: %s", _health_exc)
+
+# ---------------------------------------------------------------------------
 # Simple TTL cache for fixture fetches (5 min)
 # ---------------------------------------------------------------------------
 _CACHE_TTL = 300  # seconds

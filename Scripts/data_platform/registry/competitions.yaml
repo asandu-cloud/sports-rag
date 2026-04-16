@@ -1,0 +1,154 @@
+# Competition registry — edit this file to onboard a new league.
+#
+# Fields per entry:
+#   code              short identifier used throughout the platform (primary key)
+#   name              human-readable name
+#   country           ISO country name or null for continental
+#   competition_type  domestic_league | continental_cup | international
+#   tier              1 = top flight, 2 = second tier, ...
+#   labels            free-form tags used for filtering (top5, uefa, ...)
+#   enabled           if false the sync pipeline skips this competition
+#   update_cadence_minutes
+#                     baseline refresh cadence; the scheduler may override
+#   default_markets   odds markets assumed to exist when fetching
+#   season_rules:
+#     style           europe_crossyear (default) | single_year
+#     start_month     first calendar month a match usually appears in
+#     end_month       last calendar month
+#   providers:
+#     <provider_name>:
+#       provider_id   e.g. API-Football league id
+#       team_aliases  map: raw_name -> canonical_name
+#       player_aliases map: raw_name -> canonical_name
+#       endpoint_flags:
+#         fixtures: true
+#         fixture_statistics: true
+#         fixture_players: true
+#         odds_prematch: true
+#         odds_live: true
+#       notes         free-form
+#   kb_entity_types   which KB entity types to enqueue on change
+#   feature_module    optional dotted path to a league-specific feature builder
+
+version: "1"
+competitions:
+
+  # --------------------------------------------------------------
+  # Top-5 European domestic leagues
+  # --------------------------------------------------------------
+  EPL:
+    name: "Premier League"
+    country: "England"
+    competition_type: "domestic_league"
+    tier: 1
+    labels: [top5, domestic]
+    providers:
+      api_football:
+        provider_id: 39
+        endpoint_flags:
+          fixtures: true
+          fixture_statistics: true
+          fixture_players: true
+          odds_prematch: true
+          odds_live: true
+    season_rules:
+      style: europe_crossyear
+      start_month: 8
+      end_month: 5
+
+  LaLiga:
+    name: "La Liga"
+    country: "Spain"
+    competition_type: "domestic_league"
+    tier: 1
+    labels: [top5, domestic]
+    providers:
+      api_football:
+        provider_id: 140
+        endpoint_flags:
+          fixtures: true
+          fixture_statistics: true
+          fixture_players: true
+
+  SerieA:
+    name: "Serie A"
+    country: "Italy"
+    competition_type: "domestic_league"
+    tier: 1
+    labels: [top5, domestic]
+    providers:
+      api_football:
+        provider_id: 135
+        team_aliases:
+          "Verona": "Hellas Verona"
+        endpoint_flags:
+          fixtures: true
+          fixture_statistics: true
+          fixture_players: true
+
+  Bundesliga:
+    name: "Bundesliga"
+    country: "Germany"
+    competition_type: "domestic_league"
+    tier: 1
+    labels: [top5, domestic]
+    providers:
+      api_football:
+        provider_id: 78
+        team_aliases:
+          "1.FC Köln": "1. FC Köln"
+        endpoint_flags:
+          fixtures: true
+          fixture_statistics: true
+          fixture_players: true
+
+  Ligue1:
+    name: "Ligue 1"
+    country: "France"
+    competition_type: "domestic_league"
+    tier: 1
+    labels: [top5, domestic]
+    providers:
+      api_football:
+        provider_id: 61
+        endpoint_flags:
+          fixtures: true
+          fixture_statistics: true
+          fixture_players: true
+
+  # --------------------------------------------------------------
+  # Continental cups
+  # --------------------------------------------------------------
+  UCL:
+    name: "UEFA Champions League"
+    country: null
+    competition_type: "continental_cup"
+    tier: 1
+    labels: [uefa]
+    providers:
+      api_football:
+        provider_id: 2
+        endpoint_flags:
+          fixtures: true
+          fixture_statistics: true
+          fixture_players: true
+
+  UEL:
+    name: "UEFA Europa League"
+    country: null
+    competition_type: "continental_cup"
+    tier: 2
+    labels: [uefa]
+    providers:
+      api_football:
+        provider_id: 3
+
+  UECL:
+    name: "UEFA Europa Conference League"
+    country: null
+    competition_type: "continental_cup"
+    tier: 3
+    labels: [uefa]
+    providers:
+      api_football:
+        provider_id: 848

@@ -58,6 +58,32 @@ log = logging.getLogger("parlay_service")
 TOP5_LEAGUES = ["EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1"]
 DEFAULT_DB_PATH = Path(__file__).resolve().parents[3] / "Index" / "predictions.db"
 
+# ---------------------------------------------------------------------------
+# V2 platform shim — lazy import so SQLAlchemy isn't a hard runtime dep.
+# ---------------------------------------------------------------------------
+
+import sys as _sys
+
+_SCRIPTS_ROOT = Path(__file__).resolve().parents[2]
+if str(_SCRIPTS_ROOT) not in _sys.path:
+    _sys.path.insert(0, str(_SCRIPTS_ROOT))
+
+
+def _platform_parlay_store():
+    """Return a PlatformParlayStore when PLATFORM_ENABLED=1, else None."""
+    try:
+        from data_platform.compat import PlatformParlayStore
+        from data_platform.compat.parlay_shim import is_platform_enabled
+    except Exception:
+        return None
+    if not is_platform_enabled():
+        return None
+    try:
+        return PlatformParlayStore()
+    except Exception:  # pragma: no cover - DB unreachable
+        log.exception("Platform parlay store unavailable; falling back to SQLite")
+        return None
+
 MARKET_FILTER_TO_GROUP = {
     "mixed": None,
     "totals": "totals",
@@ -89,8 +115,18 @@ class ParlayBuildError(RuntimeError):
 
 
 class ParlaySessionStore:
+    """Session store.
+
+    When ``PLATFORM_ENABLED=1`` *and* no custom ``db_path`` is supplied the
+    store routes every call through the canonical PostgreSQL repository
+    via :class:`PlatformParlayStore`. Otherwise it keeps the original
+    SQLite implementation. Tests pinning a temp file via ``db_path=``
+    continue to use SQLite.
+    """
+
     def __init__(self, db_path: Path = DEFAULT_DB_PATH):
         self.db_path = Path(db_path)
+        self._platform = _platform_parlay_store() if Path(db_path) == Path(DEFAULT_DB_PATH) else None
 
     def _get_db(self) -> sqlite3.Connection:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -127,6 +163,8 @@ class ParlaySessionStore:
         return conn
 
     def create_session(self, request: ParlayBuildRequest, result: ParlayBuildResult) -> int:
+        if self._platform is not None:
+            return self._platform.create_session(request, result)
         conn = self._get_db()
         cur = conn.execute(
             """
@@ -165,6 +203,13 @@ class ParlaySessionStore:
         channel_id: Optional[int] = None,
         thread_id: Optional[int] = None,
     ) -> None:
+        if self._platform is not None:
+            return self._platform.update_message_context(
+                session_id,
+                message_id=message_id,
+                channel_id=channel_id,
+                thread_id=thread_id,
+            )
         conn = self._get_db()
         conn.execute(
             """
@@ -180,12 +225,16 @@ class ParlaySessionStore:
         conn.close()
 
     def get_session(self, session_id: int) -> Optional[ParlaySessionRecord]:
+        if self._platform is not None:
+            return self._platform.get_session(session_id)
         conn = self._get_db()
         row = conn.execute("SELECT * FROM parlay_sessions WHERE id = ?", (session_id,)).fetchone()
         conn.close()
         return self._row_to_record(row) if row else None
 
     def list_persistent_sessions(self, limit: int = 250) -> List[ParlaySessionRecord]:
+        if self._platform is not None:
+            return self._platform.list_persistent_sessions(limit=limit)
         conn = self._get_db()
         rows = conn.execute(
             """

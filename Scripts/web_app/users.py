@@ -4,6 +4,11 @@ User database model and CRUD operations for the Matchwise subscription system.
 Shared by both the Discord bot and the FastAPI web app via the same SQLite
 database at Index/predictions.db.  All functions handle errors gracefully,
 logging warnings and returning safe defaults rather than raising.
+
+V1 platform migration: when ``PLATFORM_ENABLED=1`` in the environment,
+all reads/writes route through ``data_platform.repositories.UserRepository``
+against the canonical PostgreSQL store. The SQLite path below remains the
+legacy fallback and is what runs when the feature flag is off.
 """
 
 from __future__ import annotations
@@ -13,6 +18,7 @@ import logging
 import random
 import sqlite3
 import string
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -29,6 +35,34 @@ logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DB_PATH = _PROJECT_ROOT / "Index" / "predictions.db"
+
+# ---------------------------------------------------------------------------
+# V1 platform shim — lazy import so the legacy path stays zero-dependency
+# ---------------------------------------------------------------------------
+
+_SCRIPTS_ROOT = _PROJECT_ROOT / "Scripts"
+if str(_SCRIPTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_ROOT))
+
+
+def _platform_repo():
+    """Return the canonical UserRepository when the platform flag is on.
+
+    Imports lazily so environments without SQLAlchemy installed keep the
+    legacy SQLite path available. Any import failure is treated as
+    ``platform disabled`` so we never regress callers.
+    """
+    try:
+        from data_platform.compat import get_user_repository, is_platform_enabled
+    except Exception:
+        return None
+    if not is_platform_enabled():
+        return None
+    try:
+        return get_user_repository()
+    except Exception:  # pragma: no cover - only hit if DB is unreachable
+        logger.exception("Platform user repository unavailable; falling back to SQLite")
+        return None
 
 # ---------------------------------------------------------------------------
 # Tier hierarchy
@@ -260,6 +294,15 @@ def upsert_user(
 
     Returns the resulting user dict, or ``None`` on failure.
     """
+    repo = _platform_repo()
+    if repo is not None and db_path is None:
+        return repo.upsert_user(
+            discord_id,
+            discord_username=discord_username,
+            discord_avatar_url=discord_avatar_url,
+            email=email,
+            **kwargs,
+        )
     try:
         conn = get_db(db_path)
 
@@ -318,6 +361,9 @@ def get_user_by_discord_id(
     db_path: Optional[str | Path] = None,
 ) -> Optional[Dict[str, Any]]:
     """Return the user dict matching *discord_id*, or ``None``."""
+    repo = _platform_repo()
+    if repo is not None and db_path is None:
+        return repo.get_user_by_discord_id(discord_id)
     try:
         conn = get_db(db_path)
         row = conn.execute(
@@ -342,6 +388,9 @@ def create_email_user(
 
     Returns the new user dict, or ``None`` if the email is already taken.
     """
+    repo = _platform_repo()
+    if repo is not None and db_path is None:
+        return repo.create_email_user(email, password_hash)
     try:
         conn = get_db(db_path)
         # Check for existing email user
@@ -378,6 +427,9 @@ def get_user_by_email(
     db_path: Optional[str | Path] = None,
 ) -> Optional[Dict[str, Any]]:
     """Return the email-auth user matching *email*, or ``None``."""
+    repo = _platform_repo()
+    if repo is not None and db_path is None:
+        return repo.get_user_by_email(email)
     try:
         conn = get_db(db_path)
         row = conn.execute(
@@ -397,6 +449,9 @@ def get_user_by_id(
     db_path: Optional[str | Path] = None,
 ) -> Optional[Dict[str, Any]]:
     """Return the user matching *id*, or ``None``."""
+    repo = _platform_repo()
+    if repo is not None and db_path is None:
+        return repo.get_user_by_id(user_id)
     try:
         conn = get_db(db_path)
         row = conn.execute(
@@ -415,6 +470,9 @@ def get_user_by_stripe_customer(
     db_path: Optional[str | Path] = None,
 ) -> Optional[Dict[str, Any]]:
     """Return the user dict matching *stripe_customer_id*, or ``None``."""
+    repo = _platform_repo()
+    if repo is not None and db_path is None:
+        return repo.get_user_by_stripe_customer(customer_id)
     try:
         conn = get_db(db_path)
         row = conn.execute(
@@ -448,6 +506,18 @@ def update_user_subscription(
 
     Returns the updated user dict, or ``None`` on failure.
     """
+    repo = _platform_repo()
+    if repo is not None and db_path is None:
+        return repo.update_user_subscription(
+            discord_id, tier, status,
+            stripe_customer_id=stripe_customer_id,
+            stripe_subscription_id=stripe_subscription_id,
+            trial_start=trial_start,
+            trial_end=trial_end,
+            subscription_start=subscription_start,
+            subscription_end=subscription_end,
+            is_founding_member=is_founding_member,
+        )
     try:
         conn = get_db(db_path)
         fields: Dict[str, Any] = {
@@ -499,6 +569,9 @@ def cancel_user_subscription(
 
     Returns the updated user dict, or ``None`` on failure.
     """
+    repo = _platform_repo()
+    if repo is not None and db_path is None:
+        return repo.cancel_user_subscription(discord_id)
     try:
         conn = get_db(db_path)
         now = _now_iso()
@@ -538,6 +611,12 @@ def log_subscription_event(
 
     Returns ``True`` on success, ``False`` on failure.
     """
+    repo = _platform_repo()
+    if repo is not None and db_path is None:
+        return repo.log_subscription_event(
+            user_id, stripe_event_id, event_type,
+            tier=tier, status=status, raw_json=raw_json,
+        )
     try:
         conn = get_db(db_path)
         if raw_json is not None and not isinstance(raw_json, str):
@@ -574,6 +653,9 @@ def get_active_subscribers(
     tier:
         If provided, further filter by this tier value.
     """
+    repo = _platform_repo()
+    if repo is not None and db_path is None:
+        return repo.get_active_subscribers(tier=tier)
     try:
         conn = get_db(db_path)
         query = "SELECT * FROM users WHERE status IN ('active', 'trialing')"
@@ -616,6 +698,9 @@ def generate_referral_code(
 
     Returns the referral code string, or ``None`` on failure.
     """
+    repo = _platform_repo()
+    if repo is not None and db_path is None:
+        return repo.generate_referral_code(discord_id)
     try:
         conn = get_db(db_path)
         row = conn.execute(
@@ -673,6 +758,9 @@ def get_user_by_referral_code(
 
     Returns the user dict, or ``None`` if not found.
     """
+    repo = _platform_repo()
+    if repo is not None and db_path is None:
+        return repo.get_user_by_referral_code(code)
     try:
         conn = get_db(db_path)
         row = conn.execute(
@@ -706,6 +794,13 @@ def record_referral(
     Returns a dict with ``referral_count`` and ``reward`` info, or ``None``
     on failure / guard violation.
     """
+    repo = _platform_repo()
+    if repo is not None and db_path is None:
+        return repo.record_referral(
+            referrer_discord_id, referred_discord_id,
+            referred_username, referral_code_used,
+            stripe_event_id=stripe_event_id,
+        )
     try:
         if referrer_discord_id == referred_discord_id:
             logger.warning("record_referral: user %s tried to refer themselves", referrer_discord_id)
@@ -818,6 +913,9 @@ def grant_referral_reward(
 
     Returns ``True`` on success.
     """
+    repo = _platform_repo()
+    if repo is not None and db_path is None:
+        return repo.grant_referral_reward(referrer_discord_id, reward_type)
     try:
         conn = get_db(db_path)
         conn.execute(
@@ -857,6 +955,9 @@ def get_referral_stats(
         "referral_code": None,
         "referrals": [],
     }
+    repo = _platform_repo()
+    if repo is not None and db_path is None:
+        return repo.get_referral_stats(discord_id)
     try:
         conn = get_db(db_path)
 

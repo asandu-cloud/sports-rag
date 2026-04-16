@@ -51,6 +51,25 @@ sys.path.insert(0, str(_SCRIPT_DIR))
 DB_PATH = _PROJECT_ROOT / "Index" / "predictions.db"
 OUTPUT_DIR = _PROJECT_ROOT / "Output"
 
+# ---------------------------------------------------------------------------
+# V2 platform dispatch (lazy import so SQLAlchemy isn't a hard dep).
+# ---------------------------------------------------------------------------
+
+_SCRIPTS_ROOT = _PROJECT_ROOT / "Scripts"
+if str(_SCRIPTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_ROOT))
+
+
+def _platform_on() -> bool:
+    try:
+        from data_platform.compat.predictions_shim import is_platform_enabled
+    except Exception:
+        return False
+    try:
+        return is_platform_enabled()
+    except Exception:
+        return False
+
 LEAGUE_TO_FE_DIR = {
     "EPL": "Prem_feature_engineering",
     "LaLiga": "LaLiga_feature_engineering",
@@ -194,7 +213,24 @@ def log_prediction(
 
     This function is designed to be FAST and SAFE — it will never crash the
     calling code. Any error is caught, logged, and -1 is returned.
+
+    When ``PLATFORM_ENABLED=1`` and ``db_path`` is the default, writes land
+    in Postgres via ``data_platform``.
     """
+    if db_path == DB_PATH and _platform_on():
+        try:
+            from data_platform.compat import platform_log_prediction
+            return platform_log_prediction(
+                home_team=home_team, away_team=away_team, league=league,
+                market=market, pick=pick, side=side,
+                line=line, odds=odds, bookmaker=bookmaker,
+                model_prob=model_prob, implied_prob=implied_prob,
+                value_edge=value_edge, confidence=confidence,
+                projected_total=projected_total, source=source,
+                fixture_id=fixture_id, kickoff=kickoff, season=season,
+            )
+        except Exception:
+            log.exception("platform log_prediction failed; falling through to SQLite")
     try:
         conn = _get_db(db_path)
         prediction_date = date.today().isoformat()
@@ -1316,6 +1352,78 @@ def _grade_prediction(pred: dict, result: dict) -> Tuple[Optional[str], Optional
     return None, None
 
 
+def _maybe_platform_resolve(kwargs: Dict[str, Any]):
+    """When running against the canonical store, route outcome grading
+    through :class:`PredictionService`.
+
+    Grading logic (API-Football fetch, name-matching, market-specific
+    rules) stays in the legacy helpers — we only change where rows are
+    read from and where outcomes are written to.
+    """
+    if kwargs.get("db_path", DB_PATH) != DB_PATH or not _platform_on():
+        return None
+    try:
+        from data_platform.compat import (
+            platform_get_unresolved_for_grading,
+            platform_mark_outcome,
+        )
+    except Exception:
+        return None
+    try:
+        prediction_date = kwargs.get("prediction_date")
+        before = None
+        if prediction_date:
+            try:
+                before = date.fromisoformat(str(prediction_date))
+            except ValueError:
+                before = None
+        unresolved = platform_get_unresolved_for_grading(on_or_before=before)
+        if not unresolved:
+            return {"graded": 0, "errors": 0, "skipped": 0}
+
+        league = kwargs.get("league")
+        if league:
+            unresolved = [p for p in unresolved if (p.get("league") or "") == league]
+
+        # Group by (date, league) so we only hit API-Football once per slice.
+        by_slice: Dict[Tuple[str, str], List[dict]] = {}
+        for pred in unresolved:
+            key = (pred.get("prediction_date") or "", pred.get("league") or "")
+            by_slice.setdefault(key, []).append(pred)
+
+        graded = 0
+        errors = 0
+        skipped = 0
+        for (slice_date, slice_league), preds in by_slice.items():
+            try:
+                results = _fetch_results_from_api(slice_league, slice_date)
+            except Exception:
+                log.exception("platform _fetch_results_from_api failed for %s %s",
+                              slice_league, slice_date)
+                errors += 1
+                continue
+            if not results:
+                skipped += len(preds)
+                continue
+            for pred in preds:
+                match = _match_prediction_to_result(pred, results)
+                if match is None:
+                    skipped += 1
+                    continue
+                outcome, actual = _grade_prediction(pred, match)
+                if outcome is None:
+                    skipped += 1
+                    continue
+                if platform_mark_outcome(int(pred["id"]), outcome=outcome, actual_result=actual):
+                    graded += 1
+                else:
+                    errors += 1
+        return {"graded": graded, "errors": errors, "skipped": skipped}
+    except Exception:
+        log.exception("platform resolve_outcomes failed; falling through to SQLite")
+        return None
+
+
 def resolve_outcomes(
     prediction_date: str = None,
     league: str = None,
@@ -1331,6 +1439,20 @@ def resolve_outcomes(
         prediction_date = (date.today() - timedelta(days=1)).isoformat()
 
     stats = {"graded": 0, "hit": 0, "miss": 0, "push": 0, "errors": 0, "details": []}
+
+    if not dry_run:
+        platform_result = _maybe_platform_resolve({
+            "prediction_date": prediction_date, "league": league, "db_path": db_path,
+        })
+        if platform_result is not None:
+            return {
+                "graded": platform_result.get("graded", 0),
+                "hit": 0, "miss": 0, "push": 0,
+                "errors": platform_result.get("errors", 0),
+                "details": [],
+                "backend": "platform",
+                "skipped": platform_result.get("skipped", 0),
+            }
 
     try:
         conn = _get_db(db_path)
@@ -1472,6 +1594,19 @@ def resolve_outcomes(
 # D. Track Record Statistics
 # ===================================================================
 
+def _maybe_platform_track_record(kwargs: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if kwargs.get("db_path", DB_PATH) != DB_PATH:
+        return None
+    if not _platform_on():
+        return None
+    try:
+        from data_platform.compat import platform_get_track_record
+        return platform_get_track_record(**{k: v for k, v in kwargs.items() if k != "db_path"})
+    except Exception:
+        log.exception("platform get_track_record failed; falling through to SQLite")
+        return None
+
+
 def get_track_record(
     days: int = None,
     league: str = None,
@@ -1486,6 +1621,12 @@ def get_track_record(
     Returns a dict with overall stats, breakdowns by confidence/market/league,
     streak info, daily performance, and ROI calculations.
     """
+    platform_result = _maybe_platform_track_record({
+        "days": days, "league": league, "market": market,
+        "confidence": confidence, "db_path": db_path,
+    })
+    if platform_result is not None:
+        return platform_result
     try:
         conn = _get_db(db_path)
     except Exception:
@@ -1720,6 +1861,19 @@ def _compute_daily_performance(preds: List[dict], days: int = 30) -> List[dict]:
     return daily
 
 
+def _maybe_platform_daily(kwargs: Dict[str, Any]):
+    if kwargs.get("db_path", DB_PATH) != DB_PATH:
+        return None
+    if not _platform_on():
+        return None
+    try:
+        from data_platform.compat import platform_get_daily_breakdown
+        return platform_get_daily_breakdown(**{k: v for k, v in kwargs.items() if k != "db_path"})
+    except Exception:
+        log.exception("platform get_daily_breakdown failed; falling through to SQLite")
+        return None
+
+
 def get_daily_breakdown(
     prediction_date: str = None,
     *,
@@ -1739,6 +1893,10 @@ def get_daily_breakdown(
     """
     if prediction_date is None:
         prediction_date = (date.today() - timedelta(days=1)).isoformat()
+
+    platform = _maybe_platform_daily({"target_date": prediction_date, "db_path": db_path})
+    if platform is not None:
+        return platform
 
     try:
         conn = _get_db(db_path)
@@ -1869,6 +2027,19 @@ def get_daily_breakdown(
     }
 
 
+def _maybe_platform_recent(kwargs: Dict[str, Any]):
+    if kwargs.get("db_path", DB_PATH) != DB_PATH:
+        return None
+    if not _platform_on():
+        return None
+    try:
+        from data_platform.compat import platform_get_recent_predictions
+        return platform_get_recent_predictions(**{k: v for k, v in kwargs.items() if k != "db_path"})
+    except Exception:
+        log.exception("platform get_recent_predictions failed; falling through to SQLite")
+        return None
+
+
 def get_recent_predictions(
     limit: int = 20,
     league: str = None,
@@ -1877,6 +2048,16 @@ def get_recent_predictions(
     db_path: Path = DB_PATH,
 ) -> List[dict]:
     """Fetch the most recent predictions, optionally filtered."""
+    platform = _maybe_platform_recent({
+        "limit": limit, "league": league,
+        "days": 180,  # sensible upper bound for "recent"
+        "db_path": db_path,
+    })
+    if platform is not None:
+        rows = platform
+        if graded_only:
+            rows = [r for r in rows if r.get("outcome")]
+        return rows
     try:
         conn = _get_db(db_path)
     except Exception:
@@ -2168,12 +2349,26 @@ def _format_clv_report(
 #  Calibration Analysis
 # ===================================================================
 
+def _maybe_platform_calibration(db_path: Path, buckets: int = 10):
+    if db_path != DB_PATH or not _platform_on():
+        return None
+    try:
+        from data_platform.compat import platform_get_calibration_data
+        return platform_get_calibration_data(buckets=buckets)
+    except Exception:
+        log.exception("platform get_calibration_data failed; falling through to SQLite")
+        return None
+
+
 def get_calibration_data(*, db_path: Path = DB_PATH) -> List[Dict]:
     """Return calibration data: for each probability bucket, model prob vs actual hit rate.
 
     Groups resolved predictions by model probability into 5% buckets (50-55%, 55-60%, etc.)
     and computes the actual hit rate for each bucket.
     """
+    platform = _maybe_platform_calibration(db_path)
+    if platform is not None:
+        return platform
     try:
         db = _get_db(db_path)
     except Exception:

@@ -2,28 +2,83 @@
 
 Stores raw live state, model snapshots, and emitted alerts so the live stack
 can be replayed and audited later without affecting the online workflow.
+
+V2 platform migration: when ``PLATFORM_ENABLED=1`` the store delegates
+every write to :class:`data_platform.compat.PlatformLiveStore` against the
+canonical PostgreSQL tables. The SQLite path below remains the legacy
+fallback so tests + development flows stay zero-config.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
+
+logger = logging.getLogger(__name__)
 
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+_SCRIPTS_ROOT = Path(__file__).resolve().parents[1]
+if str(_SCRIPTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_ROOT))
+
+_PROJECT_ROOT = _SCRIPTS_ROOT.parent
+_DEFAULT_LIVE_DB = _PROJECT_ROOT / "Index" / "live.db"
+
+
+def _is_default_path(db_path: Path) -> bool:
+    """True only when ``db_path`` refers to the conventional Index/live.db.
+
+    Tests + custom deployments pass explicit paths; those keep the legacy
+    SQLite implementation so test harnesses stay predictable.
+    """
+    try:
+        return Path(db_path).resolve() == _DEFAULT_LIVE_DB.resolve()
+    except Exception:
+        return False
+
+
+def _platform_live_store(db_path: Path):
+    """Return a PlatformLiveStore when PLATFORM_ENABLED=1 AND the default
+    path is in use, else None.
+    """
+    if not _is_default_path(db_path):
+        return None
+    try:
+        from data_platform.compat import PlatformLiveStore
+        from data_platform.compat.live_shim import is_platform_enabled
+    except Exception:
+        return None
+    if not is_platform_enabled():
+        return None
+    try:
+        return PlatformLiveStore()
+    except Exception:  # pragma: no cover - DB unreachable
+        logger.exception("Platform live store unavailable; falling back to SQLite")
+        return None
+
+
 class LiveStore:
-    """SQLite-backed storage for live fixtures, snapshots, and alerts."""
+    """SQLite-backed storage for live fixtures, snapshots, and alerts.
+
+    When the V2 platform flag is on the store transparently forwards to
+    :class:`PlatformLiveStore`. Callers keep their existing import.
+    """
 
     def __init__(self, db_path: Path):
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._init_db()
+        self._platform = _platform_live_store(self.db_path)
+        if self._platform is None:
+            self._init_db()
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
@@ -92,6 +147,8 @@ class LiveStore:
             )
 
     def ensure_fixture(self, fixture_id: int, league: str, home_team: str, away_team: str, kickoff_utc: Optional[str]) -> None:
+        if self._platform is not None:
+            return self._platform.ensure_fixture(fixture_id, league, home_team, away_team, kickoff_utc)
         with self._connect() as conn:
             conn.execute(
                 """
@@ -107,6 +164,8 @@ class LiveStore:
             )
 
     def record_state(self, fixture_id: int, state_payload: Dict[str, Any], *, status: Optional[str], elapsed_min: Optional[float]) -> None:
+        if self._platform is not None:
+            return self._platform.record_state(fixture_id, state_payload, status=status, elapsed_min=elapsed_min)
         with self._connect() as conn:
             conn.execute(
                 """
@@ -117,6 +176,11 @@ class LiveStore:
             )
 
     def record_snapshot(self, fixture_id: int, snapshot_payload: Dict[str, Any], *, snapshot_ts: str, elapsed_min: Optional[float], score: Optional[str]) -> None:
+        if self._platform is not None:
+            return self._platform.record_snapshot(
+                fixture_id, snapshot_payload,
+                snapshot_ts=snapshot_ts, elapsed_min=elapsed_min, score=score,
+            )
         with self._connect() as conn:
             conn.execute(
                 """
@@ -127,6 +191,8 @@ class LiveStore:
             )
 
     def record_live_odds(self, fixture_id: int, odds_payload: Dict[str, Any], *, captured_at: Optional[str] = None) -> None:
+        if self._platform is not None:
+            return self._platform.record_live_odds(fixture_id, odds_payload, captured_at=captured_at)
         with self._connect() as conn:
             conn.execute(
                 """
@@ -137,6 +203,8 @@ class LiveStore:
             )
 
     def record_alerts(self, fixture_id: int, snapshot_ts: str, alerts: Iterable[Dict[str, Any]]) -> None:
+        if self._platform is not None:
+            return self._platform.record_alerts(fixture_id, snapshot_ts, alerts)
         alert_rows = [
             (
                 fixture_id,
@@ -161,6 +229,8 @@ class LiveStore:
             )
 
     def mark_finished(self, fixture_id: int) -> None:
+        if self._platform is not None:
+            return self._platform.mark_finished(fixture_id)
         with self._connect() as conn:
             conn.execute(
                 "UPDATE live_fixtures SET finished_at = COALESCE(finished_at, ?) WHERE fixture_id = ?",
