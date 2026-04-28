@@ -592,6 +592,48 @@ def projected_goals(home_meta: Dict, away_meta: Dict) -> Tuple[Optional[float], 
     return h_proj, a_proj
 
 
+def projected_team_goals(
+    team: str,
+    opponent: str,
+    league: str,
+    is_home: bool,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
+) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+    """Per-team goal projection blending season + recent form.
+
+    Returns (blended, season, recent).
+    """
+    pw = SCORING_WEIGHTS["projection"]
+    home_name = team if is_home else opponent
+    away_name = opponent if is_home else team
+    league_ctx = _resolve_league_context(home_name, away_name, league,
+                                          league_ctx=league_ctx, fixture_date=fixture_date)
+    hm = _profile_meta(home_name, league)
+    am = _profile_meta(away_name, league)
+
+    h_proj, a_proj = projected_goals(hm, am)
+    season_proj = h_proj if is_home else a_proj
+
+    recent_stats = _recent_stats(team, league, last_n=6, target_date=fixture_date)
+    recent_goals = recent_stats.get("goals_for_avg")
+
+    if season_proj is not None and recent_goals is not None:
+        blended = pw.get("blend_goals_season", 0.85) * season_proj + pw.get("blend_goals_recent", 0.15) * recent_goals
+    elif season_proj is not None:
+        blended = season_proj
+    elif recent_goals is not None:
+        blended = recent_goals
+    else:
+        return None, None, None
+
+    if league_ctx is not None:
+        adj = getattr(league_ctx, "adjustments", {}).get("goals", 1.0)
+        blended *= adj
+
+    return blended, season_proj, recent_goals
+
+
 # ===================================================================
 #  Match-total projections (blended season + recent + ML)
 # ===================================================================

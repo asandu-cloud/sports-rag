@@ -15,7 +15,9 @@ CHANNEL_PLAYER_PROPS = int(os.getenv("DISCORD_CHANNEL_PLAYER_PROPS", "0"))  # pl
 CHANNEL_TEAM_LINES = int(os.getenv("DISCORD_CHANNEL_TEAM_LINES", "0"))      # per-team corner & card lines
 CHANNEL_BEST_PICKS = int(os.getenv("DISCORD_CHANNEL_BEST_PICKS", "0"))      # daily track record summary
 CHANNEL_NEWSLETTER = int(os.getenv("DISCORD_CHANNEL_NEWSLETTER", "0"))      # matchday intel (WHALE only)
-CHANNEL_HIGH_RISK = int(os.getenv("DISCORD_CHANNEL_HIGH_RISK", "0"))        # best 1.85-2.4 odds unit bets
+CHANNEL_HIGH_RISK = int(os.getenv("DISCORD_CHANNEL_HIGH_RISK", "0"))        # legacy alias
+CHANNEL_UNIT_BETS = int(os.getenv("DISCORD_CHANNEL_UNIT_BETS",
+                        os.getenv("DISCORD_CHANNEL_HIGH_RISK", "0")))      # unit betting channel
 
 # Legacy channel IDs (kept for backward compatibility, map to new channels)
 CHANNEL_PARLAY_OF_DAY = int(os.getenv("DISCORD_CHANNEL_PARLAYS",
@@ -97,3 +99,5 @@ COLOR_YELLOW = 0xF1C40F  # medium confidence
 COLOR_RED = 0xE74C3C     # low confidence
 COLOR_BLUE = 0x3498DB    # info / neutral
 COLOR_PURPLE = 0x9B59B6  # parlay
+
+

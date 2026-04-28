@@ -5,7 +5,7 @@ Structured models for deterministic Discord parlay workflows.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 
 @dataclass(frozen=True)
@@ -57,6 +57,7 @@ class ParlayBuildRequest:
     risk_profile: str = "standard"
     locked_legs: List[ParlayLegRef] = field(default_factory=list)
     excluded_legs: List[ParlayLegRef] = field(default_factory=list)
+    excluded_event_groups: List[Tuple[str, str]] = field(default_factory=list)  # [(event_id, market_group), ...]
     allowed_event_ids: List[str] = field(default_factory=list)
     prefer_new_fixture: bool = False
     action_type: str = "initial"

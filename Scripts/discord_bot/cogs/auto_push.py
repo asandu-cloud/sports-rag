@@ -42,6 +42,7 @@ from config import (  # noqa: E402
     CHANNEL_BEST_PICKS,
     CHANNEL_NEWSLETTER,
     CHANNEL_HIGH_RISK,
+    CHANNEL_UNIT_BETS,
     # Legacy aliases (all map to the channels above via config.py)
     CHANNEL_PARLAY_OF_DAY,
     CHANNEL_MATCHDAY_DIGEST,
@@ -64,7 +65,7 @@ from config import (  # noqa: E402
 
 # Prediction tracker (optional — graceful if unavailable)
 try:
-    from prediction_tracker import resolve_outcomes, get_track_record, get_daily_breakdown, capture_closing_odds
+    from prediction_tracker import resolve_outcomes, get_track_record, get_daily_breakdown, capture_closing_odds, log_prediction
     _HAS_TRACKER = True
 except ImportError:
     _HAS_TRACKER = False
@@ -300,6 +301,91 @@ def _is_posting_window(first_kickoff) -> bool:
     log.info("First kickoff in %.1f hours (kickoff=%s, now=%s)",
              hours_until, first_kickoff, now)
     return -0.5 <= hours_until <= 3.5
+
+
+def _is_unit_bet_window(first_kickoff) -> bool:
+    """Return True if we're 0.5-1.5 hours before first kickoff (1h target)."""
+    if first_kickoff is None:
+        return True
+    now = datetime.now(timezone.utc)
+    if first_kickoff.tzinfo is None:
+        first_kickoff = first_kickoff.replace(tzinfo=timezone.utc)
+    hours_until = (first_kickoff - now).total_seconds() / 3600
+    return 0.5 <= hours_until <= 1.5
+
+
+# Best-performing markets for unit betting (exclude corners: R2=0.12, 0.03 corr)
+_UNIT_BET_MARKETS = ["moneyline", "btts", "totals", "sot", "cards"]
+
+
+def _unit_bet_presets(target_date: date, leagues: list) -> list:
+    """Return presets for unit betting: 1 single + 1 two-legger."""
+    leagues = list(leagues or [])
+    return [
+        {
+            "name": "unit_single",
+            "title": "\U0001f3af  Unit Single",
+            "request": build_parlay_request(
+                league_value="cross-league",
+                leagues_override=leagues,
+                display_league="Cross-League",
+                target_date=target_date,
+                legs=1,
+                odds=None,
+                target_min=1.80,
+                target_max=2.40,
+                market="mixed",
+                source_command="unit_bets",
+                target_mode="none",
+                min_model_prob=0.63,
+                allowed_confidences=["high"],
+                allowed_groups=_UNIT_BET_MARKETS,
+                risk_profile="unit",
+            ),
+        },
+        {
+            "name": "unit_double",
+            "title": "\U0001f3af  Unit Double",
+            "request": build_parlay_request(
+                league_value="cross-league",
+                leagues_override=leagues,
+                display_league="Cross-League",
+                target_date=target_date,
+                legs=2,
+                odds=None,
+                target_min=1.80,
+                target_max=2.40,
+                market="mixed",
+                source_command="unit_bets",
+                target_mode="none",
+                min_model_prob=0.70,
+                allowed_confidences=["high"],
+                allowed_groups=_UNIT_BET_MARKETS,
+                risk_profile="unit",
+            ),
+        },
+        {
+            "name": "unit_single_fallback",
+            "title": "\U0001f3af  Unit Single",
+            "request": build_parlay_request(
+                league_value="cross-league",
+                leagues_override=leagues,
+                display_league="Cross-League",
+                target_date=target_date,
+                legs=1,
+                odds=None,
+                target_min=1.80,
+                target_max=2.40,
+                market="mixed",
+                source_command="unit_bets",
+                target_mode="none",
+                min_model_prob=0.60,
+                allowed_confidences=["high", "medium"],
+                allowed_groups=_UNIT_BET_MARKETS,
+                risk_profile="unit",
+            ),
+        },
+    ]
 
 
 async def _post_market_for_leagues(
@@ -936,6 +1022,8 @@ class AutoPush(commands.Cog):
             self.clv_capture.start()
         if CHANNEL_NEWSLETTER and _HAS_NEWSLETTER:
             self.newsletter_digest.start()
+        if CHANNEL_UNIT_BETS:
+            self.unit_bets_task.start()
 
     async def cog_unload(self):
         for task in [self.daily_parlay, self.value_scan, self.market_channels,
@@ -950,6 +1038,8 @@ class AutoPush(commands.Cog):
             self.clv_capture.cancel()
         if hasattr(self, "newsletter_digest") and self.newsletter_digest.is_running():
             self.newsletter_digest.cancel()
+        if hasattr(self, "unit_bets_task") and self.unit_bets_task.is_running():
+            self.unit_bets_task.cancel()
 
     # ===================================================================
     # MARKET CHANNELS — auto-post before kickoff
@@ -980,9 +1070,7 @@ class AutoPush(commands.Cog):
         if CHANNEL_TEAM_LINES and not self._already_posted("team_lines"):
             await self._post_team_lines(leagues, date_str)
 
-        # --- #high-risk: best unit bets in 1.85-2.40 odds range ---
-        if CHANNEL_HIGH_RISK and not self._already_posted("high_risk"):
-            await self._post_high_risk(leagues, date_str, kickoff_map)
+        # Unit bets are posted by the separate unit_bets_task (1h before kickoff)
 
         # Player props are posted separately — 30 min before each kickoff
         # via the player_props_pre_match task
@@ -1115,12 +1203,11 @@ class AutoPush(commands.Cog):
         target_date = date.today()
         date_str = _today_phrase()
         built = []
-        used_leg_refs = []  # accumulate legs across parlays to prevent repetition
+        used_event_groups = []  # (event_id, market_group) — block same market+match across parlays
         for preset in _auto_parlay_presets(target_date, active_leagues):
-            # Inject previously-used legs as exclusions for risk diversification
-            if used_leg_refs:
-                preset["request"].excluded_legs = list(
-                    set(preset["request"].excluded_legs) | set(used_leg_refs)
+            if used_event_groups:
+                preset["request"].excluded_event_groups = list(
+                    set(preset["request"].excluded_event_groups) | set(used_event_groups)
                 )
             try:
                 result = await _build_structured_parlay(preset["request"])
@@ -1131,9 +1218,8 @@ class AutoPush(commands.Cog):
                 log.error("Auto parlay '%s' failed: %s", preset["title"], exc, exc_info=True)
                 continue
             built.append((preset, result))
-            # Collect used legs so subsequent parlays cannot repeat them
             for leg in result.selected_legs:
-                used_leg_refs.append(leg.ref)
+                used_event_groups.append((leg.event_id, leg.market_group))
 
         if not built:
             log.warning("All 3 structured parlay presets failed.")
@@ -1157,6 +1243,27 @@ class AutoPush(commands.Cog):
 
     @daily_parlay.before_loop
     async def _wait_parlay(self):
+        await self.bot.wait_until_ready()
+
+    # ===================================================================
+    # UNIT BETS (1h before first kickoff)
+    # ===================================================================
+
+    @tasks.loop(minutes=10)
+    async def unit_bets_task(self):
+        """Post unit bets ~1 hour before first kickoff."""
+        if self._already_posted("unit_bets"):
+            return
+        first_kickoff, active_leagues, _ = _get_todays_leagues()
+        if not active_leagues:
+            return
+        if not _is_unit_bet_window(first_kickoff):
+            return
+        date_str = _today_phrase()
+        await self._post_unit_bets(active_leagues, date_str)
+
+    @unit_bets_task.before_loop
+    async def _wait_unit_bets(self):
         await self.bot.wait_until_ready()
 
     # ===================================================================
@@ -1505,7 +1612,7 @@ class AutoPush(commands.Cog):
         discord.app_commands.Choice(name="Best Picks Recap", value="best_picks_recap"),
         discord.app_commands.Choice(name="CLV Capture", value="clv_capture"),
         discord.app_commands.Choice(name="Newsletter", value="newsletter"),
-        discord.app_commands.Choice(name="High Risk", value="high_risk"),
+        discord.app_commands.Choice(name="Unit Bets", value="unit_bets"),
         discord.app_commands.Choice(name="Free Picks", value="free_picks"),
         discord.app_commands.Choice(name="Everything", value="everything"),
     ])
@@ -1647,10 +1754,10 @@ class AutoPush(commands.Cog):
                 await self._post_team_lines(leagues, date_str)
                 posted.append("team lines")
 
-            if task.value in ("high_risk", "everything"):
-                self._posted_today.pop("high_risk", None)
-                await self._post_high_risk(leagues, date_str, kickoff_map)
-                posted.append("high risk")
+            if task.value in ("unit_bets", "everything"):
+                self._posted_today.pop("unit_bets", None)
+                await self._post_unit_bets(leagues, date_str)
+                posted.append("unit bets")
 
             if task.value in ("parlays", "everything"):
                 self._posted_today.pop("parlay", None)
@@ -1861,133 +1968,139 @@ class AutoPush(commands.Cog):
 
         self._mark_posted("daily_picks")
 
-    async def _post_high_risk(self, leagues: list, date_str: str, kickoff_map: dict | None = None):
-        """Post the 5 best unit bets across all leagues in the 1.85-2.40 odds range to #high-risk."""
-        kickoff_map = kickoff_map or {}
-        ch = self.bot.get_channel(CHANNEL_HIGH_RISK)
+    async def _post_unit_bets(self, leagues: list, date_str: str):
+        """Post structured unit bets (1.80-2.40 odds) to #unit-bets.
+
+        Builds 1-2 high-confidence picks per matchday using the structured
+        parlay service.  Each pick is logged to the prediction tracker so
+        win rate can be computed separately for this channel.
+        """
+        ch = self.bot.get_channel(CHANNEL_UNIT_BETS)
         if not ch:
-            log.warning("CHANNEL_HIGH_RISK not configured")
+            log.warning("CHANNEL_UNIT_BETS not configured")
             return
 
-        _ALL_QUERIES = {
-            "moneyline": ("moneyline", "\U0001f3c6"),
-            "btts": ("btts", "\U0001f91d"),
-            "spreads": ("spreads", "\U0001f4cf"),
-            "sot": ("sot", "\U0001f3af"),
-            "goals": ("totals", "\u26bd"),
-            "corners": ("corners", "\U0001f4d0"),
-            "cards": ("cards", "\U0001f7e8"),
-        }
+        log.info("Building unit bets for %s...", date_str)
 
-        _MARKET_LABELS = {
-            "moneyline": "Winner", "btts": "BTTS", "spreads": "Handicap",
-            "sot": "SoT", "goals": "Goals", "corners": "Corners", "cards": "Cards",
-        }
+        built = []
+        used_event_groups = []
+        target_picks = 2  # aim for 2 picks per matchday
 
-        MIN_ODDS = 1.85
-        MAX_ODDS = 2.40
+        for preset in _unit_bet_presets(date.today(), leagues):
+            if len(built) >= target_picks:
+                break
+            if used_event_groups:
+                preset["request"].excluded_event_groups = list(
+                    set(preset["request"].excluded_event_groups) | set(used_event_groups)
+                )
+            try:
+                result = await _build_structured_parlay(preset["request"])
+            except ParlayBuildError as exc:
+                log.info("Unit bet '%s' skipped: %s", preset["name"], exc.message)
+                continue
+            except Exception as exc:
+                log.warning("Unit bet '%s' failed: %s", preset["name"], exc)
+                continue
 
-        # Collect across ALL leagues into one pool
-        all_candidates = []
+            # Validate combined odds are in range
+            combo_odds = float(getattr(result, "combined_odds", 0) or 0)
+            if combo_odds < 1.80 or combo_odds > 2.40:
+                log.info("Unit bet '%s' odds %.2f outside 1.80-2.40, skipping", preset["name"], combo_odds)
+                continue
 
-        for league in leagues:
-            log.info("Collecting high-risk picks for %s...", league)
+            built.append((preset, result))
+            for leg in result.selected_legs:
+                used_event_groups.append((leg.event_id, leg.market_group))
 
-            for market_key, (render_key, emoji) in _ALL_QUERIES.items():
-                text = await _render_market_answer(league, render_key, date.today())
-                if not _is_valid(text):
-                    continue
-                picks = parse_fixture_picks(text)
-                for fixture, line in picks.items():
-                    if not line:
-                        continue
-                    if "no bet" in line.lower():
-                        continue
-                    import re
-                    pick_m = re.search(r"\*\*(.+?)\*\*", line)
-                    odds_m = re.search(r"@\s*([\d.]+)", line)
-                    model_m = re.search(r"([\d.]+)%\s*model", line)
-                    edge_m = re.search(r"edge\s*([+\-][\d.]+)%", line)
-                    conf = "low"
-                    if re.search(r"\bhigh\b", line, re.I):
-                        conf = "high"
-                    elif re.search(r"\bmedium\b", line, re.I):
-                        conf = "medium"
-
-                    pick_text = pick_m.group(1) if pick_m else "?"
-                    odds_val = float(odds_m.group(1)) if odds_m else 0
-                    model_p = float(model_m.group(1)) if model_m else 0
-                    edge_val = float(edge_m.group(1)) if edge_m else 0
-
-                    # Filter to the 1.85-2.40 odds band
-                    if not (MIN_ODDS <= odds_val <= MAX_ODDS):
-                        continue
-
-                    label = _MARKET_LABELS.get(market_key, market_key.title())
-                    all_candidates.append({
-                        "fixture": fixture,
-                        "market": market_key,
-                        "label": label,
-                        "emoji": emoji,
-                        "pick": pick_text,
-                        "odds": odds_val,
-                        "model_p": model_p,
-                        "edge": edge_val,
-                        "conf": conf,
-                        "league": league,
-                        "kickoff": kickoff_map.get(fixture, ""),
-                    })
-
-        if not all_candidates:
-            log.info("No high-risk picks found in the %.2f-%.2f odds range", MIN_ODDS, MAX_ODDS)
-            self._mark_posted("high_risk")
+        if not built:
+            log.info("No qualifying unit bets found for %s", date_str)
+            self._mark_posted("unit_bets")
             return
 
-        # Rank by confidence tier then edge — take top 5 across all leagues
-        conf_rank = {"high": 2, "medium": 1, "low": 0}
-        all_candidates.sort(key=lambda p: (
-            conf_rank.get(p["conf"], 0),
-            p["edge"],
-        ), reverse=True)
-        top = all_candidates[:5]
+        # --- Fetch win rate from tracker ---
+        win_rate_str = ""
+        if _HAS_TRACKER:
+            try:
+                record = get_track_record(source="unit_bets")
+                total = record.get("total_graded", 0)
+                hr = record.get("hit_rate", 0)
+                if total >= 10:
+                    win_rate_str = f"  |  Track record: {hr:.0%} ({total} bets)"
+            except Exception:
+                pass
 
-        em = discord.Embed(
-            title="\U0001f525  High-Risk Unit Bets",
+        # --- Post header embed ---
+        header = discord.Embed(
+            title="\U0001f4b0  Unit Bets of the Day",
             description=(
-                f"**{date_str}** \u2022 Top {len(top)} bets in the "
-                f"{MIN_ODDS:.2f}\u2013{MAX_ODDS:.2f} odds range"
+                f"**{date_str}** \u2014 {len(built)} high-confidence pick{'s' if len(built) > 1 else ''} "
+                f"in the 1.80\u20132.40 odds range\n"
+                f"-# 1 unit per bet \u2022 Designed for disciplined bankroll management{win_rate_str}"
             ),
-            color=COLOR_RED,
+            color=COLOR_GREEN,
         )
+        header.set_footer(text="Spix's Picks | Unit Betting")
+        await ch.send(embed=header)
 
-        for i, p in enumerate(top, 1):
-            if p["conf"] == "high":
-                meter = "\u25cf\u25cf\u25cf\u25cf\u25cb"
-                conf_label = "Strong Edge"
-            elif p["conf"] == "medium":
-                meter = "\u25cf\u25cf\u25cf\u25cb\u25cb"
-                conf_label = "Leaning"
-            else:
-                meter = "\u25cf\u25cb\u25cb\u25cb\u25cb"
-                conf_label = "Speculative"
+        # --- Post each pick ---
+        for preset, result in built:
+            legs = result.selected_legs
+            combo_odds = float(getattr(result, "combined_odds", 0) or 0)
+            is_single = len(legs) == 1
 
-            odds_str = f"@ {p['odds']:.2f}" if p["odds"] else ""
-            edge_str = f"+{p['edge']:.1f}%" if p["edge"] > 0 else ""
+            em = discord.Embed(color=COLOR_GREEN)
+            em.title = f"\U0001f3af  {'Single' if is_single else 'Double'} @ {combo_odds:.2f}"
 
-            em.add_field(
-                name=f"{p['emoji']} {p['label']}  \u2014  {p['fixture']} [{p['league']}]",
-                value=(
-                    f"\U0001f4cb Pick: **{p['pick']}** {odds_str}\n"
-                    f"{meter} {conf_label} \u2022 {p['model_p']:.0f}% model"
-                    + (f" \u2022 {edge_str} edge" if edge_str else "")
-                ),
-                inline=False,
-            )
+            for leg in legs:
+                model_str = f"{leg.model_prob:.0%}" if leg.model_prob else "—"
+                edge_str = f"{leg.value_edge:+.1%}" if leg.value_edge else ""
+                conf_label = (leg.confidence or "—").title()
 
-        em.set_footer(text=f"Spix's Picks \u2502 {len(all_candidates)} picks in range, top {len(top)} shown")
-        await ch.send(embed=em)
+                em.add_field(
+                    name=f"{leg.fixture} [{leg.league}]",
+                    value=(
+                        f"\U0001f4cb **{leg.pick_display}** @ {leg.odds:.2f}\n"
+                        f"\U0001f4ca Model: {model_str} \u2022 Edge: {edge_str} \u2022 {conf_label}"
+                    ),
+                    inline=False,
+                )
 
-        self._mark_posted("high_risk")
+            # Summary line
+            if result.deterministic_summary:
+                summary = result.deterministic_summary[:200]
+                em.add_field(name="Analysis", value=summary, inline=False)
+
+            em.set_footer(text="1 unit \u2022 Spix's Picks")
+            await ch.send(embed=em)
+
+            # --- Log to prediction tracker ---
+            if _HAS_TRACKER:
+                for leg in legs:
+                    try:
+                        log_prediction(
+                            home_team=leg.home_team,
+                            away_team=leg.away_team,
+                            league=leg.league,
+                            market=leg.market_group,
+                            pick=leg.pick_display,
+                            side="over" if "over" in (leg.outcome or "").lower() else
+                                 "under" if "under" in (leg.outcome or "").lower() else
+                                 leg.outcome or "",
+                            line=leg.point,
+                            odds=leg.odds,
+                            bookmaker=leg.bookmaker,
+                            model_prob=leg.model_prob,
+                            implied_prob=leg.implied_prob,
+                            value_edge=leg.value_edge,
+                            confidence=leg.confidence,
+                            projected_total=leg.projected_total,
+                            source="unit_bets",
+                            fixture_id=leg.event_id,
+                        )
+                    except Exception as exc:
+                        log.debug("Failed to log unit bet prediction: %s", exc)
+
+        self._mark_posted("unit_bets")
 
     async def _post_parlays_now(self, leagues: list, date_str: str):
         """Post parlays immediately — bypasses time window check (for /trigger)."""
@@ -1999,7 +2112,12 @@ class AutoPush(commands.Cog):
         log.info("Posting parlays (manual trigger)...")
 
         built = []
+        used_event_groups = []  # (event_id, market_group) — block same market+match across parlays
         for preset in _auto_parlay_presets(date.today(), leagues):
+            if used_event_groups:
+                preset["request"].excluded_event_groups = list(
+                    set(preset["request"].excluded_event_groups) | set(used_event_groups)
+                )
             try:
                 result = await _build_structured_parlay(preset["request"])
             except ParlayBuildError as exc:
@@ -2009,6 +2127,8 @@ class AutoPush(commands.Cog):
                 log.error("Manual auto parlay '%s' failed: %s", preset["title"], exc, exc_info=True)
                 continue
             built.append((preset, result))
+            for leg in result.selected_legs:
+                used_event_groups.append((leg.event_id, leg.market_group))
 
         if not built:
             log.warning("All 3 structured parlay presets failed.")

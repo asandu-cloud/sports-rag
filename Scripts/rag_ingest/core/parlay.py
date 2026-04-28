@@ -35,6 +35,7 @@ try:
         projected_total_goals, projected_total_corners, projected_total_cards,
         projected_total_sot, projected_goal_difference, projected_moneyline_probs,
         projected_btts_prob, projected_corners, projected_cards, compute_margin_std,
+        projected_team_corners, projected_team_cards, projected_team_goals,
     )
 except ImportError:
     try:
@@ -42,6 +43,7 @@ except ImportError:
             projected_total_goals, projected_total_corners, projected_total_cards,
             projected_total_sot, projected_goal_difference, projected_moneyline_probs,
             projected_btts_prob, projected_corners, projected_cards, compute_margin_std,
+            projected_team_corners, projected_team_cards, projected_team_goals,
         )
     except ImportError:
         try:
@@ -49,6 +51,7 @@ except ImportError:
                 projected_total_goals, projected_total_corners, projected_total_cards,
                 projected_total_sot, projected_goal_difference, projected_moneyline_probs,
                 projected_btts_prob, projected_corners, projected_cards, compute_margin_std,
+                projected_team_corners, projected_team_cards, projected_team_goals,
             )
         except ImportError:
             def projected_total_goals(*a, **kw): return (None, None, None)
@@ -60,6 +63,9 @@ except ImportError:
             def projected_btts_prob(*a, **kw): return (None, None, None, None, None)
             def projected_corners(*a, **kw): return (None, None)
             def projected_cards(*a, **kw): return (None, None)
+            def projected_team_corners(*a, **kw): return (None, None, None)
+            def projected_team_cards(*a, **kw): return (None, None, None)
+            def projected_team_goals(*a, **kw): return (None, None, None)
             def compute_margin_std(*a, **kw): return SCORING_WEIGHTS["prob"]["margin_std_default"]
 
 try:
@@ -213,6 +219,19 @@ def market_group_from_key(market_key: str) -> str:
     if "total" in k:
         return "totals"
     return k
+
+
+def _is_team_total_market(market_key: str) -> bool:
+    """True for per-team total markets (team_totals_home_corners, etc.)."""
+    return "team_total" in (market_key or "").lower()
+
+
+def _team_total_side(leg) -> str:
+    """Return 'home' or 'away' for a team-total leg based on its market_key."""
+    k = (getattr(leg, "market_key", "") or "").lower()
+    if "home" in k:
+        return "home"
+    return "away"
 
 
 def is_full_game_market(market_key: str) -> bool:
@@ -566,82 +585,121 @@ def kb_leg_quality(leg: CandidateLeg, league: str) -> float:
             score += edge * w["spreads_edge_weight"]
 
     if g == "totals":
-        goals_proj, _, _ = projected_total_goals(leg.home_team, leg.away_team, league)
-        if goals_proj is not None:
-            direction = leg.outcome.lower()
-            if "over" in direction:
-                score += goals_proj - w["goals_over_offset"]
-            elif "under" in direction:
-                score += w["goals_under_offset"] - goals_proj
-            if leg.point is not None:
+        if _is_team_total_market(leg.market_key):
+            side = _team_total_side(leg)
+            is_home = side == "home"
+            team = leg.home_team if is_home else leg.away_team
+            opp = leg.away_team if is_home else leg.home_team
+            tg_proj, _, _ = projected_team_goals(team, opp, league, is_home)
+            if tg_proj is not None and leg.point is not None:
+                direction = leg.outcome.lower()
                 if "over" in direction:
-                    score += (goals_proj - leg.point) * w["goals_line_fit"]
+                    score += (tg_proj - leg.point) * w["goals_line_fit"]
                 elif "under" in direction:
-                    score += (leg.point - goals_proj) * w["goals_line_fit"]
+                    score += (leg.point - tg_proj) * w["goals_line_fit"]
+        else:
+            goals_proj, _, _ = projected_total_goals(leg.home_team, leg.away_team, league)
+            if goals_proj is not None:
+                direction = leg.outcome.lower()
+                if "over" in direction:
+                    score += goals_proj - w["goals_over_offset"]
+                elif "under" in direction:
+                    score += w["goals_under_offset"] - goals_proj
+                if leg.point is not None:
+                    if "over" in direction:
+                        score += (goals_proj - leg.point) * w["goals_line_fit"]
+                    elif "under" in direction:
+                        score += (leg.point - goals_proj) * w["goals_line_fit"]
 
     if g == "corners":
-        corners_proj, _, _ = projected_total_corners(leg.home_team, leg.away_team, league)
-        if corners_proj is not None:
-            direction = leg.outcome.lower()
-            if leg.point is not None and "total" in leg.market_key.lower():
+        if _is_team_total_market(leg.market_key):
+            side = _team_total_side(leg)
+            is_home = side == "home"
+            team = leg.home_team if is_home else leg.away_team
+            opp = leg.away_team if is_home else leg.home_team
+            tc_proj, _, _ = projected_team_corners(team, opp, league, is_home)
+            if tc_proj is not None and leg.point is not None:
+                direction = leg.outcome.lower()
                 if "over" in direction:
-                    score += (corners_proj - leg.point) * w["corners_line_fit"]
+                    score += (tc_proj - leg.point) * w["corners_line_fit"]
                 elif "under" in direction:
-                    score += (leg.point - corners_proj) * w["corners_line_fit"]
-            # Side edge for corner-winner markets
-            if leg.point is None or "total" not in leg.market_key.lower():
-                h_proj_c, a_proj_c = projected_corners(hm, am)
-                if h_proj_c is not None and a_proj_c is not None:
-                    side_edge = h_proj_c - a_proj_c
-                    h_recent_for = h_recent.get("corners_for_avg")
-                    a_recent_for = a_recent.get("corners_for_avg")
-                    if h_recent_for is not None and a_recent_for is not None:
-                        recent_side = h_recent_for - a_recent_for
-                        side_edge = 0.65 * side_edge + 0.35 * recent_side
-                    if leg.outcome.lower().startswith(leg.home_team.lower()):
-                        score += side_edge * w["corners_side_edge"]
-                    elif leg.outcome.lower().startswith(leg.away_team.lower()):
-                        score -= side_edge * w["corners_side_edge"]
+                    score += (leg.point - tc_proj) * w["corners_line_fit"]
+        else:
+            corners_proj, _, _ = projected_total_corners(leg.home_team, leg.away_team, league)
+            if corners_proj is not None:
+                direction = leg.outcome.lower()
+                if leg.point is not None and "total" in leg.market_key.lower():
+                    if "over" in direction:
+                        score += (corners_proj - leg.point) * w["corners_line_fit"]
+                    elif "under" in direction:
+                        score += (leg.point - corners_proj) * w["corners_line_fit"]
+                # Side edge for corner-winner markets
+                if leg.point is None or "total" not in leg.market_key.lower():
+                    h_proj_c, a_proj_c = projected_corners(hm, am)
+                    if h_proj_c is not None and a_proj_c is not None:
+                        side_edge = h_proj_c - a_proj_c
+                        h_recent_for = h_recent.get("corners_for_avg")
+                        a_recent_for = a_recent.get("corners_for_avg")
+                        if h_recent_for is not None and a_recent_for is not None:
+                            recent_side = h_recent_for - a_recent_for
+                            side_edge = 0.65 * side_edge + 0.35 * recent_side
+                        if leg.outcome.lower().startswith(leg.home_team.lower()):
+                            score += side_edge * w["corners_side_edge"]
+                        elif leg.outcome.lower().startswith(leg.away_team.lower()):
+                            score -= side_edge * w["corners_side_edge"]
 
     if g == "cards":
-        cards_result = projected_total_cards(leg.home_team, leg.away_team, league)
-        cards_proj = cards_result[0] if cards_result else None
-
-        if cards_proj is not None:
-            direction = leg.outcome.lower()
-            if leg.point is not None and "total" in leg.market_key.lower():
+        if _is_team_total_market(leg.market_key):
+            side = _team_total_side(leg)
+            is_home = side == "home"
+            team = leg.home_team if is_home else leg.away_team
+            opp = leg.away_team if is_home else leg.home_team
+            tc_proj, _, _ = projected_team_cards(team, opp, league, is_home)
+            if tc_proj is not None and leg.point is not None:
+                direction = leg.outcome.lower()
                 if "over" in direction:
-                    score += (cards_proj - leg.point) * w["cards_line_fit"]
+                    score += (tc_proj - leg.point) * w["cards_line_fit"]
                 elif "under" in direction:
-                    score += (leg.point - cards_proj) * w["cards_line_fit"]
+                    score += (leg.point - tc_proj) * w["cards_line_fit"]
+        else:
+            cards_result = projected_total_cards(leg.home_team, leg.away_team, league)
+            cards_proj = cards_result[0] if cards_result else None
 
-                # Foul momentum: recent fouls trending up -> cards more likely
-                h_fouls = _numeric(hm.get("fouls_per_90_team"))
-                a_fouls = _numeric(am.get("fouls_per_90_team"))
-                h_recent_fouls = h_recent.get("fouls_avg")
-                a_recent_fouls = a_recent.get("fouls_avg")
-                foul_momentum = 0.0
-                n_mom = 0
-                if h_fouls is not None and h_recent_fouls is not None:
-                    foul_momentum += h_recent_fouls - h_fouls; n_mom += 1
-                if a_fouls is not None and a_recent_fouls is not None:
-                    foul_momentum += a_recent_fouls - a_fouls; n_mom += 1
-                if n_mom > 0:
-                    avg_mom = foul_momentum / n_mom
+            if cards_proj is not None:
+                direction = leg.outcome.lower()
+                if leg.point is not None and "total" in leg.market_key.lower():
                     if "over" in direction:
-                        score += avg_mom * w["cards_foul_momentum"]
+                        score += (cards_proj - leg.point) * w["cards_line_fit"]
                     elif "under" in direction:
-                        score -= avg_mom * w["cards_foul_momentum"]
+                        score += (leg.point - cards_proj) * w["cards_line_fit"]
 
-            # Side edge for card-winner markets
-            if leg.point is None or "total" not in leg.market_key.lower():
-                h_cards_proj, a_cards_proj = projected_cards(hm, am)
-                if h_cards_proj is not None and a_cards_proj is not None:
-                    side_edge = h_cards_proj - a_cards_proj
-                    if leg.outcome.lower().startswith(leg.home_team.lower()):
-                        score += side_edge * w["cards_side_edge"]
-                    elif leg.outcome.lower().startswith(leg.away_team.lower()):
-                        score -= side_edge * w["cards_side_edge"]
+                    # Foul momentum: recent fouls trending up -> cards more likely
+                    h_fouls = _numeric(hm.get("fouls_per_90_team"))
+                    a_fouls = _numeric(am.get("fouls_per_90_team"))
+                    h_recent_fouls = h_recent.get("fouls_avg")
+                    a_recent_fouls = a_recent.get("fouls_avg")
+                    foul_momentum = 0.0
+                    n_mom = 0
+                    if h_fouls is not None and h_recent_fouls is not None:
+                        foul_momentum += h_recent_fouls - h_fouls; n_mom += 1
+                    if a_fouls is not None and a_recent_fouls is not None:
+                        foul_momentum += a_recent_fouls - a_fouls; n_mom += 1
+                    if n_mom > 0:
+                        avg_mom = foul_momentum / n_mom
+                        if "over" in direction:
+                            score += avg_mom * w["cards_foul_momentum"]
+                        elif "under" in direction:
+                            score -= avg_mom * w["cards_foul_momentum"]
+
+                # Side edge for card-winner markets
+                if leg.point is None or "total" not in leg.market_key.lower():
+                    h_cards_proj, a_cards_proj = projected_cards(hm, am)
+                    if h_cards_proj is not None and a_cards_proj is not None:
+                        side_edge = h_cards_proj - a_cards_proj
+                        if leg.outcome.lower().startswith(leg.home_team.lower()):
+                            score += side_edge * w["cards_side_edge"]
+                        elif leg.outcome.lower().startswith(leg.away_team.lower()):
+                            score -= side_edge * w["cards_side_edge"]
                     # Card-induction side edge
                     h_opp_induced = _numeric(hm.get("opp_cards_induced_pm"))
                     a_opp_induced = _numeric(am.get("opp_cards_induced_pm"))
@@ -752,13 +810,26 @@ def _combo_leg_model_probability(leg: CandidateLeg, fallback_league: str) -> Opt
     g = market_group_from_key(leg.market_key)
 
     if leg.point is not None and g in ("corners", "cards", "sot", "totals"):
-        proj_funcs = {
-            "corners": lambda: projected_total_corners(leg.home_team, leg.away_team, leg_lg),
-            "cards": lambda: projected_total_cards(leg.home_team, leg.away_team, leg_lg),
-            "sot": lambda: projected_total_sot(leg.home_team, leg.away_team, leg_lg),
-            "totals": lambda: projected_total_goals(leg.home_team, leg.away_team, leg_lg),
-        }
-        proj_result = proj_funcs[g]()
+        # Team-total markets need per-team projection, not match total
+        if _is_team_total_market(leg.market_key) and g in ("corners", "cards", "totals"):
+            side = _team_total_side(leg)
+            is_home = side == "home"
+            team = leg.home_team if is_home else leg.away_team
+            opp = leg.away_team if is_home else leg.home_team
+            if g == "corners":
+                proj_result = projected_team_corners(team, opp, leg_lg, is_home)
+            elif g == "cards":
+                proj_result = projected_team_cards(team, opp, leg_lg, is_home)
+            else:
+                proj_result = projected_team_goals(team, opp, leg_lg, is_home)
+        else:
+            proj_funcs = {
+                "corners": lambda: projected_total_corners(leg.home_team, leg.away_team, leg_lg),
+                "cards": lambda: projected_total_cards(leg.home_team, leg.away_team, leg_lg),
+                "sot": lambda: projected_total_sot(leg.home_team, leg.away_team, leg_lg),
+                "totals": lambda: projected_total_goals(leg.home_team, leg.away_team, leg_lg),
+            }
+            proj_result = proj_funcs[g]()
         proj_total = proj_result[0] if proj_result else None
         if proj_total is None:
             return None

@@ -1110,10 +1110,17 @@ class TrialCog(commands.Cog, name="trial"):
             self._mark_posted("trial_parlays")
             return
         seen_signatures = set(existing_signatures)
+        used_event_groups = []  # (event_id, market_group) — block same market+match across free picks
 
         for i, preset in enumerate(_trial_parlay_presets(date.today(), active_leagues)):
             if parlays_posted >= remaining_slots:
                 break
+
+            # Inject previously-used event+group combos as exclusions
+            if used_event_groups:
+                preset["request"].excluded_event_groups = list(
+                    set(preset["request"].excluded_event_groups) | set(used_event_groups)
+                )
 
             try:
                 result = await _build_structured_trial_parlay(preset["request"])
@@ -1166,6 +1173,10 @@ class TrialCog(commands.Cog, name="trial"):
                 _trial_executor,
                 _log_trial_parlay, today_iso, legs, combined_odds,
             )
+
+            # Collect used event+group combos so subsequent parlays avoid same market+match
+            for leg in result.selected_legs:
+                used_event_groups.append((leg.event_id, leg.market_group))
 
             # Build and post embed
             parlays_posted += 1

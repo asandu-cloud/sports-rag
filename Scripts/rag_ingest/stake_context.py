@@ -307,6 +307,36 @@ def _compute_modifiers(home_intensity: float, away_intensity: float) -> Tuple[fl
 # Public API
 # ---------------------------------------------------------------------------
 
+_ZONE_DESCRIPTIONS = {
+    "champion": "title secured",
+    "title": "title race",
+    "ucl": "Champions League spot",
+    "uel": "Europa League spot",
+    "europe_chase": "chasing European qualification",
+    "relegation": "relegation battle",
+    "relegation_risk": "hovering above relegation",
+    "mid": "mid-table, nothing to play for",
+}
+
+
+def _zone_label(stake: TeamStake) -> str:
+    """Human-readable label: '#4, 56 pts — chasing European qualification'."""
+    zone_text = _ZONE_DESCRIPTIONS.get(stake.zone, stake.zone)
+    gap = ""
+    if stake.zone in ("title",) and stake.rank == 1:
+        gap = f", {abs(stake.points_to_target)} pts ahead" if stake.points_to_target < 0 else ""
+    elif stake.zone in ("title",) and stake.rank > 1:
+        gap = f", {stake.points_to_target} pts behind leader"
+    elif stake.zone in ("relegation", "relegation_risk"):
+        gap = f", {stake.points_to_target} pts from safety" if stake.points_to_target > 0 else f", {abs(stake.points_to_target)} pts above drop zone"
+    elif stake.zone in ("ucl", "uel", "europe_chase"):
+        if stake.points_to_target > 0:
+            gap = f", {stake.points_to_target} pts off target"
+        elif stake.points_to_target < 0:
+            gap = f", {abs(stake.points_to_target)} pts cushion"
+    return f"#{stake.rank}, {stake.points} pts — {zone_text}{gap}"
+
+
 def _normalize_team(name: str) -> str:
     return name.strip().lower().replace("fc ", "").replace(" fc", "")
 
@@ -359,9 +389,9 @@ def get_stake_context(
     # Build description
     parts = []
     if home_stake:
-        parts.append(f"{home_stake.team}: {home_stake.zone} (#{home_stake.rank}, {home_stake.intensity:.0%} intensity)")
+        parts.append(f"{home_stake.team}: {_zone_label(home_stake)}")
     if away_stake:
-        parts.append(f"{away_stake.team}: {away_stake.zone} (#{away_stake.rank}, {away_stake.intensity:.0%} intensity)")
+        parts.append(f"{away_stake.team}: {_zone_label(away_stake)}")
 
     ctx = StakeContext(
         home_stake=home_stake,

@@ -153,6 +153,8 @@ _CACHE_TTL = 300  # 5 minutes
 def _get_events_cached(league: str, target_date: Optional[date] = None) -> list:
     """Fetch events for a league on a specific date with a short TTL cache."""
     from datetime import date as _date
+    from core.events import fetch_events as _fetch_events
+
     if target_date is None:
         target_date = _date.today()
 
@@ -164,7 +166,7 @@ def _get_events_cached(league: str, target_date: Optional[date] = None) -> list:
             return events
 
     try:
-        events, _notes = rag.fetch_events(league, set(rag.DEFAULT_MARKETS), target_date=target_date)
+        events, _notes = _fetch_events(league, target_date=target_date)
         _events_cache[cache_key] = (now, events)
         return events
     except Exception as exc:
@@ -207,12 +209,13 @@ async def _match_autocomplete(
     if not league or league == "cross-league":
         return []
 
-    events = _get_events_cached(league)
-
     date_str = getattr(namespace, "date", None)
     target = _parse_date(date_str)
+    events = _get_events_cached(league, target_date=target)
+
+    from core.events import filter_events_by_exact_date as _filter_date
     try:
-        events = rag.filter_events_by_exact_date(events, target)
+        events = _filter_date(events, target)
     except Exception:
         pass
 

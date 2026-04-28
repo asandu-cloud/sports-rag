@@ -29,6 +29,9 @@ try:
         projected_total_corners,
         projected_total_goals,
         projected_total_sot,
+        projected_team_corners,
+        projected_team_cards,
+        projected_team_goals,
         compute_margin_std,
     )
 except ImportError:
@@ -43,6 +46,9 @@ except ImportError:
             projected_total_corners,
             projected_total_goals,
             projected_total_sot,
+            projected_team_corners,
+            projected_team_cards,
+            projected_team_goals,
             compute_margin_std,
         )
     except ImportError:
@@ -57,6 +63,9 @@ except ImportError:
                 projected_total_corners,
                 projected_total_goals,
                 projected_total_sot,
+                projected_team_corners,
+                projected_team_cards,
+                projected_team_goals,
                 compute_margin_std,
             )
         except ImportError:
@@ -70,6 +79,9 @@ except ImportError:
                 projected_total_corners,
                 projected_total_goals,
                 projected_total_sot,
+                projected_team_corners,
+                projected_team_cards,
+                projected_team_goals,
             )
             compute_margin_std = None  # type: ignore[assignment]
 
@@ -128,6 +140,19 @@ except ImportError:
             return None
 
 
+def _is_team_total_market(market_key: str) -> bool:
+    """True for per-team total markets (team_totals_home_corners, etc.)."""
+    return "team_total" in (market_key or "").lower()
+
+
+def _team_total_side(leg) -> str:
+    """Return 'home' or 'away' for a team-total leg based on its market_key."""
+    k = (getattr(leg, "market_key", "") or "").lower()
+    if "home" in k:
+        return "home"
+    return "away"
+
+
 def leg_standalone_confidence(leg: Any, league: str) -> Dict[str, Any]:
     """Return deterministic confidence and warning data for a parlay leg."""
     g = market_group_from_key(getattr(leg, "market_key", ""))
@@ -142,12 +167,27 @@ def leg_standalone_confidence(leg: Any, league: str) -> Dict[str, Any]:
 
     try:
         if g in {"corners", "totals", "cards", "sot"} and getattr(leg, "point", None) is not None:
-            proj_result = {
-                "corners": projected_total_corners(getattr(leg, "home_team", ""), getattr(leg, "away_team", ""), league),
-                "totals": projected_total_goals(getattr(leg, "home_team", ""), getattr(leg, "away_team", ""), league),
-                "cards": projected_total_cards(getattr(leg, "home_team", ""), getattr(leg, "away_team", ""), league),
-                "sot": projected_total_sot(getattr(leg, "home_team", ""), getattr(leg, "away_team", ""), league),
-            }[g]
+            mk = getattr(leg, "market_key", "") or ""
+            home = getattr(leg, "home_team", "")
+            away = getattr(leg, "away_team", "")
+            if _is_team_total_market(mk) and g in ("corners", "cards", "totals"):
+                side = _team_total_side(leg)
+                is_home = side == "home"
+                team = home if is_home else away
+                opp = away if is_home else home
+                if g == "corners":
+                    proj_result = projected_team_corners(team, opp, league, is_home)
+                elif g == "cards":
+                    proj_result = projected_team_cards(team, opp, league, is_home)
+                else:
+                    proj_result = projected_team_goals(team, opp, league, is_home)
+            else:
+                proj_result = {
+                    "corners": projected_total_corners(home, away, league),
+                    "totals": projected_total_goals(home, away, league),
+                    "cards": projected_total_cards(home, away, league),
+                    "sot": projected_total_sot(home, away, league),
+                }[g]
             proj_total = proj_result[0] if proj_result else None
             if proj_total is not None:
                 direction = str(getattr(leg, "outcome", "")).lower()
@@ -263,20 +303,37 @@ def leg_evidence(leg: Any, league: str) -> List[str]:
 
     g = market_group_from_key(getattr(leg, "market_key", ""))
     if g == "corners":
+        mk = getattr(leg, "market_key", "") or ""
         h_for, h_against = v(hm, "corners_pm"), v(hm, "corners_against_pm")
         a_for, a_against = v(am, "corners_pm"), v(am, "corners_against_pm")
         h_proj, a_proj = projected_corners(hm, am)
-        if h_for is not None and a_for is not None:
-            lines.append(f"Season corners for: {getattr(leg, 'home_team', '')} {h_for:.2f}, {getattr(leg, 'away_team', '')} {a_for:.2f}.")
-        if h_proj is not None and a_proj is not None:
-            total_proj = h_proj + a_proj
-            lines.append(f"Projected combined corners: {total_proj:.2f}.")
-            if getattr(leg, "point", None) is not None:
-                direction = str(getattr(leg, "outcome", "")).lower()
-                if "over" in direction:
-                    lines.append(f"Line fit: projected {total_proj:.2f} vs over {getattr(leg, 'point'):g}.")
-                elif "under" in direction:
-                    lines.append(f"Line fit: projected {total_proj:.2f} vs under {getattr(leg, 'point'):g}.")
+        if _is_team_total_market(mk):
+            # Per-team corner evidence
+            side = _team_total_side(leg)
+            is_home = side == "home"
+            team = getattr(leg, "home_team", "") if is_home else getattr(leg, "away_team", "")
+            opp = getattr(leg, "away_team", "") if is_home else getattr(leg, "home_team", "")
+            tc_proj, _, _ = projected_team_corners(team, opp, league, is_home)
+            if tc_proj is not None:
+                lines.append(f"Projected {team} corners: {tc_proj:.2f}.")
+                if getattr(leg, "point", None) is not None:
+                    direction = str(getattr(leg, "outcome", "")).lower()
+                    if "over" in direction:
+                        lines.append(f"Line fit: projected {tc_proj:.2f} vs over {getattr(leg, 'point'):g}.")
+                    elif "under" in direction:
+                        lines.append(f"Line fit: projected {tc_proj:.2f} vs under {getattr(leg, 'point'):g}.")
+        else:
+            if h_for is not None and a_for is not None:
+                lines.append(f"Season corners for: {getattr(leg, 'home_team', '')} {h_for:.2f}, {getattr(leg, 'away_team', '')} {a_for:.2f}.")
+            if h_proj is not None and a_proj is not None:
+                total_proj = h_proj + a_proj
+                lines.append(f"Projected combined corners: {total_proj:.2f}.")
+                if getattr(leg, "point", None) is not None:
+                    direction = str(getattr(leg, "outcome", "")).lower()
+                    if "over" in direction:
+                        lines.append(f"Line fit: projected {total_proj:.2f} vs over {getattr(leg, 'point'):g}.")
+                    elif "under" in direction:
+                        lines.append(f"Line fit: projected {total_proj:.2f} vs under {getattr(leg, 'point'):g}.")
         h_recent = hr.get("corners_for_avg")
         a_recent = ar.get("corners_for_avg")
         if h_recent is not None and a_recent is not None:
@@ -284,18 +341,34 @@ def leg_evidence(leg: Any, league: str) -> List[str]:
         if h_against is not None and a_against is not None:
             lines.append(f"Corners against: {getattr(leg, 'home_team', '')} {h_against:.2f}, {getattr(leg, 'away_team', '')} {a_against:.2f}.")
     elif g == "totals":
-        goals_proj, _, _ = projected_total_goals(getattr(leg, "home_team", ""), getattr(leg, "away_team", ""), league)
-        if goals_proj is not None:
-            lines.append(f"Projected combined goals: {goals_proj:.2f}.")
-            if getattr(leg, "point", None) is not None:
-                direction = str(getattr(leg, "outcome", "")).lower()
-                if "over" in direction:
-                    lines.append(f"Line fit: projected {goals_proj:.2f} vs over {getattr(leg, 'point'):g}.")
-                elif "under" in direction:
-                    lines.append(f"Line fit: projected {goals_proj:.2f} vs under {getattr(leg, 'point'):g}.")
-        h_gf, a_gf = v(hm, "goals_for_pm"), v(am, "goals_for_pm")
-        if h_gf is not None and a_gf is not None:
-            lines.append(f"Season goal baseline: {getattr(leg, 'home_team', '')} {h_gf:.2f}, {getattr(leg, 'away_team', '')} {a_gf:.2f}.")
+        mk = getattr(leg, "market_key", "") or ""
+        if _is_team_total_market(mk):
+            side = _team_total_side(leg)
+            is_home = side == "home"
+            team = getattr(leg, "home_team", "") if is_home else getattr(leg, "away_team", "")
+            opp = getattr(leg, "away_team", "") if is_home else getattr(leg, "home_team", "")
+            tg_proj, _, _ = projected_team_goals(team, opp, league, is_home)
+            if tg_proj is not None:
+                lines.append(f"Projected {team} goals: {tg_proj:.2f}.")
+                if getattr(leg, "point", None) is not None:
+                    direction = str(getattr(leg, "outcome", "")).lower()
+                    if "over" in direction:
+                        lines.append(f"Line fit: projected {tg_proj:.2f} vs over {getattr(leg, 'point'):g}.")
+                    elif "under" in direction:
+                        lines.append(f"Line fit: projected {tg_proj:.2f} vs under {getattr(leg, 'point'):g}.")
+        else:
+            goals_proj, _, _ = projected_total_goals(getattr(leg, "home_team", ""), getattr(leg, "away_team", ""), league)
+            if goals_proj is not None:
+                lines.append(f"Projected combined goals: {goals_proj:.2f}.")
+                if getattr(leg, "point", None) is not None:
+                    direction = str(getattr(leg, "outcome", "")).lower()
+                    if "over" in direction:
+                        lines.append(f"Line fit: projected {goals_proj:.2f} vs over {getattr(leg, 'point'):g}.")
+                    elif "under" in direction:
+                        lines.append(f"Line fit: projected {goals_proj:.2f} vs under {getattr(leg, 'point'):g}.")
+            h_gf, a_gf = v(hm, "goals_for_pm"), v(am, "goals_for_pm")
+            if h_gf is not None and a_gf is not None:
+                lines.append(f"Season goal baseline: {getattr(leg, 'home_team', '')} {h_gf:.2f}, {getattr(leg, 'away_team', '')} {a_gf:.2f}.")
         h_sot, a_sot = hr.get("sot_for_avg"), ar.get("sot_for_avg")
         if h_sot is not None and a_sot is not None:
             lines.append(f"Recent 6-match SoT for: {getattr(leg, 'home_team', '')} {h_sot:.2f}, {getattr(leg, 'away_team', '')} {a_sot:.2f}.")

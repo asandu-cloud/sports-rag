@@ -456,17 +456,14 @@ def humanize_date(target_date: date) -> str:
 
 
 def _fetch_events_for_request(request: ParlayBuildRequest) -> Tuple[List[Dict], List[str]]:
+    from .events import fetch_events_multi, filter_events_by_exact_date
+
     target_date = date.fromisoformat(request.target_date)
-    all_events: List[Dict] = []
-    notes: List[str] = []
-    for league in request.leagues:
-        events, fetch_notes = rag.fetch_events(league, set(rag.DEFAULT_MARKETS), target_date=target_date)
-        for event in events:
-            event["_league"] = league
-        all_events.extend(events)
-        notes.extend(fetch_notes)
+    all_events, notes = fetch_events_multi(
+        request.leagues, set(rag.DEFAULT_MARKETS), target_date=target_date,
+    )
     # Provider fetches can occasionally leak adjacent fixtures; normalize on exact date.
-    all_events = rag.filter_events_by_exact_date(all_events, target_date)
+    all_events = filter_events_by_exact_date(all_events, target_date)
     return all_events, notes
 
 
@@ -582,11 +579,16 @@ def _filter_candidate_pool(
     allowed_event_ids = set(request.allowed_event_ids)
     allowed_groups = set(request.allowed_groups)
     allowed_confidences = {str(x).lower() for x in request.allowed_confidences}
+    blocked_event_groups = {(str(eid), g) for eid, g in request.excluded_event_groups}
     for candidate in candidates:
         if any(_candidate_matches_ref(candidate, ref) for ref in locked_refs):
             continue
         if any(_candidate_matches_ref(candidate, ref) for ref in excluded_refs):
             continue
+        if blocked_event_groups:
+            cand_group = rag.market_group_from_key(candidate.market_key)
+            if (str(candidate.event_id), cand_group) in blocked_event_groups:
+                continue
         if allowed_event_ids and candidate.event_id not in allowed_event_ids:
             continue
         if candidate.event_id in blocked_event_ids:
@@ -603,6 +605,12 @@ def _filter_candidate_pool(
             if request.min_model_prob is not None and (model_prob is None or model_prob < request.min_model_prob):
                 continue
             if allowed_confidences and confidence not in allowed_confidences:
+                continue
+        # Reject alternative lines (.25 / .75) — most bookmakers don't allow
+        # combining them in parlays.  Only standard lines (.0 / .5) pass.
+        if candidate.point is not None:
+            frac = round(abs(candidate.point) % 1.0, 2)
+            if frac not in (0.0, 0.5):
                 continue
         filtered.append(candidate)
     return filtered

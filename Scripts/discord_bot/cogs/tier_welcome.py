@@ -7,11 +7,14 @@ and sends tier-specific welcome DMs automatically.
 from __future__ import annotations
 
 import logging
+import os
 
 import discord
 from discord.ext import commands
 
 from config import ROLE_TO_TIER, COLOR_GREEN, COLOR_BLUE, COLOR_PURPLE
+
+BOT_OWNER_ID = int(os.getenv("DISCORD_BOT_OWNER_ID", "0"))
 
 log = logging.getLogger("tier_welcome")
 
@@ -397,6 +400,18 @@ class TierWelcome(commands.Cog):
             log.warning("Can't DM %s (DMs disabled)", member)
         except Exception as exc:
             log.warning("Failed to send onboarding DM to %s: %s", member, exc)
+
+        # Notify bot owner about the new member
+        if BOT_OWNER_ID:
+            try:
+                owner = await self.bot.fetch_user(BOT_OWNER_ID)
+                await owner.send(
+                    f"**New member joined:** {member} ({member.id})\n"
+                    f"Server: {member.guild.name} | "
+                    f"Members: {member.guild.member_count}"
+                )
+            except Exception as exc:
+                log.debug("Could not notify owner about new member: %s", exc)
 
 
 async def setup(bot: commands.Bot):
