@@ -25,16 +25,20 @@ except ImportError:
             EUROPEAN_COMPETITIONS = {"UCL", "UEL", "UECL"}
 
 try:
-    from core.projections import projected_team_corners, projected_team_cards
+    from core.projections import projected_team_corners, projected_team_cards, projected_team_corners_detail
 except ImportError:
     try:
-        from Scripts.rag_ingest.core.projections import projected_team_corners, projected_team_cards
+        from Scripts.rag_ingest.core.projections import projected_team_corners, projected_team_cards, projected_team_corners_detail
     except ImportError:
         try:
             from rag_cli_v2 import projected_team_corners, projected_team_cards
+            def projected_team_corners_detail(team, opponent, league, is_home, **kwargs):
+                final, season_proj, recent_proj = projected_team_corners(team, opponent, league, is_home, **kwargs)
+                return {"final": final, "season_proj": season_proj, "recent_proj": recent_proj}
         except ImportError:
             def projected_team_corners(*a, **kw): return (None, None, None)
             def projected_team_cards(*a, **kw): return (None, None, None)
+            def projected_team_corners_detail(*a, **kw): return {"final": None, "season_proj": None, "recent_proj": None}
 
 try:
     from core.odds_extraction import extract_team_total_line_options
@@ -216,13 +220,17 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
         lines.append("  CORNERS:")
         _corner_projs = {}
         for team, opp, is_home in [(home, away, True), (away, home, False)]:
-            c_bl, c_sea, c_rec = projected_team_corners(
+            c_detail = projected_team_corners_detail(
                 team, opp, league, is_home,
                 league_ctx=league_ctx, fixture_date=fixture_date,
             )
+            c_bl = c_detail.get("final")
+            c_sea = c_detail.get("season_proj")
+            c_rec = c_detail.get("recent_proj")
             # Apply knockout modifier
             if ko_ctx and ko_ctx.is_knockout and ko_ctx.corners_modifier != 1.0 and c_bl is not None:
                 c_bl *= ko_ctx.corners_modifier
+                c_detail["final"] = c_bl
             if c_bl is None:
                 lines.append(f"    {team}: insufficient data.")
                 continue
@@ -232,6 +240,23 @@ def render_team_totals_answer(user_q: str, league: str, events: List[Dict]) -> s
                 lines.append(f"      Season model: {c_sea:.2f}.")
             if c_rec is not None:
                 lines.append(f"      Recent/context anchor: {c_rec:.2f}.")
+            component_keys = [
+                ("match_total", "match_total"),
+                ("season_share", "season_share"),
+                ("recent_share", "recent_share"),
+                ("share_anchor", "share_anchor"),
+                ("season_direct", "season_direct"),
+                ("recent_direct", "recent_direct"),
+                ("stabilizer", "stabilizer"),
+                ("final", "final"),
+            ]
+            component_parts = []
+            for label, key in component_keys:
+                value = c_detail.get(key)
+                if value is not None:
+                    component_parts.append(f"{label}={float(value):.2f}")
+            if component_parts:
+                lines.append(f"      Components: {', '.join(component_parts)}.")
             t_var = get_blended_variance(team, league, "corners_for_var")
             options = extract_team_total_line_options(ev, team, "corners")
             selection = select_best_total_recommendation(options, c_bl, t_var) if options else None

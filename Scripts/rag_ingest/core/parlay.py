@@ -9,7 +9,7 @@ from __future__ import annotations
 import copy
 import re
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import combinations
 from math import comb as _comb, log
 from typing import Dict, List, Optional, Set, Tuple
@@ -166,6 +166,7 @@ class CandidateLeg:
     point: Optional[float]
     bookmaker: Optional[str]
     league: str = ""
+    event: Optional[Dict] = field(default=None, compare=False, hash=False)
 
 
 # ---------------------------------------------------------------------------
@@ -232,6 +233,35 @@ def _team_total_side(leg) -> str:
     if "home" in k:
         return "home"
     return "away"
+
+
+def _team_total_projection_and_variance(
+    leg: CandidateLeg,
+    league: str,
+    group: str,
+) -> Tuple[Optional[float], Optional[float]]:
+    """Return per-team projection/variance for team-total count markets."""
+    if not _is_team_total_market(leg.market_key) or group not in ("corners", "cards", "totals"):
+        return None, None
+
+    side = _team_total_side(leg)
+    is_home = side == "home"
+    team = leg.home_team if is_home else leg.away_team
+    opp = leg.away_team if is_home else leg.home_team
+
+    if group == "corners":
+        proj_result = projected_team_corners(team, opp, league, is_home)
+        var_key = "corners_for_var"
+    elif group == "cards":
+        proj_result = projected_team_cards(team, opp, league, is_home)
+        var_key = "cards_var"
+    else:
+        proj_result = projected_team_goals(team, opp, league, is_home)
+        var_key = "goals_var"
+
+    projection = proj_result[0] if proj_result else None
+    variance = get_team_recent_variance(team, league).get(var_key)
+    return projection, variance
 
 
 def is_full_game_market(market_key: str) -> bool:
@@ -761,17 +791,16 @@ def kb_leg_quality(leg: CandidateLeg, league: str) -> float:
 
     # --- Probability-aware quality bonus for count-based markets ---
     if leg.point is not None and g in ("corners", "cards", "sot", "totals"):
-        proj_funcs = {
-            "corners": lambda: projected_total_corners(leg.home_team, leg.away_team, league),
-            "cards": lambda: projected_total_cards(leg.home_team, leg.away_team, league),
-            "sot": lambda: projected_total_sot(leg.home_team, leg.away_team, league),
-            "totals": lambda: projected_total_goals(leg.home_team, leg.away_team, league),
-        }
-        proj_result = proj_funcs[g]()
-        proj_total = proj_result[0] if proj_result else None
-        if proj_total is not None:
-            direction = leg.outcome.lower()
-            is_over = "over" in direction
+        proj_total, combined_var = _team_total_projection_and_variance(leg, league, g)
+        if proj_total is None:
+            proj_funcs = {
+                "corners": lambda: projected_total_corners(leg.home_team, leg.away_team, league),
+                "cards": lambda: projected_total_cards(leg.home_team, leg.away_team, league),
+                "sot": lambda: projected_total_sot(leg.home_team, leg.away_team, league),
+                "totals": lambda: projected_total_goals(leg.home_team, leg.away_team, league),
+            }
+            proj_result = proj_funcs[g]()
+            proj_total = proj_result[0] if proj_result else None
             h_var = get_team_recent_variance(leg.home_team, league)
             a_var = get_team_recent_variance(leg.away_team, league)
             _stat_var_key = {"corners": "corners_for_var", "cards": "cards_var",
@@ -779,6 +808,9 @@ def kb_leg_quality(leg: CandidateLeg, league: str) -> float:
             h_v = h_var.get(_stat_var_key)
             a_v = a_var.get(_stat_var_key)
             combined_var = (h_v + a_v) if (h_v is not None and a_v is not None) else None
+        if proj_total is not None:
+            direction = leg.outcome.lower()
+            is_over = "over" in direction
             model_p = (over_prob(proj_total, leg.point, combined_var) if is_over
                        else under_prob(proj_total, leg.point, combined_var))
             prob_bonus = (model_p - 0.50) * SCORING_WEIGHTS["prob"]["prob_quality_weight"]
@@ -812,16 +844,7 @@ def _combo_leg_model_probability(leg: CandidateLeg, fallback_league: str) -> Opt
     if leg.point is not None and g in ("corners", "cards", "sot", "totals"):
         # Team-total markets need per-team projection, not match total
         if _is_team_total_market(leg.market_key) and g in ("corners", "cards", "totals"):
-            side = _team_total_side(leg)
-            is_home = side == "home"
-            team = leg.home_team if is_home else leg.away_team
-            opp = leg.away_team if is_home else leg.home_team
-            if g == "corners":
-                proj_result = projected_team_corners(team, opp, leg_lg, is_home)
-            elif g == "cards":
-                proj_result = projected_team_cards(team, opp, leg_lg, is_home)
-            else:
-                proj_result = projected_team_goals(team, opp, leg_lg, is_home)
+            proj_total, combined_var = _team_total_projection_and_variance(leg, leg_lg, g)
         else:
             proj_funcs = {
                 "corners": lambda: projected_total_corners(leg.home_team, leg.away_team, leg_lg),
@@ -830,20 +853,20 @@ def _combo_leg_model_probability(leg: CandidateLeg, fallback_league: str) -> Opt
                 "totals": lambda: projected_total_goals(leg.home_team, leg.away_team, leg_lg),
             }
             proj_result = proj_funcs[g]()
-        proj_total = proj_result[0] if proj_result else None
+            proj_total = proj_result[0] if proj_result else None
+            var_key = {
+                "corners": "corners_for_var",
+                "cards": "cards_var",
+                "sot": "sot_for_var",
+                "totals": "goals_var",
+            }[g]
+            h_var = get_team_recent_variance(leg.home_team, leg_lg)
+            a_var = get_team_recent_variance(leg.away_team, leg_lg)
+            h_v = h_var.get(var_key)
+            a_v = a_var.get(var_key)
+            combined_var = (h_v + a_v) if (h_v is not None and a_v is not None) else None
         if proj_total is None:
             return None
-        var_key = {
-            "corners": "corners_for_var",
-            "cards": "cards_var",
-            "sot": "sot_for_var",
-            "totals": "goals_var",
-        }[g]
-        h_var = get_team_recent_variance(leg.home_team, leg_lg)
-        a_var = get_team_recent_variance(leg.away_team, leg_lg)
-        h_v = h_var.get(var_key)
-        a_v = a_var.get(var_key)
-        combined_var = (h_v + a_v) if (h_v is not None and a_v is not None) else None
         is_over = "over" in (leg.outcome or "").lower()
         return over_prob(proj_total, leg.point, combined_var) if is_over else under_prob(proj_total, leg.point, combined_var)
 

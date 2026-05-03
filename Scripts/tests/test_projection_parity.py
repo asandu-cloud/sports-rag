@@ -78,6 +78,66 @@ class ProjectionParityTests(unittest.TestCase):
         patched.assert_called_once_with("Home", "Away", "EPL", league_ctx=None, fixture_date="2026-04-10")
         self.assertEqual(result, (0.4, 0.2, 0.1))
 
+    def test_total_goals_calls_core_wrapper(self):
+        with mock.patch.object(core_proj, "projected_total_goals", return_value=(2.8, 2.6, 3.0)) as patched:
+            result = rag.projected_total_goals("Home", "Away", "EPL", fixture_date="2026-04-10")
+        patched.assert_called_once_with(
+            "Home", "Away", "EPL",
+            knockout_ctx=None,
+            league_ctx=None,
+            fixture_date="2026-04-10",
+        )
+        self.assertEqual(result, (2.8, 2.6, 3.0))
+
+    def test_total_corners_calls_core_wrapper(self):
+        with mock.patch.object(core_proj, "projected_total_corners", return_value=(10.1, 9.8, 10.4)) as patched:
+            result = rag.projected_total_corners("Home", "Away", "EPL", fixture_date="2026-04-10")
+        patched.assert_called_once_with(
+            "Home", "Away", "EPL",
+            knockout_ctx=None,
+            league_ctx=None,
+            fixture_date="2026-04-10",
+        )
+        self.assertEqual(result, (10.1, 9.8, 10.4))
+
+    def test_total_sot_calls_core_wrapper(self):
+        with mock.patch.object(core_proj, "projected_total_sot", return_value=(8.1, 7.8, 8.4)) as patched:
+            result = rag.projected_total_sot("Home", "Away", "EPL", fixture_date="2026-04-10")
+        patched.assert_called_once_with(
+            "Home", "Away", "EPL",
+            knockout_ctx=None,
+            league_ctx=None,
+            fixture_date="2026-04-10",
+        )
+        self.assertEqual(result, (8.1, 7.8, 8.4))
+
+    def test_team_corners_calls_core_with_fixture_context(self):
+        with mock.patch.object(core_proj, "projected_team_corners", return_value=(5.1, 5.0, 5.2)) as patched:
+            result = rag.projected_team_corners("Home", "Away", "EPL", True, fixture_date="2026-04-10")
+        patched.assert_called_once_with(
+            "Home", "Away", "EPL", True,
+            league_ctx=None,
+            fixture_date="2026-04-10",
+        )
+        self.assertEqual(result, (5.1, 5.0, 5.2))
+
+    def test_team_cards_calls_core_with_fixture_context(self):
+        ref_mod = object()
+        with mock.patch.object(core_proj, "projected_team_cards", return_value=(1.8, 1.7, 1.9)) as patched:
+            result = rag.projected_team_cards(
+                "Home", "Away", "EPL", True,
+                ref_mod=ref_mod,
+                fixture_date="2026-04-10",
+            )
+        patched.assert_called_once_with(
+            "Home", "Away", "EPL", True,
+            ref_mod=ref_mod,
+            lineup_ctx=None,
+            league_ctx=None,
+            fixture_date="2026-04-10",
+        )
+        self.assertEqual(result, (1.8, 1.7, 1.9))
+
     def test_total_corners_calls_core(self):
         profile, recent = self._mock_profile_and_recent()
 

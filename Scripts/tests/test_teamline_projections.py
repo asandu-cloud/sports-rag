@@ -9,6 +9,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "rag_ingest"))
 
 from Scripts.rag_ingest.core import projections
+from Scripts.rag_ingest.core import parlay
 from Scripts.rag_ingest.core import team_resolution as resolver
 
 
@@ -61,7 +62,7 @@ class TeamlineProjectionTests(unittest.TestCase):
         def profile_side_effect(team, league):
             return arsenal_meta if team == "Arsenal" else chelsea_meta
 
-        def recent_side_effect(team, league, last_n=6, venue=None):
+        def recent_side_effect(team, league, last_n=6, venue=None, target_date=None):
             if team == "Arsenal":
                 return {
                     "corners_for_avg": 6.0, "corners_against_avg": 4.5,
@@ -99,6 +100,52 @@ class TeamlineProjectionTests(unittest.TestCase):
         self.assertIsNotNone(season_proj)
         self.assertIsNotNone(recent_proj)
 
+    def test_team_corners_detail_exposes_components(self):
+        arsenal_meta = {
+            "corners_pm": 5.5, "corners_home_pm": 6.0,
+            "corners_against_pm": 4.5, "corners_against_home_pm": 4.2,
+            "dominance_index": 0.45, "control_index": 0.68,
+            "possession": 0.60,
+        }
+        chelsea_meta = {
+            "corners_pm": 4.5, "corners_away_pm": 4.0,
+            "corners_against_pm": 5.0, "corners_against_away_pm": 5.2,
+            "dominance_index": 0.40, "control_index": 0.55,
+            "possession": 0.48,
+        }
+
+        def profile_side_effect(team, league):
+            return arsenal_meta if team == "Arsenal" else chelsea_meta
+
+        def recent_side_effect(team, league, last_n=6, venue=None, target_date=None):
+            if team == "Arsenal":
+                return {
+                    "corners_for_avg": 6.0, "corners_against_avg": 4.5,
+                    "shots_for_avg": 16.0, "sot_for_avg": 5.0,
+                    "control_avg": 0.70, "possession_avg": 0.62,
+                    "corners_for_slope": 0.0,
+                }
+            return {
+                "corners_for_avg": 4.2, "corners_against_avg": 5.0,
+                "shots_for_avg": 12.0, "sot_for_avg": 3.5,
+                "control_avg": 0.52, "possession_avg": 0.47,
+                "corners_for_slope": 0.0,
+            }
+
+        with mock.patch.object(projections, "_profile_meta", side_effect=profile_side_effect), \
+             mock.patch.object(projections, "projected_corners", return_value=(5.2, 3.8)), \
+             mock.patch.object(projections, "_recent_stats", side_effect=recent_side_effect), \
+             mock.patch.object(projections, "_ml_blend_weight", return_value=0.0), \
+             mock.patch.object(projections, "projected_total_corners", return_value=(9.5, 9.0, 10.0)):
+            detail = projections.projected_team_corners_detail("Arsenal", "Chelsea", "EPL", is_home=True)
+
+        for key in (
+            "match_total", "season_share", "recent_share", "share_anchor",
+            "season_direct", "recent_direct", "stabilizer", "final",
+        ):
+            self.assertIn(key, detail)
+            self.assertIsNotNone(detail[key])
+
     def test_team_corners_sum_near_match_total(self):
         """Sum of team-corner projections should be close to match total."""
         arsenal_meta = {
@@ -128,7 +175,7 @@ class TeamlineProjectionTests(unittest.TestCase):
                         "corners_for_slope": 0.0},
         }
 
-        def recent_side_effect(team, league, last_n=6, venue=None):
+        def recent_side_effect(team, league, last_n=6, venue=None, target_date=None):
             return recent_data.get(team, {})
 
         match_total = 9.8
@@ -180,7 +227,7 @@ class TeamlineProjectionTests(unittest.TestCase):
         def profile_side_effect(team, league):
             return arsenal_meta if team == "Arsenal" else chelsea_meta
 
-        def recent_side_effect(team, league, last_n=6, venue=None):
+        def recent_side_effect(team, league, last_n=6, venue=None, target_date=None):
             if team == "Arsenal":
                 return {
                     "cards_avg": 2.2,
@@ -250,6 +297,42 @@ class TeamlineProjectionTests(unittest.TestCase):
         self.assertEqual(len(result), 3)
         blended, season_proj, recent_proj = result
         self.assertIsNotNone(blended)
+
+    def test_team_total_corner_quality_probability_uses_team_projection(self):
+        leg = parlay.CandidateLeg(
+            event_id="1",
+            fixture="Arsenal vs Chelsea",
+            home_team="Arsenal",
+            away_team="Chelsea",
+            market_key="team_totals_home_corners",
+            outcome="Over",
+            odds=1.90,
+            point=4.5,
+            bookmaker="Book",
+            league="EPL",
+        )
+        seen = {}
+
+        def fake_over_prob(mean, point, variance=None):
+            seen["mean"] = mean
+            seen["point"] = point
+            seen["variance"] = variance
+            return 0.50
+
+        with mock.patch.object(parlay, "_profile_meta", return_value={}), \
+             mock.patch.object(parlay, "_recent_stats", return_value={}), \
+             mock.patch.object(parlay, "heuristic_groups_for_event", return_value=set()), \
+             mock.patch.object(parlay, "get_elo_edge", return_value=None), \
+             mock.patch.object(parlay, "projected_team_corners", return_value=(5.0, 5.0, 5.0)), \
+             mock.patch.object(parlay, "projected_total_corners", return_value=(10.0, 10.0, 10.0)) as total_proj, \
+             mock.patch.object(parlay, "get_team_recent_variance", return_value={"corners_for_var": 2.0}), \
+             mock.patch.object(parlay, "over_prob", side_effect=fake_over_prob):
+            parlay.kb_leg_quality(leg, "EPL")
+
+        self.assertEqual(seen["mean"], 5.0)
+        self.assertEqual(seen["point"], 4.5)
+        self.assertEqual(seen["variance"], 2.0)
+        total_proj.assert_not_called()
 
 
 if __name__ == "__main__":

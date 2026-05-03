@@ -1008,15 +1008,15 @@ def projected_total_cards(
 
 # ---- Per-team blended projections (for team totals lines) ----
 
-def projected_team_corners(
+def projected_team_corners_detail(
     team: str,
     opponent: str,
     league: str,
     is_home: bool,
     league_ctx=None,
     fixture_date: Optional[str] = None,
-) -> Tuple[Optional[float], Optional[float], Optional[float]]:
-    """Per-team corner projection anchored to match total + team share + stabilizer.
+) -> Dict[str, Optional[float]]:
+    """Per-team corner projection components.
 
     Architecture mirrors projected_team_cards:
       1. Get match total from projected_total_corners()
@@ -1131,9 +1131,6 @@ def projected_team_corners(
         (share_anchor, cow.get("match_anchor_weight", 0.55)),
         (stabilizer, cow.get("direct_stabilizer_weight", 0.45)),
     ])
-    if blended is None:
-        return None, None, None
-
     # Backward-compatible season_proj / recent_proj
     season_proj = (season_total * season_share
                    if (season_total is not None and season_share is not None) else season_direct)
@@ -1142,7 +1139,38 @@ def projected_team_corners(
 
     # League context already applied inside projected_total_corners — no re-application
 
-    return blended, season_proj, recent_proj
+    return {
+        "match_total": total_blended,
+        "season_total": season_total,
+        "recent_total": recent_total,
+        "season_share": season_share,
+        "recent_share": recent_share,
+        "share_blended": share_blended,
+        "share_anchor": share_anchor,
+        "season_direct": season_direct,
+        "recent_direct": recent_direct,
+        "stabilizer": stabilizer,
+        "final": blended,
+        "season_proj": season_proj,
+        "recent_proj": recent_proj,
+    }
+
+
+def projected_team_corners(
+    team: str,
+    opponent: str,
+    league: str,
+    is_home: bool,
+    league_ctx=None,
+    fixture_date: Optional[str] = None,
+) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+    """Per-team corner projection. Returns (final, season_component, recent_component)."""
+    detail = projected_team_corners_detail(
+        team, opponent, league, is_home,
+        league_ctx=league_ctx,
+        fixture_date=fixture_date,
+    )
+    return detail.get("final"), detail.get("season_proj"), detail.get("recent_proj")
 
 
 def projected_team_cards(

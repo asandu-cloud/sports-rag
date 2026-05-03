@@ -1161,17 +1161,23 @@ class SlashCommands(commands.Cog):
 
         if match:
             home, away = _parse_match(match)
-            prompt = (
-                f"For {home} vs {away} in {lg} on {phrase}, "
-                "what are the per-team corner and card lines for each team?"
-            )
         else:
-            prompt = (
-                f"For all {lg} games on {phrase}, "
-                "what are the per-team corner and card lines for each fixture?"
-            )
+            home, away = None, None
 
-        text = await _run_rag(prompt, lg)
+        text = await _render_market_answer(lg, "teamlines", target)
+        if home and away:
+            marker = f"=== {home} vs {away} ==="
+            if marker in text:
+                before, after = text.split(marker, 1)
+                next_block = after.find("\n===")
+                block = after[:next_block] if next_block >= 0 else after
+                header = before.splitlines()[0] if before.splitlines() else "Per-Team Totals Lines by fixture:"
+                text = f"{header}\n\n{marker}{block}".strip()
+            else:
+                text = (
+                    f"No exact team-lines block found for {home} vs {away} in {lg} on {phrase}.\n\n"
+                    f"{text}"
+                )
         embeds, files = rag_output_to_embeds("Team Lines", text, league=lg)
         if thread:
             await interaction.followup.send(
