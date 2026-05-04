@@ -585,8 +585,8 @@ class ParlayBuilder(commands.Cog):
     @app_commands.command(name="parlay", description="Generate an optimized parlay")
     @app_commands.describe(
         league="League (or Cross-League for multi-league)",
-        legs="Number of legs (default 4)",
-        odds="Target combined decimal odds (default 4.0)",
+        legs="Number of legs. Leave blank to let odds-only requests choose the best count.",
+        odds="Target combined decimal odds. Defaults to 4.0 when omitted.",
         market="Focus on specific market type (optional)",
         match="Lock to a specific fixture (type to search)",
         date="Day (today, tomorrow, saturday, or YYYY-MM-DD)",
@@ -598,8 +598,8 @@ class ParlayBuilder(commands.Cog):
         self,
         interaction: discord.Interaction,
         league: app_commands.Choice[str],
-        legs: Optional[int] = 4,
-        odds: Optional[float] = 4.0,
+        legs: Optional[int] = None,
+        odds: Optional[float] = None,
         market: Optional[app_commands.Choice[str]] = None,
         match: Optional[str] = None,
         date: Optional[str] = None,
@@ -610,16 +610,19 @@ class ParlayBuilder(commands.Cog):
         target_date = _parse_date(date)
         lg = league.value
         market_val = market.value if market else None
-        target_mode = "around" if (lg == "cross-league" or match) else "max"
+        flexible_leg_count = legs is None and odds is not None
+        target_odds = odds if odds is not None else 4.0
+        target_mode = "around" if (flexible_leg_count or lg == "cross-league" or match) else "max"
         request = build_parlay_request(
             league_value=lg,
             target_date=target_date,
-            legs=legs or 4,
-            odds=odds,
+            legs=legs,
+            odds=target_odds,
             market=market_val,
             match=match,
             source_command="parlay",
             target_mode=target_mode,
+            flexible_leg_count=flexible_leg_count,
             risk_profile="standard",
             discord_user_id=interaction.user.id,
             guild_id=interaction.guild.id if interaction.guild else None,

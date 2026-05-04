@@ -260,7 +260,7 @@ def build_parlay_request(
     *,
     league_value: str,
     target_date: date,
-    legs: int,
+    legs: Optional[int],
     odds: Optional[float],
     target_min: Optional[float] = None,
     target_max: Optional[float] = None,
@@ -268,6 +268,9 @@ def build_parlay_request(
     match: Optional[str] = None,
     source_command: str = "parlay",
     target_mode: str = "max",
+    flexible_leg_count: bool = False,
+    min_legs: int = 1,
+    max_legs: int = 8,
     leagues_override: Optional[Sequence[str]] = None,
     display_league: Optional[str] = None,
     min_model_prob: Optional[float] = None,
@@ -287,6 +290,9 @@ def build_parlay_request(
     default_league = leagues[0]
     display_name = display_league or ("Cross-League" if is_cross_league or len(leagues) > 1 else league_value)
     same_game_only = bool(match)
+    resolved_legs = max(1, int(legs if legs is not None else 4))
+    min_legs = max(1, int(min_legs))
+    max_legs = max(min_legs, int(max_legs))
     # General parlays should optimize for the best available legs on the slate,
     # even if that means taking multiple non-contradictory legs from one fixture.
     require_unique_events = False
@@ -297,9 +303,12 @@ def build_parlay_request(
         display_league=display_name,
         target_date=target_date.isoformat(),
         date_phrase=humanize_date(target_date),
-        legs_requested=max(1, int(legs)),
+        legs_requested=resolved_legs,
         target_odds=float(odds) if odds is not None else None,
         target_mode=target_mode,
+        flexible_leg_count=bool(flexible_leg_count),
+        min_legs_requested=min_legs,
+        max_legs_requested=max_legs,
         target_min=float(target_min) if target_min is not None else None,
         target_max=float(target_max) if target_max is not None else None,
         market_filter=(market or "mixed"),
@@ -330,7 +339,8 @@ def derive_followup_request(record: ParlaySessionRecord, action: str) -> ParlayB
     if action == "add_leg":
         return replace(
             base,
-            legs_requested=base.legs_requested + 1,
+            legs_requested=len(prior.selected_legs) + 1,
+            flexible_leg_count=False,
             locked_legs=selected_refs,
             excluded_legs=[],
             allowed_event_ids=[],
@@ -345,6 +355,8 @@ def derive_followup_request(record: ParlaySessionRecord, action: str) -> ParlayB
         locked = [leg.ref for leg in prior.selected_legs if leg.event_id != weakest.event_id or leg.market_key != weakest.market_key or leg.outcome != weakest.outcome or _point_key(leg.point) != _point_key(weakest.point)]
         return replace(
             base,
+            legs_requested=len(prior.selected_legs),
+            flexible_leg_count=False,
             locked_legs=locked,
             excluded_legs=[weakest.ref],
             allowed_event_ids=[],
@@ -363,6 +375,8 @@ def derive_followup_request(record: ParlaySessionRecord, action: str) -> ParlayB
         allowed_event_ids = sorted({leg.event_id for leg in prior.selected_legs})
         return replace(
             base,
+            legs_requested=len(prior.selected_legs),
+            flexible_leg_count=False,
             target_odds=target,
             target_mode="around",
             locked_legs=[],
@@ -413,7 +427,16 @@ def build_parlay(request: ParlayBuildRequest) -> ParlayBuildResult:
     adjusted_constraint = _adjust_constraint_for_locked(constraint, locked_legs, remaining_needed)
 
     selected_new: List[rag.CandidateLeg] = []
-    if remaining_needed > 0:
+    if request.flexible_leg_count and not locked_legs:
+        selected_new, selection_notes = _select_flexible_leg_count(
+            filtered_candidates,
+            adjusted_constraint,
+            request,
+        )
+        notes.extend(selection_notes)
+        if not selected_new:
+            raise ParlayBuildError("Could not construct a valid parlay from the available markets.", notes)
+    elif remaining_needed > 0:
         feasible, warnings = rag.check_feasibility(filtered_candidates, remaining_needed, adjusted_constraint)
         notes.extend(warnings)
         if not feasible:
@@ -448,6 +471,60 @@ def build_parlay(request: ParlayBuildRequest) -> ParlayBuildResult:
         result.notes.append(llm_note)
     result.llm_summary = llm_summary
     return result
+
+
+def _score_selected_combo(selected: List[rag.CandidateLeg], constraint) -> float:
+    leg_quality = {
+        leg: rag.kb_leg_quality(leg, getattr(leg, "league", "") or constraint.league)
+        for leg in selected
+    }
+    return rag.score_combo(selected, constraint, leg_quality)
+
+
+def _select_flexible_leg_count(
+    candidates: List[rag.CandidateLeg],
+    constraint,
+    request: ParlayBuildRequest,
+) -> Tuple[List[rag.CandidateLeg], List[str]]:
+    """Try a range of leg counts and return the best scored result."""
+    notes: List[str] = []
+    min_legs = max(1, int(request.min_legs_requested or 1))
+    max_legs = max(min_legs, int(request.max_legs_requested or min_legs))
+    max_legs = min(max_legs, len(candidates))
+    if max_legs < min_legs:
+        return [], [f"Only {len(candidates)} candidate leg(s) available for a flexible-leg request."]
+
+    best_selected: List[rag.CandidateLeg] = []
+    best_score: Optional[float] = None
+    best_notes: List[str] = []
+    tried_counts: List[int] = []
+
+    for leg_count in range(min_legs, max_legs + 1):
+        per_count_constraint = replace(constraint, leg_count=leg_count)
+        feasible, feasibility_notes = rag.check_feasibility(candidates, leg_count, per_count_constraint)
+        if not feasible:
+            continue
+        selected, selection_notes = rag.select_parlay(candidates, leg_count, per_count_constraint)
+        if not selected:
+            continue
+        tried_counts.append(leg_count)
+        score = _score_selected_combo(selected, per_count_constraint)
+        if best_score is None or score < best_score:
+            best_selected = selected
+            best_score = score
+            best_notes = feasibility_notes + selection_notes
+
+    if not best_selected:
+        return [], ["Could not build a parlay for any leg count in the flexible range."]
+
+    notes.extend(best_notes)
+    notes.append(
+        f"Flexible leg count considered {min_legs}-{max_legs} legs; "
+        f"selected {len(best_selected)} leg(s) at {rag.combined_odds(best_selected):.2f}x."
+    )
+    if tried_counts and len(tried_counts) < (max_legs - min_legs + 1):
+        notes.append(f"Feasible leg counts: {', '.join(str(x) for x in tried_counts)}.")
+    return best_selected, notes
 
 
 def humanize_date(target_date: date) -> str:

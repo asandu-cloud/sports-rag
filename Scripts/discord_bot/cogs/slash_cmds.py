@@ -1310,11 +1310,12 @@ class SlashCommands(commands.Cog):
                 "Let the model build an optimized multi-leg parlay.\n\n"
                 "**Parameters:**\n"
                 "`league` -- League (required)\n"
-                "`legs` -- Number of legs, default 4 (optional)\n"
-                "`odds` -- Target combined odds, default 4.0 (optional)\n"
+                "`legs` -- Number of legs. If omitted with odds, the builder can choose any count (optional)\n"
+                "`odds` -- Target combined odds. Defaults to 4.0 when omitted (optional)\n"
                 "`date` -- Day (optional, default: today)\n\n"
                 "**Examples:**\n"
                 "`/parlay EPL` -- 4-leg parlay at ~4x odds\n"
+                "`/parlay EPL odds:1.8` -- best bet/parlay near 1.8x, any leg count\n"
                 "`/parlay LaLiga 3 3.0` -- 3 legs targeting 3x\n"
                 "`/parlay Bundesliga 5 6.0 saturday`",
             ),

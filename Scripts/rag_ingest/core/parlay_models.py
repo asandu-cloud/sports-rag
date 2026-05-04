@@ -41,6 +41,9 @@ class ParlayBuildRequest:
     legs_requested: int
     target_odds: Optional[float]
     target_mode: str = "max"
+    flexible_leg_count: bool = False
+    min_legs_requested: int = 1
+    max_legs_requested: int = 8
     target_min: Optional[float] = None
     target_max: Optional[float] = None
     market_filter: str = "mixed"

@@ -76,6 +76,23 @@ class ParlayServiceTests(unittest.TestCase):
         self.assertEqual(request.allowed_confidences, ["high"])
         self.assertEqual(request.min_model_prob, 0.6)
 
+    def test_build_parlay_request_supports_flexible_leg_count(self):
+        request = service.build_parlay_request(
+            league_value="EPL",
+            target_date=date(2026, 4, 2),
+            legs=None,
+            odds=1.8,
+            target_mode="around",
+            flexible_leg_count=True,
+            source_command="parlay",
+        )
+        self.assertTrue(request.flexible_leg_count)
+        self.assertEqual(request.legs_requested, 4)
+        self.assertEqual(request.min_legs_requested, 1)
+        self.assertEqual(request.max_legs_requested, 8)
+        self.assertEqual(request.target_odds, 1.8)
+        self.assertEqual(request.target_mode, "around")
+
     def test_session_store_roundtrip(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             store = service.ParlaySessionStore(Path(tmpdir) / "predictions.db")
@@ -270,6 +287,38 @@ class ParlayServiceTests(unittest.TestCase):
             _candidate("fixture-1", "PSG vs Toulouse", "totals_alt", "Over", 1.95, 3.5, league="Ligue1"),
         ]
         self.assertFalse(service.rag.combo_valid(combo, require_unique_events=False))
+
+    def test_flexible_leg_count_selects_best_scored_count(self):
+        candidates = [
+            _candidate("1", "Arsenal vs Chelsea", "totals", "Over", 1.82, 2.5),
+            _candidate("2", "Liverpool vs Everton", "corners", "Over", 1.45, 9.5),
+        ]
+        request = service.build_parlay_request(
+            league_value="EPL",
+            target_date=date(2026, 4, 5),
+            legs=None,
+            odds=1.8,
+            target_mode="around",
+            flexible_leg_count=True,
+            source_command="parlay",
+        )
+        constraint = service._build_constraint_spec(request)
+
+        def select_side_effect(pool, leg_count, _constraint):
+            return candidates[:leg_count], [f"selected {leg_count}"]
+
+        def score_side_effect(selected, _constraint, _quality):
+            return 0.0 if len(selected) == 1 else 10.0
+
+        with mock.patch.object(service.rag, "check_feasibility", return_value=(True, [])), \
+             mock.patch.object(service.rag, "select_parlay", side_effect=select_side_effect) as select_mock, \
+             mock.patch.object(service.rag, "kb_leg_quality", return_value=1.0), \
+             mock.patch.object(service.rag, "score_combo", side_effect=score_side_effect):
+            selected, notes = service._select_flexible_leg_count(candidates, constraint, request)
+
+        self.assertEqual(len(selected), 1)
+        self.assertEqual(select_mock.call_count, 2)
+        self.assertTrue(any("Flexible leg count considered 1-2 legs" in note for note in notes))
 
     def test_llm_summary_rejects_unsafe_output(self):
         request = service.build_parlay_request(
