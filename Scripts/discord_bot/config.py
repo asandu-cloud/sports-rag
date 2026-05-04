@@ -8,7 +8,7 @@ load_dotenv()
 # Discord bot token — set in .env as DISCORD_BOT_TOKEN
 BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "")
 
-# Channel IDs for auto-push (7 channels)
+# Channel IDs for auto-push
 CHANNEL_DAILY_PICKS = int(os.getenv("DISCORD_CHANNEL_DAILY_PICKS", "0"))    # all market predictions
 CHANNEL_PARLAYS = int(os.getenv("DISCORD_CHANNEL_PARLAYS", "0"))            # parlays + value alerts
 CHANNEL_PLAYER_PROPS = int(os.getenv("DISCORD_CHANNEL_PLAYER_PROPS", "0"))  # player prop picks
@@ -18,6 +18,7 @@ CHANNEL_NEWSLETTER = int(os.getenv("DISCORD_CHANNEL_NEWSLETTER", "0"))      # ma
 CHANNEL_HIGH_RISK = int(os.getenv("DISCORD_CHANNEL_HIGH_RISK", "0"))        # legacy alias
 CHANNEL_UNIT_BETS = int(os.getenv("DISCORD_CHANNEL_UNIT_BETS",
                         os.getenv("DISCORD_CHANNEL_HIGH_RISK", "0")))      # unit betting channel
+CHANNEL_UNIT_BETS_RECAP = int(os.getenv("DISCORD_CHANNEL_UNIT_BETS_RECAP", "0"))  # unit P/L recap channel
 
 # Legacy channel IDs (kept for backward compatibility, map to new channels)
 CHANNEL_PARLAY_OF_DAY = int(os.getenv("DISCORD_CHANNEL_PARLAYS",
@@ -99,5 +100,3 @@ COLOR_YELLOW = 0xF1C40F  # medium confidence
 COLOR_RED = 0xE74C3C     # low confidence
 COLOR_BLUE = 0x3498DB    # info / neutral
 COLOR_PURPLE = 0x9B59B6  # parlay
-
-

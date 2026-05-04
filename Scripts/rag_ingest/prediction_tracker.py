@@ -17,6 +17,7 @@ CLI:
   python prediction_tracker.py --stats
   python prediction_tracker.py --stats --stats-market goals --stats-confidence high
   python prediction_tracker.py --export predictions.csv
+  python prediction_tracker.py --backfill-unit-bets
   python prediction_tracker.py --clv                        # CLV report
   python prediction_tracker.py --capture-clv                # capture closing odds for today
   python prediction_tracker.py --capture-clv --resolve-date 2026-03-14  # capture for specific date
@@ -27,6 +28,7 @@ from __future__ import annotations
 import argparse
 import csv
 import difflib
+import hashlib
 import json
 import logging
 import os
@@ -149,6 +151,31 @@ _CREATE_INDEXES_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_predictions_fixture ON predictions(fixture_id);",
 ]
 
+_CREATE_UNIT_BET_SLIPS_SQL = """
+CREATE TABLE IF NOT EXISTS unit_bet_slips (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slip_key TEXT NOT NULL UNIQUE,
+    prediction_date TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'unit_bets',
+    title TEXT,
+    fixture_summary TEXT,
+    legs_json TEXT NOT NULL,
+    prediction_ids_json TEXT,
+    combined_odds REAL NOT NULL,
+    stake_units REAL NOT NULL DEFAULT 1.0,
+    outcome TEXT,
+    profit_units REAL,
+    graded_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+"""
+
+_CREATE_UNIT_BET_INDEXES_SQL = [
+    "CREATE INDEX IF NOT EXISTS idx_unit_bet_slips_date ON unit_bet_slips(prediction_date);",
+    "CREATE INDEX IF NOT EXISTS idx_unit_bet_slips_source ON unit_bet_slips(source);",
+    "CREATE INDEX IF NOT EXISTS idx_unit_bet_slips_outcome ON unit_bet_slips(outcome);",
+]
+
 
 def _migrate_schema(conn: sqlite3.Connection) -> None:
     """Run idempotent schema migrations. Safe to call on every connection."""
@@ -177,6 +204,9 @@ def _get_db(db_path: Path = DB_PATH) -> sqlite3.Connection:
     conn.execute("PRAGMA busy_timeout=5000;")
     conn.execute(_CREATE_TABLE_SQL)
     for idx_sql in _CREATE_INDEXES_SQL:
+        conn.execute(idx_sql)
+    conn.execute(_CREATE_UNIT_BET_SLIPS_SQL)
+    for idx_sql in _CREATE_UNIT_BET_INDEXES_SQL:
         conn.execute(idx_sql)
     _migrate_schema(conn)
     conn.commit()
@@ -307,6 +337,720 @@ def log_direct(prediction_data: dict, *, db_path: Path = DB_PATH) -> int:
         season=prediction_data.get("season"),
         db_path=db_path,
     )
+
+
+def _unit_slip_key(prediction_date: str, source: str, title: str, legs: List[dict]) -> str:
+    leg_keys = []
+    for leg in legs or []:
+        leg_keys.append({
+            "event_id": str(leg.get("event_id") or leg.get("fixture_id") or ""),
+            "fixture": str(leg.get("fixture") or ""),
+            "market": str(leg.get("market") or leg.get("market_group") or leg.get("market_key") or ""),
+            "pick": str(leg.get("pick") or leg.get("pick_display") or ""),
+            "side": str(leg.get("side") or ""),
+            "line": leg.get("line"),
+        })
+    payload = json.dumps(
+        {
+            "prediction_date": prediction_date,
+            "source": source,
+            "title": title,
+            "legs": leg_keys,
+        },
+        sort_keys=True,
+        default=str,
+    )
+    digest = hashlib.sha1(payload.encode("utf-8")).hexdigest()[:20]
+    return f"{source}:{prediction_date}:{digest}"
+
+
+def _normalise_market_name(market: str) -> str:
+    market = str(market or "").lower()
+    return "goals" if market == "totals" else market
+
+
+def _normalise_unit_outcome(outcome: Any) -> Optional[str]:
+    value = str(outcome or "").strip().lower()
+    if value in {"hit", "win", "won"}:
+        return "hit"
+    if value in {"miss", "loss", "lost", "lose"}:
+        return "miss"
+    if value in {"push", "void", "refund", "refunded"}:
+        return "push"
+    return None
+
+
+def _unit_bet_profit(
+    leg_outcomes: List[dict],
+    combined_odds: float,
+    stake_units: float,
+) -> Tuple[Optional[str], Optional[float]]:
+    outcomes = [_normalise_unit_outcome(x.get("outcome")) for x in leg_outcomes]
+    if not outcomes or any(x is None for x in outcomes):
+        return None, None
+    stake = float(stake_units or 1.0)
+    if any(x == "miss" for x in outcomes):
+        return "miss", -stake
+    if all(x == "push" for x in outcomes):
+        return "push", 0.0
+    if all(x == "hit" for x in outcomes):
+        odds = float(combined_odds or 0.0)
+        if odds <= 1.0:
+            odds = 1.0
+            for leg in leg_outcomes:
+                odds *= max(float(leg.get("odds") or 1.0), 1.0)
+        return "hit", stake * (odds - 1.0)
+
+    # At least one hit and the rest are pushes: settled at reduced parlay odds.
+    reduced_odds = 1.0
+    for leg, outcome in zip(leg_outcomes, outcomes):
+        if outcome == "hit":
+            reduced_odds *= max(float(leg.get("odds") or 1.0), 1.0)
+    if reduced_odds <= 1.0:
+        return "push", 0.0
+    return "hit", stake * (reduced_odds - 1.0)
+
+
+def log_unit_bet_slip(
+    *,
+    title: str,
+    combined_odds: float,
+    legs: List[dict],
+    prediction_ids: List[int] = None,
+    prediction_date: str = None,
+    source: str = "unit_bets",
+    stake_units: float = 1.0,
+    db_path: Path = DB_PATH,
+) -> int:
+    """Log one posted unit-betting slip.
+
+    Unit-betting performance is slip-level: a two-leg double is one 1-unit bet,
+    not two independent 1-unit singles.
+    """
+    prediction_date = prediction_date or date.today().isoformat()
+    title = title or "Unit Bet"
+    source = source or "unit_bets"
+    legs = [dict(x or {}) for x in (legs or [])]
+    if not legs:
+        return -1
+
+    try:
+        odds = float(combined_odds or 0.0)
+    except Exception:
+        odds = 0.0
+    if odds <= 1.0:
+        odds = 1.0
+        for leg in legs:
+            try:
+                odds *= max(float(leg.get("odds") or 1.0), 1.0)
+            except Exception:
+                pass
+
+    try:
+        stake = float(stake_units or 1.0)
+    except Exception:
+        stake = 1.0
+    if stake <= 0:
+        stake = 1.0
+
+    clean_ids = []
+    for pred_id in prediction_ids or []:
+        try:
+            pred_id_int = int(pred_id)
+        except Exception:
+            continue
+        if pred_id_int > 0:
+            clean_ids.append(pred_id_int)
+
+    fixture_summary = "; ".join(dict.fromkeys(
+        str(leg.get("fixture") or f"{leg.get('home_team', '')} vs {leg.get('away_team', '')}").strip()
+        for leg in legs
+        if leg
+    ))[:500]
+    slip_key = _unit_slip_key(prediction_date, source, title, legs)
+
+    try:
+        conn = _get_db(db_path)
+        existing = conn.execute(
+            "SELECT id FROM unit_bet_slips WHERE slip_key = ?",
+            [slip_key],
+        ).fetchone()
+        if existing:
+            conn.close()
+            return int(existing["id"])
+
+        cur = conn.execute(
+            """INSERT INTO unit_bet_slips
+               (slip_key, prediction_date, source, title, fixture_summary,
+                legs_json, prediction_ids_json, combined_odds, stake_units)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                slip_key,
+                prediction_date,
+                source,
+                title,
+                fixture_summary,
+                json.dumps(legs, sort_keys=True, default=str),
+                json.dumps(clean_ids),
+                odds,
+                stake,
+            ),
+        )
+        conn.commit()
+        slip_id = cur.lastrowid
+        conn.close()
+        return int(slip_id)
+    except Exception:
+        log.error("Failed to log unit bet slip: %s", traceback.format_exc())
+        return -1
+
+
+def _load_slip_legs(row: sqlite3.Row | dict) -> List[dict]:
+    try:
+        return [dict(x or {}) for x in json.loads((row["legs_json"] if isinstance(row, sqlite3.Row) else row.get("legs_json")) or "[]")]
+    except Exception:
+        return []
+
+
+def _load_slip_prediction_ids(row: sqlite3.Row | dict) -> List[int]:
+    try:
+        raw = row["prediction_ids_json"] if isinstance(row, sqlite3.Row) else row.get("prediction_ids_json")
+        return [int(x) for x in json.loads(raw or "[]") if int(x) > 0]
+    except Exception:
+        return []
+
+
+def _unit_leg_outcomes_from_predictions(
+    conn: sqlite3.Connection,
+    prediction_ids: List[int],
+    legs: List[dict],
+) -> Optional[List[dict]]:
+    if not prediction_ids:
+        return None
+    if len(prediction_ids) != len(legs):
+        return None
+    placeholders = ",".join("?" for _ in prediction_ids)
+    rows = conn.execute(
+        f"SELECT * FROM predictions WHERE id IN ({placeholders})",
+        prediction_ids,
+    ).fetchall()
+    by_id = {int(row["id"]): dict(row) for row in rows}
+    if len(by_id) < len(prediction_ids):
+        return None
+
+    outcomes = []
+    for idx, pred_id in enumerate(prediction_ids):
+        pred = by_id.get(int(pred_id))
+        outcome = _normalise_unit_outcome(pred.get("outcome") if pred else None)
+        if outcome is None:
+            return None
+        leg = legs[idx] if idx < len(legs) else {}
+        outcomes.append({
+            "outcome": outcome,
+            "odds": pred.get("odds") or leg.get("odds"),
+            "actual": pred.get("actual_result"),
+            "pick": pred.get("pick") or leg.get("pick"),
+            "fixture": leg.get("fixture") or f"{pred.get('home_team')} vs {pred.get('away_team')}",
+        })
+    return outcomes
+
+
+def _unit_leg_outcomes_from_results(
+    prediction_date: str,
+    legs: List[dict],
+    results_cache: Dict[Tuple[str, str], List[dict]],
+) -> Optional[List[dict]]:
+    outcomes = []
+    for leg in legs:
+        league = str(leg.get("league") or "").strip()
+        if not league:
+            return None
+        cache_key = (prediction_date, league)
+        if cache_key not in results_cache:
+            results = _fetch_results_from_data(prediction_date, league)
+            if not results:
+                results = _fetch_results_from_api(prediction_date, league)
+            results_cache[cache_key] = results or []
+        pred = {
+            "fixture_id": leg.get("fixture_id") or leg.get("event_id"),
+            "home_team": leg.get("home_team"),
+            "away_team": leg.get("away_team"),
+            "league": league,
+            "market": _normalise_market_name(leg.get("market") or leg.get("market_group")),
+            "pick": leg.get("pick") or leg.get("pick_display"),
+            "side": str(leg.get("side") or "").lower(),
+            "line": _safe_float(leg.get("line")),
+        }
+        result = _match_prediction_to_result(pred, results_cache[cache_key])
+        if result is None:
+            return None
+        outcome, actual = _grade_prediction(pred, result)
+        outcome = _normalise_unit_outcome(outcome)
+        if outcome is None:
+            return None
+        outcomes.append({
+            "outcome": outcome,
+            "odds": _safe_float(leg.get("odds")),
+            "actual": actual,
+            "pick": pred["pick"],
+            "fixture": leg.get("fixture"),
+        })
+    return outcomes
+
+
+def _unit_leg_from_prediction_row(row: dict) -> dict:
+    market = _normalise_market_name(row.get("market"))
+    return {
+        "event_id": row.get("fixture_id"),
+        "fixture_id": row.get("fixture_id"),
+        "league": row.get("league"),
+        "fixture": f"{row.get('home_team', '')} vs {row.get('away_team', '')}",
+        "home_team": row.get("home_team"),
+        "away_team": row.get("away_team"),
+        "market": market,
+        "market_group": "totals" if market == "goals" else market,
+        "market_key": row.get("market"),
+        "pick": row.get("pick"),
+        "side": row.get("side"),
+        "line": row.get("line"),
+        "odds": row.get("odds"),
+        "bookmaker": row.get("bookmaker"),
+        "model_prob": row.get("model_prob"),
+        "implied_prob": row.get("implied_prob"),
+        "value_edge": row.get("value_edge"),
+        "confidence": row.get("confidence"),
+        "projected_total": row.get("projected_total"),
+    }
+
+
+def _combined_odds_for_rows(rows: List[dict]) -> float:
+    odds = 1.0
+    for row in rows:
+        try:
+            odds *= max(float(row.get("odds") or 1.0), 1.0)
+        except Exception:
+            pass
+    return odds
+
+
+def _odds_range_penalty(odds: float, low: float = 1.80, high: float = 2.40) -> float:
+    if low <= odds <= high:
+        return 0.0
+    if odds < low:
+        return (low - odds) * 10.0 + 2.0
+    return (odds - high) * 10.0 + 2.0
+
+
+def _infer_legacy_unit_slip_groups(rows: List[dict]) -> List[Tuple[str, List[dict]]]:
+    """Infer old #unit-betting slip boundaries from leg order and odds.
+
+    Before slip tracking existed, the channel logged only individual legs.
+    The posting code emitted one Single and/or one Double in order.  We infer
+    that shape by preferring chunks whose combined odds land in 1.80-2.40.
+    """
+    rows = [dict(row) for row in rows or []]
+    if not rows:
+        return []
+
+    n = len(rows)
+    best: Dict[int, Tuple[float, List[Tuple[str, List[dict]]]]] = {0: (0.0, [])}
+    for i in range(n):
+        if i not in best:
+            continue
+        prev_score, prev_groups = best[i]
+        for size, title in ((1, "Single"), (2, "Double")):
+            if i + size > n:
+                continue
+            chunk = rows[i:i + size]
+            combined = _combined_odds_for_rows(chunk)
+            score = prev_score + _odds_range_penalty(combined)
+            if size == 2:
+                # Slightly prefer a plausible double over two weak singles.
+                score -= 0.05
+            candidate = (score, prev_groups + [(title, chunk)])
+            current = best.get(i + size)
+            if current is None or candidate[0] < current[0]:
+                best[i + size] = candidate
+
+    return best.get(n, (0.0, [("Single", [row]) for row in rows]))[1]
+
+
+def _settle_backfilled_unit_slip(
+    slip_id: int,
+    rows: List[dict],
+    *,
+    combined_odds: float,
+    db_path: Path,
+) -> bool:
+    leg_outcomes = []
+    for row in rows:
+        outcome = _normalise_unit_outcome(row.get("outcome"))
+        if outcome is None:
+            return False
+        leg_outcomes.append({
+            "outcome": outcome,
+            "odds": row.get("odds"),
+            "actual": row.get("actual_result"),
+            "pick": row.get("pick"),
+            "fixture": f"{row.get('home_team', '')} vs {row.get('away_team', '')}",
+        })
+    outcome, profit = _unit_bet_profit(leg_outcomes, combined_odds, 1.0)
+    if outcome is None or profit is None:
+        return False
+    try:
+        conn = _get_db(db_path)
+        conn.execute(
+            """UPDATE unit_bet_slips
+               SET outcome = ?, profit_units = ?, graded_at = ?
+               WHERE id = ? AND outcome IS NULL""",
+            (outcome, float(profit), datetime.now().isoformat(), slip_id),
+        )
+        conn.commit()
+        conn.close()
+        return True
+    except Exception:
+        log.error("Failed to settle backfilled unit bet slip: %s", traceback.format_exc())
+        return False
+
+
+def backfill_unit_bet_slips_from_predictions(
+    prediction_date: str = None,
+    source: str = "unit_bets",
+    *,
+    db_path: Path = DB_PATH,
+) -> dict:
+    """Create historical unit-bet slips from old leg-level unit predictions.
+
+    This is idempotent by date: if a date already has any slip rows for the
+    source, it is left alone.  Old rows did not store slip IDs, so boundaries
+    are inferred from posting order and the 1.80-2.40 unit-bet odds band.
+    """
+    stats = {
+        "dates_seen": 0,
+        "dates_backfilled": 0,
+        "dates_skipped_existing": 0,
+        "source_predictions": 0,
+        "slips_created": 0,
+        "slips_settled": 0,
+        "errors": 0,
+    }
+
+    try:
+        conn = _get_db(db_path)
+        params: list = [source]
+        query = "SELECT * FROM predictions WHERE source = ?"
+        if prediction_date:
+            query += " AND prediction_date = ?"
+            params.append(prediction_date)
+        query += " ORDER BY prediction_date, id"
+        rows = [dict(row) for row in conn.execute(query, params).fetchall()]
+
+        existing_params: list = [source]
+        existing_query = "SELECT DISTINCT prediction_date FROM unit_bet_slips WHERE source = ?"
+        if prediction_date:
+            existing_query += " AND prediction_date = ?"
+            existing_params.append(prediction_date)
+        existing_dates = {
+            str(row["prediction_date"])
+            for row in conn.execute(existing_query, existing_params).fetchall()
+            if row["prediction_date"]
+        }
+        conn.close()
+    except Exception:
+        log.error("Failed to load historical unit bet predictions: %s", traceback.format_exc())
+        stats["errors"] = 1
+        return stats
+
+    by_date: Dict[str, List[dict]] = {}
+    for row in rows:
+        day = row.get("prediction_date") or str(row.get("created_at") or "")[:10]
+        if not day:
+            continue
+        by_date.setdefault(day, []).append(row)
+    stats["dates_seen"] = len(by_date)
+    stats["source_predictions"] = len(rows)
+
+    for day, day_rows in sorted(by_date.items()):
+        if day in existing_dates:
+            stats["dates_skipped_existing"] += 1
+            continue
+        groups = _infer_legacy_unit_slip_groups(day_rows)
+        if not groups:
+            continue
+        for title, group_rows in groups:
+            legs = [_unit_leg_from_prediction_row(row) for row in group_rows]
+            prediction_ids = [int(row["id"]) for row in group_rows if row.get("id")]
+            combined_odds = _combined_odds_for_rows(group_rows)
+            slip_id = log_unit_bet_slip(
+                title=title,
+                combined_odds=combined_odds,
+                legs=legs,
+                prediction_ids=prediction_ids,
+                prediction_date=day,
+                source=source,
+                stake_units=1.0,
+                db_path=db_path,
+            )
+            if slip_id > 0:
+                stats["slips_created"] += 1
+                if _settle_backfilled_unit_slip(
+                    slip_id,
+                    group_rows,
+                    combined_odds=combined_odds,
+                    db_path=db_path,
+                ):
+                    stats["slips_settled"] += 1
+            else:
+                stats["errors"] += 1
+        stats["dates_backfilled"] += 1
+
+    return stats
+
+
+def resolve_unit_bet_slips(
+    prediction_date: str = None,
+    source: str = "unit_bets",
+    dry_run: bool = False,
+    *,
+    db_path: Path = DB_PATH,
+) -> dict:
+    """Resolve posted unit-betting slips and settle flat-stake unit profit."""
+    if prediction_date is None:
+        prediction_date = (date.today() - timedelta(days=1)).isoformat()
+
+    stats = {
+        "graded": 0,
+        "hit": 0,
+        "miss": 0,
+        "push": 0,
+        "pending": 0,
+        "errors": 0,
+        "profit_units": 0.0,
+        "details": [],
+    }
+
+    try:
+        conn = _get_db(db_path)
+    except Exception:
+        log.error("Cannot open database: %s", traceback.format_exc())
+        stats["errors"] = 1
+        return stats
+
+    params: list = [prediction_date]
+    query = "SELECT * FROM unit_bet_slips WHERE prediction_date = ? AND outcome IS NULL"
+    if source:
+        query += " AND source = ?"
+        params.append(source)
+    query += " ORDER BY id"
+
+    try:
+        rows = conn.execute(query, params).fetchall()
+    except Exception:
+        log.error("Failed to query unit bet slips: %s", traceback.format_exc())
+        conn.close()
+        stats["errors"] = 1
+        return stats
+
+    results_cache: Dict[Tuple[str, str], List[dict]] = {}
+    now_iso = datetime.now().isoformat()
+    for row in rows:
+        legs = _load_slip_legs(row)
+        prediction_ids = _load_slip_prediction_ids(row)
+        try:
+            leg_outcomes = _unit_leg_outcomes_from_predictions(conn, prediction_ids, legs)
+            if leg_outcomes is None:
+                leg_outcomes = _unit_leg_outcomes_from_results(prediction_date, legs, results_cache)
+            if leg_outcomes is None:
+                stats["pending"] += 1
+                stats["details"].append({
+                    "id": row["id"],
+                    "title": row["title"],
+                    "status": "pending",
+                    "fixture": row["fixture_summary"],
+                })
+                continue
+
+            outcome, profit = _unit_bet_profit(
+                leg_outcomes,
+                combined_odds=float(row["combined_odds"] or 0.0),
+                stake_units=float(row["stake_units"] or 1.0),
+            )
+            if outcome is None or profit is None:
+                stats["pending"] += 1
+                continue
+
+            stats["graded"] += 1
+            stats[outcome] = stats.get(outcome, 0) + 1
+            stats["profit_units"] += float(profit)
+            stats["details"].append({
+                "id": row["id"],
+                "title": row["title"],
+                "outcome": outcome,
+                "profit_units": float(profit),
+                "fixture": row["fixture_summary"],
+                "legs": leg_outcomes,
+            })
+
+            if not dry_run:
+                conn.execute(
+                    """UPDATE unit_bet_slips
+                       SET outcome = ?, profit_units = ?, graded_at = ?
+                       WHERE id = ?""",
+                    (outcome, float(profit), now_iso, row["id"]),
+                )
+        except Exception:
+            log.error("Failed to resolve unit bet slip %s: %s", row["id"], traceback.format_exc())
+            stats["errors"] += 1
+
+    if not dry_run:
+        try:
+            conn.commit()
+        except Exception:
+            log.error("Failed to commit unit bet slip grading: %s", traceback.format_exc())
+            stats["errors"] += 1
+    conn.close()
+    return stats
+
+
+def get_unit_bet_track_record(
+    days: int = None,
+    source: str = "unit_bets",
+    *,
+    db_path: Path = DB_PATH,
+) -> dict:
+    """Return all-time unit-betting record at posted-slip level."""
+    try:
+        conn = _get_db(db_path)
+    except Exception:
+        log.error("Cannot open database: %s", traceback.format_exc())
+        return {"error": "database_unavailable"}
+
+    where = ["outcome IS NOT NULL"]
+    params: list = []
+    if source:
+        where.append("source = ?")
+        params.append(source)
+    if days is not None:
+        cutoff = (date.today() - timedelta(days=days)).isoformat()
+        where.append("prediction_date >= ?")
+        params.append(cutoff)
+
+    try:
+        rows = conn.execute(
+            f"SELECT * FROM unit_bet_slips WHERE {' AND '.join(where)} ORDER BY prediction_date, id",
+            params,
+        ).fetchall()
+    except Exception:
+        log.error("Failed to query unit bet track record: %s", traceback.format_exc())
+        conn.close()
+        return {"error": "query_failed"}
+    conn.close()
+
+    slips = [dict(row) for row in rows]
+    wins = sum(1 for row in slips if row.get("outcome") == "hit")
+    losses = sum(1 for row in slips if row.get("outcome") == "miss")
+    pushes = sum(1 for row in slips if row.get("outcome") == "push")
+    staked = sum(float(row.get("stake_units") or 0.0) for row in slips)
+    profit = sum(float(row.get("profit_units") or 0.0) for row in slips)
+    decided = wins + losses
+
+    by_date: Dict[str, dict] = {}
+    for row in slips:
+        day = row.get("prediction_date") or ""
+        bucket = by_date.setdefault(day, {"date": day, "wins": 0, "losses": 0, "pushes": 0, "profit_units": 0.0, "total": 0})
+        bucket["total"] += 1
+        if row.get("outcome") == "hit":
+            bucket["wins"] += 1
+        elif row.get("outcome") == "miss":
+            bucket["losses"] += 1
+        elif row.get("outcome") == "push":
+            bucket["pushes"] += 1
+        bucket["profit_units"] += float(row.get("profit_units") or 0.0)
+
+    return {
+        "total_graded": len(slips),
+        "wins": wins,
+        "losses": losses,
+        "pushes": pushes,
+        "hit_rate": wins / decided if decided > 0 else 0.0,
+        "stake_units": staked,
+        "units_profit": profit,
+        "roi": profit / staked if staked > 0 else 0.0,
+        "daily_performance": [by_date[key] for key in sorted(by_date.keys())[-30:]],
+    }
+
+
+def get_unit_bet_daily_summary(
+    prediction_date: str = None,
+    source: str = "unit_bets",
+    *,
+    db_path: Path = DB_PATH,
+) -> dict:
+    """Return a date-level summary for posted unit-betting slips."""
+    if prediction_date is None:
+        prediction_date = (date.today() - timedelta(days=1)).isoformat()
+
+    try:
+        conn = _get_db(db_path)
+    except Exception:
+        return {"date": prediction_date, "total": 0}
+
+    params: list = [prediction_date]
+    query = "SELECT * FROM unit_bet_slips WHERE prediction_date = ?"
+    if source:
+        query += " AND source = ?"
+        params.append(source)
+    query += " ORDER BY id"
+
+    try:
+        rows = conn.execute(query, params).fetchall()
+    except Exception:
+        conn.close()
+        return {"date": prediction_date, "total": 0}
+    conn.close()
+
+    slips = []
+    wins = losses = pushes = pending = 0
+    profit = 0.0
+    stake = 0.0
+    for row in rows:
+        outcome = row["outcome"]
+        if outcome == "hit":
+            wins += 1
+        elif outcome == "miss":
+            losses += 1
+        elif outcome == "push":
+            pushes += 1
+        else:
+            pending += 1
+        if outcome is not None:
+            profit += float(row["profit_units"] or 0.0)
+            stake += float(row["stake_units"] or 0.0)
+        slips.append({
+            "id": row["id"],
+            "title": row["title"] or "Unit Bet",
+            "fixture_summary": row["fixture_summary"],
+            "combined_odds": float(row["combined_odds"] or 0.0),
+            "stake_units": float(row["stake_units"] or 0.0),
+            "outcome": outcome or "pending",
+            "profit_units": float(row["profit_units"] or 0.0) if outcome is not None else None,
+            "legs": _load_slip_legs(row),
+        })
+
+    decided = wins + losses
+    return {
+        "date": prediction_date,
+        "total": len(rows),
+        "wins": wins,
+        "losses": losses,
+        "pushes": pushes,
+        "pending": pending,
+        "hit_rate": wins / decided if decided > 0 else 0.0,
+        "stake_units": stake,
+        "units_profit": profit,
+        "roi": profit / stake if stake > 0 else 0.0,
+        "slips": slips,
+    }
 
 
 # ===================================================================
@@ -2442,6 +3186,8 @@ def main():
                         help="Print CLV (Closing Line Value) report")
     parser.add_argument("--capture-clv", action="store_true",
                         help="Capture closing odds for predictions (run before kickoff)")
+    parser.add_argument("--backfill-unit-bets", action="store_true",
+                        help="Create historical unit-bet slips from old source=unit_bets predictions")
     parser.add_argument("--league", type=str, default=None,
                         help="Filter to one league")
 
@@ -2452,7 +3198,7 @@ def main():
         format="%(asctime)s [%(levelname)s] %(message)s",
     )
 
-    if args.resolve or args.resolve_date:
+    if (args.resolve or args.resolve_date) and not args.backfill_unit_bets:
         target_date = args.resolve_date
         if target_date is None:
             target_date = (date.today() - timedelta(days=1)).isoformat()
@@ -2472,6 +3218,28 @@ def main():
             confidence=args.stats_confidence,
         )
         print(_format_stats_report(stats))
+
+    elif args.backfill_unit_bets:
+        result = backfill_unit_bet_slips_from_predictions(
+            prediction_date=args.resolve_date,
+            source="unit_bets",
+        )
+        if args.resolve_date:
+            resolve_unit_bet_slips(prediction_date=args.resolve_date)
+        record = get_unit_bet_track_record(source="unit_bets")
+        print(
+            "Backfilled unit bets: "
+            f"{result['slips_created']} slip(s) across {result['dates_backfilled']} date(s); "
+            f"settled {result['slips_settled']} from already graded legs; "
+            f"skipped {result['dates_skipped_existing']} date(s) with existing slips; "
+            f"errors {result['errors']}."
+        )
+        print(
+            "Unit bet record: "
+            f"{record.get('wins', 0)}-{record.get('losses', 0)}"
+            + (f"-{record.get('pushes', 0)}P" if record.get("pushes", 0) else "")
+            + f" | Units {record.get('units_profit', 0.0):+.2f}u | ROI {record.get('roi', 0.0):+.1%}"
+        )
 
     elif args.capture_clv:
         target_date = args.resolve_date or date.today().isoformat()

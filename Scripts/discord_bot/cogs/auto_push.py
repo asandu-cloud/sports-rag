@@ -43,6 +43,7 @@ from config import (  # noqa: E402
     CHANNEL_NEWSLETTER,
     CHANNEL_HIGH_RISK,
     CHANNEL_UNIT_BETS,
+    CHANNEL_UNIT_BETS_RECAP,
     # Legacy aliases (all map to the channels above via config.py)
     CHANNEL_PARLAY_OF_DAY,
     CHANNEL_MATCHDAY_DIGEST,
@@ -65,7 +66,18 @@ from config import (  # noqa: E402
 
 # Prediction tracker (optional — graceful if unavailable)
 try:
-    from prediction_tracker import resolve_outcomes, get_track_record, get_daily_breakdown, capture_closing_odds, log_prediction
+    from prediction_tracker import (
+        resolve_outcomes,
+        get_track_record,
+        get_daily_breakdown,
+        capture_closing_odds,
+        log_prediction,
+        log_unit_bet_slip,
+        backfill_unit_bet_slips_from_predictions,
+        resolve_unit_bet_slips,
+        get_unit_bet_track_record,
+        get_unit_bet_daily_summary,
+    )
     _HAS_TRACKER = True
 except ImportError:
     _HAS_TRACKER = False
@@ -316,76 +328,106 @@ def _is_unit_bet_window(first_kickoff) -> bool:
 
 # Best-performing markets for unit betting (exclude corners: R2=0.12, 0.03 corr)
 _UNIT_BET_MARKETS = ["moneyline", "btts", "totals", "sot", "cards"]
+_UNIT_BET_TARGET_PICKS = 4
 
 
 def _unit_bet_presets(target_date: date, leagues: list) -> list:
-    """Return presets for unit betting: 1 single + 1 two-legger."""
+    """Return presets for unit betting: repeated singles and two-leggers."""
     leagues = list(leagues or [])
+
+    def preset(name: str, title: str, legs: int, min_model_prob: float, allowed_confidences: list) -> dict:
+        return {
+            "name": name,
+            "title": title,
+            "request": build_parlay_request(
+                league_value="cross-league",
+                leagues_override=leagues,
+                display_league="Cross-League",
+                target_date=target_date,
+                legs=legs,
+                odds=None,
+                target_min=1.80,
+                target_max=2.40,
+                market="mixed",
+                source_command="unit_bets",
+                target_mode="none",
+                min_model_prob=min_model_prob,
+                allowed_confidences=allowed_confidences,
+                allowed_groups=_UNIT_BET_MARKETS,
+                risk_profile="unit",
+            ),
+        }
+
     return [
-        {
-            "name": "unit_single",
-            "title": "\U0001f3af  Unit Single",
-            "request": build_parlay_request(
-                league_value="cross-league",
-                leagues_override=leagues,
-                display_league="Cross-League",
-                target_date=target_date,
-                legs=1,
-                odds=None,
-                target_min=1.80,
-                target_max=2.40,
-                market="mixed",
-                source_command="unit_bets",
-                target_mode="none",
-                min_model_prob=0.63,
-                allowed_confidences=["high"],
-                allowed_groups=_UNIT_BET_MARKETS,
-                risk_profile="unit",
-            ),
-        },
-        {
-            "name": "unit_double",
-            "title": "\U0001f3af  Unit Double",
-            "request": build_parlay_request(
-                league_value="cross-league",
-                leagues_override=leagues,
-                display_league="Cross-League",
-                target_date=target_date,
-                legs=2,
-                odds=None,
-                target_min=1.80,
-                target_max=2.40,
-                market="mixed",
-                source_command="unit_bets",
-                target_mode="none",
-                min_model_prob=0.70,
-                allowed_confidences=["high"],
-                allowed_groups=_UNIT_BET_MARKETS,
-                risk_profile="unit",
-            ),
-        },
-        {
-            "name": "unit_single_fallback",
-            "title": "\U0001f3af  Unit Single",
-            "request": build_parlay_request(
-                league_value="cross-league",
-                leagues_override=leagues,
-                display_league="Cross-League",
-                target_date=target_date,
-                legs=1,
-                odds=None,
-                target_min=1.80,
-                target_max=2.40,
-                market="mixed",
-                source_command="unit_bets",
-                target_mode="none",
-                min_model_prob=0.60,
-                allowed_confidences=["high", "medium"],
-                allowed_groups=_UNIT_BET_MARKETS,
-                risk_profile="unit",
-            ),
-        },
+        preset("unit_single_1", "\U0001f3af  Unit Single", 1, 0.63, ["high"]),
+        preset("unit_double_1", "\U0001f3af  Unit Double", 2, 0.70, ["high"]),
+        preset("unit_single_2", "\U0001f3af  Unit Single", 1, 0.63, ["high"]),
+        preset("unit_double_2", "\U0001f3af  Unit Double", 2, 0.70, ["high"]),
+        preset("unit_single_fallback_1", "\U0001f3af  Unit Single", 1, 0.60, ["high", "medium"]),
+        preset("unit_single_fallback_2", "\U0001f3af  Unit Single", 1, 0.60, ["high", "medium"]),
     ]
+
+
+def _tracker_market_for_unit_leg(leg) -> str:
+    group = str(getattr(leg, "market_group", "") or "").lower()
+    if not group:
+        group = rag.market_group_from_key(getattr(leg, "market_key", "") or "")
+    return "goals" if group == "totals" else group
+
+
+def _tracker_side_for_unit_leg(leg) -> str:
+    group = str(getattr(leg, "market_group", "") or "").lower()
+    if not group:
+        group = rag.market_group_from_key(getattr(leg, "market_key", "") or "")
+    outcome = str(getattr(leg, "outcome", "") or "").strip()
+    outcome_l = outcome.lower()
+
+    if group in {"totals", "corners", "cards", "sot"}:
+        if "over" in outcome_l:
+            return "over"
+        if "under" in outcome_l:
+            return "under"
+    if group == "btts":
+        if outcome_l in {"yes", "y"}:
+            return "yes"
+        if outcome_l in {"no", "n"}:
+            return "no"
+    if group == "moneyline":
+        home = str(getattr(leg, "home_team", "") or "").strip().lower()
+        away = str(getattr(leg, "away_team", "") or "").strip().lower()
+        if outcome_l in {"draw", "tie", "x"}:
+            return "draw"
+        if home and (outcome_l == home or outcome_l.startswith(home)):
+            return "home"
+        if away and (outcome_l == away or outcome_l.startswith(away)):
+            return "away"
+
+    return outcome_l
+
+
+def _unit_leg_tracker_payload(leg) -> dict:
+    return {
+        "event_id": getattr(leg, "event_id", None),
+        "fixture_id": getattr(leg, "event_id", None),
+        "league": getattr(leg, "league", None),
+        "fixture": getattr(leg, "fixture", None),
+        "home_team": getattr(leg, "home_team", None),
+        "away_team": getattr(leg, "away_team", None),
+        "market": _tracker_market_for_unit_leg(leg),
+        "market_group": getattr(leg, "market_group", None),
+        "market_key": getattr(leg, "market_key", None),
+        "pick": getattr(leg, "pick_display", None),
+        "pick_display": getattr(leg, "pick_display", None),
+        "side": _tracker_side_for_unit_leg(leg),
+        "line": getattr(leg, "point", None),
+        "odds": getattr(leg, "odds", None),
+        "bookmaker": getattr(leg, "bookmaker", None),
+        "model_prob": getattr(leg, "model_prob", None),
+        "implied_prob": getattr(leg, "implied_prob", None),
+        "value_edge": getattr(leg, "value_edge", None),
+        "confidence": getattr(leg, "confidence", None),
+        "projected_total": getattr(leg, "projected_total", None),
+    }
 
 
 async def _post_market_for_leagues(
@@ -992,6 +1034,110 @@ def _build_best_picks_embeds(breakdown: dict, date_str: str) -> list:
     return embeds
 
 
+def _format_unit_profit(value) -> str:
+    try:
+        amount = float(value or 0.0)
+    except Exception:
+        amount = 0.0
+    return f"{amount:+.2f}u"
+
+
+def _unit_status_label(outcome: str) -> str:
+    return {
+        "hit": "WIN",
+        "miss": "LOSS",
+        "push": "PUSH",
+        "pending": "PENDING",
+    }.get(str(outcome or "").lower(), "PENDING")
+
+
+def _build_unit_bets_recap_embed(daily: dict, record: dict, date_str: str):
+    wins = daily.get("wins", 0)
+    losses = daily.get("losses", 0)
+    pushes = daily.get("pushes", 0)
+    pending = daily.get("pending", 0)
+    profit = daily.get("units_profit", 0.0)
+    hit_rate = daily.get("hit_rate", 0.0)
+    total = daily.get("total", 0)
+
+    if pending and wins == 0 and losses == 0 and pushes == 0:
+        color = COLOR_YELLOW
+    elif profit > 0:
+        color = COLOR_GREEN
+    elif profit < 0:
+        color = COLOR_RED
+    else:
+        color = COLOR_YELLOW
+
+    result_bits = [f"**{wins}-{losses}**"]
+    if pushes:
+        result_bits.append(f"{pushes} push")
+    if pending:
+        result_bits.append(f"{pending} pending")
+
+    em = discord.Embed(
+        title="Unit Betting Recap",
+        description=(
+            f"**{date_str}**\n"
+            f"Daily record: {' | '.join(result_bits)}"
+            f"  |  Net: **{_format_unit_profit(profit)}**"
+            + (f"  |  Hit rate: **{hit_rate:.0%}**" if wins + losses else "")
+        ),
+        color=color,
+    )
+
+    for slip in daily.get("slips", [])[:6]:
+        outcome = slip.get("outcome", "pending")
+        status = _unit_status_label(outcome)
+        slip_profit = slip.get("profit_units")
+        profit_str = "" if slip_profit is None else f" ({_format_unit_profit(slip_profit)})"
+        odds = float(slip.get("combined_odds") or 0.0)
+        title = str(slip.get("title") or "Unit Bet")
+
+        leg_lines = []
+        for leg in slip.get("legs", [])[:4]:
+            lg = leg.get("league") or ""
+            fixture = leg.get("fixture") or f"{leg.get('home_team', '')} vs {leg.get('away_team', '')}"
+            pick = leg.get("pick") or leg.get("pick_display") or ""
+            leg_odds = leg.get("odds")
+            odds_str = f" @ {float(leg_odds):.2f}" if leg_odds else ""
+            leg_lines.append(f"**{lg}** {fixture} — {pick}{odds_str}")
+        value = "\n".join(leg_lines) if leg_lines else (slip.get("fixture_summary") or "No leg details stored.")
+        em.add_field(
+            name=f"{title} @ {odds:.2f} — {status}{profit_str}",
+            value=value[:1024],
+            inline=False,
+        )
+
+    all_wins = record.get("wins", 0)
+    all_losses = record.get("losses", 0)
+    all_pushes = record.get("pushes", 0)
+    all_total = record.get("total_graded", 0)
+    all_profit = record.get("units_profit", 0.0)
+    roi = record.get("roi", 0.0)
+    all_hit_rate = record.get("hit_rate", 0.0)
+
+    if all_total:
+        push_str = f"-{all_pushes}P" if all_pushes else ""
+        em.add_field(
+            name="Since Channel Start",
+            value=(
+                f"Record: **{all_wins}-{all_losses}{push_str}** ({all_hit_rate:.0%})\n"
+                f"Units: **{_format_unit_profit(all_profit)}**  |  ROI: **{roi:+.1%}**"
+            ),
+            inline=False,
+        )
+    else:
+        em.add_field(
+            name="Since Channel Start",
+            value="No graded unit bets yet.",
+            inline=False,
+        )
+
+    em.set_footer(text=f"{total} posted unit bet(s) | 1 unit flat stake per bet")
+    return em
+
+
 class AutoPush(commands.Cog):
     """Scheduled auto-posting tasks."""
 
@@ -1018,6 +1164,8 @@ class AutoPush(commands.Cog):
             self.daily_track_record.start()
         if CHANNEL_BEST_PICKS and _HAS_TRACKER:
             self.best_picks_recap.start()
+        if CHANNEL_UNIT_BETS_RECAP and _HAS_TRACKER:
+            self.unit_bets_recap.start()
         if _HAS_TRACKER:
             self.clv_capture.start()
         if CHANNEL_NEWSLETTER and _HAS_NEWSLETTER:
@@ -1034,6 +1182,8 @@ class AutoPush(commands.Cog):
             self.daily_track_record.cancel()
         if hasattr(self, "best_picks_recap") and self.best_picks_recap.is_running():
             self.best_picks_recap.cancel()
+        if hasattr(self, "unit_bets_recap") and self.unit_bets_recap.is_running():
+            self.unit_bets_recap.cancel()
         if hasattr(self, "clv_capture") and self.clv_capture.is_running():
             self.clv_capture.cancel()
         if hasattr(self, "newsletter_digest") and self.newsletter_digest.is_running():
@@ -1500,6 +1650,25 @@ class AutoPush(commands.Cog):
         await self.bot.wait_until_ready()
 
     # ===================================================================
+    # UNIT BETS RECAP — morning after, resolves posted unit slips
+    # ===================================================================
+
+    @tasks.loop(time=dt_time(hour=9, minute=15))
+    async def unit_bets_recap(self):
+        """Resolve yesterday's #unit-betting slips and post unit P/L recap."""
+        if self._already_posted("unit_bets_recap"):
+            return
+
+        yesterday = (date.today() - timedelta(days=1)).isoformat()
+        posted = await self._post_unit_bets_recap(yesterday)
+        if posted:
+            self._mark_posted("unit_bets_recap")
+
+    @unit_bets_recap.before_loop
+    async def _wait_unit_bets_recap(self):
+        await self.bot.wait_until_ready()
+
+    # ===================================================================
     # CLV CAPTURE — capture closing odds before kickoff
     # ===================================================================
 
@@ -1610,6 +1779,7 @@ class AutoPush(commands.Cog):
         discord.app_commands.Choice(name="Player Props", value="player_props"),
         discord.app_commands.Choice(name="Track Record", value="track_record"),
         discord.app_commands.Choice(name="Best Picks Recap", value="best_picks_recap"),
+        discord.app_commands.Choice(name="Unit Bets Recap", value="unit_bets_recap"),
         discord.app_commands.Choice(name="CLV Capture", value="clv_capture"),
         discord.app_commands.Choice(name="Newsletter", value="newsletter"),
         discord.app_commands.Choice(name="Unit Bets", value="unit_bets"),
@@ -1695,8 +1865,8 @@ class AutoPush(commands.Cog):
                 await interaction.followup.send(f"Error: {exc}", ephemeral=True)
             return
 
-        # Best picks recap and track record don't need today's fixtures
-        if task.value in ("best_picks_recap", "track_record"):
+        # Recaps and track record don't need today's fixtures
+        if task.value in ("best_picks_recap", "track_record", "unit_bets_recap"):
             posted = []
             try:
                 if task.value == "best_picks_recap":
@@ -1720,7 +1890,7 @@ class AutoPush(commands.Cog):
                             posted.append("best picks recap (no channel configured)")
                     else:
                         posted.append("best picks recap (no graded predictions)")
-                else:
+                elif task.value == "track_record":
                     from prediction_tracker import resolve_outcomes, get_track_record
                     yesterday = (date.today() - timedelta(days=1)).isoformat()
                     resolve_outcomes(prediction_date=yesterday)
@@ -1728,6 +1898,10 @@ class AutoPush(commands.Cog):
                     if tr_channel:
                         await self._post_track_record_embed(tr_channel)
                     posted.append("track record")
+                else:
+                    yesterday = (date.today() - timedelta(days=1)).isoformat()
+                    did_post = await self._post_unit_bets_recap(yesterday)
+                    posted.append("unit bets recap" if did_post else "unit bets recap (no slips posted)")
                 await interaction.followup.send(
                     f"Posted: {', '.join(posted)}.", ephemeral=True)
             except Exception as exc:
@@ -1803,6 +1977,14 @@ class AutoPush(commands.Cog):
                 except Exception as exc:
                     log.error("Best picks recap failed: %s", exc)
                 posted.append("best picks recap")
+
+            if task.value in ("unit_bets_recap", "everything"):
+                try:
+                    yesterday = (date.today() - timedelta(days=1)).isoformat()
+                    await self._post_unit_bets_recap(yesterday)
+                except Exception as exc:
+                    log.error("Unit bets recap failed: %s", exc)
+                posted.append("unit bets recap")
 
             if task.value == "everything":
                 trial_cog = self.bot.get_cog("trial")
@@ -1971,9 +2153,9 @@ class AutoPush(commands.Cog):
     async def _post_unit_bets(self, leagues: list, date_str: str):
         """Post structured unit bets (1.80-2.40 odds) to #unit-bets.
 
-        Builds 1-2 high-confidence picks per matchday using the structured
-        parlay service.  Each pick is logged to the prediction tracker so
-        win rate can be computed separately for this channel.
+        Builds up to four high-confidence picks per matchday using the structured
+        parlay service.  Each leg is logged for grading, and each posted
+        single/double is logged as one flat-stake unit bet.
         """
         ch = self.bot.get_channel(CHANNEL_UNIT_BETS)
         if not ch:
@@ -1984,7 +2166,7 @@ class AutoPush(commands.Cog):
 
         built = []
         used_event_groups = []
-        target_picks = 2  # aim for 2 picks per matchday
+        target_picks = _UNIT_BET_TARGET_PICKS
 
         for preset in _unit_bet_presets(date.today(), leagues):
             if len(built) >= target_picks:
@@ -2021,7 +2203,7 @@ class AutoPush(commands.Cog):
         win_rate_str = ""
         if _HAS_TRACKER:
             try:
-                record = get_track_record(source="unit_bets")
+                record = get_unit_bet_track_record(source="unit_bets")
                 total = record.get("total_graded", 0)
                 hr = record.get("hit_rate", 0)
                 if total >= 10:
@@ -2075,17 +2257,19 @@ class AutoPush(commands.Cog):
 
             # --- Log to prediction tracker ---
             if _HAS_TRACKER:
+                prediction_ids = []
+                leg_payloads = []
                 for leg in legs:
+                    payload = _unit_leg_tracker_payload(leg)
+                    leg_payloads.append(payload)
                     try:
-                        log_prediction(
+                        pred_id = log_prediction(
                             home_team=leg.home_team,
                             away_team=leg.away_team,
                             league=leg.league,
-                            market=leg.market_group,
+                            market=payload["market"],
                             pick=leg.pick_display,
-                            side="over" if "over" in (leg.outcome or "").lower() else
-                                 "under" if "under" in (leg.outcome or "").lower() else
-                                 leg.outcome or "",
+                            side=payload["side"],
                             line=leg.point,
                             odds=leg.odds,
                             bookmaker=leg.bookmaker,
@@ -2097,10 +2281,92 @@ class AutoPush(commands.Cog):
                             source="unit_bets",
                             fixture_id=leg.event_id,
                         )
+                        if pred_id and pred_id > 0:
+                            prediction_ids.append(pred_id)
                     except Exception as exc:
                         log.debug("Failed to log unit bet prediction: %s", exc)
+                try:
+                    log_unit_bet_slip(
+                        title="Single" if is_single else "Double",
+                        combined_odds=combo_odds,
+                        legs=leg_payloads,
+                        prediction_ids=prediction_ids,
+                        prediction_date=date.today().isoformat(),
+                        source="unit_bets",
+                        stake_units=1.0,
+                    )
+                except Exception as exc:
+                    log.debug("Failed to log unit bet slip: %s", exc)
 
         self._mark_posted("unit_bets")
+
+    async def _post_unit_bets_recap(self, prediction_date: str) -> bool:
+        """Post the slip-level unit betting P/L recap for a prediction date."""
+        ch = self.bot.get_channel(CHANNEL_UNIT_BETS_RECAP)
+        if not ch:
+            log.warning("CHANNEL_UNIT_BETS_RECAP not configured")
+            return False
+        if not _HAS_TRACKER:
+            log.warning("Prediction tracker unavailable; cannot post unit bet recap")
+            return False
+
+        loop = asyncio.get_running_loop()
+
+        try:
+            resolve_result = await loop.run_in_executor(
+                _rag_executor, lambda: resolve_outcomes(prediction_date=prediction_date)
+            )
+            log.info(
+                "Unit recap: resolved %d predictions for %s",
+                resolve_result.get("graded", 0),
+                prediction_date,
+            )
+        except Exception as exc:
+            log.error("Unit recap: failed to resolve predictions for %s: %s", prediction_date, exc)
+
+        try:
+            backfill_result = await loop.run_in_executor(
+                _rag_executor,
+                lambda: backfill_unit_bet_slips_from_predictions(source="unit_bets"),
+            )
+            log.info(
+                "Unit recap: backfilled %d historical unit slip(s), settled %d",
+                backfill_result.get("slips_created", 0),
+                backfill_result.get("slips_settled", 0),
+            )
+        except Exception as exc:
+            log.error("Unit recap: failed to backfill historical unit slips: %s", exc)
+
+        try:
+            slip_result = await loop.run_in_executor(
+                _rag_executor, lambda: resolve_unit_bet_slips(prediction_date=prediction_date)
+            )
+            log.info(
+                "Unit recap: resolved %d unit slip(s) for %s",
+                slip_result.get("graded", 0),
+                prediction_date,
+            )
+        except Exception as exc:
+            log.error("Unit recap: failed to resolve unit slips for %s: %s", prediction_date, exc)
+            return False
+
+        try:
+            daily = await loop.run_in_executor(
+                _rag_executor, lambda: get_unit_bet_daily_summary(prediction_date=prediction_date)
+            )
+            record = await loop.run_in_executor(
+                _rag_executor, lambda: get_unit_bet_track_record(source="unit_bets")
+            )
+        except Exception as exc:
+            log.error("Unit recap: failed to build summary for %s: %s", prediction_date, exc)
+            return False
+
+        if daily.get("total", 0) == 0:
+            log.info("Unit recap: no unit bet slips logged for %s", prediction_date)
+            return False
+
+        await ch.send(embed=_build_unit_bets_recap_embed(daily, record, prediction_date))
+        return True
 
     async def _post_parlays_now(self, leagues: list, date_str: str):
         """Post parlays immediately — bypasses time window check (for /trigger)."""
