@@ -61,6 +61,16 @@ except ImportError:
         get_stake_context = None
         StakeContext = None
 
+try:
+    from rivalry_context import get_rivalry_context, rivalry_context_evidence_line, RivalryContext
+except ImportError:
+    try:
+        from Scripts.rag_ingest.rivalry_context import get_rivalry_context, rivalry_context_evidence_line, RivalryContext
+    except ImportError:
+        get_rivalry_context = None
+        RivalryContext = None
+        def rivalry_context_evidence_line(*args, **kwargs): return None
+
 
 # ---------------------------------------------------------------------------
 # Data structures
@@ -86,6 +96,14 @@ class LeagueContext:
         "goals": 1.0, "corners": 1.0, "cards": 1.0, "sot": 1.0,
     })
     stake_description: str = ""
+
+    # Rivalry / derby context (if detected)
+    rivalry_modifier: Dict[str, float] = field(default_factory=lambda: {
+        "goals": 1.0, "corners": 1.0, "cards": 1.0, "sot": 1.0,
+    })
+    rivalry_label: str = ""
+    rivalry_type: str = ""
+    rivalry_intensity: float = 0.0
 
     # Bounded adjustments (applied to projections)
     adjustments: Dict[str, float] = field(default_factory=lambda: {
@@ -322,6 +340,26 @@ def get_league_context(
         except Exception as exc:
             log.debug("Stake context failed: %s", exc)
 
+    # --- Rivalry / derby context ---
+    if get_rivalry_context is not None:
+        try:
+            rivalry = get_rivalry_context(home, away, league)
+            if rivalry and rivalry.source != "none":
+                ctx.rivalry_modifier = {
+                    "goals": rivalry.goals_modifier,
+                    "corners": rivalry.corners_modifier,
+                    "cards": rivalry.cards_modifier,
+                    "sot": rivalry.sot_modifier,
+                }
+                ctx.rivalry_label = rivalry.label
+                ctx.rivalry_type = rivalry.rivalry_type
+                ctx.rivalry_intensity = rivalry.intensity
+                line = rivalry_context_evidence_line(rivalry)
+                if line:
+                    evidence.append(line)
+        except Exception as exc:
+            log.debug("Rivalry context failed: %s", exc)
+
     # --- Regime shift ---
     ctx.home_regime_shift = _compute_regime_shift(home, league, target_date)
     ctx.away_regime_shift = _compute_regime_shift(away, league, target_date)
@@ -338,7 +376,8 @@ def get_league_context(
 
         # Combine: rest * stake * (1 + regime)
         stake_mod = ctx.stake_modifier.get(stat, 1.0)
-        combined = rest_adj * stake_mod * (1.0 + regime_adj)
+        rivalry_mod = ctx.rivalry_modifier.get(stat, 1.0)
+        combined = rest_adj * stake_mod * rivalry_mod * (1.0 + regime_adj)
 
         # Final bounds
         adj_floor = lcw.get("adjustment_floor", 0.85)
@@ -362,4 +401,7 @@ def league_context_evidence_line(ctx: LeagueContext) -> Optional[str]:
     """Generate a human-readable evidence line from league context."""
     if not ctx.evidence or ctx.source == "none":
         return None
-    return "Context: " + " | ".join(ctx.evidence[:4]) + "."
+    rivalry = [line for line in ctx.evidence if line.startswith("Rivalry:")]
+    other = [line for line in ctx.evidence if not line.startswith("Rivalry:")]
+    selected = rivalry[:1] + other[:max(0, 4 - len(rivalry[:1]))]
+    return "Context: " + " | ".join(selected) + "."

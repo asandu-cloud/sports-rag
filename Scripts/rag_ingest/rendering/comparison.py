@@ -98,6 +98,15 @@ except ImportError:
                 source: str = "unavailable"
             return _RM()
 
+try:
+    from rivalry_context import get_rivalry_context, rivalry_context_evidence_line
+except ImportError:
+    try:
+        from Scripts.rag_ingest.rivalry_context import get_rivalry_context, rivalry_context_evidence_line
+    except ImportError:
+        def get_rivalry_context(*args, **kwargs): return None
+        def rivalry_context_evidence_line(*args, **kwargs): return None
+
 
 # ---------------------------------------------------------------------------
 # Helpers (also from rag_cli_v2.py)
@@ -418,6 +427,11 @@ def render_comparison_answer(user_q: str, league: str, events: List[Dict]) -> st
     for ev in events:
         home = str(ev.get("home_team") or "Home")
         away = str(ev.get("away_team") or "Away")
+        rivalry_line = None
+        try:
+            rivalry_line = rivalry_context_evidence_line(get_rivalry_context(home, away, league))
+        except Exception:
+            rivalry_line = None
 
         if group == "corners":
             pick, reasons, h_score, a_score = comparison_signals_corners(home, away, league)
@@ -437,6 +451,8 @@ def render_comparison_answer(user_q: str, league: str, events: List[Dict]) -> st
             continue
         lines.append(f"- {home} vs {away}: {pick} likely more {stat_label}.")
         if detailed:
+            if rivalry_line:
+                lines.append(f"  Reasoning: {rivalry_line}")
             for r in reasons[:5]:
                 lines.append(f"  Reasoning: {r}")
             if h_score is not None and a_score is not None:
@@ -444,7 +460,10 @@ def render_comparison_answer(user_q: str, league: str, events: List[Dict]) -> st
                 cfw = SCORING_WEIGHTS["confidence"]
                 conf = "high" if margin >= cfw[gap_high_key] else ("medium" if margin >= cfw[gap_med_key] else "low")
                 lines.append(f"  Reasoning: Confidence={conf} (score gap {margin:.2f}).")
-        elif reasons:
+        else:
+            if rivalry_line:
+                lines.append(f"  Evidence: {rivalry_line}")
+        if not detailed and reasons:
             lines.append(f"  Evidence: {reasons[0]}")
             if len(reasons) > 1:
                 lines.append(f"  Evidence: {reasons[1]}")
