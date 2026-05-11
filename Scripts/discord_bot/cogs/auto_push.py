@@ -328,11 +328,12 @@ def _is_unit_bet_window(first_kickoff) -> bool:
 
 # Best-performing markets for unit betting (exclude corners: R2=0.12, 0.03 corr)
 _UNIT_BET_MARKETS = ["moneyline", "btts", "totals", "sot", "cards"]
-_UNIT_BET_TARGET_PICKS = 4
+_UNIT_BET_TARGET_PICKS = 2
+_UNIT_BET_MAX_CARD_LEGS = 1
 
 
 def _unit_bet_presets(target_date: date, leagues: list) -> list:
-    """Return presets for unit betting: repeated singles and two-leggers."""
+    """Return presets for unit betting: prefer singles, use doubles only as fallback."""
     leagues = list(leagues or [])
 
     def preset(name: str, title: str, legs: int, min_model_prob: float, allowed_confidences: list) -> dict:
@@ -360,12 +361,68 @@ def _unit_bet_presets(target_date: date, leagues: list) -> list:
 
     return [
         preset("unit_single_1", "\U0001f3af  Unit Single", 1, 0.63, ["high"]),
-        preset("unit_double_1", "\U0001f3af  Unit Double", 2, 0.70, ["high"]),
         preset("unit_single_2", "\U0001f3af  Unit Single", 1, 0.63, ["high"]),
-        preset("unit_double_2", "\U0001f3af  Unit Double", 2, 0.70, ["high"]),
+        preset("unit_double_1", "\U0001f3af  Unit Double", 2, 0.70, ["high"]),
         preset("unit_single_fallback_1", "\U0001f3af  Unit Single", 1, 0.60, ["high", "medium"]),
         preset("unit_single_fallback_2", "\U0001f3af  Unit Single", 1, 0.60, ["high", "medium"]),
     ]
+
+
+def _unit_leg_market_group(leg) -> str:
+    group = str(getattr(leg, "market_group", "") or "").lower()
+    if not group:
+        group = rag.market_group_from_key(getattr(leg, "market_key", "") or "")
+    return group
+
+
+def _is_integer_line(value) -> bool:
+    try:
+        point = float(value)
+    except (TypeError, ValueError):
+        return False
+    return abs(point - round(point)) < 1e-9
+
+
+def _is_unit_integer_under(leg) -> bool:
+    """True when a unit O/U leg has push risk but is priced as a pure under."""
+    group = _unit_leg_market_group(leg)
+    if group not in {"totals", "corners", "cards", "sot"}:
+        return False
+    outcome = str(getattr(leg, "outcome", "") or "").lower()
+    if "under" not in outcome:
+        return False
+    return _is_integer_line(getattr(leg, "point", None))
+
+
+def _unit_bet_rejected_legs(result, used_card_legs: int) -> list:
+    """Return [(leg, reason)] for unit-specific guardrail failures."""
+    legs = list(getattr(result, "selected_legs", []) or [])
+    rejected = []
+    rejected_ids = set()
+
+    for leg in legs:
+        if _is_unit_integer_under(leg):
+            rejected.append((leg, "integer under line"))
+            rejected_ids.add(id(leg))
+
+    card_legs = [leg for leg in legs if _unit_leg_market_group(leg) == "cards"]
+    remaining_cards = max(0, _UNIT_BET_MAX_CARD_LEGS - used_card_legs)
+    if len(card_legs) > remaining_cards:
+        for leg in card_legs:
+            if id(leg) in rejected_ids:
+                continue
+            rejected.append((leg, "daily card cap"))
+            rejected_ids.add(id(leg))
+
+    return rejected
+
+
+def _add_unit_exclusions(excluded_event_groups: list, legs: list) -> None:
+    for leg in legs:
+        event_id = getattr(leg, "event_id", None)
+        if not event_id:
+            continue
+        excluded_event_groups.append((event_id, _unit_leg_market_group(leg)))
 
 
 def _tracker_market_for_unit_leg(leg) -> str:
@@ -2153,7 +2210,7 @@ class AutoPush(commands.Cog):
     async def _post_unit_bets(self, leagues: list, date_str: str):
         """Post structured unit bets (1.80-2.40 odds) to #unit-bets.
 
-        Builds up to four high-confidence picks per matchday using the structured
+        Builds up to two high-confidence picks per matchday using the structured
         parlay service.  Each leg is logged for grading, and each posted
         single/double is logged as one flat-stake unit bet.
         """
@@ -2166,11 +2223,17 @@ class AutoPush(commands.Cog):
 
         built = []
         used_event_groups = []
+        used_card_legs = 0
         target_picks = _UNIT_BET_TARGET_PICKS
 
         for preset in _unit_bet_presets(date.today(), leagues):
             if len(built) >= target_picks:
                 break
+            if used_card_legs >= _UNIT_BET_MAX_CARD_LEGS:
+                preset["request"].allowed_groups = [
+                    group for group in preset["request"].allowed_groups
+                    if group != "cards"
+                ]
             if used_event_groups:
                 preset["request"].excluded_event_groups = list(
                     set(preset["request"].excluded_event_groups) | set(used_event_groups)
@@ -2190,9 +2253,24 @@ class AutoPush(commands.Cog):
                 log.info("Unit bet '%s' odds %.2f outside 1.80-2.40, skipping", preset["name"], combo_odds)
                 continue
 
+            rejected = _unit_bet_rejected_legs(result, used_card_legs)
+            if rejected:
+                rejected_legs = [leg for leg, _reason in rejected]
+                _add_unit_exclusions(used_event_groups, rejected_legs)
+                reason_bits = []
+                for leg, reason in rejected:
+                    fixture = getattr(leg, "fixture", "fixture")
+                    pick = getattr(leg, "pick_display", getattr(leg, "outcome", "leg"))
+                    reason_bits.append(f"{fixture} {pick}: {reason}")
+                reason_text = ", ".join(reason_bits)
+                log.info("Unit bet '%s' skipped by unit guardrails: %s", preset["name"], reason_text)
+                continue
+
             built.append((preset, result))
             for leg in result.selected_legs:
-                used_event_groups.append((leg.event_id, leg.market_group))
+                used_event_groups.append((leg.event_id, _unit_leg_market_group(leg)))
+                if _unit_leg_market_group(leg) == "cards":
+                    used_card_legs += 1
 
         if not built:
             log.info("No qualifying unit bets found for %s", date_str)
