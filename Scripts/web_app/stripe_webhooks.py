@@ -25,20 +25,36 @@ import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from users import (
-    get_user_by_discord_id,
-    get_user_by_referral_code,
-    get_user_by_stripe_customer,
-    grant_referral_reward,
-    record_referral,
-    update_user_subscription,
-    cancel_user_subscription,
-    log_subscription_event,
-    REFERRAL_REWARDS,
-    TIER_HIERARCHY,
-)
-from discord_roles import assign_tier_role, remove_all_tier_roles
-from auth import get_current_user, require_auth
+try:  # Package import used by ASGI servers and tests.
+    from .users import (
+        get_user_by_discord_id,
+        get_user_by_referral_code,
+        get_user_by_stripe_customer,
+        grant_referral_reward,
+        record_referral,
+        update_user_subscription,
+        cancel_user_subscription,
+        log_subscription_event,
+        REFERRAL_REWARDS,
+        TIER_HIERARCHY,
+    )
+    from .discord_roles import assign_tier_role, remove_all_tier_roles
+    from .auth import get_current_user, require_auth
+except ImportError:  # Direct-script compatibility.
+    from users import (
+        get_user_by_discord_id,
+        get_user_by_referral_code,
+        get_user_by_stripe_customer,
+        grant_referral_reward,
+        record_referral,
+        update_user_subscription,
+        cancel_user_subscription,
+        log_subscription_event,
+        REFERRAL_REWARDS,
+        TIER_HIERARCHY,
+    )
+    from discord_roles import assign_tier_role, remove_all_tier_roles
+    from auth import get_current_user, require_auth
 
 # ---------------------------------------------------------------------------
 # Configuration

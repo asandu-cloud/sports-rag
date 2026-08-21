@@ -13,7 +13,10 @@ from typing import Dict, List, Optional, Tuple
 
 import discord
 
-from config import COLOR_GREEN, COLOR_YELLOW, COLOR_RED, COLOR_BLUE, COLOR_PURPLE
+try:  # Package import: tests and ``python -m Scripts.discord_bot...``.
+    from .config import COLOR_GREEN, COLOR_YELLOW, COLOR_RED, COLOR_BLUE, COLOR_PURPLE
+except ImportError:  # Direct-script compatibility: ``cd Scripts/discord_bot && python ...``.
+    from config import COLOR_GREEN, COLOR_YELLOW, COLOR_RED, COLOR_BLUE, COLOR_PURPLE
 
 _embed_log = logging.getLogger("embeds")
 

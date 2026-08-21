@@ -28,10 +28,16 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr
 
-from users import (
-    upsert_user, get_user_by_discord_id, get_user_by_email,
-    get_user_by_id, create_email_user, init_db,
-)
+try:  # Package import used by ASGI servers and tests.
+    from .users import (
+        upsert_user, get_user_by_discord_id, get_user_by_email,
+        get_user_by_id, create_email_user, init_db,
+    )
+except ImportError:  # Direct-script compatibility.
+    from users import (
+        upsert_user, get_user_by_discord_id, get_user_by_email,
+        get_user_by_id, create_email_user, init_db,
+    )
 
 # ---------------------------------------------------------------------------
 # Configuration

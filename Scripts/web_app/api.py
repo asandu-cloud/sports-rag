@@ -93,9 +93,15 @@ app.add_middleware(
 # Mount auth, webhooks, and checkout routers
 # ---------------------------------------------------------------------------
 try:
-    from auth import router as auth_router
-    from stripe_webhooks import webhook_router, checkout_router
-    from users import init_db as init_user_db
+    try:
+        from .auth import router as auth_router
+        from .stripe_webhooks import webhook_router, checkout_router
+        from .users import init_db as init_user_db
+    except ImportError:
+        # ``python api.py`` remains supported for the legacy local workflow.
+        from auth import router as auth_router
+        from stripe_webhooks import webhook_router, checkout_router
+        from users import init_db as init_user_db
     app.include_router(auth_router)
     app.include_router(webhook_router)
     app.include_router(checkout_router)
