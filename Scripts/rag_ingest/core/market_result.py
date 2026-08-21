@@ -222,11 +222,11 @@ class PriceQuote:
     @classmethod
     def from_option(cls, option: Mapping[str, Any]) -> "PriceQuote":
         return cls(
-            side=option.get("side") or option.get("outcome") or "",
+            side=option.get("side") or option.get("outcome") or option.get("team") or "",
             line=option.get("line", option.get("point")),
-            odds=option.get("odds"),
+            odds=option.get("odds", option.get("best_odds")),
             bookmaker=option.get("bookmaker"),
-            market_key=option.get("market_key"),
+            market_key=option.get("market_key", option.get("key")),
         )
 
     @classmethod
@@ -467,17 +467,13 @@ def decision_from_selector(selector_result: Mapping[str, Any]) -> Decision:
         return Decision(
             status=DecisionStatus.RECOMMENDED,
             quote=quote,
-            model_probability=_optional_metric(selected, "model_probability", "_model_prob"),
-            implied_probability=_optional_metric(selected, "implied_probability", "_implied_prob"),
+            model_probability=_optional_metric(selected, "model_probability", "model_prob", "_model_prob"),
+            implied_probability=_optional_metric(selected, "implied_probability", "fair_implied", "_implied_prob"),
             value_edge=_optional_metric(selected, "value_edge", "_value_edge"),
-            expected_value=_optional_metric(selected, "expected_value", "_ev"),
+            expected_value=_optional_metric(selected, "expected_value", "ev", "_ev"),
             confidence=_text(selected.get("confidence"), "selector.confidence"),
         )
 
-    candidates = result.get("all_lines")
-    if candidates is None:
-        candidates = result.get("all_sides")
-    has_candidates = bool(candidates)
     best_value = result.get("best_value")
     option = best_value if isinstance(best_value, Mapping) else None
     quote = PriceQuote.from_option(option) if option else None
@@ -485,12 +481,15 @@ def decision_from_selector(selector_result: Mapping[str, Any]) -> Decision:
     if not reason:
         reason = "No eligible recommendation was returned by the line selector."
     return Decision(
-        status=DecisionStatus.NO_BET if has_candidates else DecisionStatus.UNAVAILABLE,
+        # Some selectors expose unpriced model sides in ``all_sides``.  A
+        # best-value quote, rather than that list, is the reliable signal that
+        # the market was actually priced and therefore represents a no-bet.
+        status=DecisionStatus.NO_BET if quote is not None else DecisionStatus.UNAVAILABLE,
         quote=quote,
-        model_probability=_optional_metric(option, "model_probability", "_model_prob") if option else None,
-        implied_probability=_optional_metric(option, "implied_probability", "_implied_prob") if option else None,
+        model_probability=_optional_metric(option, "model_probability", "model_prob", "_model_prob") if option else None,
+        implied_probability=_optional_metric(option, "implied_probability", "fair_implied", "_implied_prob") if option else None,
         value_edge=_optional_metric(option, "value_edge", "_value_edge") if option else None,
-        expected_value=_optional_metric(option, "expected_value", "_ev") if option else None,
+        expected_value=_optional_metric(option, "expected_value", "ev", "_ev") if option else None,
         confidence=_text(option.get("confidence"), "selector.confidence") if option else None,
         reason=reason,
     )

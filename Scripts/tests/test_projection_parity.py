@@ -9,6 +9,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "rag_ingest"))
 
 import rag_cli_v2 as rag
+from core import line_selection as core_selection
 from core import projections as core_proj
 
 
@@ -59,6 +60,45 @@ class ProjectionParityTests(unittest.TestCase):
 
         self.assertEqual(len(core_result), 3)
         self.assertIsNotNone(core_result[0])
+
+    def test_per_team_primitives_call_core(self):
+        home_meta = {"corners_pm": 5.0}
+        away_meta = {"corners_pm": 4.0}
+        with mock.patch.object(core_proj, "projected_corners", return_value=(5.1, 4.2)) as corners, \
+             mock.patch.object(core_proj, "projected_cards", return_value=(1.8, 2.0)) as cards, \
+             mock.patch.object(core_proj, "projected_sot", return_value=(4.4, 3.7)) as sot, \
+             mock.patch.object(core_proj, "projected_goals", return_value=(1.7, 1.1)) as goals:
+            self.assertEqual(rag.projected_corners(home_meta, away_meta), (5.1, 4.2))
+            self.assertEqual(rag.projected_cards(home_meta, away_meta, referee_modifier=1.05), (1.8, 2.0))
+            self.assertEqual(rag.projected_sot(home_meta, away_meta), (4.4, 3.7))
+            self.assertEqual(rag.projected_goals(home_meta, away_meta), (1.7, 1.1))
+
+        corners.assert_called_once_with(home_meta, away_meta)
+        cards.assert_called_once_with(home_meta, away_meta, referee_modifier=1.05)
+        sot.assert_called_once_with(home_meta, away_meta)
+        goals.assert_called_once_with(home_meta, away_meta)
+
+    def test_legacy_selectors_call_core(self):
+        options = [{"side": "over", "point": 2.5, "odds": 2.0}]
+        score_probs = {(1, 0): 0.2}
+        score_odds = {(1, 0): [{"odds": 5.0}]}
+        moneyline = [{"side": "home", "odds": 2.0}]
+        with mock.patch.object(core_selection, "choose_best_total_line", return_value={"side": "over"}) as totals, \
+             mock.patch.object(core_selection, "choose_best_btts_side", return_value={"side": "yes"}) as btts, \
+             mock.patch.object(core_selection, "choose_best_correct_scores", return_value=[{"score": (1, 0)}]) as correct, \
+             mock.patch.object(core_selection, "choose_best_moneyline_side", return_value={"bet_recommendation": None}) as ml, \
+             mock.patch.object(core_selection, "choose_best_spread_line", return_value={"team": "Home"}) as spreads:
+            self.assertEqual(rag.choose_best_total_line(options, 3.0, 1.2), {"side": "over"})
+            self.assertEqual(rag.choose_best_btts_side(options, 0.62), {"side": "yes"})
+            self.assertEqual(rag.choose_best_correct_scores(score_probs, score_odds, top_n=3), [{"score": (1, 0)}])
+            self.assertEqual(rag.choose_best_moneyline_side(0.5, 0.25, 0.25, moneyline, "Home", "Away"), {"bet_recommendation": None})
+            self.assertEqual(rag.choose_best_spread_line(options, 0.4, "Home"), {"team": "Home"})
+
+        totals.assert_called_once_with(options, 3.0, 1.2)
+        btts.assert_called_once_with(options, 0.62)
+        correct.assert_called_once_with(score_probs, score_odds, top_n=3)
+        ml.assert_called_once_with(0.5, 0.25, 0.25, moneyline, "Home", "Away")
+        spreads.assert_called_once_with(options, 0.4, "Home")
 
     def test_btts_calls_core(self):
         with mock.patch.object(core_proj, "projected_btts_prob", return_value=("ok", 1, 2, 3, 4)) as patched:

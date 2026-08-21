@@ -186,6 +186,12 @@ def _core_projection_module():
     from core import projections as core_projections
     return core_projections
 
+
+def _core_line_selection_module():
+    """Load canonical selectors lazily to keep legacy imports stable."""
+    from core import line_selection as core_line_selection
+    return core_line_selection
+
 # ---- Config ----
 ROOT = Path(__file__).resolve().parents[2]
 CHROMA_DIR = str(ROOT / "Index" / "chroma")
@@ -3181,6 +3187,32 @@ def projected_goals(home_meta: Dict, away_meta: Dict) -> Tuple[Optional[float], 
     return h_proj, a_proj
 
 
+# Legacy implementations above are retained temporarily as a rollback and
+# historical-reference aid.  Runtime callers use these compatibility wrappers
+# so every per-team primitive now has one canonical owner in core.projections.
+def projected_corners(home_meta: Dict, away_meta: Dict) -> Tuple[Optional[float], Optional[float]]:
+    """Compatibility wrapper around ``core.projections.projected_corners``."""
+    return _core_projection_module().projected_corners(home_meta, away_meta)
+
+
+def projected_cards(
+    home_meta: Dict, away_meta: Dict,
+    referee_modifier: float = 1.0,
+) -> Tuple[Optional[float], Optional[float]]:
+    """Compatibility wrapper around ``core.projections.projected_cards``."""
+    return _core_projection_module().projected_cards(home_meta, away_meta, referee_modifier=referee_modifier)
+
+
+def projected_sot(home_meta: Dict, away_meta: Dict) -> Tuple[Optional[float], Optional[float]]:
+    """Compatibility wrapper around ``core.projections.projected_sot``."""
+    return _core_projection_module().projected_sot(home_meta, away_meta)
+
+
+def projected_goals(home_meta: Dict, away_meta: Dict) -> Tuple[Optional[float], Optional[float]]:
+    """Compatibility wrapper around ``core.projections.projected_goals``."""
+    return _core_projection_module().projected_goals(home_meta, away_meta)
+
+
 def projected_total_sot(
     home: str,
     away: str,
@@ -5073,6 +5105,45 @@ def choose_best_spread_line(options: List[Dict], projected_diff: float, home_tea
             best = opt
             best_score = score
     return best
+
+
+# Legacy selector implementations above are retained temporarily for rollback
+# and historical comparison.  All active ``rag_cli_v2`` selector lookups now
+# delegate to core.line_selection, which owns recommendation eligibility.
+def choose_best_total_line(options: List[Dict], projection_total: float,
+                           combined_var: Optional[float] = None) -> Optional[Dict]:
+    """Compatibility wrapper around ``core.line_selection.choose_best_total_line``."""
+    return _core_line_selection_module().choose_best_total_line(options, projection_total, combined_var)
+
+
+def choose_best_btts_side(options: List[Dict], p_btts_yes: float) -> Optional[Dict]:
+    """Compatibility wrapper around ``core.line_selection.choose_best_btts_side``."""
+    return _core_line_selection_module().choose_best_btts_side(options, p_btts_yes)
+
+
+def choose_best_correct_scores(
+    model_probs: Dict[Tuple[int, int], float],
+    market_odds: Dict[Tuple[int, int], List[Dict]],
+    top_n: int = 5,
+) -> List[Dict]:
+    """Compatibility wrapper around ``core.line_selection.choose_best_correct_scores``."""
+    return _core_line_selection_module().choose_best_correct_scores(model_probs, market_odds, top_n=top_n)
+
+
+def choose_best_moneyline_side(
+    p_home: float, p_draw: float, p_away: float,
+    market_odds: List[Dict],
+    home: str, away: str,
+) -> Dict:
+    """Compatibility wrapper around ``core.line_selection.choose_best_moneyline_side``."""
+    return _core_line_selection_module().choose_best_moneyline_side(
+        p_home, p_draw, p_away, market_odds, home, away,
+    )
+
+
+def choose_best_spread_line(options: List[Dict], projected_diff: float, home_team: str) -> Optional[Dict]:
+    """Compatibility wrapper around ``core.line_selection.choose_best_spread_line``."""
+    return _core_line_selection_module().choose_best_spread_line(options, projected_diff, home_team)
 
 
 def confidence_from_edge(edge: float, stat_group: Optional[str] = None,
