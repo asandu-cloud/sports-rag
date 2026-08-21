@@ -9,7 +9,7 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import discord
 
@@ -518,6 +518,102 @@ def _bet_card_embed(
 
 
 # ── Main public functions ────────────────────────────────────────────────────
+
+def market_results_to_embeds(
+    title: str,
+    results: Iterable[Any],
+    league: str = "",
+    footer: Optional[str] = None,
+) -> Tuple[List[discord.Embed], List[discord.File]]:
+    """Build Discord bet cards directly from canonical ``MarketResult`` objects.
+
+    Keeping this adapter typed by attributes rather than importing the core
+    model means the bot can still be launched from its historic direct-script
+    entry point.  No text is produced or parsed on this path.
+    """
+    result_list = list(results)
+    if not result_list:
+        return [], []
+
+    emoji_by_group = {
+        "goals": "⚽", "corners": "📐", "cards": "🟨", "sot": "🎯",
+        "btts": "🤝", "moneyline": "🏆", "spreads": "📏",
+    }
+    league_logo = _get_league_logo(league) if league else None
+    header = discord.Embed(title=f"{emoji_by_group.get(result_list[0].market.group, '⚽')}  {title}", color=COLOR_BLUE)
+    if league:
+        header.set_author(name=league, icon_url=league_logo)
+
+    embeds: List[discord.Embed] = [header]
+    files: List[discord.File] = []
+    for result in result_list:
+        fixture = f"{result.fixture.home_team} vs {result.fixture.away_team}"
+        decision = result.decision
+        quote = decision.quote
+        group = result.market.group
+
+        if result.projection.value is None:
+            projection = "Unavailable"
+        elif result.projection.unit == "probability" and group == "moneyline":
+            components = result.projection.components
+            home_p = components.get("home_probability")
+            draw_p = components.get("draw_probability")
+            away_p = components.get("away_probability")
+            projection = (
+                f"1X2: {home_p:.1%} / {draw_p:.1%} / {away_p:.1%}"
+                if all(isinstance(item, (int, float)) for item in (home_p, draw_p, away_p))
+                else "Unavailable"
+            )
+        elif result.projection.unit == "probability":
+            projection = f"{result.projection.value:.1%}"
+        elif group == "spreads":
+            projection = f"Goal difference: {result.projection.value:+.2f}"
+        else:
+            projection = f"Projected total: {result.projection.value:.2f} {result.projection.unit}"
+
+        extra: List[Tuple[str, str, bool]] = [("📊 Projection", projection, False)]
+        if decision.status.value == "recommended" and quote is not None:
+            side = quote.side.title()
+            if group == "btts":
+                pick = f"BTTS {side}"
+            elif quote.line is None:
+                pick = side
+            elif group == "spreads":
+                pick = f"{side} {quote.line:+g}"
+            else:
+                pick = f"{side} {quote.line:g}"
+            odds = f"{quote.odds:.2f}" if quote.odds is not None else None
+            if quote.bookmaker:
+                odds = f"{odds} ({quote.bookmaker})"
+            model_p = f"{decision.model_probability:.1%}" if decision.model_probability is not None else None
+            implied_p = f"{decision.implied_probability:.1%}" if decision.implied_probability is not None else None
+            edge = f"{decision.value_edge:+.1%}" if decision.value_edge is not None else None
+            if decision.expected_value is not None:
+                extra.append(("💹 Expected Value", f"{decision.expected_value:+.3f} per unit", True))
+            confidence = (decision.confidence or "—").title()
+        else:
+            pick = None
+            odds = None
+            model_p = None
+            implied_p = None
+            edge = None
+            confidence = "—"
+            label = "🚫 No Bet" if decision.status.value == "no_bet" else "⚠️ Unavailable"
+            extra.append((label, decision.reason or "No decision available.", False))
+
+        embed, attached_file = _bet_card_embed(
+            fixture, pick, odds, model_p, implied_p, edge, confidence, None,
+            league=league, market_emoji=emoji_by_group.get(group, "⚽"), extra_fields=extra,
+        )
+        if footer:
+            embed.set_footer(text=footer, icon_url=league_logo)
+        embeds.append(embed)
+        if attached_file:
+            files.append(attached_file)
+
+    # Discord allows at most ten embeds in one message, including the header.
+    return embeds[:10], files[:9]
+
 
 def player_prop_embeds(
     title: str,

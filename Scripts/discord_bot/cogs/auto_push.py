@@ -21,7 +21,12 @@ from discord.ext import commands, tasks
 
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[2] / "rag_ingest"))
 import rag_cli_v2 as rag  # noqa: E402  (kept for text-based workflows: parlays, player props)
-from rendering.market_dispatch import render_market_answer_sync  # noqa: E402
+from rendering.market_dispatch import (  # noqa: E402
+    canonical_market_name,
+    evaluate_market_results_sync,
+    render_market_answer_sync,
+)
+from rendering.market_results import result_pick_label  # noqa: E402
 
 # Core modules for direct structured access (no stdout capture needed)
 from core.events import fetch_events, filter_events_by_exact_date  # noqa: E402
@@ -30,7 +35,7 @@ from core.parlay_service import ParlayBuildError, build_parlay, build_parlay_req
 
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1]))
 from embeds import (  # noqa: E402
-    rag_output_to_embeds, structured_parlay_embeds, value_alert_embed,
+    market_results_to_embeds, rag_output_to_embeds, structured_parlay_embeds, value_alert_embed,
     consolidated_fixture_embeds, consolidated_score_embeds,
     parse_fixture_picks, parse_correct_score_picks, parse_interval_picks,
 )
@@ -167,6 +172,12 @@ async def _render_market_answer(league: str, market: str, target_date: date) -> 
     """Run deterministic market rendering in the shared executor."""
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(_rag_executor, render_market_answer_sync, league, market, target_date)
+
+
+async def _evaluate_market_results(league: str, market: str, target_date: date):
+    """Evaluate an auto-push market via the canonical structured pipeline."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_rag_executor, evaluate_market_results_sync, league, market, target_date)
 
 
 async def _build_structured_parlay(request):
@@ -513,6 +524,23 @@ async def _post_market_for_leagues(
     prompt_key = prompt_template.lower()
     market = next((value for key, value in market_map.items() if key in prompt_key), "totals")
     for league in leagues:
+        if canonical_market_name(market) is not None:
+            results, _notes = await _evaluate_market_results(league, market, date.today())
+            if not results:
+                continue
+            embeds, files = market_results_to_embeds(
+                title_template.format(league=league), results, league=league,
+                footer=f"{league} │ Canonical market pipeline │ {date_str}",
+            )
+            if files:
+                await channel.send(embeds=embeds, files=files)
+            else:
+                for em in embeds:
+                    await channel.send(embed=em)
+            continue
+
+        # Specialist markets are deliberately retained on the legacy renderer
+        # until they have an equivalent structured result contract.
         text = await _render_market_answer(league, market, date.today())
         if not _is_valid(text):
             continue
@@ -2090,44 +2118,25 @@ class AutoPush(commands.Cog):
             all_picks = []
 
             for market_key, (render_key, emoji) in _ALL_QUERIES.items():
-                text = await _render_market_answer(league, render_key, date.today())
-                if not _is_valid(text):
-                    continue
-                picks = parse_fixture_picks(text)
-                for fixture, line in picks.items():
-                    if not line:
+                results, _notes = await _evaluate_market_results(league, render_key, date.today())
+                for result in results:
+                    decision = result.decision
+                    quote = decision.quote
+                    if not decision.is_recommended or quote is None:
                         continue
-                    if "no bet" in line.lower():
-                        continue
-                    # Parse components from the compact line
-                    import re
-                    pick_m = re.search(r"\*\*(.+?)\*\*", line)
-                    odds_m = re.search(r"@\s*([\d.]+)", line)
-                    model_m = re.search(r"([\d.]+)%\s*model", line)
-                    edge_m = re.search(r"edge\s*([+\-][\d.]+)%", line)
-                    conf = "low"
-                    if re.search(r"\bhigh\b", line, re.I):
-                        conf = "high"
-                    elif re.search(r"\bmedium\b", line, re.I):
-                        conf = "medium"
-
-                    pick_text = pick_m.group(1) if pick_m else "?"
-                    odds_val = float(odds_m.group(1)) if odds_m else 0
-                    model_p = float(model_m.group(1)) if model_m else 0
-                    edge_val = float(edge_m.group(1)) if edge_m else 0
-
+                    fixture = f"{result.fixture.home_team} vs {result.fixture.away_team}"
                     label = _MARKET_LABELS.get(market_key, market_key.title())
                     all_picks.append({
                         "fixture": fixture,
                         "market": market_key,
                         "label": label,
                         "emoji": emoji,
-                        "pick": pick_text,
-                        "odds": odds_val,
-                        "model_p": model_p,
-                        "edge": edge_val,
-                        "conf": conf,
-                        "kickoff": kickoff_map.get(fixture, ""),
+                        "pick": result_pick_label(result),
+                        "odds": quote.odds or 0,
+                        "model_p": (decision.model_probability or 0) * 100,
+                        "edge": (decision.value_edge or 0) * 100,
+                        "conf": decision.confidence or "low",
+                        "kickoff": kickoff_map.get(fixture, result.fixture.kickoff or ""),
                     })
 
             if not all_picks:
@@ -2146,7 +2155,6 @@ class AutoPush(commands.Cog):
                 top = medium_plus[:8]
             else:
                 top = all_picks[:8]
-            top = all_picks[:8]
 
             # Build ONE clean embed for this league
             league_logo = None

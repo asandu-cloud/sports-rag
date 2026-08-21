@@ -29,10 +29,14 @@ from discord.ext import commands
 # ---------------------------------------------------------------------------
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[2] / "rag_ingest"))
 import rag_cli_v2 as rag  # noqa: E402
-from rendering.market_dispatch import render_market_answer_sync  # noqa: E402
+from rendering.market_dispatch import (  # noqa: E402
+    canonical_market_name,
+    evaluate_market_results_sync,
+    render_market_answer_sync,
+)
 
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1]))
-from embeds import rag_output_to_embeds, parlay_embed  # noqa: E402
+from embeds import market_results_to_embeds, rag_output_to_embeds, parlay_embed  # noqa: E402
 from config import ALL_LEAGUES, COLOR_BLUE, COLOR_PURPLE, COLOR_GREEN  # noqa: E402
 from cogs.access import premium_only, pooled_command, tier_required, get_or_create_private_thread  # noqa: E402
 
@@ -62,6 +66,13 @@ async def _render_market_answer(league: str, market: str, target_date: date) -> 
     import asyncio
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, render_market_answer_sync, league, market, target_date)
+
+
+async def _evaluate_market_results(league: str, market: str, target_date: date):
+    """Run canonical market evaluation outside the Discord event loop."""
+    import asyncio
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, evaluate_market_results_sync, league, market, target_date)
 
 
 # ---------------------------------------------------------------------------
@@ -1000,10 +1011,21 @@ class SlashCommands(commands.Cog):
         thread = await get_or_create_private_thread(interaction)
         await interaction.response.defer(thinking=True)
         target = _parse_date(date)
-        text = await _render_market_answer(league.value, market.value, target)
-
         label = _MARKET_LABELS.get(market.value, market.value.title())
-        embeds, files = rag_output_to_embeds(label, text, league=league.value)
+        if canonical_market_name(market.value) is not None:
+            results, notes = await _evaluate_market_results(league.value, market.value, target)
+            if results:
+                embeds, files = market_results_to_embeds(
+                    label, results, league=league.value,
+                    footer=f"{league.value} │ Canonical market pipeline",
+                )
+            else:
+                note_text = "\n".join(notes[:3]) if notes else "No fixtures or market data found."
+                embeds, files = rag_output_to_embeds(label, note_text, league=league.value)
+        else:
+            # These specialist markets do not yet have a MarketResult contract.
+            text = await _render_market_answer(league.value, market.value, target)
+            embeds, files = rag_output_to_embeds(label, text, league=league.value)
         if thread:
             await interaction.followup.send(
                 f"Results posted in your private thread {thread.mention}.",

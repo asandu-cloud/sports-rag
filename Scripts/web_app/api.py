@@ -50,6 +50,7 @@ from core.line_selection import (
     choose_best_moneyline_side, confidence_from_edge,
     _best_model_only_line, _best_model_only_spread,
 )
+from core.market_service import SUPPORTED_MARKETS, evaluate_event
 from core.parlay import build_candidates, kb_leg_quality, CandidateLeg, enrich_events_for_groups
 
 from prob_models import over_prob, implied_prob, value_edge
@@ -173,6 +174,8 @@ class TotalsPrediction(BaseModel):
     bookmaker: Optional[str] = None
     value_edge: Optional[float] = None
     confidence: Optional[str] = None
+    status: Optional[str] = None
+    reason: Optional[str] = None
 
 
 class BttsPrediction(BaseModel):
@@ -182,6 +185,8 @@ class BttsPrediction(BaseModel):
     bookmaker: Optional[str] = None
     value_edge: Optional[float] = None
     confidence: Optional[str] = None
+    status: Optional[str] = None
+    reason: Optional[str] = None
 
 
 class MoneylinePrediction(BaseModel):
@@ -193,6 +198,8 @@ class MoneylinePrediction(BaseModel):
     bookmaker: Optional[str] = None
     value_edge: Optional[float] = None
     confidence: Optional[str] = None
+    status: Optional[str] = None
+    reason: Optional[str] = None
 
 
 class SpreadPrediction(BaseModel):
@@ -204,6 +211,8 @@ class SpreadPrediction(BaseModel):
     bookmaker: Optional[str] = None
     value_edge: Optional[float] = None
     confidence: Optional[str] = None
+    status: Optional[str] = None
+    reason: Optional[str] = None
 
 
 class BestBet(BaseModel):
@@ -228,6 +237,8 @@ class FixturePrediction(BaseModel):
     moneyline: Optional[MoneylinePrediction] = None
     spreads: Optional[SpreadPrediction] = None
     best_bet: Optional[BestBet] = None
+    # Additive raw contract for new clients; legacy fields above remain stable.
+    market_results: List[Dict[str, Any]] = []
 
 
 class FixturesResponse(BaseModel):
@@ -621,34 +632,169 @@ def _select_best_bet(prediction: FixturePrediction) -> Optional[BestBet]:
     )
 
 
+def _decision_fields(result) -> Dict[str, Any]:
+    """Map a canonical decision to additive fields in the legacy response."""
+    decision = result.decision
+    quote = decision.quote if decision.is_recommended else None
+    return {
+        "recommended": quote is not None,
+        "quote": quote,
+        "model_prob": _safe(decision.model_probability),
+        "odds": _safe(quote.odds) if quote else None,
+        "bookmaker": quote.bookmaker if quote else None,
+        "value_edge": _safe(decision.value_edge),
+        "confidence": decision.confidence,
+        "status": decision.status.value,
+        "reason": decision.reason,
+    }
+
+
+def _totals_from_result(result) -> TotalsPrediction:
+    fields = _decision_fields(result)
+    quote = fields["quote"]
+    return TotalsPrediction(
+        projected_total=_safe(result.projection.value),
+        recommended_side=quote.side.title() if quote else None,
+        recommended_line=_safe(quote.line) if quote else None,
+        model_prob=fields["model_prob"], odds=fields["odds"], bookmaker=fields["bookmaker"],
+        value_edge=fields["value_edge"], confidence=fields["confidence"],
+        status=fields["status"], reason=fields["reason"],
+    )
+
+
+def _btts_from_result(result) -> BttsPrediction:
+    fields = _decision_fields(result)
+    quote = fields["quote"]
+    return BttsPrediction(
+        probability=_safe(result.projection.value),
+        recommended_side=quote.side.title() if quote else None,
+        odds=fields["odds"], bookmaker=fields["bookmaker"], value_edge=fields["value_edge"],
+        confidence=fields["confidence"], status=fields["status"], reason=fields["reason"],
+    )
+
+
+def _moneyline_from_result(result) -> MoneylinePrediction:
+    fields = _decision_fields(result)
+    quote = fields["quote"]
+    components = result.projection.components
+    return MoneylinePrediction(
+        home_prob=_safe(components.get("home_probability")),
+        draw_prob=_safe(components.get("draw_probability")),
+        away_prob=_safe(components.get("away_probability")),
+        recommended=quote.side if quote else None,
+        odds=fields["odds"], bookmaker=fields["bookmaker"], value_edge=fields["value_edge"],
+        confidence=fields["confidence"], status=fields["status"], reason=fields["reason"],
+    )
+
+
+def _spread_from_result(result) -> SpreadPrediction:
+    fields = _decision_fields(result)
+    quote = fields["quote"]
+    return SpreadPrediction(
+        projected_diff=_safe(result.projection.value),
+        recommended_team=quote.side if quote else None,
+        recommended_line=_safe(quote.line) if quote else None,
+        model_prob=fields["model_prob"], odds=fields["odds"], bookmaker=fields["bookmaker"],
+        value_edge=fields["value_edge"], confidence=fields["confidence"],
+        status=fields["status"], reason=fields["reason"],
+    )
+
+
+def _result_pick_label(result) -> str:
+    quote = result.decision.quote
+    if quote is None:
+        return ""
+    side = quote.side.title()
+    if result.market.group == "btts":
+        return f"BTTS {side}"
+    if quote.line is None:
+        return side
+    if result.market.group == "spreads":
+        return f"{side} {quote.line:+g}"
+    return f"{side} {quote.line:g}"
+
+
+def _select_best_bet_from_results(results) -> Optional[BestBet]:
+    candidates = [result for result in results if result.decision.is_recommended and result.decision.quote]
+    if not candidates:
+        return None
+    confidence_rank = {"high": 3, "medium": 2, "low": 1}
+    candidates.sort(key=lambda result: (
+        confidence_rank.get(result.decision.confidence, 0),
+        abs(result.decision.value_edge or 0.0),
+    ), reverse=True)
+    best = candidates[0]
+    decision = best.decision
+    return BestBet(
+        market=best.market.group,
+        pick=_result_pick_label(best),
+        odds=_safe(decision.quote.odds),
+        confidence=decision.confidence,
+        edge=_safe(decision.value_edge),
+        reason=f"Canonical {best.market.group} projection: {best.projection.value!r}.",
+    )
+
+
 def _build_fixture_prediction(
     event: Dict, league: str
 ) -> FixturePrediction:
-    """Build full predictions for a single fixture event."""
-    home = str(event.get("home_team") or "")
-    away = str(event.get("away_team") or "")
-    event_id = str(event.get("id") or "")
+    """Adapt canonical market results to the website's established response shape."""
     kickoff = event.get("commence_time")
+    fixture_date = str(kickoff or "")[:10] or None
+    try:
+        results = evaluate_event(event, league, markets=SUPPORTED_MARKETS, fixture_date=fixture_date)
+    except Exception as exc:
+        log.warning("Canonical prediction failed for %s vs %s: %s",
+                    event.get("home_team"), event.get("away_team"), exc)
+        results = []
 
+    by_group = {result.market.group: result for result in results}
+    fixture = results[0].fixture if results else None
     pred = FixturePrediction(
-        event_id=event_id,
-        home_team=home,
-        away_team=away,
-        kickoff=kickoff,
+        event_id=fixture.event_id if fixture else str(event.get("id") or ""),
+        home_team=fixture.home_team if fixture else str(event.get("home_team") or ""),
+        away_team=fixture.away_team if fixture else str(event.get("away_team") or ""),
+        kickoff=fixture.kickoff if fixture else kickoff,
+        goals=_totals_from_result(by_group["goals"]) if "goals" in by_group else None,
+        corners=_totals_from_result(by_group["corners"]) if "corners" in by_group else None,
+        cards=_totals_from_result(by_group["cards"]) if "cards" in by_group else None,
+        sot=_totals_from_result(by_group["sot"]) if "sot" in by_group else None,
+        btts=_btts_from_result(by_group["btts"]) if "btts" in by_group else None,
+        moneyline=_moneyline_from_result(by_group["moneyline"]) if "moneyline" in by_group else None,
+        spreads=_spread_from_result(by_group["spreads"]) if "spreads" in by_group else None,
+        market_results=[result.to_dict() for result in results],
     )
-
-    # Build each market prediction independently; failures are isolated
-    pred.goals = _build_totals_prediction(home, away, league, event, "goals")
-    pred.corners = _build_totals_prediction(home, away, league, event, "corners")
-    pred.cards = _build_totals_prediction(home, away, league, event, "cards")
-    pred.sot = _build_totals_prediction(home, away, league, event, "sot")
-    pred.btts = _build_btts_prediction(home, away, league, event)
-    pred.moneyline = _build_moneyline_prediction(home, away, league, event)
-    pred.spreads = _build_spread_prediction(home, away, league, event)
-
-    pred.best_bet = _select_best_bet(pred)
-
+    pred.best_bet = _select_best_bet_from_results(results)
     return pred
+
+
+def _market_results_to_best_bets(results) -> List[BestBetEntry]:
+    """Expose only real, priced canonical recommendations as best-bet candidates."""
+    entries: List[BestBetEntry] = []
+    for result in results:
+        decision = result.decision
+        quote = decision.quote
+        if not decision.is_recommended or quote is None:
+            continue
+        projection = result.projection.value
+        reason = f"Canonical {result.market.group} projection: {projection!r}."
+        if decision.value_edge is not None:
+            reason += f" {decision.value_edge:+.1%} value edge."
+        entries.append(BestBetEntry(
+            league=result.fixture.league,
+            event_id=result.fixture.event_id,
+            home_team=result.fixture.home_team,
+            away_team=result.fixture.away_team,
+            kickoff=result.fixture.kickoff,
+            market=result.market.group,
+            pick=_result_pick_label(result),
+            odds=_safe(quote.odds),
+            model_prob=_safe(decision.model_probability),
+            value_edge=_safe(decision.value_edge),
+            confidence=decision.confidence or "low",
+            reason=reason,
+        ))
+    return entries
 
 
 # ---------------------------------------------------------------------------
@@ -729,16 +875,9 @@ def get_best_bets(
             day_events = filter_events_by_exact_date(events, dt)
 
             for ev in day_events:
-                home = str(ev.get("home_team") or "")
-                away = str(ev.get("away_team") or "")
-                event_id = str(ev.get("id") or "")
-                kickoff = ev.get("commence_time")
-
-                pred = _build_fixture_prediction(ev, league)
-
-                # Collect all market predictions as candidate picks
-                market_candidates = _extract_market_candidates(pred, league, event_id, home, away, kickoff)
-                all_picks.extend(market_candidates)
+                fixture_date = str(ev.get("commence_time") or "")[:10] or None
+                results = evaluate_event(ev, league, markets=SUPPORTED_MARKETS, fixture_date=fixture_date)
+                all_picks.extend(_market_results_to_best_bets(results))
 
         except Exception as exc:
             log.warning("Failed to process %s for best bets: %s", league, exc)
