@@ -110,9 +110,6 @@ _BET_ID_TO_MARKET_KEY: Dict[int, str] = {
 # Reverse lookup: market key -> bet ID (used for targeted enrichment)
 _MARKET_KEY_TO_BET_ID: Dict[str, int] = {v: k for k, v in _BET_ID_TO_MARKET_KEY.items()}
 
-# Current season for API-Football queries
-_CURRENT_SEASON = 2025
-
 # Cache: (league, date_str) -> (events, notes, timestamp)
 _events_cache: Dict[Tuple[str, str], Tuple[List[Dict], List[str], float]] = {}
 _CACHE_TTL = 600  # 10 minutes
@@ -124,6 +121,18 @@ _fixture_odds_cache: Dict[int, Tuple[List[Dict], float]] = {}
 # API key
 # ---------------------------------------------------------------------------
 _api_key_warned = False
+
+
+def api_football_season_for_date(target_date: date) -> int:
+    """Return the API-Football season year containing ``target_date``.
+
+    The competitions this provider supports follow the European season
+    convention: a campaign begins in the second half of a calendar year and
+    finishes in the first half of the next.  Keeping this calculation here
+    prevents fixture discovery, lineup lookups, and settlement from becoming
+    stale when a new season begins.
+    """
+    return target_date.year if target_date.month >= 7 else target_date.year - 1
 
 
 def _api_football_key() -> Optional[str]:
@@ -355,7 +364,7 @@ def _fetch_fixtures(league: str, target_date: date) -> Tuple[List[Dict], Optiona
     date_str = target_date.strftime("%Y-%m-%d")
     params = {
         "league": league_id,
-        "season": _CURRENT_SEASON,
+        "season": api_football_season_for_date(target_date),
         "date": date_str,
     }
     rows, err = _api_get("/fixtures", params)

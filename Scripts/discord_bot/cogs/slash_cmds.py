@@ -891,10 +891,27 @@ class SlashCommands(commands.Cog):
     ) -> None:
         await interaction.response.defer(thinking=True)
         target = _parse_date(date)
-        events = _get_events_cached(league.value, target)
+        # Keep the full day in hand so an already-started fixture is not
+        # misreported as a day with no football.  This remains a pre-match
+        # command, so only future kickoffs are listed as actionable fixtures.
+        all_day_events = _get_events_cached(league.value, target, upcoming_only=False)
+        events = _filter_upcoming(all_day_events)
         phrase = _date_phrase(target)
 
         if not events:
+            if all_day_events:
+                em = discord.Embed(
+                    title="No Upcoming Fixtures",
+                    description=(
+                        f"Found **{len(all_day_events)}** **{league.value}** fixture"
+                        f"{'s' if len(all_day_events) != 1 else ''} for **{phrase}**, "
+                        "but it has already started or finished. "
+                        "Use the live bot for in-play coverage."
+                    ),
+                    color=COLOR_BLUE,
+                )
+                await interaction.followup.send(embed=em)
+                return
             em = discord.Embed(
                 title="No Fixtures Found",
                 description=f"No **{league.value}** fixtures found for **{phrase}**.",

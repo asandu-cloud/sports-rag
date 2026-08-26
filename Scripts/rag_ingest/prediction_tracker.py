@@ -94,6 +94,15 @@ LEAGUE_TO_API_ID: Dict[str, int] = {
     "UECL": 848,
 }
 
+
+def _api_football_season_for_prediction_date(prediction_date: str) -> int:
+    """Resolve the API-Football season year for a stored ISO prediction date."""
+    try:
+        target = date.fromisoformat(prediction_date[:10])
+    except (TypeError, ValueError):
+        target = date.today()
+    return target.year if target.month >= 7 else target.year - 1
+
 ALL_MARKETS = {"goals", "corners", "cards", "sot", "btts", "moneyline", "spreads", "correct_score"}
 
 log = logging.getLogger("prediction_tracker")
@@ -1522,7 +1531,8 @@ def _fetch_results_from_api(
 ) -> List[dict]:
     """Fetch actual fixture results from API-Football when local data is unavailable.
 
-    Calls GET /fixtures?league={id}&season=2025&date={date}&status=FT for each league.
+    Calls the matching API-Football season for each prediction date, then
+    fetches per-fixture statistics for corners, cards, and SoT.
     Then fetches per-fixture statistics for corners, cards, SoT.
     """
     try:
@@ -1553,7 +1563,12 @@ def _fetch_results_from_api(
             resp = requests.get(
                 "https://v3.football.api-sports.io/fixtures",
                 headers={"x-apisports-key": api_key},
-                params={"league": api_id, "season": 2025, "date": prediction_date, "status": "FT"},
+                params={
+                    "league": api_id,
+                    "season": _api_football_season_for_prediction_date(prediction_date),
+                    "date": prediction_date,
+                    "status": "FT",
+                },
                 timeout=15,
             )
             resp.raise_for_status()

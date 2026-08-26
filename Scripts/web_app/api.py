@@ -143,22 +143,23 @@ except Exception as _health_exc:
 # Simple TTL cache for fixture fetches (5 min)
 # ---------------------------------------------------------------------------
 _CACHE_TTL = 300  # seconds
-_events_cache: Dict[str, Tuple[float, List[Dict], List[str]]] = {}
+_events_cache: Dict[Tuple[str, str], Tuple[float, List[Dict], List[str]]] = {}
 
 
-def _cached_fetch_events(league: str) -> Tuple[List[Dict], List[str]]:
-    """Fetch events for a league with 5-minute TTL cache."""
+def _cached_fetch_events(league: str, target_date: date) -> Tuple[List[Dict], List[str]]:
+    """Fetch a league's events for one date with a 5-minute TTL cache."""
     now = time.time()
-    cached = _events_cache.get(league)
+    cache_key = (league, target_date.isoformat())
+    cached = _events_cache.get(cache_key)
     if cached and (now - cached[0]) < _CACHE_TTL:
         return cached[1], cached[2]
-    events, notes = fetch_events(league, set(DEFAULT_MARKETS))
+    events, notes = fetch_events(league, set(DEFAULT_MARKETS), target_date=target_date)
     # Enrich with corners, cards, sot, btts markets
     events, enrich_notes = enrich_events_for_groups(
         events, league, {"corners", "cards", "sot", "btts"}
     )
     notes.extend(enrich_notes)
-    _events_cache[league] = (now, events, notes)
+    _events_cache[cache_key] = (now, events, notes)
     return events, notes
 
 
@@ -828,7 +829,7 @@ def get_fixtures(league: str, target_date: str):
 
     log.info("Fetching fixtures for %s on %s", league, target_date)
 
-    events, notes = _cached_fetch_events(league)
+    events, notes = _cached_fetch_events(league, dt)
     day_events = filter_events_by_exact_date(events, dt)
 
     if not day_events:
@@ -870,7 +871,7 @@ def get_best_bets(
 
     for league in sorted(DOMESTIC_LEAGUES):
         try:
-            events, notes = _cached_fetch_events(league)
+            events, notes = _cached_fetch_events(league, dt)
             all_notes.extend(notes)
             day_events = filter_events_by_exact_date(events, dt)
 

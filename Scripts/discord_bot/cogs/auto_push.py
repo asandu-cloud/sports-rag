@@ -32,6 +32,7 @@ from rendering.market_results import result_pick_label  # noqa: E402
 from core.events import fetch_events, filter_events_by_exact_date  # noqa: E402
 from core.weights import DOMESTIC_LEAGUES as _CORE_DOMESTIC, EUROPEAN_COMPETITIONS  # noqa: E402
 from core.parlay_service import ParlayBuildError, build_parlay, build_parlay_request  # noqa: E402
+from odds_provider import api_football_season_for_date  # noqa: E402
 
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1]))
 from embeds import (  # noqa: E402
@@ -677,7 +678,11 @@ def _fetch_lineups(home: str, away: str, league: str) -> List[str]:
         resp = requests.get(
             "https://v3.football.api-sports.io/fixtures",
             headers={"x-apisports-key": api_key},
-            params={"league": league_id, "season": 2025, "date": date.today().isoformat()},
+            params={
+                "league": league_id,
+                "season": api_football_season_for_date(date.today()),
+                "date": date.today().isoformat(),
+            },
             timeout=15,
         )
         fixtures = resp.json().get("response", [])

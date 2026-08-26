@@ -1407,35 +1407,38 @@ def odds_get(path: str, params: Dict) -> Tuple[Optional[object], Optional[str]]:
         return None, f"Odds API request failed: {exc}"
 
 
-def fetch_events(league: str, markets: Set[str]) -> Tuple[List[Dict], List[str]]:
-    notes: List[str] = []
-    sport_key = LEAGUE_TO_ODDS_SPORT.get(league, LEAGUE_TO_ODDS_SPORT["EPL"])
-    requested = sorted(markets)
+def fetch_events(
+    league: str,
+    markets: Set[str],
+    target_date: Optional[date] = None,
+) -> Tuple[List[Dict], List[str]]:
+    """Fetch date-specific events through the canonical API-Football adapter.
 
-    # Try requested bundle first.
-    market_str = ",".join(requested)
-    rows, err = odds_get(f"/sports/{sport_key}/odds", {"markets": market_str})
-    if err:
-        # Fallback to safe default bundle; keep note for transparency.
-        fallback = ",".join(DEFAULT_MARKETS)
-        rows_fb, err_fb = odds_get(f"/sports/{sport_key}/odds", {"markets": fallback})
-        if err_fb:
-            notes.append(err)
-            return [], notes
-        rows = rows_fb
-        notes.append(f"Requested markets '{market_str}' not fully supported. Fell back to '{fallback}'.")
-    if not isinstance(rows, list):
-        notes.append("Unexpected odds payload shape.")
-        return [], notes
-    return rows, notes
+    ``rag_cli_v2`` used to keep its own The Odds API client.  That left the
+    Discord commands with an incompatible function signature and meant they
+    could silently query a retired provider.  Preserve this public helper for
+    legacy callers, but delegate discovery to the same API-Football path used
+    by the website and structured market service.
+    """
+    if target_date is None:
+        target_date = date.today()
+    try:
+        from core.events import fetch_events as fetch_canonical_events
+    except ImportError:
+        from Scripts.rag_ingest.core.events import fetch_events as fetch_canonical_events
+    return fetch_canonical_events(league, markets, target_date=target_date)
 
 
-def fetch_events_multi(leagues: List[str], markets: Set[str]) -> Tuple[List[Dict], List[str]]:
+def fetch_events_multi(
+    leagues: List[str],
+    markets: Set[str],
+    target_date: Optional[date] = None,
+) -> Tuple[List[Dict], List[str]]:
     """Fetch events from multiple leagues, tagging each event with its league."""
     all_events: List[Dict] = []
     all_notes: List[str] = []
     for league in leagues:
-        events, notes = fetch_events(league, markets)
+        events, notes = fetch_events(league, markets, target_date=target_date)
         for ev in events:
             ev["_league"] = league
         all_events.extend(events)
@@ -6739,19 +6742,53 @@ def answer_once(user_q: str, default_league: str = "EPL") -> None:
         elif totals_stat_group == "sot":
             c.hard_include_groups = {"sot"}
             c.hard_exclude_groups = {"moneyline", "spreads", "corners", "cards", "totals"}
-    if c.leagues:
-        events_raw, notes = fetch_events_multi(c.leagues, c.requested_markets)
+    explicit_date = parse_explicit_date(user_q)
+    today = datetime.now(ZoneInfo("Europe/London")).date()
+    if explicit_date is not None:
+        target_dates = [explicit_date]
+    elif c.time_window == "today":
+        target_dates = [today]
+    elif c.time_window == "tomorrow":
+        target_dates = [today.fromordinal(today.toordinal() + 1)]
     else:
-        events_raw, notes = fetch_events(c.league, c.requested_markets)
-        for ev in events_raw:
-            ev["_league"] = c.league
+        # API-Football discovery is date-specific.  Fetch a bounded upcoming
+        # window rather than relying on a retired provider's multi-day feed.
+        target_dates = [today.fromordinal(today.toordinal() + offset) for offset in range(7)]
+
+    events_raw: List[Dict] = []
+    notes: List[str] = []
+    for target_date in target_dates:
+        if c.leagues:
+            events, event_notes = fetch_events_multi(
+                c.leagues, c.requested_markets, target_date=target_date
+            )
+        else:
+            events, event_notes = fetch_events(
+                c.league, c.requested_markets, target_date=target_date
+            )
+            for ev in events:
+                ev["_league"] = c.league
+        events_raw.extend(events)
+        notes.extend(event_notes)
+
+    # A fixture is stable across market enrichment; eliminate any accidental
+    # duplicate provider rows before the selection/filtering stages.
+    deduped_events: List[Dict] = []
+    seen_event_ids: Set[Tuple[str, str]] = set()
+    for ev in events_raw:
+        identity = (str(ev.get("_league") or c.league), str(ev.get("id") or ev.get("_fixture_id") or ""))
+        if identity in seen_event_ids:
+            continue
+        seen_event_ids.add(identity)
+        deduped_events.append(ev)
+    events_raw = deduped_events
+
     if not events_raw:
         print("Could not fetch odds events.")
         for n in notes:
             print("-", n)
         return
 
-    explicit_date = parse_explicit_date(user_q)
     if explicit_date is not None:
         events = filter_events_by_exact_date(events_raw, explicit_date)
         notes.append(f"Applied explicit date filter: {explicit_date.isoformat()}.")
