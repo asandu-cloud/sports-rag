@@ -22,9 +22,9 @@
     - User avatar/name populated via: GET /api/me
 
   Fixtures / Markets data:
-    - app.js FIXTURES array is mock data
-    - Replace appModule.FIXTURES with: GET /api/fixtures?date=YYYY-MM-DD
-    - Replace market detail with: GET /api/fixtures/:id/markets
+    - app.js loads matchday fixtures from: GET /api/fixtures/{league}/{date}
+    - Each fixture includes structured canonical market decisions in market_results
+    - The match detail view renders those decisions directly
 
   Bet slip scoring:
     - slip.score() currently uses local heuristic
@@ -38,8 +38,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SpixBot — AI Football Predictions</title>
-  <meta name="description" content="AI-powered football betting predictions with real-time odds analysis across Europe's top leagues. The edge was always there.">
+  <title>Spix — Matchday Betting Intelligence</title>
+  <meta name="description" content="A curated football betting briefing, clear match context, and a community built around better matchday decisions.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -50,15 +50,15 @@
   <!-- ===== Navigation ===== -->
   <header class="topbar" id="topbar" role="banner">
     <div class="topbar-inner">
-      <div class="logo" onclick="router.go('landing')" tabindex="0" role="link" aria-label="SpixBot home">
+      <div class="logo" onclick="router.go('landing')" tabindex="0" role="link" aria-label="Spix home">
         <span class="logo-mark">S</span>
-        <span class="logo-text">SpixBot</span>
+        <span class="logo-text">Spix</span>
       </div>
       <nav class="nav" id="mainNav" aria-label="Main navigation">
         <!-- Landing nav links -->
-        <a class="nav-link landing-nav" href="#how-it-works">How It Works</a>
-        <a class="nav-link landing-nav" href="#pricing">Pricing</a>
-        <a class="nav-link landing-nav" href="#faq">FAQ</a>
+        <a class="nav-link landing-nav" href="#how-it-works">How it works</a>
+        <a class="nav-link landing-nav" href="#community">Community</a>
+        <a class="nav-link landing-nav" href="#pricing">Membership</a>
         <!-- App nav links -->
         <button class="nav-link app-nav hidden" data-view="fixtures" onclick="app.switchTab('fixtures')">Fixtures</button>
         <button class="nav-link app-nav hidden" data-view="best-bets" onclick="app.switchTab('best-bets')">Best Bets</button>
@@ -70,7 +70,7 @@
           <img class="user-avatar" id="userAvatar" src="" alt="">
           <span class="user-name" id="userName"></span>
         </div>
-        <button class="btn-primary-sm landing-nav" onclick="document.getElementById('pricing').scrollIntoView({behavior:'smooth'})">Try Free</button>
+        <button class="btn-primary-sm landing-nav" onclick="router.go('app')">Open matchday</button>
         <!-- App buttons -->
         <button class="nav-link app-nav hidden" onclick="router.go('landing')">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 11L5 7l4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -88,6 +88,76 @@
        LANDING PAGE
        =================================================================== -->
   <div id="landingPage">
+
+    <!-- Product-led home hero -->
+    <section class="home-hero" aria-labelledby="homeHeroTitle">
+      <div class="home-hero-glow home-hero-glow-one"></div>
+      <div class="home-hero-glow home-hero-glow-two"></div>
+      <div class="home-hero-grid" aria-hidden="true"></div>
+      <div class="home-hero-inner">
+        <div class="home-hero-copy">
+          <p class="home-kicker"><span class="home-kicker-dot"></span> Matchday intelligence <span class="home-kicker-rule"></span> Season 26/27</p>
+          <h1 id="homeHeroTitle">Less noise.<br>Better <em>matchday</em> decisions.</h1>
+          <p class="home-hero-lede">Spix turns the fixture list into one clear daily briefing: the bets that qualify, the reasoning behind them, and a place to talk them through with people who care about the game.</p>
+          <div class="home-hero-actions">
+            <button class="home-btn-primary" onclick="router.go('app')">View the matchday board <span aria-hidden="true">↗</span></button>
+            <a class="home-btn-secondary" href="https://discord.gg/WhzNJ4Z5A" target="_blank" rel="noopener">Join the community <span aria-hidden="true">↗</span></a>
+          </div>
+          <ul class="home-hero-promises" aria-label="What every briefing includes">
+            <li><span>01</span> A curated shortlist, not every possible market</li>
+            <li><span>02</span> Clear context before every recommendation</li>
+            <li><span>03</span> “No bet” when the edge is not there</li>
+          </ul>
+        </div>
+
+        <aside class="briefing-preview" aria-label="Example matchday briefing">
+          <div class="briefing-preview-top">
+            <span>The briefing</span>
+            <span class="briefing-status"><i></i> Preparing today</span>
+          </div>
+          <div class="briefing-preview-heading">
+            <p>One matchday.<br>One clear read.</p>
+            <span>26 AUG</span>
+          </div>
+          <div class="briefing-preview-list">
+            <div class="briefing-row briefing-row-featured">
+              <span class="briefing-index">01</span>
+              <div><strong>Shortlist</strong><small>Only the clearest qualified angles</small></div>
+              <span class="briefing-arrow">↗</span>
+            </div>
+            <div class="briefing-row">
+              <span class="briefing-index">02</span>
+              <div><strong>Context</strong><small>Form, matchup, line and price in one view</small></div>
+              <span class="briefing-arrow">↗</span>
+            </div>
+            <div class="briefing-row">
+              <span class="briefing-index">03</span>
+              <div><strong>Conversation</strong><small>Take the discussion to the matchday channel</small></div>
+              <span class="briefing-arrow">↗</span>
+            </div>
+          </div>
+          <div class="briefing-preview-foot">Built for informed decisions, not blind picks.</div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="home-principles" aria-label="The Spix matchday experience">
+      <div class="home-principles-inner">
+        <p class="home-principles-intro">A better way to follow a betting matchday.</p>
+        <div class="home-principle">
+          <span>01</span>
+          <div><h2>The website gives you depth.</h2><p>Review the board, understand each angle and return to your record whenever you need it.</p></div>
+        </div>
+        <div class="home-principle">
+          <span>02</span>
+          <div><h2>Discord brings it to life.</h2><p>Get the essential alert, join the right match conversation, and leave the clutter behind.</p></div>
+        </div>
+        <div class="home-principle">
+          <span>03</span>
+          <div><h2>Every pick earns its place.</h2><p>Selections are meant to be explained, tracked and judged over time—not simply broadcast.</p></div>
+        </div>
+      </div>
+    </section>
 
     <!-- Hero -->
     <section class="hero">
@@ -376,7 +446,7 @@
     </section>
 
     <!-- Community / Support -->
-    <section class="community">
+    <section class="community" id="community">
       <div class="section-inner">
         <p class="section-eyebrow">Support</p>
         <h2 class="section-h2">We are here to help</h2>
@@ -539,8 +609,8 @@
         <!-- Fixtures View -->
         <section class="app-view" id="viewFixtures">
           <div class="page-header">
-            <h1 class="page-title">Today's Matches</h1>
-            <p class="page-subtitle">AI-powered predictions across Europe's top leagues</p>
+            <h1 class="page-title">Matchday</h1>
+            <p class="page-subtitle">Live fixtures, current prices and model decisions across Europe's top leagues</p>
           </div>
           <div class="date-strip" id="dateStrip" role="tablist" aria-label="Select date"></div>
           <div class="league-filters" id="leagueFilters" role="toolbar" aria-label="League filter"></div>
@@ -551,7 +621,7 @@
         <section class="app-view hidden" id="viewBestBets">
           <div class="page-header">
             <h1 class="page-title">Best Bets</h1>
-            <p class="page-subtitle">Highest-edge picks across all leagues today</p>
+            <p class="page-subtitle">The clearest medium- and high-confidence decisions on this matchday</p>
           </div>
           <div class="date-strip" id="bestBetsDateStrip" role="tablist" aria-label="Select date"></div>
           <div id="bestBetsContainer"></div>

@@ -444,12 +444,12 @@ slip._update();
 // ----- App Module -----
 const appModule = {
   LEAGUES: [
-    { id: 'epl', name: 'EPL', color: '#3D195B' },
-    { id: 'laliga', name: 'La Liga', color: '#EE8707' },
-    { id: 'seriea', name: 'Serie A', color: '#024494' },
-    { id: 'bundesliga', name: 'Bundesliga', color: '#D20515' },
-    { id: 'ligue1', name: 'Ligue 1', color: '#DAE025' },
-    { id: 'ucl', name: 'UCL', color: '#001489' },
+    { id: 'EPL', name: 'Premier League', color: '#3D195B' },
+    { id: 'LaLiga', name: 'La Liga', color: '#EE8707' },
+    { id: 'SerieA', name: 'Serie A', color: '#024494' },
+    { id: 'Bundesliga', name: 'Bundesliga', color: '#D20515' },
+    { id: 'Ligue1', name: 'Ligue 1', color: '#DAE025' },
+    { id: 'UCL', name: 'Champions League', color: '#001489' },
   ],
 
   FIXTURES: [
@@ -508,16 +508,19 @@ const appModule = {
   currentMarketTab: 'goals',
   activeLeague: 'all',
   activeDate: 0,
+  fixtures: [],
+  bestBets: [],
+  initialized: false,
+  _requestId: 0,
 
-  init() {
-    this._buildDateStrips();
-    this._buildLeagueFilters();
-    // TODO: BACKEND — replace this._renderFixtures() with live data fetch
-    // Suggested: GET /api/fixtures?date=YYYY-MM-DD&league=all
-    // Then call this._renderFixtures(data) with the response
-    this._renderFixtures();
-    this._buildBestBets();
+  async init() {
+    if (!this.initialized) {
+      this._buildDateStrips();
+      this._buildLeagueFilters();
+      this.initialized = true;
+    }
     this.switchTab('fixtures');
+    await this._loadMatchday();
   },
 
   switchTab(tab) {
@@ -544,15 +547,19 @@ const appModule = {
         const btn = document.createElement('button');
         btn.className = 'date-chip' + (i === this.activeDate ? ' active' : '');
         btn.textContent = label;
-        btn.onclick = () => {
-          strip.querySelectorAll('.date-chip').forEach(c => c.classList.remove('active'));
-          btn.classList.add('active');
-          this.activeDate = i;
-          this._renderFixtures();
-        };
+        btn.dataset.dateOffset = String(i);
+        btn.onclick = () => this._setActiveDate(i);
         strip.appendChild(btn);
       }
     });
+  },
+
+  _setActiveDate(offset) {
+    this.activeDate = offset;
+    document.querySelectorAll('.date-chip').forEach(btn => {
+      btn.classList.toggle('active', Number(btn.dataset.dateOffset) === offset);
+    });
+    this._loadMatchday();
   },
 
   _buildLeagueFilters() {
@@ -562,13 +569,13 @@ const appModule = {
     const allBtn = document.createElement('button');
     allBtn.className = 'league-chip active';
     allBtn.innerHTML = 'All Leagues';
-    allBtn.onclick = () => { this.activeLeague = 'all'; this._syncLeagueChips(allBtn); this._renderFixtures(); };
+    allBtn.onclick = () => { this.activeLeague = 'all'; this._syncLeagueChips(allBtn); this._loadMatchday(); };
     filters.appendChild(allBtn);
     this.LEAGUES.forEach(l => {
       const btn = document.createElement('button');
       btn.className = 'league-chip';
       btn.innerHTML = `<span class="league-dot" style="background:${l.color}"></span>${l.name}`;
-      btn.onclick = () => { this.activeLeague = l.id; this._syncLeagueChips(btn); this._renderFixtures(); };
+      btn.onclick = () => { this.activeLeague = l.id; this._syncLeagueChips(btn); this._loadMatchday(); };
       filters.appendChild(btn);
     });
   },
@@ -578,27 +585,178 @@ const appModule = {
     activeBtn.classList.add('active');
   },
 
-  _renderFixtures() {
+  _selectedDateISO() {
+    const selected = new Date();
+    // Midday avoids DST and UTC-boundary surprises when a user selects a date.
+    selected.setHours(12, 0, 0, 0);
+    selected.setDate(selected.getDate() + this.activeDate);
+    const year = selected.getFullYear();
+    const month = String(selected.getMonth() + 1).padStart(2, '0');
+    const day = String(selected.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  },
+
+  _formatFixtureTime(kickoff) {
+    if (!kickoff) return 'Time TBC';
+    const timestamp = new Date(kickoff);
+    if (Number.isNaN(timestamp.getTime())) return 'Time TBC';
+    return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  },
+
+  _formatMarketPick(result) {
+    const decision = result.decision || {};
+    const quote = decision.quote || {};
+    if (decision.status !== 'recommended' || !quote.side) return 'No qualified bet';
+
+    const side = String(quote.side).replace(/\b\w/g, char => char.toUpperCase());
+    if (result.market?.group === 'btts') return `BTTS ${side}`;
+    if (quote.line === null || quote.line === undefined) return side;
+    if (result.market?.group === 'spreads') {
+      return `${side} ${Number(quote.line) >= 0 ? '+' : ''}${quote.line}`;
+    }
+    return `${side} ${quote.line}`;
+  },
+
+  _formatProjection(result) {
+    const value = result.projection?.value;
+    if (value === null || value === undefined || Number.isNaN(Number(value))) return 'Projection unavailable';
+    const group = result.market?.group;
+    if (group === 'btts' || group === 'moneyline') return `${(Number(value) * 100).toFixed(1)}% model probability`;
+    const labels = { goals: 'goals', corners: 'corners', cards: 'cards', sot: 'shots on target', spreads: 'goal difference' };
+    return `${Number(value).toFixed(2)} projected ${labels[group] || 'value'}`;
+  },
+
+  _normaliseFixture(raw, leagueId) {
+    const markets = {};
+    (raw.market_results || []).forEach(result => {
+      const group = result.market?.group;
+      if (!group) return;
+      const decision = result.decision || {};
+      const quote = decision.quote || {};
+      const recommended = decision.status === 'recommended' && Number.isFinite(Number(quote.odds));
+      markets[group] = [{
+        pick: this._formatMarketPick(result),
+        odds: recommended ? Number(quote.odds) : null,
+        edge: Number.isFinite(Number(decision.value_edge)) ? Number(decision.value_edge) * 100 : null,
+        conf: decision.confidence || 'low',
+        rec: recommended,
+        proj: this._formatProjection(result),
+        reason: decision.reason || '',
+        bookmaker: quote.bookmaker || '',
+      }];
+    });
+
+    const bestBet = raw.best_bet;
+    return {
+      id: String(raw.event_id),
+      league: leagueId,
+      home: raw.home_team,
+      away: raw.away_team,
+      kickoff: raw.kickoff,
+      time: this._formatFixtureTime(raw.kickoff),
+      pick: bestBet?.pick || 'No qualified bet',
+      odds: Number.isFinite(Number(bestBet?.odds)) ? Number(bestBet.odds) : null,
+      edge: Number.isFinite(Number(bestBet?.edge)) ? Number(bestBet.edge) * 100 : null,
+      conf: bestBet?.confidence || 'no-bet',
+      best: Boolean(bestBet && Number.isFinite(Number(bestBet.odds))),
+      markets,
+    };
+  },
+
+  _buildBestBetsFromFixtures() {
+    const confidenceRank = { high: 3, medium: 2, low: 1 };
+    return this.fixtures
+      .filter(fixture => fixture.best && ['high', 'medium'].includes(fixture.conf))
+      .sort((a, b) => (
+        (confidenceRank[b.conf] || 0) - (confidenceRank[a.conf] || 0)
+        || (b.edge || 0) - (a.edge || 0)
+      ))
+      .slice(0, 10);
+  },
+
+  async _loadMatchday() {
+    const container = document.getElementById('fixturesContainer');
+    const bestBetsContainer = document.getElementById('bestBetsContainer');
+    if (!container || !bestBetsContainer) return;
+
+    const requestId = ++this._requestId;
+    const targetDate = this._selectedDateISO();
+    const requestedLeagues = this.activeLeague === 'all'
+      ? this.LEAGUES
+      : this.LEAGUES.filter(league => league.id === this.activeLeague);
+
+    this.fixtures = [];
+    this.bestBets = [];
+    this._renderFixtures({ loading: true });
+    this._renderBestBets({ loading: true });
+
+    const responses = await Promise.allSettled(requestedLeagues.map(async league => {
+      const response = await fetch(`/api/fixtures/${encodeURIComponent(league.id)}/${targetDate}`);
+      if (!response.ok) throw new Error(`${league.name} could not be loaded (${response.status})`);
+      const payload = await response.json();
+      return { league, payload };
+    }));
+
+    // A date/filter could change before a slow prediction request completes.
+    if (requestId !== this._requestId) return;
+
+    const successful = responses.filter(result => result.status === 'fulfilled');
+    this.fixtures = successful.flatMap(result => (
+      result.value.payload.fixtures.map(fixture => this._normaliseFixture(fixture, result.value.league.id))
+    ));
+    this.bestBets = this._buildBestBetsFromFixtures();
+
+    if (!successful.length) {
+      this._renderFixtures({ error: 'Predictions could not be loaded. Please try again.' });
+      this._renderBestBets({ error: 'Best bets are unavailable while matchday data is loading.' });
+      return;
+    }
+
+    const failed = responses.length - successful.length;
+    this._renderFixtures({ notice: failed ? `${failed} league${failed === 1 ? '' : 's'} could not be loaded.` : '' });
+    this._renderBestBets();
+  },
+
+  _renderFixtures(state = {}) {
     const container = document.getElementById('fixturesContainer');
     if (!container) return;
-    const fixtures = this.activeLeague === 'all' ? this.FIXTURES : this.FIXTURES.filter(f => f.league === this.activeLeague);
+    if (state.loading) {
+      container.innerHTML = '<div class="empty-state"><p>Preparing the matchday board…</p><span class="empty-state-hint">Loading live fixtures, prices and model decisions.</span></div>';
+      return;
+    }
+    if (state.error) {
+      container.innerHTML = `<div class="error-state"><p>${esc(state.error)}</p><button class="retry-btn" onclick="appModule._loadMatchday()">Try again</button></div>`;
+      return;
+    }
+    const fixtures = this.fixtures;
     const byLeague = {};
     fixtures.forEach(f => { (byLeague[f.league] = byLeague[f.league] || []).push(f); });
     container.innerHTML = '';
+    if (state.notice) {
+      const notice = document.createElement('p');
+      notice.className = 'empty-state-hint';
+      notice.style.margin = '0 0 16px';
+      notice.textContent = state.notice;
+      container.appendChild(notice);
+    }
     if (!fixtures.length) {
-      container.innerHTML = '<div class="empty-state"><div class="empty-state-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div><p>No fixtures for this selection.</p></div>';
+      container.innerHTML += '<div class="empty-state"><div class="empty-state-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div><p>No fixtures for this selection.</p><span class="empty-state-hint">There may be no matches in the selected leagues on this date.</span></div>';
       return;
     }
-    Object.entries(byLeague).forEach(([leagueId, fxs], gi) => {
+    Object.entries(byLeague).forEach(([leagueId, fxs]) => {
       const league = this.LEAGUES.find(l => l.id === leagueId) || { name: leagueId, color: '#666' };
       const group = document.createElement('div');
       group.className = 'league-group';
       group.innerHTML = `<div class="league-header"><div class="league-header-left"><span class="league-stripe" style="background:${esc(league.color)}"></span><span class="league-name">${esc(league.name)}</span></div><span class="league-count mono">${fxs.length} matches</span></div>`;
       fxs.forEach((f, i) => {
-        const slipKey = f.id + '|' + f.pick;
+        const slipKey = `${f.home} vs ${f.away}|${f.pick}`;
         const inSlip = slip.legs.find(l => l.key === slipKey);
         const row = document.createElement('div');
         row.className = 'fixture-row';
+        const confidenceLabel = f.best ? f.conf.toUpperCase() : 'NO BET';
+        const addButton = f.best
+          ? `<button class="fixture-add-btn${inSlip ? ' added' : ''}" data-fixture-add="${esc(f.id)}">${inSlip ? '✓' : '+'}</button>`
+          : '<span class="fixture-add-placeholder" aria-hidden="true"></span>';
         row.innerHTML = `
           <span class="fixture-num mono">${i + 1}</span>
           <div class="fixture-match">
@@ -606,15 +764,17 @@ const appModule = {
             <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--mono)">${esc(f.time)}</div>
           </div>
           <span class="fixture-pick-text">${esc(f.pick)}</span>
-          <span class="conf-badge ${esc(f.conf)}">${esc(f.conf.toUpperCase())}</span>
-          <span class="fixture-odds-val mono">${esc(String(f.odds))}</span>
-          <span class="fixture-edge mono ${f.edge > 0 ? 'edge-pos' : ''}">+${esc(String(f.edge))}%</span>
-          <button class="fixture-add-btn${inSlip ? ' added' : ''}" data-slip-key="${esc(slipKey)}"
-            onclick="event.stopPropagation();appModule._toggleSlipFromFixture(${parseInt(f.id)})">
-            ${inSlip ? '✓' : '+'}
-          </button>
+          <span class="conf-badge ${esc(f.conf)}">${esc(confidenceLabel)}</span>
+          <span class="fixture-odds-val mono">${f.odds ? esc(f.odds.toFixed(2)) : '—'}</span>
+          <span class="fixture-edge mono ${f.edge && f.edge > 0 ? 'edge-pos' : ''}">${f.edge ? `+${esc(f.edge.toFixed(1))}%` : '—'}</span>
+          ${addButton}
         `;
         row.onclick = () => this._showMatch(f.id);
+        const add = row.querySelector('[data-fixture-add]');
+        if (add) add.addEventListener('click', event => {
+          event.stopPropagation();
+          this._toggleSlipFromFixture(f.id);
+        });
         group.appendChild(row);
       });
       container.appendChild(group);
@@ -622,19 +782,19 @@ const appModule = {
   },
 
   _toggleSlipFromFixture(fxId) {
-    const f = this.FIXTURES.find(x => x.id === fxId);
-    if (!f) return;
-    const slipKey = f.id + '|' + f.pick;
-    const btn = document.querySelector(`[data-slip-key="${slipKey}"]`);
+    const f = this.fixtures.find(x => String(x.id) === String(fxId));
+    if (!f || !f.best || !Number.isFinite(f.odds)) return;
+    const slipKey = `${f.home} vs ${f.away}|${f.pick}`;
     const added = slip.add(f.home + ' vs ' + f.away, f.pick, f.odds, 'Best Pick');
-    if (btn) {
+    document.querySelectorAll('[data-fixture-add]').forEach(btn => {
+      if (btn.dataset.fixtureAdd !== String(f.id)) return;
       if (added === false) { btn.textContent = '+'; btn.classList.remove('added'); }
       else { btn.textContent = '✓'; btn.classList.add('added'); }
-    }
+    });
   },
 
   _showMatch(fxId) {
-    const f = this.FIXTURES.find(x => x.id === fxId);
+    const f = this.fixtures.find(x => String(x.id) === String(fxId));
     if (!f) return;
     this.currentMatch = f;
     this.currentMarketTab = Object.keys(f.markets)[0];
@@ -644,19 +804,20 @@ const appModule = {
       <div class="match-hero">
         <div class="match-league-badge">${esc(league.name)}</div>
         <div class="match-teams-title">${esc(f.home)} <span class="match-teams-vs">vs</span> ${esc(f.away)}</div>
-        <div class="match-meta">${esc(f.time)} · Today</div>
+        <div class="match-meta">${esc(f.time)} · ${esc(this._selectedDateISO())}</div>
       </div>
     `;
 
     this._buildMarketTabs(f);
-    this._renderMarkets(f, this.currentMarketTab);
+    if (this.currentMarketTab) this._renderMarkets(f, this.currentMarketTab);
+    else document.getElementById('matchMarkets').innerHTML = '<div class="empty-state"><p>No market decisions are available for this fixture yet.</p></div>';
     this.switchTab('match');
   },
 
   _buildMarketTabs(f) {
     const tabs = document.getElementById('marketTabs');
     tabs.innerHTML = '';
-    const marketLabels = { goals: 'Goals', btts: 'BTTS', corners: 'Corners', cards: 'Cards', moneyline: 'Moneyline' };
+    const marketLabels = { goals: 'Goals', btts: 'BTTS', corners: 'Corners', cards: 'Cards', sot: 'Shots on target', moneyline: 'Moneyline', spreads: 'Handicap' };
     Object.keys(f.markets).forEach(mk => {
       const btn = document.createElement('button');
       btn.className = 'market-tab' + (mk === this.currentMarketTab ? ' active' : '');
@@ -674,78 +835,98 @@ const appModule = {
   _renderMarkets(f, marketKey) {
     const lines = f.markets[marketKey] || [];
     const container = document.getElementById('matchMarkets');
-    const marketLabels = { goals: 'Goals', btts: 'BTTS', corners: 'Corners', cards: 'Cards', moneyline: 'Moneyline' };
+    const marketLabels = { goals: 'Goals', btts: 'BTTS', corners: 'Corners', cards: 'Cards', sot: 'Shots on target', moneyline: 'Moneyline', spreads: 'Handicap' };
+    if (!lines.length) {
+      container.innerHTML = '<div class="empty-state"><p>This market is not available for the fixture.</p></div>';
+      return;
+    }
     container.innerHTML = `
       <div class="market-card">
         <div class="market-card-header">
           <span class="market-card-title">${esc(marketLabels[marketKey] || marketKey)}</span>
         </div>
-        ${lines.map(line => {
-          const slipKey = f.id + '|' + line.pick;
+        ${lines.map((line, index) => {
+          const slipKey = `${f.home} vs ${f.away}|${line.pick}`;
           const inSlip = slip.legs.find(l => l.key === slipKey);
+          const confidence = line.rec ? `<span class="conf-badge ${esc(line.conf)}">${esc(line.conf.toUpperCase())}</span>` : '<span class="market-no-bet">NO BET</span>';
+          const edge = line.rec && line.edge !== null ? `<span class="value-badge ${line.edge > 6 ? 'strong' : 'good'}">+${esc(line.edge.toFixed(1))}%</span>` : '';
+          const addButton = line.rec && Number.isFinite(line.odds)
+            ? `<button class="market-add-btn${inSlip ? ' added' : ''}" data-market-add="${index}">${inSlip ? '✓ Added' : '+ Add'}</button>`
+            : '';
           return `<div class="market-line${line.rec ? ' recommended' : ''}">
             <div class="market-line-left">
               <span class="market-line-pick">${esc(line.pick)}</span>
               ${line.proj ? `<span class="market-line-proj">${esc(line.proj)}</span>` : ''}
-              ${line.conf ? `<span class="conf-badge ${esc(line.conf)}">${esc(line.conf.toUpperCase())}</span>` : ''}
-              ${line.edge > 0 ? `<span class="value-badge ${line.edge > 6 ? 'strong' : 'good'}">+${esc(String(line.edge))}%</span>` : ''}
+              ${confidence}
+              ${edge}
+              ${line.reason ? `<span class="market-line-reason">${esc(line.reason)}</span>` : ''}
             </div>
             <div class="market-line-right">
-              <span class="market-line-odds mono">${esc(String(line.odds))}</span>
-              <button class="market-add-btn${inSlip ? ' added' : ''}" data-slip-key="${esc(slipKey)}"
-                onclick="appModule._toggleSlipFromMarket(${parseInt(f.id)},'${esc(line.pick).replace(/'/g,"\\'")}',${parseFloat(line.odds)})">
-                ${inSlip ? '✓ Added' : '+ Add'}
-              </button>
+              <span class="market-line-odds mono">${line.odds ? esc(line.odds.toFixed(2)) : '—'}</span>
+              ${addButton}
             </div>
           </div>`;
         }).join('')}
       </div>
     `;
+    container.querySelectorAll('[data-market-add]').forEach(button => {
+      const line = lines[Number(button.dataset.marketAdd)];
+      button.addEventListener('click', () => this._toggleSlipFromMarket(f.id, line.pick, line.odds));
+    });
   },
 
   _toggleSlipFromMarket(fxId, pick, odds) {
-    const f = this.FIXTURES.find(x => x.id === fxId);
-    if (!f) return;
-    const slipKey = fxId + '|' + pick;
-    const btn = document.querySelector(`[data-slip-key="${slipKey}"]`);
+    const f = this.fixtures.find(x => String(x.id) === String(fxId));
+    if (!f || !Number.isFinite(odds)) return;
+    const slipKey = `${f.home} vs ${f.away}|${pick}`;
     const added = slip.add(f.home + ' vs ' + f.away, pick, odds, 'Market');
-    if (btn) {
+    document.querySelectorAll('[data-market-add]').forEach(btn => {
       if (added === false) { btn.textContent = '+ Add'; btn.classList.remove('added'); }
       else { btn.textContent = '✓ Added'; btn.classList.add('added'); }
-    }
+    });
   },
 
-  _buildBestBets() {
+  _renderBestBets(state = {}) {
     const container = document.getElementById('bestBetsContainer');
     if (!container) return;
-    const allPicks = [];
-    this.FIXTURES.forEach(f => {
-      Object.entries(f.markets).forEach(([mk, lines]) => {
-        lines.filter(l => l.rec && l.edge > 4).forEach(l => {
-          allPicks.push({ fixture: f, market: mk, line: l });
-        });
-      });
-    });
-    allPicks.sort((a, b) => b.line.edge - a.line.edge);
+    if (state.loading) {
+      container.innerHTML = '<div class="empty-state"><p>Ranking the clearest matchday opportunities…</p></div>';
+      return;
+    }
+    if (state.error) {
+      container.innerHTML = `<div class="error-state"><p>${esc(state.error)}</p><button class="retry-btn" onclick="appModule._loadMatchday()">Try again</button></div>`;
+      return;
+    }
+    if (!this.bestBets.length) {
+      container.innerHTML = '<div class="empty-state"><p>No medium- or high-confidence recommendations for this selection.</p><span class="empty-state-hint">No bet is a valid result when the current lines do not qualify.</span></div>';
+      return;
+    }
     const league = id => this.LEAGUES.find(l => l.id === id) || { name: id, color: '#666' };
-    container.innerHTML = allPicks.slice(0, 10).map(({ fixture: f, market, line }) => {
-      const slipKey = f.id + '|' + line.pick;
+    container.innerHTML = this.bestBets.map(f => {
+      const slipKey = `${f.home} vs ${f.away}|${f.pick}`;
       const inSlip = slip.legs.find(l => l.key === slipKey);
       return `<div class="fixture-row" style="cursor:pointer">
         <span class="fixture-num mono" style="background:${esc(league(f.league).color)};border-radius:3px;padding:2px 4px;font-size:9px;color:#fff">${esc(league(f.league).name)}</span>
         <div class="fixture-match">
           <div class="fixture-teams">${esc(f.home)} <span class="fixture-vs">vs</span> ${esc(f.away)}</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(line.pick)}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(f.pick)}</div>
         </div>
-        <span class="conf-badge ${esc(line.conf)}">${esc(line.conf.toUpperCase())}</span>
-        <span class="fixture-odds-val mono">${esc(String(line.odds))}</span>
-        <span class="fixture-edge mono edge-pos">+${esc(String(line.edge))}%</span>
-        <button class="fixture-add-btn${inSlip ? ' added' : ''}" data-slip-key="${esc(slipKey)}"
-          onclick="event.stopPropagation();appModule._toggleSlipFromMarket(${parseInt(f.id)},'${esc(line.pick).replace(/'/g,"\\'")}',${parseFloat(line.odds)})">
-          ${inSlip ? '✓' : '+'}
-        </button>
+        <span class="conf-badge ${esc(f.conf)}">${esc(f.conf.toUpperCase())}</span>
+        <span class="fixture-odds-val mono">${esc(f.odds.toFixed(2))}</span>
+        <span class="fixture-edge mono edge-pos">+${esc(f.edge.toFixed(1))}%</span>
+        <button class="fixture-add-btn${inSlip ? ' added' : ''}" data-best-bet-add="${esc(f.id)}">${inSlip ? '✓' : '+'}</button>
       </div>`;
     }).join('');
+    container.querySelectorAll('.fixture-row').forEach((row, index) => {
+      const fixture = this.bestBets[index];
+      row.addEventListener('click', () => this._showMatch(fixture.id));
+    });
+    container.querySelectorAll('[data-best-bet-add]').forEach(button => {
+      button.addEventListener('click', event => {
+        event.stopPropagation();
+        this._toggleSlipFromFixture(button.dataset.bestBetAdd);
+      });
+    });
   }
 };
 
