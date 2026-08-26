@@ -1,0 +1,88 @@
+{
+  "baseline_revision": 1,
+  "baseline_reason": "Initial synthetic selector/delivery baseline. It protects common priced recommendations across goals, BTTS, and moneyline.",
+  "input_snapshot_id": "synthetic:priced-standard:v1",
+  "generated_at": "2026-08-22T12:00:00Z",
+  "fixture_date": "2026-09-01",
+  "league": "EPL",
+  "markets": ["goals", "btts", "moneyline"],
+  "event": {
+    "id": "synthetic-priced-001",
+    "home_team": "Arsenal",
+    "away_team": "Chelsea",
+    "commence_time": "2026-09-01T15:00:00Z",
+    "bookmakers": [{
+      "title": "Synthetic Book",
+      "markets": [
+        {"key": "totals", "outcomes": [
+          {"name": "Over", "point": 2.5, "price": 2.05},
+          {"name": "Under", "point": 2.5, "price": 1.80}
+        ]},
+        {"key": "btts", "outcomes": [
+          {"name": "Yes", "price": 1.95},
+          {"name": "No", "price": 1.95}
+        ]},
+        {"key": "h2h", "outcomes": [
+          {"name": "Arsenal", "price": 2.10},
+          {"name": "Draw", "price": 3.60},
+          {"name": "Chelsea", "price": 3.80}
+        ]}
+      ]
+    }]
+  },
+  "projection_overrides": {
+    "projected_total_goals": [3.2, 3.0, 3.4],
+    "projected_btts_prob": [0.64, 1.8, 1.4, 1.7, 1.3],
+    "projected_moneyline_probs": [0.55, 0.24, 0.21, 1.8, 1.0]
+  },
+  "expected": {
+    "goals": {
+      "market": {"group": "goals", "key": "totals", "unit": "goals"},
+      "projection": {"value": 3.2, "season_component": 3.0, "recent_component": 3.4},
+      "decision": {
+        "status": "recommended",
+        "quote": {"side": "over", "line": 2.5, "odds": 2.05, "bookmaker": "Synthetic Book", "market_key": "totals"},
+        "model_probability": 0.6200962589216268,
+        "implied_probability": 0.4675324675324676,
+        "value_edge": 0.1525637913891592,
+        "expected_value": 0.2711973307893347,
+        "confidence": "medium",
+        "reason": null
+      },
+      "provenance": {"pipeline_version": "core-market-service.v1", "input_snapshot_id": "synthetic:priced-standard:v1", "model_version": "recorded-synthetic-v1", "as_of": "2026-09-01"},
+      "evidence_codes": ["projection_components"]
+    },
+    "btts": {
+      "market": {"group": "btts", "key": "btts", "unit": "probability"},
+      "projection": {"value": 0.64, "season_component": null, "recent_component": null},
+      "decision": {
+        "status": "recommended",
+        "quote": {"side": "yes", "line": null, "odds": 1.95, "bookmaker": "Synthetic Book", "market_key": "btts"},
+        "model_probability": 0.64,
+        "implied_probability": 0.5,
+        "value_edge": 0.14,
+        "expected_value": 0.248,
+        "confidence": "medium",
+        "reason": null
+      },
+      "provenance": {"pipeline_version": "core-market-service.v1", "input_snapshot_id": "synthetic:priced-standard:v1", "model_version": "recorded-synthetic-v1", "as_of": "2026-09-01"},
+      "evidence_codes": ["btts_goal_split"]
+    },
+    "moneyline": {
+      "market": {"group": "moneyline", "key": "moneyline", "unit": "probability"},
+      "projection": {"value": 0.55, "season_component": null, "recent_component": null},
+      "decision": {
+        "status": "recommended",
+        "quote": {"side": "home", "line": null, "odds": 2.1, "bookmaker": "Synthetic Book", "market_key": null},
+        "model_probability": 0.55,
+        "implied_probability": 0.4681724845995893,
+        "value_edge": 0.08182751540041072,
+        "expected_value": 0.15500000000000025,
+        "confidence": "medium",
+        "reason": null
+      },
+      "provenance": {"pipeline_version": "core-market-service.v1", "input_snapshot_id": "synthetic:priced-standard:v1", "model_version": "recorded-synthetic-v1", "as_of": "2026-09-01"},
+      "evidence_codes": ["moneyline_probabilities"]
+    }
+  }
+}

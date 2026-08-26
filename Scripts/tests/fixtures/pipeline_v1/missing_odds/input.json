@@ -1,0 +1,37 @@
+{
+  "baseline_revision": 1,
+  "baseline_reason": "Initial synthetic coverage baseline. A valid moneyline model with no market price is unavailable, not a no-bet or model-only recommendation.",
+  "input_snapshot_id": "synthetic:missing-odds:v1",
+  "generated_at": "2026-08-22T12:00:00Z",
+  "fixture_date": "2026-09-01",
+  "league": "EPL",
+  "markets": ["moneyline"],
+  "event": {
+    "id": "synthetic-missing-odds-001",
+    "home_team": "Home FC",
+    "away_team": "Away FC",
+    "commence_time": "2026-09-01T20:00:00Z",
+    "bookmakers": []
+  },
+  "projection_overrides": {
+    "projected_moneyline_probs": [0.55, 0.24, 0.21, 1.8, 1.0]
+  },
+  "expected": {
+    "moneyline": {
+      "market": {"group": "moneyline", "key": "moneyline", "unit": "probability"},
+      "projection": {"value": 0.55, "season_component": null, "recent_component": null},
+      "decision": {
+        "status": "unavailable",
+        "quote": null,
+        "model_probability": null,
+        "implied_probability": null,
+        "value_edge": null,
+        "expected_value": null,
+        "confidence": null,
+        "reason": "No market prices are available for this moneyline fixture."
+      },
+      "provenance": {"pipeline_version": "core-market-service.v1", "input_snapshot_id": "synthetic:missing-odds:v1", "model_version": "recorded-synthetic-v1", "as_of": "2026-09-01"},
+      "evidence_codes": ["moneyline_probabilities"]
+    }
+  }
+}

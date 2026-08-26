@@ -6,6 +6,7 @@ import sys
 import unittest
 from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -103,6 +104,40 @@ class MarketDeliveryTests(unittest.TestCase):
         self.assertEqual(prediction.moneyline.status, "no_bet")
         self.assertIsNone(prediction.moneyline.recommended)
         self.assertEqual(prediction.market_results[0]["schema_version"], "market_result.v1")
+
+    def test_discord_bet_cards_read_result_fields_directly(self):
+        # The direct renderer must not need the legacy text parser to build a
+        # recommendation card.  Disable logo/composite I/O for this pure test.
+        from Scripts.discord_bot import embeds
+
+        class _Embed:
+            def __init__(self, **kwargs):
+                self.title = kwargs.get("title")
+                self.fields = []
+
+            def set_author(self, **_kwargs):
+                pass
+
+            def set_thumbnail(self, **_kwargs):
+                pass
+
+            def set_footer(self, **_kwargs):
+                pass
+
+            def add_field(self, **kwargs):
+                self.fields.append(SimpleNamespace(**kwargs))
+
+        with mock.patch.object(embeds, "get_matchup_file", return_value=None), \
+             mock.patch.object(embeds, "_get_league_logo", return_value=None), \
+             mock.patch.object(embeds.discord, "Embed", _Embed):
+            cards, files = embeds.market_results_to_embeds("Goals", [_result()], league="EPL")
+
+        self.assertEqual(files, [])
+        self.assertEqual(len(cards), 2)  # one header plus the fixture card
+        fields = {field.name: field.value for field in cards[1].fields}
+        self.assertEqual(fields["📋 Pick"], "**Over 2.5**")
+        self.assertEqual(fields["📊 Model"], "62.0%")
+        self.assertEqual(fields["📈 Edge"], "+10.7%")
 
 
 if __name__ == "__main__":

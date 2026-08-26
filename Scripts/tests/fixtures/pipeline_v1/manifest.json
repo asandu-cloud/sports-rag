@@ -1,0 +1,11 @@
+{
+  "schema_version": "pipeline-regression.v1",
+  "recording_policy": "synthetic_selector_delivery",
+  "recording_policy_note": "These deterministic scenarios freeze normalized odds and projection outputs while archived provider/profile snapshots are unavailable. They exercise the canonical selector and delivery boundary only; replace or supplement them with archived recordings before model tuning.",
+  "scenarios": [
+    "priced_standard",
+    "no_bet",
+    "missing_odds",
+    "insufficient_profile"
+  ]
+}

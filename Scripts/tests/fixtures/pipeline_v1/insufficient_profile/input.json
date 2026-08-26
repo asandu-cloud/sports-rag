@@ -1,0 +1,43 @@
+{
+  "baseline_revision": 1,
+  "baseline_reason": "Initial synthetic safe-degradation baseline. Missing team profile data must not result in a priced recommendation.",
+  "input_snapshot_id": "synthetic:insufficient-profile:v1",
+  "generated_at": "2026-08-22T12:00:00Z",
+  "fixture_date": "2026-09-01",
+  "league": "EPL",
+  "markets": ["goals"],
+  "event": {
+    "id": "synthetic-missing-profile-001",
+    "home_team": "Unknown Home",
+    "away_team": "Unknown Away",
+    "commence_time": "2026-09-01T20:00:00Z",
+    "bookmakers": [{
+      "title": "Synthetic Book",
+      "markets": [{"key": "totals", "outcomes": [
+        {"name": "Over", "point": 2.5, "price": 2.05},
+        {"name": "Under", "point": 2.5, "price": 1.80}
+      ]}]
+    }]
+  },
+  "projection_overrides": {
+    "projected_total_goals": [null, null, null]
+  },
+  "expected": {
+    "goals": {
+      "market": {"group": "goals", "key": "totals", "unit": "goals"},
+      "projection": {"value": null, "season_component": null, "recent_component": null},
+      "decision": {
+        "status": "unavailable",
+        "quote": null,
+        "model_probability": null,
+        "implied_probability": null,
+        "value_edge": null,
+        "expected_value": null,
+        "confidence": null,
+        "reason": "Insufficient profile data to project this market."
+      },
+      "provenance": {"pipeline_version": "core-market-service.v1", "input_snapshot_id": "synthetic:insufficient-profile:v1", "model_version": "recorded-synthetic-v1", "as_of": "2026-09-01"},
+      "evidence_codes": []
+    }
+  }
+}
