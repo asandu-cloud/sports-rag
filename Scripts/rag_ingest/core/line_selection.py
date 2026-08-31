@@ -28,12 +28,14 @@ except ImportError:
 try:
     from prob_models import (
         over_prob, under_prob, implied_prob, remove_vig_two_way,
-        value_edge, expected_value,
+        value_edge, expected_value, asian_total_equivalent_probability,
+        asian_total_expected_value, asian_total_settlement_profile,
     )
 except ImportError:
     from Scripts.rag_ingest.prob_models import (  # type: ignore[import]
         over_prob, under_prob, implied_prob, remove_vig_two_way,
-        value_edge, expected_value,
+        value_edge, expected_value, asian_total_equivalent_probability,
+        asian_total_expected_value, asian_total_settlement_profile,
     )
 
 try:
@@ -126,10 +128,10 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
     best_value = None
     best_value_score = None
     for opt in options_use:
-        side = str(opt.get("side") or "")
+        side = str(opt.get("side") or "").lower().strip()
         point = safe_float(opt.get("point"))
         odds = safe_float(opt.get("odds"))
-        if point is None or odds is None:
+        if side not in {"over", "under"} or point is None or odds is None:
             continue
         edge = projection_total - point if side == "over" else point - projection_total
 
@@ -149,12 +151,14 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
             far_penalty = (dist - tw["far_threshold"]) * tw["far_penalty"]
 
         # --- Probability-aware scoring (vig-adjusted) ---
-        model_p = (over_prob(projection_total, point, combined_var) if side == "over"
-                   else under_prob(projection_total, point, combined_var))
+        settlement_profile = asian_total_settlement_profile(
+            projection_total, point, side, combined_var,
+        )
+        model_p = asian_total_equivalent_probability(settlement_profile)
         fair_key = (str(opt.get("bookmaker") or ""), point, side.lower())
         implied_p = _fair_implied.get(fair_key) or implied_prob(odds)
         val_edge = value_edge(model_p, implied_p)
-        ev = expected_value(model_p, odds)
+        ev = asian_total_expected_value(settlement_profile, odds)
 
         prob_term = val_edge * pw["value_edge_weight"]
         ev_penalty = abs(ev) * pw["negative_ev_penalty"] if ev < 0 else 0.0
@@ -167,7 +171,15 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
         if odds < tw["min_odds_preferred"]:
             min_model_prob += tw.get("short_price_extra_model_prob", 0.02)
             min_ev += tw.get("short_price_extra_ev", 0.01)
-        eligible = bool(model_p >= min_model_prob and val_edge >= min_edge and ev >= min_ev)
+        # A one-sided price cannot be vig-adjusted.  It remains visible as a
+        # model/price comparison, but cannot become a public recommendation.
+        has_vig_free_pair = fair_key in _fair_implied
+        eligible = bool(
+            has_vig_free_pair
+            and model_p >= min_model_prob
+            and val_edge >= min_edge
+            and ev >= min_ev
+        )
 
         score = (edge_term - proximity_penalty + odds_term - far_penalty
                  + prob_term - ev_penalty + model_prob_bonus)
@@ -177,6 +189,9 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
         opt["_implied_prob"] = implied_p
         opt["_value_edge"] = val_edge
         opt["_ev"] = ev
+        opt["_settlement_profile"] = settlement_profile
+        opt["_probability_basis"] = "asian_equivalent_non_push"
+        opt["_vig_adjusted_pair"] = has_vig_free_pair
         opt["_eligible"] = eligible
         opt["_score"] = score
 
@@ -191,6 +206,8 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
     if best is None:
         if best_value is None:
             no_bet_reason = "No valid totals lines remained after filtering."
+        elif not best_value.get("_vig_adjusted_pair"):
+            no_bet_reason = "Best totals line has no paired opposite price for a vig-adjusted comparison."
         elif best_value.get("_ev", -1.0) < tw.get("min_ev", 0.02):
             no_bet_reason = "Best totals line does not clear the minimum EV threshold."
         elif best_value.get("_value_edge", -1.0) < tw.get("min_value_edge", pw.get("min_value_edge", 0.02)):
@@ -525,7 +542,8 @@ def select_best_spread_recommendation(
         profile = matrix_profile or _normal_spread_profile(sign * projected_diff, margin_std, point)
         ev = _spread_expected_value(profile, odds)
         model_p = _equivalent_binary_prob(ev, odds)
-        implied_p = _get_sp_fair(str(opt.get("bookmaker") or ""), point, team) or implied_prob(odds)
+        fair_implied = _get_sp_fair(str(opt.get("bookmaker") or ""), point, team)
+        implied_p = fair_implied if fair_implied is not None else implied_prob(odds)
         val_edge = value_edge(model_p, implied_p)
 
         edge_term = goal_edge * sw["edge_weight"]
@@ -549,8 +567,10 @@ def select_best_spread_recommendation(
             min_model_prob += sw.get("short_price_extra_model_prob", 0.02)
             min_ev += sw.get("short_price_extra_ev", 0.01)
 
+        has_vig_free_pair = fair_implied is not None
         eligible = bool(
-            model_p >= min_model_prob
+            has_vig_free_pair
+            and model_p >= min_model_prob
             and val_edge >= min_edge
             and ev >= min_ev
             and abs(goal_edge) >= sw.get("min_goal_edge", 0.18)
@@ -574,6 +594,7 @@ def select_best_spread_recommendation(
         opt["_push_prob"] = profile["push"]
         opt["_positive_return_prob"] = profile["full_win"] + profile["half_win"]
         opt["_settlement_profile"] = profile
+        opt["_vig_adjusted_pair"] = has_vig_free_pair
         opt["_eligible"] = eligible
         opt["_score"] = score
 
@@ -589,6 +610,8 @@ def select_best_spread_recommendation(
     if best is None:
         if best_value is None:
             no_bet_reason = "No valid spread lines remained after filtering."
+        elif not best_value.get("_vig_adjusted_pair"):
+            no_bet_reason = "Best spread price has no paired opposite-side quote for vig adjustment."
         elif best_value.get("_ev", -1.0) < sw.get("min_ev", 0.015):
             no_bet_reason = "Best spread line does not clear the minimum EV threshold."
         elif best_value.get("_value_edge", -1.0) < sw.get("min_value_edge", 0.015):
@@ -669,7 +692,8 @@ def select_best_btts_recommendation(options: List[Dict], p_btts_yes: float) -> D
 
         model_p = p_btts_yes if side == "yes" else (1.0 - p_btts_yes)
         bm = str(opt.get("bookmaker") or "")
-        implied_p = _fair_implied.get((bm, side)) or implied_prob(odds)
+        fair_implied = _fair_implied.get((bm, side))
+        implied_p = fair_implied if fair_implied is not None else implied_prob(odds)
         val_edge = value_edge(model_p, implied_p)
         ev = expected_value(model_p, odds)
 
@@ -690,8 +714,12 @@ def select_best_btts_recommendation(options: List[Dict], p_btts_yes: float) -> D
         min_model_prob = bw.get("min_model_prob", 0.56)
         min_edge = bw.get("min_value_edge", pw.get("min_value_edge", 0.02))
         min_ev = bw.get("min_ev", 0.02)
+        # A single BTTS quote has no reliable fair-price reference. Keep it
+        # in diagnostics, but never turn raw implied odds into a public pick.
+        has_vig_free_pair = fair_implied is not None
         eligible = bool(
-            model_p >= min_model_prob
+            has_vig_free_pair
+            and model_p >= min_model_prob
             and val_edge >= min_edge
             and ev >= min_ev
             and side == model_preferred_side
@@ -701,6 +729,7 @@ def select_best_btts_recommendation(options: List[Dict], p_btts_yes: float) -> D
         opt["_implied_prob"] = implied_p
         opt["_value_edge"] = val_edge
         opt["_ev"] = ev
+        opt["_vig_adjusted_pair"] = has_vig_free_pair
         opt["_eligible"] = eligible
         opt["_score"] = score
 
@@ -715,6 +744,8 @@ def select_best_btts_recommendation(options: List[Dict], p_btts_yes: float) -> D
     if best is None:
         if best_value is None:
             no_bet_reason = "No valid BTTS lines remained after filtering."
+        elif not best_value.get("_vig_adjusted_pair"):
+            no_bet_reason = "Best BTTS price has no paired opposite-side quote for vig adjustment."
         elif best_value.get("_ev", -1.0) < bw.get("min_ev", 0.02):
             no_bet_reason = "Best BTTS side does not clear the minimum EV threshold."
         elif best_value.get("_value_edge", -1.0) < bw.get("min_value_edge", pw.get("min_value_edge", 0.02)):
@@ -794,19 +825,45 @@ def choose_best_moneyline_side(
     team_labels = {"home": home, "draw": "Draw", "away": away}
     mw = SCORING_WEIGHTS.get("moneyline_selection", {})
 
-    # Group odds by side, pick best (highest) per side
+    # Removing 1X2 vig only makes sense when all three outcomes come from the
+    # same bookmaker. Mixing the best home/draw/away prices across books is
+    # useful for display, but it is not a coherent market price.
+    by_bookmaker: Dict[str, Dict[str, Dict]] = {}
+    for raw_entry in market_odds:
+        side = str(raw_entry.get("side") or "").lower().strip()
+        bookmaker = str(raw_entry.get("bookmaker") or "")
+        odds = safe_float(raw_entry.get("odds"))
+        if side not in ("home", "draw", "away") or odds is None or odds <= 1.0:
+            continue
+        existing = by_bookmaker.setdefault(bookmaker, {}).get(side)
+        if existing is None or odds > existing["odds"]:
+            by_bookmaker[bookmaker][side] = {
+                **raw_entry, "side": side, "bookmaker": bookmaker, "odds": odds,
+            }
+
+    fair_by_bookmaker: Dict[Tuple[str, str], float] = {}
+    for bookmaker, sides in by_bookmaker.items():
+        if not all(side in sides for side in ("home", "draw", "away")):
+            continue
+        raw_probs = {
+            side: 1.0 / sides[side]["odds"]
+            for side in ("home", "draw", "away")
+        }
+        total_raw_prob = sum(raw_probs.values())
+        if total_raw_prob > 0:
+            for side, raw_prob in raw_probs.items():
+                fair_by_bookmaker[(bookmaker, side)] = raw_prob / total_raw_prob
+
+    # Preserve the best raw quote as a diagnostic fallback when the feed is
+    # incomplete. A recommendation must use one of the complete books above.
     best_per_side: Dict[str, Dict] = {}
     for entry in market_odds:
-        s = entry["side"]
-        if s not in best_per_side or entry["odds"] > best_per_side[s]["odds"]:
-            best_per_side[s] = entry
-
-    # Remove vig (3-way proportional)
-    fair_probs: Dict[str, float] = {}
-    if all(s in best_per_side for s in ("home", "draw", "away")):
-        raw = {s: 1.0 / best_per_side[s]["odds"] for s in ("home", "draw", "away")}
-        total = sum(raw.values())
-        fair_probs = {s: raw[s] / total for s in ("home", "draw", "away")}
+        s = str(entry.get("side") or "").lower().strip()
+        odds = safe_float(entry.get("odds"))
+        if s not in ("home", "draw", "away") or odds is None or odds <= 1.0:
+            continue
+        if s not in best_per_side or odds > safe_float(best_per_side[s].get("odds")):
+            best_per_side[s] = {**entry, "side": s, "odds": odds}
 
     candidates: List[Dict] = []
     for side in ("home", "draw", "away"):
@@ -821,14 +878,28 @@ def choose_best_moneyline_side(
             "value_edge": None,
             "ev": None,
         }
-        if side in best_per_side:
+        paired_quotes = [
+            quote
+            for bookmaker, sides in by_bookmaker.items()
+            for quote_side, quote in sides.items()
+            if quote_side == side and (bookmaker, side) in fair_by_bookmaker
+        ]
+        if paired_quotes:
+            bps = max(paired_quotes, key=lambda quote: quote["odds"])
+            fair_implied = fair_by_bookmaker[(bps["bookmaker"], side)]
+        elif side in best_per_side:
             bps = best_per_side[side]
+            fair_implied = None
+        else:
+            bps = None
+            fair_implied = None
+        if bps is not None:
             entry["best_odds"] = bps["odds"]
             entry["bookmaker"] = bps["bookmaker"]
             entry["implied_prob"] = implied_prob(bps["odds"])
-            if side in fair_probs:
-                entry["fair_implied"] = fair_probs[side]
-                entry["value_edge"] = model_probs[side] - fair_probs[side]
+            if fair_implied is not None:
+                entry["fair_implied"] = fair_implied
+                entry["value_edge"] = model_probs[side] - fair_implied
             else:
                 entry["value_edge"] = value_edge(model_probs[side], entry["implied_prob"])
             entry["ev"] = expected_value(model_probs[side], bps["odds"])
@@ -858,8 +929,9 @@ def choose_best_moneyline_side(
         ev_val = c["ev"]
         odds = c["best_odds"]
 
-        if odds is None or ve is None or ev_val is None:
+        if odds is None or ve is None or ev_val is None or c["fair_implied"] is None:
             c["_eligible"] = False
+            c["_vig_adjusted_pair"] = False
             continue
 
         min_prob = mw.get(
@@ -890,6 +962,7 @@ def choose_best_moneyline_side(
             draw_penalty = 0.5
 
         score = conviction + edge_bonus - ev_penalty - draw_penalty
+        c["_vig_adjusted_pair"] = True
         c["_eligible"] = bool(model_p >= min_prob and ve >= min_edge and ev_val >= min_ev)
         c["_score"] = score
 
@@ -900,6 +973,8 @@ def choose_best_moneyline_side(
     if best is None:
         if best_value is None:
             no_bet_reason = "No priced side cleared the moneyline filters."
+        elif best_value.get("fair_implied") is None:
+            no_bet_reason = "Best moneyline price has no complete same-bookmaker 1X2 set for vig adjustment."
         elif (best_value.get("best_odds") or 0.0) >= mw.get("longshot_odds_threshold", 4.5) and best_value["model_prob"] < mw.get("longshot_min_model_prob", 0.20):
             no_bet_reason = "Longshot value is positive, but the win probability is too low."
         elif best_value.get("ev") is not None and best_value["ev"] < mw.get("min_ev", 0.05):

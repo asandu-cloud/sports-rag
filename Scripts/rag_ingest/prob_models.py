@@ -6,8 +6,8 @@ corners, cards, SoT), implied probability extraction from bookmaker odds,
 expected value, value edge, and Kelly criterion.
 """
 
-from math import exp, lgamma, log
-from typing import Optional, Tuple
+from math import ceil, exp, lgamma, log, sqrt
+from typing import Dict, List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
 # Poisson distribution
@@ -96,8 +96,170 @@ def over_prob(lam: float, line: float,
 
 def under_prob(lam: float, line: float,
                variance: Optional[float] = None) -> float:
-    """P(X < line).  Complement of over_prob."""
-    return 1.0 - over_prob(lam, line, variance)
+    """P(X < line), excluding pushes on whole-number lines."""
+    if lam <= 0:
+        return 1.0 if line > 0 else 0.0
+    # ``ceil(line) - 1`` gives <= 2 for both an Under 2.5 and an
+    # Under 3.0.  The latter intentionally excludes the push at exactly 3.
+    threshold = ceil(line) - 1
+    if variance is not None and variance > lam:
+        r, p = negbin_from_mean_var(lam, variance)
+        return negbin_cdf(threshold, r, p)
+    return poisson_cdf(threshold, lam)
+
+
+# ---------------------------------------------------------------------------
+# Asian totals settlement
+# ---------------------------------------------------------------------------
+
+def _count_pmf(k: int, mean: float, variance: Optional[float]) -> float:
+    if variance is not None and variance > mean:
+        r, p = negbin_from_mean_var(mean, variance)
+        return negbin_pmf(k, r, p)
+    return poisson_pmf(k, mean)
+
+
+def _asian_total_sub_lines(line: float) -> List[float]:
+    """Split an Asian quarter total into its two half-stake component lines."""
+    line = round(float(line) * 4.0) / 4.0
+    whole = int(line)
+    fraction = round(line - whole, 2)
+    if abs(fraction - 0.25) < 0.01:
+        return [float(whole), float(whole) + 0.5]
+    if abs(fraction - 0.75) < 0.01:
+        return [float(whole) + 0.5, float(whole) + 1.0]
+    return [line]
+
+
+def _asian_total_single_outcome(total: int, line: float, side: str) -> str:
+    side = str(side or "").lower().strip()
+    if side not in {"over", "under"}:
+        raise ValueError(f"Unsupported totals side: {side!r}")
+    if side == "over":
+        if total > line:
+            return "win"
+        if total < line:
+            return "loss"
+        return "push"
+    if total < line:
+        return "win"
+    if total > line:
+        return "loss"
+    return "push"
+
+
+def _asian_total_bucket(total: int, line: float, side: str) -> str:
+    outcomes = [_asian_total_single_outcome(total, sub_line, side)
+                for sub_line in _asian_total_sub_lines(line)]
+    if len(outcomes) == 1:
+        return {"win": "full_win", "loss": "full_loss", "push": "push"}[outcomes[0]]
+
+    wins = outcomes.count("win")
+    losses = outcomes.count("loss")
+    pushes = outcomes.count("push")
+    if wins == 2:
+        return "full_win"
+    if losses == 2:
+        return "full_loss"
+    if pushes == 2:
+        return "push"
+    if wins == 1 and pushes == 1:
+        return "half_win"
+    if losses == 1 and pushes == 1:
+        return "half_loss"
+    # A valid quarter line cannot produce a one-win/one-loss split.  Keep the
+    # fallback conservative if malformed provider data ever reaches here.
+    return "push"
+
+
+def asian_total_settlement_outcome(total: int, line: float, side: str) -> str:
+    """Settle an observed total against an Asian line.
+
+    Returns one of ``full_win``, ``half_win``, ``push``, ``half_loss`` or
+    ``full_loss``. The prediction tracker uses this same settlement vocabulary
+    as the probability/EV model, preventing a 2.75-line result of exactly
+    three from being recorded as a full win.
+    """
+    try:
+        observed_total = int(total)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Asian total settlement requires an integer observed total.") from exc
+    return _asian_total_bucket(observed_total, float(line), side)
+
+
+def _asian_total_max_count(mean: float, variance: Optional[float], line: float) -> int:
+    dispersion = max(float(variance or mean), mean, 1.0)
+    return min(500, max(40, int(ceil(mean + 12.0 * sqrt(dispersion) + 8.0)), int(ceil(line)) + 8))
+
+
+def asian_total_settlement_profile(
+    mean: float,
+    line: float,
+    side: str,
+    variance: Optional[float] = None,
+) -> Dict[str, float]:
+    """Return full/half win, push, and loss probabilities for an Asian total.
+
+    The profile is based on the same count distribution as the existing totals
+    model, but it settles whole and quarter lines correctly.  The residual tail
+    above the finite calculation window is allocated using that tail's outcome
+    bucket, so all returned probabilities sum to one.
+    """
+    profile = {
+        "full_win": 0.0,
+        "half_win": 0.0,
+        "push": 0.0,
+        "half_loss": 0.0,
+        "full_loss": 0.0,
+    }
+    if mean <= 0:
+        profile[_asian_total_bucket(0, line, side)] = 1.0
+        return profile
+
+    max_count = _asian_total_max_count(mean, variance, line)
+    assigned = 0.0
+    for total in range(max_count + 1):
+        probability = _count_pmf(total, mean, variance)
+        assigned += probability
+        profile[_asian_total_bucket(total, line, side)] += probability
+
+    tail = max(0.0, 1.0 - assigned)
+    if tail:
+        profile[_asian_total_bucket(max_count + 1, line, side)] += tail
+
+    total_probability = sum(profile.values())
+    if total_probability > 0:
+        for key in profile:
+            profile[key] /= total_probability
+    return profile
+
+
+def asian_total_expected_value(profile: Dict[str, float], decimal_odds: float) -> float:
+    """Expected net return per unit stake under Asian total settlement rules."""
+    if decimal_odds <= 1.0:
+        return -1.0
+    win_profit = decimal_odds - 1.0
+    return (
+        profile.get("full_win", 0.0) * win_profit
+        + profile.get("half_win", 0.0) * win_profit * 0.5
+        - profile.get("half_loss", 0.0) * 0.5
+        - profile.get("full_loss", 0.0)
+    )
+
+
+def asian_total_equivalent_probability(profile: Dict[str, float]) -> float:
+    """Return the no-push equivalent probability used for price comparison.
+
+    It is the win-stake fraction divided by the resolved win-or-loss stake
+    fraction.  For a half line this is ordinary win probability; on Asian
+    lines it correctly excludes returned stake and half-settlement effects.
+    """
+    win_fraction = profile.get("full_win", 0.0) + 0.5 * profile.get("half_win", 0.0)
+    loss_fraction = profile.get("full_loss", 0.0) + 0.5 * profile.get("half_loss", 0.0)
+    resolved = win_fraction + loss_fraction
+    if resolved <= 0:
+        return 0.5
+    return max(0.0, min(1.0, win_fraction / resolved))
 
 
 def interval_prob(lam: float, low: int, high: int,

@@ -7,7 +7,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "rag_ingest"))
 
 from core.line_selection import (
+    choose_best_moneyline_side,
     select_best_btts_recommendation,
+    select_best_spread_recommendation,
     select_best_total_recommendation,
 )
 
@@ -49,6 +51,43 @@ class MarketSelectionTests(unittest.TestCase):
         result = select_best_btts_recommendation(options, p_btts_yes=0.64)
         self.assertIsNotNone(result["bet_recommendation"])
         self.assertEqual(result["bet_recommendation"]["side"], "yes")
+
+    def test_btts_requires_a_yes_no_price_pair_before_recommending(self):
+        result = select_best_btts_recommendation(
+            [{"side": "yes", "odds": 2.10, "bookmaker": "Book", "market_key": "btts"}],
+            p_btts_yes=0.70,
+        )
+
+        self.assertIsNone(result["bet_recommendation"])
+        self.assertIn("paired opposite-side quote", result["no_bet_reason"])
+
+    def test_moneyline_requires_a_complete_same_bookmaker_price_set(self):
+        result = choose_best_moneyline_side(
+            0.55,
+            0.25,
+            0.20,
+            [
+                {"side": "home", "odds": 2.30, "bookmaker": "Book A"},
+                {"side": "draw", "odds": 3.50, "bookmaker": "Book B"},
+                {"side": "away", "odds": 4.20, "bookmaker": "Book B"},
+            ],
+            "Home",
+            "Away",
+        )
+
+        self.assertIsNone(result["bet_recommendation"])
+        self.assertIn("complete same-bookmaker 1X2", result["no_bet_reason"])
+
+    def test_spread_requires_a_paired_opposite_line_before_recommending(self):
+        result = select_best_spread_recommendation(
+            [{"team": "Home", "point": -0.5, "odds": 2.20, "bookmaker": "Book"}],
+            projected_diff=1.3,
+            home_team="Home",
+            away_team="Away",
+        )
+
+        self.assertIsNone(result["bet_recommendation"])
+        self.assertIn("paired opposite-side quote", result["no_bet_reason"])
 
 
 if __name__ == "__main__":

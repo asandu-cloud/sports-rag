@@ -318,6 +318,13 @@ def _resolve_league_context(
         return None
 
 
+def _profile_as_of(team: str, league: str, fixture_date: Optional[str] = None) -> Dict:
+    """Keep legacy callers two-argument compatible while dated calls are safe."""
+    if fixture_date:
+        return _profile_meta(team, league, target_date=fixture_date)
+    return _profile_meta(team, league)
+
+
 def _extract_card_risk_context(home_risk, away_risk) -> Optional[Dict]:
     if home_risk is None or away_risk is None:
         return None
@@ -373,8 +380,8 @@ def compute_stat_confidence(
         return "low"
 
     # General stat confidence: based on sample size and profile data availability
-    hm = _profile_meta(home, league)
-    am = _profile_meta(away, league)
+    hm = _profile_as_of(home, league, fixture_date)
+    am = _profile_as_of(away, league, fixture_date)
     has_profiles = bool(hm) and bool(am)
 
     if has_profiles and n_home >= 8 and n_away >= 8:
@@ -609,8 +616,8 @@ def projected_team_goals(
     away_name = opponent if is_home else team
     league_ctx = _resolve_league_context(home_name, away_name, league,
                                           league_ctx=league_ctx, fixture_date=fixture_date)
-    hm = _profile_meta(home_name, league)
-    am = _profile_meta(away_name, league)
+    hm = _profile_as_of(home_name, league, fixture_date)
+    am = _profile_as_of(away_name, league, fixture_date)
 
     h_proj, a_proj = projected_goals(hm, am)
     season_proj = h_proj if is_home else a_proj
@@ -647,8 +654,8 @@ def projected_total_sot(
     fixture_date: Optional[str] = None,
 ) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     league_ctx = _resolve_league_context(home, away, league, league_ctx=league_ctx, fixture_date=fixture_date)
-    hm = _profile_meta(home, league)
-    am = _profile_meta(away, league)
+    hm = _profile_as_of(home, league, fixture_date)
+    am = _profile_as_of(away, league, fixture_date)
     h_proj, a_proj = projected_sot(hm, am)
     season_total = (h_proj + a_proj) if (h_proj is not None and a_proj is not None) else None
 
@@ -699,8 +706,8 @@ def projected_total_corners(
     fixture_date: Optional[str] = None,
 ) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     league_ctx = _resolve_league_context(home, away, league, league_ctx=league_ctx, fixture_date=fixture_date)
-    hm = _profile_meta(home, league)
-    am = _profile_meta(away, league)
+    hm = _profile_as_of(home, league, fixture_date)
+    am = _profile_as_of(away, league, fixture_date)
     h_proj, a_proj = projected_corners(hm, am)
     season_total = (h_proj + a_proj) if (h_proj is not None and a_proj is not None) else None
 
@@ -775,8 +782,8 @@ def projected_total_cards_detail(
     cyr = SCORING_WEIGHTS.get("cards_yellow_red_split", {})
     ccf = SCORING_WEIGHTS.get("cards_confidence", {})
     league_ctx = _resolve_league_context(home, away, league, league_ctx=league_ctx, fixture_date=fixture_date)
-    hm = _profile_meta(home, league)
-    am = _profile_meta(away, league)
+    hm = _profile_as_of(home, league, fixture_date)
+    am = _profile_as_of(away, league, fixture_date)
 
     warnings: list = []
 
@@ -1033,8 +1040,8 @@ def projected_team_corners_detail(
     away_name = opponent if is_home else team
     league_ctx = _resolve_league_context(home_name, away_name, league,
                                           league_ctx=league_ctx, fixture_date=fixture_date)
-    hm = _profile_meta(team if is_home else opponent, league)
-    am = _profile_meta(opponent if is_home else team, league)
+    hm = _profile_as_of(team if is_home else opponent, league, fixture_date)
+    am = _profile_as_of(opponent if is_home else team, league, fixture_date)
     team_meta = hm if is_home else am
     opp_meta = am if is_home else hm
 
@@ -1189,8 +1196,8 @@ def projected_team_cards(
     cow = tlw.get("cards_output", {})
     csw = tlw.get("cards_share", {})
     csm = SCORING_WEIGHTS.get("cards_share_model", {})
-    hm = _profile_meta(team if is_home else opponent, league)
-    am = _profile_meta(opponent if is_home else team, league)
+    hm = _profile_as_of(team if is_home else opponent, league, fixture_date)
+    am = _profile_as_of(opponent if is_home else team, league, fixture_date)
     team_meta = hm if is_home else am
     opp_meta = am if is_home else hm
 
@@ -1319,14 +1326,14 @@ def projected_total_goals(
 ) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     league_ctx = _resolve_league_context(home, away, league, league_ctx=league_ctx, fixture_date=fixture_date)
     pw = SCORING_WEIGHTS["projection"]
-    hm = _profile_meta(home, league)
-    am = _profile_meta(away, league)
+    hm = _profile_as_of(home, league, fixture_date)
+    am = _profile_as_of(away, league, fixture_date)
 
     h_proj, a_proj = projected_goals(hm, am)
     season_total = (h_proj + a_proj) if (h_proj is not None and a_proj is not None) else None
 
-    hr = _recent_stats(home, league, last_n=6)
-    ar = _recent_stats(away, league, last_n=6)
+    hr = _recent_stats(home, league, last_n=6, target_date=fixture_date)
+    ar = _recent_stats(away, league, last_n=6, target_date=fixture_date)
     h_xg = hr.get("xg_for_avg")
     a_xg = ar.get("xg_for_avg")
     recent_total = (h_xg + a_xg) if (h_xg is not None and a_xg is not None) else None
@@ -1366,8 +1373,8 @@ def _goal_market_team_projections(
 ) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float]]:
     """Canonical team-goal split for BTTS / scoreline / moneyline / spreads."""
     bs, br = _stat_blend("goals")
-    hm = _profile_meta(home, league)
-    am = _profile_meta(away, league)
+    hm = _profile_as_of(home, league, fixture_date)
+    am = _profile_as_of(away, league, fixture_date)
     h_season, a_season = projected_goals(hm, am)
 
     hr = _recent_stats(home, league, last_n=6, target_date=fixture_date)

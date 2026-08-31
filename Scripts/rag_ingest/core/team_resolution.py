@@ -12,7 +12,7 @@ import difflib
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 # Ensure sibling modules are importable when running from Scripts/rag_ingest/
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -55,6 +55,9 @@ COLLECTION = env_first("CHROMA_COLLECTION", default="football_top5")
 
 _team_meta_cache: Dict[Tuple[str, str], Dict] = {}
 _team_profile_doc_cache: Dict[Tuple[str, str], Dict] = {}
+_team_profile_docs_cache: Dict[Tuple[str, str], List[Dict]] = {}
+_team_fixture_rows_cache: Dict[Tuple[str, str], List[Dict]] = {}
+_team_profile_context_cache: Dict[Tuple[str, str, str], Tuple[Dict, Dict]] = {}
 _team_recent_stats_cache: Dict[Tuple, Dict] = {}
 _team_recent_var_cache: Dict[Tuple, Dict] = {}
 _team_fixture_meta_cache: Dict[Tuple[str, str, str, str, str], Optional[Dict]] = {}
@@ -525,32 +528,56 @@ def _kb_team_variants(team_name: str) -> List[str]:
 # Chroma profile retrieval
 # ---------------------------------------------------------------------------
 
-def get_team_profile_doc(team_name: str, league: str) -> Dict:
+def get_team_profile_docs(team_name: str, league: str) -> List[Dict]:
+    """Return one profile document per available season, newest first.
+
+    Team-profile documents are snapshots that are overwritten as a season
+    progresses.  Callers that need a historical prediction must therefore use
+    fixture rows for the active season (see ``get_team_profile_context``), but
+    this helper still exposes earlier completed seasons as empirical priors.
+    """
     cache_key = (league, canonical_team_name(team_name).lower())
-    cached = _team_profile_doc_cache.get(cache_key)
+    cached = _team_profile_docs_cache.get(cache_key)
     if cached is not None:
         return cached
 
     col = get_collection_handle(create_if_missing=True)
     variants = _kb_team_variants(team_name)
-    rows: List[Dict] = []
+    rows_by_season: Dict[str, Dict] = {}
     for v in variants:
         where = build_where(league, extra_filters=[{"doc_type": "team_profile"}, {"team": v}])
-        res = col.get(where=where, include=["documents", "metadatas"], limit=6)
+        res = col.get(where=where, include=["documents", "metadatas"], limit=24)
         docs = res.get("documents") or []
         metas = res.get("metadatas") or []
         for d, m in zip(docs, metas):
             if not m:
                 continue
-            rows.append({"text": d or "", "meta": m})
-    if not rows:
-        _team_profile_doc_cache[cache_key] = {}
-        return {}
+            season = str(m.get("season") or "")
+            if not season:
+                continue
+            # Duplicate alias queries can return the same profile.  The
+            # profile ID is deterministic per league/season/team, so one row
+            # per season is the useful representation here.
+            rows_by_season.setdefault(season, {"text": d or "", "meta": m})
 
-    rows.sort(key=lambda x: parse_season_rank((x.get("meta") or {}).get("season")), reverse=True)
-    best = rows[0]
-    _team_profile_doc_cache[cache_key] = best
-    return best
+    rows = sorted(
+        rows_by_season.values(),
+        key=lambda x: parse_season_rank((x.get("meta") or {}).get("season")),
+        reverse=True,
+    )
+    _team_profile_docs_cache[cache_key] = rows
+    _team_profile_doc_cache[cache_key] = rows[0] if rows else {}
+    return rows
+
+
+def get_team_profile_doc(team_name: str, league: str) -> Dict:
+    """Return the newest stored team-profile document for compatibility."""
+    cache_key = (league, canonical_team_name(team_name).lower())
+    cached = _team_profile_doc_cache.get(cache_key)
+    if cached is not None:
+        return cached
+    docs = get_team_profile_docs(team_name, league)
+    return docs[0] if docs else {}
 
 
 def get_team_profile_meta(team_name: str, league: str) -> Dict:
@@ -562,6 +589,355 @@ def get_team_profile_meta(team_name: str, league: str) -> Dict:
     meta = (doc.get("meta") or {}) if doc else {}
     _team_meta_cache[cache_key] = meta
     return meta
+
+
+# A current-season rate should not outweigh a completed season after one or
+# two fixtures.  This is deliberately a transparent pseudo-sample size rather
+# than a hidden model coefficient; calibration work will tune it later.
+EARLY_SEASON_PRIOR_STRENGTH = 8.0
+
+
+def _season_rank_for_target_date(target_date: Optional[str]) -> Optional[int]:
+    """Return the domestic season's start year for an ISO-like fixture date."""
+    if not target_date:
+        return None
+    match = re.search(r"(20\d{2})-(\d{2})", str(target_date))
+    if not match:
+        return None
+    year, month = int(match.group(1)), int(match.group(2))
+    return year if month >= 7 else year - 1
+
+
+def _season_label(rank: Optional[int]) -> Optional[str]:
+    if rank is None or rank < 0:
+        return None
+    return f"{rank}/{str(rank + 1)[-2:]}"
+
+
+def _get_all_team_fixture_rows(team_name: str, league: str) -> List[Dict]:
+    """Return immutable team-fixture rows once, ready for as-of filtering."""
+    cache_key = (league, canonical_team_name(team_name).lower())
+    cached = _team_fixture_rows_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    col = get_collection_handle(create_if_missing=True)
+    dedup: Dict[str, Dict] = {}
+    for variant in _kb_team_variants(team_name):
+        where = build_where(league, extra_filters=[{"doc_type": "team_fixture"}, {"team": variant}])
+        result = col.get(where=where, include=["documents", "metadatas"], limit=500)
+        documents = result.get("documents") or []
+        metadatas = result.get("metadatas") or []
+        for document, meta in zip(documents, metadatas):
+            if not meta:
+                continue
+            fixture = str(meta.get("fixture") or "")
+            fixture_date = str(meta.get("fixture_date") or "")
+            season = str(meta.get("season") or "")
+            # Some source rows have no fixture label.  Keep those isolated so
+            # they cannot accidentally overwrite a real fixture.
+            key = f"{season}|{fixture_date}|{fixture or id(meta)}"
+            dedup[key] = {"meta": meta, "text": document or ""}
+
+    rows = list(dedup.values())
+    rows.sort(key=lambda row: str((row.get("meta") or {}).get("fixture_date") or ""))
+    _team_fixture_rows_cache[cache_key] = rows
+    return rows
+
+
+def _mean_numeric(values: List[Optional[float]]) -> Optional[float]:
+    cleaned = [value for value in values if value is not None]
+    if not cleaned:
+        return None
+    return sum(cleaned) / len(cleaned)
+
+
+def _sample_variance(values: List[Optional[float]]) -> Optional[float]:
+    cleaned = [value for value in values if value is not None]
+    if len(cleaned) < 3:
+        return None
+    mean = sum(cleaned) / len(cleaned)
+    return sum((value - mean) ** 2 for value in cleaned) / (len(cleaned) - 1)
+
+
+def _fixture_goals_for_and_against(meta: Dict) -> Tuple[Optional[float], Optional[float]]:
+    """Recover a team's score from the normalized final-score label."""
+    score = str(meta.get("final_score") or "")
+    match = re.search(r"(\d+)\s*[-:]\s*(\d+)", score)
+    if not match:
+        return None, None
+    home_goals, away_goals = float(match.group(1)), float(match.group(2))
+    if str(meta.get("home_away") or "").lower() == "away":
+        return away_goals, home_goals
+    return home_goals, away_goals
+
+
+def _profile_from_fixture_rows(
+    team_name: str,
+    league: str,
+    season: Optional[str],
+    rows: List[Dict],
+) -> Dict:
+    """Build the rate fields used by projections from immutable fixture rows.
+
+    This is intentionally a compact projection profile, not a replacement for
+    ingestion-time feature engineering.  Its job is temporal safety: it gives
+    a dated prediction only information from fixtures that had already ended.
+    """
+    metas = [(row.get("meta") or {}) for row in rows]
+    if not metas:
+        return {}
+
+    def avg(key: str) -> Optional[float]:
+        return _mean_numeric([_numeric(meta.get(key)) for meta in metas])
+
+    def venue_avg(key: str, venue: str) -> Optional[float]:
+        return _mean_numeric([
+            _numeric(meta.get(key))
+            for meta in metas
+            if str(meta.get("home_away") or "").lower() == venue
+        ])
+
+    goals_for: List[Optional[float]] = []
+    goals_against: List[Optional[float]] = []
+    opponent_cards: List[Optional[float]] = []
+    opponent_cards_home: List[Optional[float]] = []
+    opponent_cards_away: List[Optional[float]] = []
+    for meta in metas:
+        goals_scored, goals_conceded = _fixture_goals_for_and_against(meta)
+        goals_for.append(goals_scored)
+        goals_against.append(goals_conceded)
+
+        opponent = str(meta.get("opponent") or "")
+        fixture = str(meta.get("fixture") or "")
+        fixture_date = str(meta.get("fixture_date") or "")
+        if not opponent or not fixture:
+            opponent_cards.append(None)
+            continue
+        opponent_meta = _get_team_fixture_meta(
+            opponent, league, fixture, fixture_date, season=str(season or "") or None,
+        )
+        cards = _numeric((opponent_meta or {}).get("cards_per_90_team"))
+        if cards is None:
+            cards = _numeric((opponent_meta or {}).get("cards_total"))
+        opponent_cards.append(cards)
+        if str(meta.get("home_away") or "").lower() == "home":
+            opponent_cards_home.append(cards)
+        elif str(meta.get("home_away") or "").lower() == "away":
+            opponent_cards_away.append(cards)
+
+    cards_per_90 = avg("cards_per_90_team")
+    if cards_per_90 is None:
+        cards_per_90 = avg("cards_total")
+
+    profile = {
+        "entity_type": "team",
+        "doc_type": "team_profile",
+        "league": league,
+        "season": season,
+        "team": canonical_team_name(team_name),
+        "matches_played": len(metas),
+        "goals_for_pm": _mean_numeric(goals_for),
+        "goals_against_pm": _mean_numeric(goals_against),
+        "expected_goals": avg("xg_for"),
+        "corners_pm": avg("corners_for"),
+        "corners_against_pm": avg("corners_against"),
+        "shots_for_pm": avg("shots_for"),
+        "shots_against_pm": avg("shots_against"),
+        "sot_for_pm": avg("sot_for"),
+        "sot_against_pm": avg("sot_against"),
+        "cards_per_90_team": cards_per_90,
+        "cards_pm": avg("cards_total"),
+        "yellows_pm": avg("yellow_cards"),
+        "reds_pm": avg("red_cards"),
+        "fouls_per_90_team": avg("fouls_per_90_team"),
+        "fouls_pm": avg("fouls_committed"),
+        "possession": avg("possession"),
+        "control_index": avg("control_index"),
+        "aggression_index_norm": avg("aggression_index_norm"),
+        "form_index_team": avg("form_index_team"),
+        "opp_cards_induced_pm": _mean_numeric(opponent_cards),
+        "goals_home_pm": _mean_numeric([
+            _fixture_goals_for_and_against(meta)[0]
+            for meta in metas if str(meta.get("home_away") or "").lower() == "home"
+        ]),
+        "goals_away_pm": _mean_numeric([
+            _fixture_goals_for_and_against(meta)[0]
+            for meta in metas if str(meta.get("home_away") or "").lower() == "away"
+        ]),
+        "xg_home_pm": venue_avg("xg_for", "home"),
+        "xg_away_pm": venue_avg("xg_for", "away"),
+        "corners_home_pm": venue_avg("corners_for", "home"),
+        "corners_away_pm": venue_avg("corners_for", "away"),
+        "corners_against_home_pm": venue_avg("corners_against", "home"),
+        "corners_against_away_pm": venue_avg("corners_against", "away"),
+        "sot_home_pm": venue_avg("sot_for", "home"),
+        "sot_away_pm": venue_avg("sot_for", "away"),
+        "sot_against_home_pm": venue_avg("sot_against", "home"),
+        "sot_against_away_pm": venue_avg("sot_against", "away"),
+        "cards_home_pm": venue_avg("cards_per_90_team", "home"),
+        "cards_away_pm": venue_avg("cards_per_90_team", "away"),
+        "cards_induced_home_pm": _mean_numeric(opponent_cards_home),
+        "cards_induced_away_pm": _mean_numeric(opponent_cards_away),
+        "fouls_home_pm": venue_avg("fouls_committed", "home"),
+        "fouls_away_pm": venue_avg("fouls_committed", "away"),
+        "goals_var": _sample_variance(goals_for),
+        "corners_var": _sample_variance([_numeric(meta.get("corners_for")) for meta in metas]),
+        "sot_var": _sample_variance([_numeric(meta.get("sot_for")) for meta in metas]),
+        "cards_var": _sample_variance([_numeric(meta.get("cards_per_90_team")) for meta in metas]),
+        "_profile_source": "fixture_rows",
+    }
+    return profile
+
+
+def _profile_for_rank_from_docs(team_name: str, league: str, season_rank: Optional[int]) -> Dict:
+    if season_rank is None:
+        return {}
+    for document in get_team_profile_docs(team_name, league):
+        meta = dict(document.get("meta") or {})
+        if parse_season_rank(meta.get("season")) == season_rank:
+            return meta
+    return {}
+
+
+def _blend_sparse_current_profile(current: Dict, prior: Dict) -> Tuple[Dict, float, str]:
+    """Shrink sparse current-season rates toward a completed prior profile."""
+    current_n = _numeric((current or {}).get("matches_played")) or 0.0
+    prior_n = _numeric((prior or {}).get("matches_played")) or 0.0
+    if not prior:
+        return dict(current or {}), 0.0, "current_only"
+    if current_n <= 0:
+        result = dict(prior)
+        result["matches_played"] = 0
+        return result, 1.0, "prior_only"
+    if current_n >= EARLY_SEASON_PRIOR_STRENGTH:
+        return dict(current), 0.0, "current_only"
+
+    current_weight = current_n / (current_n + EARLY_SEASON_PRIOR_STRENGTH)
+    prior_weight = 1.0 - current_weight
+    result: Dict[str, Any] = dict(prior)
+    result.update(current)
+    excluded_numeric_fields = {"matches_played"}
+    for key in set(current) | set(prior):
+        current_value = current.get(key)
+        prior_value = prior.get(key)
+        if key in excluded_numeric_fields:
+            continue
+        if (
+            isinstance(current_value, (int, float)) and not isinstance(current_value, bool)
+            and isinstance(prior_value, (int, float)) and not isinstance(prior_value, bool)
+        ):
+            result[key] = current_weight * float(current_value) + prior_weight * float(prior_value)
+        elif current_value is None and prior_value is not None:
+            result[key] = prior_value
+    result["matches_played"] = int(current_n)
+    return result, prior_weight, "current_plus_prior"
+
+
+def get_team_profile_context(
+    team_name: str,
+    league: str,
+    target_date: Optional[str] = None,
+) -> Tuple[Dict, Dict]:
+    """Return the profile used for a prediction plus its auditable data window.
+
+    With ``target_date`` this reconstructs the active season from immutable
+    fixtures strictly before that date.  The completed prior season is then a
+    shrinkage prior for a small active-season sample.  Without a date, the
+    newest stored profile is retained for legacy callers but still receives the
+    same early-season shrinkage where possible.
+    """
+    cutoff = str(target_date or "")[:10]
+    cache_key = (league, canonical_team_name(team_name).lower(), cutoff)
+    cached = _team_profile_context_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    documents = get_team_profile_docs(team_name, league)
+    if not target_date:
+        current = dict((documents[0].get("meta") or {})) if documents else {}
+        current_rank = parse_season_rank(current.get("season")) if current else None
+        prior = _profile_for_rank_from_docs(team_name, league, (current_rank - 1) if current_rank else None)
+        effective, prior_weight, mode = _blend_sparse_current_profile(current, prior)
+        current_n = int(_numeric(current.get("matches_played")) or 0)
+        prior_n = int(_numeric(prior.get("matches_played")) or 0)
+        audit = {
+            "team": canonical_team_name(team_name),
+            "as_of": None,
+            "temporal_status": "latest_profile_snapshot_unbounded",
+            "profile_mode": mode,
+            "current_season": current.get("season") if current else None,
+            "current_season_matches": current_n,
+            "prior_season": prior.get("season") if prior else None,
+            "prior_season_matches": prior_n,
+            "prior_weight": round(prior_weight, 4),
+            "effective_sample_size": round(current_n + min(prior_n, EARLY_SEASON_PRIOR_STRENGTH), 2),
+        }
+        _team_profile_context_cache[cache_key] = (effective, audit)
+        return effective, audit
+
+    target_rank = _season_rank_for_target_date(target_date)
+    all_rows = _get_all_team_fixture_rows(team_name, league)
+    rows_before = [
+        row for row in all_rows
+        if str((row.get("meta") or {}).get("fixture_date") or "")[:10] < cutoff
+    ]
+    current_rows = [
+        row for row in rows_before
+        if parse_season_rank((row.get("meta") or {}).get("season")) == target_rank
+    ]
+    prior_rank = None
+    known_ranks = {
+        parse_season_rank((row.get("meta") or {}).get("season"))
+        for row in rows_before
+    }
+    known_ranks.update(
+        parse_season_rank((document.get("meta") or {}).get("season"))
+        for document in documents
+    )
+    prior_candidates = [rank for rank in known_ranks if rank >= 0 and (target_rank is None or rank < target_rank)]
+    if prior_candidates:
+        prior_rank = max(prior_candidates)
+    prior_rows = [
+        row for row in rows_before
+        if parse_season_rank((row.get("meta") or {}).get("season")) == prior_rank
+    ]
+
+    current_season = (
+        str((current_rows[0].get("meta") or {}).get("season") or "")
+        if current_rows else _season_label(target_rank)
+    )
+    prior_season = (
+        str((prior_rows[0].get("meta") or {}).get("season") or "")
+        if prior_rows else _season_label(prior_rank)
+    )
+    current = _profile_from_fixture_rows(team_name, league, current_season, current_rows)
+    # A prior season is complete before the target date, so fixture rows are
+    # preferred and an archived profile is a safe fallback for sparse imports.
+    prior = _profile_from_fixture_rows(team_name, league, prior_season, prior_rows)
+    if not prior:
+        prior = _profile_for_rank_from_docs(team_name, league, prior_rank)
+
+    effective, prior_weight, mode = _blend_sparse_current_profile(current, prior)
+    if effective:
+        effective["season"] = current_season or effective.get("season")
+        effective["_profile_source"] = "fixture_rows_as_of"
+    current_n = int(_numeric(current.get("matches_played")) or 0)
+    prior_n = int(_numeric(prior.get("matches_played")) or 0)
+    audit = {
+        "team": canonical_team_name(team_name),
+        "as_of": cutoff,
+        "temporal_status": "fixture_rows_strictly_before_target_date",
+        "profile_mode": mode,
+        "current_season": current_season,
+        "current_season_matches": current_n,
+        "prior_season": prior.get("season") if prior else prior_season,
+        "prior_season_matches": prior_n,
+        "prior_weight": round(prior_weight, 4),
+        "effective_sample_size": round(current_n + min(prior_n, EARLY_SEASON_PRIOR_STRENGTH), 2),
+    }
+    _team_profile_context_cache[cache_key] = (effective, audit)
+    return effective, audit
 
 
 # ---------------------------------------------------------------------------
@@ -582,20 +958,24 @@ def resolve_domestic_league(team_name: str) -> Optional[str]:
     return None
 
 
-def get_blended_profile_meta(team_name: str, competition: str) -> Dict:
+def get_blended_profile_meta(
+    team_name: str,
+    competition: str,
+    target_date: Optional[str] = None,
+) -> Dict:
     """For European competitions, blend domestic (80%) + European (20%) profiles.
     For domestic leagues, returns the standard profile unchanged."""
     if competition not in EUROPEAN_COMPETITIONS:
-        return get_team_profile_meta(team_name, competition)
+        return get_team_profile_context(team_name, competition, target_date=target_date)[0]
 
     ew = SCORING_WEIGHTS["european"]
-    euro_meta = get_team_profile_meta(team_name, competition)
+    euro_meta = get_team_profile_context(team_name, competition, target_date=target_date)[0]
     domestic_lg = resolve_domestic_league(team_name)
 
     if not domestic_lg:
         return euro_meta  # Non-top-5 team -- European data only
 
-    domestic_meta = get_team_profile_meta(team_name, domestic_lg)
+    domestic_meta = get_team_profile_context(team_name, domestic_lg, target_date=target_date)[0]
     if not domestic_meta:
         return euro_meta
     if not euro_meta:
@@ -660,11 +1040,11 @@ def get_blended_recent_stats(team_name: str, competition: str, last_n: int = 6,
 # Thin dispatch wrappers (auto-blend for European competitions)
 # ---------------------------------------------------------------------------
 
-def _profile_meta(team: str, league: str) -> Dict:
+def _profile_meta(team: str, league: str, target_date: Optional[str] = None) -> Dict:
     """Profile metadata -- auto-blends for European competitions."""
     if league in EUROPEAN_COMPETITIONS:
-        return get_blended_profile_meta(team, league)
-    return get_team_profile_meta(team, league)
+        return get_blended_profile_meta(team, league, target_date=target_date)
+    return get_team_profile_context(team, league, target_date=target_date)[0]
 
 
 def _recent_stats(team: str, league: str, last_n: int = 6,
@@ -683,47 +1063,39 @@ def _recent_stats(team: str, league: str, last_n: int = 6,
 def get_recent_team_fixture_rows(team_name: str, league: str, limit: int = 8,
                                   season: Optional[str] = None,
                                   target_date: Optional[str] = None) -> List[Dict]:
-    col = get_collection_handle(create_if_missing=True)
-    variants = _kb_team_variants(team_name)
-
-    # Derive current season from team profile to avoid cross-season contamination.
-    # Try profile season first, then check if fixtures actually exist for that season.
+    rows = list(_get_all_team_fixture_rows(team_name, league))
     target_season = season
-    if target_season is None:
+    if target_season is None and target_date:
+        target_rank = _season_rank_for_target_date(target_date)
+        matching = [
+            row for row in rows
+            if parse_season_rank((row.get("meta") or {}).get("season")) == target_rank
+        ]
+        # A season can have no completed fixtures at its first kickoff.  Do not
+        # silently pull prior-season fixtures into the active-season recent
+        # window in that case.
+        target_season = (
+            str((matching[0].get("meta") or {}).get("season") or "")
+            if matching else _season_label(target_rank)
+        )
+    elif target_season is None:
         profile = get_team_profile_doc(team_name, league)
         target_season = (profile.get("meta") or {}).get("season")
 
-    def _fetch(season_filter: Optional[str]) -> Dict[str, Dict]:
-        dedup: Dict[str, Dict] = {}
-        for v in variants:
-            filters: List[Dict] = [{"doc_type": "team_fixture"}, {"team": v}]
-            if season_filter:
-                filters.append({"season": season_filter})
-            where = build_where(league, extra_filters=filters)
-            res = col.get(where=where, include=["metadatas", "documents"], limit=50)
-            docs = res.get("documents") or []
-            metas = res.get("metadatas") or []
-            for d, m in zip(docs, metas):
-                if not m:
-                    continue
-                fixture = str(m.get("fixture") or "")
-                fixture_date = str(m.get("fixture_date") or "")
-                key = f"{fixture_date}|{fixture}"
-                dedup[key] = {"meta": m, "text": d or ""}
-        return dedup
-
-    dedup = _fetch(target_season)
-
-    # Fallback: if profile season yields no fixtures (season mismatch), retry without
-    if not dedup and target_season:
-        dedup = _fetch(None)
-
-    rows = list(dedup.values())
+    if target_season:
+        rows = [
+            row for row in rows
+            if str((row.get("meta") or {}).get("season") or "") == str(target_season)
+        ]
     if target_date:
         cutoff = str(target_date)[:10]
         rows = [
             row for row in rows
-            if str((row.get("meta") or {}).get("fixture_date") or "")[:10] <= cutoff
+            # Same-day rows can be later kickoffs and fixture metadata does not
+            # reliably preserve a full timestamp.  Excluding the whole day is
+            # conservative but guarantees that the target fixture never leaks
+            # into its own prediction.
+            if str((row.get("meta") or {}).get("fixture_date") or "")[:10] < cutoff
         ]
     rows.sort(key=lambda x: ((x.get("meta") or {}).get("fixture_date") or ""), reverse=True)
     return rows[:limit]
@@ -916,7 +1288,7 @@ def get_blended_variance(team_name: str, league: str, stat_key: str,
     recent_var = recent_dict.get(stat_key)
     season_var = None
     if season_var_key:
-        meta = _profile_meta(team_name, league)
+        meta = _profile_meta(team_name, league, target_date=fixture_date)
         season_var = _numeric(meta.get(season_var_key)) if meta else None
     if season_var is not None and recent_var is not None:
         return 0.7 * season_var + 0.3 * recent_var

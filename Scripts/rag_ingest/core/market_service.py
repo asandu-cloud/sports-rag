@@ -47,6 +47,13 @@ try:
         projected_total_goals,
         projected_total_sot,
     )
+    from core.team_resolution import get_blended_variance, get_team_profile_context
+    from core.prediction_guardrails import (
+        assess_market_quality,
+        cap_confidence,
+        resolve_total_variance,
+    )
+    from core.release_control import apply_release_policy
 except ImportError:
     from .line_selection import (  # type: ignore[no-redef]
         choose_best_moneyline_side,
@@ -81,11 +88,24 @@ except ImportError:
         projected_total_goals,
         projected_total_sot,
     )
+    from .team_resolution import get_blended_variance, get_team_profile_context  # type: ignore[no-redef]
+    from .prediction_guardrails import (  # type: ignore[no-redef]
+        assess_market_quality,
+        cap_confidence,
+        resolve_total_variance,
+    )
+    from .release_control import apply_release_policy  # type: ignore[no-redef]
 
 
 CANONICAL_PIPELINE_VERSION = "core-market-service.v1"
 SUPPORTED_MARKETS = ("goals", "corners", "cards", "sot", "btts", "moneyline", "spreads")
 _TOTAL_MARKETS = {"goals", "corners", "cards", "sot"}
+_TOTAL_VARIANCE_KEYS = {
+    "goals": "goals_var",
+    "corners": "corners_for_var",
+    "cards": "cards_var",
+    "sot": "sot_for_var",
+}
 
 
 def _event_text(event: Mapping[str, Any], *keys: str) -> str:
@@ -127,6 +147,90 @@ def _generated_at(value: Optional[str]) -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+def _priced_option_count(event: Mapping[str, Any]) -> int:
+    """Count available raw prices without assuming a single odds provider shape."""
+    count = 0
+    for bookmaker in event.get("bookmakers") or []:
+        if not isinstance(bookmaker, Mapping):
+            continue
+        for market in bookmaker.get("markets") or []:
+            if not isinstance(market, Mapping):
+                continue
+            for outcome in market.get("outcomes") or []:
+                if not isinstance(outcome, Mapping):
+                    continue
+                try:
+                    if float(outcome.get("price", outcome.get("odds"))) > 1.0:
+                        count += 1
+                except (TypeError, ValueError):
+                    continue
+    return count
+
+
+def _event_timestamp(event: Mapping[str, Any]) -> Optional[str]:
+    for key in ("odds_updated_at", "updated_at", "last_update", "timestamp"):
+        value = event.get(key)
+        if value is not None and str(value).strip():
+            return str(value).strip()
+    return None
+
+
+def _lineup_quality(lineup_ctx: Any) -> Dict[str, Any]:
+    source = str(getattr(lineup_ctx, "source", "") or "unavailable")
+    return {
+        "source": source,
+        "state": "confirmed" if source == "lineups" else "expected_or_unavailable",
+    }
+
+
+def _input_quality(
+    *,
+    fixture: FixtureRef,
+    event: Mapping[str, Any],
+    fixture_date: Optional[str],
+    lineup_ctx: Any,
+) -> Dict[str, Any]:
+    """Build audit evidence only; selector gates consume it in the next phase.
+
+    The report deliberately records unknown freshness rather than inventing a
+    quality score.  It travels in ``MarketResult.context`` so every delivery
+    surface, snapshot, and later tracker has the same input facts.
+    """
+    try:
+        _, home_profile = get_team_profile_context(
+            fixture.home_team, fixture.league, target_date=fixture_date,
+        )
+        _, away_profile = get_team_profile_context(
+            fixture.away_team, fixture.league, target_date=fixture_date,
+        )
+        profile_status = "available"
+    except Exception as exc:  # Audit collection must never block a projection.
+        home_profile = {"team": fixture.home_team, "status": "unavailable"}
+        away_profile = {"team": fixture.away_team, "status": "unavailable"}
+        profile_status = f"unavailable:{type(exc).__name__}"
+
+    bookmaker_count = sum(
+        1 for bookmaker in (event.get("bookmakers") or []) if isinstance(bookmaker, Mapping)
+    )
+    odds_snapshot_at = _event_timestamp(event)
+    return {
+        "schema_version": "prediction-input-quality.v1",
+        "fixture_date": fixture_date,
+        "profiles": {
+            "status": profile_status,
+            "home": home_profile,
+            "away": away_profile,
+        },
+        "odds": {
+            "bookmaker_count": bookmaker_count,
+            "priced_option_count": _priced_option_count(event),
+            "snapshot_at": odds_snapshot_at,
+            "freshness": "timestamped" if odds_snapshot_at else "unknown",
+        },
+        "lineup": _lineup_quality(lineup_ctx),
+    }
+
+
 def _with_confidence(decision: Decision, stat_group: str) -> Decision:
     if not decision.is_recommended:
         return decision
@@ -137,6 +241,61 @@ def _with_confidence(decision: Decision, stat_group: str) -> Decision:
         value_edge_pct=decision.value_edge,
     )
     return replace(decision, confidence=confidence)
+
+
+def _total_variance(
+    home: str,
+    away: str,
+    league: str,
+    market: str,
+    projection_total: Optional[float],
+    fixture_date: Optional[str],
+) -> tuple[Optional[float], Dict[str, Any]]:
+    stat_key = _TOTAL_VARIANCE_KEYS[market]
+    try:
+        home_variance = get_blended_variance(home, league, stat_key, fixture_date=fixture_date)
+        away_variance = get_blended_variance(away, league, stat_key, fixture_date=fixture_date)
+    except Exception as exc:
+        home_variance = None
+        away_variance = None
+        variance, details = resolve_total_variance(market, projection_total, None, None)
+        details["lookup_error"] = type(exc).__name__
+        return variance, details
+    return resolve_total_variance(market, projection_total, home_variance, away_variance)
+
+
+def _apply_quality_guardrails(
+    decision: Decision,
+    result_context: Dict[str, Any],
+    market: str,
+    *,
+    variance_source: Optional[str] = None,
+    referee_source: Optional[str] = None,
+) -> Decision:
+    quality = result_context.get("data_quality")
+    if not isinstance(quality, dict):
+        quality = {"profiles": {"status": "unavailable"}}
+        result_context["data_quality"] = quality
+    assessment = assess_market_quality(
+        quality,
+        market,
+        variance_source=variance_source,
+        referee_source=referee_source,
+    )
+    quality["recommendation_guardrail"] = assessment
+    if not decision.is_recommended:
+        return decision
+    if not assessment["eligible"]:
+        reason = "Data-quality guardrail: " + " ".join(assessment["reasons"])
+        return replace(
+            decision,
+            status=DecisionStatus.NO_BET,
+            confidence="low",
+            reason=reason,
+        )
+    return replace(decision, confidence=cap_confidence(
+        decision.confidence, assessment.get("confidence_cap"),
+    ))
 
 
 def _unavailable(reason: str) -> Decision:
@@ -211,9 +370,18 @@ def evaluate_market(
     )
     result_context = {"fixture_date": source_date} if source_date else {}
     result_context.update(dict(context or {}))
+    # The audit record controls public-pick eligibility, so it must be derived
+    # from canonical inputs rather than overridden by presentation context.
+    result_context["data_quality"] = _input_quality(
+        fixture=fixture,
+        event=event,
+        fixture_date=source_date,
+        lineup_ctx=lineup_ctx,
+    )
     home, away = fixture.home_team, fixture.away_team
 
     if market_name in _TOTAL_MARKETS:
+        referee_source = None
         if market_name == "goals":
             value, season, recent = projected_total_goals(
                 home, away, league, knockout_ctx=knockout_ctx,
@@ -230,23 +398,40 @@ def evaluate_market(
                 lineup_ctx=lineup_ctx, league_ctx=league_ctx, fixture_date=source_date,
             )
             if resolved_ref is not None:
-                result_context["referee_source"] = str(getattr(resolved_ref, "source", "unavailable"))
+                referee_source = str(getattr(resolved_ref, "source", "unavailable"))
+                result_context["referee_source"] = referee_source
         else:
             value, season, recent = projected_total_sot(
                 home, away, league, knockout_ctx=knockout_ctx,
                 league_ctx=league_ctx, fixture_date=source_date,
             )
 
+        combined_variance, variance_details = _total_variance(
+            home, away, league, market_name, value, source_date,
+        )
+        data_quality = result_context.get("data_quality")
+        if isinstance(data_quality, dict):
+            data_quality["variance"] = variance_details
         projection = Projection(
             value=value, unit=market_name,
             season_component=season, recent_component=recent,
+            variance=combined_variance,
+            components={"variance_source": variance_details.get("source")},
         )
         decision = _unavailable("Insufficient profile data to project this market.")
         if value is not None:
             selector_result = select_best_total_recommendation(
-                extract_total_line_options(dict(event), market_name), value,
+                extract_total_line_options(dict(event), market_name), value, combined_variance,
             )
             decision = _with_confidence(decision_from_selector(selector_result), market_name)
+        decision = _apply_quality_guardrails(
+            decision,
+            result_context,
+            market_name,
+            variance_source=variance_details.get("source"),
+            referee_source=referee_source,
+        )
+        decision = apply_release_policy(decision, result_context)
         return _build_result(
             fixture=fixture,
             market=MarketRef(key="totals", group=market_name, unit=market_name),
@@ -273,6 +458,8 @@ def evaluate_market(
                 decision = replace(decision, quote=replace(
                     decision.quote, side=decision.quote.side.lower()
                 ))
+        decision = _apply_quality_guardrails(decision, result_context, "btts")
+        decision = apply_release_policy(decision, result_context)
         return _build_result(
             fixture=fixture,
             market=MarketRef(key="btts", group="btts", unit="probability"),
@@ -305,6 +492,8 @@ def evaluate_market(
             else:
                 selector_result = choose_best_moneyline_side(p_home, p_draw, p_away, options, home, away)
                 decision = _with_confidence(decision_from_selector(selector_result), "goals")
+        decision = _apply_quality_guardrails(decision, result_context, "moneyline")
+        decision = apply_release_policy(decision, result_context)
         return _build_result(
             fixture=fixture,
             market=MarketRef(key="moneyline", group="moneyline", unit="probability"),
@@ -329,6 +518,8 @@ def evaluate_market(
             away_team=away, league=league,
         )
         decision = _with_confidence(decision_from_selector(selector_result), "goals")
+    decision = _apply_quality_guardrails(decision, result_context, "spreads")
+    decision = apply_release_policy(decision, result_context)
     return _build_result(
         fixture=fixture,
         market=MarketRef(key="spreads", group="spreads", unit="goals"),

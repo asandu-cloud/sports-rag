@@ -37,9 +37,11 @@ def replay_scenario(scenario: dict):
     """Replay frozen normalized inputs through the real service and selectors.
 
     Synthetic recordings freeze model projection outputs because this repository
-    does not yet contain archived odds/profile snapshots.  They deliberately
-    test the canonical selection + delivery boundary.  Archive recordings can
-    use the same expected-result format without these test overrides.
+    does not yet contain archived profile/variance snapshots. They deliberately
+    test the canonical selection + delivery boundary, so live profile-derived
+    variance and input-quality gates are isolated here. Those safety controls
+    have their own focused tests; archive recordings can exercise them without
+    these overrides once their source snapshots are retained.
     """
     overrides = dict(scenario.get("projection_overrides") or {})
     unknown = set(overrides) - _OVERRIDABLE_PROJECTIONS
@@ -51,6 +53,16 @@ def replay_scenario(scenario: dict):
             stack.enter_context(mock.patch.object(
                 market_service, function_name, return_value=tuple(result),
             ))
+        stack.enter_context(mock.patch.object(
+            market_service,
+            "_total_variance",
+            return_value=(None, {"source": "recorded_synthetic"}),
+        ))
+        stack.enter_context(mock.patch.object(
+            market_service,
+            "_apply_quality_guardrails",
+            side_effect=lambda decision, *_args, **_kwargs: decision,
+        ))
         return market_service.evaluate_event(
             scenario["event"],
             scenario["league"],
