@@ -183,12 +183,13 @@ def platform_get_track_record(
     market: Optional[str] = None,
     league: Optional[str] = None,
     confidence: Optional[str] = None,
+    source: Optional[str] = None,
     min_odds: Optional[float] = None,
     **_: Any,
 ) -> Dict[str, Any]:
     return get_prediction_service().track_record(
         days=days, market=market, league=league,
-        confidence=confidence, min_odds=min_odds,
+        confidence=confidence, source=source, min_odds=min_odds,
     )
 
 
@@ -216,7 +217,7 @@ def platform_get_daily_breakdown(*, target_date=None, **_: Any) -> Dict[str, Any
     return get_prediction_service().daily_breakdown(target_date=the_date)
 
 
-def platform_get_calibration_data(*, buckets: int = 10, **_: Any) -> list:
+def platform_get_calibration_data(*, buckets: int = 20, **_: Any) -> list:
     return get_prediction_service().calibration(buckets=buckets)
 
 

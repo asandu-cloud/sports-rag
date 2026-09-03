@@ -38,8 +38,8 @@ def test_prediction_service_matches_repo(monkeypatched_factories):
     assert pid > 0
     svc.mark_outcome(pid, outcome="win", actual_result=3)
     tr = svc.track_record()
-    assert tr["total"] == 1
-    assert tr["wins"] == 1
+    assert tr["total_graded"] == 1
+    assert tr["hits"] == 1
 
 
 def test_live_service_list_active(monkeypatched_factories):

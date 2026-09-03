@@ -34,10 +34,14 @@ class PredictionService:
     def track_record(self, **kwargs: Any) -> Dict[str, Any]:
         return self._repo.get_track_record(**kwargs)
 
+    def published_track_record(self, **kwargs: Any) -> Dict[str, Any]:
+        """Metrics for recommendations actually released to users only."""
+        return self._repo.get_track_record(published_only=True, **kwargs)
+
     def daily_breakdown(self, *, target_date: date) -> Dict[str, Any]:
         return self._repo.get_daily_breakdown(target_date=target_date)
 
-    def calibration(self, *, buckets: int = 10) -> List[Dict[str, Any]]:
+    def calibration(self, *, buckets: int = 20) -> List[Dict[str, Any]]:
         return self._repo.get_calibration_data(buckets=buckets)
 
     # ---- grading -----------------------------------------------------

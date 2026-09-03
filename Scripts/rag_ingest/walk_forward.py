@@ -27,12 +27,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
+_SCRIPTS_ROOT = Path(__file__).resolve().parents[1]
+if str(_SCRIPTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_ROOT))
 
-WIN_OUTCOMES = {"hit", "win", "full_win"}
-HALF_WIN_OUTCOMES = {"half_hit", "half_win"}
-LOSS_OUTCOMES = {"miss", "loss", "full_loss"}
-HALF_LOSS_OUTCOMES = {"half_miss", "half_loss"}
-PUSH_OUTCOMES = {"push", "void"}
+from data_platform.outcomes import outcome_accounting
 
 
 @dataclass(frozen=True)
@@ -185,22 +184,15 @@ def _chronological_key(record: RecordedDecision) -> Tuple[datetime, str]:
 
 def _settlement(outcome: Optional[str], odds: Optional[float]) -> Optional[Dict[str, float]]:
     """Return the financial and calibration contribution of one settled pick."""
-    if outcome is None:
+    contribution = outcome_accounting(outcome, odds)
+    if contribution is None:
         return None
-    outcome = outcome.lower()
-    valid_odds = odds if odds is not None and odds > 1.0 else None
-    if outcome in WIN_OUTCOMES:
-        return {"stake": 1.0, "return": valid_odds or 0.0, "resolved": 1.0, "wins": 1.0}
-    if outcome in HALF_WIN_OUTCOMES:
-        returned = (0.5 * valid_odds + 0.5) if valid_odds else 0.0
-        return {"stake": 1.0, "return": returned, "resolved": 0.5, "wins": 0.5}
-    if outcome in LOSS_OUTCOMES:
-        return {"stake": 1.0, "return": 0.0, "resolved": 1.0, "wins": 0.0}
-    if outcome in HALF_LOSS_OUTCOMES:
-        return {"stake": 1.0, "return": 0.5, "resolved": 0.5, "wins": 0.0}
-    if outcome in PUSH_OUTCOMES:
-        return {"stake": 1.0, "return": 1.0, "resolved": 0.0, "wins": 0.0}
-    return None
+    return {
+        "stake": contribution.stake_units,
+        "return": contribution.returned_units,
+        "resolved": contribution.resolved_units,
+        "wins": contribution.win_units,
+    }
 
 
 def _bucket_label(index: int, width: float) -> str:

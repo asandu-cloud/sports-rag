@@ -61,6 +61,15 @@ _SCRIPTS_ROOT = _PROJECT_ROOT / "Scripts"
 if str(_SCRIPTS_ROOT) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_ROOT))
 
+from data_platform.outcomes import normalize_outcome
+from data_platform.tracking_metrics import (
+    build_calibration,
+    build_daily_breakdown,
+    build_track_record,
+    flat_stake_roi,
+    outcome_totals,
+)
+
 
 def _platform_on() -> bool:
     try:
@@ -104,15 +113,6 @@ def _api_football_season_for_prediction_date(prediction_date: str) -> int:
     return target.year if target.month >= 7 else target.year - 1
 
 ALL_MARKETS = {"goals", "corners", "cards", "sot", "btts", "moneyline", "spreads", "correct_score"}
-
-# A quarter Asian line is one half-stake bet at each adjacent half/whole line.
-# Keep partial settlements explicit instead of treating them as a full hit or
-# miss, so tracker ROI and calibration are mathematically truthful.
-_FULL_WIN_OUTCOMES = {"hit", "win", "full_win"}
-_HALF_WIN_OUTCOMES = {"half_hit", "half_win"}
-_FULL_LOSS_OUTCOMES = {"miss", "loss", "full_loss"}
-_HALF_LOSS_OUTCOMES = {"half_miss", "half_loss"}
-_PUSH_OUTCOMES = {"push", "void"}
 
 log = logging.getLogger("prediction_tracker")
 
@@ -2145,12 +2145,13 @@ def _maybe_platform_resolve(kwargs: Dict[str, Any]):
         graded = 0
         errors = 0
         skipped = 0
+        outcome_counts = {"hit": 0, "half_hit": 0, "miss": 0, "half_miss": 0, "push": 0}
         for (slice_date, slice_league), preds in by_slice.items():
             try:
-                results = _fetch_results_from_api(slice_league, slice_date)
+                results = _fetch_results_from_api(slice_date, slice_league)
             except Exception:
                 log.exception("platform _fetch_results_from_api failed for %s %s",
-                              slice_league, slice_date)
+                              slice_date, slice_league)
                 errors += 1
                 continue
             if not results:
@@ -2167,9 +2168,14 @@ def _maybe_platform_resolve(kwargs: Dict[str, Any]):
                     continue
                 if platform_mark_outcome(int(pred["id"]), outcome=outcome, actual_result=actual):
                     graded += 1
+                    canonical = normalize_outcome(outcome)
+                    if canonical == "void":
+                        canonical = "push"
+                    if canonical in outcome_counts:
+                        outcome_counts[canonical] += 1
                 else:
                     errors += 1
-        return {"graded": graded, "errors": errors, "skipped": skipped}
+        return {"graded": graded, "errors": errors, "skipped": skipped, **outcome_counts}
     except Exception:
         log.exception("platform resolve_outcomes failed; falling through to SQLite")
         return None
@@ -2198,7 +2204,11 @@ def resolve_outcomes(
         if platform_result is not None:
             return {
                 "graded": platform_result.get("graded", 0),
-                "hit": 0, "miss": 0, "push": 0,
+                "hit": platform_result.get("hit", 0),
+                "half_hit": platform_result.get("half_hit", 0),
+                "miss": platform_result.get("miss", 0),
+                "half_miss": platform_result.get("half_miss", 0),
+                "push": platform_result.get("push", 0),
                 "errors": platform_result.get("errors", 0),
                 "details": [],
                 "backend": "platform",
@@ -2374,7 +2384,7 @@ def get_track_record(
     """
     platform_result = _maybe_platform_track_record({
         "days": days, "league": league, "market": market,
-        "confidence": confidence, "db_path": db_path,
+        "confidence": confidence, "source": source, "db_path": db_path,
     })
     if platform_result is not None:
         return platform_result
@@ -2419,160 +2429,18 @@ def get_track_record(
 
     conn.close()
 
-    if not rows:
-        return {
-            "total_graded": 0, "hits": 0, "half_hits": 0,
-            "misses": 0, "half_misses": 0, "pushes": 0,
-            "hit_rate": 0.0, "roi_flat_stake": 0.0,
-            "avg_clv": None, "clv_positive_rate": None, "clv_sample_size": 0,
-            "by_confidence": {}, "by_market": {}, "by_league": {},
-            "recent_streak": 0, "best_streak": 0,
-            "daily_performance": [],
-        }
-
-    preds = [dict(r) for r in rows]
-
-    # Overall counts. Half-settled Asian lines count as half a resolved win or
-    # loss, while the other half of the stake is returned.
-    hits = sum(1 for p in preds if p["outcome"] in _FULL_WIN_OUTCOMES)
-    half_hits = sum(1 for p in preds if p["outcome"] in _HALF_WIN_OUTCOMES)
-    misses = sum(1 for p in preds if p["outcome"] in _FULL_LOSS_OUTCOMES)
-    half_misses = sum(1 for p in preds if p["outcome"] in _HALF_LOSS_OUTCOMES)
-    pushes = sum(1 for p in preds if p["outcome"] in _PUSH_OUTCOMES)
-    win_stake, resolved_stake = _outcome_stakes(preds)
-    hit_rate = win_stake / resolved_stake if resolved_stake > 0 else 0.0
-
-    # ROI: flat stake 1 unit on each pick at logged odds
-    roi = _compute_roi(preds)
-
-    # --- By Confidence ---
-    by_confidence = {}
-    for level in ["high", "medium", "low"]:
-        subset = [p for p in preds if (p.get("confidence") or "").lower() == level]
-        if subset:
-            h = sum(1 for p in subset if p["outcome"] in _FULL_WIN_OUTCOMES)
-            win_weight, resolved_weight = _outcome_stakes(subset)
-            by_confidence[level] = {
-                "total": len(subset),
-                "hits": h,
-                "hit_rate": win_weight / resolved_weight if resolved_weight > 0 else 0.0,
-                "roi": _compute_roi(subset),
-            }
-
-    # --- CLV stats (overall) ---
-    clv_preds = [p for p in preds if p.get("clv") is not None]
-    avg_clv = sum(p["clv"] for p in clv_preds) / len(clv_preds) if clv_preds else None
-    clv_positive_count = sum(1 for p in clv_preds if p["clv"] > 0)
-    clv_positive_rate = clv_positive_count / len(clv_preds) if clv_preds else None
-
-    # --- By Market ---
-    by_market = {}
-    market_set = set(p.get("market", "") for p in preds)
-    for mkt in sorted(market_set):
-        if not mkt:
-            continue
-        subset = [p for p in preds if p.get("market") == mkt]
-        if subset:
-            h = sum(1 for p in subset if p["outcome"] in _FULL_WIN_OUTCOMES)
-            win_weight, resolved_weight = _outcome_stakes(subset)
-            mkt_clv = [p for p in subset if p.get("clv") is not None]
-            mkt_avg_clv = sum(p["clv"] for p in mkt_clv) / len(mkt_clv) if mkt_clv else None
-            by_market[mkt] = {
-                "total": len(subset),
-                "hits": h,
-                "hit_rate": win_weight / resolved_weight if resolved_weight > 0 else 0.0,
-                "avg_clv": mkt_avg_clv,
-            }
-
-    # --- By League ---
-    by_league = {}
-    league_set = set(p.get("league", "") for p in preds)
-    for lg in sorted(league_set):
-        if not lg:
-            continue
-        subset = [p for p in preds if p.get("league") == lg]
-        if subset:
-            h = sum(1 for p in subset if p["outcome"] in _FULL_WIN_OUTCOMES)
-            win_weight, resolved_weight = _outcome_stakes(subset)
-            by_league[lg] = {
-                "total": len(subset),
-                "hits": h,
-                "hit_rate": win_weight / resolved_weight if resolved_weight > 0 else 0.0,
-            }
-
-    # --- Streaks ---
-    recent_streak, best_streak = _compute_streaks(preds)
-
-    # --- Daily Performance (last 30 days) ---
-    daily = _compute_daily_performance(preds, days=30)
-
-    return {
-        "total_graded": len(preds),
-        "hits": hits,
-        "half_hits": half_hits,
-        "misses": misses,
-        "half_misses": half_misses,
-        "pushes": pushes,
-        "hit_rate": hit_rate,
-        "roi_flat_stake": roi,
-        "avg_clv": avg_clv,
-        "clv_positive_rate": clv_positive_rate,
-        "clv_sample_size": len(clv_preds),
-        "by_confidence": by_confidence,
-        "by_market": by_market,
-        "by_league": by_league,
-        "recent_streak": recent_streak,
-        "best_streak": best_streak,
-        "daily_performance": daily,
-}
+    return build_track_record([dict(row) for row in rows])
 
 
 def _outcome_stakes(preds: List[dict]) -> Tuple[float, float]:
     """Return winning and resolved stake units, including Asian half-settles."""
-    wins = 0.0
-    resolved = 0.0
-    for prediction in preds:
-        outcome = str(prediction.get("outcome") or "").lower()
-        if outcome in _FULL_WIN_OUTCOMES:
-            wins += 1.0
-            resolved += 1.0
-        elif outcome in _HALF_WIN_OUTCOMES:
-            wins += 0.5
-            resolved += 0.5
-        elif outcome in _FULL_LOSS_OUTCOMES:
-            resolved += 1.0
-        elif outcome in _HALF_LOSS_OUTCOMES:
-            resolved += 0.5
-    return wins, resolved
+    totals = outcome_totals(preds)
+    return totals["win_units"], totals["resolved_units"]
 
 
 def _compute_roi(preds: List[dict]) -> float:
     """Compute ROI for flat 1-unit stakes on all predictions with logged odds."""
-    total_staked = 0
-    total_returned = 0.0
-    for p in preds:
-        odds = p.get("odds")
-        outcome = p.get("outcome")
-        if odds is None or odds <= 1.0:
-            continue
-        if outcome not in (
-            _FULL_WIN_OUTCOMES | _HALF_WIN_OUTCOMES | _FULL_LOSS_OUTCOMES
-            | _HALF_LOSS_OUTCOMES | _PUSH_OUTCOMES
-        ):
-            continue
-        total_staked += 1
-        if outcome in _FULL_WIN_OUTCOMES:
-            total_returned += odds  # win: stake returned + profit
-        elif outcome in _HALF_WIN_OUTCOMES:
-            total_returned += (0.5 * odds) + 0.5
-        elif outcome in _HALF_LOSS_OUTCOMES:
-            total_returned += 0.5
-        elif outcome in _PUSH_OUTCOMES:
-            total_returned += 1.0  # push: stake returned
-        # miss: 0 returned
-    if total_staked == 0:
-        return 0.0
-    return (total_returned - total_staked) / total_staked
+    return flat_stake_roi(preds)[0]
 
 
 def _compute_streaks(preds: List[dict]) -> Tuple[int, int]:
@@ -2583,16 +2451,20 @@ def _compute_streaks(preds: List[dict]) -> Tuple[int, int]:
     if not preds:
         return 0, 0
 
-    # Filter to only hit/miss (skip push, void)
-    decided = [p for p in preds if p["outcome"] in ("hit", "miss")]
+    # Filter to only full hit/miss (skip partial outcomes, push and void).
+    decided = [
+        normalize_outcome(p.get("outcome"))
+        for p in preds
+        if normalize_outcome(p.get("outcome")) in ("hit", "miss")
+    ]
     if not decided:
         return 0, 0
 
     # Current streak
     current = 0
-    last_outcome = decided[-1]["outcome"]
-    for p in reversed(decided):
-        if p["outcome"] == last_outcome:
+    last_outcome = decided[-1]
+    for outcome in reversed(decided):
+        if outcome == last_outcome:
             current += 1
         else:
             break
@@ -2602,8 +2474,8 @@ def _compute_streaks(preds: List[dict]) -> Tuple[int, int]:
     # Best win streak
     best_win = 0
     run = 0
-    for p in decided:
-        if p["outcome"] == "hit":
+    for outcome in decided:
+        if outcome == "hit":
             run += 1
             best_win = max(best_win, run)
         else:
@@ -2626,15 +2498,12 @@ def _compute_daily_performance(preds: List[dict], days: int = 30) -> List[dict]:
     daily = []
     for d in sorted(by_date.keys()):
         day_preds = by_date[d]
-        total = len(day_preds)
-        h = sum(1 for p in day_preds if p["outcome"] == "hit")
-        m = sum(1 for p in day_preds if p["outcome"] == "miss")
-        decided = h + m
+        totals = outcome_totals(day_preds)
         daily.append({
             "date": d,
-            "total": total,
-            "hits": h,
-            "hit_rate": h / decided if decided > 0 else 0.0,
+            "total": len(day_preds),
+            "hits": int(totals["hits"]),
+            "hit_rate": totals["win_units"] / totals["resolved_units"] if totals["resolved_units"] else 0.0,
         })
 
     return daily
@@ -2693,135 +2562,7 @@ def get_daily_breakdown(
 
     conn.close()
 
-    if not rows:
-        return {"date": prediction_date, "total": 0, "hits": 0, "misses": 0, "pushes": 0,
-                "hit_rate": 0.0, "by_market": {}, "by_league": {}, "by_confidence": {},
-                "notable_hits": [], "notable_misses": []}
-
-    preds = [dict(r) for r in rows]
-
-    # Deduplicate — same fixture + market + pick, keep only one (highest odds)
-    seen: dict = {}
-    for p in preds:
-        key = (p.get("home_team", ""), p.get("away_team", ""), p.get("market", ""), p.get("pick", ""))
-        existing = seen.get(key)
-        if existing is None or (p.get("odds") or 0) > (existing.get("odds") or 0):
-            seen[key] = p
-    deduped = list(seen.values())
-
-    hits = sum(1 for p in deduped if p["outcome"] in _FULL_WIN_OUTCOMES)
-    half_hits = sum(1 for p in deduped if p["outcome"] in _HALF_WIN_OUTCOMES)
-    misses = sum(1 for p in deduped if p["outcome"] in _FULL_LOSS_OUTCOMES)
-    half_misses = sum(1 for p in deduped if p["outcome"] in _HALF_LOSS_OUTCOMES)
-    pushes = sum(1 for p in deduped if p["outcome"] in _PUSH_OUTCOMES)
-    win_stake, resolved_stake = _outcome_stakes(deduped)
-
-    # By market
-    by_market: Dict[str, Dict] = {}
-    for p in deduped:
-        mkt = p.get("market", "other")
-        bucket = by_market.setdefault(mkt, {"hits": 0, "half_hits": 0, "misses": 0, "half_misses": 0, "pushes": 0, "total": 0, "rows": [], "clv_values": []})
-        bucket["total"] += 1
-        bucket["rows"].append(p)
-        if p["outcome"] in _FULL_WIN_OUTCOMES:
-            bucket["hits"] += 1
-        elif p["outcome"] in _HALF_WIN_OUTCOMES:
-            bucket["half_hits"] += 1
-        elif p["outcome"] in _FULL_LOSS_OUTCOMES:
-            bucket["misses"] += 1
-        elif p["outcome"] in _HALF_LOSS_OUTCOMES:
-            bucket["half_misses"] += 1
-        elif p["outcome"] in _PUSH_OUTCOMES:
-            bucket["pushes"] += 1
-        if p.get("clv") is not None:
-            bucket["clv_values"].append(p["clv"])
-    for mkt, b in by_market.items():
-        bucket_wins, bucket_resolved = _outcome_stakes(b.pop("rows"))
-        b["hit_rate"] = bucket_wins / bucket_resolved if bucket_resolved > 0 else 0.0
-        clv_vals = b.pop("clv_values")
-        b["avg_clv"] = sum(clv_vals) / len(clv_vals) if clv_vals else None
-
-    # By league
-    by_league: Dict[str, Dict] = {}
-    for p in deduped:
-        lg = p.get("league", "other")
-        bucket = by_league.setdefault(lg, {"hits": 0, "half_hits": 0, "misses": 0, "half_misses": 0, "pushes": 0, "total": 0, "rows": []})
-        bucket["total"] += 1
-        bucket["rows"].append(p)
-        if p["outcome"] in _FULL_WIN_OUTCOMES:
-            bucket["hits"] += 1
-        elif p["outcome"] in _HALF_WIN_OUTCOMES:
-            bucket["half_hits"] += 1
-        elif p["outcome"] in _FULL_LOSS_OUTCOMES:
-            bucket["misses"] += 1
-        elif p["outcome"] in _HALF_LOSS_OUTCOMES:
-            bucket["half_misses"] += 1
-        elif p["outcome"] in _PUSH_OUTCOMES:
-            bucket["pushes"] += 1
-    for lg, b in by_league.items():
-        bucket_wins, bucket_resolved = _outcome_stakes(b.pop("rows"))
-        b["hit_rate"] = bucket_wins / bucket_resolved if bucket_resolved > 0 else 0.0
-
-    # By confidence
-    by_confidence: Dict[str, Dict] = {}
-    for p in deduped:
-        conf = (p.get("confidence") or "unknown").lower()
-        bucket = by_confidence.setdefault(conf, {"hits": 0, "half_hits": 0, "total": 0, "rows": []})
-        bucket["total"] += 1
-        bucket["rows"].append(p)
-        if p["outcome"] in _FULL_WIN_OUTCOMES:
-            bucket["hits"] += 1
-        elif p["outcome"] in _HALF_WIN_OUTCOMES:
-            bucket["half_hits"] += 1
-    for conf, b in by_confidence.items():
-        bucket_wins, bucket_resolved = _outcome_stakes(b.pop("rows"))
-        b["hit_rate"] = bucket_wins / bucket_resolved if bucket_resolved > 0 else 0.0
-
-    # Notable hits (best odds)
-    hit_preds = sorted(
-        [p for p in deduped if p["outcome"] == "hit" and p.get("odds")],
-        key=lambda x: x.get("odds", 0), reverse=True,
-    )
-    notable_hits = [
-        {"fixture": f"{p['home_team']} vs {p['away_team']}", "market": p["market"],
-         "pick": p["pick"], "odds": p.get("odds"), "league": p.get("league")}
-        for p in hit_preds[:5]
-    ]
-
-    # Notable misses (highest confidence that missed)
-    miss_preds = sorted(
-        [p for p in deduped if p["outcome"] == "miss" and p.get("model_prob")],
-        key=lambda x: x.get("model_prob", 0), reverse=True,
-    )
-    notable_misses = [
-        {"fixture": f"{p['home_team']} vs {p['away_team']}", "market": p["market"],
-         "pick": p["pick"], "model_prob": p.get("model_prob"), "league": p.get("league")}
-        for p in miss_preds[:5]
-    ]
-
-    # Overall CLV for the day
-    day_clv = [p.get("clv") for p in deduped if p.get("clv") is not None]
-    avg_clv = sum(day_clv) / len(day_clv) if day_clv else None
-    clv_pos_rate = sum(1 for c in day_clv if c > 0) / len(day_clv) if day_clv else None
-
-    return {
-        "date": prediction_date,
-        "total": len(deduped),
-        "hits": hits,
-        "half_hits": half_hits,
-        "misses": misses,
-        "half_misses": half_misses,
-        "pushes": pushes,
-        "hit_rate": win_stake / resolved_stake if resolved_stake > 0 else 0.0,
-        "avg_clv": avg_clv,
-        "clv_positive_rate": clv_pos_rate,
-        "clv_sample_size": len(day_clv),
-        "by_market": by_market,
-        "by_league": by_league,
-        "by_confidence": by_confidence,
-        "notable_hits": notable_hits,
-        "notable_misses": notable_misses,
-    }
+    return build_daily_breakdown([dict(row) for row in rows], target_date=prediction_date)
 
 
 def _maybe_platform_recent(kwargs: Dict[str, Any]):
@@ -3181,49 +2922,7 @@ def get_calibration_data(*, db_path: Path = DB_PATH) -> List[Dict]:
 
     db.close()
 
-    if not rows:
-        return []
-
-    # Group by 5% buckets
-    buckets: Dict[str, Dict] = {}
-    for row in rows:
-        model_prob = row["model_prob"] if isinstance(row, dict) else row[0]
-        outcome = row["outcome"] if isinstance(row, dict) else row[1]
-        try:
-            p = float(model_prob)
-        except (TypeError, ValueError):
-            continue
-        bucket_low = int(p * 20) * 5  # rounds down to nearest 5%
-        bucket_key = f"{bucket_low}-{bucket_low + 5}%"
-        outcome = str(outcome or "").lower()
-        if outcome in _FULL_WIN_OUTCOMES:
-            resolved_weight, win_weight = 1.0, 1.0
-        elif outcome in _HALF_WIN_OUTCOMES:
-            resolved_weight, win_weight = 0.5, 0.5
-        elif outcome in _FULL_LOSS_OUTCOMES:
-            resolved_weight, win_weight = 1.0, 0.0
-        elif outcome in _HALF_LOSS_OUTCOMES:
-            resolved_weight, win_weight = 0.5, 0.0
-        else:
-            # A push has no binary win/loss observation for calibration.
-            continue
-        if bucket_key not in buckets:
-            buckets[bucket_key] = {"prob_weight": 0.0, "hits": 0.0, "total": 0.0}
-        buckets[bucket_key]["prob_weight"] += p * resolved_weight
-        buckets[bucket_key]["total"] += resolved_weight
-        buckets[bucket_key]["hits"] += win_weight
-
-    result = []
-    for bucket_label, data in sorted(buckets.items()):
-        if data["total"] > 0:
-            result.append({
-                "bucket": bucket_label,
-                "model_avg": data["prob_weight"] / data["total"],
-                "actual_rate": data["hits"] / data["total"],
-                "count": data["total"],
-            })
-
-    return result
+    return build_calibration([dict(row) for row in rows], buckets=20)
 
 
 def main():

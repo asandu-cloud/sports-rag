@@ -16,7 +16,9 @@ from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.orm import Session
 
 from ..db import session_scope
-from ..models import Prediction
+from ..models import Prediction, PublishedRecommendation
+from ..outcomes import normalize_outcome
+from ..tracking_metrics import build_calibration, build_daily_breakdown, build_track_record
 
 logger = logging.getLogger(__name__)
 
@@ -196,10 +198,12 @@ class PredictionRepository:
         market: Optional[str] = None,
         league: Optional[str] = None,
         confidence: Optional[str] = None,
+        source: Optional[str] = None,
+        published_only: bool = False,
         days: Optional[int] = None,
         min_odds: Optional[float] = None,
     ) -> Dict[str, Any]:
-        """Hit-rate / ROI / streak summary for resolved predictions."""
+        """Return the shared Discord/website track-record contract."""
         with self._factory() as session:
             stmt = select(Prediction).where(Prediction.outcome.isnot(None))
             if market is not None:
@@ -208,95 +212,47 @@ class PredictionRepository:
                 stmt = stmt.where(Prediction.league == league)
             if confidence is not None:
                 stmt = stmt.where(Prediction.confidence == confidence)
+            if source is not None:
+                stmt = stmt.where(Prediction.source == source)
+            if published_only:
+                stmt = stmt.join(
+                    PublishedRecommendation,
+                    PublishedRecommendation.prediction_id == Prediction.id,
+                )
             if days is not None:
                 stmt = stmt.where(Prediction.prediction_date >= date.today() - timedelta(days=days))
             if min_odds is not None:
                 stmt = stmt.where(Prediction.odds >= min_odds)
-            rows = session.scalars(stmt.order_by(desc(Prediction.prediction_date))).all()
-        total = len(rows)
-        wins = sum(1 for r in rows if r.outcome == "win")
-        losses = sum(1 for r in rows if r.outcome == "loss")
-        pushes = sum(1 for r in rows if r.outcome == "push")
-        roi_stake = 0.0
-        roi_return = 0.0
-        for r in rows:
-            odds = _to_float(r.odds)
-            if odds is None:
-                continue
-            roi_stake += 1.0
-            if r.outcome == "win":
-                roi_return += odds
-            elif r.outcome == "push":
-                roi_return += 1.0
-        roi = (roi_return / roi_stake - 1.0) if roi_stake > 0 else 0.0
-        hit_rate = (wins / max(1, wins + losses)) if (wins + losses) else 0.0
-        streak = _compute_streak(rows)
-        return {
-            "total": total,
-            "wins": wins,
-            "losses": losses,
-            "pushes": pushes,
-            "hit_rate": hit_rate,
-            "roi": roi,
-            "stake_units": roi_stake,
-            "current_streak": streak,
-        }
+            rows = session.scalars(stmt.order_by(Prediction.prediction_date, Prediction.id)).all()
+        return build_track_record(
+            [row for row in (_row_to_dict(item) for item in rows) if row is not None]
+        )
 
     def get_daily_breakdown(self, *, target_date: date) -> Dict[str, Any]:
         with self._factory() as session:
-            stmt = select(Prediction).where(Prediction.prediction_date == target_date)
+            stmt = select(Prediction).where(
+                Prediction.prediction_date == target_date,
+                Prediction.outcome.isnot(None),
+            )
             rows = session.scalars(stmt).all()
-        total = len(rows)
-        resolved = [r for r in rows if r.outcome is not None]
-        wins = sum(1 for r in resolved if r.outcome == "win")
-        losses = sum(1 for r in resolved if r.outcome == "loss")
-        pushes = sum(1 for r in resolved if r.outcome == "push")
-        return {
-            "date": target_date.isoformat(),
-            "total": total,
-            "resolved": len(resolved),
-            "wins": wins,
-            "losses": losses,
-            "pushes": pushes,
-            "predictions": [d for d in (_row_to_dict(r) for r in rows) if d],
-        }
+        return build_daily_breakdown(
+            [row for row in (_row_to_dict(item) for item in rows) if row is not None],
+            target_date=target_date,
+        )
 
-    def get_calibration_data(self, *, buckets: int = 10) -> List[Dict[str, Any]]:
-        """Return predicted-vs-observed per confidence bucket."""
+    def get_calibration_data(self, *, buckets: int = 20) -> List[Dict[str, Any]]:
+        """Return the shared calibration contract used by the Discord embed."""
         with self._factory() as session:
             rows = session.scalars(
                 select(Prediction).where(
                     Prediction.outcome.isnot(None),
                     Prediction.model_prob.isnot(None),
-                    Prediction.outcome.in_(("win", "loss")),
                 )
             ).all()
-        bucket_stats: Dict[int, Dict[str, float]] = {}
-        for row in rows:
-            try:
-                prob = float(row.model_prob)
-            except (TypeError, ValueError):
-                continue
-            bucket = min(buckets - 1, max(0, int(prob * buckets)))
-            entry = bucket_stats.setdefault(bucket, {"sum_prob": 0.0, "wins": 0, "total": 0})
-            entry["sum_prob"] += prob
-            entry["total"] += 1
-            if row.outcome == "win":
-                entry["wins"] += 1
-        out = []
-        for bucket in range(buckets):
-            entry = bucket_stats.get(bucket, {"sum_prob": 0.0, "wins": 0, "total": 0})
-            total = entry["total"]
-            if total == 0:
-                continue
-            out.append({
-                "bucket": bucket,
-                "range": [bucket / buckets, (bucket + 1) / buckets],
-                "avg_predicted": entry["sum_prob"] / total,
-                "observed_hit_rate": entry["wins"] / total,
-                "sample_size": total,
-            })
-        return out
+        return build_calibration(
+            [row for row in (_row_to_dict(item) for item in rows) if row is not None],
+            buckets=buckets,
+        )
 
     # ------------------------------------------------------------------
     # Outcome resolution / CLV
@@ -314,7 +270,11 @@ class PredictionRepository:
                 row = session.get(Prediction, prediction_id)
                 if row is None:
                     return False
-                row.outcome = outcome
+                canonical_outcome = normalize_outcome(outcome)
+                if canonical_outcome is None:
+                    logger.warning("Rejected unknown prediction outcome %r for id=%s", outcome, prediction_id)
+                    return False
+                row.outcome = canonical_outcome
                 if actual_result is not None:
                     row.actual_result = actual_result
                 row.graded_at = graded_at or datetime.now(timezone.utc)
@@ -345,22 +305,3 @@ class PredictionRepository:
         except Exception:
             logger.exception("set_closing_odds failed for id=%s", prediction_id)
             return False
-
-
-def _compute_streak(rows: Iterable[Prediction]) -> int:
-    """Current streak: positive = consecutive wins, negative = losses."""
-    streak = 0
-    for row in rows:
-        if row.outcome == "win":
-            if streak >= 0:
-                streak += 1
-            else:
-                break
-        elif row.outcome == "loss":
-            if streak <= 0:
-                streak -= 1
-            else:
-                break
-        else:
-            continue
-    return streak

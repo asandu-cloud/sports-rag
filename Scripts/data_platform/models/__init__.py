@@ -11,6 +11,7 @@ from .sync import SyncRun, SyncWatermark, RawPayloadArchive  # noqa: F401
 from .features import TeamFeatureSnapshot, PlayerFeatureSnapshot  # noqa: F401
 from .users import AppUser, AppSubscriptionEvent, AppReferral  # noqa: F401
 from .predictions import Prediction, TrialUser, TrialParlay  # noqa: F401
+from .publications import PublishedRecommendation, RecommendationDelivery  # noqa: F401
 from .parlays import ParlaySession  # noqa: F401
 from .live import (  # noqa: F401
     LiveFixture,
@@ -44,6 +45,8 @@ __all__ = [
     "Prediction",
     "TrialUser",
     "TrialParlay",
+    "PublishedRecommendation",
+    "RecommendationDelivery",
     "ParlaySession",
     "LiveFixture",
     "LiveStateSnapshot",

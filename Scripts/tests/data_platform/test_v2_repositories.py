@@ -67,12 +67,16 @@ def test_prediction_resolve_and_track_record(pred_repo):
     assert pred_repo.set_outcome(ids[2], outcome="win", actual_result=1)
 
     tr = pred_repo.get_track_record()
-    assert tr["total"] == 3
-    assert tr["wins"] == 2
-    assert tr["losses"] == 1
+    assert tr["total_graded"] == 3
+    assert tr["hits"] == 2
+    assert tr["misses"] == 1
     assert pytest.approx(tr["hit_rate"], abs=0.01) == 2 / 3
     # ROI: 2 winning legs at odds 2.0 return 4.0; 1 loser returns 0. Stake = 3.
-    assert pytest.approx(tr["roi"], abs=0.01) == (4.0 / 3.0 - 1.0)
+    assert pytest.approx(tr["roi_flat_stake"], abs=0.01) == (4.0 / 3.0 - 1.0)
+    assert tr["by_market"]["goals"]["hits"] == 1
+
+    rows = pred_repo.get_recent(days=1)
+    assert {row["outcome"] for row in rows} == {"hit", "miss"}
 
 
 def test_prediction_calibration_buckets(pred_repo):
@@ -90,10 +94,10 @@ def test_prediction_calibration_buckets(pred_repo):
         pred_repo.set_outcome(pid, outcome=outcome)
     cal = pred_repo.get_calibration_data(buckets=5)
     by_bucket = {row["bucket"]: row for row in cal}
-    assert by_bucket[0]["sample_size"] == 2
-    assert by_bucket[0]["observed_hit_rate"] == 0.0
-    assert by_bucket[2]["sample_size"] == 2
-    assert by_bucket[4]["observed_hit_rate"] == 1.0
+    assert by_bucket["0-20%"]["count"] == 2
+    assert by_bucket["0-20%"]["actual_rate"] == 0.0
+    assert by_bucket["40-60%"]["count"] == 2
+    assert by_bucket["80-100%"]["actual_rate"] == 1.0
 
 
 def test_parlay_session_round_trip(parlay_repo):

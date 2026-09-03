@@ -11,3 +11,4 @@ from .live import LiveService  # noqa: F401
 from .odds import OddsService  # noqa: F401
 from .parlays import ParlayService  # noqa: F401
 from .predictions import PredictionService  # noqa: F401
+from .publications import PublicationService  # noqa: F401
