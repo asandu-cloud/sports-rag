@@ -2374,6 +2374,7 @@ def get_track_record(
     market: str = None,
     confidence: str = None,
     source: str = None,
+    published_only: bool = False,
     *,
     db_path: Path = DB_PATH,
 ) -> dict:
@@ -2384,7 +2385,8 @@ def get_track_record(
     """
     platform_result = _maybe_platform_track_record({
         "days": days, "league": league, "market": market,
-        "confidence": confidence, "source": source, "db_path": db_path,
+        "confidence": confidence, "source": source,
+        "published_only": published_only, "db_path": db_path,
     })
     if platform_result is not None:
         return platform_result
@@ -2414,6 +2416,12 @@ def get_track_record(
     if source:
         where_clauses.append("source = ?")
         params.append(source)
+    if published_only:
+        # The platform implementation uses the immutable publication join.
+        # This fallback keeps the old SQLite path useful by selecting only
+        # the dedicated release source (including release-specific suffixes).
+        where_clauses.append("(source = ? OR source LIKE ?)")
+        params.extend(["canonical_published", "canonical_published:%"])
 
     where_sql = " AND ".join(where_clauses)
 
@@ -2524,6 +2532,7 @@ def _maybe_platform_daily(kwargs: Dict[str, Any]):
 
 def get_daily_breakdown(
     prediction_date: str = None,
+    published_only: bool = False,
     *,
     db_path: Path = DB_PATH,
 ) -> dict:
@@ -2542,7 +2551,11 @@ def get_daily_breakdown(
     if prediction_date is None:
         prediction_date = (date.today() - timedelta(days=1)).isoformat()
 
-    platform = _maybe_platform_daily({"target_date": prediction_date, "db_path": db_path})
+    platform = _maybe_platform_daily({
+        "target_date": prediction_date,
+        "published_only": published_only,
+        "db_path": db_path,
+    })
     if platform is not None:
         return platform
 
@@ -2552,10 +2565,12 @@ def get_daily_breakdown(
         return {"date": prediction_date, "total": 0}
 
     try:
-        rows = conn.execute(
-            "SELECT * FROM predictions WHERE prediction_date = ? AND outcome IS NOT NULL ORDER BY id",
-            [prediction_date],
-        ).fetchall()
+        query = "SELECT * FROM predictions WHERE prediction_date = ? AND outcome IS NOT NULL"
+        params = [prediction_date]
+        if published_only:
+            query += " AND (source = ? OR source LIKE ?)"
+            params.extend(["canonical_published", "canonical_published:%"])
+        rows = conn.execute(f"{query} ORDER BY id", params).fetchall()
     except Exception:
         conn.close()
         return {"date": prediction_date, "total": 0}
@@ -2582,6 +2597,7 @@ def get_recent_predictions(
     limit: int = 20,
     league: str = None,
     graded_only: bool = True,
+    published_only: bool = False,
     *,
     db_path: Path = DB_PATH,
 ) -> List[dict]:
@@ -2589,6 +2605,7 @@ def get_recent_predictions(
     platform = _maybe_platform_recent({
         "limit": limit, "league": league,
         "days": 180,  # sensible upper bound for "recent"
+        "published_only": published_only,
         "db_path": db_path,
     })
     if platform is not None:
@@ -2609,6 +2626,9 @@ def get_recent_predictions(
     if league:
         where_clauses.append("league = ?")
         params.append(league)
+    if published_only:
+        where_clauses.append("(source = ? OR source LIKE ?)")
+        params.extend(["canonical_published", "canonical_published:%"])
 
     where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
     params.append(limit)
@@ -2887,24 +2907,35 @@ def _format_clv_report(
 #  Calibration Analysis
 # ===================================================================
 
-def _maybe_platform_calibration(db_path: Path, buckets: int = 10):
+def _maybe_platform_calibration(
+    db_path: Path,
+    buckets: int = 10,
+    published_only: bool = False,
+):
     if db_path != DB_PATH or not _platform_on():
         return None
     try:
         from data_platform.compat import platform_get_calibration_data
-        return platform_get_calibration_data(buckets=buckets)
+        return platform_get_calibration_data(
+            buckets=buckets,
+            published_only=published_only,
+        )
     except Exception:
         log.exception("platform get_calibration_data failed; falling through to SQLite")
         return None
 
 
-def get_calibration_data(*, db_path: Path = DB_PATH) -> List[Dict]:
+def get_calibration_data(
+    *,
+    published_only: bool = False,
+    db_path: Path = DB_PATH,
+) -> List[Dict]:
     """Return calibration data: for each probability bucket, model prob vs actual hit rate.
 
     Groups resolved predictions by model probability into 5% buckets (50-55%, 55-60%, etc.)
     and computes the actual hit rate for each bucket.
     """
-    platform = _maybe_platform_calibration(db_path)
+    platform = _maybe_platform_calibration(db_path, published_only=published_only)
     if platform is not None:
         return platform
     try:
@@ -2913,9 +2944,12 @@ def get_calibration_data(*, db_path: Path = DB_PATH) -> List[Dict]:
         return []
 
     try:
-        rows = db.execute(
-            "SELECT model_prob, outcome FROM predictions WHERE outcome IS NOT NULL AND model_prob IS NOT NULL"
-        ).fetchall()
+        query = "SELECT model_prob, outcome FROM predictions WHERE outcome IS NOT NULL AND model_prob IS NOT NULL"
+        params = []
+        if published_only:
+            query += " AND (source = ? OR source LIKE ?)"
+            params.extend(["canonical_published", "canonical_published:%"])
+        rows = db.execute(query, params).fetchall()
     except Exception:
         db.close()
         return []

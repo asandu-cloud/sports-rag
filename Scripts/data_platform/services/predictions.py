@@ -38,11 +38,27 @@ class PredictionService:
         """Metrics for recommendations actually released to users only."""
         return self._repo.get_track_record(published_only=True, **kwargs)
 
-    def daily_breakdown(self, *, target_date: date) -> Dict[str, Any]:
-        return self._repo.get_daily_breakdown(target_date=target_date)
+    def daily_breakdown(
+        self,
+        *,
+        target_date: date,
+        published_only: bool = False,
+    ) -> Dict[str, Any]:
+        return self._repo.get_daily_breakdown(
+            target_date=target_date,
+            published_only=published_only,
+        )
 
-    def calibration(self, *, buckets: int = 20) -> List[Dict[str, Any]]:
-        return self._repo.get_calibration_data(buckets=buckets)
+    def calibration(
+        self,
+        *,
+        buckets: int = 20,
+        published_only: bool = False,
+    ) -> List[Dict[str, Any]]:
+        return self._repo.get_calibration_data(
+            buckets=buckets,
+            published_only=published_only,
+        )
 
     # ---- grading -----------------------------------------------------
     def mark_outcome(

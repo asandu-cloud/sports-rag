@@ -15,11 +15,15 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import redirect_stdout
 from datetime import datetime, date, timedelta, time as dt_time, timezone
+from pathlib import Path
 
 import discord
 from discord.ext import commands, tasks
 
-sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[2] / "rag_ingest"))
+_SCRIPTS_ROOT = Path(__file__).resolve().parents[2]
+if str(_SCRIPTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_ROOT))
+sys.path.insert(0, str(_SCRIPTS_ROOT / "rag_ingest"))
 import rag_cli_v2 as rag  # noqa: E402  (kept for text-based workflows: parlays, player props)
 from rendering.market_dispatch import (  # noqa: E402
     canonical_market_name,
@@ -179,6 +183,75 @@ async def _evaluate_market_results(league: str, market: str, target_date: date):
     """Evaluate an auto-push market via the canonical structured pipeline."""
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(_rag_executor, evaluate_market_results_sync, league, market, target_date)
+
+
+def _record_discord_publications_sync(
+    market_results: list,
+    *,
+    message_id: object,
+    channel_id: object,
+    guild_id: object,
+    published_at: object,
+    league: str,
+    target_date: str,
+) -> dict:
+    """Persist the exact canonical selections in one sent Daily Picks message.
+
+    This deliberately sits *after* ``channel.send``. A recommendation is
+    official only when Discord has accepted the public message; command
+    replies, candidate generation, and failed sends must not affect the
+    auditable public track record.
+    """
+    from data_platform.services import PublicationService
+
+    reference = f"discord:{guild_id or 'unknown'}:{channel_id or 'unknown'}:{message_id}"
+    metadata = {
+        "post_type": "daily_top_picks",
+        "league": league,
+        "target_date": target_date,
+        "guild_id": str(guild_id) if guild_id is not None else None,
+        "channel_id": str(channel_id) if channel_id is not None else None,
+        "message_id": str(message_id),
+    }
+    service = PublicationService()
+    recorded = 0
+    deliveries = 0
+    for result in market_results:
+        outcome = service.publish(
+            result,
+            surface="discord",
+            external_reference=reference,
+            published_at=published_at,
+            delivery_metadata=metadata,
+        )
+        recorded += int(bool(outcome.get("created")))
+        deliveries += int(bool(outcome.get("delivery_created")))
+    return {"recommendations_created": recorded, "deliveries_created": deliveries}
+
+
+async def _record_discord_publications(
+    market_results: list,
+    *,
+    message: object,
+    channel: object,
+    league: str,
+    target_date: str,
+) -> dict:
+    """Run the synchronous platform write off the Discord event loop."""
+    loop = asyncio.get_running_loop()
+    guild = getattr(channel, "guild", None)
+    return await loop.run_in_executor(
+        _rag_executor,
+        lambda: _record_discord_publications_sync(
+            market_results,
+            message_id=getattr(message, "id", None),
+            channel_id=getattr(channel, "id", None),
+            guild_id=getattr(guild, "id", None),
+            published_at=getattr(message, "created_at", None),
+            league=league,
+            target_date=target_date,
+        ),
+    )
 
 
 async def _build_structured_parlay(request):
@@ -1597,16 +1670,23 @@ class AutoPush(commands.Cog):
             log.error("Failed to resolve outcomes for %s: %s", yesterday, exc)
             graded, hits, misses = 0, 0, 0
 
-        if graded == 0:
-            return
-
         try:
-            stats = get_track_record()
+            stats = get_track_record(published_only=True)
+            yesterday_breakdown = get_daily_breakdown(
+                prediction_date=yesterday,
+                published_only=True,
+            )
         except Exception as exc:
             log.error("Failed to get track record: %s", exc)
             return
 
-        hit_rate_yesterday = hits / graded if graded > 0 else 0
+        graded = yesterday_breakdown.get("total", 0)
+        hits = yesterday_breakdown.get("hits", 0)
+        misses = yesterday_breakdown.get("misses", 0)
+        if graded == 0:
+            return
+
+        hit_rate_yesterday = yesterday_breakdown.get("hit_rate", 0)
         if hit_rate_yesterday >= 0.60:
             color = COLOR_GREEN
         elif hit_rate_yesterday >= 0.50:
@@ -1640,7 +1720,7 @@ class AutoPush(commands.Cog):
                 )
         if conf_lines:
             em.add_field(
-                name="All-Time by Confidence",
+                name="Official Record by Confidence",
                 value="\n".join(conf_lines),
                 inline=True,
             )
@@ -1657,7 +1737,7 @@ class AutoPush(commands.Cog):
                 )
         if market_lines:
             em.add_field(
-                name="All-Time by Market",
+                name="Official Record by Market",
                 value="\n".join(market_lines),
                 inline=True,
             )
@@ -1671,14 +1751,14 @@ class AutoPush(commands.Cog):
                       else (f"L{abs(streak)}" if streak < 0 else "—"))
 
         em.add_field(
-            name="All-Time Record",
+                name="Official Record",
             value=(
                 f"**{overall_hits}/{total}** ({overall_rate:.1%})\n"
                 f"ROI: {roi:+.1%} | Streak: {streak_str}"
             ),
             inline=False,
         )
-        em.set_footer(text="Spix's Picks Track Record | Updated daily at noon CET")
+        em.set_footer(text="Official Discord releases only | Updated daily at noon CET")
         await channel.send(embed=em)
 
     @daily_track_record.before_loop
@@ -1713,13 +1793,14 @@ class AutoPush(commands.Cog):
             log.error("Best picks recap: failed to resolve %s: %s", yesterday, exc)
             return
 
-        if graded == 0:
-            return
-
         # Step 2: get detailed breakdown
         try:
             breakdown = await loop.run_in_executor(
-                _rag_executor, lambda: get_daily_breakdown(prediction_date=yesterday)
+                _rag_executor,
+                lambda: get_daily_breakdown(
+                    prediction_date=yesterday,
+                    published_only=True,
+                ),
             )
         except Exception as exc:
             log.error("Best picks recap: failed to get breakdown: %s", exc)
@@ -1967,7 +2048,11 @@ class AutoPush(commands.Cog):
                         _rag_executor, lambda: resolve_outcomes(prediction_date=yesterday)
                     )
                     breakdown = await loop.run_in_executor(
-                        _rag_executor, lambda: get_daily_breakdown(prediction_date=yesterday)
+                        _rag_executor,
+                        lambda: get_daily_breakdown(
+                            prediction_date=yesterday,
+                            published_only=True,
+                        ),
                     )
                     if breakdown.get("total", 0) > 0:
                         bp_channel = self.bot.get_channel(CHANNEL_BEST_PICKS)
@@ -2056,7 +2141,11 @@ class AutoPush(commands.Cog):
                         _rag_executor, lambda: resolve_outcomes(prediction_date=yesterday)
                     )
                     breakdown = await loop.run_in_executor(
-                        _rag_executor, lambda: get_daily_breakdown(prediction_date=yesterday)
+                        _rag_executor,
+                        lambda: get_daily_breakdown(
+                            prediction_date=yesterday,
+                            published_only=True,
+                        ),
                     )
                     if breakdown.get("total", 0) > 0:
                         bp_channel = self.bot.get_channel(CHANNEL_BEST_PICKS)
@@ -2142,6 +2231,7 @@ class AutoPush(commands.Cog):
                         "edge": (decision.value_edge or 0) * 100,
                         "conf": decision.confidence or "low",
                         "kickoff": kickoff_map.get(fixture, result.fixture.kickoff or ""),
+                        "market_result": result,
                     })
 
             if not all_picks:
@@ -2205,7 +2295,28 @@ class AutoPush(commands.Cog):
                 )
 
             em.set_footer(text=f"{league} \u2502 Spix's Picks \u2502 {len(all_picks)} picks analyzed, top {len(top)} shown")
-            await ch.send(embed=em)
+            message = await ch.send(embed=em)
+
+            try:
+                publication_result = await _record_discord_publications(
+                    [pick["market_result"] for pick in top],
+                    message=message,
+                    channel=ch,
+                    league=league,
+                    target_date=date.today().isoformat(),
+                )
+                log.info(
+                    "Recorded %d official Daily Picks recommendation(s) and %d delivery record(s) for %s",
+                    publication_result["recommendations_created"],
+                    publication_result["deliveries_created"],
+                    league,
+                )
+            except Exception:
+                # The public Discord message is already delivered. Never
+                # retry or fail the scheduler in a way that could duplicate it;
+                # the deterministic publication keys make a later manual
+                # repost safe after the platform issue is corrected.
+                log.exception("Failed to record official Daily Picks publication for %s", league)
 
             # Fire picks to Make.com for automated content generation
             make_url = os.getenv("MAKE_WEBHOOK_URL", "")
@@ -2662,7 +2773,7 @@ class AutoPush(commands.Cog):
             return
 
         try:
-            stats = get_track_record()
+            stats = get_track_record(published_only=True)
         except Exception:
             return
 
@@ -2670,7 +2781,7 @@ class AutoPush(commands.Cog):
         if total == 0:
             em = discord.Embed(
                 title="\U0001f4ca Track Record",
-                description="No predictions resolved yet. Check back after today's matches finish.",
+                description="No official recommendations resolved yet. Check back after today's matches finish.",
                 color=COLOR_BLUE,
             )
             await channel.send(embed=em)
@@ -2692,7 +2803,7 @@ class AutoPush(commands.Cog):
         streak_str = f"W{streak}" if streak > 0 else (f"L{abs(streak)}" if streak < 0 else "\u2014")
 
         em = discord.Embed(
-            title="\U0001f4ca Track Record \u2014 All Time",
+            title="\U0001f4ca Official Track Record \u2014 All Time",
             description=f"**{hits}/{total}** predictions hit ({hit_rate:.1%}) | ROI: {roi:+.1%} | Streak: {streak_str}",
             color=color,
         )
@@ -2722,7 +2833,7 @@ class AutoPush(commands.Cog):
 
         # Calibration summary (if available)
         try:
-            cal_data = get_calibration_data()
+            cal_data = get_calibration_data(published_only=True)
             if cal_data:
                 cal_lines = []
                 for bucket in cal_data:
@@ -2737,7 +2848,7 @@ class AutoPush(commands.Cog):
         except Exception:
             pass
 
-        em.set_footer(text=f"Based on {total} resolved predictions \u2502 Spix's Picks")
+        em.set_footer(text=f"Based on {total} resolved official recommendations \u2502 Spix's Picks")
         await channel.send(embed=em)
 
 

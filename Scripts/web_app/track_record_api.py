@@ -114,13 +114,18 @@ async def track_record(
     league: Optional[str] = Query(None, description="Filter to one league"),
     market: Optional[str] = Query(None, description="Filter to one market"),
     confidence: Optional[str] = Query(None, description="Filter by confidence level"),
+    official_only: bool = Query(
+        True,
+        description="Use only recommendations actually released to users",
+    ),
 ):
-    """Full track record statistics."""
+    """Full track record statistics for the public recommendation cohort."""
     stats = get_track_record(
         days=days,
         league=league,
         market=market,
         confidence=confidence,
+        published_only=official_only,
     )
     if "error" in stats:
         return TrackRecordResponse()
@@ -131,9 +136,17 @@ async def track_record(
 async def daily_performance(
     days: int = Query(30, description="Number of days to return"),
     league: Optional[str] = Query(None, description="Filter to one league"),
+    official_only: bool = Query(
+        True,
+        description="Use only recommendations actually released to users",
+    ),
 ):
     """Daily performance array for charting."""
-    stats = get_track_record(days=days, league=league)
+    stats = get_track_record(
+        days=days,
+        league=league,
+        published_only=official_only,
+    )
     if "error" in stats:
         return []
     return [DailyEntry(**d) for d in stats.get("daily_performance", [])]
@@ -143,9 +156,18 @@ async def daily_performance(
 async def recent_predictions(
     limit: int = Query(20, description="Number of predictions to return", ge=1, le=100),
     league: Optional[str] = Query(None, description="Filter to one league"),
+    official_only: bool = Query(
+        True,
+        description="Use only recommendations actually released to users",
+    ),
 ):
-    """Most recent graded predictions with outcomes."""
-    preds = get_recent_predictions(limit=limit, league=league, graded_only=True)
+    """Most recent graded recommendations with outcomes."""
+    preds = get_recent_predictions(
+        limit=limit,
+        league=league,
+        graded_only=True,
+        published_only=official_only,
+    )
     result = []
     for p in preds:
         try:

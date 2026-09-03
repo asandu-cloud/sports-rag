@@ -157,7 +157,13 @@ class PublicationService:
             "value_edge": _optional_number(decision.get("value_edge"), "decision.value_edge"),
             "confidence": str(decision.get("confidence") or "").strip() or None,
             "projected_total": _optional_number(projection.get("value"), "projection.value"),
-            "source": PUBLISHED_PREDICTION_SOURCE,
+            # ``predictions`` retains a legacy uniqueness constraint that
+            # includes ``source``.  Add a short deterministic release suffix
+            # so a changed quote/snapshot can be represented as a distinct,
+            # auditable release rather than overwriting or colliding with the
+            # original selection.  Official reporting uses the publication
+            # join, never this implementation detail.
+            "source": f"{PUBLISHED_PREDICTION_SOURCE}:{recommendation_key[:12]}",
             "season": _season_for(release_time.date()),
             "prediction_date": release_time.date(),
             "extras": {

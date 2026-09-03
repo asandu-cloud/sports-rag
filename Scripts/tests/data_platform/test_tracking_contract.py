@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import date
 from pathlib import Path
 import sys
@@ -193,3 +194,69 @@ def test_publication_service_rejects_non_recommendations(settings, engine, sessi
     service = PublicationService(repo=PublicationRepository(session_factory=session_factory))
     with pytest.raises(PublicationValidationError, match="Only a priced recommended decision"):
         service.publish(payload, surface="discord")
+
+
+def test_published_cohort_filters_and_quote_versions_are_auditable(
+    settings, engine, session_factory,
+):
+    """Only immutable public releases appear in official reporting.
+
+    A price/snapshot change is a new release even where the selection text is
+    unchanged; the legacy prediction deduplication key must not collapse it.
+    """
+    from data_platform.repositories.predictions import PredictionRepository
+    from data_platform.repositories.publications import PublicationRepository
+    from data_platform.services.publications import PublicationService
+
+    predictions = PredictionRepository(session_factory=session_factory)
+    service = PublicationService(repo=PublicationRepository(session_factory=session_factory))
+    payload = _published_market_result()
+    first = service.publish(
+        payload,
+        surface="discord",
+        external_reference="discord:1:2:3",
+        published_at="2026-09-05T10:00:00Z",
+    )
+
+    revised = deepcopy(payload)
+    revised["decision"]["quote"]["odds"] = 2.15
+    revised["provenance"]["input_snapshot_id"] = "snapshot:fixture-999:2026-09-05T11"
+    second = service.publish(
+        revised,
+        surface="discord",
+        external_reference="discord:1:2:4",
+        published_at="2026-09-05T11:00:00Z",
+    )
+
+    research_id = predictions.log(
+        home_team="Liverpool",
+        away_team="Everton",
+        league="EPL",
+        market="goals",
+        pick="Over 2.5",
+        odds=2.0,
+        prediction_date=date(2026, 9, 5),
+    )
+    assert first["prediction_id"] != second["prediction_id"]
+    assert predictions.set_outcome(first["prediction_id"], outcome="hit")
+    assert predictions.set_outcome(second["prediction_id"], outcome="miss")
+    assert predictions.set_outcome(research_id, outcome="hit")
+
+    official = predictions.get_track_record(published_only=True)
+    assert official["total_graded"] == 2
+    assert official["hits"] == 1
+
+    daily = predictions.get_daily_breakdown(
+        target_date=date(2026, 9, 5),
+        published_only=True,
+    )
+    # The daily recap intentionally collapses price revisions of the same
+    # selection into one user-facing result, retaining the logged best price.
+    assert daily["total"] == 1
+    assert daily["misses"] == 1
+
+    recent = predictions.get_recent(days=30, published_only=True)
+    assert {row["id"] for row in recent} == {first["prediction_id"], second["prediction_id"]}
+
+    calibration = predictions.get_calibration_data(published_only=True)
+    assert sum(bucket["count"] for bucket in calibration) == 2

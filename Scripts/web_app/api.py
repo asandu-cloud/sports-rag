@@ -139,6 +139,19 @@ try:
 except Exception as _health_exc:
     log.warning("Health router not mounted: %s", _health_exc)
 
+# The public track-record endpoints use the immutable publication cohort by
+# default.  Mount them in the main website process rather than leaving the
+# standalone module disconnected from the product API.
+try:
+    try:
+        from .track_record_api import router as track_record_router
+    except ImportError:
+        from track_record_api import router as track_record_router
+    app.include_router(track_record_router)
+    log.info("Official track-record router mounted at /api/track-record")
+except Exception as _track_record_exc:
+    log.warning("Track-record router not mounted: %s", _track_record_exc)
+
 # ---------------------------------------------------------------------------
 # Simple TTL cache for fixture fetches (5 min)
 # ---------------------------------------------------------------------------

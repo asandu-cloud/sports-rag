@@ -179,6 +179,7 @@ class PredictionRepository:
         days: int = 30,
         league: Optional[str] = None,
         market: Optional[str] = None,
+        published_only: bool = False,
         limit: int = 500,
     ) -> List[Dict[str, Any]]:
         since = date.today() - timedelta(days=days)
@@ -188,6 +189,11 @@ class PredictionRepository:
                 stmt = stmt.where(Prediction.league == league)
             if market is not None:
                 stmt = stmt.where(Prediction.market == market)
+            if published_only:
+                stmt = stmt.join(
+                    PublishedRecommendation,
+                    PublishedRecommendation.prediction_id == Prediction.id,
+                )
             stmt = stmt.order_by(desc(Prediction.prediction_date), desc(Prediction.id)).limit(limit)
             rows = session.scalars(stmt).all()
             return [d for d in (_row_to_dict(r) for r in rows) if d]
@@ -228,27 +234,46 @@ class PredictionRepository:
             [row for row in (_row_to_dict(item) for item in rows) if row is not None]
         )
 
-    def get_daily_breakdown(self, *, target_date: date) -> Dict[str, Any]:
+    def get_daily_breakdown(
+        self,
+        *,
+        target_date: date,
+        published_only: bool = False,
+    ) -> Dict[str, Any]:
         with self._factory() as session:
             stmt = select(Prediction).where(
                 Prediction.prediction_date == target_date,
                 Prediction.outcome.isnot(None),
             )
+            if published_only:
+                stmt = stmt.join(
+                    PublishedRecommendation,
+                    PublishedRecommendation.prediction_id == Prediction.id,
+                )
             rows = session.scalars(stmt).all()
         return build_daily_breakdown(
             [row for row in (_row_to_dict(item) for item in rows) if row is not None],
             target_date=target_date,
         )
 
-    def get_calibration_data(self, *, buckets: int = 20) -> List[Dict[str, Any]]:
+    def get_calibration_data(
+        self,
+        *,
+        buckets: int = 20,
+        published_only: bool = False,
+    ) -> List[Dict[str, Any]]:
         """Return the shared calibration contract used by the Discord embed."""
         with self._factory() as session:
-            rows = session.scalars(
-                select(Prediction).where(
-                    Prediction.outcome.isnot(None),
-                    Prediction.model_prob.isnot(None),
+            stmt = select(Prediction).where(
+                Prediction.outcome.isnot(None),
+                Prediction.model_prob.isnot(None),
+            )
+            if published_only:
+                stmt = stmt.join(
+                    PublishedRecommendation,
+                    PublishedRecommendation.prediction_id == Prediction.id,
                 )
-            ).all()
+            rows = session.scalars(stmt).all()
         return build_calibration(
             [row for row in (_row_to_dict(item) for item in rows) if row is not None],
             buckets=buckets,

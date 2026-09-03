@@ -184,12 +184,14 @@ def platform_get_track_record(
     league: Optional[str] = None,
     confidence: Optional[str] = None,
     source: Optional[str] = None,
+    published_only: bool = False,
     min_odds: Optional[float] = None,
     **_: Any,
 ) -> Dict[str, Any]:
     return get_prediction_service().track_record(
         days=days, market=market, league=league,
-        confidence=confidence, source=source, min_odds=min_odds,
+        confidence=confidence, source=source, published_only=published_only,
+        min_odds=min_odds,
     )
 
 
@@ -198,15 +200,22 @@ def platform_get_recent_predictions(
     days: int = 30,
     league: Optional[str] = None,
     market: Optional[str] = None,
+    published_only: bool = False,
     limit: int = 500,
     **_: Any,
 ) -> list:
     return get_prediction_service().recent(
-        days=days, league=league, market=market, limit=limit,
+        days=days, league=league, market=market,
+        published_only=published_only, limit=limit,
     )
 
 
-def platform_get_daily_breakdown(*, target_date=None, **_: Any) -> Dict[str, Any]:
+def platform_get_daily_breakdown(
+    *,
+    target_date=None,
+    published_only: bool = False,
+    **_: Any,
+) -> Dict[str, Any]:
     from datetime import date as _date
     the_date = target_date or _date.today()
     if not isinstance(the_date, _date):
@@ -214,11 +223,22 @@ def platform_get_daily_breakdown(*, target_date=None, **_: Any) -> Dict[str, Any
             the_date = _date.fromisoformat(str(the_date))
         except ValueError:
             the_date = _date.today()
-    return get_prediction_service().daily_breakdown(target_date=the_date)
+    return get_prediction_service().daily_breakdown(
+        target_date=the_date,
+        published_only=published_only,
+    )
 
 
-def platform_get_calibration_data(*, buckets: int = 20, **_: Any) -> list:
-    return get_prediction_service().calibration(buckets=buckets)
+def platform_get_calibration_data(
+    *,
+    buckets: int = 20,
+    published_only: bool = False,
+    **_: Any,
+) -> list:
+    return get_prediction_service().calibration(
+        buckets=buckets,
+        published_only=published_only,
+    )
 
 
 def platform_get_unresolved_for_grading(*, on_or_before=None) -> list:
