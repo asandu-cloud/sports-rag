@@ -12,6 +12,13 @@ from .features import TeamFeatureSnapshot, PlayerFeatureSnapshot  # noqa: F401
 from .users import AppUser, AppSubscriptionEvent, AppReferral  # noqa: F401
 from .predictions import Prediction, TrialUser, TrialParlay  # noqa: F401
 from .publications import PublishedRecommendation, RecommendationDelivery  # noqa: F401
+from .match_reads import (  # noqa: F401
+    MatchRead,
+    MatchReadDelivery,
+    MatchReadPackage,
+    MatchReadPackageSelection,
+    MatchReadSelection,
+)
 from .parlays import ParlaySession  # noqa: F401
 from .live import (  # noqa: F401
     LiveFixture,
@@ -47,6 +54,11 @@ __all__ = [
     "TrialParlay",
     "PublishedRecommendation",
     "RecommendationDelivery",
+    "MatchRead",
+    "MatchReadSelection",
+    "MatchReadPackage",
+    "MatchReadPackageSelection",
+    "MatchReadDelivery",
     "ParlaySession",
     "LiveFixture",
     "LiveStateSnapshot",

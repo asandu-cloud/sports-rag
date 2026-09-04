@@ -8,6 +8,7 @@ and handle DI (session factory, optional cache backend) internally.
 from .fixtures import FixtureService  # noqa: F401
 from .kb import KBService  # noqa: F401
 from .live import LiveService  # noqa: F401
+from .match_reads import MatchReadService  # noqa: F401
 from .odds import OddsService  # noqa: F401
 from .parlays import ParlayService  # noqa: F401
 from .predictions import PredictionService  # noqa: F401
