@@ -51,6 +51,11 @@ def _get_match_read_service():
     return MatchReadService()
 
 
+def _utc_now() -> datetime:
+    """Small clock seam so public-card freshness is testable."""
+    return datetime.now(timezone.utc)
+
+
 def _parse_matchday(value: str) -> date:
     try:
         parsed = date.fromisoformat(value)
@@ -172,8 +177,21 @@ def _card_from_read(read: Mapping[str, Any]) -> Dict[str, Any]:
     return card
 
 
-def _effective_cards(reads: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
-    """Return one visible card per fixture, ordered by kickoff then fixture ID."""
+def _effective_cards(
+    reads: Sequence[Mapping[str, Any]],
+    *,
+    now: Optional[datetime] = None,
+) -> List[Dict[str, Any]]:
+    """Return one *current* card per fixture, ordered by kickoff then ID.
+
+    A delivery is proof that a card was once public; it is not permission to
+    keep serving its price after kickoff or after its input snapshot becomes
+    stale.  This repeats the release-time check at read time so a page left
+    open across kickoff cannot turn an archival card into a live suggestion.
+    """
+    from data_platform.services.match_read_release import assess_match_read_release
+
+    reference_now = now or _utc_now()
     by_fixture: Dict[str, List[Mapping[str, Any]]] = {}
     for read in reads:
         fixture = read.get("fixture") if isinstance(read.get("fixture"), Mapping) else {}
@@ -188,6 +206,14 @@ def _effective_cards(reads: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]
         effective = select_effective_match_read(fixture_reads)
         if effective is None:
             logger.warning("Skipping Match Read fixture %s with no delivery-supported stage", fixture_id)
+            continue
+        assessment = assess_match_read_release(effective, now=reference_now)
+        if not assessment.eligible:
+            logger.info(
+                "Withholding non-current Match Read fixture %s from public board: %s",
+                fixture_id,
+                assessment.reason,
+            )
             continue
         try:
             cards.append(_card_from_read(effective))
@@ -261,13 +287,14 @@ def get_best_match_reads(
     """
     matchday = _parse_matchday(target_date)
     service = _get_match_read_service()
+    now = _utc_now()
     cards: List[Dict[str, Any]] = []
     for league in PUBLIC_MATCH_READ_LEAGUES:
         cards.extend(_effective_cards(_load_matchday_reads(
             service,
             league=league,
             target_date=matchday,
-        )))
+        ), now=now))
     recommended = [card for card in cards if card.get("status") == "recommended"]
     recommended.sort(key=_core_rank, reverse=True)
     return {
@@ -304,6 +331,15 @@ def get_match_read_fixture(fixture_id: str) -> Dict[str, Any]:
     effective = select_effective_match_read(reads)
     if effective is None:
         raise HTTPException(status_code=404, detail="No delivery-supported Match Read exists for this fixture.")
+    from data_platform.services.match_read_release import assess_match_read_release
+    assessment = assess_match_read_release(effective, now=_utc_now())
+    if not assessment.eligible:
+        # Historical snapshots remain in the platform audit trail, but this
+        # public actionable endpoint must not hand out a stale/in-play price.
+        raise HTTPException(
+            status_code=410,
+            detail=f"This Match Read is no longer actionable: {assessment.reason}",
+        )
     try:
         effective_card = _card_from_read(effective)
         history = [_card_from_read(read) for read in sorted(reads, key=_history_key, reverse=True)]
@@ -334,7 +370,7 @@ def get_matchday_match_reads(league: str, target_date: str) -> Dict[str, Any]:
     matchday = _parse_matchday(target_date)
     service = _get_match_read_service()
     reads = _load_matchday_reads(service, league=league_code, target_date=matchday)
-    cards = _effective_cards(reads)
+    cards = _effective_cards(reads, now=_utc_now())
     return {
         "schema_version": MATCH_READ_BOARD_SCHEMA_VERSION,
         "league": league_code,

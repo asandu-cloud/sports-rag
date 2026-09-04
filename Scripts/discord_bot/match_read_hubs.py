@@ -81,6 +81,29 @@ def select_effective_match_reads(reads: Iterable[Mapping[str, Any]]) -> list[Dic
     return sorted(selected, key=_fixture_sort_key)
 
 
+def select_current_match_read_hub_reads(
+    reads: Iterable[Mapping[str, Any]],
+    *,
+    now: Optional[Any] = None,
+    max_age_minutes: int = 120,
+) -> tuple[list[Dict[str, Any]], list[Dict[str, Any]]]:
+    """Return only fixture cards still safe to show in a public hub.
+
+    This is intentionally separate from rendering.  A Discord message can be
+    edited or fetched long after it was first sent, so stored deliveries alone
+    must never be treated as permission to publish a started fixture or a
+    stale price.  The shared platform policy also keeps the website and hub
+    on the same amendment precedence rules.
+    """
+    from data_platform.services.match_read_release import select_releasable_match_reads
+
+    return select_releasable_match_reads(
+        reads,
+        now=now,
+        max_age_minutes=max_age_minutes,
+    )
+
+
 def visible_read_snapshot(reads: Iterable[Mapping[str, Any]]) -> list[Dict[str, Any]]:
     """Return the stable, small identity set stored beside a hub delivery."""
     rows = []

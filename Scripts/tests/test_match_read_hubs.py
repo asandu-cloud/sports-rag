@@ -6,6 +6,7 @@ from Scripts.discord_bot.match_read_hubs import (
     build_match_read_hub_embeds,
     discord_message_id_from_reference,
     hub_has_changed,
+    select_current_match_read_hub_reads,
     select_effective_match_reads,
     visible_read_snapshot,
 )
@@ -89,7 +90,33 @@ def test_hub_snapshot_detects_a_lineup_amendment_but_not_a_scheduler_restart():
     assert hub_has_changed(prior_metadata, amended) is True
 
 
-def test_renderer_keeps_no_bets_visible_and_disclaims_same_game_independence():
+def test_renderer_keeps_no_bets_visible_and_disclaims_same_game_independence(monkeypatch):
+    # Other legacy tests install a deliberately tiny `discord` stub globally.
+    # Exercise the renderer against a small inspectable embed instead of
+    # relying on test collection order or the real discord.py serializer.
+    from Scripts.discord_bot import match_read_hubs
+
+    class _InspectableEmbed:
+        def __init__(self, *, title=None, description=None, color=None):
+            self.title = title
+            self.description = description
+            self.color = color
+            self.fields = []
+
+        def add_field(self, *, name, value, inline=False):
+            self.fields.append({"name": name, "value": value, "inline": inline})
+
+        def set_footer(self, **_kwargs):
+            return None
+
+        def to_dict(self):
+            return {
+                "title": self.title,
+                "description": self.description,
+                "fields": self.fields,
+            }
+
+    monkeypatch.setattr(match_read_hubs.discord, "Embed", _InspectableEmbed)
     recommended = _read(1)
     recommended["selections"].append({
         **recommended["selections"][0],
@@ -125,3 +152,20 @@ def test_discord_reference_parser_rejects_the_wrong_channel_or_bad_ids():
     assert discord_message_id_from_reference("discord:10:20:30", channel_id=21) is None
     assert discord_message_id_from_reference("discord:10:20:not-a-message") is None
     assert discord_message_id_from_reference("not-a-reference") is None
+
+
+def test_hub_filter_excludes_started_and_stale_fixture_cards():
+    current = _read(1, fixture_id="fixture-current", kickoff="2026-09-06T15:00:00Z")
+    current["provenance"]["evaluated_at"] = "2026-09-06T12:00:00Z"
+    started = _read(2, fixture_id="fixture-started", kickoff="2026-09-06T12:00:00Z")
+    started["provenance"]["evaluated_at"] = "2026-09-06T11:50:00Z"
+    stale = _read(3, fixture_id="fixture-stale", kickoff="2026-09-06T18:00:00Z")
+    stale["provenance"]["evaluated_at"] = "2026-09-06T09:00:00Z"
+
+    visible, withheld = select_current_match_read_hub_reads(
+        [current, started, stale],
+        now="2026-09-06T12:30:00Z",
+    )
+
+    assert [read["id"] for read in visible] == [current["id"]]
+    assert {row["fixture_id"] for row in withheld} == {"fixture-started", "fixture-stale"}

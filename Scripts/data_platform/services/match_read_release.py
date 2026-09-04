@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Dict, Iterable, Mapping, Optional, Sequence
+from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple
 
 from .match_read_delivery import MatchReadDeliveryService
 from .match_reads import MatchReadService
@@ -48,6 +48,60 @@ def select_effective_match_read(reads: Iterable[Mapping[str, Any]]) -> Optional[
         if candidates:
             return max(candidates, key=_revision_key)
     return None
+
+
+def select_releasable_match_reads(
+    reads: Iterable[Mapping[str, Any]],
+    *,
+    now: Optional[Any] = None,
+    max_age_minutes: int = DEFAULT_MATCH_READ_MAX_AGE_MINUTES,
+) -> Tuple[list[Dict[str, Any]], list[Dict[str, Any]]]:
+    """Choose current public reads from an arbitrary fixture-history set.
+
+    This is the shared delivery safeguard for the website and Discord.  The
+    caller can pass raw persisted history, a surface-specific subset, or an
+    already-effective list; the result is always at most one *current* card
+    per fixture.  ``skipped`` retains operational reasons without exposing a
+    stale or started selection as an actionable card.
+    """
+    reference_now = _as_utc(now) if now is not None else datetime.now(timezone.utc)
+    by_fixture: Dict[str, list[Mapping[str, Any]]] = {}
+    skipped: list[Dict[str, Any]] = []
+    for read in reads:
+        if not isinstance(read, Mapping):
+            continue
+        fixture = read.get("fixture") if isinstance(read.get("fixture"), Mapping) else {}
+        fixture_id = str(fixture.get("event_id") or "").strip()
+        if not fixture_id:
+            skipped.append({
+                "fixture_id": None,
+                "match_read_id": read.get("id"),
+                "reason": "Fixture event ID is unavailable.",
+            })
+            continue
+        by_fixture.setdefault(fixture_id, []).append(read)
+
+    eligible: list[Dict[str, Any]] = []
+    for fixture_id, fixture_reads in by_fixture.items():
+        effective = select_effective_match_read(fixture_reads)
+        if effective is None:
+            skipped.append({"fixture_id": fixture_id, "reason": "No supported Match Read stage."})
+            continue
+        assessment = assess_match_read_release(
+            effective,
+            now=reference_now,
+            max_age_minutes=max_age_minutes,
+        )
+        if not assessment.eligible:
+            skipped.append({
+                "fixture_id": fixture_id,
+                "match_read_id": effective.get("id"),
+                "reason": assessment.reason,
+            })
+            continue
+        eligible.append(dict(effective))
+
+    return sorted(eligible, key=_fixture_sort_key), skipped
 
 
 def assess_match_read_release(
@@ -127,30 +181,23 @@ class MatchReadReleaseService:
             league=normalised_league,
             target_date=matchday,
         )
-        by_fixture: Dict[str, list[Mapping[str, Any]]] = {}
-        for read in stored:
-            fixture = read.get("fixture") if isinstance(read.get("fixture"), Mapping) else {}
-            fixture_id = str(fixture.get("event_id") or "").strip()
-            if fixture_id:
-                by_fixture.setdefault(fixture_id, []).append(read)
+        releasable, skipped = select_releasable_match_reads(
+            stored,
+            now=now,
+            max_age_minutes=max_age_minutes,
+        )
 
         released = []
-        skipped = []
-        for fixture_id in sorted(by_fixture):
-            effective = select_effective_match_read(by_fixture[fixture_id])
-            if effective is None:
-                skipped.append({"fixture_id": fixture_id, "reason": "No supported Match Read stage."})
-                continue
-            assessment = assess_match_read_release(
-                effective,
-                now=now,
-                max_age_minutes=max_age_minutes,
-            )
-            if not assessment.eligible:
+        for effective in releasable:
+            fixture = effective.get("fixture") if isinstance(effective.get("fixture"), Mapping) else {}
+            fixture_id = str(fixture.get("event_id") or "").strip()
+            # ``select_releasable_match_reads`` validates this identity, but
+            # retain the guard here because this method creates side effects.
+            if not fixture_id:
                 skipped.append({
-                    "fixture_id": fixture_id,
+                    "fixture_id": None,
                     "match_read_id": effective.get("id"),
-                    "reason": assessment.reason,
+                    "reason": "Fixture event ID is unavailable.",
                 })
                 continue
 
@@ -183,7 +230,12 @@ class MatchReadReleaseService:
             "date": matchday.isoformat(),
             "dry_run": bool(dry_run),
             "stored_read_count": len(stored),
-            "fixture_count": len(by_fixture),
+            "fixture_count": len({
+                str((read.get("fixture") or {}).get("event_id") or "").strip()
+                for read in stored
+                if isinstance(read, Mapping) and isinstance(read.get("fixture"), Mapping)
+                and str((read.get("fixture") or {}).get("event_id") or "").strip()
+            }),
             "released": released,
             "skipped": skipped,
         }
@@ -211,6 +263,15 @@ def _revision_key(read: Mapping[str, Any]) -> tuple[int, float, float, int]:
 def _read_evaluated_at(read: Mapping[str, Any]) -> Optional[datetime]:
     provenance = read.get("provenance") if isinstance(read.get("provenance"), Mapping) else {}
     return _parse_timestamp(provenance.get("evaluated_at")) or _parse_timestamp(read.get("created_at"))
+
+
+def _fixture_sort_key(read: Mapping[str, Any]) -> tuple[float, str]:
+    fixture = read.get("fixture") if isinstance(read.get("fixture"), Mapping) else {}
+    kickoff = _parse_timestamp(fixture.get("kickoff"))
+    return (
+        kickoff.timestamp() if kickoff is not None else float("inf"),
+        str(fixture.get("event_id") or ""),
+    )
 
 
 def _matchday_date(value: date | str) -> date:

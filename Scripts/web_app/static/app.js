@@ -342,10 +342,19 @@ const slip = {
     document.getElementById('appLayout').classList.toggle('slip-open', this.open);
   },
 
-  add(fixture, pick, odds, market) {
+  add(fixture, pick, odds, market, options = {}) {
     const key = fixture + '|' + pick;
     if (this.legs.find(l => l.key === key)) { this.remove(key); return false; }
-    this.legs.push({ key, fixture, pick, odds, market });
+    const fixtureId = String(options.fixtureId || fixture);
+    const sameFixtureLeg = this.legs.find(leg => String(leg.fixtureId || leg.fixture) === fixtureId);
+    if (sameFixtureLeg) {
+      showToast(
+        'This slip accepts one selection per fixture. Same-game combined odds need a verified bookmaker quote.',
+        'error',
+      );
+      return null;
+    }
+    this.legs.push({ key, fixture, fixtureId, pick, odds, market });
     this._render();
     this._update();
     if (!this.open) this.toggle();
@@ -375,20 +384,11 @@ const slip = {
   },
 
   score() {
-    // TODO: BACKEND — score parlay server-side
-    // Suggested: POST /api/slip/score { legs: this.legs }
-    // Response: { score: 0-100, label: string, warnings: string[] }
     if (!this.legs.length) { showToast('Add picks first', 'error'); return; }
-    const q = document.getElementById('slipQuality');
-    q.classList.remove('hidden');
-    const fill = document.getElementById('qualityFill');
-    const pct = Math.min(95, 45 + this.legs.length * 8 + Math.random() * 15);
-    fill.style.width = pct + '%';
-    fill.style.background = pct > 70 ? 'var(--green)' : pct > 45 ? 'var(--amber)' : 'var(--loss)';
-    document.getElementById('qualityLabel').textContent = pct > 70 ? '🔥 Strong Parlay' : pct > 45 ? '⚠️ Average Value' : '❌ Weak Parlay';
-    document.getElementById('qualityLabel').style.color = pct > 70 ? 'var(--green)' : pct > 45 ? 'var(--amber)' : 'var(--loss)';
-    document.getElementById('qualityWarnings').textContent = this.legs.length > 4 ? 'High leg count reduces probability.' : '';
-    showToast('Parlay scored!', 'success');
+    showToast(
+      'Parlay scoring is not available yet. This slip only totals independent fixture odds.',
+      'error',
+    );
   },
 
   _render() {
@@ -960,11 +960,11 @@ const appModule = {
     const f = this.fixtures.find(x => String(x.id) === String(fxId)) || this.fixtureIndex[String(fxId)];
     if (!f || !f.best || !Number.isFinite(f.odds)) return;
     const slipKey = `${f.home} vs ${f.away}|${f.pick}`;
-    const added = slip.add(f.home + ' vs ' + f.away, f.pick, f.odds, 'Best Pick');
+    const added = slip.add(f.home + ' vs ' + f.away, f.pick, f.odds, 'Best Pick', { fixtureId: f.id });
     document.querySelectorAll('[data-fixture-add]').forEach(btn => {
       if (btn.dataset.fixtureAdd !== String(f.id)) return;
       if (added === false) { btn.textContent = '+'; btn.classList.remove('added'); }
-      else { btn.textContent = '✓'; btn.classList.add('added'); }
+      else if (added === true) { btn.textContent = '✓'; btn.classList.add('added'); }
     });
   },
 
@@ -984,13 +984,21 @@ const appModule = {
     `;
 
     const summary = document.getElementById('matchReadSummary');
-    if (f.isMatchRead) this._renderMatchReadSummary(f);
-    else if (summary) summary.innerHTML = '';
-    this._buildMarketTabs(f);
-    if (this.currentMarketTab) this._renderMarkets(f, this.currentMarketTab);
-    else document.getElementById('matchMarkets').innerHTML = f.isMatchRead
-      ? ''
-      : '<div class="empty-state"><p>No market decisions are available for this fixture yet.</p></div>';
+    if (f.isMatchRead) {
+      // The Match Read itself is the public product.  Do not duplicate its
+      // selections in the old all-markets panel, where users could mistake
+      // two correlated fixture angles for an independently priced parlay.
+      this._renderMatchReadSummary(f);
+      const tabs = document.getElementById('marketTabs');
+      tabs.innerHTML = '';
+      tabs.classList.add('hidden');
+      document.getElementById('matchMarkets').innerHTML = '';
+    } else {
+      if (summary) summary.innerHTML = '';
+      this._buildMarketTabs(f);
+      if (this.currentMarketTab) this._renderMarkets(f, this.currentMarketTab);
+      else document.getElementById('matchMarkets').innerHTML = '<div class="empty-state"><p>No market decisions are available for this fixture yet.</p></div>';
+    }
     this.switchTab('match');
   },
 
@@ -1058,11 +1066,17 @@ const appModule = {
         const selection = selections[Number(button.dataset.matchReadAdd)];
         const odds = Number(selection?.odds);
         if (!selection || !Number.isFinite(odds)) return;
-        const added = slip.add(f.home + ' vs ' + f.away, selection.pick, odds, 'Match Read');
+        const added = slip.add(
+          f.home + ' vs ' + f.away,
+          selection.pick,
+          odds,
+          'Match Read',
+          { fixtureId: f.id },
+        );
         if (added === false) {
           button.textContent = '+ Add';
           button.classList.remove('added');
-        } else {
+        } else if (added === true) {
           button.textContent = '✓ Added';
           button.classList.add('added');
         }
@@ -1136,10 +1150,10 @@ const appModule = {
     const f = this.fixtures.find(x => String(x.id) === String(fxId)) || this.fixtureIndex[String(fxId)];
     if (!f || !Number.isFinite(odds)) return;
     const slipKey = `${f.home} vs ${f.away}|${pick}`;
-    const added = slip.add(f.home + ' vs ' + f.away, pick, odds, 'Market');
+    const added = slip.add(f.home + ' vs ' + f.away, pick, odds, 'Market', { fixtureId: f.id });
     document.querySelectorAll('[data-market-add]').forEach(btn => {
       if (added === false) { btn.textContent = '+ Add'; btn.classList.remove('added'); }
-      else { btn.textContent = '✓ Added'; btn.classList.add('added'); }
+      else if (added === true) { btn.textContent = '✓ Added'; btn.classList.add('added'); }
     });
   },
 

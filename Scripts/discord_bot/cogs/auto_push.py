@@ -50,6 +50,7 @@ from match_read_hubs import (  # noqa: E402
     discord_message_id_from_reference,
     discord_message_reference,
     hub_has_changed,
+    select_current_match_read_hub_reads,
     select_effective_match_reads,
     visible_read_snapshot,
 )
@@ -384,6 +385,21 @@ async def _record_match_read_hub_deliveries(
             target_date=target_date,
             update_kind=update_kind,
         ),
+    )
+
+
+def _match_read_hub_delivery_complete(delivery: object, expected_read_count: int) -> bool:
+    """Whether every card in a public hub reached the tracking bridge.
+
+    Discord has already accepted a message when this is evaluated.  A failed
+    database write must therefore cause a retry, not make the scheduler think
+    that a partial league slate was fully delivered.
+    """
+    if not isinstance(delivery, dict):
+        return False
+    return (
+        not delivery.get("errors")
+        and int(delivery.get("reads") or 0) == int(expected_read_count)
     )
 
 
@@ -2455,9 +2471,24 @@ class AutoPush(commands.Cog):
             except Exception:
                 log.exception("Could not load persisted Match Reads for %s; hub was not published.", league)
                 continue
+            # A row being persisted (or even previously delivered) never
+            # makes it safe to keep showing after kickoff.  This shared
+            # release check also rejects a stale price before the Discord
+            # message is created or edited.
+            reads, withheld = select_current_match_read_hub_reads(
+                reads,
+                now=datetime.now(timezone.utc),
+            )
+            for held in withheld:
+                log.info(
+                    "Withholding Match Read hub card for %s (%s): %s",
+                    league,
+                    held.get("fixture_id") or "unknown fixture",
+                    held.get("reason") or "not currently releasable",
+                )
             if not reads:
                 log.warning(
-                    "No persisted Match Reads available for %s on %s; hub was not published.",
+                    "No current persisted Match Reads available for %s on %s; hub was not published.",
                     league,
                     target_date_text,
                 )
@@ -2502,10 +2533,32 @@ class AutoPush(commands.Cog):
                         log.warning("Could not fetch stored Match Read hub for %s: %s", league, exc)
 
             if message is not None and not changed:
-                # The existing public message already represents exactly this
-                # immutable slate.  Do not create a needless edit or repeat
-                # publication writes merely because the scheduler restarted.
-                log.info("Match Read hub for %s is already current.", league)
+                # The visual slate is already current.  Still retry the
+                # idempotent tracking bridge: a previous database failure can
+                # leave one visible card unlinked even though another card's
+                # delivery metadata lets us recover this message after a
+                # restart.  This is a write only when a card was missed.
+                try:
+                    delivery = await _record_match_read_hub_deliveries(
+                        reads,
+                        message=message,
+                        channel=ch,
+                        hub_key=hub_key,
+                        league=league,
+                        target_date=target_date_text,
+                        update_kind="reconciled",
+                    )
+                except Exception:
+                    log.exception("Failed to reconcile public Match Read hub delivery for %s", league)
+                    continue
+                if not _match_read_hub_delivery_complete(delivery, len(reads)):
+                    log.error(
+                        "Match Read hub for %s is visually current but tracking is incomplete; will retry. %s",
+                        league,
+                        "; ".join(delivery.get("errors") or []) or "missing card delivery",
+                    )
+                    continue
+                log.info("Match Read hub for %s is already current and fully tracked.", league)
                 delivered_hubs += 1
                 continue
 
@@ -2565,6 +2618,13 @@ class AutoPush(commands.Cog):
                 # message.  Its immutable identifiers make a later refresh
                 # safe to retry after the platform problem is repaired.
                 log.exception("Failed to record public Match Read hub delivery for %s", league)
+                continue
+            if not _match_read_hub_delivery_complete(delivery, len(reads)):
+                log.error(
+                    "Match Read hub for %s was sent/edited but tracking is incomplete; will retry.",
+                    league,
+                )
+                continue
             delivered_hubs += 1
 
         return delivered_hubs
@@ -2573,11 +2633,13 @@ class AutoPush(commands.Cog):
         """Post curated top picks per league — 5-8 best bets in ONE embed per league."""
         if _match_read_hub_enabled():
             delivered_hubs = await self._post_match_read_hubs(leagues, date.today())
-            if delivered_hubs:
+            if delivered_hubs == len(leagues):
                 self._mark_posted("daily_picks")
             else:
                 log.warning(
-                    "No Match Read hubs were delivered; daily picks remains unmarked so the scheduler can retry."
+                    "Only %d/%d Match Read hub(s) were fully delivered; daily picks remains unmarked so the scheduler can retry.",
+                    delivered_hubs,
+                    len(leagues),
                 )
             return
 

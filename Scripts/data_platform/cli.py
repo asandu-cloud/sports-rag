@@ -20,6 +20,10 @@ Entry points
     The default is review-only; ``--persist`` stores immutable shadow records
     but never sends Discord messages or creates tracked public releases.
 
+``publish-match-reads --league EPL --date 2026-09-06 [--dry-run]``
+    Explicitly promote fresh, reviewed persisted Match Reads to the public
+    website surface.  This is intentionally separate from generation.
+
 ``build-features [--competition EPL] [--season 2025]``
     Import feature snapshots from existing ``Output/*_feature_engineering``
     JSON files — useful for bringing historical data into the DB without
@@ -163,6 +167,35 @@ def cmd_match_reads(args) -> int:
         "runs": summaries,
     }, indent=2, default=str))
     return 1 if failed else 0
+
+
+def cmd_publish_match_reads(args) -> int:
+    """Promote already-reviewed, current Match Reads to the website.
+
+    This command never fetches fixtures, evaluates a model, or posts to
+    Discord.  It is the deliberate operator release step after a shadow run,
+    and the service refuses stale or already-started cards.
+    """
+    from .services.match_read_release import MatchReadReleaseError, MatchReadReleaseService
+
+    service = MatchReadReleaseService()
+    reports = []
+    try:
+        for league in args.league:
+            reports.append(service.release_matchday_to_website(
+                league=league,
+                target_date=args.date,
+                max_age_minutes=args.max_age_minutes,
+                dry_run=args.dry_run,
+            ))
+    except (MatchReadReleaseError, ValueError) as exc:
+        logger.error("Could not publish Match Reads: %s", exc)
+        return 2
+    print(json.dumps({
+        "mode": "website-release-dry-run" if args.dry_run else "website-release",
+        "reports": reports,
+    }, indent=2, default=str))
+    return 0
 
 
 def _match_read_run_summary(run: Any) -> dict:
@@ -517,6 +550,29 @@ def build_parser() -> argparse.ArgumentParser:
         help="Store immutable shadow Match Reads; never publish or deliver them",
     )
     p.set_defaults(func=cmd_match_reads)
+
+    p = sub.add_parser(
+        "publish-match-reads",
+        help="Explicitly release current persisted Match Reads to the public website",
+    )
+    _add_common_args(p)
+    p.add_argument(
+        "--league", nargs="+", required=True,
+        help="League code(s) to release, e.g. EPL LaLiga",
+    )
+    p.add_argument(
+        "--date", type=date.fromisoformat, required=True,
+        help="Fixture date in YYYY-MM-DD format",
+    )
+    p.add_argument(
+        "--max-age-minutes", type=int, default=120,
+        help="Maximum age of a Match Read evaluation eligible for release (default: 120)",
+    )
+    p.add_argument(
+        "--dry-run", action="store_true",
+        help="Show cards that would be released without writing deliveries or recommendations",
+    )
+    p.set_defaults(func=cmd_publish_match_reads)
 
     p = sub.add_parser("build-features", help="Import feature snapshots from Output/*_feature_engineering JSON files")
     _add_common_args(p)

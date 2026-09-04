@@ -7,6 +7,8 @@ be read-only against the platform store.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -97,6 +99,13 @@ def _client(monkeypatch, service) -> TestClient:
     from web_app.routers import match_reads as match_reads_router
 
     monkeypatch.setattr(match_reads_router, "_get_match_read_service", lambda: service)
+    # The persisted-card release policy is time-sensitive.  Keep these API
+    # contract tests deterministic rather than depending on the machine date.
+    monkeypatch.setattr(
+        match_reads_router,
+        "_utc_now",
+        lambda: datetime(2026, 9, 6, 12, 30, tzinfo=timezone.utc),
+    )
     app = FastAPI()
     app.include_router(match_reads_router.router)
     return TestClient(app)
@@ -225,7 +234,7 @@ def test_best_match_reads_is_capped_at_five_fixture_cards(
             service,
             _market_result(fixture_id=f"fixture-best-{index}", edge=0.05 + index / 100),
             thesis=f"Match Read {index}.",
-            evaluated_at=f"2026-09-05T{9 + index:02d}:00:00Z",
+            evaluated_at=f"2026-09-06T12:{index:02d}:00Z",
         )
         _release(service, saved)
 
@@ -245,3 +254,38 @@ def test_match_read_board_rejects_a_non_iso_matchday(settings, engine, session_f
     response = _client(monkeypatch, service).get("/api/match-reads/EPL/06-09-2026")
     assert response.status_code == 400
     assert response.json()["detail"] == "target_date must use YYYY-MM-DD format."
+
+
+def test_public_board_withholds_started_and_stale_cards(
+    settings, engine, session_factory, monkeypatch,
+):
+    service = _service(session_factory)
+    fresh = _save(
+        service,
+        _market_result(fixture_id="fixture-fresh", kickoff="2026-09-06T15:00:00Z"),
+        thesis="Fresh fixture read.",
+        evaluated_at="2026-09-06T12:00:00Z",
+    )
+    started = _save(
+        service,
+        _market_result(fixture_id="fixture-started", kickoff="2026-09-06T12:00:00Z"),
+        thesis="Started fixture read.",
+        evaluated_at="2026-09-06T11:59:00Z",
+    )
+    stale = _save(
+        service,
+        _market_result(fixture_id="fixture-stale", kickoff="2026-09-06T18:00:00Z"),
+        thesis="Stale fixture read.",
+        evaluated_at="2026-09-06T09:00:00Z",
+    )
+    for saved in (fresh, started, stale):
+        _release(service, saved)
+
+    client = _client(monkeypatch, service)
+    response = client.get("/api/match-reads/EPL/2026-09-06")
+
+    assert response.status_code == 200
+    assert [card["fixture"]["event_id"] for card in response.json()["cards"]] == ["fixture-fresh"]
+    expired = client.get("/api/match-reads/fixtures/fixture-started")
+    assert expired.status_code == 410
+    assert "no longer actionable" in expired.json()["detail"]

@@ -11,7 +11,12 @@ from .live import LiveService  # noqa: F401
 from .match_reads import MatchReadService  # noqa: F401
 from .match_read_delivery import MatchReadDeliveryService  # noqa: F401
 from .match_read_cards import build_match_read_card  # noqa: F401
-from .match_read_release import MatchReadReleaseService  # noqa: F401
+from .match_read_release import (  # noqa: F401
+    MatchReadReleaseService,
+    assess_match_read_release,
+    select_effective_match_read,
+    select_releasable_match_reads,
+)
 from .odds import OddsService  # noqa: F401
 from .parlays import ParlayService  # noqa: F401
 from .predictions import PredictionService  # noqa: F401
