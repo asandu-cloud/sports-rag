@@ -24,8 +24,11 @@ ALL_LEAGUES = ["EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1", "UCL", "UEL", 
 load_dotenv()
 client = OpenAI(api_key=env_first("OPENAI_API_KEY"))
 
-# Doc types that are immutable once a match is played — safe to skip if already embedded
-IMMUTABLE_DOC_TYPES = {"team_fixture", "player_fixture", "player_profile"}
+# Fixture documents are immutable after a match is completed, so the normal
+# incremental path can safely leave them alone.  Profiles are deliberately
+# *not* in this set: their IDs are stable for the season but their rates,
+# minutes risk, and form change after every gameweek.
+IMMUTABLE_DOC_TYPES = {"team_fixture", "player_fixture"}
 
 
 def _upsert_batch(collection, batch):
@@ -39,8 +42,9 @@ def _upsert_batch(collection, batch):
 
 def upsert_docs(collection, docs, batch_size=256, skip_ids=None):
     """Upsert docs into Chroma. With skip_ids, skips immutable doc types
-    that are already embedded (team_fixture, player_fixture, player_profile).
-    team_profile is always re-embedded because averages shift each gameweek."""
+    that are already embedded (team_fixture, player_fixture).  Team and
+    player profiles are always re-embedded because their season-to-date
+    aggregates shift after every gameweek."""
     seen = set()
     buf = []
     skipped = 0
@@ -48,8 +52,8 @@ def upsert_docs(collection, docs, batch_size=256, skip_ids=None):
     for d in docs:
         if d["id"] in seen:
             continue
-        # In skip mode: skip immutable doc types if already embedded.
-        # team_profile always re-embeds because averages shift each gameweek.
+        # In skip mode, only completed-fixture documents are immutable.
+        # Profile IDs stay stable but their contents are dynamic.
         if skip_ids and d["id"] in skip_ids:
             doc_type = (d.get("metadata") or {}).get("doc_type", "")
             if doc_type in IMMUTABLE_DOC_TYPES:
@@ -75,6 +79,11 @@ if __name__ == "__main__":
                         help="League to upsert (e.g. EPL, LaLiga). Default: EPL.")
     parser.add_argument("--all-leagues", action="store_true",
                         help="Upsert all discovered normalized league files.")
+    parser.add_argument(
+        "--season", type=int, default=None,
+        help="Restrict embedding to one API-Football season year (e.g. 2026). "
+             "Keeps a weekly refresh from re-reading historical season files.",
+    )
     parser.add_argument("--skip-existing", action="store_true", default=True,
                         help="Skip fixture/player docs already in Chroma (DEFAULT — incremental mode).")
     parser.add_argument("--no-skip", action="store_true",
@@ -120,7 +129,12 @@ if __name__ == "__main__":
 
     norm_paths = []
     for lg in leagues:
-        found = sorted(Path(INDEX_DIR).glob(f"normalized_{lg}_*.json"))
+        pattern = (
+            f"normalized_{lg}_{args.season}_*.json"
+            if args.season is not None
+            else f"normalized_{lg}_*.json"
+        )
+        found = sorted(Path(INDEX_DIR).glob(pattern))
         norm_paths.extend(found)
 
     if not norm_paths:
@@ -156,8 +170,8 @@ if __name__ == "__main__":
     league_label = "all leagues" if args.all_leagues else args.league
     print(f"\nDone in {t_total:.1f}s.")
     print(f"  Processed: {total_docs:,} docs from {len(norm_paths)} files")
-    print(f"  Embedded:  {total_embedded:,} (new + updated team_profiles)")
-    print(f"  Skipped:   {total_skipped:,} (unchanged fixtures/players)")
+    print(f"  Embedded:  {total_embedded:,} (new + updated profiles)")
+    print(f"  Skipped:   {total_skipped:,} (unchanged fixture documents)")
     try:
         print(f"  Vectors:   {col.count():,} in collection")
     except Exception:

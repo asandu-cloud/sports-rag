@@ -12,6 +12,19 @@ from ..db import session_scope
 from ..models import KBRefreshQueueItem, SyncRun, SyncWatermark
 
 
+def _as_utc(value: datetime) -> datetime:
+    """Return a UTC-aware timestamp from a database datetime value.
+
+    SQLite does not preserve timezone information for ``DateTime`` columns,
+    even when the SQLAlchemy model declares ``timezone=True``. Sync timestamps
+    are written in UTC, so a timezone-naive value read back from SQLite is
+    interpreted as UTC before it is compared with UTC health thresholds.
+    """
+    if value.tzinfo is None or value.utcoffset() is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def sync_job_metrics(*, since_hours: int = 24) -> Dict[str, Any]:
     """Counts of recent sync runs by kind + status."""
     since = datetime.now(timezone.utc) - timedelta(hours=since_hours)
@@ -72,8 +85,10 @@ def watermark_metrics(*, stale_after_minutes: int = 120) -> Dict[str, Any]:
         last = row.last_successful_at
         if last is None:
             stale.append({"scope": row.scope, "last_successful_at": None})
-        elif last < stale_threshold:
-            stale.append({"scope": row.scope, "last_successful_at": last.isoformat()})
+        else:
+            last_utc = _as_utc(last)
+            if last_utc < stale_threshold:
+                stale.append({"scope": row.scope, "last_successful_at": last_utc.isoformat()})
     return {
         "total": total,
         "stale": stale,

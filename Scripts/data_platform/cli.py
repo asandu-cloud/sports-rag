@@ -11,6 +11,10 @@ Entry points
 ``refresh [--competition EPL] [--season 2025] [--lookback-days 7]``
     Incremental refresh driven by ``sync_watermarks``.
 
+``refresh-season [--season 2025]``
+    Run the complete, fail-fast weekly refresh for both the canonical platform
+    and the legacy Output/Chroma/model path that serves live predictions.
+
 ``build-features [--competition EPL] [--season 2025]``
     Import feature snapshots from existing ``Output/*_feature_engineering``
     JSON files — useful for bringing historical data into the DB without
@@ -108,6 +112,19 @@ def cmd_refresh(args) -> int:
         )
     print(json.dumps(res, indent=2, default=str))
     return 0
+
+
+def cmd_refresh_season(args) -> int:
+    """Run the single operator command that keeps both active data paths aligned."""
+    from .season_refresh import report_json, run_refresh_season
+
+    try:
+        report = run_refresh_season(args)
+    except ValueError as exc:
+        logger.error("Invalid refresh-season request: %s", exc)
+        return 2
+    print(report_json(report))
+    return 0 if report.succeeded else 1
 
 
 def cmd_build_features(args) -> int:
@@ -330,6 +347,50 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--archive", action="store_true", default=True)
     p.add_argument("--no-archive", dest="archive", action="store_false")
     p.set_defaults(func=cmd_refresh)
+
+    p = sub.add_parser(
+        "refresh-season",
+        help="Run the full weekly platform + legacy model refresh (fail-fast)",
+    )
+    _add_common_args(p)
+    p.add_argument(
+        "--competition", nargs="*",
+        help="Competition codes (default: top five domestic leagues)",
+    )
+    p.add_argument(
+        "--include-europe", action="store_true",
+        help="Also refresh UCL, UEL, and UECL.",
+    )
+    p.add_argument(
+        "--season", type=int,
+        help="API-Football season year (default: current campaign)",
+    )
+    p.add_argument("--lookback-days", type=int, default=7)
+    p.add_argument(
+        "--skip-platform-sync", action="store_true",
+        help="Recovery-only: do not run the canonical incremental API sync.",
+    )
+    p.add_argument(
+        "--skip-platform-features", action="store_true",
+        help="Recovery-only: do not import rebuilt feature snapshots into the platform DB.",
+    )
+    p.add_argument(
+        "--skip-referees", action="store_true",
+        help="Recovery-only: leave existing referee profiles in place.",
+    )
+    p.add_argument(
+        "--skip-embedding", action="store_true",
+        help="Recovery-only: do not update current-season Chroma documents.",
+    )
+    p.add_argument(
+        "--skip-training", action="store_true",
+        help="Recovery-only: do not retrain cumulative ML artefacts.",
+    )
+    p.add_argument(
+        "--dry-run", action="store_true",
+        help="Print the exact staged plan without making API calls or changing files.",
+    )
+    p.set_defaults(func=cmd_refresh_season)
 
     p = sub.add_parser("build-features", help="Import feature snapshots from Output/*_feature_engineering JSON files")
     _add_common_args(p)

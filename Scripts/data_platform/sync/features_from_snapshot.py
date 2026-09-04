@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from ..config import SETTINGS
 from ..models import Player, SyncRun, Team
 from .apifootball import COMPETITIONS, CompetitionSpec, iter_competitions
+from .team_snapshot_derivation import derive_team_snapshot_rows
 from .upserts import (
     upsert_competition,
     upsert_player,
@@ -195,6 +196,7 @@ def build_feature_snapshots_from_files(
     session.flush()
 
     team_count = 0
+    team_engineered_count = 0
     player_count = 0
     files_read = 0
 
@@ -214,11 +216,29 @@ def build_feature_snapshots_from_files(
             # carry per-fixture rows but also include the team's averages.
             profile_files = sorted(base.glob("team_profiles_*.jsonl")) + sorted(base.glob("team_profiles_*.json"))
             player_profile_files = sorted(base.glob("player_profiles_*.jsonl")) + sorted(base.glob("player_profiles_*.json"))
-            team_engineered_files = sorted(base.glob("team_engineered_features_*.json"))
+            team_engineered_files = (
+                sorted(base.glob("team_engineered_features_*.jsonl"))
+                + sorted(base.glob("team_engineered_features_*.json"))
+            )
             player_engineered_files = sorted(base.glob("player_engineered_features_*.json"))
 
             # Track which (league, season) combos we've prefetched teams for
             teams_prefetched: set = set()
+            # A deliberately generated profile remains the preferred source.
+            # The engineered-file path below is a fallback for current seasons
+            # where that profile file was never produced.
+            profile_team_keys_by_season: Dict[int, set] = {}
+
+            def prefetch_teams_if_needed(season_year: int) -> None:
+                if api_client is None or (spec.code, season_year) in teams_prefetched:
+                    return
+                try:
+                    _prefetch_teams(session, api_client, spec=spec, season_year=season_year)
+                except Exception as exc:
+                    logger.warning("teams prefetch failed for %s %s (%s) — "
+                                   "team snapshots may be skipped",
+                                   spec.code, season_year, exc)
+                teams_prefetched.add((spec.code, season_year))
 
             # Try the profile files first (they carry season-level aggregates).
             for path in profile_files:
@@ -228,18 +248,18 @@ def build_feature_snapshots_from_files(
                 season = upsert_season(session, competition=competition, year=season_year)
                 files_read += 1
                 as_of = _effective_as_of(season_year, today)
+                rows = _jsonl_or_json(path)
+                for row in rows:
+                    team_name = row.get("team") or row.get("name")
+                    if team_name:
+                        profile_team_keys_by_season.setdefault(season_year, set()).add(
+                            str(team_name).strip().casefold()
+                        )
 
                 # Lazy team bootstrap: one /teams?league=X&season=Y call per slice
-                if api_client is not None and (spec.code, season_year) not in teams_prefetched:
-                    try:
-                        _prefetch_teams(session, api_client, spec=spec, season_year=season_year)
-                    except Exception as exc:
-                        logger.warning("teams prefetch failed for %s %s (%s) — "
-                                       "team snapshots may be skipped",
-                                       spec.code, season_year, exc)
-                    teams_prefetched.add((spec.code, season_year))
+                prefetch_teams_if_needed(season_year)
 
-                for row in _jsonl_or_json(path):
+                for row in rows:
                     team = _upsert_team_from_row(session, row)
                     if team is None:
                         continue
@@ -253,6 +273,47 @@ def build_feature_snapshots_from_files(
                         extras={"source_file": path.name},
                     )
                     team_count += 1
+
+            # Current legacy season runs produce fixture-level engineered rows
+            # but do not always generate team_profiles_YYYY.  Derive a
+            # deterministic season-to-date snapshot from those rows instead of
+            # leaving the canonical database with no team features.  Keep this
+            # after explicit profiles so a deliberately generated profile stays
+            # authoritative when both sources are available.
+            for path in team_engineered_files:
+                season_year = _extract_year_from_filename(path.name)
+                if season_year is None or (seasons and season_year not in seasons):
+                    continue
+                season = upsert_season(session, competition=competition, year=season_year)
+                files_read += 1
+                as_of = _effective_as_of(season_year, today)
+                prefetch_teams_if_needed(season_year)
+                rows = _jsonl_or_json(path)
+                profile_team_keys = profile_team_keys_by_season.get(season_year, set())
+                for row in derive_team_snapshot_rows(rows):
+                    # Do not overwrite an explicit profile.  Filling only a
+                    # missing team also makes a partially generated profile
+                    # file recoverable instead of silently dropping teams.
+                    if str(row.get("team") or "").strip().casefold() in profile_team_keys:
+                        continue
+                    team = _upsert_team_from_row(session, row)
+                    if team is None:
+                        continue
+                    fields = _split_fields(row, _TEAM_SNAPSHOT_COLS)
+                    if not fields:
+                        continue
+                    upsert_team_feature_snapshot(
+                        session,
+                        team=team, season=season, as_of_date=as_of,
+                        fields=fields, build_run_id=run.id,
+                        extras={
+                            "source_file": path.name,
+                            "source_kind": "derived_team_engineered_features",
+                            "aggregation": "season_to_date_fixture_rows_v1",
+                        },
+                    )
+                    team_count += 1
+                    team_engineered_count += 1
 
             for path in player_profile_files:
                 season_year = _extract_year_from_filename(path.name)
@@ -281,9 +342,8 @@ def build_feature_snapshots_from_files(
                     )
                     player_count += 1
 
-            # Engineered files are per-fixture — we skip them for snapshots
-            # (handled by the DB-backed feature builder once team stats are
-            # available) but reference them here so lineage is obvious.
+            # Engineered files are only used as a fallback for team snapshots;
+            # player snapshots continue to come from their dedicated profiles.
             logger.debug(
                 "%s: %s team-profile files, %s player-profile files, %s team-eng, %s player-eng",
                 spec.code, len(profile_files), len(player_profile_files),
@@ -294,12 +354,14 @@ def build_feature_snapshots_from_files(
         run.status = "completed"
         run.stats = {
             "team_snapshots": team_count,
+            "team_snapshots_from_engineered": team_engineered_count,
             "player_snapshots": player_count,
             "files_read": files_read,
         }
         return {
             "run_id": run.id,
             "team_snapshots": team_count,
+            "team_snapshots_from_engineered": team_engineered_count,
             "player_snapshots": player_count,
             "files_read": files_read,
         }

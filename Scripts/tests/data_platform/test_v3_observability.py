@@ -23,6 +23,37 @@ def test_health_report_clean_db(session_factory, monkeypatch):
     assert report.data_quality == []
 
 
+def test_watermark_metrics_accepts_timezone_naive_sqlite_timestamp(session_factory, monkeypatch):
+    """SQLite drops timezone metadata from UTC watermark timestamps."""
+    from data_platform.models import SyncWatermark
+    from data_platform.observability import metrics as metrics_mod
+
+    monkeypatch.setattr(metrics_mod, "session_scope", session_factory)
+    recent_utc = datetime.now(timezone.utc) - timedelta(minutes=5)
+    stale_utc = datetime.now(timezone.utc) - timedelta(hours=3)
+
+    with session_factory() as session:
+        session.add_all([
+            SyncWatermark(scope="recent", last_successful_at=recent_utc),
+            SyncWatermark(scope="stale", last_successful_at=stale_utc),
+        ])
+
+    # A fresh SQLite query reproduces the production issue: DateTime values
+    # are returned without tzinfo even though they were written in UTC.
+    with session_factory() as session:
+        recent = session.query(SyncWatermark).filter_by(scope="recent").one()
+        assert recent.last_successful_at is not None
+        assert recent.last_successful_at.tzinfo is None
+
+    report = metrics_mod.watermark_metrics(stale_after_minutes=120)
+
+    assert report["total"] == 2
+    assert report["stale"] == [{
+        "scope": "stale",
+        "last_successful_at": stale_utc.isoformat(),
+    }]
+
+
 def test_health_report_detects_finished_fixture_without_stats(session_factory, monkeypatch):
     import data_platform.db as db_module
     monkeypatch.setattr(db_module, "session_scope", session_factory)

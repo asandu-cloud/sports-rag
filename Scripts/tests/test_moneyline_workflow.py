@@ -4,6 +4,7 @@ import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -17,10 +18,23 @@ if "discord" not in sys.modules:
     sys.modules["discord"] = SimpleNamespace(Embed=object, File=object)
 
 from Scripts.discord_bot.embeds import parse_fixture_picks
+import rag_cli_v2 as rag
 from Scripts.rag_ingest.core.line_selection import choose_best_moneyline_side
 
 
 class MoneylineWorkflowTests(unittest.TestCase):
+    def _render_legacy_moneyline(self, odds):
+        """Render one fixture without needing local profiles or provider access."""
+        event = {"home_team": "Home", "away_team": "Away"}
+        with mock.patch.object(
+            rag,
+            "projected_moneyline_probs",
+            return_value=(0.55, 0.25, 0.20, 1.64, 0.92),
+        ), mock.patch.object(rag, "_profile_meta", return_value={}), mock.patch.object(
+            rag, "extract_moneyline_odds", return_value=odds
+        ):
+            return rag.render_moneyline_answer("moneyline", "EPL", [event])
+
     def test_selector_separates_likely_winner_from_value_side(self):
         result = choose_best_moneyline_side(
             0.527,
@@ -63,6 +77,34 @@ Method: Poisson/NegBin scoreline matrix from local KB → 3-way outcome probabil
         self.assertIn("52.7% model", line)
         self.assertIn("value Toulouse at 11.90", line)
         self.assertNotIn("**Toulouse** @ 11.90", line)
+
+    def test_legacy_renderer_renders_no_bet_for_incomplete_1x2_prices(self):
+        text = self._render_legacy_moneyline(
+            [
+                {"side": "home", "odds": 2.30, "bookmaker": "Book A", "team": "Home"},
+                {"side": "draw", "odds": 3.50, "bookmaker": "Book B", "team": "Draw"},
+                {"side": "away", "odds": 4.20, "bookmaker": "Book B", "team": "Away"},
+            ]
+        )
+
+        self.assertIn("Verdict: No Bet", text)
+        self.assertIn("complete same-bookmaker 1X2", text)
+        self.assertIn("Most likely winner: Home (55.0%)", text)
+        self.assertNotIn(">>> Recommended:", text)
+
+    def test_legacy_renderer_renders_no_bet_when_valid_prices_fail_thresholds(self):
+        text = self._render_legacy_moneyline(
+            [
+                {"side": "home", "odds": 1.90, "bookmaker": "Book", "team": "Home"},
+                {"side": "draw", "odds": 3.40, "bookmaker": "Book", "team": "Draw"},
+                {"side": "away", "odds": 4.50, "bookmaker": "Book", "team": "Away"},
+            ]
+        )
+
+        self.assertIn("Verdict: No Bet", text)
+        self.assertIn("minimum EV threshold", text)
+        self.assertIn("Best value side: Home @ 1.90 (Book)", text)
+        self.assertNotIn(">>> Recommended:", text)
 
 
 if __name__ == "__main__":
