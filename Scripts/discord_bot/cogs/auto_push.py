@@ -31,6 +31,7 @@ from rendering.market_dispatch import (  # noqa: E402
     render_market_answer_sync,
 )
 from rendering.market_results import result_pick_label  # noqa: E402
+from rendering.match_read_dispatch import generate_match_reads_sync  # noqa: E402
 
 # Core modules for direct structured access (no stdout capture needed)
 from core.events import fetch_events, filter_events_by_exact_date  # noqa: E402
@@ -43,6 +44,14 @@ from embeds import (  # noqa: E402
     market_results_to_embeds, rag_output_to_embeds, structured_parlay_embeds, value_alert_embed,
     consolidated_fixture_embeds, consolidated_score_embeds,
     parse_fixture_picks, parse_correct_score_picks, parse_interval_picks,
+)
+from match_read_hubs import (  # noqa: E402
+    build_match_read_hub_embeds,
+    discord_message_id_from_reference,
+    discord_message_reference,
+    hub_has_changed,
+    select_effective_match_reads,
+    visible_read_snapshot,
 )
 from config import (  # noqa: E402
     CHANNEL_DAILY_PICKS,
@@ -67,6 +76,7 @@ from config import (  # noqa: E402
     DOMESTIC_LEAGUES,
     MIN_ALERT_MODEL_PROB,
     MIN_ALERT_VALUE_EDGE,
+    MATCH_READ_MODE,
     COLOR_GREEN,
     COLOR_YELLOW,
     COLOR_RED,
@@ -183,6 +193,198 @@ async def _evaluate_market_results(league: str, market: str, target_date: date):
     """Evaluate an auto-push market via the canonical structured pipeline."""
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(_rag_executor, evaluate_market_results_sync, league, market, target_date)
+
+
+def _match_read_shadow_enabled() -> bool:
+    """Whether to materialize non-public fixture Match Reads beside legacy posts.
+
+    This intentionally has no relationship to ``PREDICTION_RELEASE_MODE``:
+    that setting changes the canonical market decisions themselves, whereas a
+    Match Read shadow run must observe the current live pipeline unchanged.
+    """
+    if MATCH_READ_MODE in {"off", "hub"}:
+        return False
+    if MATCH_READ_MODE == "shadow":
+        return True
+    log.warning(
+        "MATCH_READ_MODE=%r is unsupported. Match Read delivery remains off; "
+        "use 'off', 'shadow', or 'hub'.",
+        MATCH_READ_MODE,
+    )
+    return False
+
+
+def _match_read_hub_enabled() -> bool:
+    """Whether daily picks should use public fixture-level league hubs."""
+    return MATCH_READ_MODE == "hub"
+
+
+async def _materialize_match_reads_shadow(league: str, target_date: date):
+    """Generate/persist fixture reads without any Discord/publication side effect."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        _rag_executor,
+        lambda: generate_match_reads_sync(
+            league,
+            target_date,
+            stage="pre_match",
+            persist=True,
+        ),
+    )
+
+
+async def _generate_match_reads_for_hub(league: str, target_date: date):
+    """Generate the real pre-match slate before a public hub is delivered.
+
+    Confirmed-lineup reads are intentionally *not* generated here: current
+    dispatcher input does not yet contain confirmed lineups.  When that
+    pipeline exists, its persisted records can use the generic hub edit path
+    below without pretending today's pre-match result is lineup-aware.
+    """
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        _rag_executor,
+        lambda: generate_match_reads_sync(
+            league,
+            target_date,
+            stage="pre_match",
+            persist=True,
+        ),
+    )
+
+
+def _load_effective_match_reads_sync(league: str, target_date: date) -> list[dict]:
+    """Load the delivery policy's effective persisted record per fixture."""
+    from data_platform.services import MatchReadService
+
+    records = MatchReadService().list_for_matchday(
+        league=league,
+        target_date=target_date,
+    )
+    return select_effective_match_reads(records)
+
+
+async def _load_effective_match_reads(league: str, target_date: date) -> list[dict]:
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        _rag_executor,
+        _load_effective_match_reads_sync,
+        league,
+        target_date,
+    )
+
+
+def _find_match_read_hub_delivery_sync(hub_key: str) -> dict | None:
+    """Recover an existing hub reference from durable delivery records."""
+    from data_platform.services import MatchReadService
+
+    return MatchReadService().find_latest_delivery(
+        surface="discord",
+        metadata={
+            "post_type": "match_read_league_hub",
+            "hub_key": hub_key,
+        },
+    )
+
+
+async def _find_match_read_hub_delivery(hub_key: str) -> dict | None:
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        _rag_executor,
+        _find_match_read_hub_delivery_sync,
+        hub_key,
+    )
+
+
+def _record_match_read_hub_deliveries_sync(
+    reads: list[dict],
+    *,
+    message: object,
+    channel: object,
+    hub_key: str,
+    league: str,
+    target_date: str,
+    update_kind: str,
+) -> dict:
+    """Link only actually visible Match Read cards after Discord accepts them."""
+    from data_platform.services import MatchReadDeliveryService
+
+    external_reference = discord_message_reference(message, channel)
+    guild = getattr(channel, "guild", None)
+    snapshot = visible_read_snapshot(reads)
+    metadata = {
+        "post_type": "match_read_league_hub",
+        "hub_key": hub_key,
+        "league": league,
+        "target_date": target_date,
+        "guild_id": str(getattr(guild, "id", None) or "unknown"),
+        "channel_id": str(getattr(channel, "id", None) or "unknown"),
+        "message_id": str(getattr(message, "id", "") or ""),
+        "visible_match_reads": snapshot,
+        "hub_update_kind": update_kind,
+    }
+    delivered_at = (
+        getattr(message, "edited_at", None)
+        or getattr(message, "created_at", None)
+        or datetime.now(timezone.utc)
+    )
+    service = MatchReadDeliveryService()
+    outcome = {
+        "reads": 0,
+        "deliveries_created": 0,
+        "recommendations_created": 0,
+        "selection_links_created": 0,
+        "errors": [],
+    }
+    for read in reads:
+        try:
+            match_read_id = int(read["id"])
+        except (KeyError, TypeError, ValueError):
+            outcome["errors"].append("A visible Match Read had no valid id.")
+            continue
+        try:
+            recorded = service.record_visible(
+                match_read_id,
+                surface="discord",
+                external_reference=external_reference,
+                delivered_at=delivered_at,
+                metadata=metadata,
+            )
+            outcome["reads"] += 1
+            outcome["deliveries_created"] += int(bool(recorded.get("delivery_created")))
+            outcome["recommendations_created"] += int(recorded.get("recommendations_created") or 0)
+            outcome["selection_links_created"] += int(recorded.get("selection_links_created") or 0)
+        except Exception as exc:
+            # The message is already public.  Keep the successful per-read
+            # links and allow a future hub refresh to retry this immutable,
+            # idempotent record rather than hiding the publication failure.
+            outcome["errors"].append(f"Match Read {match_read_id}: {type(exc).__name__}: {exc}")
+    return outcome
+
+
+async def _record_match_read_hub_deliveries(
+    reads: list[dict],
+    *,
+    message: object,
+    channel: object,
+    hub_key: str,
+    league: str,
+    target_date: str,
+    update_kind: str,
+) -> dict:
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        _rag_executor,
+        lambda: _record_match_read_hub_deliveries_sync(
+            reads,
+            message=message,
+            channel=channel,
+            hub_key=hub_key,
+            league=league,
+            target_date=target_date,
+            update_kind=update_kind,
+        ),
+    )
 
 
 def _record_discord_publications_sync(
@@ -2182,8 +2384,203 @@ class AutoPush(commands.Cog):
             log.error("Manual trigger failed: %s", exc, exc_info=True)
             await interaction.followup.send(f"Error: {exc}", ephemeral=True)
 
+    async def _post_match_read_hubs(self, leagues: list, target_date: date) -> int:
+        """Materialize honest pre-match reads, then deliver one hub per league.
+
+        This is intentionally the only public-generation path today.  It
+        never labels a pre-match evaluation as lineup-confirmed.  A future
+        confirmed-lineups pipeline can persist its own stage and call
+        ``_refresh_persisted_match_read_hubs`` to edit the same hub message.
+        """
+        ready_leagues = []
+        for league in leagues:
+            log.info("Generating persisted pre-match Match Reads for %s...", league)
+            try:
+                run = await _generate_match_reads_for_hub(league, target_date)
+            except Exception:
+                log.exception("Match Read generation failed for %s; hub was not published.", league)
+                continue
+
+            failures = [item for item in run.fixtures if item.error or item.draft is None or item.record is None]
+            if not run.fixtures:
+                log.warning(
+                    "No fixture-level Match Reads were generated for %s on %s; hub was not published. Notes: %s",
+                    league,
+                    target_date.isoformat(),
+                    "; ".join(run.notes[:3]) or "none",
+                )
+                continue
+            if failures:
+                log.error(
+                    "Match Read slate for %s is incomplete (%d/%d fixture(s) failed or were not persisted); "
+                    "existing legacy picks will not be used as a fallback.",
+                    league,
+                    len(failures),
+                    len(run.fixtures),
+                )
+                for item in failures[:3]:
+                    log.error("Match Read hub omission for %s: %s", league, item.error or item.fixture_label)
+                continue
+            ready_leagues.append(league)
+
+        if not ready_leagues:
+            return 0
+        return await self._refresh_persisted_match_read_hubs(ready_leagues, target_date)
+
+    async def _refresh_persisted_match_read_hubs(self, leagues: list, target_date: date) -> int:
+        """Send or edit public league hubs from already persisted Match Reads.
+
+        This method is deliberately safe for a future confirmed-lineups
+        refresh: the effective-read selector chooses the latest confirmed
+        lineup record when one has genuinely been persisted, otherwise the
+        latest pre-match record.  It does not run an evaluator itself.
+        """
+        ch = self.bot.get_channel(CHANNEL_DAILY_PICKS)
+        if not ch:
+            log.warning("CHANNEL_DAILY_PICKS not configured")
+            return 0
+
+        channel_id = getattr(ch, "id", None)
+        if channel_id is None:
+            log.error("Daily picks channel has no stable id; Match Read hubs cannot be tracked safely.")
+            return 0
+        guild = getattr(ch, "guild", None)
+        guild_id = getattr(guild, "id", None) or "unknown"
+        target_date_text = target_date.isoformat()
+        delivered_hubs = 0
+
+        for league in leagues:
+            try:
+                reads = await _load_effective_match_reads(league, target_date)
+            except Exception:
+                log.exception("Could not load persisted Match Reads for %s; hub was not published.", league)
+                continue
+            if not reads:
+                log.warning(
+                    "No persisted Match Reads available for %s on %s; hub was not published.",
+                    league,
+                    target_date_text,
+                )
+                continue
+
+            hub_key = (
+                f"discord-match-read-hub:{guild_id}:{channel_id}:{league}:{target_date_text}"
+            )
+            previous_delivery = None
+            try:
+                previous_delivery = await _find_match_read_hub_delivery(hub_key)
+            except Exception:
+                # Failure to recover a historic reference must never make us
+                # post legacy loose picks.  Sending a fresh hub is still a
+                # bounded, auditable delivery using a new external reference.
+                log.exception("Could not recover prior Match Read hub for %s.", league)
+
+            previous_metadata = (
+                previous_delivery.get("metadata")
+                if isinstance(previous_delivery, dict)
+                else None
+            )
+            known_snapshot = isinstance(previous_metadata, dict) and isinstance(
+                previous_metadata.get("visible_match_reads"), list
+            )
+            changed = hub_has_changed(previous_metadata, reads) if known_snapshot else True
+
+            message = None
+            if previous_delivery:
+                message_id = discord_message_id_from_reference(
+                    previous_delivery.get("external_reference"),
+                    channel_id=channel_id,
+                )
+                if message_id is None:
+                    log.warning("Stored Match Read hub reference for %s is invalid; a new hub will be sent.", league)
+                else:
+                    try:
+                        message = await ch.fetch_message(message_id)
+                    except discord.NotFound:
+                        log.warning("Stored Match Read hub for %s no longer exists; a replacement will be sent.", league)
+                    except (discord.Forbidden, discord.HTTPException) as exc:
+                        log.warning("Could not fetch stored Match Read hub for %s: %s", league, exc)
+
+            if message is not None and not changed:
+                # The existing public message already represents exactly this
+                # immutable slate.  Do not create a needless edit or repeat
+                # publication writes merely because the scheduler restarted.
+                log.info("Match Read hub for %s is already current.", league)
+                delivered_hubs += 1
+                continue
+
+            try:
+                embeds = build_match_read_hub_embeds(
+                    reads,
+                    league=league,
+                    target_date=target_date_text,
+                    color=COLOR_GREEN,
+                    updated=bool(previous_delivery and changed),
+                )
+            except Exception:
+                log.exception("Could not render Match Read hub for %s; hub was not published.", league)
+                continue
+
+            update_kind = "created"
+            try:
+                if message is not None:
+                    message = await message.edit(embeds=embeds)
+                    update_kind = "edited"
+                    log.info("Updated Match Read hub for %s.", league)
+                else:
+                    message = await ch.send(embeds=embeds)
+                    update_kind = "created" if previous_delivery is None else "replacement"
+                    log.info("Sent Match Read hub for %s.", league)
+            except Exception:
+                log.exception("Discord %s failed for Match Read hub %s.", update_kind, league)
+                continue
+
+            # This must remain after the Discord send/edit: only the cards
+            # actually rendered in this one message enter the official
+            # publication/settlement cohort.  No hidden alternatives or
+            # skipped fixtures are passed to the delivery bridge.
+            try:
+                delivery = await _record_match_read_hub_deliveries(
+                    reads,
+                    message=message,
+                    channel=ch,
+                    hub_key=hub_key,
+                    league=league,
+                    target_date=target_date_text,
+                    update_kind=update_kind,
+                )
+                log.info(
+                    "Recorded Match Read hub delivery for %s: %d card(s), %d new delivery row(s), "
+                    "%d recommendation(s), %d selection link(s).",
+                    league,
+                    delivery["reads"],
+                    delivery["deliveries_created"],
+                    delivery["recommendations_created"],
+                    delivery["selection_links_created"],
+                )
+                for error in delivery.get("errors", []):
+                    log.error("Match Read hub delivery record failed for %s: %s", league, error)
+            except Exception:
+                # Do not edit/delete the already successful public Discord
+                # message.  Its immutable identifiers make a later refresh
+                # safe to retry after the platform problem is repaired.
+                log.exception("Failed to record public Match Read hub delivery for %s", league)
+            delivered_hubs += 1
+
+        return delivered_hubs
+
     async def _post_daily_picks(self, leagues: list, date_str: str, kickoff_map: dict | None = None):
         """Post curated top picks per league — 5-8 best bets in ONE embed per league."""
+        if _match_read_hub_enabled():
+            delivered_hubs = await self._post_match_read_hubs(leagues, date.today())
+            if delivered_hubs:
+                self._mark_posted("daily_picks")
+            else:
+                log.warning(
+                    "No Match Read hubs were delivered; daily picks remains unmarked so the scheduler can retry."
+                )
+            return
+
         kickoff_map = kickoff_map or {}
         ch = self.bot.get_channel(CHANNEL_DAILY_PICKS)
         if not ch:
@@ -2208,6 +2605,23 @@ class AutoPush(commands.Cog):
 
         for league in leagues:
             log.info("Collecting top picks for %s...", league)
+            if _match_read_shadow_enabled():
+                try:
+                    shadow_run = await _materialize_match_reads_shadow(league, date.today())
+                    failure_count = sum(1 for item in shadow_run.fixtures if item.error)
+                    log.info(
+                        "Match Read shadow run for %s: %d fixture draft(s), %d persisted, %d failure(s).",
+                        league,
+                        len(shadow_run.drafts),
+                        len(shadow_run.records),
+                        failure_count,
+                    )
+                    for note in shadow_run.notes[:5]:
+                        log.info("Match Read shadow note for %s: %s", league, note)
+                except Exception:
+                    # The legacy post remains authoritative while this is
+                    # shadow-only. A Match Read failure must never stop it.
+                    log.exception("Match Read shadow run failed for %s", league)
             # Collect ALL picks: (fixture, market, pick_text, odds, model_p, edge, conf, emoji)
             all_picks = []
 

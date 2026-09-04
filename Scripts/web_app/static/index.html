@@ -22,9 +22,12 @@
     - User avatar/name populated via: GET /api/me
 
   Fixtures / Markets data:
-    - app.js loads matchday fixtures from: GET /api/fixtures/{league}/{date}
-    - Each fixture includes structured canonical market decisions in market_results
-    - The match detail view renders those decisions directly
+    - app.js first loads published fixture cards from: GET /api/match-reads/{league}/{date}
+    - Only Match Reads recorded as visible on the website are public cards
+    - Each card has one thesis plus separately actionable selections; no
+      combined probability or price is inferred from same-fixture angles
+    - Local development may show the legacy fixture calculation as an explicitly
+      labelled diagnostic preview if the persisted Match Read API is unavailable
 
   Bet slip scoring:
     - slip.score() currently uses local heuristic
@@ -610,7 +613,7 @@
         <section class="app-view" id="viewFixtures">
           <div class="page-header">
             <h1 class="page-title">Matchday</h1>
-            <p class="page-subtitle">Live fixtures, current prices and model decisions across Europe's top leagues</p>
+            <p class="page-subtitle">Published fixture reads, clear context and current actionable selections</p>
           </div>
           <div class="date-strip" id="dateStrip" role="tablist" aria-label="Select date"></div>
           <div class="league-filters" id="leagueFilters" role="toolbar" aria-label="League filter"></div>
@@ -620,8 +623,8 @@
         <!-- Best Bets View -->
         <section class="app-view hidden" id="viewBestBets">
           <div class="page-header">
-            <h1 class="page-title">Best Bets</h1>
-            <p class="page-subtitle">The clearest medium- and high-confidence decisions on this matchday</p>
+            <h1 class="page-title">Best of Today</h1>
+            <p class="page-subtitle">Up to five published fixture reads with the clearest core selections</p>
           </div>
           <div class="date-strip" id="bestBetsDateStrip" role="tablist" aria-label="Select date"></div>
           <div id="bestBetsContainer"></div>
@@ -634,6 +637,7 @@
             Back to Fixtures
           </button>
           <div id="matchHeader"></div>
+          <div id="matchReadSummary"></div>
           <div class="market-tabs" id="marketTabs" role="tablist" aria-label="Market categories"></div>
           <div id="matchMarkets"></div>
         </section>

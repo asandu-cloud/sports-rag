@@ -12,7 +12,7 @@ individual official recommendations and same-game packages separate:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import hashlib
 import json
 from typing import Any, Dict, Mapping, Optional, Sequence
@@ -79,6 +79,29 @@ def _as_utc(value: Optional[Any]) -> datetime:
 def _hash(payload: Mapping[str, Any]) -> str:
     raw = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
     return hashlib.sha256(raw).hexdigest()
+
+
+def _read_identity_payload(payload: Mapping[str, Any]) -> Dict[str, Any]:
+    """Strip evaluation-clock fields from immutable Match Read identity.
+
+    ``generated_at`` stays in the stored audit snapshot, but an otherwise
+    identical provider/model snapshot re-evaluated a few seconds later should
+    not create a new version merely because the wall clock changed.
+    """
+    stable = json.loads(json.dumps(dict(payload), sort_keys=True, allow_nan=False))
+    stable.pop("evaluated_at", None)
+    results = stable.get("canonical_results")
+    if isinstance(results, list):
+        for result in results:
+            if not isinstance(result, dict):
+                continue
+            provenance = result.get("provenance")
+            if isinstance(provenance, dict):
+                provenance.pop("generated_at", None)
+    provenance = stable.get("provenance")
+    if isinstance(provenance, dict):
+        provenance.pop("generated_at", None)
+    return stable
 
 
 def _selection_pick(quote: Mapping[str, Any]) -> str:
@@ -166,7 +189,7 @@ class MatchReadService:
             "provenance": provenance,
             "evaluated_at": evaluated.isoformat(),
         }
-        read_key = _hash(payload)
+        read_key = _hash(_read_identity_payload(payload))
         # A package may recur unchanged in a later read revision. Its identity
         # must therefore include the parent immutable read, not just its own
         # quote/leg payload.
@@ -210,6 +233,62 @@ class MatchReadService:
     ) -> list[Dict[str, Any]]:
         return self._repo.list_for_fixture(fixture_api_id, stage=stage, limit=limit)
 
+    def list_for_matchday(
+        self,
+        *,
+        league: str,
+        target_date: date | str,
+    ) -> list[Dict[str, Any]]:
+        """List all Match Read versions/stages for an explicit league/date.
+
+        Unlike a delivery-facing board, this method intentionally makes no
+        choice between pre-match and confirmed-lineup reads.  Callers receive
+        the complete auditable history for every fixture on the matchday.
+        """
+        try:
+            return self._repo.list_for_matchday(
+                league=league,
+                target_date=target_date,
+            )
+        except ValueError as exc:
+            raise MatchReadValidationError(str(exc)) from exc
+
+    def list_delivered_for_matchday(
+        self,
+        *,
+        league: str,
+        target_date: date | str,
+        surface: str,
+    ) -> list[Dict[str, Any]]:
+        """List only Match Reads actually released on the requested surface."""
+        normalised_surface = self._delivery_surface(surface)
+        try:
+            return self._repo.list_delivered_for_matchday(
+                league=league,
+                target_date=target_date,
+                surface=normalised_surface,
+            )
+        except ValueError as exc:
+            raise MatchReadValidationError(str(exc)) from exc
+
+    def list_delivered_for_fixture(
+        self,
+        fixture_api_id: str,
+        *,
+        surface: str,
+        limit: int = 20,
+    ) -> list[Dict[str, Any]]:
+        """List only public versions of one fixture for one delivery surface."""
+        normalised_surface = self._delivery_surface(surface)
+        try:
+            return self._repo.list_delivered_for_fixture(
+                fixture_api_id,
+                surface=normalised_surface,
+                limit=limit,
+            )
+        except ValueError as exc:
+            raise MatchReadValidationError(str(exc)) from exc
+
     def record_delivery(
         self,
         match_read_id: int,
@@ -220,11 +299,7 @@ class MatchReadService:
         metadata: Optional[Mapping[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Record a visible match card, including no-bet/unavailable cards."""
-        normalised_surface = str(surface or "").strip().lower()
-        if normalised_surface not in VALID_DELIVERY_SURFACES:
-            raise MatchReadValidationError(
-                f"surface must be one of: {', '.join(sorted(VALID_DELIVERY_SURFACES))}."
-            )
+        normalised_surface = self._delivery_surface(surface)
         read = self._repo.get(match_read_id)
         if read is None:
             raise MatchReadValidationError(f"Unknown Match Read {match_read_id}.")
@@ -242,6 +317,40 @@ class MatchReadService:
             delivered_at=delivery_time,
             metadata=metadata,
         )
+
+    def find_latest_delivery(
+        self,
+        *,
+        surface: str,
+        metadata: Mapping[str, Any],
+        limit: int = 500,
+    ) -> Optional[Dict[str, Any]]:
+        """Recover a prior external delivery without choosing a Match Read.
+
+        This is intentionally an operational lookup for delivery adapters
+        (for example, reopening a same-day Discord hub after a bot restart).
+        It does not affect the immutable read/version selection policy.
+        """
+        normalised_surface = self._delivery_surface(surface)
+        if not isinstance(metadata, Mapping) or not metadata:
+            raise MatchReadValidationError("metadata is required.")
+        try:
+            return self._repo.find_latest_delivery(
+                surface=normalised_surface,
+                metadata=metadata,
+                limit=limit,
+            )
+        except ValueError as exc:
+            raise MatchReadValidationError(str(exc)) from exc
+
+    @staticmethod
+    def _delivery_surface(surface: str) -> str:
+        normalised_surface = str(surface or "").strip().lower()
+        if normalised_surface not in VALID_DELIVERY_SURFACES:
+            raise MatchReadValidationError(
+                f"surface must be one of: {', '.join(sorted(VALID_DELIVERY_SURFACES))}."
+            )
+        return normalised_surface
 
     def link_published_recommendation(
         self,

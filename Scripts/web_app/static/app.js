@@ -56,11 +56,9 @@ const router = {
     const landingNavEls = document.querySelectorAll('.landing-nav');
     const appNavEls = document.querySelectorAll('.app-nav');
     if (view === 'app') {
-      // Require login to access the app
-      if (!auth.isLoggedIn()) {
-        auth.showLoginModal();
-        return;
-      }
+      // The Match Read board is deliberately public.  Authentication remains
+      // available for account/member features, but it must not gate the
+      // published matchday briefing.
       landing.classList.add('hidden');
       app.classList.remove('hidden');
       landingNavEls.forEach(el => el.classList.add('hidden'));
@@ -510,6 +508,8 @@ const appModule = {
   activeDate: 0,
   fixtures: [],
   bestBets: [],
+  fixtureIndex: {},
+  matchReadSource: 'loading',
   initialized: false,
   _requestId: 0,
 
@@ -626,6 +626,79 @@ const appModule = {
     return `${Number(value).toFixed(2)} projected ${labels[group] || 'value'}`;
   },
 
+  _formatMatchReadSelection(selection) {
+    const probability = Number(selection?.model_probability);
+    if (Number.isFinite(probability)) return `${(probability * 100).toFixed(1)}% model probability`;
+    return 'Model probability unavailable';
+  },
+
+  _normaliseMatchReadCard(card, leagueId) {
+    const selections = Array.isArray(card.selections) ? card.selections : [];
+    const core = selections.find(selection => selection.role === 'core') || selections[0] || null;
+    const markets = {};
+    selections.forEach(selection => {
+      const group = selection.market?.group;
+      if (!group) return;
+      const odds = Number(selection.odds);
+      const edge = Number(selection.value_edge);
+      markets[group] = [{
+        pick: selection.pick || 'Selection unavailable',
+        odds: Number.isFinite(odds) ? odds : null,
+        edge: Number.isFinite(edge) ? edge * 100 : null,
+        conf: selection.confidence || 'low',
+        rec: card.status === 'recommended' && Number.isFinite(odds),
+        proj: this._formatMatchReadSelection(selection),
+        reason: selection.role === 'core' ? 'Core Match Read selection.' : 'Supporting Match Read selection.',
+        bookmaker: selection.bookmaker || '',
+        role: selection.role || 'supporting',
+      }];
+    });
+
+    const coreOdds = Number(core?.odds);
+    const coreEdge = Number(core?.value_edge);
+    const fixture = card.fixture || {};
+    const update = card.update || {};
+    const status = card.status || 'unavailable';
+    return {
+      id: String(fixture.event_id || card.id),
+      matchReadId: card.id,
+      matchReadVersion: card.version,
+      matchReadStage: card.stage,
+      isMatchRead: true,
+      league: leagueId || fixture.league,
+      home: fixture.home_team || 'Home team TBC',
+      away: fixture.away_team || 'Away team TBC',
+      kickoff: fixture.kickoff,
+      time: this._formatFixtureTime(fixture.kickoff),
+      pick: core?.pick || (status === 'no_bet' ? 'No bet' : 'Unavailable'),
+      odds: Number.isFinite(coreOdds) ? coreOdds : null,
+      edge: Number.isFinite(coreEdge) ? coreEdge * 100 : null,
+      conf: core?.confidence || status,
+      best: status === 'recommended' && Boolean(core) && Number.isFinite(coreOdds),
+      status,
+      thesis: card.thesis || '',
+      selections,
+      alternatives: Array.isArray(card.game_script?.alternative_candidates)
+        ? card.game_script.alternative_candidates
+        : [],
+      selectionRelationship: card.game_script?.selection_relationship || '',
+      tags: Array.isArray(card.game_script?.tags) ? card.game_script.tags : [],
+      update,
+      markets,
+    };
+  },
+
+  _indexFixtures(fixtures) {
+    fixtures.forEach(fixture => {
+      if (fixture?.id) this.fixtureIndex[String(fixture.id)] = fixture;
+    });
+  },
+
+  _allowsLegacyPreview() {
+    const host = String(window.location.hostname || '').toLowerCase();
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+  },
+
   _normaliseFixture(raw, leagueId) {
     const markets = {};
     (raw.market_results || []).forEach(result => {
@@ -671,7 +744,7 @@ const appModule = {
         (confidenceRank[b.conf] || 0) - (confidenceRank[a.conf] || 0)
         || (b.edge || 0) - (a.edge || 0)
       ))
-      .slice(0, 10);
+      .slice(0, 5);
   },
 
   async _loadMatchday() {
@@ -687,34 +760,124 @@ const appModule = {
 
     this.fixtures = [];
     this.bestBets = [];
+    this.fixtureIndex = {};
+    this.matchReadSource = 'loading';
     this._renderFixtures({ loading: true });
     this._renderBestBets({ loading: true });
 
+    const boardResponses = await Promise.allSettled(requestedLeagues.map(async league => {
+      const response = await fetch(`/api/match-reads/${encodeURIComponent(league.id)}/${targetDate}`);
+      if (!response.ok) throw new Error(`${league.name} Match Reads could not be loaded (${response.status})`);
+      const payload = await response.json();
+      return { league, payload };
+    }));
+
+    // A date/filter could change before a slow persisted-board request completes.
+    if (requestId !== this._requestId) return;
+
+    const successfulBoards = boardResponses.filter(result => result.status === 'fulfilled');
+    const persistedCards = successfulBoards.flatMap(result => (
+      (Array.isArray(result.value.payload.cards) ? result.value.payload.cards : [])
+        .map(card => this._normaliseMatchReadCard(card, result.value.league.id))
+    ));
+
+    if (persistedCards.length) {
+      this.matchReadSource = 'published';
+      this.fixtures = persistedCards;
+      this._indexFixtures(this.fixtures);
+
+      // The cross-league endpoint enforces the approved five-fixture cap.
+      // If it is temporarily unavailable, use only the already-persisted
+      // board cards we have; never re-run the legacy model here.
+      try {
+        const response = await fetch(`/api/match-reads/best/${targetDate}`);
+        if (!response.ok) throw new Error(`Best Match Reads could not be loaded (${response.status})`);
+        const payload = await response.json();
+        const bestCards = Array.isArray(payload.cards) ? payload.cards : [];
+        this.bestBets = bestCards.map(card => this._normaliseMatchReadCard(
+          card,
+          card.fixture?.league,
+        ));
+      } catch (error) {
+        console.warn('Persisted Best Match Reads unavailable; using board cards only.', error);
+        this.bestBets = this._buildBestBetsFromFixtures();
+      }
+      this._indexFixtures(this.bestBets);
+      if (requestId !== this._requestId) return;
+
+      const failed = boardResponses.length - successfulBoards.length;
+      this._renderFixtures({
+        notice: failed
+          ? `${failed} league${failed === 1 ? '' : 's'} could not load its published Match Reads.`
+          : '',
+      });
+      this._renderBestBets();
+      return;
+    }
+
+    // A successful empty response is an intentional release state: shadows
+    // may exist internally, but there is no public Match Read yet.  Do not
+    // make an untracked legacy recalculation look like an official card.
+    if (successfulBoards.length === boardResponses.length) {
+      this.matchReadSource = 'not-published';
+      this._renderFixtures({
+        emptyMessage: 'Match Reads have not been published for this matchday yet.',
+        emptyHint: 'A fixture card will appear here only after its persisted briefing is ready.',
+      });
+      this._renderBestBets({
+        emptyMessage: 'No published Best of Today reads yet.',
+        emptyHint: 'The five-fixture shortlist is built only from published Match Reads.',
+      });
+      return;
+    }
+
+    // A local development server can retain the old live-calculation view as
+    // a clearly labelled diagnostic fallback.  Production never presents it
+    // as a public recommendation when the persisted delivery API is down.
+    if (!this._allowsLegacyPreview()) {
+      this.matchReadSource = 'unavailable';
+      this._renderFixtures({
+        error: 'The published Match Read board is temporarily unavailable. Please check back shortly.',
+      });
+      this._renderBestBets({
+        error: 'Best of Today is temporarily unavailable while Match Reads are loading.',
+      });
+      return;
+    }
+
+    await this._loadLegacyPreview(requestId, targetDate, requestedLeagues);
+  },
+
+  async _loadLegacyPreview(requestId, targetDate, requestedLeagues) {
     const responses = await Promise.allSettled(requestedLeagues.map(async league => {
       const response = await fetch(`/api/fixtures/${encodeURIComponent(league.id)}/${targetDate}`);
       if (!response.ok) throw new Error(`${league.name} could not be loaded (${response.status})`);
       const payload = await response.json();
       return { league, payload };
     }));
-
-    // A date/filter could change before a slow prediction request completes.
     if (requestId !== this._requestId) return;
 
     const successful = responses.filter(result => result.status === 'fulfilled');
-    this.fixtures = successful.flatMap(result => (
-      result.value.payload.fixtures.map(fixture => this._normaliseFixture(fixture, result.value.league.id))
-    ));
-    this.bestBets = this._buildBestBetsFromFixtures();
-
     if (!successful.length) {
-      this._renderFixtures({ error: 'Predictions could not be loaded. Please try again.' });
-      this._renderBestBets({ error: 'Best bets are unavailable while matchday data is loading.' });
+      this._renderFixtures({ error: 'Published Match Reads are unavailable, and the local preview could not be loaded.' });
+      this._renderBestBets({ error: 'Best of Today is unavailable while Match Reads are loading.' });
       return;
     }
 
+    this.matchReadSource = 'legacy-preview';
+    this.fixtures = successful.flatMap(result => (
+      result.value.payload.fixtures.map(fixture => this._normaliseFixture(fixture, result.value.league.id))
+    ));
+    this._indexFixtures(this.fixtures);
+    this.bestBets = this._buildBestBetsFromFixtures();
     const failed = responses.length - successful.length;
-    this._renderFixtures({ notice: failed ? `${failed} league${failed === 1 ? '' : 's'} could not be loaded.` : '' });
-    this._renderBestBets();
+    const previewNotice = 'Development preview — persisted Match Reads are unavailable. These legacy calculations are not published recommendations and are not part of the official track record.';
+    this._renderFixtures({
+      notice: failed
+        ? `${previewNotice} ${failed} league${failed === 1 ? '' : 's'} could not be loaded.`
+        : previewNotice,
+    });
+    this._renderBestBets({ notice: 'Development preview only — not published Match Reads.' });
   },
 
   _renderFixtures(state = {}) {
@@ -740,7 +903,9 @@ const appModule = {
       container.appendChild(notice);
     }
     if (!fixtures.length) {
-      container.innerHTML += '<div class="empty-state"><div class="empty-state-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div><p>No fixtures for this selection.</p><span class="empty-state-hint">There may be no matches in the selected leagues on this date.</span></div>';
+      const message = state.emptyMessage || 'No fixtures for this selection.';
+      const hint = state.emptyHint || 'There may be no matches in the selected leagues on this date.';
+      container.innerHTML += `<div class="empty-state"><div class="empty-state-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div><p>${esc(message)}</p><span class="empty-state-hint">${esc(hint)}</span></div>`;
       return;
     }
     Object.entries(byLeague).forEach(([leagueId, fxs]) => {
@@ -753,7 +918,17 @@ const appModule = {
         const inSlip = slip.legs.find(l => l.key === slipKey);
         const row = document.createElement('div');
         row.className = 'fixture-row';
-        const confidenceLabel = f.best ? f.conf.toUpperCase() : 'NO BET';
+        const confidenceLabel = f.best
+          ? f.conf.toUpperCase()
+          : f.status === 'unavailable' ? 'UNAVAILABLE' : 'NO BET';
+        const confidenceClass = f.best ? f.conf : 'no-bet';
+        const supportingCount = f.isMatchRead ? Math.max(0, (f.selections || []).length - 1) : 0;
+        const supportingLabel = supportingCount
+          ? ` + ${supportingCount} aligned angle${supportingCount === 1 ? '' : 's'}`
+          : '';
+        const updateLabel = f.isMatchRead && f.update?.is_updated && f.update?.label
+          ? `<span class="match-read-update-label">${esc(f.update.label)}</span>`
+          : '';
         const addButton = f.best
           ? `<button class="fixture-add-btn${inSlip ? ' added' : ''}" data-fixture-add="${esc(f.id)}">${inSlip ? '✓' : '+'}</button>`
           : '<span class="fixture-add-placeholder" aria-hidden="true"></span>';
@@ -761,10 +936,10 @@ const appModule = {
           <span class="fixture-num mono">${i + 1}</span>
           <div class="fixture-match">
             <div class="fixture-teams">${esc(f.home)} <span class="fixture-vs">vs</span> ${esc(f.away)}</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--mono)">${esc(f.time)}</div>
+            <div class="fixture-meta-line"><span class="fixture-time mono">${esc(f.time)}</span>${updateLabel}</div>
           </div>
-          <span class="fixture-pick-text">${esc(f.pick)}</span>
-          <span class="conf-badge ${esc(f.conf)}">${esc(confidenceLabel)}</span>
+          <span class="fixture-pick-text">${esc(f.pick)}${esc(supportingLabel)}</span>
+          <span class="conf-badge ${esc(confidenceClass)}">${esc(confidenceLabel)}</span>
           <span class="fixture-odds-val mono">${f.odds ? esc(f.odds.toFixed(2)) : '—'}</span>
           <span class="fixture-edge mono ${f.edge && f.edge > 0 ? 'edge-pos' : ''}">${f.edge ? `+${esc(f.edge.toFixed(1))}%` : '—'}</span>
           ${addButton}
@@ -782,7 +957,7 @@ const appModule = {
   },
 
   _toggleSlipFromFixture(fxId) {
-    const f = this.fixtures.find(x => String(x.id) === String(fxId));
+    const f = this.fixtures.find(x => String(x.id) === String(fxId)) || this.fixtureIndex[String(fxId)];
     if (!f || !f.best || !Number.isFinite(f.odds)) return;
     const slipKey = `${f.home} vs ${f.away}|${f.pick}`;
     const added = slip.add(f.home + ' vs ' + f.away, f.pick, f.odds, 'Best Pick');
@@ -794,7 +969,7 @@ const appModule = {
   },
 
   _showMatch(fxId) {
-    const f = this.fixtures.find(x => String(x.id) === String(fxId));
+    const f = this.fixtures.find(x => String(x.id) === String(fxId)) || this.fixtureIndex[String(fxId)];
     if (!f) return;
     this.currentMatch = f;
     this.currentMarketTab = Object.keys(f.markets)[0];
@@ -808,10 +983,91 @@ const appModule = {
       </div>
     `;
 
+    const summary = document.getElementById('matchReadSummary');
+    if (f.isMatchRead) this._renderMatchReadSummary(f);
+    else if (summary) summary.innerHTML = '';
     this._buildMarketTabs(f);
     if (this.currentMarketTab) this._renderMarkets(f, this.currentMarketTab);
-    else document.getElementById('matchMarkets').innerHTML = '<div class="empty-state"><p>No market decisions are available for this fixture yet.</p></div>';
+    else document.getElementById('matchMarkets').innerHTML = f.isMatchRead
+      ? ''
+      : '<div class="empty-state"><p>No market decisions are available for this fixture yet.</p></div>';
     this.switchTab('match');
+  },
+
+  _renderMatchReadSummary(f) {
+    const container = document.getElementById('matchReadSummary');
+    if (!container) return;
+    const marketLabels = { goals: 'Goals', btts: 'BTTS', corners: 'Corners', cards: 'Cards', sot: 'Shots on target', moneyline: 'Moneyline', spreads: 'Handicap' };
+    const selections = Array.isArray(f.selections) ? f.selections : [];
+    const updateLabel = f.update?.is_updated && f.update?.label
+      ? `<span class="match-read-update-label">${esc(f.update.label)}</span>`
+      : '<span class="match-read-stage-label">Pre-match read</span>';
+    const noBetCopy = f.status === 'no_bet'
+      ? 'No selection was released: the fixture was assessed but no current price qualified.'
+      : 'No selection was released because the fixture cannot be assessed safely yet.';
+    const actionable = selections.length
+      ? `<div class="match-read-selections">${selections.map((selection, index) => {
+          const odds = Number(selection.odds);
+          const edge = Number(selection.value_edge);
+          const role = selection.role === 'core' ? 'Core selection' : 'Supporting selection';
+          const market = marketLabels[selection.market?.group] || selection.market?.group || 'Market';
+          const slipKey = `${f.home} vs ${f.away}|${selection.pick}`;
+          const inSlip = slip.legs.find(leg => leg.key === slipKey);
+          const canAdd = f.status === 'recommended' && Number.isFinite(odds);
+          const addButton = canAdd
+            ? `<button class="market-add-btn${inSlip ? ' added' : ''}" data-match-read-add="${index}">${inSlip ? '✓ Added' : '+ Add'}</button>`
+            : '';
+          return `<div class="match-read-selection">
+            <div class="match-read-selection-main">
+              <span class="match-read-role">${esc(role)}</span>
+              <span class="match-read-selection-pick">${esc(market)}: ${esc(selection.pick || 'Selection unavailable')}</span>
+              <span class="conf-badge ${esc(selection.confidence || 'low')}">${esc(String(selection.confidence || 'low').toUpperCase())}</span>
+              ${Number.isFinite(edge) ? `<span class="value-badge ${edge > 0.06 ? 'strong' : 'good'}">+${esc((edge * 100).toFixed(1))}%</span>` : ''}
+            </div>
+            <div class="match-read-selection-quote">
+              <span class="market-line-odds mono">${Number.isFinite(odds) ? esc(odds.toFixed(2)) : '—'}</span>
+              ${addButton}
+            </div>
+          </div>`;
+        }).join('')}</div>`
+      : `<p class="match-read-no-selection">${esc(noBetCopy)}</p>`;
+    const alternatives = Array.isArray(f.alternatives) ? f.alternatives : [];
+    const alternativesHtml = alternatives.length
+      ? `<div class="match-read-alternatives">
+          <p class="match-read-alternatives-title">Other model angles — not released selections</p>
+          <div class="match-read-alternatives-list">${alternatives.map(alternative => {
+            const market = marketLabels[alternative.market?.group] || alternative.market?.group || 'Market';
+            return `<span>${esc(market)}: ${esc(alternative.pick || 'Unavailable')}</span>`;
+          }).join('')}</div>
+        </div>`
+      : '';
+    container.innerHTML = `
+      <section class="match-read-summary" aria-label="Published Match Read">
+        <div class="match-read-summary-head">
+          <span class="match-read-summary-title">Match Read</span>
+          ${updateLabel}
+        </div>
+        <p class="match-read-thesis">${esc(f.thesis || 'No fixture-level thesis is available yet.')}</p>
+        ${actionable}
+        ${f.selectionRelationship ? `<p class="match-read-relationship">${esc(f.selectionRelationship)}</p>` : ''}
+        ${alternativesHtml}
+      </section>
+    `;
+    container.querySelectorAll('[data-match-read-add]').forEach(button => {
+      button.addEventListener('click', () => {
+        const selection = selections[Number(button.dataset.matchReadAdd)];
+        const odds = Number(selection?.odds);
+        if (!selection || !Number.isFinite(odds)) return;
+        const added = slip.add(f.home + ' vs ' + f.away, selection.pick, odds, 'Match Read');
+        if (added === false) {
+          button.textContent = '+ Add';
+          button.classList.remove('added');
+        } else {
+          button.textContent = '✓ Added';
+          button.classList.add('added');
+        }
+      });
+    });
   },
 
   _buildMarketTabs(f) {
@@ -830,6 +1086,7 @@ const appModule = {
       };
       tabs.appendChild(btn);
     });
+    tabs.classList.toggle('hidden', !Object.keys(f.markets).length);
   },
 
   _renderMarkets(f, marketKey) {
@@ -876,7 +1133,7 @@ const appModule = {
   },
 
   _toggleSlipFromMarket(fxId, pick, odds) {
-    const f = this.fixtures.find(x => String(x.id) === String(fxId));
+    const f = this.fixtures.find(x => String(x.id) === String(fxId)) || this.fixtureIndex[String(fxId)];
     if (!f || !Number.isFinite(odds)) return;
     const slipKey = `${f.home} vs ${f.away}|${pick}`;
     const added = slip.add(f.home + ' vs ' + f.away, pick, odds, 'Market');
@@ -898,22 +1155,30 @@ const appModule = {
       return;
     }
     if (!this.bestBets.length) {
-      container.innerHTML = '<div class="empty-state"><p>No medium- or high-confidence recommendations for this selection.</p><span class="empty-state-hint">No bet is a valid result when the current lines do not qualify.</span></div>';
+      const message = state.emptyMessage || 'No medium- or high-confidence recommendations for this selection.';
+      const hint = state.emptyHint || 'No bet is a valid result when the current lines do not qualify.';
+      container.innerHTML = `<div class="empty-state"><p>${esc(message)}</p><span class="empty-state-hint">${esc(hint)}</span></div>`;
       return;
     }
     const league = id => this.LEAGUES.find(l => l.id === id) || { name: id, color: '#666' };
-    container.innerHTML = this.bestBets.map(f => {
+    const notice = state.notice
+      ? `<p class="empty-state-hint" style="margin:0 0 16px">${esc(state.notice)}</p>`
+      : '';
+    container.innerHTML = notice + this.bestBets.map(f => {
       const slipKey = `${f.home} vs ${f.away}|${f.pick}`;
       const inSlip = slip.legs.find(l => l.key === slipKey);
+      const updateLabel = f.isMatchRead && f.update?.is_updated && f.update?.label
+        ? `<span class="match-read-update-label">${esc(f.update.label)}</span>`
+        : '';
       return `<div class="fixture-row" style="cursor:pointer">
         <span class="fixture-num mono" style="background:${esc(league(f.league).color)};border-radius:3px;padding:2px 4px;font-size:9px;color:#fff">${esc(league(f.league).name)}</span>
         <div class="fixture-match">
           <div class="fixture-teams">${esc(f.home)} <span class="fixture-vs">vs</span> ${esc(f.away)}</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(f.pick)}</div>
+          <div class="fixture-meta-line"><span class="fixture-time">${esc(f.pick)}</span>${updateLabel}</div>
         </div>
         <span class="conf-badge ${esc(f.conf)}">${esc(f.conf.toUpperCase())}</span>
-        <span class="fixture-odds-val mono">${esc(f.odds.toFixed(2))}</span>
-        <span class="fixture-edge mono edge-pos">+${esc(f.edge.toFixed(1))}%</span>
+        <span class="fixture-odds-val mono">${Number.isFinite(f.odds) ? esc(f.odds.toFixed(2)) : '—'}</span>
+        <span class="fixture-edge mono edge-pos">${Number.isFinite(f.edge) ? `+${esc(f.edge.toFixed(1))}%` : '—'}</span>
         <button class="fixture-add-btn${inSlip ? ' added' : ''}" data-best-bet-add="${esc(f.id)}">${inSlip ? '✓' : '+'}</button>
       </div>`;
     }).join('');

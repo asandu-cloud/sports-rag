@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date, datetime
+
 import pytest
 
 
@@ -13,6 +15,9 @@ def _market_result(
     line: float = 2.5,
     odds: float = 2.0,
     status: str = "recommended",
+    fixture_id: str = "fixture-999",
+    league: str = "EPL",
+    kickoff: str = "2026-09-06T15:00:00Z",
 ) -> dict:
     decision = {
         "status": status,
@@ -33,18 +38,18 @@ def _market_result(
     return {
         "schema_version": "market_result.v1",
         "fixture": {
-            "event_id": "fixture-999",
-            "league": "EPL",
+            "event_id": fixture_id,
+            "league": league,
             "home_team": "Arsenal",
             "away_team": "Chelsea",
-            "kickoff": "2026-09-06T15:00:00Z",
+            "kickoff": kickoff,
         },
         "market": {"key": key, "group": group, "unit": group, "participant": None},
         "projection": {"value": 3.1, "unit": group, "components": {}},
         "decision": decision,
         "provenance": {
             "pipeline_version": "canonical-market-service.v1",
-            "input_snapshot_id": f"snapshot:fixture-999:{key}",
+            "input_snapshot_id": f"snapshot:{fixture_id}:{key}",
             "generated_at": "2026-09-05T09:00:00Z",
             "model_version": "2026.09.1",
         },
@@ -209,3 +214,222 @@ def test_match_read_rejects_unverified_or_overfull_same_game_construction(
                 {"result_index": 2, "role": "supporting"},
             ],
         )
+
+
+def test_list_for_matchday_returns_all_versions_and_stages_for_explicit_league(
+    match_read_service, settings, engine,
+):
+    """The raw query must never silently choose an effective card version."""
+    results = [_market_result()]
+    pre_match_v1 = match_read_service.create(
+        canonical_results=results,
+        thesis="Initial pre-match read.",
+        status="recommended",
+        selections=[{"result_index": 0, "role": "core"}],
+        stage="pre_match",
+        evaluated_at="2026-09-05T08:00:00Z",
+    )
+    pre_match_v2 = match_read_service.create(
+        canonical_results=results,
+        thesis="Amended pre-match read.",
+        status="recommended",
+        selections=[{"result_index": 0, "role": "core"}],
+        stage="pre_match",
+        evaluated_at="2026-09-05T09:00:00Z",
+    )
+    confirmed_lineups = match_read_service.create(
+        canonical_results=results,
+        thesis="Confirmed-lineups read.",
+        status="recommended",
+        selections=[{"result_index": 0, "role": "core"}],
+        stage="confirmed_lineups",
+        evaluated_at="2026-09-06T13:00:00Z",
+    )
+
+    # Same league, but a different source ISO calendar date.
+    match_read_service.create(
+        canonical_results=[_market_result(fixture_id="fixture-tomorrow", kickoff="2026-09-07T15:00:00Z")],
+        thesis="Tomorrow's read.",
+        status="recommended",
+        selections=[{"result_index": 0, "role": "core"}],
+    )
+    # Same date, but a different explicitly requested league.
+    match_read_service.create(
+        canonical_results=[_market_result(fixture_id="fixture-laliga", league="LaLiga")],
+        thesis="Other league read.",
+        status="recommended",
+        selections=[{"result_index": 0, "role": "core"}],
+    )
+
+    reads = match_read_service.list_for_matchday(
+        league="EPL",
+        target_date=date(2026, 9, 6),
+    )
+
+    assert [read["id"] for read in reads] == [
+        confirmed_lineups["id"],
+        pre_match_v1["id"],
+        pre_match_v2["id"],
+    ]
+    assert [(read["stage"], read["version"]) for read in reads] == [
+        ("confirmed_lineups", 1),
+        ("pre_match", 1),
+        ("pre_match", 2),
+    ]
+
+
+def test_list_for_matchday_uses_the_calendar_date_carried_by_iso_kickoff(
+    match_read_service, settings, engine,
+):
+    # This is September 6 in UTC, but September 7 in the ISO offset stored
+    # with the fixture.  The raw historical lookup must preserve that fact
+    # until a delivery surface declares a timezone policy of its own.
+    offset_kickoff = _market_result(
+        fixture_id="fixture-offset",
+        kickoff="2026-09-07T00:30:00+02:00",
+    )
+    match_read_service.create(
+        canonical_results=[offset_kickoff],
+        thesis="Offset kickoff read.",
+        status="recommended",
+        selections=[{"result_index": 0, "role": "core"}],
+    )
+    malformed_kickoff = _market_result(
+        fixture_id="fixture-malformed",
+        kickoff="2026-09-07-not-a-kickoff",
+    )
+    match_read_service.create(
+        canonical_results=[malformed_kickoff],
+        thesis="Malformed legacy kickoff should not break the board.",
+        status="recommended",
+        selections=[{"result_index": 0, "role": "core"}],
+    )
+
+    september_sixth = match_read_service.list_for_matchday(
+        league="EPL",
+        target_date="2026-09-06",
+    )
+    september_seventh = match_read_service.list_for_matchday(
+        league="EPL",
+        target_date="2026-09-07",
+    )
+
+    assert september_sixth == []
+    assert [read["fixture"]["event_id"] for read in september_seventh] == ["fixture-offset"]
+
+
+def test_list_for_matchday_requires_an_explicit_iso_date(
+    match_read_service, settings, engine,
+):
+    from data_platform.services.match_reads import MatchReadValidationError
+
+    with pytest.raises(MatchReadValidationError, match="YYYY-MM-DD"):
+        match_read_service.list_for_matchday(league="EPL", target_date="2026/09/06")
+
+    with pytest.raises(MatchReadValidationError, match="not a datetime"):
+        match_read_service.list_for_matchday(
+            league="EPL",
+            target_date=datetime(2026, 9, 6, 12, 0),
+        )
+
+
+def test_delivered_read_queries_exclude_shadow_rows_and_dedupe_retries(
+    match_read_service, settings, engine,
+):
+    """Only a delivery adapter may move a read into a public surface query."""
+    source = [_market_result(status="no_bet")]
+    shadow_only = match_read_service.create(
+        canonical_results=source,
+        thesis="Shadow-only candidate.",
+        status="no_bet",
+    )
+    discord_read = match_read_service.create(
+        canonical_results=source,
+        thesis="Public Discord card.",
+        status="no_bet",
+    )
+    website_read = match_read_service.create(
+        canonical_results=source,
+        thesis="Public website card.",
+        status="no_bet",
+    )
+
+    # Two independently recorded renders of the same immutable Discord card
+    # must still appear once in a public board/history query.
+    match_read_service.record_delivery(
+        discord_read["id"],
+        surface="discord",
+        external_reference="discord:1:2:3",
+        metadata={"post_type": "match_read_league_hub"},
+    )
+    match_read_service.record_delivery(
+        discord_read["id"],
+        surface="discord",
+        external_reference="discord:1:2:4",
+        metadata={"post_type": "match_read_league_hub"},
+    )
+    match_read_service.record_delivery(
+        website_read["id"],
+        surface="website",
+        external_reference="/matches/EPL/fixture-999",
+    )
+
+    discord_board = match_read_service.list_delivered_for_matchday(
+        league="EPL",
+        target_date="2026-09-06",
+        surface="discord",
+    )
+    website_board = match_read_service.list_delivered_for_matchday(
+        league="EPL",
+        target_date="2026-09-06",
+        surface="website",
+    )
+    discord_history = match_read_service.list_delivered_for_fixture(
+        "fixture-999",
+        surface="discord",
+    )
+
+    assert [read["id"] for read in discord_board] == [discord_read["id"]]
+    assert [read["id"] for read in website_board] == [website_read["id"]]
+    assert [read["id"] for read in discord_history] == [discord_read["id"]]
+    assert shadow_only["id"] not in {read["id"] for read in discord_board + website_board}
+
+
+def test_delivery_lookup_recovers_latest_matching_hub_reference(
+    match_read_service, settings, engine,
+):
+    source = [_market_result(status="no_bet")]
+    first = match_read_service.create(
+        canonical_results=source,
+        thesis="First hub card.",
+        status="no_bet",
+    )
+    second = match_read_service.create(
+        canonical_results=source,
+        thesis="Second hub card.",
+        status="no_bet",
+    )
+    hub_key = "discord-match-read-hub:1:2:EPL:2026-09-06"
+    match_read_service.record_delivery(
+        first["id"],
+        surface="discord",
+        external_reference="discord:1:2:3",
+        delivered_at="2026-09-05T08:00:00Z",
+        metadata={"post_type": "match_read_league_hub", "hub_key": hub_key},
+    )
+    match_read_service.record_delivery(
+        second["id"],
+        surface="discord",
+        external_reference="discord:1:2:4",
+        delivered_at="2026-09-05T09:00:00Z",
+        metadata={"post_type": "match_read_league_hub", "hub_key": hub_key},
+    )
+
+    recovered = match_read_service.find_latest_delivery(
+        surface="discord",
+        metadata={"post_type": "match_read_league_hub", "hub_key": hub_key},
+    )
+
+    assert recovered is not None
+    assert recovered["match_read_id"] == second["id"]
+    assert recovered["external_reference"] == "discord:1:2:4"

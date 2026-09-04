@@ -15,6 +15,11 @@ Entry points
     Run the complete, fail-fast weekly refresh for both the canonical platform
     and the legacy Output/Chroma/model path that serves live predictions.
 
+``match-reads --league EPL --date 2026-09-06 [--persist]``
+    Generate fixture-level Match Read drafts from one shared canonical slate.
+    The default is review-only; ``--persist`` stores immutable shadow records
+    but never sends Discord messages or creates tracked public releases.
+
 ``build-features [--competition EPL] [--season 2025]``
     Import feature snapshots from existing ``Output/*_feature_engineering``
     JSON files — useful for bringing historical data into the DB without
@@ -36,7 +41,7 @@ import logging
 import sys
 from datetime import date
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Mapping, Optional
 
 from sqlalchemy import select
 
@@ -125,6 +130,104 @@ def cmd_refresh_season(args) -> int:
         return 2
     print(report_json(report))
     return 0 if report.succeeded else 1
+
+
+def cmd_match_reads(args) -> int:
+    """Generate reviewable fixture-level Match Reads, optionally persisting them.
+
+    This is intentionally an operator/shadow command.  It has no Discord,
+    website, webhook, or ``PublicationService`` side effect, including when
+    ``--persist`` is supplied.
+    """
+    rag_root = Path(__file__).resolve().parents[1] / "rag_ingest"
+    if str(rag_root) not in sys.path:
+        sys.path.insert(0, str(rag_root))
+    try:
+        from rendering.match_read_dispatch import generate_match_reads_sync
+    except ImportError:
+        from Scripts.rag_ingest.rendering.match_read_dispatch import generate_match_reads_sync  # type: ignore[import]
+
+    summaries = []
+    failed = False
+    for league in args.league:
+        run = generate_match_reads_sync(
+            league,
+            args.date,
+            stage=args.stage,
+            persist=args.persist,
+        )
+        failed = failed or bool(run.fixtures and not run.drafts)
+        summaries.append(_match_read_run_summary(run))
+    print(json.dumps({
+        "mode": "persisted-shadow" if args.persist else "review-only",
+        "runs": summaries,
+    }, indent=2, default=str))
+    return 1 if failed else 0
+
+
+def _match_read_run_summary(run: Any) -> dict:
+    fixtures = []
+    for item in run.fixtures:
+        draft = item.draft
+        record = item.record or {}
+        fixtures.append({
+            "event_id": item.event_id,
+            "fixture": item.fixture_label,
+            "status": draft.status if draft is not None else None,
+            "thesis": draft.thesis if draft is not None else None,
+            "selections": _match_read_selection_summary(draft) if draft is not None else [],
+            "alternative_candidate_count": len(
+                (draft.game_script.get("alternative_candidates") or []) if draft is not None else []
+            ),
+            "persisted_match_read_id": record.get("id"),
+            "persisted_created": record.get("created"),
+            "error": item.error,
+        })
+    return {
+        "league": run.league,
+        "date": run.target_date.isoformat(),
+        "stage": run.stage,
+        "fixture_count": len(run.fixtures),
+        "draft_count": len(run.drafts),
+        "persisted_count": len(run.records),
+        "fixtures": fixtures,
+        "notes": list(run.notes),
+    }
+
+
+def _match_read_selection_summary(draft: Any) -> list[dict]:
+    rows = []
+    for spec in draft.selections:
+        result_index = int(spec["result_index"])
+        result = draft.canonical_results[result_index]
+        market = result.get("market") if isinstance(result, Mapping) else {}
+        decision = result.get("decision") if isinstance(result, Mapping) else {}
+        quote = decision.get("quote") if isinstance(decision, Mapping) else {}
+        rows.append({
+            "role": spec["role"],
+            "market": (market or {}).get("group"),
+            "pick": _match_read_pick_label(quote),
+            "odds": (quote or {}).get("odds"),
+            "bookmaker": (quote or {}).get("bookmaker"),
+            "confidence": (decision or {}).get("confidence"),
+            "value_edge": (decision or {}).get("value_edge"),
+        })
+    return rows
+
+
+def _match_read_pick_label(quote: Any) -> Optional[str]:
+    if not isinstance(quote, Mapping):
+        return None
+    side = str(quote.get("side") or "").strip()
+    if not side:
+        return None
+    line = quote.get("line")
+    if line is None:
+        return side.title()
+    try:
+        return f"{side.title()} {float(line):g}"
+    except (TypeError, ValueError):
+        return side.title()
 
 
 def cmd_build_features(args) -> int:
@@ -391,6 +494,29 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print the exact staged plan without making API calls or changing files.",
     )
     p.set_defaults(func=cmd_refresh_season)
+
+    p = sub.add_parser(
+        "match-reads",
+        help="Generate fixture-level Match Read drafts from one shared canonical slate",
+    )
+    _add_common_args(p)
+    p.add_argument(
+        "--league", nargs="+", required=True,
+        help="League code(s), e.g. EPL LaLiga",
+    )
+    p.add_argument(
+        "--date", type=date.fromisoformat, required=True,
+        help="Fixture date in YYYY-MM-DD format",
+    )
+    p.add_argument(
+        "--stage", choices=("pre_match", "confirmed_lineups"), default="pre_match",
+        help="Version stream to write (default: pre_match)",
+    )
+    p.add_argument(
+        "--persist", action="store_true",
+        help="Store immutable shadow Match Reads; never publish or deliver them",
+    )
+    p.set_defaults(func=cmd_match_reads)
 
     p = sub.add_parser("build-features", help="Import feature snapshots from Output/*_feature_engineering JSON files")
     _add_common_args(p)

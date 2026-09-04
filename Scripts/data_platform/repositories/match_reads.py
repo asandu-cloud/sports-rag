@@ -7,7 +7,7 @@ not silently turned into a settled betting recommendation.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from sqlalchemy import desc, select
@@ -35,6 +35,46 @@ def _number(value: Any) -> Optional[float]:
 
 def _iso(value: Optional[datetime]) -> Optional[str]:
     return value.isoformat() if value is not None else None
+
+
+def _matchday_date(value: date | str) -> date:
+    """Return a validated calendar date used to select fixture kickoffs.
+
+    Match Read kickoffs are retained as the source ISO-8601 string, rather
+    than converted to a database timestamp.  A board query therefore uses
+    the calendar date encoded in that ISO value; it deliberately does not
+    apply a new timezone conversion policy at read time.
+    """
+    if isinstance(value, datetime):
+        raise ValueError("matchday date must be a date or YYYY-MM-DD string, not a datetime.")
+    if isinstance(value, date):
+        return value
+    raw = str(value).strip()
+    try:
+        parsed = date.fromisoformat(raw)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("matchday date must be a YYYY-MM-DD ISO date.") from exc
+    if raw != parsed.isoformat():
+        raise ValueError("matchday date must be a YYYY-MM-DD ISO date.")
+    return parsed
+
+
+def _kickoff_calendar_date(value: Optional[str]) -> Optional[date]:
+    """Extract the calendar date written in a stored ISO-8601 kickoff.
+
+    ``datetime.fromisoformat`` preserves the offset carried by the source
+    value, so ``2026-09-07T00:30:00+02:00`` remains a September 7 fixture
+    here rather than being silently converted to its UTC calendar date.
+    Invalid legacy values are excluded from a matchday query rather than
+    causing an otherwise valid board to fail.
+    """
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00")).date()
+    except ValueError:
+        return None
 
 
 class MatchReadRepository:
@@ -153,6 +193,131 @@ class MatchReadRepository:
             ).all()
             return [_read_to_dict(session, row) for row in rows]
 
+    def list_for_matchday(
+        self,
+        *,
+        league: str,
+        target_date: date | str,
+    ) -> List[Dict[str, Any]]:
+        """Return every stored read/version/stage for one league calendar date.
+
+        This is intentionally a raw historical query.  It does *not* choose
+        an effective read when pre-match and confirmed-lineup versions both
+        exist; the delivery layer must make that product decision explicitly.
+        """
+        league_code = str(league or "").strip()
+        if not league_code:
+            raise ValueError("league is required.")
+        matchday = _matchday_date(target_date)
+        matchday_text = matchday.isoformat()
+
+        with self._factory() as session:
+            # Valid ISO kickoffs begin with their own source calendar date.
+            # Keep the indexed league/kickoff predicate narrow, then parse
+            # the stored value below as a safeguard against malformed legacy
+            # strings that merely share the same prefix.
+            rows = session.scalars(
+                select(MatchRead)
+                .where(
+                    MatchRead.league == league_code,
+                    MatchRead.kickoff.startswith(matchday_text),
+                )
+                .order_by(
+                    MatchRead.kickoff.asc(),
+                    MatchRead.fixture_api_id.asc(),
+                    MatchRead.stage.asc(),
+                    MatchRead.version.asc(),
+                    MatchRead.id.asc(),
+                )
+            ).all()
+            return [
+                _read_to_dict(session, row)
+                for row in rows
+                if _kickoff_calendar_date(row.kickoff) == matchday
+            ]
+
+    def list_delivered_for_matchday(
+        self,
+        *,
+        league: str,
+        target_date: date | str,
+        surface: str,
+    ) -> List[Dict[str, Any]]:
+        """Return Match Reads released at least once on one named surface.
+
+        A Match Read can have multiple delivery rows (for example, a retry or
+        an amended Discord hub), but the returned read appears once.  This is
+        the explicit public-release boundary: a persisted shadow candidate is
+        not returned until a delivery adapter has recorded it as visible.
+        """
+        league_code = str(league or "").strip()
+        if not league_code:
+            raise ValueError("league is required.")
+        surface_name = str(surface or "").strip().lower()
+        if not surface_name:
+            raise ValueError("surface is required.")
+        matchday = _matchday_date(target_date)
+        matchday_text = matchday.isoformat()
+
+        with self._factory() as session:
+            rows = session.scalars(
+                select(MatchRead)
+                .join(MatchReadDelivery, MatchReadDelivery.match_read_id == MatchRead.id)
+                .where(
+                    MatchRead.league == league_code,
+                    MatchRead.kickoff.startswith(matchday_text),
+                    MatchReadDelivery.surface == surface_name,
+                )
+                .distinct()
+                .order_by(
+                    MatchRead.kickoff.asc(),
+                    MatchRead.fixture_api_id.asc(),
+                    MatchRead.stage.asc(),
+                    MatchRead.version.asc(),
+                    MatchRead.id.asc(),
+                )
+            ).all()
+            return [
+                _read_to_dict(session, row)
+                for row in rows
+                if _kickoff_calendar_date(row.kickoff) == matchday
+            ]
+
+    def list_delivered_for_fixture(
+        self,
+        fixture_api_id: str,
+        *,
+        surface: str,
+        limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        """Return only versions of one fixture released on ``surface``."""
+        fixture_id = str(fixture_api_id or "").strip()
+        if not fixture_id:
+            raise ValueError("fixture_api_id is required.")
+        surface_name = str(surface or "").strip().lower()
+        if not surface_name:
+            raise ValueError("surface is required.")
+        try:
+            row_limit = int(limit)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("limit must be an integer.") from exc
+        if row_limit < 1:
+            raise ValueError("limit must be at least 1.")
+
+        with self._factory() as session:
+            rows = session.scalars(
+                select(MatchRead)
+                .join(MatchReadDelivery, MatchReadDelivery.match_read_id == MatchRead.id)
+                .where(
+                    MatchRead.fixture_api_id == fixture_id,
+                    MatchReadDelivery.surface == surface_name,
+                )
+                .distinct()
+                .order_by(desc(MatchRead.evaluated_at), desc(MatchRead.id))
+                .limit(row_limit)
+            ).all()
+            return [_read_to_dict(session, row) for row in rows]
+
     def record_delivery(
         self,
         match_read_id: int,
@@ -187,6 +352,51 @@ class MatchReadRepository:
                 "match_read_id": int(delivery.match_read_id),
                 "created": created,
             }
+
+    def find_latest_delivery(
+        self,
+        *,
+        surface: str,
+        metadata: Mapping[str, Any],
+        limit: int = 500,
+    ) -> Optional[Dict[str, Any]]:
+        """Find the newest delivery whose stored metadata contains ``metadata``.
+
+        Delivery metadata deliberately remains schemaless because it describes
+        an external surface, not the immutable Match Read itself.  Querying
+        JSON directly would make this small operational lookup vary between
+        SQLite and a future hosted database, so scan a bounded, newest-first
+        set instead.  Matchday hubs have only a handful of Discord delivery
+        rows; ``limit`` is a safety boundary, not a normal pagination API.
+        """
+        normalised_surface = str(surface or "").strip().lower()
+        if not normalised_surface:
+            raise ValueError("surface is required.")
+        expected = dict(metadata or {})
+        if not expected:
+            raise ValueError("metadata is required.")
+        try:
+            row_limit = int(limit)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("limit must be an integer.") from exc
+        if row_limit < 1:
+            raise ValueError("limit must be at least 1.")
+
+        with self._factory() as session:
+            rows = session.scalars(
+                select(MatchReadDelivery)
+                .where(MatchReadDelivery.surface == normalised_surface)
+                .order_by(
+                    desc(MatchReadDelivery.delivered_at),
+                    desc(MatchReadDelivery.id),
+                )
+                .limit(row_limit)
+            ).all()
+            for delivery in rows:
+                stored = delivery.metadata_json if isinstance(delivery.metadata_json, Mapping) else {}
+                if all(stored.get(key) == value for key, value in expected.items()):
+                    return _delivery_to_dict(delivery)
+        return None
 
     def link_published_recommendation(
         self,
@@ -333,4 +543,18 @@ def _selection_to_dict(selection: MatchReadSelection) -> Dict[str, Any]:
         "model_probability": _number(selection.model_probability),
         "value_edge": _number(selection.value_edge),
         "data": selection.selection_json,
+    }
+
+
+def _delivery_to_dict(delivery: MatchReadDelivery) -> Dict[str, Any]:
+    """Project a delivery lookup row without loading its full Match Read."""
+    return {
+        "id": int(delivery.id),
+        "match_read_id": int(delivery.match_read_id),
+        "delivery_key": delivery.delivery_key,
+        "surface": delivery.surface,
+        "external_reference": delivery.external_reference,
+        "delivered_at": _iso(delivery.delivered_at),
+        "metadata": dict(delivery.metadata_json) if isinstance(delivery.metadata_json, Mapping) else {},
+        "created_at": _iso(delivery.created_at),
     }

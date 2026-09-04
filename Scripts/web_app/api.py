@@ -139,6 +139,17 @@ try:
 except Exception as _health_exc:
     log.warning("Health router not mounted: %s", _health_exc)
 
+# Persisted fixture-level Match Reads are intentionally served separately from
+# the legacy live-calculation routes below.  A page request only reads the
+# immutable platform cards; it never evaluates a market, publishes a pick, or
+# creates a new Match Read.
+try:
+    from web_app.routers.match_reads import router as match_reads_router
+    app.include_router(match_reads_router)
+    log.info("Match Read router mounted at /api/match-reads/*")
+except Exception as _match_reads_exc:
+    log.warning("Match Read router not mounted: %s", _match_reads_exc)
+
 # The public track-record endpoints use the immutable publication cohort by
 # default.  Mount them in the main website process rather than leaving the
 # standalone module disconnected from the product API.

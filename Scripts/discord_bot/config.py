@@ -40,6 +40,16 @@ CHANNEL_CORRECT_SCORE = int(os.getenv("DISCORD_CHANNEL_DAILY_PICKS",
 DIGEST_POST_HOUR = int(os.getenv("DISCORD_DIGEST_HOUR", "8"))  # 8 AM UTC
 ALERT_SCAN_INTERVAL_MINUTES = int(os.getenv("DISCORD_ALERT_INTERVAL", "120"))
 
+# Fixture-level Match Reads are intentionally independent of the legacy
+# PREDICTION_RELEASE_MODE.
+#
+# * ``off`` keeps the legacy daily-picks embeds (the default / rollback path).
+# * ``shadow`` materializes auditable Match Reads beside legacy posts, without
+#   changing Discord or the official published-pick cohort.
+# * ``hub`` publicly delivers one fixture-level Matchday Hub per league and
+#   tracks only the Match Reads actually rendered in that message.
+MATCH_READ_MODE = os.getenv("MATCH_READ_MODE", "off").strip().lower()
+
 # Value alert thresholds
 MIN_ALERT_MODEL_PROB = 0.65
 MIN_ALERT_VALUE_EDGE = 0.08
