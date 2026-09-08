@@ -122,6 +122,7 @@ def generate_match_reads_sync(
     compiler: Optional[Callable[..., MatchReadDraft]] = None,
     persister: Optional[Callable[..., Dict[str, Any]]] = None,
     lineup_provider: Optional[Callable[[Mapping[str, Any], str, date], Any]] = None,
+    event_filter: Optional[Callable[[Mapping[str, Any]], bool]] = None,
 ) -> MatchReadGenerationRun:
     """Generate one Match Read draft per exact-date fixture in a league.
 
@@ -134,7 +135,9 @@ def generate_match_reads_sync(
     caller decision and invokes the existing immutable Match Read service;
     this dispatcher never publishes a recommendation or sends a message.
     Dependency arguments are intentionally injectable for offline tests and
-    controlled shadow runs.
+    controlled shadow runs.  ``event_filter`` is an optional, local pre-
+    enrichment filter used by the lineup scheduler so it does not fetch or
+    evaluate the entire slate merely to amend one near-kickoff fixture.
     """
     normalised_league = str(league or "").strip()
     if not normalised_league:
@@ -200,6 +203,29 @@ def generate_match_reads_sync(
             fixtures=(),
             notes=tuple(notes),
         )
+
+    if event_filter is not None:
+        selected_events: List[Mapping[str, Any]] = []
+        for event in day_events:
+            if not isinstance(event, Mapping):
+                continue
+            try:
+                if event_filter(event):
+                    selected_events.append(event)
+            except Exception as exc:
+                notes.append(
+                    f"{normalised_league}: fixture filter ignored {_fixture_label(event)} "
+                    f"({type(exc).__name__}: {exc})."
+                )
+        day_events = selected_events
+        if not day_events:
+            return MatchReadGenerationRun(
+                league=normalised_league,
+                target_date=target_date,
+                stage=normalised_stage,
+                fixtures=(),
+                notes=tuple(notes),
+            )
 
     # Do this once across the full slate, rather than one provider round-trip
     # per market or fixture.  A failed/empty enrichment must not discard the

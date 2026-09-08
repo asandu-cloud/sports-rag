@@ -199,3 +199,30 @@ def test_confirmed_lineups_stage_passes_only_a_verified_context_to_evaluation():
     assert run.fixtures[0].status == "recommended"
     assert captured["lineup_ctx"] is context
     assert captured["context"]["match_read_stage"] == "confirmed_lineups"
+
+
+def test_dispatch_can_limit_a_confirmed_lineup_refresh_to_eligible_fixtures():
+    early = _event("early", kickoff="2026-09-06T12:00:00Z")
+    later = _event("later", kickoff="2026-09-06T17:00:00Z")
+    context = SimpleNamespace(source="lineups", is_available=True)
+    evaluated = []
+
+    def evaluate(event, *_args, **_kwargs):
+        evaluated.append(event["id"])
+        return [{"event_id": event["id"], "market": "goals"}]
+
+    run = match_read_dispatch.generate_match_reads_sync(
+        "EPL",
+        date(2026, 9, 6),
+        stage="confirmed_lineups",
+        fetcher=lambda _league, *, target_date: ([early, later], []),
+        date_filter=lambda events, _target: events,
+        enricher=lambda events, _league, _groups: (events, []),
+        evaluator=evaluate,
+        compiler=lambda results, *, stage: _draft(results[0]["event_id"]),
+        lineup_provider=lambda _event, _league, _date: context,
+        event_filter=lambda event: event["id"] == "later",
+    )
+
+    assert evaluated == ["later"]
+    assert [item.event_id for item in run.fixtures] == ["later"]

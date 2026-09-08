@@ -151,6 +151,14 @@ def cmd_match_reads(args) -> int:
     except ImportError:
         from Scripts.rag_ingest.rendering.match_read_dispatch import generate_match_reads_sync  # type: ignore[import]
 
+    lineup_provider = None
+    if args.stage == "confirmed_lineups":
+        try:
+            from lineup_context import get_confirmed_lineup_context_for_event
+        except ImportError:
+            from Scripts.rag_ingest.lineup_context import get_confirmed_lineup_context_for_event  # type: ignore[import]
+        lineup_provider = get_confirmed_lineup_context_for_event
+
     summaries = []
     failed = False
     for league in args.league:
@@ -159,6 +167,7 @@ def cmd_match_reads(args) -> int:
             args.date,
             stage=args.stage,
             persist=args.persist,
+            lineup_provider=lineup_provider,
         )
         failed = failed or bool(run.fixtures and not run.drafts)
         summaries.append(_match_read_run_summary(run))
@@ -543,7 +552,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--stage", choices=("pre_match", "confirmed_lineups"), default="pre_match",
-        help="Version stream to write (default: pre_match)",
+        help=(
+            "Version stream to write (default: pre_match). confirmed_lineups "
+            "fetches API-Football XIs and persists only fixtures with two verified 11-player XIs."
+        ),
     )
     p.add_argument(
         "--persist", action="store_true",

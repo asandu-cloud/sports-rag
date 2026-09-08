@@ -20,7 +20,8 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from datetime import date
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 log = logging.getLogger("lineup_context")
 
@@ -35,7 +36,6 @@ LEAGUE_TO_API_ID: Dict[str, int] = {
 }
 
 API_FOOTBALL_BASE = "https://v3.football.api-sports.io"
-SEASON = 2025
 
 # Player contribution thresholds
 KEY_PLAYER_SHARE_THRESHOLD = 0.10   # >10% of any stat = key player
@@ -89,6 +89,7 @@ class LineupContext:
     })
     home_missing_key: List[str] = field(default_factory=list)
     away_missing_key: List[str] = field(default_factory=list)
+    fixture_id: Optional[int] = None
     source: str = "unavailable"    # "lineups" or "unavailable"
     is_available: bool = False
     # Card-risk profiles (available even when lineups are not confirmed)
@@ -193,7 +194,11 @@ def _find_fixture_id(
         resp = _req.get(
             f"{API_FOOTBALL_BASE}/fixtures",
             headers={"x-apisports-key": api_key},
-            params={"league": league_id, "season": SEASON, "date": fixture_date},
+            params={
+                "league": league_id,
+                "season": _api_football_season_for_fixture_date(fixture_date),
+                "date": fixture_date,
+            },
             timeout=15,
         )
         resp.raise_for_status()
@@ -234,11 +239,87 @@ def _fetch_lineups_raw(fixture_id: int, api_key: str) -> Optional[List[Dict]]:
         return None
 
 
+def _api_football_season_for_fixture_date(fixture_date: str) -> int:
+    """Return API-Football's European-season year for a fixture date.
+
+    Lineups used to have a hard-coded season here, which made their fixture
+    lookup silently stale after the 2025/26 campaign.  Keep this small helper
+    local so the verified-lineup path remains usable even when this module is
+    imported outside the normal odds-provider package setup.
+    """
+    try:
+        fixture_day = date.fromisoformat(str(fixture_date)[:10])
+    except (TypeError, ValueError):
+        fixture_day = date.today()
+    return fixture_day.year if fixture_day.month >= 7 else fixture_day.year - 1
+
+
+def _normalise_fixture_id(value: Any) -> Optional[int]:
+    """Return a provider fixture id only when it is a positive integer."""
+    try:
+        fixture_id = int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+    return fixture_id if fixture_id > 0 else None
+
+
+def _extract_verified_starters(
+    lineups: List[Dict],
+    *,
+    home: str,
+    away: str,
+) -> Tuple[List[str], List[str], bool]:
+    """Validate the two provider XIs before treating them as confirmed.
+
+    API-Football can return a partial response while only one side's lineup is
+    available.  That is useful for display-only features, but is not enough
+    evidence to label an evaluated Match Read as lineup-confirmed.  The
+    scoring path therefore requires one matching home XI and one matching
+    away XI, each with exactly eleven named starters.
+    """
+    home_starters: List[str] = []
+    away_starters: List[str] = []
+
+    for team_lineup in lineups:
+        if not isinstance(team_lineup, Mapping):
+            continue
+        team = team_lineup.get("team")
+        team_name = team.get("name", "") if isinstance(team, Mapping) else ""
+        starting_xi = team_lineup.get("startXI")
+        if not isinstance(starting_xi, list):
+            continue
+        starters = []
+        for player_row in starting_xi:
+            player = player_row.get("player") if isinstance(player_row, Mapping) else None
+            name = player.get("name", "") if isinstance(player, Mapping) else ""
+            if isinstance(name, str) and name.strip():
+                starters.append(name.strip())
+
+        if _team_matches_fuzzy(home, str(team_name)):
+            home_starters = starters
+        elif _team_matches_fuzzy(away, str(team_name)):
+            away_starters = starters
+
+    confirmed = len(home_starters) == 11 and len(away_starters) == 11
+    if not confirmed:
+        log.debug(
+            "Lineups are incomplete for %s vs %s: home=%d, away=%d starters",
+            home,
+            away,
+            len(home_starters),
+            len(away_starters),
+        )
+        return [], [], False
+    return home_starters, away_starters, True
+
+
 def fetch_match_lineups(
     home: str,
     away: str,
     league: str,
     fixture_date: str,
+    *,
+    fixture_id: Optional[Any] = None,
 ) -> Tuple[List[str], List[str], bool]:
     """Fetch confirmed starting XIs from API-Football.
 
@@ -251,33 +332,23 @@ def fetch_match_lineups(
         log.debug("No API-Football key — lineup fetch skipped")
         return [], [], False
 
-    fixture_id = _find_fixture_id(home, away, league, fixture_date, api_key)
-    if fixture_id is None:
+    resolved_fixture_id = _normalise_fixture_id(fixture_id)
+    if resolved_fixture_id is None:
+        resolved_fixture_id = _find_fixture_id(home, away, league, fixture_date, api_key)
+    if resolved_fixture_id is None:
         log.debug("No fixture found for %s vs %s on %s", home, away, fixture_date)
         return [], [], False
 
-    lineups = _fetch_lineups_raw(fixture_id, api_key)
+    lineups = _fetch_lineups_raw(resolved_fixture_id, api_key)
     if not lineups:
-        log.debug("Lineups not yet published for fixture %d", fixture_id)
+        log.debug("Lineups not yet published for fixture %d", resolved_fixture_id)
         return [], [], False
 
-    home_starters: List[str] = []
-    away_starters: List[str] = []
-
-    for team_lineup in lineups:
-        team_name = team_lineup.get("team", {}).get("name", "")
-        starters = []
-        for p in team_lineup.get("startXI", []):
-            name = p.get("player", {}).get("name", "")
-            if name:
-                starters.append(name)
-
-        if _team_matches_fuzzy(home, team_name):
-            home_starters = starters
-        elif _team_matches_fuzzy(away, team_name):
-            away_starters = starters
-
-    is_available = bool(home_starters or away_starters)
+    home_starters, away_starters, is_available = _extract_verified_starters(
+        lineups,
+        home=home,
+        away=away,
+    )
     if is_available:
         log.info(
             "Lineups fetched: %s (%d starters) vs %s (%d starters)",
@@ -546,6 +617,8 @@ def get_lineup_context(
     away: str,
     league: str,
     fixture_date: str,
+    *,
+    fixture_id: Optional[Any] = None,
 ) -> LineupContext:
     """Orchestrate lineup fetch, contribution share lookup, and adjustment.
 
@@ -555,7 +628,9 @@ def get_lineup_context(
     Falls back to neutral ``LineupContext`` (all multipliers 1.0,
     ``is_available=False``) on any failure.
     """
-    cache_key = f"{home.lower()}|{away.lower()}|{league}|{fixture_date}"
+    resolved_fixture_id = _normalise_fixture_id(fixture_id)
+    cache_identity = str(resolved_fixture_id) if resolved_fixture_id is not None else f"{home.lower()}|{away.lower()}"
+    cache_key = f"{cache_identity}|{league}|{fixture_date}"
     cached = _lineup_cache.get(cache_key)
     if cached and (time.time() - cached[0]) < _CACHE_TTL:
         return cached[1]
@@ -564,7 +639,11 @@ def get_lineup_context(
 
     try:
         home_starters, away_starters, available = fetch_match_lineups(
-            home, away, league, fixture_date,
+            home,
+            away,
+            league,
+            fixture_date,
+            fixture_id=resolved_fixture_id,
         )
     except Exception as exc:
         log.warning("Lineup fetch failed for %s vs %s: %s", home, away, exc)
@@ -577,6 +656,7 @@ def get_lineup_context(
 
     ctx.home_starters = home_starters
     ctx.away_starters = away_starters
+    ctx.fixture_id = resolved_fixture_id
     ctx.source = "lineups"
     ctx.is_available = True
 
@@ -621,6 +701,37 @@ def get_lineup_context(
         home, away, len(home_missing), len(away_missing),
     )
     return ctx
+
+
+def get_confirmed_lineup_context_for_event(
+    event: Mapping[str, Any],
+    league: str,
+    target_date: date,
+) -> LineupContext:
+    """Resolve a Match Read event into a *verified* confirmed-XI context.
+
+    The canonical odds event already carries API-Football's fixture id.  Use
+    it directly rather than issuing a second league/date lookup that can
+    select the wrong fixture, especially around postponed matches.  The
+    context remains unavailable unless both matching XIs contain eleven named
+    starters; callers can then safely use ``source == 'lineups'`` as a
+    factual stage label.
+    """
+    if not isinstance(event, Mapping):
+        return LineupContext()
+    home = str(event.get("home_team") or event.get("home") or "").strip()
+    away = str(event.get("away_team") or event.get("away") or "").strip()
+    if not home or not away:
+        log.warning("Cannot resolve lineup context without both fixture team names.")
+        return LineupContext()
+    fixture_id = event.get("_fixture_id") or event.get("fixture_id") or event.get("id")
+    return get_lineup_context(
+        home,
+        away,
+        str(league or "").strip(),
+        target_date.isoformat(),
+        fixture_id=fixture_id,
+    )
 
 
 # ---------------------------------------------------------------------------
