@@ -80,6 +80,34 @@ def test_dispatch_fetches_and_enriches_once_then_evaluates_every_market_once_per
     assert run.notes == ("provider note", "odds refreshed")
 
 
+def test_dispatch_reuses_one_worker_cycle_slate_between_pre_match_and_lineup_stages():
+    event = _event("fixture-1")
+    fetched = mock.Mock(return_value=([event], ["provider note"]))
+    slate_cache = {}
+    context = SimpleNamespace(source="lineups", is_available=True)
+
+    common = {
+        "fetcher": fetched,
+        "date_filter": lambda events, _target: events,
+        "enricher": lambda events, _league, _groups: (events, []),
+        "evaluator": lambda row, *_args, **_kwargs: [{"event_id": row["id"], "market": "goals"}],
+        "compiler": lambda results, *, stage: _draft(results[0]["event_id"]),
+        "force_refresh": True,
+        "slate_cache": slate_cache,
+    }
+
+    match_read_dispatch.generate_match_reads_sync("EPL", date(2026, 9, 6), **common)
+    match_read_dispatch.generate_match_reads_sync(
+        "EPL",
+        date(2026, 9, 6),
+        stage="confirmed_lineups",
+        lineup_provider=lambda *_args: context,
+        **common,
+    )
+
+    assert fetched.call_count == 1
+
+
 def test_dispatch_persists_only_when_explicitly_requested_and_keeps_fixture_draft_on_failure():
     event = _event("fixture-1")
     draft = _draft("fixture-1")

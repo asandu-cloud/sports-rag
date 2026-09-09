@@ -9,7 +9,7 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session
 
 from ..db import session_scope
-from ..models import KBRefreshQueueItem, SyncRun, SyncWatermark
+from ..models import KBRefreshQueueItem, MatchReadObservation, SyncRun, SyncWatermark, WorkerLease
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -93,4 +93,56 @@ def watermark_metrics(*, stale_after_minutes: int = 120) -> Dict[str, Any]:
         "total": total,
         "stale": stale,
         "stale_after_minutes": stale_after_minutes,
+    }
+
+
+def match_read_cycle_metrics(*, since_hours: int = 24) -> Dict[str, Any]:
+    """Operational facts for the one-shot Match Read scheduler.
+
+    This does not judge whether the worker *should* be running—local shadow
+    review is intentionally intermittent—but it makes its most recent run,
+    refresh outcomes, and any active lease visible to a health endpoint or
+    deployment dashboard.
+    """
+    now = datetime.now(timezone.utc)
+    since = now - timedelta(hours=since_hours)
+    with session_scope() as session:
+        latest = session.scalar(
+            select(SyncRun)
+            .where(SyncRun.run_kind == "match_read_cycle")
+            .order_by(desc(SyncRun.started_at), desc(SyncRun.id))
+            .limit(1)
+        )
+        statuses = session.execute(
+            select(MatchReadObservation.status, func.count(MatchReadObservation.id))
+            .where(MatchReadObservation.checked_at >= since)
+            .group_by(MatchReadObservation.status)
+        ).all()
+        lease = session.scalar(
+            select(WorkerLease)
+            .where(WorkerLease.lease_key == "match-read-cycle")
+            .limit(1)
+        )
+
+    active_lease = None
+    if lease is not None and _as_utc(lease.expires_at) > now:
+        active_lease = {
+            "owner_id": lease.owner_id,
+            "expires_at": _as_utc(lease.expires_at).isoformat(),
+        }
+    latest_run = None
+    if latest is not None:
+        latest_run = {
+            "id": int(latest.id),
+            "status": latest.status,
+            "scope": latest.scope,
+            "started_at": _as_utc(latest.started_at).isoformat() if latest.started_at else None,
+            "finished_at": _as_utc(latest.finished_at).isoformat() if latest.finished_at else None,
+            "stats": latest.stats or {},
+        }
+    return {
+        "window_hours": since_hours,
+        "latest_run": latest_run,
+        "observation_counts": {str(status or "?"): int(count) for status, count in statuses},
+        "active_lease": active_lease,
     }

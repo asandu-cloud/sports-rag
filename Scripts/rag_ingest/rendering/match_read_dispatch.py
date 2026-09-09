@@ -13,11 +13,12 @@ for shadow review before it becomes a delivery source.
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 import sys
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Set, Tuple
 
 # The Discord bot already inserts this directory before importing rendering
 # modules, while ``python -m Scripts...`` does not.  Make this dispatcher
@@ -123,6 +124,8 @@ def generate_match_reads_sync(
     persister: Optional[Callable[..., Dict[str, Any]]] = None,
     lineup_provider: Optional[Callable[[Mapping[str, Any], str, date], Any]] = None,
     event_filter: Optional[Callable[[Mapping[str, Any]], bool]] = None,
+    force_refresh: bool = False,
+    slate_cache: Optional[MutableMapping[Tuple[str, date, bool], Tuple[Sequence[Mapping[str, Any]], Sequence[str]]]] = None,
 ) -> MatchReadGenerationRun:
     """Generate one Match Read draft per exact-date fixture in a league.
 
@@ -138,6 +141,10 @@ def generate_match_reads_sync(
     controlled shadow runs.  ``event_filter`` is an optional, local pre-
     enrichment filter used by the lineup scheduler so it does not fetch or
     evaluate the entire slate merely to amend one near-kickoff fixture.
+    ``slate_cache`` is an optional, caller-owned cache for a *single worker
+    cycle*: pre-match and confirmed-lineup evaluations of the same fresh
+    league/date slate can reuse one provider response while their independent
+    model/lineup stages still receive defensive copies.
     """
     normalised_league = str(league or "").strip()
     if not normalised_league:
@@ -170,16 +177,37 @@ def generate_match_reads_sync(
     persist_read = persister or persist_match_read
 
     notes: List[str] = []
-    try:
-        fetched_events, fetch_notes = fetch(normalised_league, target_date=target_date)
-    except Exception as exc:
-        return MatchReadGenerationRun(
-            league=normalised_league,
-            target_date=target_date,
-            stage=normalised_stage,
-            fixtures=(),
-            notes=(f"{normalised_league}: fixture fetch failed ({type(exc).__name__}: {exc}).",),
-        )
+    cache_key = (normalised_league, target_date, bool(force_refresh))
+    cached_slate = slate_cache.get(cache_key) if slate_cache is not None else None
+    if cached_slate is not None:
+        fetched_events = copy.deepcopy(list(cached_slate[0]))
+        fetch_notes = list(cached_slate[1])
+    else:
+        try:
+            # Injected test/diagnostic fetchers predate the freshness keyword.
+            # Keep them compatible while the real provider path can deliberately
+            # bypass its ten-minute in-process cache in the final match window.
+            if fetcher is None and force_refresh:
+                fetched_events, fetch_notes = fetch(
+                    normalised_league,
+                    target_date=target_date,
+                    force_refresh=force_refresh,
+                )
+            else:
+                fetched_events, fetch_notes = fetch(normalised_league, target_date=target_date)
+        except Exception as exc:
+            return MatchReadGenerationRun(
+                league=normalised_league,
+                target_date=target_date,
+                stage=normalised_stage,
+                fixtures=(),
+                notes=(f"{normalised_league}: fixture fetch failed ({type(exc).__name__}: {exc}).",),
+            )
+        if slate_cache is not None:
+            slate_cache[cache_key] = (
+                copy.deepcopy(list(fetched_events or ())),
+                tuple(_normalise_notes(fetch_notes)),
+            )
     notes.extend(_normalise_notes(fetch_notes))
 
     try:

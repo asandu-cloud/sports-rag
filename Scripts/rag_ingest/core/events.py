@@ -20,14 +20,20 @@ log = logging.getLogger("core.events")
 # ---------------------------------------------------------------------------
 
 def fetch_events(league: str, markets: Optional[Set[str]] = None,
-                 target_date: Optional[date] = None) -> Tuple[List[Dict], List[str]]:
-    """Fetch events and odds from API-Football."""
+                 target_date: Optional[date] = None,
+                 *, force_refresh: bool = False) -> Tuple[List[Dict], List[str]]:
+    """Fetch events and odds from API-Football.
+
+    ``force_refresh`` is reserved for the scheduled Match Read final-window
+    check. It bypasses only this process's short-lived API-Football cache; it
+    does not clear global state or change normal Discord/CLI callers.
+    """
     if target_date is None:
         target_date = date.today()
 
     try:
         from odds_provider import fetch_events_apifootball
-        return fetch_events_apifootball(league, target_date)
+        return fetch_events_apifootball(league, target_date, force_refresh=force_refresh)
     except ImportError:
         return [], ["odds_provider module not available."]
     except Exception as exc:
@@ -36,12 +42,13 @@ def fetch_events(league: str, markets: Optional[Set[str]] = None,
 
 
 def fetch_events_multi(leagues: List[str], markets: Optional[Set[str]] = None,
-                       target_date: Optional[date] = None) -> Tuple[List[Dict], List[str]]:
+                       target_date: Optional[date] = None,
+                       *, force_refresh: bool = False) -> Tuple[List[Dict], List[str]]:
     """Fetch events from multiple leagues, tagging each with its league."""
     all_events: List[Dict] = []
     all_notes: List[str] = []
     for league in leagues:
-        events, notes = fetch_events(league, markets, target_date)
+        events, notes = fetch_events(league, markets, target_date, force_refresh=force_refresh)
         for ev in events:
             ev["_league"] = league
         all_events.extend(events)

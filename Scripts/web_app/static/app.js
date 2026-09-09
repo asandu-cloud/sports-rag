@@ -512,15 +512,38 @@ const appModule = {
   matchReadSource: 'loading',
   initialized: false,
   _requestId: 0,
+  _matchReadPollTimer: null,
+  _lastMatchReadPollAt: 0,
 
   async init() {
     if (!this.initialized) {
       this._buildDateStrips();
       this._buildLeagueFilters();
+      this._installMatchReadPolling();
       this.initialized = true;
     }
     this.switchTab('fixtures');
     await this._loadMatchday();
+  },
+
+  _installMatchReadPolling() {
+    // The worker updates persisted cards; the browser only polls the read-only
+    // delivery API. Avoid a web socket/model call and avoid repeatedly hitting
+    // the local legacy-preview fallback if the published board is unavailable.
+    if (this._matchReadPollTimer || !window.setInterval) return;
+    const poll = () => {
+      if (document.visibilityState === 'hidden') return;
+      if (!['published', 'not-published'].includes(this.matchReadSource)) return;
+      this._lastMatchReadPollAt = Date.now();
+      this._loadMatchday();
+    };
+    this._matchReadPollTimer = window.setInterval(poll, 90 * 1000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      // A user returning after a worker release should not need a manual
+      // refresh, while a quick tab switch should not trigger duplicate calls.
+      if (Date.now() - this._lastMatchReadPollAt >= 30 * 1000) poll();
+    });
   },
 
   switchTab(tab) {

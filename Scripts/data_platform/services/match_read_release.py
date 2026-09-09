@@ -28,6 +28,10 @@ class MatchReadReleaseAssessment:
     reason: Optional[str]
     evaluated_at: Optional[datetime]
     kickoff: Optional[datetime]
+    # The immutable read's evaluated_at remains the historical fact.  An
+    # append-only observation may prove that the exact same snapshot was
+    # successfully checked again later without manufacturing a fake revision.
+    freshness_checked_at: Optional[datetime] = None
 
 
 class MatchReadReleaseError(ValueError):
@@ -55,6 +59,7 @@ def select_releasable_match_reads(
     *,
     now: Optional[Any] = None,
     max_age_minutes: int = DEFAULT_MATCH_READ_MAX_AGE_MINUTES,
+    observed_at_by_match_read_id: Optional[Mapping[int, Any]] = None,
 ) -> Tuple[list[Dict[str, Any]], list[Dict[str, Any]]]:
     """Choose current public reads from an arbitrary fixture-history set.
 
@@ -91,6 +96,7 @@ def select_releasable_match_reads(
             effective,
             now=reference_now,
             max_age_minutes=max_age_minutes,
+            observed_at=_observed_at_for_read(effective, observed_at_by_match_read_id),
         )
         if not assessment.eligible:
             skipped.append({
@@ -109,6 +115,7 @@ def assess_match_read_release(
     *,
     now: Optional[Any] = None,
     max_age_minutes: int = DEFAULT_MATCH_READ_MAX_AGE_MINUTES,
+    observed_at: Optional[Any] = None,
 ) -> MatchReadReleaseAssessment:
     """Reject stale or already-started cards before a public release.
 
@@ -128,22 +135,27 @@ def assess_match_read_release(
     fixture = read.get("fixture") if isinstance(read.get("fixture"), Mapping) else {}
     kickoff = _parse_timestamp(fixture.get("kickoff"))
     evaluated = _read_evaluated_at(read)
+    verified_at = _as_utc(observed_at) if observed_at is not None else None
+    freshness_at = verified_at or evaluated
     if kickoff is None:
-        return MatchReadReleaseAssessment(False, "Fixture kickoff is unavailable.", evaluated, kickoff)
+        return MatchReadReleaseAssessment(False, "Fixture kickoff is unavailable.", evaluated, kickoff, verified_at)
     if evaluated is None:
-        return MatchReadReleaseAssessment(False, "Match Read evaluation time is unavailable.", evaluated, kickoff)
+        return MatchReadReleaseAssessment(False, "Match Read evaluation time is unavailable.", evaluated, kickoff, verified_at)
     if kickoff <= reference_now:
-        return MatchReadReleaseAssessment(False, "Fixture has started or finished.", evaluated, kickoff)
+        return MatchReadReleaseAssessment(False, "Fixture has started or finished.", evaluated, kickoff, verified_at)
     if evaluated > reference_now + timedelta(minutes=5):
-        return MatchReadReleaseAssessment(False, "Match Read evaluation time is in the future.", evaluated, kickoff)
-    if reference_now - evaluated > timedelta(minutes=age_limit):
+        return MatchReadReleaseAssessment(False, "Match Read evaluation time is in the future.", evaluated, kickoff, verified_at)
+    if verified_at is not None and verified_at > reference_now + timedelta(minutes=5):
+        return MatchReadReleaseAssessment(False, "Match Read freshness check is in the future.", evaluated, kickoff, verified_at)
+    if freshness_at is None or reference_now - freshness_at > timedelta(minutes=age_limit):
         return MatchReadReleaseAssessment(
             False,
             f"Match Read is older than the {age_limit}-minute publication limit.",
             evaluated,
             kickoff,
+            verified_at,
         )
-    return MatchReadReleaseAssessment(True, None, evaluated, kickoff)
+    return MatchReadReleaseAssessment(True, None, evaluated, kickoff, verified_at)
 
 
 class MatchReadReleaseService:
@@ -154,9 +166,14 @@ class MatchReadReleaseService:
         *,
         match_reads: Optional[MatchReadService] = None,
         deliveries: Optional[MatchReadDeliveryService] = None,
+        observations: Optional[Any] = None,
     ) -> None:
         self._match_reads = match_reads or MatchReadService()
         self._deliveries = deliveries or MatchReadDeliveryService(match_reads=self._match_reads)
+        if observations is None:
+            from .match_read_observations import MatchReadObservationService
+            observations = MatchReadObservationService()
+        self._observations = observations
 
     def release_matchday_to_website(
         self,
@@ -166,6 +183,7 @@ class MatchReadReleaseService:
         now: Optional[Any] = None,
         max_age_minutes: int = DEFAULT_MATCH_READ_MAX_AGE_MINUTES,
         dry_run: bool = False,
+        fixture_ids: Optional[Iterable[str]] = None,
     ) -> Dict[str, Any]:
         """Release the effective read for each fixture in one league/day.
 
@@ -181,10 +199,23 @@ class MatchReadReleaseService:
             league=normalised_league,
             target_date=matchday,
         )
+        requested_fixture_ids = (
+            {str(value).strip() for value in fixture_ids if str(value).strip()}
+            if fixture_ids is not None else None
+        )
+        if requested_fixture_ids is not None:
+            stored = [
+                read for read in stored
+                if str((read.get("fixture") or {}).get("event_id") or "").strip() in requested_fixture_ids
+            ]
+        observed_at_by_match_read_id = self._observations.latest_successful_by_match_read_ids(
+            _match_read_ids(stored)
+        )
         releasable, skipped = select_releasable_match_reads(
             stored,
             now=now,
             max_age_minutes=max_age_minutes,
+            observed_at_by_match_read_id=observed_at_by_match_read_id,
         )
 
         released = []
@@ -272,6 +303,29 @@ def _fixture_sort_key(read: Mapping[str, Any]) -> tuple[float, str]:
         kickoff.timestamp() if kickoff is not None else float("inf"),
         str(fixture.get("event_id") or ""),
     )
+
+
+def _match_read_ids(reads: Iterable[Mapping[str, Any]]) -> list[int]:
+    ids = []
+    for read in reads:
+        try:
+            value = int(read.get("id"))
+        except (AttributeError, TypeError, ValueError):
+            continue
+        ids.append(value)
+    return ids
+
+
+def _observed_at_for_read(
+    read: Mapping[str, Any],
+    observations: Optional[Mapping[int, Any]],
+) -> Optional[Any]:
+    if not observations:
+        return None
+    try:
+        return observations.get(int(read.get("id")))
+    except (TypeError, ValueError):
+        return None
 
 
 def _matchday_date(value: date | str) -> date:

@@ -19,6 +19,7 @@ from .match_reads import (  # noqa: F401
     MatchReadPackageSelection,
     MatchReadSelection,
 )
+from .match_read_cycle import MatchReadObservation, WorkerLease  # noqa: F401
 from .parlays import ParlaySession  # noqa: F401
 from .live import (  # noqa: F401
     LiveFixture,
@@ -59,6 +60,8 @@ __all__ = [
     "MatchReadPackage",
     "MatchReadPackageSelection",
     "MatchReadDelivery",
+    "MatchReadObservation",
+    "WorkerLease",
     "ParlaySession",
     "LiveFixture",
     "LiveStateSnapshot",

@@ -11,7 +11,7 @@ from ..config import SETTINGS
 from ..db import session_scope
 from ..models import Competition, Fixture, Team
 from .checks import QualityIssue, run_data_quality_checks
-from .metrics import queue_metrics, sync_job_metrics, watermark_metrics
+from .metrics import match_read_cycle_metrics, queue_metrics, sync_job_metrics, watermark_metrics
 
 
 @dataclass
@@ -33,6 +33,7 @@ class HealthReport:
     sync: Dict[str, Any] = field(default_factory=dict)
     queue: Dict[str, Any] = field(default_factory=dict)
     watermarks: Dict[str, Any] = field(default_factory=dict)
+    match_read_cycle: Dict[str, Any] = field(default_factory=dict)
     data_quality: List[Dict[str, Any]] = field(default_factory=list)
     env: Dict[str, Any] = field(default_factory=dict)
 
@@ -44,6 +45,7 @@ class HealthReport:
             "sync": self.sync,
             "queue": self.queue,
             "watermarks": self.watermarks,
+            "match_read_cycle": self.match_read_cycle,
             "data_quality": self.data_quality,
             "env": self.env,
         }
@@ -76,6 +78,7 @@ def build_health_report(*, include_data_quality: bool = True) -> HealthReport:
     report.sync = sync_job_metrics()
     report.queue = queue_metrics()
     report.watermarks = watermark_metrics()
+    report.match_read_cycle = match_read_cycle_metrics()
 
     # Turn watermark staleness into a signal
     if report.watermarks["stale"]:

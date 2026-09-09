@@ -380,7 +380,11 @@ def _fetch_fixtures(league: str, target_date: date) -> Tuple[List[Dict], Optiona
 # ---------------------------------------------------------------------------
 # Per-fixture odds fetch
 # ---------------------------------------------------------------------------
-def _fetch_fixture_odds(fixture_id: int) -> Tuple[List[Dict], Optional[str]]:
+def _fetch_fixture_odds(
+    fixture_id: int,
+    *,
+    force_refresh: bool = False,
+) -> Tuple[List[Dict], Optional[str]]:
     """
     Fetch odds for a single fixture.  Returns the raw bookmakers list
     from the API-Football response, or ([], error).
@@ -389,7 +393,7 @@ def _fetch_fixture_odds(fixture_id: int) -> Tuple[List[Dict], Optional[str]]:
     """
     now = time.time()
     cached = _fixture_odds_cache.get(fixture_id)
-    if cached and (now - cached[1]) < _CACHE_TTL:
+    if not force_refresh and cached and (now - cached[1]) < _CACHE_TTL:
         logger.debug("Odds cache hit for fixture %d", fixture_id)
         return cached[0], None
 
@@ -453,6 +457,7 @@ def fetch_events_apifootball(
     target_date: date,
     *,
     requested_bet_ids: Optional[Set[int]] = None,
+    force_refresh: bool = False,
 ) -> Tuple[List[Dict], List[str]]:
     """
     Fetch fixtures + odds for *league* on *target_date* from API-Football
@@ -481,7 +486,7 @@ def fetch_events_apifootball(
     cache_key = (league, date_str)
     now = time.time()
     cached = _events_cache.get(cache_key)
-    if cached and (now - cached[2]) < _CACHE_TTL:
+    if not force_refresh and cached and (now - cached[2]) < _CACHE_TTL:
         logger.debug("Events cache hit for %s on %s", league, date_str)
         return cached[0], cached[1]
 
@@ -514,7 +519,10 @@ def fetch_events_apifootball(
             "Fetching odds for fixture %d: %s vs %s", fixture_id, home_team, away_team
         )
 
-        api_bookmakers, odds_err = _fetch_fixture_odds(fixture_id)
+        api_bookmakers, odds_err = _fetch_fixture_odds(
+            fixture_id,
+            force_refresh=force_refresh,
+        )
         if odds_err:
             notes.append(f"Odds unavailable for {home_team} vs {away_team}: {odds_err}")
             # Still include the event with empty bookmakers so the match

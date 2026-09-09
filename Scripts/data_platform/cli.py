@@ -24,6 +24,11 @@ Entry points
     Explicitly promote fresh, reviewed persisted Match Reads to the public
     website surface.  This is intentionally separate from generation.
 
+``match-read-cycle --once [--mode shadow|website]``
+    One scheduler-safe Match Read refresh. It reads the upcoming fixture
+    schedule from the platform database, records every check, and only in
+    explicit ``website`` mode promotes fresh final-window cards.
+
 ``build-features [--competition EPL] [--season 2025]``
     Import feature snapshots from existing ``Output/*_feature_engineering``
     JSON files — useful for bringing historical data into the DB without
@@ -40,10 +45,11 @@ Entry points
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 import json
 import logging
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, List, Mapping, Optional
 
@@ -207,6 +213,32 @@ def cmd_publish_match_reads(args) -> int:
     return 0
 
 
+def cmd_match_read_cycle(args) -> int:
+    """Run one durable scheduled Match Read cycle.
+
+    This command intentionally has no daemon loop. A local or cloud scheduler
+    should invoke it every ten minutes; leases make an accidental overlap a
+    harmless skipped run rather than duplicate public tracking exposure.
+    """
+    from .config import load_match_read_worker_settings
+    from .services.match_read_cycle import MatchReadCycleService
+
+    settings = load_match_read_worker_settings()
+    if args.league:
+        settings = replace(settings, leagues=tuple(args.league))
+    service = MatchReadCycleService(settings=settings)
+    report = service.run_once(
+        mode=args.mode,
+        now=args.now,
+        dry_run=args.dry_run,
+    )
+    print(json.dumps(report.as_dict(), indent=2, default=str))
+    # A concurrent scheduled invocation is expected operational behaviour,
+    # not a failed health check. Actual planner/dispatcher/release errors use
+    # a non-zero exit so cron/PaaS can alert on them.
+    return 1 if report.errors else 0
+
+
 def _match_read_run_summary(run: Any) -> dict:
     fixtures = []
     for item in run.fixtures:
@@ -270,6 +302,15 @@ def _match_read_pick_label(quote: Any) -> Optional[str]:
         return f"{side.title()} {float(line):g}"
     except (TypeError, ValueError):
         return side.title()
+
+
+def _parse_iso_datetime(value: str) -> datetime:
+    raw = str(value or "").strip()
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("timestamp must use ISO-8601 format.") from exc
+    return parsed
 
 
 def cmd_build_features(args) -> int:
@@ -585,6 +626,33 @@ def build_parser() -> argparse.ArgumentParser:
         help="Show cards that would be released without writing deliveries or recommendations",
     )
     p.set_defaults(func=cmd_publish_match_reads)
+
+    p = sub.add_parser(
+        "match-read-cycle",
+        help="Run one scheduler-safe Match Read refresh and optional website release",
+    )
+    _add_common_args(p)
+    p.add_argument(
+        "--once", action="store_true",
+        help="Explicit scheduler marker; the command always performs one cycle and exits.",
+    )
+    p.add_argument(
+        "--mode", choices=("shadow", "website"), default=None,
+        help="shadow records only (default); website permits final-window website release.",
+    )
+    p.add_argument(
+        "--league", nargs="+",
+        help="Override configured worker leagues for this one cycle.",
+    )
+    p.add_argument(
+        "--now", type=_parse_iso_datetime,
+        help="Optional ISO-8601 clock override for a deterministic dry-run or test.",
+    )
+    p.add_argument(
+        "--dry-run", action="store_true",
+        help="Read schedule/observations and print the plan without any writes or provider calls.",
+    )
+    p.set_defaults(func=cmd_match_read_cycle)
 
     p = sub.add_parser("build-features", help="Import feature snapshots from Output/*_feature_engineering JSON files")
     _add_common_args(p)

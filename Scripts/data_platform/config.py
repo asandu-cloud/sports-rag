@@ -39,7 +39,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 try:
     from dotenv import load_dotenv
@@ -56,6 +56,26 @@ def _bool_env(name: str, default: bool = False) -> bool:
     if raw is None:
         return default
     return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _positive_int_env(name: str, default: int, *, minimum: int = 1) -> int:
+    """Read a positive integer setting without making startup brittle."""
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return value if value >= minimum else default
+
+
+def _csv_env(name: str, default: Tuple[str, ...]) -> Tuple[str, ...]:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    values = tuple(item.strip() for item in raw.split(",") if item.strip())
+    return values or default
 
 
 def _default_database_url() -> str:
@@ -103,6 +123,59 @@ class Settings:
     @property
     def is_postgres(self) -> bool:
         return self.database_url.startswith("postgres")
+
+
+DEFAULT_MATCH_READ_WORKER_LEAGUES = (
+    "EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1", "UCL",
+)
+
+
+@dataclass(frozen=True)
+class MatchReadWorkerSettings:
+    """Settings for one scheduled Match Read cycle.
+
+    The worker is deliberately one-shot: a platform scheduler invokes it at
+    the configured cadence.  Keeping that scheduler outside the Python
+    process makes local, launchd/cron, and cloud deployments use the same
+    idempotent command.
+    """
+
+    mode: str
+    leagues: Tuple[str, ...]
+    # Match Read persistence currently selects matchdays from their UTC
+    # kickoff strings. Keep the worker's grouping contract UTC until that
+    # stored contract is intentionally migrated end-to-end.
+    matchday_timezone: str
+    outlook_hours: int
+    final_window_minutes: int
+    refresh_minutes: int
+    lineup_window_minutes: int
+    lineup_refresh_minutes: int
+    max_age_minutes: int
+    lease_seconds: int
+
+
+def load_match_read_worker_settings() -> MatchReadWorkerSettings:
+    """Load safe Match Read worker defaults from the environment.
+
+    ``shadow`` is the default mode. ``website`` must be selected explicitly
+    by the scheduled command or environment before any tracked public cards
+    can be created.
+    """
+    raw_mode = os.environ.get("MATCH_READ_WORKER_MODE", "shadow").strip().lower()
+    mode = raw_mode if raw_mode in {"shadow", "website"} else "shadow"
+    return MatchReadWorkerSettings(
+        mode=mode,
+        leagues=_csv_env("MATCH_READ_WORKER_LEAGUES", DEFAULT_MATCH_READ_WORKER_LEAGUES),
+        matchday_timezone=os.environ.get("MATCH_READ_MATCHDAY_TIMEZONE", "UTC").strip() or "UTC",
+        outlook_hours=_positive_int_env("MATCH_READ_OUTLOOK_HOURS", 48),
+        final_window_minutes=_positive_int_env("MATCH_READ_FINAL_WINDOW_MINUTES", 120),
+        refresh_minutes=_positive_int_env("MATCH_READ_REFRESH_MINUTES", 10),
+        lineup_window_minutes=_positive_int_env("MATCH_READ_LINEUP_WINDOW_MINUTES", 100),
+        lineup_refresh_minutes=_positive_int_env("MATCH_READ_LINEUP_REFRESH_MINUTES", 10),
+        max_age_minutes=_positive_int_env("MATCH_READ_MAX_AGE_MINUTES", 120),
+        lease_seconds=_positive_int_env("MATCH_READ_WORKER_LEASE_SECONDS", 540),
+    )
 
 
 def load_settings() -> Settings:

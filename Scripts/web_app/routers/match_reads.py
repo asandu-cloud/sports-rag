@@ -51,6 +51,19 @@ def _get_match_read_service():
     return MatchReadService()
 
 
+def _get_match_read_observation_service():
+    """Construct the optional freshness-ledger reader lazily.
+
+    A database upgraded through the Match Read worker migration can prove that
+    an unchanged immutable card was checked again recently.  The router still
+    degrades to the original evaluated-at rule during a rolling upgrade rather
+    than turning a missing operational table into a public model calculation.
+    """
+    from data_platform.services.match_read_observations import MatchReadObservationService
+
+    return MatchReadObservationService()
+
+
 def _utc_now() -> datetime:
     """Small clock seam so public-card freshness is testable."""
     return datetime.now(timezone.utc)
@@ -201,13 +214,18 @@ def _effective_cards(
             continue
         by_fixture.setdefault(fixture_id, []).append(read)
 
+    observed_at_by_match_read_id = _latest_successful_observations(reads)
     cards: List[Dict[str, Any]] = []
     for fixture_id, fixture_reads in by_fixture.items():
         effective = select_effective_match_read(fixture_reads)
         if effective is None:
             logger.warning("Skipping Match Read fixture %s with no delivery-supported stage", fixture_id)
             continue
-        assessment = assess_match_read_release(effective, now=reference_now)
+        assessment = assess_match_read_release(
+            effective,
+            now=reference_now,
+            observed_at=_observed_at_for_read(effective, observed_at_by_match_read_id),
+        )
         if not assessment.eligible:
             logger.info(
                 "Withholding non-current Match Read fixture %s from public board: %s",
@@ -245,6 +263,36 @@ def _load_matchday_reads(service: Any, *, league: str, target_date: date) -> Lis
             status_code=503,
             detail="Persisted Match Reads are temporarily unavailable.",
         ) from exc
+
+
+def _latest_successful_observations(reads: Iterable[Mapping[str, Any]]) -> Dict[int, Any]:
+    """Load verified worker check times without making public reads mutable.
+
+    This is intentionally best-effort during the schema rollout. A missing
+    ledger simply means the established evaluation-time freshness policy is
+    used; a public GET never writes, retries a provider call, or makes a card
+    appear fresh by itself.
+    """
+    ids = []
+    for read in reads:
+        try:
+            ids.append(int(read.get("id")))
+        except (AttributeError, TypeError, ValueError):
+            continue
+    if not ids:
+        return {}
+    try:
+        return _get_match_read_observation_service().latest_successful_by_match_read_ids(ids)
+    except Exception as exc:
+        logger.warning("Match Read freshness observations are unavailable; using evaluated_at only: %s", exc)
+        return {}
+
+
+def _observed_at_for_read(read: Mapping[str, Any], observations: Mapping[int, Any]) -> Optional[Any]:
+    try:
+        return observations.get(int(read.get("id")))
+    except (TypeError, ValueError):
+        return None
 
 
 def _core_rank(card: Mapping[str, Any]) -> tuple[int, float, float, str]:
@@ -332,7 +380,11 @@ def get_match_read_fixture(fixture_id: str) -> Dict[str, Any]:
     if effective is None:
         raise HTTPException(status_code=404, detail="No delivery-supported Match Read exists for this fixture.")
     from data_platform.services.match_read_release import assess_match_read_release
-    assessment = assess_match_read_release(effective, now=_utc_now())
+    assessment = assess_match_read_release(
+        effective,
+        now=_utc_now(),
+        observed_at=_observed_at_for_read(effective, _latest_successful_observations(reads)),
+    )
     if not assessment.eligible:
         # Historical snapshots remain in the platform audit trail, but this
         # public actionable endpoint must not hand out a stale/in-play price.
