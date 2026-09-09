@@ -164,9 +164,9 @@ def extract_team_total_line_options(
 ) -> List[Dict]:
     """Extract over/under lines for a specific team from team_totals markets.
 
-    The Odds API only offers team_totals for goals -- corners/cards team totals
-    don't exist, so this returns empty for those stat groups (triggering model-only
-    fallback in the renderer).
+    Team-total availability is determined by the API-Football fixture-odds
+    snapshot. Missing groups return empty and trigger the renderer's existing
+    model-only fallback.
     """
     out: List[Dict] = []
     aliases = team_name_aliases(team_name)

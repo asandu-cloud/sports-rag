@@ -1,7 +1,7 @@
 """
 odds_provider.py
 ================
-Drop-in replacement for The Odds API odds fetching, backed by API-Football.
+API-Football fixture and odds adapter for the prediction surfaces.
 
 Produces event dicts in the exact format consumed by rag_cli_v2.py:
 
@@ -79,7 +79,7 @@ _PREFERRED_BOOKMAKERS: List[str] = [
     "10Bet",
 ]
 
-# API-Football bet-type ID  ->  Odds-API-compatible market key
+# API-Football bet-type ID -> canonical internal market key
 _BET_ID_TO_MARKET_KEY: Dict[int, str] = {
     1: "h2h",
     4: "spreads",
@@ -411,8 +411,8 @@ def _fetch_fixture_odds(fixture_id: int) -> Tuple[List[Dict], Optional[str]]:
 # ---------------------------------------------------------------------------
 def _normalize_datetime(date_str: str) -> str:
     """
-    Normalize API-Football date string to ISO-8601 UTC format matching
-    The Odds API convention: '2026-03-19T20:00:00Z'
+    Normalize API-Football date string to the project's ISO-8601 UTC event
+    format: '2026-03-19T20:00:00Z'.
     """
     if not date_str:
         return ""
@@ -431,8 +431,7 @@ def _normalize_datetime(date_str: str) -> str:
 # ---------------------------------------------------------------------------
 # Team name normalization
 # ---------------------------------------------------------------------------
-# API-Football sometimes uses slightly different team names than The Odds API.
-# This mapping corrects common discrepancies so Chroma lookups work.
+# API-Football names occasionally need normalising to match the local team KB.
 _TEAM_NAME_OVERRIDES: Dict[str, str] = {
     # Add overrides here as needed, e.g.:
     # "Manchester United FC": "Manchester United",

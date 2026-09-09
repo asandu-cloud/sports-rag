@@ -421,7 +421,7 @@ def generate_newsletter(
             log.debug("No events for %s today", league)
             continue
 
-        # Convert odds-API events to fixture dicts
+        # Convert provider event payloads to fixture dicts.
         fixtures: List[Dict] = []
         for ev in events:
             home = ev.get("home_team", "")

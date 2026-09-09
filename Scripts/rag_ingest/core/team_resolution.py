@@ -65,6 +65,14 @@ _domestic_league_cache: Dict[str, Optional[str]] = {}
 _chroma_client = None
 _chroma_collection = None
 
+
+# This records which historical evidence actually fed a prediction.  It is
+# intentionally separate from the stored profile-document schema: a European
+# fixture can be predicted from domestic form early in the campaign without
+# pretending that those domestic matches were themselves Champions League
+# fixtures.
+PREDICTION_PROFILE_CONTEXT_VERSION = "prediction-profile-context.v1"
+
 # ---------------------------------------------------------------------------
 # TEAM_ALIAS_MAP — canonical team name lookup
 # ---------------------------------------------------------------------------
@@ -958,45 +966,182 @@ def resolve_domestic_league(team_name: str) -> Optional[str]:
     return None
 
 
-def get_blended_profile_meta(
-    team_name: str,
-    competition: str,
-    target_date: Optional[str] = None,
-) -> Dict:
-    """For European competitions, blend domestic (80%) + European (20%) profiles.
-    For domestic leagues, returns the standard profile unchanged."""
-    if competition not in EUROPEAN_COMPETITIONS:
-        return get_team_profile_context(team_name, competition, target_date=target_date)[0]
+def _blend_european_profile_values(domestic_meta: Dict, euro_meta: Dict) -> Dict:
+    """Return the configured domestic/European numeric profile blend.
 
+    Kept as a small helper so the projection profile and its audit context are
+    derived from exactly the same inputs and weights.
+    """
     ew = SCORING_WEIGHTS["european"]
-    euro_meta = get_team_profile_context(team_name, competition, target_date=target_date)[0]
-    domestic_lg = resolve_domestic_league(team_name)
-
-    if not domestic_lg:
-        return euro_meta  # Non-top-5 team -- European data only
-
-    domestic_meta = get_team_profile_context(team_name, domestic_lg, target_date=target_date)[0]
-    if not domestic_meta:
-        return euro_meta
-    if not euro_meta:
-        return domestic_meta
-
-    # Need enough European fixtures before blending is meaningful
-    euro_n = _numeric(euro_meta.get("matches_played")) or 0
-    if euro_n < ew["min_euro_fixtures"]:
-        return domestic_meta  # Not enough European data yet -- domestic only
-
-    # Weighted blend of all numeric fields
-    blended = dict(domestic_meta)  # start with domestic as base
+    blended = dict(domestic_meta)
     d_w, e_w = ew["domestic_weight"], ew["euro_weight"]
     for key, d_val in domestic_meta.items():
         e_val = euro_meta.get(key)
         if isinstance(d_val, (int, float)) and isinstance(e_val, (int, float)):
             blended[key] = d_w * d_val + e_w * e_val
+    return blended
+
+
+def _european_profile_audit(
+    *,
+    team_name: str,
+    competition: str,
+    profile_mode: str,
+    effective_audit: Dict,
+    domestic_league: Optional[str],
+    domestic_audit: Optional[Dict],
+    european_audit: Dict,
+    domestic_weight: float,
+    european_weight: float,
+) -> Dict:
+    """Describe a European prediction profile without obscuring its sources.
+
+    ``current_season_matches`` and ``effective_sample_size`` deliberately
+    describe the profile that was actually used.  The separate
+    ``competition_*`` fields retain the UCL/UEL/UECL sample so product and
+    guardrail code can apply a conservative European-context confidence cap
+    without incorrectly suppressing a team that has adequate domestic form.
+    """
+    audit = dict(effective_audit or {})
+    domestic_snapshot = dict(domestic_audit or {})
+    european_snapshot = dict(european_audit or {})
+    source_leagues: List[str] = []
+    if domestic_league and domestic_weight > 0:
+        source_leagues.append(domestic_league)
+    if european_weight > 0 or not source_leagues:
+        source_leagues.append(competition)
+    audit.update({
+        "schema_version": PREDICTION_PROFILE_CONTEXT_VERSION,
+        "team": canonical_team_name(team_name),
+        "competition": competition,
+        "competition_type": "european",
+        "profile_mode": profile_mode,
+        "source_leagues": source_leagues,
+        "weights": {
+            "domestic": round(float(domestic_weight), 4),
+            "european": round(float(european_weight), 4),
+        },
+        "domestic_league": domestic_league,
+        "domestic": domestic_snapshot,
+        "european": european_snapshot,
+        "competition_current_season_matches": int(
+            _numeric(european_snapshot.get("current_season_matches")) or 0
+        ),
+        "competition_effective_sample_size": round(
+            _numeric(european_snapshot.get("effective_sample_size")) or 0.0,
+            2,
+        ),
+    })
+    return audit
+
+
+def get_prediction_profile_context(
+    team_name: str,
+    competition: str,
+    target_date: Optional[str] = None,
+) -> Tuple[Dict, Dict]:
+    """Return the exact profile and audit context used for a prediction.
+
+    Domestic fixtures keep the established time-safe context unchanged.  For
+    European fixtures, domestic form is the primary early-season evidence for
+    a team from a covered domestic league.  European data is blended only once
+    the configured minimum number of current-season continental fixtures is
+    present.  This prevents a first UCL matchday from being treated as a data
+    vacuum while retaining a clear, auditable European confidence signal.
+    """
+    if competition not in EUROPEAN_COMPETITIONS:
+        return get_team_profile_context(team_name, competition, target_date=target_date)
+
+    ew = SCORING_WEIGHTS["european"]
+    euro_meta, euro_audit = get_team_profile_context(
+        team_name, competition, target_date=target_date,
+    )
+    domestic_lg = resolve_domestic_league(team_name)
+
+    if not domestic_lg:
+        return euro_meta, _european_profile_audit(
+            team_name=team_name,
+            competition=competition,
+            profile_mode="european_only",
+            effective_audit=euro_audit,
+            domestic_league=None,
+            domestic_audit=None,
+            european_audit=euro_audit,
+            domestic_weight=0.0,
+            european_weight=1.0,
+        )
+
+    domestic_meta, domestic_audit = get_team_profile_context(
+        team_name, domestic_lg, target_date=target_date,
+    )
+    if not domestic_meta:
+        return euro_meta, _european_profile_audit(
+            team_name=team_name,
+            competition=competition,
+            profile_mode="european_only",
+            effective_audit=euro_audit,
+            domestic_league=domestic_lg,
+            domestic_audit=domestic_audit,
+            european_audit=euro_audit,
+            domestic_weight=0.0,
+            european_weight=1.0,
+        )
+    if not euro_meta:
+        return domestic_meta, _european_profile_audit(
+            team_name=team_name,
+            competition=competition,
+            profile_mode="domestic_only_no_european_profile",
+            effective_audit=domestic_audit,
+            domestic_league=domestic_lg,
+            domestic_audit=domestic_audit,
+            european_audit=euro_audit,
+            domestic_weight=1.0,
+            european_weight=0.0,
+        )
+
+    # Do not dilute the domestic profile with an empty or one-match European
+    # sample. The guardrail retains this continental sample separately and
+    # caps confidence while the competition-specific evidence matures.
+    euro_n = _numeric(euro_meta.get("matches_played")) or 0
+    if euro_n < ew["min_euro_fixtures"]:
+        return domestic_meta, _european_profile_audit(
+            team_name=team_name,
+            competition=competition,
+            profile_mode="domestic_only_early_europe",
+            effective_audit=domestic_audit,
+            domestic_league=domestic_lg,
+            domestic_audit=domestic_audit,
+            european_audit=euro_audit,
+            domestic_weight=1.0,
+            european_weight=0.0,
+        )
+
+    blended = _blend_european_profile_values(domestic_meta, euro_meta)
     blended["_domestic_league"] = domestic_lg
     blended["_euro_competition"] = competition
     blended["_blend_mode"] = "domestic_anchored"
-    return blended
+    return blended, _european_profile_audit(
+        team_name=team_name,
+        competition=competition,
+        profile_mode="domestic_anchored",
+        effective_audit=domestic_audit,
+        domestic_league=domestic_lg,
+        domestic_audit=domestic_audit,
+        european_audit=euro_audit,
+        domestic_weight=ew["domestic_weight"],
+        european_weight=ew["euro_weight"],
+    )
+
+
+def get_blended_profile_meta(
+    team_name: str,
+    competition: str,
+    target_date: Optional[str] = None,
+) -> Dict:
+    """Compatibility wrapper returning only the shared prediction profile."""
+    return get_prediction_profile_context(
+        team_name, competition, target_date=target_date,
+    )[0]
 
 
 def get_blended_recent_stats(team_name: str, competition: str, last_n: int = 6,
@@ -1041,10 +1186,8 @@ def get_blended_recent_stats(team_name: str, competition: str, last_n: int = 6,
 # ---------------------------------------------------------------------------
 
 def _profile_meta(team: str, league: str, target_date: Optional[str] = None) -> Dict:
-    """Profile metadata -- auto-blends for European competitions."""
-    if league in EUROPEAN_COMPETITIONS:
-        return get_blended_profile_meta(team, league, target_date=target_date)
-    return get_team_profile_context(team, league, target_date=target_date)[0]
+    """Profile metadata used by projections, aligned with the audit context."""
+    return get_prediction_profile_context(team, league, target_date=target_date)[0]
 
 
 def _recent_stats(team: str, league: str, last_n: int = 6,

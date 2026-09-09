@@ -320,92 +320,42 @@ def heuristic_groups_for_event(home_meta: Dict, away_meta: Dict) -> Set[str]:
 # Enrichment (enrich_events_for_groups)
 # ---------------------------------------------------------------------------
 
-# These helpers are needed by enrich_events_for_groups but live in rag_cli_v2.
-# Import them with fallback stubs.
-try:
-    from rag_cli_v2 import (
-        event_market_groups, discover_event_market_keys,
-        fetch_event_odds_for_market_keys, merge_bookmakers,
-    )
-except ImportError:
-    def event_market_groups(event: Dict) -> Set[str]:
-        groups: Set[str] = set()
-        for bm in event.get("bookmakers", []) or []:
-            for mk in bm.get("markets", []) or []:
-                key = str(mk.get("key") or "")
-                if key:
-                    groups.add(market_group_from_key(key))
-        return groups
-
-    def discover_event_market_keys(league, event_id):
-        return set(), "stub: not available outside monolith"
-
-    def fetch_event_odds_for_market_keys(league, event_id, market_keys):
-        return None, "stub: not available outside monolith"
-
-    def merge_bookmakers(base, extra):
-        by_title = {str(b.get("title") or ""): dict(b) for b in base}
-        for eb in extra:
-            t = str(eb.get("title") or "")
-            if t in by_title:
-                existing_keys = {str(m.get("key") or "") for m in by_title[t].get("markets", [])}
-                for m in eb.get("markets", []) or []:
-                    if str(m.get("key") or "") not in existing_keys:
-                        by_title[t]["markets"].append(m)
-            else:
-                by_title[t] = dict(eb)
-        return list(by_title.values())
+def event_market_groups(event: Dict) -> Set[str]:
+    """Return market families already supplied by API-Football for a fixture."""
+    groups: Set[str] = set()
+    for bookmaker in event.get("bookmakers", []) or []:
+        for market in bookmaker.get("markets", []) or []:
+            key = str(market.get("key") or "")
+            if key:
+                groups.add(market_group_from_key(key))
+    return groups
 
 
 def enrich_events_for_groups(events: List[Dict], league: str, desired_groups: Set[str]) -> Tuple[List[Dict], List[str]]:
     """
-    For groups like corners/cards that are often unavailable at sport-level odds,
-    discover event-level market keys and fetch event-specific odds.
+    Preserve the API-Football fixture-odds snapshot as the sole odds source.
+
+    ``core.events.fetch_events`` already obtains the full API-Football odds
+    payload for every fixture.  The old implementation silently fell back to
+    a second provider for groups that were absent from that payload, which made the
+    website, Discord, and Match Read paths depend on a retired second
+    subscription.  A missing group is now an explicit provider availability
+    fact for the evaluator to handle as unavailable/no-bet; it is never
+    replaced with a different provider's price.
     """
     if not desired_groups:
         return events, []
 
     notes: List[str] = []
-    out: List[Dict] = []
     for ev in events:
         existing_groups = event_market_groups(ev)
         missing = {g for g in desired_groups if g not in existing_groups}
-        if not missing:
-            out.append(ev)
-            continue
-
-        event_id = str(ev.get("id") or "")
-        if not event_id:
-            out.append(ev)
-            continue
-
-        keys, err = discover_event_market_keys(league, event_id)
-        if err:
-            notes.append(f"{ev.get('home_team')} vs {ev.get('away_team')}: market discovery failed ({err})")
-            out.append(ev)
-            continue
-
-        wanted_keys = {k for k in keys if market_group_from_key(k) in missing}
-        if not wanted_keys:
+        if missing:
             notes.append(
-                f"{ev.get('home_team')} vs {ev.get('away_team')}: no {', '.join(sorted(missing))} keys returned by provider."
+                f"{ev.get('home_team')} vs {ev.get('away_team')}: API-Football did not return "
+                f"{', '.join(sorted(missing))} odds for this fixture."
             )
-            out.append(ev)
-            continue
-
-        ev_payload, err2 = fetch_event_odds_for_market_keys(league, event_id, wanted_keys)
-        if err2 or not ev_payload:
-            notes.append(
-                f"{ev.get('home_team')} vs {ev.get('away_team')}: failed fetching event odds for discovered keys."
-            )
-            out.append(ev)
-            continue
-
-        merged = dict(ev)
-        merged["bookmakers"] = merge_bookmakers(ev.get("bookmakers", []) or [], ev_payload.get("bookmakers", []) or [])
-        out.append(merged)
-
-    return out, notes
+    return events, notes
 
 
 # ---------------------------------------------------------------------------

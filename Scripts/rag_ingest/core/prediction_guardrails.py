@@ -33,6 +33,13 @@ QUALITY_GUARDRAILS = {
     "cards_require_profiled_referee": True,
 }
 
+# European fixtures may use a time-safe domestic profile before their own
+# continental sample matures. That is enough to assess a value signal, but it
+# is not enough to claim high confidence in a cross-competition matchup.
+EUROPEAN_PROFILE_GUARDRAILS = {
+    "low_confidence_until_competition_matches": 3,
+}
+
 _CONFIDENCE_RANK = {"low": 0, "medium": 1, "high": 2}
 
 
@@ -103,6 +110,18 @@ def _profile_values(data_quality: Mapping[str, Any]) -> Tuple[Mapping[str, Any],
     )
 
 
+def _early_european_context(home: Mapping[str, Any], away: Mapping[str, Any]) -> bool:
+    """Whether a domestic-anchored European card needs a low-confidence cap."""
+    profiles = (home, away)
+    if not all(str(profile.get("competition_type") or "") == "european" for profile in profiles):
+        return False
+    samples = [
+        _number(profile.get("competition_current_season_matches"))
+        for profile in profiles
+    ]
+    return min(samples) < EUROPEAN_PROFILE_GUARDRAILS["low_confidence_until_competition_matches"]
+
+
 def assess_market_quality(
     data_quality: Mapping[str, Any],
     market: str,
@@ -155,28 +174,31 @@ def assess_market_quality(
             "variance_source": variance_source,
         }
 
+    cap_reasons = []
     if min_current < QUALITY_GUARDRAILS["low_confidence_until_current_matches"]:
         cap = "low"
-        status = "capped"
-        cap_reason = "Early-season profile sample caps confidence at low."
+        cap_reasons.append("Early-season profile sample caps confidence at low.")
     elif (
         min_current < QUALITY_GUARDRAILS["medium_confidence_until_current_matches"]
         or variance_source in {"conservative_fallback_floor", "conservative_floor_over_profile_variance"}
     ):
         cap = "medium"
-        status = "capped"
-        cap_reason = "Profile maturity or conservative variance floor caps confidence at medium."
+        cap_reasons.append("Profile maturity or conservative variance floor caps confidence at medium.")
     else:
         cap = None
-        status = "eligible"
-        cap_reason = None
+
+    if _early_european_context(home, away):
+        cap = "low"
+        cap_reasons.append("Early European competition sample caps confidence at low.")
+
+    status = "capped" if cap is not None else "eligible"
 
     return {
         "version": GUARDRAIL_VERSION,
         "status": status,
         "eligible": True,
         "confidence_cap": cap,
-        "reasons": [cap_reason] if cap_reason else [],
+        "reasons": cap_reasons,
         "minimum_current_season_matches": min_current,
         "minimum_effective_sample_size": min_effective,
         "variance_source": variance_source,

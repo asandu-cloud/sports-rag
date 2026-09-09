@@ -47,7 +47,7 @@ try:
         projected_total_goals,
         projected_total_sot,
     )
-    from core.team_resolution import get_blended_variance, get_team_profile_context
+    from core.team_resolution import get_blended_variance, get_prediction_profile_context
     from core.prediction_guardrails import (
         assess_market_quality,
         cap_confidence,
@@ -88,7 +88,7 @@ except ImportError:
         projected_total_goals,
         projected_total_sot,
     )
-    from .team_resolution import get_blended_variance, get_team_profile_context  # type: ignore[no-redef]
+    from .team_resolution import get_blended_variance, get_prediction_profile_context  # type: ignore[no-redef]
     from .prediction_guardrails import (  # type: ignore[no-redef]
         assess_market_quality,
         cap_confidence,
@@ -97,6 +97,9 @@ except ImportError:
     from .release_control import apply_release_policy  # type: ignore[no-redef]
 
 
+# European-profile policy revisions are recorded in the profile-context audit
+# carried by each result. Keep this established pipeline identifier stable so
+# historical domestic regression baselines remain directly comparable.
 CANONICAL_PIPELINE_VERSION = "core-market-service.v1"
 SUPPORTED_MARKETS = ("goals", "corners", "cards", "sot", "btts", "moneyline", "spreads")
 _TOTAL_MARKETS = {"goals", "corners", "cards", "sot"}
@@ -197,13 +200,13 @@ def _input_quality(
     surface, snapshot, and later tracker has the same input facts.
     """
     try:
-        _, home_profile = get_team_profile_context(
+        home_effective, home_profile = get_prediction_profile_context(
             fixture.home_team, fixture.league, target_date=fixture_date,
         )
-        _, away_profile = get_team_profile_context(
+        away_effective, away_profile = get_prediction_profile_context(
             fixture.away_team, fixture.league, target_date=fixture_date,
         )
-        profile_status = "available"
+        profile_status = "available" if home_effective and away_effective else "unavailable"
     except Exception as exc:  # Audit collection must never block a projection.
         home_profile = {"team": fixture.home_team, "status": "unavailable"}
         away_profile = {"team": fixture.away_team, "status": "unavailable"}

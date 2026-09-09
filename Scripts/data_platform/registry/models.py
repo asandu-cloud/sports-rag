@@ -20,7 +20,7 @@ class ProviderMapping:
     or disables optional endpoints per-competition.
     """
 
-    provider: str                          # 'api_football', 'odds_api', ...
+    provider: str                          # e.g. 'api_football'
     provider_id: int                       # e.g. 39 for EPL on API-Football
     team_aliases: Mapping[str, str] = field(default_factory=dict)
     player_aliases: Mapping[str, str] = field(default_factory=dict)

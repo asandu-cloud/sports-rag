@@ -21,10 +21,10 @@ All workflow examples
 Session
 
 
-RAG CLI v2 (from scratch, odds-first, lenient intent handling)
+RAG CLI v2 (from scratch, API-Football-first, lenient intent handling)
 
 Goals:
-- Capability-first: detect what the Odds API actually provides today.
+- Capability-first: use the market availability returned by API-Football.
 - User-friendly: avoid hard failures when constraints are impossible.
 - Constraint-aware: apply hard constraints when feasible, then gracefully fallback.
 - Lightweight: focused parlay assistant with concise, evidence-backed output.
@@ -48,7 +48,6 @@ from typing import Dict, List, Optional, Set, Tuple
 # Ensure local modules (chroma_backend, prob_models, etc.) are importable
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import requests
 from dotenv import load_dotenv
 from openai import OpenAI
 from zoneinfo import ZoneInfo
@@ -196,9 +195,6 @@ def _core_line_selection_module():
 ROOT = Path(__file__).resolve().parents[2]
 CHROMA_DIR = str(ROOT / "Index" / "chroma")
 COLLECTION = env_first("CHROMA_COLLECTION", default="football_top5")
-ODDS_API_BASE = "https://api.the-odds-api.com/v4"
-ODDS_API_KEY = env_first("ODDS-API", "ODDS_API_KEY")
-ODDS_API_REGIONS = env_first("ODDS_API_REGIONS", default="uk,eu,us")
 OPENAI_API_KEY = env_first("OPENAI_API_KEY")
 CHAT_MODEL = env_first("RAG_CHAT_MODEL", default="gpt-5.4-nano")
 
@@ -451,11 +447,6 @@ _team_profile_doc_cache: Dict[Tuple[str, str], Dict] = {}
 _team_recent_stats_cache: Dict[Tuple[str, str, int], Dict] = {}
 _chroma_client = None
 _chroma_collection = None
-_odds_response_cache: Dict[Tuple[str, Tuple[Tuple[str, str], ...]], object] = {}
-_event_market_keys_cache: Dict[Tuple[str, str], Set[str]] = {}
-_event_odds_cache: Dict[Tuple[str, str, Tuple[str, ...]], Dict] = {}
-
-
 HALF_MARKET_PATTERN = re.compile(r"(?:^|_)(h1|h2|1st_half|2nd_half|first_half|second_half)(?:_|$)")
 
 
@@ -1376,37 +1367,6 @@ def parse_constraints(user_q: str, default_league: str = "EPL") -> ConstraintSpe
     )
 
 
-def _freeze_params(params: Dict) -> Tuple[Tuple[str, str], ...]:
-    return tuple(sorted((str(k), str(v)) for k, v in (params or {}).items()))
-
-
-def odds_get(path: str, params: Dict) -> Tuple[Optional[object], Optional[str]]:
-    api_key = env_first("ODDS-API", "ODDS_API_KEY", default=ODDS_API_KEY)
-    if not api_key:
-        return None, "Missing ODDS API key (ODDS-API)."
-    url = f"{ODDS_API_BASE}{path}"
-    p = dict(params)
-    p["api_key"] = api_key
-    p["oddsFormat"] = "decimal"
-    p["dateFormat"] = "iso"
-    p["regions"] = ODDS_API_REGIONS
-
-    cache_key = (path, _freeze_params(p))
-    cached = _odds_response_cache.get(cache_key)
-    if cached is not None:
-        return copy.deepcopy(cached), None
-
-    try:
-        r = requests.get(url, params=p, timeout=25)
-        if r.status_code != 200:
-            return None, f"Odds API HTTP {r.status_code}: {(r.text or '')[:600]}"
-        payload = r.json()
-        _odds_response_cache[cache_key] = payload
-        return copy.deepcopy(payload), None
-    except Exception as exc:
-        return None, f"Odds API request failed: {exc}"
-
-
 def fetch_events(
     league: str,
     markets: Set[str],
@@ -1414,7 +1374,7 @@ def fetch_events(
 ) -> Tuple[List[Dict], List[str]]:
     """Fetch date-specific events through the canonical API-Football adapter.
 
-    ``rag_cli_v2`` used to keep its own The Odds API client.  That left the
+    ``rag_cli_v2`` used to keep its own external odds client.  That left the
     Discord commands with an incompatible function signature and meant they
     could silently query a retired provider.  Preserve this public helper for
     legacy callers, but delegate discovery to the same API-Football path used
@@ -1446,169 +1406,13 @@ def fetch_events_multi(
     return all_events, all_notes
 
 
-def extract_market_keys(payload: object) -> Set[str]:
-    keys: Set[str] = set()
-
-    def scan_block(block: object) -> None:
-        if isinstance(block, dict):
-            if "bookmakers" in block:
-                for bm in block.get("bookmakers", []) or []:
-                    for mk in bm.get("markets", []) or []:
-                        k = mk.get("key")
-                        if k:
-                            keys.add(str(k))
-            if "markets" in block:
-                for mk in block.get("markets", []) or []:
-                    k = mk.get("key")
-                    if k:
-                        keys.add(str(k))
-        elif isinstance(block, list):
-            for item in block:
-                scan_block(item)
-
-    scan_block(payload)
-    return keys
-
-
-def event_market_groups(event: Dict) -> Set[str]:
-    groups: Set[str] = set()
-    for bm in event.get("bookmakers", []) or []:
-        for mk in bm.get("markets", []) or []:
-            k = mk.get("key")
-            if k:
-                groups.add(market_group_from_key(str(k)))
-    return groups
-
-
-def discover_event_market_keys(league: str, event_id: str) -> Tuple[Set[str], Optional[str]]:
-    cache_key = (league, event_id)
-    cached = _event_market_keys_cache.get(cache_key)
-    if cached is not None:
-        return set(cached), None
-
-    sport_key = LEAGUE_TO_ODDS_SPORT.get(league, LEAGUE_TO_ODDS_SPORT["EPL"])
-    payload, err = odds_get(f"/sports/{sport_key}/events/{event_id}/markets", {})
-    if err:
-        return set(), err
-    keys = extract_market_keys(payload)
-    _event_market_keys_cache[cache_key] = set(keys)
-    return keys, None
-
-
-def fetch_event_odds_for_market_keys(league: str, event_id: str, market_keys: Set[str]) -> Tuple[Optional[Dict], Optional[str]]:
-    if not market_keys:
-        return None, "No market keys requested."
-    sorted_keys = tuple(sorted(market_keys))
-    cache_key = (league, event_id, sorted_keys)
-    cached = _event_odds_cache.get(cache_key)
-    if cached is not None:
-        return copy.deepcopy(cached), None
-
-    sport_key = LEAGUE_TO_ODDS_SPORT.get(league, LEAGUE_TO_ODDS_SPORT["EPL"])
-    payload, err = odds_get(
-        f"/sports/{sport_key}/events/{event_id}/odds",
-        {"markets": ",".join(sorted_keys)},
-    )
-    if err:
-        return None, err
-    if isinstance(payload, dict):
-        _event_odds_cache[cache_key] = payload
-        return copy.deepcopy(payload), None
-    if isinstance(payload, list) and payload and isinstance(payload[0], dict):
-        _event_odds_cache[cache_key] = payload[0]
-        return copy.deepcopy(payload[0]), None
-    return None, "Unexpected event odds payload shape."
-
-
-def merge_bookmakers(base: List[Dict], extra: List[Dict]) -> List[Dict]:
-    """
-    Merge bookmaker market blocks by bookmaker title + market key + outcome key.
-    Keep highest price when duplicates occur.
-    """
-    rows: Dict[Tuple[str, str, str, str], Dict] = {}
-
-    def ingest(bookmakers: List[Dict]) -> None:
-        for bm in bookmakers or []:
-            bname = str(bm.get("title") or "")
-            for mk in bm.get("markets", []) or []:
-                mkey = str(mk.get("key") or "")
-                for out in mk.get("outcomes", []) or []:
-                    oname = str(out.get("name") or "")
-                    pkey = "" if out.get("point") is None else str(out.get("point"))
-                    k = (bname, mkey, oname, pkey)
-                    cur = rows.get(k)
-                    try:
-                        price = float(out.get("price"))
-                    except Exception:
-                        continue
-                    if (cur is None) or (price > float(cur.get("price", 0.0))):
-                        rows[k] = dict(out)
-
-    ingest(base)
-    ingest(extra)
-
-    # Rebuild nested structure
-    nested: Dict[Tuple[str, str], List[Dict]] = {}
-    for (bname, mkey, _, _), out in rows.items():
-        nested.setdefault((bname, mkey), []).append(out)
-
-    bm_map: Dict[str, Dict] = {}
-    for (bname, mkey), outcomes in nested.items():
-        bm = bm_map.setdefault(bname, {"title": bname, "markets": []})
-        bm["markets"].append({"key": mkey, "outcomes": outcomes})
-
-    return list(bm_map.values())
-
-
 def enrich_events_for_groups(events: List[Dict], league: str, desired_groups: Set[str]) -> Tuple[List[Dict], List[str]]:
-    """
-    For groups like corners/cards that are often unavailable at sport-level odds,
-    discover event-level market keys and fetch event-specific odds.
-    """
-    if not desired_groups:
-        return events, []
-
-    notes: List[str] = []
-    out: List[Dict] = []
-    for ev in events:
-        existing_groups = event_market_groups(ev)
-        missing = {g for g in desired_groups if g not in existing_groups}
-        if not missing:
-            out.append(ev)
-            continue
-
-        event_id = str(ev.get("id") or "")
-        if not event_id:
-            out.append(ev)
-            continue
-
-        keys, err = discover_event_market_keys(league, event_id)
-        if err:
-            notes.append(f"{ev.get('home_team')} vs {ev.get('away_team')}: market discovery failed ({err})")
-            out.append(ev)
-            continue
-
-        wanted_keys = {k for k in keys if market_group_from_key(k) in missing}
-        if not wanted_keys:
-            notes.append(
-                f"{ev.get('home_team')} vs {ev.get('away_team')}: no {', '.join(sorted(missing))} keys returned by provider."
-            )
-            out.append(ev)
-            continue
-
-        ev_payload, err2 = fetch_event_odds_for_market_keys(league, event_id, wanted_keys)
-        if err2 or not ev_payload:
-            notes.append(
-                f"{ev.get('home_team')} vs {ev.get('away_team')}: failed fetching event odds for discovered keys."
-            )
-            out.append(ev)
-            continue
-
-        merged = dict(ev)
-        merged["bookmakers"] = merge_bookmakers(ev.get("bookmakers", []) or [], ev_payload.get("bookmakers", []) or [])
-        out.append(merged)
-
-    return out, notes
+    """API-Football-only compatibility wrapper for legacy callers."""
+    try:
+        from core.parlay import enrich_events_for_groups as enrich
+    except ImportError:
+        from Scripts.rag_ingest.core.parlay import enrich_events_for_groups as enrich
+    return enrich(events, league, desired_groups)
 
 
 def totals_key_matches_group(market_key: str, stat_group: str) -> bool:
@@ -1632,44 +1436,12 @@ def totals_key_matches_group(market_key: str, stat_group: str) -> bool:
 
 def enrich_events_for_totals_depth(events: List[Dict], league: str, stat_group: str = "goals") -> Tuple[List[Dict], List[str]]:
     """
-    Expand totals markets even when 'totals' group already exists, by discovering
-    event-level alternate totals keys and merging them into each event.
+    Retain the complete API-Football totals ladder supplied with each fixture.
+
+    API-Football's fixture odds are already the authoritative snapshot.  This
+    compatibility function deliberately performs no second-provider lookup.
     """
-    out: List[Dict] = []
-    notes: List[str] = []
-    for ev in events:
-        event_id = str(ev.get("id") or "")
-        if not event_id:
-            out.append(ev)
-            continue
-
-        keys, err = discover_event_market_keys(league, event_id)
-        if err:
-            notes.append(f"{ev.get('home_team')} vs {ev.get('away_team')}: totals depth discovery failed ({err})")
-            out.append(ev)
-            continue
-
-        wanted_keys = {k for k in keys if totals_key_matches_group(k, stat_group)}
-        if not wanted_keys:
-            notes.append(
-                f"{ev.get('home_team')} vs {ev.get('away_team')}: no full-game {stat_group} totals keys returned by provider."
-            )
-            out.append(ev)
-            continue
-
-        # Keep request bounded while preserving a broad odds ladder.
-        wanted_keys = set(sorted(wanted_keys)[:30])
-        ev_payload, err2 = fetch_event_odds_for_market_keys(league, event_id, wanted_keys)
-        if err2 or not ev_payload:
-            notes.append(f"{ev.get('home_team')} vs {ev.get('away_team')}: totals depth fetch failed.")
-            out.append(ev)
-            continue
-
-        merged = dict(ev)
-        merged["bookmakers"] = merge_bookmakers(ev.get("bookmakers", []) or [], ev_payload.get("bookmakers", []) or [])
-        out.append(merged)
-
-    return out, notes
+    return events, []
 
 
 def filter_events_by_window(events: List[Dict], window: str, tz_name: str = "Europe/London") -> List[Dict]:
@@ -4516,9 +4288,9 @@ def extract_team_total_line_options(
 ) -> List[Dict]:
     """Extract over/under lines for a specific team from team_totals markets.
 
-    The Odds API only offers team_totals for goals — corners/cards team totals
-    don't exist, so this returns empty for those stat groups (triggering model-only
-    fallback in the renderer).
+    Team-total availability is determined by the API-Football fixture-odds
+    snapshot. Missing groups return empty and trigger the renderer's existing
+    model-only fallback.
     """
     out: List[Dict] = []
     aliases = team_name_aliases(team_name)

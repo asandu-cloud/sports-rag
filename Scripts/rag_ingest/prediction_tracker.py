@@ -1681,7 +1681,7 @@ def _match_odds_to_prediction(
 ) -> Optional[float]:
     """Find the closing odds that match a prediction's market/side/line.
 
-    Searches through transformed bookmaker data (Odds-API-compatible format)
+    Searches through transformed canonical bookmaker data.
     for the outcome matching the prediction. Returns the decimal odds or None.
     """
     market = str(pred.get("market", "")).lower()

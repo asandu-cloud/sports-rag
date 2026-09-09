@@ -686,7 +686,7 @@ def _match_event_to_ref(
     home_team: str, away_team: str, league: str,
     assignments: Dict[Tuple[str, str], str],
 ) -> Optional[str]:
-    """Match an odds-API event to a referee assignment. Returns display name or None."""
+    """Match a provider fixture event to a referee assignment. Returns display name or None."""
     h = home_team.lower().strip()
     a = away_team.lower().strip()
 

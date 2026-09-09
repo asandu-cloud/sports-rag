@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / "Scripts"))
 
 import odds_provider  # noqa: E402
 import rag_cli_v2  # noqa: E402
+from core.parlay import enrich_events_for_groups  # noqa: E402
 
 
 class CurrentSeasonEventRoutingTests(unittest.TestCase):
@@ -41,6 +42,26 @@ class CurrentSeasonEventRoutingTests(unittest.TestCase):
         fetch.assert_called_once_with("LaLiga", {"totals"}, target_date=fixture_day)
         self.assertEqual(events, expected)
         self.assertEqual(notes, ["provider note"])
+
+    def test_market_enrichment_keeps_api_football_as_the_only_odds_source(self):
+        event = {
+            "id": "fixture-1",
+            "home_team": "Home",
+            "away_team": "Away",
+            "bookmakers": [{"title": "Book", "markets": [{"key": "totals", "outcomes": []}]}],
+        }
+
+        enriched, notes = enrich_events_for_groups([event], "EPL", {"totals", "corners"})
+
+        self.assertEqual(enriched, [event])
+        self.assertEqual(len(notes), 1)
+        self.assertIn("API-Football did not return corners odds", notes[0])
+
+        legacy_enriched, legacy_notes = rag_cli_v2.enrich_events_for_groups(
+            [event], "EPL", {"totals", "corners"},
+        )
+        self.assertEqual(legacy_enriched, [event])
+        self.assertEqual(legacy_notes, notes)
 
 
 if __name__ == "__main__":

@@ -102,7 +102,7 @@ class MarketServiceTests(unittest.TestCase):
         with mock.patch.object(market_service, "projected_total_goals", return_value=(3.2, 3.0, 3.4)), \
              mock.patch.object(
                  market_service,
-                 "get_team_profile_context",
+                 "get_prediction_profile_context",
                  side_effect=[({}, home_audit), ({}, away_audit)],
              ):
             result = market_service.evaluate_market(
@@ -124,7 +124,7 @@ class MarketServiceTests(unittest.TestCase):
             "effective_sample_size": 9.0,
         }
         with mock.patch.object(market_service, "projected_total_goals", return_value=(4.0, 3.8, 4.1)), \
-             mock.patch.object(market_service, "get_team_profile_context", side_effect=[({}, audit), ({}, audit)]), \
+             mock.patch.object(market_service, "get_prediction_profile_context", side_effect=[({}, audit), ({}, audit)]), \
              mock.patch.object(market_service, "get_blended_variance", return_value=4.0):
             result = market_service.evaluate_market(
                 _event(), "EPL", "goals", generated_at="2026-08-21T12:00:00Z"
@@ -135,6 +135,37 @@ class MarketServiceTests(unittest.TestCase):
         guardrail = result.context["data_quality"]["recommendation_guardrail"]
         self.assertEqual(guardrail["status"], "suppressed")
         self.assertGreater(result.projection.variance, result.projection.value)
+
+    def test_early_ucl_uses_qualified_domestic_profiles_without_ucl_suppression(self):
+        domestic_anchored_audit = {
+            "schema_version": "prediction-profile-context.v1",
+            "competition_type": "european",
+            "competition": "UCL",
+            "profile_mode": "domestic_only_early_europe",
+            "source_leagues": ["Bundesliga"],
+            "weights": {"domestic": 1.0, "european": 0.0},
+            "temporal_status": "fixture_rows_strictly_before_target_date",
+            "current_season_matches": 3,
+            "effective_sample_size": 11.0,
+            "competition_current_season_matches": 0,
+            "competition_effective_sample_size": 8.0,
+        }
+        with mock.patch.object(market_service, "projected_total_goals", return_value=(4.0, 3.8, 4.1)), \
+             mock.patch.object(
+                 market_service,
+                 "get_prediction_profile_context",
+                 side_effect=[({"goals_for_pm": 2.0}, domestic_anchored_audit)] * 2,
+             ), \
+             mock.patch.object(market_service, "get_blended_variance", return_value=4.0):
+            result = market_service.evaluate_market(
+                _event(), "UCL", "goals", generated_at="2026-09-08T17:00:00Z"
+            )
+
+        self.assertEqual(result.decision.status, DecisionStatus.RECOMMENDED)
+        self.assertEqual(result.decision.confidence, "low")
+        guardrail = result.context["data_quality"]["recommendation_guardrail"]
+        self.assertTrue(guardrail["eligible"])
+        self.assertIn("Early European competition sample", " ".join(guardrail["reasons"]))
 
     def test_shadow_mode_withholds_a_canonical_recommendation_at_the_service_boundary(self):
         with mock.patch.object(market_service, "projected_total_goals", return_value=(3.2, 3.0, 3.4)), \

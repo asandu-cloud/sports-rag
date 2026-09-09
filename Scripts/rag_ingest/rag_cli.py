@@ -9,7 +9,6 @@ import unicodedata
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
-import requests
 import chromadb
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -47,17 +46,6 @@ CHROMA_DIR = "/Users/sanduandrei/Desktop/Betting_RAG/Index/chroma"
 COLLECTION = "football_top5"
 EMBED_MODEL = "text-embedding-3-large"
 CHAT_MODEL = "gpt-5.2"  # choose your chat model here
-ODDS_API_BASE = "https://api.the-odds-api.com/v4"
-# Key is expected from process environment under this exact name.
-ODDS_API_KEY = os.environ.get("ODDS-API")
-LEAGUE_TO_ODDS_SPORT = {
-    "EPL": "soccer_epl",
-    "LaLiga": "soccer_spain_la_liga",
-    "SerieA": "soccer_italy_serie_a",
-    "Bundesliga": "soccer_germany_bundesliga",
-    "Ligue1": "soccer_france_ligue_one",
-}
-
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
@@ -558,96 +546,70 @@ def is_schedule_request(user_q: str) -> bool:
 
 
 def fetch_upcoming_odds(league: Optional[str], markets: str = "h2h", max_events: int = 10) -> Tuple[List[Dict], Optional[str]]:
-    if not ODDS_API_KEY:
-        return [], "Missing ODDS API key (ODDS-API)."
+    """Load today's API-Football fixture odds in the legacy CLI shape.
 
-    sport_key = LEAGUE_TO_ODDS_SPORT.get(league or "EPL", "soccer_epl")
-    url = f"{ODDS_API_BASE}/sports/{sport_key}/odds"
-    warning: Optional[str] = None
+    This legacy CLI remains available for local use, but it no longer owns or
+    calls a second odds provider.  The active website, bot, and Match Read
+    paths use the same API-Football adapter.
+    """
+    try:
+        from core.events import fetch_events as fetch_api_football_events
+    except ImportError:
+        from Scripts.rag_ingest.core.events import fetch_events as fetch_api_football_events
 
-    def _request(market_string: str) -> Tuple[Optional[List[Dict]], Optional[str]]:
-        params = {
-            "api_key": ODDS_API_KEY,
-            "regions": "uk,eu,us",
-            "markets": market_string,
-            "oddsFormat": "decimal",
-            "dateFormat": "iso",
-        }
-        try:
-            r = requests.get(url, params=params, timeout=20)
-            if r.status_code != 200:
-                body = (r.text or "")[:500]
-                return None, f"Odds API HTTP {r.status_code}: {body}"
-            return r.json(), None
-        except Exception as exc:
-            return None, f"Odds API request failed: {exc}"
+    target_date = datetime.now(ZoneInfo("Europe/London")).date()
+    events, notes = fetch_api_football_events(
+        league or "EPL",
+        {item.strip() for item in markets.split(",") if item.strip()},
+        target_date=target_date,
+    )
+    if not events:
+        return [], "; ".join(notes) or "API-Football returned no fixtures or odds."
 
-    rows, req_err = _request(markets)
-    effective_markets = markets
-    if req_err and any(x in markets for x in ["corners", "cards"]):
-        fallback = "h2h,totals,spreads"
-        fb_rows, fb_err = _request(fallback)
-        if fb_err:
-            return [], req_err
-        rows = fb_rows
-        effective_markets = fallback
-        warning = f"Requested markets '{markets}' not fully supported. Fell back to '{fallback}'."
-    elif req_err:
-        return [], req_err
-    rows = rows or []
-
-    requested_market_keys = {m.strip() for m in effective_markets.split(",") if m.strip()}
+    requested_market_keys = {item.strip() for item in markets.split(",") if item.strip()}
     parsed: List[Dict] = []
-    for ev in rows:
+    for event in events:
         best_market_rows: Dict[Tuple[str, str, str], Dict] = {}
         best_prices: Dict[str, Dict] = {}
-        for bm in ev.get("bookmakers", []):
-            bm_title = bm.get("title")
-            for mk in bm.get("markets", []):
-                mk_key = str(mk.get("key") or "")
-                if requested_market_keys and mk_key not in requested_market_keys:
+        for bookmaker in event.get("bookmakers", []) or []:
+            bookmaker_name = bookmaker.get("title")
+            for market in bookmaker.get("markets", []) or []:
+                market_key = str(market.get("key") or "")
+                if requested_market_keys and market_key not in requested_market_keys:
                     continue
-                for out in mk.get("outcomes", []):
-                    name = out.get("name")
-                    point = out.get("point")
-                    price = out.get("price")
+                for outcome in market.get("outcomes", []) or []:
                     try:
-                        price = float(price)
+                        price = float(outcome.get("price"))
                     except (TypeError, ValueError):
                         continue
-
-                    # Keep best price per event/market/outcome/point across books.
-                    point_key = "" if point is None else str(point)
-                    row_key = (mk_key, str(name), point_key)
-                    cur = best_market_rows.get(row_key)
-                    if (cur is None) or (price > float(cur.get("price", 0.0))):
+                    name = outcome.get("name")
+                    point = outcome.get("point")
+                    row_key = (market_key, str(name), "" if point is None else str(point))
+                    current = best_market_rows.get(row_key)
+                    if current is None or price > float(current["price"]):
                         best_market_rows[row_key] = {
-                            "market_key": mk_key,
+                            "market_key": market_key,
                             "name": name,
                             "point": point,
                             "price": price,
-                            "bookmaker": bm_title,
+                            "bookmaker": bookmaker_name,
                         }
-
-                    # Backward-compatible best h2h summary.
-                    if mk_key == "h2h":
-                        if name not in best_prices or price > best_prices[name]["price"]:
-                            best_prices[name] = {"price": price, "bookmaker": bm_title}
+                    if market_key == "h2h" and (
+                        name not in best_prices or price > best_prices[name]["price"]
+                    ):
+                        best_prices[name] = {"price": price, "bookmaker": bookmaker_name}
 
         parsed.append({
-            "id": ev.get("id"),
-            "commence_time": ev.get("commence_time"),
-            "home_team": ev.get("home_team"),
-            "away_team": ev.get("away_team"),
+            "id": event.get("id"),
+            "commence_time": event.get("commence_time"),
+            "home_team": event.get("home_team"),
+            "away_team": event.get("away_team"),
             "best_prices": best_prices,
             "market_prices": list(best_market_rows.values()),
         })
 
-    parsed.sort(key=lambda x: x.get("commence_time") or "")
-    out = parsed[:max_events]
-    if not out:
-        return [], "Odds API returned 0 upcoming events for this league/region."
-    return out, warning
+    parsed.sort(key=lambda item: item.get("commence_time") or "")
+    return parsed[:max_events], ("; ".join(notes) or None)
 
 
 def filter_events_by_time(events: List[Dict], user_q: str, tz_name: str = "Europe/London") -> List[Dict]:
@@ -1498,7 +1460,7 @@ def chat_once(user_q: str,
             add_chat_turn(user_q, answer.strip())
             if show_sources:
                 print("\nSources:")
-                print(f"- odds_api | upcoming_board | markets={','.join(requested_markets)}")
+                print(f"- api_football | fixture_odds | markets={','.join(requested_markets)}")
                 for d in prof_docs[:10]:
                     m = d["meta"]
                     print("-", m.get("team"), "|", m.get("doc_type"), "|", m.get("season"))
@@ -1510,7 +1472,7 @@ def chat_once(user_q: str,
                     print("-", m.get("player_name") or m.get("team"), "|", m.get("doc_type"), "|", m.get("season"), "|", m.get("fixture"))
             return
         else:
-            print(f"Odds API unavailable for parlay mode: {err}")
+            print(f"API-Football unavailable for parlay mode: {err}")
             print("Falling back to standard RAG flow.")
 
     # Try matchup mode first

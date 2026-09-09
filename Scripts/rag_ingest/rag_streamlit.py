@@ -31,10 +31,8 @@ def apply_runtime_secrets() -> None:
         return
     mappings = [
         ("OPENAI_API_KEY", "OPENAI_API_KEY"),
-        ("ODDS_API_KEY", "ODDS_API_KEY"),
-        ("ODDS_API_KEY", "ODDS-API"),
-        ("ODDS-API", "ODDS-API"),
-        ("ODDS-API", "ODDS_API_KEY"),
+        ("API_FOOTBALL_KEY", "API_FOOTBALL_KEY"),
+        ("API-FOOTBALL-KEY", "API-FOOTBALL-KEY"),
         ("RAG_CHAT_MODEL", "RAG_CHAT_MODEL"),
         ("CHROMA_COLLECTION", "CHROMA_COLLECTION"),
         ("CHROMA_MODE", "CHROMA_MODE"),

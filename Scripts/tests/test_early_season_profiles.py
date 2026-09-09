@@ -103,6 +103,66 @@ class EarlySeasonProfileTests(unittest.TestCase):
         self.assertAlmostEqual(prior_weight, 8 / 9)
         self.assertAlmostEqual(profile["corners_pm"], 3.6666666667, places=6)
 
+    def test_early_european_context_uses_domestic_profile_and_retains_ucl_audit(self):
+        european_profile = {"matches_played": 0, "corners_pm": 4.0}
+        european_audit = {
+            "team": "Home",
+            "temporal_status": "fixture_rows_strictly_before_target_date",
+            "current_season_matches": 0,
+            "effective_sample_size": 8.0,
+        }
+        domestic_profile = {"matches_played": 3, "corners_pm": 7.0}
+        domestic_audit = {
+            "team": "Home",
+            "temporal_status": "fixture_rows_strictly_before_target_date",
+            "current_season_matches": 3,
+            "effective_sample_size": 11.0,
+            "prior_season_matches": 8,
+        }
+
+        with mock.patch.object(team_resolution, "resolve_domestic_league", return_value="EPL"), \
+             mock.patch.object(
+                 team_resolution,
+                 "get_team_profile_context",
+                 side_effect=[(european_profile, european_audit), (domestic_profile, domestic_audit)],
+             ):
+            profile, audit = team_resolution.get_prediction_profile_context(
+                "Home", "UCL", target_date="2026-09-08T19:00:00Z",
+            )
+
+        self.assertEqual(profile, domestic_profile)
+        self.assertEqual(audit["profile_mode"], "domestic_only_early_europe")
+        self.assertEqual(audit["source_leagues"], ["EPL"])
+        self.assertEqual(audit["weights"], {"domestic": 1.0, "european": 0.0})
+        self.assertEqual(audit["current_season_matches"], 3)
+        self.assertEqual(audit["competition_current_season_matches"], 0)
+        self.assertEqual(audit["domestic"], domestic_audit)
+        self.assertEqual(audit["european"], european_audit)
+
+    def test_european_only_context_does_not_invent_a_domestic_source(self):
+        european_profile = {"matches_played": 0, "corners_pm": 4.0}
+        european_audit = {
+            "team": "Uncovered",
+            "temporal_status": "fixture_rows_strictly_before_target_date",
+            "current_season_matches": 0,
+            "effective_sample_size": 0.0,
+        }
+
+        with mock.patch.object(team_resolution, "resolve_domestic_league", return_value=None), \
+             mock.patch.object(
+                 team_resolution,
+                 "get_team_profile_context",
+                 return_value=(european_profile, european_audit),
+             ):
+            profile, audit = team_resolution.get_prediction_profile_context(
+                "Uncovered", "UCL", target_date="2026-09-08T19:00:00Z",
+            )
+
+        self.assertEqual(profile, european_profile)
+        self.assertEqual(audit["profile_mode"], "european_only")
+        self.assertEqual(audit["source_leagues"], ["UCL"])
+        self.assertEqual(audit["current_season_matches"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()
