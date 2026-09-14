@@ -174,7 +174,11 @@ def load_match_read_worker_settings() -> MatchReadWorkerSettings:
         lineup_window_minutes=_positive_int_env("MATCH_READ_LINEUP_WINDOW_MINUTES", 100),
         lineup_refresh_minutes=_positive_int_env("MATCH_READ_LINEUP_REFRESH_MINUTES", 10),
         max_age_minutes=_positive_int_env("MATCH_READ_MAX_AGE_MINUTES", 120),
-        lease_seconds=_positive_int_env("MATCH_READ_WORKER_LEASE_SECONDS", 540),
+        # A ten-minute external scheduler needs a lease that outlives one
+        # normal cadence.  The worker is one-shot and deliberately has no
+        # background lease heartbeat, so 20 minutes prevents a slow provider
+        # call from allowing a second invocation to overlap.
+        lease_seconds=_positive_int_env("MATCH_READ_WORKER_LEASE_SECONDS", 1200),
     )
 
 

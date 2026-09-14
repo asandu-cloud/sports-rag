@@ -17,6 +17,7 @@ Dependencies:
 """
 from __future__ import annotations
 
+import math
 from typing import Dict, List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
@@ -169,7 +170,8 @@ _team_recent_var_cache: Dict[tuple, Dict] = {}
 
 def safe_float(x) -> Optional[float]:
     try:
-        return float(x)
+        value = float(x)
+        return value if math.isfinite(value) else None
     except Exception:
         return None
 
@@ -661,12 +663,29 @@ def projected_total_sot(
 
     hr = _recent_stats(home, league, last_n=6, target_date=fixture_date)
     ar = _recent_stats(away, league, last_n=6, target_date=fixture_date)
-    h_recent_for = hr.get("sot_for_avg")
-    a_recent_for = ar.get("sot_for_avg")
+    h_recent_for = safe_float(hr.get("sot_for_avg"))
+    a_recent_for = safe_float(ar.get("sot_for_avg"))
     # Blend each team's recent SoT attack with opponent's recent SoT defensive concession
     if h_recent_for is not None and a_recent_for is not None:
-        h_recent_proj = 0.6 * h_recent_for + 0.4 * ar.get("sot_against_avg", a_proj if a_proj is not None else a_recent_for)
-        a_recent_proj = 0.6 * a_recent_for + 0.4 * hr.get("sot_against_avg", h_proj if h_proj is not None else h_recent_for)
+        # ``dict.get(key, fallback)`` does not use ``fallback`` when a source
+        # explicitly stores ``None``.  Early/partial fixture data can therefore
+        # contain a present-but-null defensive average.  Fall back to the
+        # opponent's season projection (or attack average) rather than letting
+        # a single malformed row abort the whole Match Read cycle.
+        h_opp_allow = safe_float(ar.get("sot_against_avg"))
+        if h_opp_allow is None:
+            h_opp_allow = safe_float(a_proj)
+        if h_opp_allow is None:
+            h_opp_allow = a_recent_for
+
+        a_opp_allow = safe_float(hr.get("sot_against_avg"))
+        if a_opp_allow is None:
+            a_opp_allow = safe_float(h_proj)
+        if a_opp_allow is None:
+            a_opp_allow = h_recent_for
+
+        h_recent_proj = 0.6 * h_recent_for + 0.4 * h_opp_allow
+        a_recent_proj = 0.6 * a_recent_for + 0.4 * a_opp_allow
         recent_total = h_recent_proj + a_recent_proj
     else:
         recent_total = None
@@ -713,12 +732,24 @@ def projected_total_corners(
 
     hr = _recent_stats(home, league, last_n=6, target_date=fixture_date)
     ar = _recent_stats(away, league, last_n=6, target_date=fixture_date)
-    h_recent_for = hr.get("corners_for_avg")
-    a_recent_for = ar.get("corners_for_avg")
+    h_recent_for = safe_float(hr.get("corners_for_avg"))
+    a_recent_for = safe_float(ar.get("corners_for_avg"))
     # Blend each team's recent attack with opponent's recent defensive concession
     if h_recent_for is not None and a_recent_for is not None:
-        h_recent_proj = 0.6 * h_recent_for + 0.4 * ar.get("corners_against_avg", a_proj if a_proj is not None else a_recent_for)
-        a_recent_proj = 0.6 * a_recent_for + 0.4 * hr.get("corners_against_avg", h_proj if h_proj is not None else h_recent_for)
+        h_opp_allow = safe_float(ar.get("corners_against_avg"))
+        if h_opp_allow is None:
+            h_opp_allow = safe_float(a_proj)
+        if h_opp_allow is None:
+            h_opp_allow = a_recent_for
+
+        a_opp_allow = safe_float(hr.get("corners_against_avg"))
+        if a_opp_allow is None:
+            a_opp_allow = safe_float(h_proj)
+        if a_opp_allow is None:
+            a_opp_allow = h_recent_for
+
+        h_recent_proj = 0.6 * h_recent_for + 0.4 * h_opp_allow
+        a_recent_proj = 0.6 * a_recent_for + 0.4 * a_opp_allow
         recent_total = h_recent_proj + a_recent_proj
     else:
         recent_total = None

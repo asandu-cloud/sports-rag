@@ -202,6 +202,36 @@ class ProjectionParityTests(unittest.TestCase):
         self.assertEqual(len(result), 3)
         self.assertIsNotNone(result[0])
 
+    def test_total_sot_tolerates_null_defensive_recent_average(self):
+        """A present-but-null API field must use the established fallback."""
+        profile, recent = self._mock_profile_and_recent()
+        home_recent = dict(recent, sot_against_avg=None)
+        away_recent = dict(recent)
+
+        with mock.patch.object(core_proj, "_profile_meta", return_value=profile), \
+             mock.patch.object(core_proj, "_recent_stats", side_effect=[home_recent, away_recent]), \
+             mock.patch.object(core_proj, "_ml_blend_weight", return_value=0.0):
+            result = core_proj.projected_total_sot("Home", "Away", "EPL")
+
+        self.assertEqual(len(result), 3)
+        self.assertIsNotNone(result[0])
+        self.assertIsNotNone(result[2])
+
+    def test_total_corners_tolerates_null_defensive_recent_average(self):
+        """The identical corners blend cannot crash on partial source data."""
+        profile, recent = self._mock_profile_and_recent()
+        home_recent = dict(recent, corners_against_avg=None)
+        away_recent = dict(recent)
+
+        with mock.patch.object(core_proj, "_profile_meta", return_value=profile), \
+             mock.patch.object(core_proj, "_recent_stats", side_effect=[home_recent, away_recent]), \
+             mock.patch.object(core_proj, "_ml_blend_weight", return_value=0.0):
+            result = core_proj.projected_total_corners("Home", "Away", "EPL")
+
+        self.assertEqual(len(result), 3)
+        self.assertIsNotNone(result[0])
+        self.assertIsNotNone(result[2])
+
     def test_total_cards_backward_compat(self):
         """projected_total_cards must return 4-tuple."""
         profile, recent = self._mock_profile_and_recent()

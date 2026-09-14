@@ -665,6 +665,11 @@ TEAM_ALIAS_MAP = {
     # Villarreal
     "villarreal": "Villarreal",
     "villarreal cf": "Villarreal",
+    # --- Serie A / European opponents ---
+    # API-Football has used both names.  Keeping the full club variant here
+    # also means a European fixture can find the existing Serie A profile.
+    "como": "Como",
+    "como 1907": "Como",
     # --- Bundesliga ---
     # 1. FC Heidenheim
     "1. fc heidenheim": "1. FC Heidenheim",
@@ -1097,8 +1102,13 @@ def canonical_team_name(name: str) -> str:
     # Exact alias match
     if n in TEAM_ALIAS_MAP:
         return TEAM_ALIAS_MAP[n]
-    # Fuzzy fallback: find closest alias key (cutoff 0.65 to catch e.g. "Brighton Hove Albion" → "Brighton and Hove Albion")
-    matches = difflib.get_close_matches(n, TEAM_ALIAS_MAP.keys(), n=1, cutoff=0.65)
+    # Fuzzy fallback: find closest *club-name* alias (cutoff 0.65 catches
+    # e.g. "Brighton Hove Albion" → "Brighton and Hove Albion"). Very
+    # short aliases such as ``om`` and ``ol`` remain valid exact inputs, but
+    # are too ambiguous to use as fuzzy candidates: ``Como`` previously
+    # matched ``om`` and was incorrectly resolved as Marseille.
+    fuzzy_aliases = [key for key in TEAM_ALIAS_MAP if len(normalize_name(key)) >= 4]
+    matches = difflib.get_close_matches(n, fuzzy_aliases, n=1, cutoff=0.65)
     if matches:
         return TEAM_ALIAS_MAP[matches[0]]
     return name
