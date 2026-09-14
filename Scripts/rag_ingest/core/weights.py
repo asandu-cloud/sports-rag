@@ -17,13 +17,24 @@ LEAGUE_TO_ODDS_SPORT = {
     "SerieA": "soccer_italy_serie_a",
     "Bundesliga": "soccer_germany_bundesliga",
     "Ligue1": "soccer_france_ligue_one",
+    "Championship": "soccer_efl_championship",
+    "SuperLig": "soccer_turkey_super_lig",
+    "Eredivisie": "soccer_netherlands_eredivisie",
+    "PrimeiraLiga": "soccer_portugal_primeira_liga",
+    "BelgianProLeague": "soccer_belgium_first_division_a",
     "UCL": "soccer_uefa_champs_league",
     "UEL": "soccer_uefa_europa_league",
     "UECL": "soccer_uefa_europa_conference_league",
 }
 
 ALL_LEAGUES = list(LEAGUE_TO_ODDS_SPORT.keys())
-DOMESTIC_LEAGUES = {"EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1"}
+# These are model/data contexts, not an instruction to publish every league.
+# Surface-specific release lists remain deliberately narrower until a league
+# has completed its shadow validation.
+DOMESTIC_LEAGUES = {
+    "EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1",
+    "Championship", "SuperLig", "Eredivisie", "PrimeiraLiga", "BelgianProLeague",
+}
 EUROPEAN_COMPETITIONS = {"UCL", "UEL", "UECL"}
 
 # Provider-safe defaults. Some subscriptions do not expose extra market families.

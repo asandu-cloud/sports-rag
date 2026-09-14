@@ -124,6 +124,69 @@ def test_kb_service_refresh_delta(monkeypatched_factories):
     assert calls[1] == ["team:1:recent"]
 
 
+def test_kb_service_deduplicates_documents_before_vector_upsert(monkeypatched_factories):
+    """One vector batch must never contain the same Chroma id twice."""
+    from data_platform.services import KBService
+    from data_platform.repositories import KBDocumentRepository
+
+    def doc_builder(_entity_type, _entity_key):
+        base = {
+            "doc_id": "fixture:repeat-matchup",
+            "entity_type": "team", "entity_id": "41",
+            "league": "Championship", "season": "2025/26",
+            "doc_type": "team_fixture", "metadata": {"fixture_api_id": 1},
+        }
+        return [
+            {**base, "text": "Earlier version"},
+            {**base, "text": "Latest canonical version"},
+        ]
+
+    calls = []
+
+    def upserter(docs):
+        calls.append(docs)
+        return len(docs)
+
+    repo = KBDocumentRepository()
+    service = KBService(repo=repo, doc_builder=doc_builder, chroma_upserter=upserter)
+    service.enqueue(entity_type="team", entity_key="Championship:41")
+
+    stats = service.refresh(batch_size=10)
+
+    assert stats["docs_changed"] == 2
+    assert stats["docs_embedded"] == 1
+    assert len(calls) == 1
+    assert [doc["id"] for doc in calls[0]] == ["fixture:repeat-matchup"]
+    assert calls[0][0]["text"] == "Latest canonical version"
+    assert repo.get_by_doc_id("fixture:repeat-matchup")["text"] == "Latest canonical version"
+
+
+def test_kb_service_keeps_failed_vector_work_recoverable(monkeypatched_factories):
+    from data_platform.services import KBService
+    from data_platform.repositories import KBDocumentRepository
+
+    def doc_builder(_entity_type, _entity_key):
+        return [{
+            "doc_id": "team:recoverable", "entity_type": "team", "entity_id": "42",
+            "league": "EPL", "season": "2025/26", "doc_type": "team_profile",
+            "text": "Arsenal snapshot", "metadata": {},
+        }]
+
+    repo = KBDocumentRepository()
+    service = KBService(
+        repo=repo,
+        doc_builder=doc_builder,
+        chroma_upserter=lambda _docs: (_ for _ in ()).throw(RuntimeError("Chroma unavailable")),
+    )
+    service.enqueue(entity_type="team", entity_key="EPL:42")
+
+    with pytest.raises(RuntimeError, match="Chroma unavailable"):
+        service.refresh(batch_size=10)
+
+    assert repo.queue_stats() == {"failed": 1}
+    assert len(repo.list_pending_embed()) == 1
+
+
 def test_shim_routes_to_platform_when_enabled(monkeypatch, settings, engine, session_factory):
     """ParlaySessionStore should route through PlatformParlayStore when
     PLATFORM_ENABLED=1 and the default db_path is used.

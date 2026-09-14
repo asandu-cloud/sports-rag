@@ -65,3 +65,39 @@ def test_refresher_uses_backend(session_factory, monkeypatch):
     stats = service.refresh(batch_size=10)
     assert stats["docs_embedded"] == 1
     assert "team:1:profile" in backend
+
+
+def test_fixture_document_id_migration_rekeys_and_invalidates_vector_sync(session_factory, monkeypatch):
+    import data_platform.db as db_module
+    monkeypatch.setattr(db_module, "session_scope", session_factory)
+    from data_platform.repositories import kb as kb_mod
+    monkeypatch.setattr(kb_mod, "session_scope", session_factory)
+
+    from data_platform.kb.doc_builders import make_doc_id
+    from data_platform.kb.refresher import migrate_fixture_document_ids
+    from data_platform.repositories.kb import KBDocumentRepository
+    from data_platform.vectors import InMemoryVectorBackend
+
+    repo = KBDocumentRepository()
+    old_id = "legacy-repeat-matchup"
+    repo.upsert(
+        doc_id=old_id,
+        entity_type="team",
+        entity_id="41",
+        league="Championship",
+        season="2025/26",
+        doc_type="team_fixture",
+        text="Middlesbrough vs Southampton",
+        metadata={"fixture_api_id": 1386855, "team_id": 41},
+    )
+    repo.mark_synced(doc_ids=[old_id])
+    backend = InMemoryVectorBackend()
+    backend.upsert([{"id": old_id, "text": "legacy", "metadata": {}}])
+
+    result = migrate_fixture_document_ids(vector_backend=backend)
+    new_id = make_doc_id(["Championship", "2025/26", "team_fixture", 1386855, 41])
+
+    assert result == {"scanned": 1, "rekeyed": 1, "skipped": 0, "deleted_vectors": 1}
+    assert old_id not in backend
+    assert repo.get_by_doc_id(old_id) is None
+    assert repo.get_by_doc_id(new_id)["chroma_synced_hash"] is None

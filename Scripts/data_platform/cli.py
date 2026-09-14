@@ -34,6 +34,11 @@ Entry points
     JSON files — useful for bringing historical data into the DB without
     re-running the pull/FE pipeline.
 
+``build-canonical-features [--competition Eredivisie] [--season 2025]``
+    Build feature snapshots directly from canonical fixture/team/player stats.
+    This is the generic path for newly onboarded leagues and does not depend
+    on a bespoke ``Output/`` script folder.
+
 ``migrate-users [--sqlite-path ...] [--dry-run]``
     Copy users / subscription_events / referrals from
     ``Index/predictions.db`` into the canonical tables.
@@ -89,10 +94,15 @@ def cmd_bootstrap(args) -> int:
 
     client = ApiFootballClient()
     summary: List[dict] = []
-    with session_scope() as session:
-        archiver = PayloadArchiver(session) if args.archive else None
-        for code in args.competition:
-            for year in args.season:
+    # Commit each competition-season slice independently.  A historical
+    # backfill can take hours and thousands of provider calls; retaining
+    # completed slices makes an interruption resumable instead of rolling the
+    # whole import back in one giant transaction.  ``bootstrap_season`` itself
+    # remains idempotent through its upserts and payload digests.
+    for code in args.competition:
+        for year in args.season:
+            with session_scope() as session:
+                archiver = PayloadArchiver(session) if args.archive else None
                 res = bootstrap_season(
                     session,
                     client=client,
@@ -140,6 +150,22 @@ def cmd_refresh_season(args) -> int:
         return 2
     print(report_json(report))
     return 0 if report.succeeded else 1
+
+
+def cmd_build_canonical_features(args) -> int:
+    """Build live-compatible snapshots from canonical API-Football data."""
+    from .sync.features_from_canonical import build_feature_snapshots_from_canonical
+
+    as_of = date.fromisoformat(args.as_of) if args.as_of else None
+    with session_scope() as session:
+        result = build_feature_snapshots_from_canonical(
+            session,
+            codes=args.competition or None,
+            seasons=args.season or None,
+            as_of_date=as_of,
+        )
+    print(json.dumps(result, indent=2, default=str))
+    return 0
 
 
 def cmd_match_reads(args) -> int:
@@ -388,6 +414,17 @@ def cmd_kb_enqueue_all(args) -> int:
     codes = args.competition or None
     counts = enqueue_all_entities(competitions=codes)
     print(json.dumps(counts, indent=2))
+    return 0
+
+
+def cmd_kb_migrate_fixture_doc_ids(args) -> int:
+    from .kb import migrate_fixture_document_ids
+
+    stats = migrate_fixture_document_ids(
+        competitions=args.competition or None,
+        dry_run=args.dry_run,
+    )
+    print(json.dumps(stats, indent=2))
     return 0
 
 
@@ -666,6 +703,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.set_defaults(func=cmd_build_features)
 
+    p = sub.add_parser(
+        "build-canonical-features",
+        help="Build feature snapshots from canonical fixture/team/player stats",
+    )
+    _add_common_args(p)
+    p.add_argument("--competition", nargs="*", help="Competition codes (default: all registered)")
+    p.add_argument("--season", nargs="*", type=int, help="API-Football season years (default: all stored)")
+    p.add_argument("--as-of", type=str, help="Override as_of_date (ISO, defaults to today)")
+    p.set_defaults(func=cmd_build_canonical_features)
+
     p = sub.add_parser("migrate-users", help="Copy users/events/referrals from Index/predictions.db into Postgres")
     _add_common_args(p)
     p.add_argument("--sqlite-path", type=str, default=None)
@@ -703,6 +750,15 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common_args(p)
     p.add_argument("--competition", nargs="*", help="Restrict to these codes (default: all)")
     p.set_defaults(func=cmd_kb_enqueue_all)
+
+    p = sub.add_parser(
+        "kb-migrate-fixture-doc-ids",
+        help="Rekey legacy fixture KB documents by provider fixture id before refreshing",
+    )
+    _add_common_args(p)
+    p.add_argument("--competition", nargs="*", help="Restrict to these codes (default: all)")
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(func=cmd_kb_migrate_fixture_doc_ids)
 
     p = sub.add_parser("kb-status", help="Print KB queue + doc stats")
     _add_common_args(p)

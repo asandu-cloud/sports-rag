@@ -32,8 +32,10 @@ def compute_content_hash(text: str, metadata: Mapping[str, Any]) -> str:
 
 
 class KBDocumentRepository:
-    def __init__(self, session_factory=session_scope):
-        self._factory = session_factory
+    def __init__(self, session_factory=None):
+        # Resolve lazily so application configuration (and isolated tests) can
+        # supply the current platform session factory before construction.
+        self._factory = session_factory or session_scope
 
     # ------------------------------------------------------------------
     # Documents
@@ -88,6 +90,10 @@ class KBDocumentRepository:
                 "doc_id": doc_id,
                 "id": row.id,
                 "changed": changed,
+                # A document may have been written successfully before a
+                # vector-store outage.  Treat it as needing an embed even
+                # when its content is unchanged on a later retry.
+                "needs_sync": row.chroma_synced_hash != content_hash,
                 "content_hash": content_hash,
             }
 
@@ -123,6 +129,64 @@ class KBDocumentRepository:
                 stmt = stmt.limit(limit)
             rows = session.scalars(stmt).all()
             return [_doc_to_dict(r) for r in rows]
+
+    def list_documents(
+        self,
+        *,
+        doc_type: Optional[str] = None,
+        leagues: Optional[Iterable[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Return canonical documents, optionally restricted by type/league.
+
+        This is deliberately a metadata read from ``platform.db`` rather than
+        from Chroma, so migrations can safely repair vector identities.
+        """
+        with self._factory() as session:
+            stmt = select(KBDocument)
+            if doc_type is not None:
+                stmt = stmt.where(KBDocument.doc_type == doc_type)
+            codes = list(leagues or [])
+            if codes:
+                stmt = stmt.where(KBDocument.league.in_(codes))
+            rows = session.scalars(stmt.order_by(KBDocument.id.asc())).all()
+            return [_doc_to_dict(r) for r in rows]
+
+    def rekey_documents(
+        self,
+        mapping: Mapping[str, str],
+        *,
+        invalidate_sync: bool = True,
+    ) -> int:
+        """Change document ids after an identity-schema migration.
+
+        Rekeyed documents must be embedded under their new Chroma ids, so the
+        sync marker is invalidated by default.
+        """
+        mapping = {old: new for old, new in mapping.items() if old != new}
+        if not mapping:
+            return 0
+        target_ids = set(mapping.values())
+        source_ids = set(mapping)
+        with self._factory() as session:
+            conflicting = session.scalars(
+                select(KBDocument).where(KBDocument.doc_id.in_(target_ids))
+            ).all()
+            occupied = {row.doc_id for row in conflicting if row.doc_id not in source_ids}
+            if occupied:
+                raise ValueError(
+                    "Cannot rekey KB documents: target ids already exist "
+                    f"({', '.join(sorted(occupied)[:3])})."
+                )
+
+            rows = session.scalars(
+                select(KBDocument).where(KBDocument.doc_id.in_(source_ids))
+            ).all()
+            for row in rows:
+                row.doc_id = mapping[row.doc_id]
+                if invalidate_sync:
+                    row.chroma_synced_at = None
+                    row.chroma_synced_hash = None
+            return len(rows)
 
     def get_by_doc_id(self, doc_id: str) -> Optional[Dict[str, Any]]:
         with self._factory() as session:

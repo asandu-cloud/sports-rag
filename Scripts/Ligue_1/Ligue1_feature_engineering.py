@@ -4,6 +4,12 @@ import argparse
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
+try:
+    from Scripts.feature_engineering_utils import defensive_position_flags
+except ModuleNotFoundError:  # Direct ``python Scripts/.../file.py`` execution.
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from feature_engineering_utils import defensive_position_flags
 import re
 
 LEAGUE = "Ligue1"
@@ -403,7 +409,7 @@ def engineer_player_contextual_features(player_df, team_df):
     df["form_diff"] = df["form_index_team"] - df["form_index_team_opp"]
     df["control_diff"] = df["control_index"] - df["control_index_opp"]
 
-    df["is_defensive"] = df["position"].fillna("").str.contains("DF|CB|LB|RB", case=False).astype(int)
+    df["is_defensive"] = defensive_position_flags(df.get("position"), index=df.index)
     df["expected_foul_pressure"] = df["aggression_index_norm_opp"] * df["is_defensive"]
     df["expected_card_risk"] = (
         df["cards_per_90_team_opp"].fillna(0)

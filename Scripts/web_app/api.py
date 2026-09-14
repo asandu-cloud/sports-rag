@@ -33,7 +33,7 @@ from pydantic import BaseModel, Field
 # ---------------------------------------------------------------------------
 # Engine imports — from refactored core/ modules (no monolith dependency)
 # ---------------------------------------------------------------------------
-from core.weights import DEFAULT_MARKETS, LEAGUE_TO_ODDS_SPORT, DOMESTIC_LEAGUES
+from core.weights import DEFAULT_MARKETS, LEAGUE_TO_ODDS_SPORT
 from core.events import fetch_events, fetch_events_multi, filter_events_by_exact_date
 from core.team_resolution import get_team_profile_meta
 from core.projections import (
@@ -336,10 +336,21 @@ _LEAGUE_NAMES = {
     "SerieA": "Serie A",
     "Bundesliga": "Bundesliga",
     "Ligue1": "Ligue 1",
+    "Championship": "Championship",
+    "SuperLig": "Süper Lig",
+    "Eredivisie": "Eredivisie",
+    "PrimeiraLiga": "Primeira Liga",
+    "BelgianProLeague": "Jupiler Pro League",
     "UCL": "UEFA Champions League",
     "UEL": "UEFA Europa League",
     "UECL": "UEFA Europa Conference League",
 }
+
+# The legacy endpoint remains a public, capped top-five surface.  New
+# domestic competitions become visible through reviewed Match Reads only,
+# rather than being silently inserted into a cross-league shortlist while
+# they are still in shadow validation.
+LEGACY_PUBLIC_DOMESTIC_LEAGUES = ("EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1")
 
 
 def _safe(val: Any) -> Optional[float]:
@@ -893,7 +904,7 @@ def get_best_bets(
     all_picks: List[BestBetEntry] = []
     all_notes: List[str] = []
 
-    for league in sorted(DOMESTIC_LEAGUES):
+    for league in LEGACY_PUBLIC_DOMESTIC_LEAGUES:
         try:
             events, notes = _cached_fetch_events(league, dt)
             all_notes.extend(notes)

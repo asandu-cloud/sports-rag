@@ -95,16 +95,22 @@ def _build_team_docs(session: Session, entity_key: str) -> List[Dict[str, Any]]:
     if competition is None:
         return []
 
-    snapshot = session.scalar(
+    snapshots = session.execute(
         select(TeamFeatureSnapshot)
         .join(Season, Season.id == TeamFeatureSnapshot.season_id)
         .where(TeamFeatureSnapshot.team_id == team.id, Season.competition_id == competition.id)
-        .order_by(desc(TeamFeatureSnapshot.as_of_date))
-        .limit(1)
-    )
+        .order_by(desc(Season.year), desc(TeamFeatureSnapshot.as_of_date))
+    ).scalars().all()
     docs: List[Dict[str, Any]] = []
-    if snapshot is not None:
+    # The live profile resolver needs the completed prior campaign during the
+    # early-season shrinkage window.  Keep one latest snapshot *per season*,
+    # rather than emitting only the overall latest profile.
+    seen_seasons = set()
+    for snapshot in snapshots:
         season = session.get(Season, snapshot.season_id)
+        if season is None or season.id in seen_seasons:
+            continue
+        seen_seasons.add(season.id)
         docs.append(_team_profile_doc(team, season, competition, snapshot))
 
     # Fixture docs for this team's most recent matches
@@ -117,7 +123,10 @@ def _build_team_docs(session: Session, entity_key: str) -> List[Dict[str, Any]]:
             Fixture.competition_id == competition.id,
         )
         .order_by(desc(Fixture.kickoff_utc))
-        .limit(10)
+        # Three domestic seasons are comfortably below this limit even for
+        # the Championship.  This preserves historic fixture rows required
+        # for time-safe profiles and does not force a bespoke Output pipeline.
+        .limit(500)
     ).all()
     for stats, fixture, season in recent:
         opponent = session.get(Team, stats.opponent_team_id)
@@ -154,16 +163,44 @@ def _team_profile_doc(
         "matches_played": snapshot.matches_played,
         "goals_for_pm": _to_float(snapshot.goals_for_pm),
         "goals_against_pm": _to_float(snapshot.goals_against_pm),
+        "expected_goals": _to_float(snapshot.expected_goals),
         "corners_pm": _to_float(snapshot.corners_pm),
         "corners_against_pm": _to_float(snapshot.corners_against_pm),
+        "shots_for_pm": _to_float(snapshot.shots_for_pm),
         "sot_for_pm": _to_float(snapshot.sot_for_pm),
         "sot_against_pm": _to_float(snapshot.sot_against_pm),
+        "cards_pm": _to_float(snapshot.cards_pm),
         "cards_per_90_team": _to_float(snapshot.cards_per_90_team),
         "fouls_per_90_team": _to_float(snapshot.fouls_per_90_team),
+        "cards_per_foul_team": _to_float(snapshot.cards_per_foul_team),
         "aggression_index_norm": _to_float(snapshot.aggression_index_norm),
         "form_index_team": _to_float(snapshot.form_index_team),
         "control_index": _to_float(snapshot.control_index),
         "dominance_index": _to_float(snapshot.dominance_index),
+        "possession": _to_float(snapshot.possession),
+        "opp_cards_induced_pm": _to_float(snapshot.opp_cards_induced_pm),
+        "goals_home_pm": _to_float(snapshot.goals_home_pm),
+        "goals_away_pm": _to_float(snapshot.goals_away_pm),
+        "corners_home_pm": _to_float(snapshot.corners_home_pm),
+        "corners_away_pm": _to_float(snapshot.corners_away_pm),
+        "corners_against_home_pm": _to_float(snapshot.corners_against_home_pm),
+        "corners_against_away_pm": _to_float(snapshot.corners_against_away_pm),
+        "sot_home_pm": _to_float(snapshot.sot_home_pm),
+        "sot_away_pm": _to_float(snapshot.sot_away_pm),
+        "sot_against_home_pm": _to_float(snapshot.sot_against_home_pm),
+        "sot_against_away_pm": _to_float(snapshot.sot_against_away_pm),
+        "cards_home_pm": _to_float(snapshot.cards_home_pm),
+        "cards_away_pm": _to_float(snapshot.cards_away_pm),
+        "cards_induced_home_pm": _to_float(snapshot.cards_induced_home_pm),
+        "cards_induced_away_pm": _to_float(snapshot.cards_induced_away_pm),
+        "xg_home_pm": _to_float(snapshot.xg_home_pm),
+        "xg_away_pm": _to_float(snapshot.xg_away_pm),
+        "fouls_home_pm": _to_float(snapshot.fouls_home_pm),
+        "fouls_away_pm": _to_float(snapshot.fouls_away_pm),
+        "goals_var": _to_float(snapshot.goals_var),
+        "corners_var": _to_float(snapshot.corners_var),
+        "cards_var": _to_float(snapshot.cards_var),
+        "sot_var": _to_float(snapshot.sot_var),
         "archetype": snapshot.archetype,
         "as_of_date": snapshot.as_of_date.isoformat() if snapshot.as_of_date else None,
     }
@@ -213,16 +250,39 @@ def _team_fixture_doc(
         "team_id": team.api_football_id,
         "opponent": opp_name,
         "home_away": "home" if is_home else "away",
+        "fixture_id": fixture.api_football_id,
+        "home_team": team.name if is_home else opp_name,
+        "away_team": opp_name if is_home else team.name,
+        "home_goals": fixture.home_goals,
+        "away_goals": fixture.away_goals,
+        "final_score": (
+            f"{fixture.home_goals}-{fixture.away_goals}"
+            if fixture.home_goals is not None and fixture.away_goals is not None else None
+        ),
+        "goals": stats.goals,
+        "xg_for": _to_float(stats.expected_goals),
         "shots_for": stats.shots_total,
         "sot_for": stats.shots_on,
         "corners_for": stats.corners,
         "possession": _to_float(stats.possession),
         "yellow_cards": stats.yellow_cards,
         "red_cards": stats.red_cards,
+        "cards_total": (stats.yellow_cards or 0) + (stats.red_cards or 0),
+        "cards_per_90_team": (stats.yellow_cards or 0) + (stats.red_cards or 0),
         "fouls_committed": stats.fouls_committed,
         "fixture_api_id": fixture.api_football_id,
     }
-    doc_id = make_doc_id([league, season_label, "team_fixture", team.name, fixture_str])
+    # A pair of teams can meet more than once in the same competition season
+    # (for example, a league fixture and a play-off).  Names and the rendered
+    # fixture string are therefore descriptive metadata, not an identity.  The
+    # provider fixture id is stable and makes every historical match distinct.
+    doc_id = make_doc_id([
+        league,
+        season_label,
+        "team_fixture",
+        fixture.api_football_id,
+        team.api_football_id,
+    ])
     return {
         "doc_id": doc_id,
         "entity_type": "team",

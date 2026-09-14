@@ -133,8 +133,12 @@ class KBService:
         claimed = self._repo.claim_pending(limit=batch_size)
         result.dequeued = len(claimed)
 
-        changed_docs: List[Dict[str, Any]] = []
-        per_item_changed: Dict[int, List[str]] = {}
+        # Dict rather than list is intentional: independent builders can
+        # describe the same document in one queue batch.  Chroma requires
+        # unique ids per upsert; the last canonical write is the document that
+        # should be embedded.
+        embed_docs: Dict[str, Dict[str, Any]] = {}
+        completed_item_ids: List[int] = []
 
         for item in claimed:
             try:
@@ -153,13 +157,13 @@ class KBService:
                     result.docs_scanned += 1
                     if summary["changed"]:
                         result.docs_changed += 1
-                        changed_docs.append({
+                    if summary["needs_sync"]:
+                        embed_docs[doc["doc_id"]] = {
                             "id": doc["doc_id"],
                             "text": doc["text"],
                             "metadata": doc.get("metadata", {}),
                             "content_hash": summary["content_hash"],
-                        })
-                        per_item_changed.setdefault(item["id"], []).append(doc["doc_id"])
+                        }
             except Exception as exc:
                 result.errors.append({
                     "queue_id": item["id"],
@@ -169,24 +173,73 @@ class KBService:
                 })
                 self._repo.finish(item["id"], status="failed", error=str(exc))
                 continue
-            self._repo.finish(item["id"], status="completed")
+            completed_item_ids.append(item["id"])
 
-        if changed_docs and not dry_run and self._chroma_upserter is not None:
-            # Batch embed through the configured upserter.
-            for i in range(0, len(changed_docs), embed_batch_size):
-                batch = changed_docs[i:i + embed_batch_size]
-                embedded = self._chroma_upserter(batch)
-                result.docs_embedded += int(embedded or 0)
-                self._repo.mark_synced(
-                    doc_ids=[d["id"] for d in batch],
-                    synced_hashes={d["id"]: d["content_hash"] for d in batch},
-                )
-        elif changed_docs and dry_run:
-            # In dry-run we still record the synced hash to match what embed
-            # would have done — callers should decide when to set dry_run=False.
+        docs_to_embed = list(embed_docs.values())
+        if docs_to_embed and not dry_run and self._chroma_upserter is not None:
+            try:
+                # Batch embed through the configured upserter.
+                for i in range(0, len(docs_to_embed), embed_batch_size):
+                    batch = docs_to_embed[i:i + embed_batch_size]
+                    embedded = self._chroma_upserter(batch)
+                    result.docs_embedded += int(embedded or 0)
+                    self._repo.mark_synced(
+                        doc_ids=[d["id"] for d in batch],
+                        synced_hashes={d["id"]: d["content_hash"] for d in batch},
+                    )
+            except Exception as exc:
+                # Do not call these entities complete if their vector write
+                # failed.  The canonical doc is retained and remains marked
+                # unsynced, making the failure observable and recoverable.
+                for item_id in completed_item_ids:
+                    self._repo.finish(item_id, status="failed", error=str(exc))
+                raise
+        elif docs_to_embed and dry_run:
+            # Dry-run deliberately leaves the sync marker untouched so a
+            # subsequent real run still embeds the canonical documents.
             pass
 
+        for item_id in completed_item_ids:
+            self._repo.finish(item_id, status="completed")
+
         return result.as_dict()
+
+    def sync_pending(
+        self,
+        *,
+        batch_size: int = 256,
+        dry_run: bool = False,
+    ) -> int:
+        """Embed canonical documents left unsynced by an interrupted run.
+
+        Queue items are an input trigger, not the source of truth for vector
+        state.  Reconciling this set recovers documents which were persisted
+        before a process or Chroma failure interrupted the batch.
+        """
+        if dry_run or self._chroma_upserter is None:
+            return 0
+
+        embedded_total = 0
+        while True:
+            pending = self._repo.list_pending_embed(limit=batch_size)
+            if not pending:
+                break
+            batch = [
+                {
+                    "id": doc["doc_id"],
+                    "text": doc["text"],
+                    "metadata": doc.get("metadata", {}),
+                    "content_hash": doc["content_hash"],
+                }
+                for doc in pending
+            ]
+            embedded = self._chroma_upserter(batch)
+            embedded_total += int(embedded or 0)
+            self._repo.mark_synced(
+                doc_ids=[doc["id"] for doc in batch],
+                synced_hashes={doc["id"]: doc["content_hash"] for doc in batch},
+            )
+        return embedded_total
 
     def pending_embed_count(self) -> int:
         return len(self._repo.list_pending_embed())

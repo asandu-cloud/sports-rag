@@ -101,8 +101,13 @@ PREMIUM_ROLE_NAMES = list(TIER_ROLES.values()) + ["OWNER", "MOD", "FRIENDS & FAM
 
 # Leagues
 DOMESTIC_LEAGUES = ["EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1"]
+SHADOW_DOMESTIC_LEAGUES = [
+    "Championship", "SuperLig", "Eredivisie", "PrimeiraLiga", "BelgianProLeague",
+]
 EUROPEAN_COMPS = ["UCL", "UEL", "UECL"]
-ALL_LEAGUES = DOMESTIC_LEAGUES + EUROPEAN_COMPS
+# Commands can request newly onboarded leagues, while scheduled legacy posts
+# remain confined to the established list until each passes shadow review.
+ALL_LEAGUES = DOMESTIC_LEAGUES + SHADOW_DOMESTIC_LEAGUES + EUROPEAN_COMPS
 
 # Embed colors
 COLOR_GREEN = 0x2ECC71   # high confidence

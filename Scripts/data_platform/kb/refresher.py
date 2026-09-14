@@ -23,7 +23,7 @@ from ..repositories.kb import KBDocumentRepository
 from ..services.kb import KBService
 from ..vectors import VectorBackend, build_backend
 from .chroma_adapter import embed_and_upsert_chroma
-from .doc_builders import build_docs_for_entity
+from .doc_builders import build_docs_for_entity, make_doc_id
 
 logger = logging.getLogger(__name__)
 
@@ -87,8 +87,65 @@ def refresh_kb(
             break
         for k in totals:
             totals[k] += int(stats.get(k, 0))
+    # A previous process may have saved canonical docs but crashed before its
+    # Chroma write.  Reconcile from the canonical sync markers once the queue
+    # itself is drained; this also repairs interrupted historical imports.
+    totals["docs_embedded"] += service.sync_pending(dry_run=dry_run)
     totals["pending_embed"] = service.pending_embed_count()
     return totals
+
+
+def migrate_fixture_document_ids(
+    *,
+    competitions: Optional[Iterable[str]] = None,
+    vector_backend: Optional[VectorBackend] = None,
+    dry_run: bool = False,
+) -> Dict[str, int]:
+    """Move legacy fixture docs to ids based on provider fixture identity.
+
+    Earlier fixture-document ids used team names and matchup text.  That is
+    not unique when a pair meets again in the same season (including
+    play-offs).  Vector rows under the old ids are removed and canonical rows
+    are marked unsynced so a normal ``kb-refresh`` rebuilds them safely.
+    """
+    repo = KBDocumentRepository()
+    docs = repo.list_documents(doc_type="team_fixture", leagues=competitions)
+    mapping: Dict[str, str] = {}
+    skipped = 0
+    for doc in docs:
+        meta = doc.get("metadata") or {}
+        fixture_id = meta.get("fixture_api_id", meta.get("fixture_id"))
+        team_id = meta.get("team_id")
+        league = doc.get("league") or meta.get("league")
+        season = doc.get("season") or meta.get("season")
+        if fixture_id is None or team_id is None or not league or not season:
+            skipped += 1
+            continue
+        mapping[doc["doc_id"]] = make_doc_id([
+            league,
+            season,
+            "team_fixture",
+            fixture_id,
+            team_id,
+        ])
+
+    mapping = {old: new for old, new in mapping.items() if old != new}
+    if dry_run:
+        return {"scanned": len(docs), "rekeyed": len(mapping), "skipped": skipped, "deleted_vectors": 0}
+
+    # Remove legacy vector ids before their canonical counterparts are
+    # rekeyed.  A subsequent refresh writes only the corrected identities.
+    deleted_vectors = 0
+    if mapping:
+        target = vector_backend or build_backend()
+        deleted_vectors = int(target.delete(mapping.keys()) or 0)
+    rekeyed = repo.rekey_documents(mapping, invalidate_sync=True)
+    return {
+        "scanned": len(docs),
+        "rekeyed": rekeyed,
+        "skipped": skipped,
+        "deleted_vectors": deleted_vectors,
+    }
 
 
 def enqueue_all_entities(*, competitions: Optional[Iterable[str]] = None) -> Dict[str, int]:

@@ -171,6 +171,8 @@ def _ensure_rag():
 LEAGUE_TO_API_ID = {
     "EPL": 39, "LaLiga": 140, "SerieA": 135,
     "Bundesliga": 78, "Ligue1": 61,
+    "Championship": 40, "SuperLig": 203, "Eredivisie": 88,
+    "PrimeiraLiga": 94, "BelgianProLeague": 144,
     "UCL": 2, "UEL": 3, "UECL": 848,
 }
 
@@ -301,7 +303,7 @@ TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "league": {"type": "string", "enum": ["EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1", "UCL", "UEL", "UECL"]},
+                    "league": {"type": "string", "enum": ["EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1", "Championship", "SuperLig", "Eredivisie", "PrimeiraLiga", "BelgianProLeague", "UCL", "UEL", "UECL"]},
                     "date": {"type": "string", "description": "Optional: filter to a specific date (YYYY-MM-DD)."},
                     "team": {"type": "string", "description": "Optional: filter to fixtures involving this team."},
                 },

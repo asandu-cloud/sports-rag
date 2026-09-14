@@ -129,6 +129,7 @@ def _is_admin(interaction: discord.Interaction) -> bool:
 
 _ALL_LEAGUES = [
     "EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1",
+    "Championship", "SuperLig", "Eredivisie", "PrimeiraLiga", "BelgianProLeague",
     "UCL", "UEL", "UECL",
 ]
 

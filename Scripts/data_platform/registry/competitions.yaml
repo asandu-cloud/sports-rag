@@ -117,6 +117,116 @@ competitions:
           fixture_players: true
 
   # --------------------------------------------------------------
+  # Additional European domestic leagues
+  #
+  # These are data-platform supported, but are deliberately not a public
+  # Match Read release default.  They first build/validate in shadow mode.
+  # Provider identifiers and current-season coverage were verified against
+  # API-Football on 2026-09-10.
+  # --------------------------------------------------------------
+  Championship:
+    name: "Championship"
+    country: "England"
+    competition_type: "domestic_league"
+    tier: 2
+    labels: [domestic, england, shadow_release]
+    providers:
+      api_football:
+        provider_id: 40
+        endpoint_flags:
+          fixtures: true
+          fixture_statistics: true
+          fixture_players: true
+          odds_prematch: true
+          odds_live: true
+    season_rules:
+      style: europe_crossyear
+      start_month: 8
+      end_month: 5
+
+  SuperLig:
+    name: "Süper Lig"
+    country: "Turkey"
+    competition_type: "domestic_league"
+    tier: 1
+    labels: [domestic, uefa_context, shadow_release]
+    providers:
+      api_football:
+        provider_id: 203
+        endpoint_flags:
+          fixtures: true
+          fixture_statistics: true
+          fixture_players: true
+          odds_prematch: true
+          odds_live: true
+    season_rules:
+      style: europe_crossyear
+      start_month: 8
+      end_month: 5
+
+  Eredivisie:
+    name: "Eredivisie"
+    country: "Netherlands"
+    competition_type: "domestic_league"
+    tier: 1
+    labels: [domestic, uefa_context, shadow_release]
+    providers:
+      api_football:
+        provider_id: 88
+        endpoint_flags:
+          fixtures: true
+          fixture_statistics: true
+          fixture_players: true
+          odds_prematch: true
+          odds_live: true
+    season_rules:
+      style: europe_crossyear
+      start_month: 8
+      end_month: 5
+
+  PrimeiraLiga:
+    name: "Primeira Liga"
+    country: "Portugal"
+    competition_type: "domestic_league"
+    tier: 1
+    labels: [domestic, uefa_context, shadow_release]
+    providers:
+      api_football:
+        provider_id: 94
+        endpoint_flags:
+          fixtures: true
+          fixture_statistics: true
+          fixture_players: true
+          odds_prematch: true
+          odds_live: true
+    season_rules:
+      style: europe_crossyear
+      start_month: 8
+      end_month: 5
+
+  BelgianProLeague:
+    name: "Jupiler Pro League"
+    country: "Belgium"
+    competition_type: "domestic_league"
+    tier: 1
+    # Playoffs make its fixture count non-standard.  Downstream season-stage
+    # logic must derive progress from its actual schedule, never assume 38.
+    labels: [domestic, uefa_context, shadow_release, playoffs]
+    providers:
+      api_football:
+        provider_id: 144
+        endpoint_flags:
+          fixtures: true
+          fixture_statistics: true
+          fixture_players: true
+          odds_prematch: true
+          odds_live: true
+    season_rules:
+      style: europe_crossyear
+      start_month: 7
+      end_month: 5
+
+  # --------------------------------------------------------------
   # Continental cups
   # --------------------------------------------------------------
   UCL:

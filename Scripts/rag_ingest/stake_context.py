@@ -13,6 +13,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass
+from datetime import date
 from typing import Dict, List, Optional, Tuple
 
 try:
@@ -29,6 +30,8 @@ log = logging.getLogger("stake_context")
 LEAGUE_TO_API_ID: Dict[str, int] = {
     "EPL": 39, "LaLiga": 140, "SerieA": 135,
     "Bundesliga": 78, "Ligue1": 61,
+    "Championship": 40, "SuperLig": 203, "Eredivisie": 88,
+    "PrimeiraLiga": 94, "BelgianProLeague": 144,
     "UCL": 2, "UEL": 3, "UECL": 848,
 }
 
@@ -36,9 +39,17 @@ LEAGUE_TO_API_ID: Dict[str, int] = {
 LEAGUE_TOTAL_MATCHES: Dict[str, int] = {
     "EPL": 38, "LaLiga": 38, "SerieA": 38,
     "Bundesliga": 34, "Ligue1": 34,
+    "Championship": 46, "SuperLig": 36, "Eredivisie": 34,
+    "PrimeiraLiga": 34,
 }
 
-SEASON = 2025
+# Belgium's regular season is followed by points-adjusted playoff groups.  A
+# single ``matches remaining`` number would make the established stake model
+# assert false certainty at exactly the point it is meant to be most careful.
+# Keep that optional modifier neutral there until it reads the actual stage
+# structure; the base prediction/profile logic remains available.
+NON_STANDARD_STAKE_FORMATS = frozenset({"BelgianProLeague"})
+
 API_FOOTBALL_BASE = "https://v3.football.api-sports.io"
 
 # Cache: {league: (timestamp, standings_list)}
@@ -97,6 +108,16 @@ def _get_api_key() -> Optional[str]:
     return None
 
 
+def _current_season_year(today: Optional[date] = None) -> int:
+    """Return API-Football's start-year label for the active campaign.
+
+    This changes no stake calculation: it only prevents the live standings
+    input from remaining pinned to a past season as the project rolls over.
+    """
+    today = today or date.today()
+    return today.year if today.month >= 7 else today.year - 1
+
+
 def _fetch_standings(league: str) -> list:
     """Fetch league standings from API-Football. Cached 1 hour."""
     cached = _standings_cache.get(league)
@@ -117,7 +138,7 @@ def _fetch_standings(league: str) -> list:
         resp = requests.get(
             f"{API_FOOTBALL_BASE}/standings",
             headers={"x-apisports-key": api_key},
-            params={"league": api_id, "season": SEASON},
+            params={"league": api_id, "season": _current_season_year()},
             timeout=15,
         )
         resp.raise_for_status()
@@ -352,7 +373,11 @@ def get_stake_context(
     European competitions return neutral (stakes are always high).
     """
     # European comps always have high stakes — knockout context handles that
-    if league not in LEAGUE_TO_API_ID or league in ("UCL", "UEL", "UECL"):
+    if (
+        league not in LEAGUE_TO_API_ID
+        or league in ("UCL", "UEL", "UECL")
+        or league in NON_STANDARD_STAKE_FORMATS
+    ):
         return StakeContext()
 
     standings = _fetch_standings(league)

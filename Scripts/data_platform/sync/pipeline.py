@@ -186,7 +186,15 @@ def bootstrap_season(
             )
         stats.fixtures_seen = len(fixtures_payload)
 
-        for api_row in fixtures_payload:
+        total_fixtures = len(fixtures_payload)
+        logger.info(
+            "Bootstrap %s:%s: importing %s completed fixtures%s",
+            code,
+            year,
+            total_fixtures,
+            " with player statistics" if fetch_players else " with team statistics only",
+        )
+        for fixture_number, api_row in enumerate(fixtures_payload, start=1):
             try:
                 fixture, changed = upsert_fixture_from_api_row(
                     session, api_row=api_row, competition=competition, season=season
@@ -207,6 +215,16 @@ def bootstrap_season(
                     archiver=archiver,
                     sync_run_id=run.id,
                     fetch_players=fetch_players,
+                )
+            if fixture_number == total_fixtures or fixture_number % 25 == 0:
+                logger.info(
+                    "Bootstrap %s:%s: %s/%s fixtures processed (%s detail calls, %s errors)",
+                    code,
+                    year,
+                    fixture_number,
+                    total_fixtures,
+                    stats.fixture_detail_calls,
+                    len(stats.errors),
                 )
 
         upsert_watermark(

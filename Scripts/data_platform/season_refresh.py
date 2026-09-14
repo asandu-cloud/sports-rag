@@ -32,8 +32,17 @@ ROOT = Path(__file__).resolve().parents[2]
 DOMESTIC_COMPETITIONS: Tuple[str, ...] = (
     "EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1",
 )
+GENERIC_DOMESTIC_COMPETITIONS: Tuple[str, ...] = (
+    "Championship", "SuperLig", "Eredivisie", "PrimeiraLiga", "BelgianProLeague",
+)
 EUROPEAN_COMPETITIONS: Tuple[str, ...] = ("UCL", "UEL", "UECL")
-SUPPORTED_COMPETITIONS = frozenset(DOMESTIC_COMPETITIONS + EUROPEAN_COMPETITIONS)
+# ``DOMESTIC_COMPETITIONS`` deliberately remains the existing default so a
+# routine refresh does not silently enlarge the established public product.
+# The newer leagues are supported when explicitly requested and use the
+# canonical feature/KB bridge rather than the legacy Output scripts.
+SUPPORTED_COMPETITIONS = frozenset(
+    DOMESTIC_COMPETITIONS + GENERIC_DOMESTIC_COMPETITIONS + EUROPEAN_COMPETITIONS
+)
 
 
 @dataclass(frozen=True)
@@ -107,7 +116,7 @@ def resolve_competitions(
             result.append(code)
     unknown = [code for code in result if code not in SUPPORTED_COMPETITIONS]
     if unknown:
-        valid = ", ".join(DOMESTIC_COMPETITIONS + EUROPEAN_COMPETITIONS)
+        valid = ", ".join(DOMESTIC_COMPETITIONS + GENERIC_DOMESTIC_COMPETITIONS + EUROPEAN_COMPETITIONS)
         raise ValueError(f"Unsupported competition code(s): {', '.join(unknown)}. Valid: {valid}")
     if not result:
         raise ValueError("At least one competition is required.")
@@ -140,6 +149,8 @@ def build_refresh_plan(
     codes = resolve_competitions(competitions)
     py = sys.executable
     codes_args = tuple(codes)
+    legacy_codes = tuple(code for code in codes if code not in GENERIC_DOMESTIC_COMPETITIONS)
+    generic_codes = tuple(code for code in codes if code in GENERIC_DOMESTIC_COMPETITIONS)
     plan: List[RefreshStage] = []
 
     if sync_platform:
@@ -154,39 +165,68 @@ def build_refresh_plan(
             ),
         ))
 
-    legacy_command: List[str] = [
-        py,
-        str(ROOT / "Scripts" / "pull_season.py"),
-        "--season", str(season),
-        "--league", *codes_args,
-        "--normalize",
-    ]
-    if build_referees:
-        legacy_command.append("--build-referees")
-    if embed:
-        legacy_command.append("--embed")
-    if retrain_ml:
-        legacy_command.append("--retrain-ml")
-    plan.append(RefreshStage(
-        name="legacy_model_refresh",
-        description=(
-            "Refresh Output data, rebuild features and domestic player profiles, "
-            "then normalize the current season" + (", update Chroma" if embed else "") +
-            (", and retrain cumulative ML artefacts." if retrain_ml else ".")
-        ),
-        command=tuple(legacy_command),
-    ))
+    if legacy_codes:
+        legacy_command: List[str] = [
+            py,
+            str(ROOT / "Scripts" / "pull_season.py"),
+            "--season", str(season),
+            "--league", *legacy_codes,
+            "--normalize",
+        ]
+        if build_referees:
+            legacy_command.append("--build-referees")
+        if embed:
+            legacy_command.append("--embed")
+        if retrain_ml:
+            legacy_command.append("--retrain-ml")
+        plan.append(RefreshStage(
+            name="legacy_model_refresh",
+            description=(
+                "Refresh Output data, rebuild features and domestic player profiles, "
+                "then normalize the current season" + (", update Chroma" if embed else "") +
+                (", and retrain cumulative ML artefacts." if retrain_ml else ".")
+            ),
+            command=tuple(legacy_command),
+        ))
 
-    if build_platform_features:
+    if build_platform_features and legacy_codes:
         plan.append(RefreshStage(
             name="platform_feature_snapshots",
             description="Import the rebuilt feature snapshots into the canonical database.",
             command=(
                 py, "-m", "Scripts.data_platform", "build-features",
-                "--competition", *codes_args,
+                "--competition", *legacy_codes,
                 "--season", str(season),
             ),
         ))
+
+    if build_platform_features and generic_codes:
+        plan.append(RefreshStage(
+            name="canonical_feature_snapshots",
+            description=(
+                "Build new-league team/player feature snapshots directly from "
+                "canonical API-Football fixture statistics."
+            ),
+            command=(
+                py, "-m", "Scripts.data_platform", "build-canonical-features",
+                "--competition", *generic_codes,
+                "--season", str(season),
+            ),
+        ))
+        if embed:
+            plan.append(RefreshStage(
+                name="canonical_kb_enqueue",
+                description="Queue changed canonical team, player, and fixture documents for embedding.",
+                command=(
+                    py, "-m", "Scripts.data_platform", "kb-enqueue-all",
+                    "--competition", *generic_codes,
+                ),
+            ))
+            plan.append(RefreshStage(
+                name="canonical_kb_refresh",
+                description="Delta-embed the queued new-league documents into the shared prediction KB.",
+                command=(py, "-m", "Scripts.data_platform", "kb-refresh"),
+            ))
 
     # A health warning (exit 1) is significant and recorded, but an old
     # watermark outside the selected competition must not disguise a successful

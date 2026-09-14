@@ -986,6 +986,8 @@ async def _post_consolidated_scores(
 _LEAGUE_TO_API_ID = {
     "EPL": 39, "LaLiga": 140, "SerieA": 135,
     "Bundesliga": 78, "Ligue1": 61,
+    "Championship": 40, "SuperLig": 203, "Eredivisie": 88,
+    "PrimeiraLiga": 94, "BelgianProLeague": 144,
     "UCL": 2, "UEL": 3, "UECL": 848,
 }
 

@@ -45,6 +45,25 @@ def test_default_plan_keeps_both_active_data_paths_in_order():
     assert plan[-1].accepted_exit_codes == (0, 1)
 
 
+def test_new_league_plan_uses_canonical_features_not_legacy_output_scripts():
+    from data_platform.season_refresh import build_refresh_plan, resolve_competitions
+
+    codes = resolve_competitions(["Eredivisie", "PrimeiraLiga"])
+    plan = build_refresh_plan(season=2026, competitions=codes)
+
+    assert [stage.name for stage in plan] == [
+        "platform_incremental_sync",
+        "canonical_feature_snapshots",
+        "canonical_kb_enqueue",
+        "canonical_kb_refresh",
+        "platform_health",
+    ]
+    assert all(stage.name != "legacy_model_refresh" for stage in plan)
+    canonical = plan[1].command
+    assert "build-canonical-features" in canonical
+    assert "Eredivisie" in canonical and "PrimeiraLiga" in canonical
+
+
 def test_execute_allows_health_warning_after_successful_refresh():
     from data_platform.season_refresh import RefreshStage, execute_refresh_plan
 
