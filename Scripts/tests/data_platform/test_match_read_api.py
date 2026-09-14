@@ -249,6 +249,46 @@ def test_best_match_reads_is_capped_at_five_fixture_cards(
     assert body["cards"][0]["fixture"]["event_id"] == "fixture-best-5"
 
 
+def test_best_match_reads_includes_each_newly_public_domestic_league(
+    settings, engine, session_factory, monkeypatch,
+):
+    """Approved domestic leagues participate in the shared five-card board."""
+    service = _service(session_factory)
+    new_domestic_leagues = (
+        "Championship", "SuperLig", "Eredivisie", "PrimeiraLiga", "BelgianProLeague",
+    )
+    for index, league in enumerate(new_domestic_leagues):
+        saved = _save(
+            service,
+            _market_result(
+                fixture_id=f"fixture-new-public-{index}",
+                league=league,
+                edge=0.05 + index / 100,
+            ),
+            thesis=f"{league} public Match Read.",
+            evaluated_at="2026-09-06T12:00:00Z",
+        )
+        _release(service, saved)
+
+    response = _client(monkeypatch, service).get("/api/match-reads/best/2026-09-06")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["available_count"] == 5
+    assert len(body["cards"]) == 5
+    assert {card["fixture"]["league"] for card in body["cards"]} == set(new_domestic_leagues)
+
+
+def test_public_match_read_scope_keeps_existing_and_new_public_leagues():
+    """The global Match Read board must not silently drop an approved league."""
+    from web_app.routers.match_reads import PUBLIC_MATCH_READ_LEAGUES
+
+    assert PUBLIC_MATCH_READ_LEAGUES == (
+        "EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1", "UCL",
+        "Championship", "SuperLig", "Eredivisie", "PrimeiraLiga", "BelgianProLeague",
+    )
+
+
 def test_match_read_board_rejects_a_non_iso_matchday(settings, engine, session_factory, monkeypatch):
     service = _service(session_factory)
     response = _client(monkeypatch, service).get("/api/match-reads/EPL/06-09-2026")

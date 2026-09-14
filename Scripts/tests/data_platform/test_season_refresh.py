@@ -13,35 +13,46 @@ def test_current_season_year_uses_july_rollover():
     assert current_season_year(date(2026, 7, 1)) == 2026
 
 
-def test_default_plan_keeps_both_active_data_paths_in_order():
+def test_default_plan_refreshes_every_public_domestic_league_in_both_active_paths():
     from data_platform.season_refresh import (
+        DEFAULT_DOMESTIC_COMPETITIONS,
         DOMESTIC_COMPETITIONS,
+        GENERIC_DOMESTIC_COMPETITIONS,
         build_refresh_plan,
         resolve_competitions,
     )
 
     codes = resolve_competitions(None)
-    assert codes == DOMESTIC_COMPETITIONS
+    assert codes == DEFAULT_DOMESTIC_COMPETITIONS
 
     plan = build_refresh_plan(season=2026, competitions=codes)
     assert [stage.name for stage in plan] == [
         "platform_incremental_sync",
         "legacy_model_refresh",
         "platform_feature_snapshots",
+        "canonical_feature_snapshots",
+        "canonical_kb_enqueue",
+        "canonical_kb_refresh",
         "platform_health",
     ]
 
     platform_sync = plan[0].command
-    assert ("--competition", *DOMESTIC_COMPETITIONS) == platform_sync[
+    assert ("--competition", *DEFAULT_DOMESTIC_COMPETITIONS) == platform_sync[
         platform_sync.index("--competition"):platform_sync.index("--season")
     ]
     assert platform_sync[platform_sync.index("--season") + 1] == "2026"
 
     legacy = plan[1].command
+    legacy_leagues = legacy[legacy.index("--league") + 1:legacy.index("--normalize")]
+    assert legacy_leagues == DOMESTIC_COMPETITIONS
     assert "--normalize" in legacy
     assert "--embed" in legacy
     assert "--retrain-ml" in legacy
     assert "--build-referees" in legacy
+
+    canonical = plan[3].command
+    assert "build-canonical-features" in canonical
+    assert all(code in canonical for code in GENERIC_DOMESTIC_COMPETITIONS)
     assert plan[-1].accepted_exit_codes == (0, 1)
 
 

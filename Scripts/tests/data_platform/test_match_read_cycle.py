@@ -26,6 +26,22 @@ def _settings():
     )
 
 
+def test_default_worker_scope_includes_all_public_match_read_leagues(monkeypatch):
+    """A scheduler with no league override must promote the approved leagues."""
+    monkeypatch.delenv("MATCH_READ_WORKER_LEAGUES", raising=False)
+    from data_platform.config import (
+        DEFAULT_MATCH_READ_WORKER_LEAGUES,
+        load_match_read_worker_settings,
+    )
+
+    expected = (
+        "EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1", "UCL",
+        "Championship", "SuperLig", "Eredivisie", "PrimeiraLiga", "BelgianProLeague",
+    )
+    assert DEFAULT_MATCH_READ_WORKER_LEAGUES == expected
+    assert load_match_read_worker_settings().leagues == expected
+
+
 def _fixture(*, fixture_id: str = "9001", kickoff: datetime) -> object:
     from data_platform.services.match_read_cycle import ScheduledMatchReadFixture
 

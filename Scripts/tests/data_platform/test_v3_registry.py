@@ -30,6 +30,18 @@ def test_filter_by_label():
     assert codes == {"EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1"}
 
 
+def test_new_domestic_leagues_are_no_longer_marked_shadow_release():
+    """Registry metadata must agree with their approved Match Read release."""
+    registry = load_registry()
+    new_domestic = {
+        "Championship", "SuperLig", "Eredivisie", "PrimeiraLiga", "BelgianProLeague",
+    }
+
+    assert new_domestic <= set(registry.codes())
+    for code in new_domestic:
+        assert "shadow_release" not in registry.require(code).labels
+
+
 def test_team_aliases_present_for_quirks():
     registry = load_registry()
     seriea = registry.require("SerieA")

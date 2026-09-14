@@ -126,7 +126,12 @@ class Settings:
 
 
 DEFAULT_MATCH_READ_WORKER_LEAGUES = (
+    # Keep the established public scope first so an installation that relies
+    # on the default ordering retains its existing behaviour.  The five
+    # additional domestic leagues have completed their shadow validation and
+    # are now eligible for the same persisted Match Read release workflow.
     "EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1", "UCL",
+    "Championship", "SuperLig", "Eredivisie", "PrimeiraLiga", "BelgianProLeague",
 )
 
 

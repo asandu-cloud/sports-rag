@@ -26,9 +26,10 @@ from typing import Callable, Iterable, List, Optional, Sequence, Tuple
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# The default is intentionally the domestic leagues the regular product
-# currently covers.  European competitions can be included explicitly once
-# their season is active, avoiding unnecessary provider calls in quiet weeks.
+# The established five use the legacy Output-based feature scripts.  The five
+# additional domestic leagues use the canonical feature/KB bridge instead.
+# Keeping the groups separate lets one normal refresh keep both active data
+# paths current without pretending the newer leagues have legacy scripts.
 DOMESTIC_COMPETITIONS: Tuple[str, ...] = (
     "EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1",
 )
@@ -36,12 +37,16 @@ GENERIC_DOMESTIC_COMPETITIONS: Tuple[str, ...] = (
     "Championship", "SuperLig", "Eredivisie", "PrimeiraLiga", "BelgianProLeague",
 )
 EUROPEAN_COMPETITIONS: Tuple[str, ...] = ("UCL", "UEL", "UECL")
-# ``DOMESTIC_COMPETITIONS`` deliberately remains the existing default so a
-# routine refresh does not silently enlarge the established public product.
-# The newer leagues are supported when explicitly requested and use the
-# canonical feature/KB bridge rather than the legacy Output scripts.
+# A routine product refresh must include every domestic league exposed on the
+# public website.  Otherwise a healthy Match Read worker would eventually use
+# stale fixtures and profiles for the newer leagues.  European competitions
+# remain opt-in because their calendars are seasonal and their feature path is
+# still legacy-specific.
+DEFAULT_DOMESTIC_COMPETITIONS: Tuple[str, ...] = (
+    DOMESTIC_COMPETITIONS + GENERIC_DOMESTIC_COMPETITIONS
+)
 SUPPORTED_COMPETITIONS = frozenset(
-    DOMESTIC_COMPETITIONS + GENERIC_DOMESTIC_COMPETITIONS + EUROPEAN_COMPETITIONS
+    DEFAULT_DOMESTIC_COMPETITIONS + EUROPEAN_COMPETITIONS
 )
 
 
@@ -106,7 +111,7 @@ def resolve_competitions(
     requested: Optional[Iterable[str]], *, include_europe: bool = False,
 ) -> Tuple[str, ...]:
     """Return de-duplicated valid competition codes in a predictable order."""
-    codes = list(requested or DOMESTIC_COMPETITIONS)
+    codes = list(requested or DEFAULT_DOMESTIC_COMPETITIONS)
     if include_europe:
         codes.extend(EUROPEAN_COMPETITIONS)
 
@@ -116,7 +121,7 @@ def resolve_competitions(
             result.append(code)
     unknown = [code for code in result if code not in SUPPORTED_COMPETITIONS]
     if unknown:
-        valid = ", ".join(DOMESTIC_COMPETITIONS + GENERIC_DOMESTIC_COMPETITIONS + EUROPEAN_COMPETITIONS)
+        valid = ", ".join(DEFAULT_DOMESTIC_COMPETITIONS + EUROPEAN_COMPETITIONS)
         raise ValueError(f"Unsupported competition code(s): {', '.join(unknown)}. Valid: {valid}")
     if not result:
         raise ValueError("At least one competition is required.")

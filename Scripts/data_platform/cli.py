@@ -578,7 +578,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common_args(p)
     p.add_argument(
         "--competition", nargs="*",
-        help="Competition codes (default: top five domestic leagues)",
+        help="Competition codes (default: all public domestic leagues)",
     )
     p.add_argument(
         "--include-europe", action="store_true",

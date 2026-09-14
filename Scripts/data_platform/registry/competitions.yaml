@@ -119,17 +119,17 @@ competitions:
   # --------------------------------------------------------------
   # Additional European domestic leagues
   #
-  # These are data-platform supported, but are deliberately not a public
-  # Match Read release default.  They first build/validate in shadow mode.
-  # Provider identifiers and current-season coverage were verified against
-  # API-Football on 2026-09-10.
+  # These competitions completed Match Read shadow validation and now use
+  # the same public persisted-card workflow as the established domestic
+  # leagues. Provider identifiers and current-season coverage were verified
+  # against API-Football on 2026-09-10.
   # --------------------------------------------------------------
   Championship:
     name: "Championship"
     country: "England"
     competition_type: "domestic_league"
     tier: 2
-    labels: [domestic, england, shadow_release]
+    labels: [domestic, england]
     providers:
       api_football:
         provider_id: 40
@@ -149,7 +149,7 @@ competitions:
     country: "Turkey"
     competition_type: "domestic_league"
     tier: 1
-    labels: [domestic, uefa_context, shadow_release]
+    labels: [domestic, uefa_context]
     providers:
       api_football:
         provider_id: 203
@@ -169,7 +169,7 @@ competitions:
     country: "Netherlands"
     competition_type: "domestic_league"
     tier: 1
-    labels: [domestic, uefa_context, shadow_release]
+    labels: [domestic, uefa_context]
     providers:
       api_football:
         provider_id: 88
@@ -189,7 +189,7 @@ competitions:
     country: "Portugal"
     competition_type: "domestic_league"
     tier: 1
-    labels: [domestic, uefa_context, shadow_release]
+    labels: [domestic, uefa_context]
     providers:
       api_football:
         provider_id: 94
@@ -211,7 +211,7 @@ competitions:
     tier: 1
     # Playoffs make its fixture count non-standard.  Downstream season-stage
     # logic must derive progress from its actual schedule, never assume 38.
-    labels: [domestic, uefa_context, shadow_release, playoffs]
+    labels: [domestic, uefa_context, playoffs]
     providers:
       api_football:
         provider_id: 144

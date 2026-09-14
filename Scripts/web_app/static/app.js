@@ -447,6 +447,11 @@ const appModule = {
     { id: 'SerieA', name: 'Serie A', color: '#024494' },
     { id: 'Bundesliga', name: 'Bundesliga', color: '#D20515' },
     { id: 'Ligue1', name: 'Ligue 1', color: '#DAE025' },
+    { id: 'Championship', name: 'Championship', color: '#1D4ED8' },
+    { id: 'SuperLig', name: 'Süper Lig', color: '#E30A17' },
+    { id: 'Eredivisie', name: 'Eredivisie', color: '#F97316' },
+    { id: 'PrimeiraLiga', name: 'Primeira Liga', color: '#15803D' },
+    { id: 'BelgianProLeague', name: 'Jupiler Pro League', color: '#EAB308' },
     { id: 'UCL', name: 'Champions League', color: '#001489' },
   ],
 
@@ -1233,3 +1238,10 @@ const appModule = {
 };
 
 const app = appModule;
+
+// ``/app`` is the shareable/direct Matchday Board URL served by FastAPI.
+// The same HTML shell powers the landing page, so select the board explicitly
+// when someone arrives there directly instead of leaving them on the home
+// screen with the league controls hidden.
+const initialPath = window.location.pathname.replace(/\/+$/, '') || '/';
+if (initialPath === '/app') router.go('app');

@@ -1158,12 +1158,13 @@ ul { list-style: none; }
 /* -- League filter chips -- */
 .league-filters {
   display: flex; gap: 6px;
+  flex-wrap: wrap;
   margin-bottom: 20px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
+  /* Every supported league must be discoverable without a hidden horizontal
+     scrollbar.  A second row is clearer than silently placing new leagues
+     outside the dashboard's visible column. */
+  overflow: visible;
 }
-.league-filters::-webkit-scrollbar { display: none; }
 
 .league-chip {
   display: flex; align-items: center; gap: 6px;

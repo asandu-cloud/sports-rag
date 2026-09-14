@@ -34,7 +34,14 @@ router = APIRouter(prefix="/api/match-reads", tags=["match-reads"])
 
 MATCH_READ_BOARD_SCHEMA_VERSION = "match-read-board.v1"
 MATCH_READ_DETAIL_SCHEMA_VERSION = "match-read-detail.v1"
-PUBLIC_MATCH_READ_LEAGUES = ("EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1", "UCL")
+# This only governs the cross-league ``/best`` shortlist.  Individual league
+# boards already read their own explicitly delivered Match Reads.  Keep the
+# established top-five/UCL order intact and append the newly approved
+# domestic leagues; the shortlist itself remains capped at five fixtures.
+PUBLIC_MATCH_READ_LEAGUES = (
+    "EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1", "UCL",
+    "Championship", "SuperLig", "Eredivisie", "PrimeiraLiga", "BelgianProLeague",
+)
 _EFFECTIVE_STAGES = ("confirmed_lineups", "pre_match")
 _CONFIDENCE_RANK = {"high": 3, "medium": 2, "low": 1}
 
