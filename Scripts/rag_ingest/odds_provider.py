@@ -555,6 +555,14 @@ def fetch_events_apifootball(
             "away_team": away_team,
             "commence_time": commence_time,
             "bookmakers": bookmakers,
+            # These are already part of the fixture discovery response. Keep
+            # them with the event so Match Read delivery can render a genuine
+            # fixture card without another API-Football request.
+            "visuals": {
+                "home_team_logo": teams_data.get("home", {}).get("logo"),
+                "away_team_logo": teams_data.get("away", {}).get("logo"),
+                "league_logo": (fix.get("league", {}) or {}).get("logo"),
+            },
             # Extra metadata useful for downstream enrichment
             "_fixture_id": fixture_id,
             "_league": league,

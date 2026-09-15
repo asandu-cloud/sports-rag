@@ -16,9 +16,10 @@ def _settings():
     return replace(
         load_match_read_worker_settings(),
         leagues=("EPL",),
-        outlook_hours=48,
+        outlook_hours=96,
         final_window_minutes=120,
         refresh_minutes=10,
+        early_refresh_minutes=360,
         lineup_window_minutes=100,
         lineup_refresh_minutes=10,
         max_age_minutes=120,
@@ -35,11 +36,21 @@ def test_default_worker_scope_includes_all_public_match_read_leagues(monkeypatch
     )
 
     expected = (
-        "EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1", "UCL",
+        "EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1", "UCL", "UEL", "UECL",
         "Championship", "SuperLig", "Eredivisie", "PrimeiraLiga", "BelgianProLeague",
     )
     assert DEFAULT_MATCH_READ_WORKER_LEAGUES == expected
     assert load_match_read_worker_settings().leagues == expected
+
+
+def test_default_worker_horizon_covers_four_days_with_a_slow_early_refresh(monkeypatch):
+    monkeypatch.delenv("MATCH_READ_OUTLOOK_HOURS", raising=False)
+    monkeypatch.delenv("MATCH_READ_EARLY_REFRESH_MINUTES", raising=False)
+    from data_platform.config import load_match_read_worker_settings
+
+    settings = load_match_read_worker_settings()
+    assert settings.outlook_hours == 96
+    assert settings.early_refresh_minutes == 360
 
 
 def _fixture(*, fixture_id: str = "9001", kickoff: datetime) -> object:
@@ -178,6 +189,28 @@ def test_plan_combines_same_slate_work_into_one_fresh_provider_fetch(settings, e
     assert job.stage == "pre_match"
     assert job.fixture_ids == ("later", "near")
     assert job.force_refresh is True
+
+
+def test_website_plan_releases_a_preliminary_read_three_days_before_kickoff(settings, engine, session_factory):
+    from data_platform.services.match_read_cycle import build_match_read_cycle_plan
+
+    now = datetime(2026, 9, 6, 12, 0, tzinfo=timezone.utc)
+    plan = build_match_read_cycle_plan(
+        [_fixture(kickoff=now + timedelta(days=3))],
+        latest_observations={},
+        now=now,
+        settings=_settings(),
+        mode="website",
+    )
+
+    assert len(plan.jobs) == 1
+    job = plan.jobs[0]
+    assert job.stage == "pre_match"
+    assert job.fixture_ids == ("9001",)
+    assert job.release_fixture_ids == ("9001",)
+    assert job.preliminary_fixture_ids == ("9001",)
+    assert job.force_refresh is False
+    assert job.reasons == ("website early pre-match refresh",)
 
 
 def test_plan_retries_a_failed_lineup_window_pre_match_fallback_quickly(settings, engine, session_factory):

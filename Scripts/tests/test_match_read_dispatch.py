@@ -160,6 +160,40 @@ def test_dispatch_persists_only_when_explicitly_requested_and_keeps_fixture_draf
     assert stored.records == (persisted,)
 
 
+def test_dispatch_marks_only_worker_selected_early_cards_as_preliminary():
+    from data_platform.services.match_read_compiler import MatchReadDraft
+
+    event = _event("fixture-early")
+    draft = MatchReadDraft(
+        canonical_results=(),
+        status="no_bet",
+        thesis="Original compiler thesis.",
+        selections=(),
+        game_script={"tags": ["no_bet"]},
+    )
+    persisted = []
+
+    run = match_read_dispatch.generate_match_reads_sync(
+        "EPL",
+        date(2026, 9, 6),
+        persist=True,
+        fetcher=lambda _league, *, target_date: ([event], []),
+        date_filter=lambda events, _target: events,
+        enricher=lambda events, _league, _groups: (events, []),
+        evaluator=lambda *_args, **_kwargs: [{"event_id": "fixture-early"}],
+        compiler=lambda *_args, **_kwargs: draft,
+        preliminary_fixture_ids={"fixture-early"},
+        briefing_enricher=lambda value, _event, **_kwargs: (value, None),
+        persister=lambda value, *, service: persisted.append(value) or {"id": "early", "created": True},
+    )
+
+    assert run.fixtures[0].record == {"id": "early", "created": True}
+    assert persisted[0].game_script["publication_timing"] == {
+        "state": "preliminary",
+        "refresh_policy": "early_pre_match",
+    }
+
+
 def test_dispatch_records_a_fixture_local_error_without_losing_other_fixture_drafts():
     broken = _event("broken", kickoff="2026-09-06T12:00:00Z")
     healthy = _event("healthy", kickoff="2026-09-06T17:00:00Z")

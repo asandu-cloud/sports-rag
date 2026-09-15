@@ -17,6 +17,8 @@ from .match_reads import MatchReadService
 
 
 DEFAULT_MATCH_READ_MAX_AGE_MINUTES = 120
+DEFAULT_MATCH_READ_FUTURE_MAX_AGE_MINUTES = 720
+DEFAULT_MATCH_READ_FINAL_WINDOW_MINUTES = 120
 _EFFECTIVE_STAGES = ("confirmed_lineups", "pre_match")
 
 
@@ -59,6 +61,7 @@ def select_releasable_match_reads(
     *,
     now: Optional[Any] = None,
     max_age_minutes: int = DEFAULT_MATCH_READ_MAX_AGE_MINUTES,
+    future_max_age_minutes: int = DEFAULT_MATCH_READ_FUTURE_MAX_AGE_MINUTES,
     observed_at_by_match_read_id: Optional[Mapping[int, Any]] = None,
 ) -> Tuple[list[Dict[str, Any]], list[Dict[str, Any]]]:
     """Choose current public reads from an arbitrary fixture-history set.
@@ -96,6 +99,7 @@ def select_releasable_match_reads(
             effective,
             now=reference_now,
             max_age_minutes=max_age_minutes,
+            future_max_age_minutes=future_max_age_minutes,
             observed_at=_observed_at_for_read(effective, observed_at_by_match_read_id),
         )
         if not assessment.eligible:
@@ -115,6 +119,7 @@ def assess_match_read_release(
     *,
     now: Optional[Any] = None,
     max_age_minutes: int = DEFAULT_MATCH_READ_MAX_AGE_MINUTES,
+    future_max_age_minutes: int = DEFAULT_MATCH_READ_FUTURE_MAX_AGE_MINUTES,
     observed_at: Optional[Any] = None,
 ) -> MatchReadReleaseAssessment:
     """Reject stale or already-started cards before a public release.
@@ -130,6 +135,12 @@ def assess_match_read_release(
         raise MatchReadReleaseError("max_age_minutes must be an integer.") from exc
     if age_limit < 1:
         raise MatchReadReleaseError("max_age_minutes must be at least 1.")
+    try:
+        future_age_limit = int(future_max_age_minutes)
+    except (TypeError, ValueError) as exc:
+        raise MatchReadReleaseError("future_max_age_minutes must be an integer.") from exc
+    if future_age_limit < age_limit:
+        raise MatchReadReleaseError("future_max_age_minutes must be at least max_age_minutes.")
 
     reference_now = _as_utc(now) if now is not None else datetime.now(timezone.utc)
     fixture = read.get("fixture") if isinstance(read.get("fixture"), Mapping) else {}
@@ -147,15 +158,32 @@ def assess_match_read_release(
         return MatchReadReleaseAssessment(False, "Match Read evaluation time is in the future.", evaluated, kickoff, verified_at)
     if verified_at is not None and verified_at > reference_now + timedelta(minutes=5):
         return MatchReadReleaseAssessment(False, "Match Read freshness check is in the future.", evaluated, kickoff, verified_at)
-    if freshness_at is None or reference_now - freshness_at > timedelta(minutes=age_limit):
+    # A worker-created preliminary card several days before kickoff is
+    # refreshed on a slower early cadence. A stale same-day card cannot opt
+    # into that policy: only an immutable timing marker from the worker can.
+    effective_age_limit = (
+        future_age_limit
+        if _is_preliminary_read(read)
+        and kickoff - reference_now > timedelta(minutes=DEFAULT_MATCH_READ_FINAL_WINDOW_MINUTES)
+        else age_limit
+    )
+    if freshness_at is None or reference_now - freshness_at > timedelta(minutes=effective_age_limit):
         return MatchReadReleaseAssessment(
             False,
-            f"Match Read is older than the {age_limit}-minute publication limit.",
+            f"Match Read is older than the {effective_age_limit}-minute publication limit.",
             evaluated,
             kickoff,
             verified_at,
         )
     return MatchReadReleaseAssessment(True, None, evaluated, kickoff, verified_at)
+
+
+def _is_preliminary_read(read: Mapping[str, Any]) -> bool:
+    if str(read.get("stage") or "").strip().lower() != "pre_match":
+        return False
+    script = read.get("game_script") if isinstance(read.get("game_script"), Mapping) else {}
+    timing = script.get("publication_timing") if isinstance(script, Mapping) else {}
+    return isinstance(timing, Mapping) and str(timing.get("state") or "").strip().lower() == "preliminary"
 
 
 class MatchReadReleaseService:

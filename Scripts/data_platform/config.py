@@ -127,10 +127,10 @@ class Settings:
 
 DEFAULT_MATCH_READ_WORKER_LEAGUES = (
     # Keep the established public scope first so an installation that relies
-    # on the default ordering retains its existing behaviour.  The five
-    # additional domestic leagues have completed their shadow validation and
-    # are now eligible for the same persisted Match Read release workflow.
-    "EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1", "UCL",
+    # on the default ordering retains its existing behaviour.  All three
+    # supported UEFA competitions and the five additional domestic leagues
+    # use the same persisted Match Read release workflow.
+    "EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1", "UCL", "UEL", "UECL",
     "Championship", "SuperLig", "Eredivisie", "PrimeiraLiga", "BelgianProLeague",
 )
 
@@ -154,6 +154,10 @@ class MatchReadWorkerSettings:
     outlook_hours: int
     final_window_minutes: int
     refresh_minutes: int
+    # Far-ahead cards are refreshed less often than final-window reads. This
+    # keeps a four-day public board current without paying for a full live
+    # odds refresh every ten minutes for every future fixture.
+    early_refresh_minutes: int
     lineup_window_minutes: int
     lineup_refresh_minutes: int
     max_age_minutes: int
@@ -173,9 +177,12 @@ def load_match_read_worker_settings() -> MatchReadWorkerSettings:
         mode=mode,
         leagues=_csv_env("MATCH_READ_WORKER_LEAGUES", DEFAULT_MATCH_READ_WORKER_LEAGUES),
         matchday_timezone=os.environ.get("MATCH_READ_MATCHDAY_TIMEZONE", "UTC").strip() or "UTC",
-        outlook_hours=_positive_int_env("MATCH_READ_OUTLOOK_HOURS", 48),
+        # Build public pre-match reads for today plus the next three calendar
+        # days. Confirmed lineups remain a separate near-kickoff amendment.
+        outlook_hours=_positive_int_env("MATCH_READ_OUTLOOK_HOURS", 96),
         final_window_minutes=_positive_int_env("MATCH_READ_FINAL_WINDOW_MINUTES", 120),
         refresh_minutes=_positive_int_env("MATCH_READ_REFRESH_MINUTES", 10),
+        early_refresh_minutes=_positive_int_env("MATCH_READ_EARLY_REFRESH_MINUTES", 360),
         lineup_window_minutes=_positive_int_env("MATCH_READ_LINEUP_WINDOW_MINUTES", 100),
         lineup_refresh_minutes=_positive_int_env("MATCH_READ_LINEUP_REFRESH_MINUTES", 10),
         max_age_minutes=_positive_int_env("MATCH_READ_MAX_AGE_MINUTES", 120),

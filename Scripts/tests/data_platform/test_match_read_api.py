@@ -284,7 +284,7 @@ def test_public_match_read_scope_keeps_existing_and_new_public_leagues():
     from web_app.routers.match_reads import PUBLIC_MATCH_READ_LEAGUES
 
     assert PUBLIC_MATCH_READ_LEAGUES == (
-        "EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1", "UCL",
+        "EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1", "UCL", "UEL", "UECL",
         "Championship", "SuperLig", "Eredivisie", "PrimeiraLiga", "BelgianProLeague",
     )
 

@@ -14,7 +14,7 @@ for shadow review before it becomes a delivery source.
 from __future__ import annotations
 
 import copy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from pathlib import Path
 import sys
@@ -43,11 +43,21 @@ try:
         compile_match_read,
         persist_match_read,
     )
+    from data_platform.services.match_read_briefing import (
+        enrich_match_read_draft,
+        find_cached_briefing,
+        match_read_fact_key,
+    )
 except ImportError:
     from Scripts.data_platform.services.match_read_compiler import (  # type: ignore[import]
         MatchReadDraft,
         compile_match_read,
         persist_match_read,
+    )
+    from Scripts.data_platform.services.match_read_briefing import (  # type: ignore[import]
+        enrich_match_read_draft,
+        find_cached_briefing,
+        match_read_fact_key,
     )
 
 
@@ -126,6 +136,8 @@ def generate_match_reads_sync(
     event_filter: Optional[Callable[[Mapping[str, Any]], bool]] = None,
     force_refresh: bool = False,
     slate_cache: Optional[MutableMapping[Tuple[str, date, bool], Tuple[Sequence[Mapping[str, Any]], Sequence[str]]]] = None,
+    briefing_enricher: Optional[Callable[..., Tuple[MatchReadDraft, Optional[str]]]] = None,
+    preliminary_fixture_ids: Optional[Set[str]] = None,
 ) -> MatchReadGenerationRun:
     """Generate one Match Read draft per exact-date fixture in a league.
 
@@ -175,8 +187,29 @@ def generate_match_reads_sync(
     evaluate = evaluator or evaluate_event
     compile_read = compiler or compile_match_read
     persist_read = persister or persist_match_read
+    enrich_briefing = briefing_enricher or enrich_match_read_draft
+    preliminary_ids = {str(value).strip() for value in preliminary_fixture_ids or () if str(value).strip()}
 
-    notes: List[str] = []
+    # The standard persistence path needs the same service instance for the
+    # immutable record and its fixture/stage briefing cache.  Preview paths
+    # remain entirely side-effect-free and never construct a platform service.
+    active_service = service
+    if persist and active_service is None and persister is None:
+        try:
+            try:
+                from data_platform.services.match_reads import MatchReadService
+            except ImportError:
+                from Scripts.data_platform.services.match_reads import MatchReadService  # type: ignore[import]
+            active_service = MatchReadService()
+        except Exception as exc:
+            # Keep the original persistence error boundary below so one
+            # fixture cannot hide the rest of the slate.
+            notes = [f"{normalised_league}: Match Read service setup failed ({type(exc).__name__}: {exc})."]
+        else:
+            notes = []
+    else:
+        notes = []
+
     cache_key = (normalised_league, target_date, bool(force_refresh))
     cached_slate = slate_cache.get(cache_key) if slate_cache is not None else None
     if cached_slate is not None:
@@ -357,11 +390,51 @@ def generate_match_reads_sync(
             ))
             continue
 
+        if event_id in preliminary_ids and isinstance(draft, MatchReadDraft):
+            draft = _mark_preliminary_match_read(draft)
+
         record: Optional[Dict[str, Any]] = None
         error: Optional[str] = None
         if persist:
+            # Editorial copy is versioned alongside the numerical Match Read,
+            # but its fact-key deliberately excludes prices and selections.
+            # Reuse a prior immutable briefing when its supplied football facts
+            # are identical, rather than paying for fresh prose each cycle.
+            if isinstance(draft, MatchReadDraft):
+                cached_briefing = None
+                if active_service is not None and callable(getattr(active_service, "list_for_fixture", None)):
+                    try:
+                        historical_reads = active_service.list_for_fixture(
+                            event_id,
+                            stage=normalised_stage,
+                            limit=40,
+                        )
+                        cached_briefing = find_cached_briefing(
+                            historical_reads,
+                            match_read_fact_key(draft),
+                        )
+                    except Exception as exc:
+                        notes.append(
+                            f"{fixture_label}: briefing cache lookup failed "
+                            f"({type(exc).__name__}: {exc}); regenerating safely."
+                        )
+                try:
+                    draft, briefing_note = enrich_briefing(
+                        draft,
+                        event,
+                        cached_briefing=cached_briefing,
+                    )
+                    if briefing_note:
+                        notes.append(f"{fixture_label}: {briefing_note}")
+                except Exception as exc:
+                    # Keep the deterministic Match Read rather than making an
+                    # editorial fault a reason to miss a fixture entirely.
+                    notes.append(
+                        f"{fixture_label}: briefing enrichment failed "
+                        f"({type(exc).__name__}: {exc}); storing compiler thesis."
+                    )
             try:
-                record = persist_read(draft, service=service)
+                record = persist_read(draft, service=active_service)
             except Exception as exc:
                 error = f"{fixture_label}: Match Read persistence failed ({type(exc).__name__}: {exc})."
                 notes.append(error)
@@ -428,3 +501,13 @@ def _is_confirmed_lineup_context(value: Any) -> bool:
         str(getattr(value, "source", "") or "").strip().lower() == "lineups"
         and bool(getattr(value, "is_available", False))
     )
+
+
+def _mark_preliminary_match_read(draft: MatchReadDraft) -> MatchReadDraft:
+    """Label an early website card without touching its numerical outcome."""
+    script = dict(draft.game_script)
+    script["publication_timing"] = {
+        "state": "preliminary",
+        "refresh_policy": "early_pre_match",
+    }
+    return replace(draft, game_script=script)

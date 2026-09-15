@@ -1232,6 +1232,179 @@ ul { list-style: none; }
 .fixture-row:last-child { border-bottom: none; }
 .fixture-row:hover { background: var(--surface); }
 
+/* -- Match Read fixture card --
+   A fixture is the primary product: the user reads its character first, then
+   opens the card for the separately tracked selections. */
+.match-read-fixture-card {
+  position: relative;
+  display: block;
+  margin: 10px 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(21, 31, 26, 0.88), rgba(10, 14, 12, 0.96));
+  cursor: pointer;
+  transition: transform .16s var(--ease), border-color .16s var(--ease), background .16s var(--ease), box-shadow .16s var(--ease);
+}
+.match-read-fixture-card:hover,
+.match-read-fixture-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(200, 240, 120, .46);
+  background: linear-gradient(135deg, rgba(29, 45, 35, .94), rgba(12, 19, 15, .98));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .2);
+  outline: none;
+}
+.match-card-topline,
+.match-card-footer,
+.match-card-league,
+.match-card-team,
+.match-card-status {
+  display: flex;
+  align-items: center;
+}
+.match-card-topline {
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 22px;
+}
+.match-card-league {
+  gap: 7px;
+  min-width: 0;
+  color: var(--text2);
+  font-size: 11px;
+  font-weight: 700;
+}
+.match-card-league-logo,
+.match-card-league-dot {
+  display: block;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.match-card-league-dot { box-shadow: 0 0 0 3px rgba(255,255,255,.035); }
+.match-card-time {
+  color: var(--text3);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.match-card-teams {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  margin: 15px 0 13px;
+}
+.match-card-team {
+  gap: 9px;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 750;
+  color: var(--text);
+}
+.match-card-team.home { justify-content: flex-start; }
+.match-card-team.away { justify-content: flex-end; text-align: right; }
+.match-card-team > span:not(.match-card-emblem) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.match-card-vs {
+  color: var(--text3);
+  font-family: var(--mono);
+  font-size: 10px;
+  text-align: center;
+  text-transform: uppercase;
+}
+.match-card-emblem {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(220, 238, 226, .12);
+  border-radius: 50%;
+  background: rgba(255,255,255,.035);
+  overflow: hidden;
+  flex: 0 0 auto;
+  place-items: center;
+}
+.match-card-emblem img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 3px;
+}
+.match-card-emblem > span {
+  display: none;
+  color: var(--text2);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+}
+.match-card-emblem.is-fallback > span { display: block; }
+.match-card-signals,
+.match-read-key-points {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.match-card-signals {
+  padding: 11px 0;
+  border-top: 1px solid rgba(220, 238, 226, .08);
+  border-bottom: 1px solid rgba(220, 238, 226, .08);
+}
+.match-card-signals li,
+.match-read-key-points li {
+  position: relative;
+  padding-left: 14px;
+  color: var(--text2);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.match-card-signals li::before,
+.match-read-key-points li::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  top: .48em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-l);
+}
+.match-card-signals li.match-card-briefing-pending { color: var(--text3); }
+.match-card-signals li.match-card-briefing-pending::before { background: var(--text3); }
+.match-card-footer {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding-top: 12px;
+}
+.match-card-status {
+  color: var(--text3);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .25px;
+  text-transform: uppercase;
+}
+.match-card-status.ready { color: var(--accent-l); }
+.match-card-status.preliminary { color: #9fc7ff; }
+.match-card-status.no-bet { color: var(--text3); }
+.match-card-status.unavailable { color: #e6b36b; }
+.match-card-open {
+  margin-left: auto;
+  color: var(--accent-l);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.match-card-open span { margin-left: 4px; transition: transform .16s var(--ease); }
+.match-read-fixture-card:hover .match-card-open span { display: inline-block; transform: translateX(3px); }
+
 .fixture-num {
   font-family: var(--mono);
   font-size: 11px;
@@ -2054,6 +2227,16 @@ ul { list-style: none; }
 @media (max-width: 768px) {
   .app-main { padding: 16px 14px 100px; }
   .page-title { font-size: 1.4rem; }
+
+  .match-read-fixture-card { padding: 14px; }
+  .match-card-teams {
+    grid-template-columns: minmax(0, 1fr) 23px minmax(0, 1fr);
+    gap: 5px;
+  }
+  .match-card-team { gap: 6px; font-size: 13px; }
+  .match-card-emblem { width: 28px; height: 28px; }
+  .match-card-footer { align-items: flex-start; }
+  .match-card-open { width: 100%; margin-left: 0; }
 
   .fixture-row {
     grid-template-columns: 1fr auto;

@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Any, Dict, Mapping, Sequence
 
 
-MATCH_READ_CARD_SCHEMA_VERSION = "match-read-card.v1"
+MATCH_READ_CARD_SCHEMA_VERSION = "match-read-card.v2"
 
 
 class MatchReadCardError(ValueError):
@@ -30,6 +30,7 @@ def build_match_read_card(read: Mapping[str, Any]) -> Dict[str, Any]:
     fixture = _mapping(source.get("fixture"), "fixture")
     script = _mapping_or_empty(source.get("game_script"))
     status = _required_text(source.get("status"), "status")
+    timing = _mapping_or_empty(script.get("publication_timing"))
     selections = source.get("selections")
     if not isinstance(selections, Sequence) or isinstance(selections, (str, bytes)):
         raise MatchReadCardError("selections must be a sequence.")
@@ -51,6 +52,14 @@ def build_match_read_card(read: Mapping[str, Any]) -> Dict[str, Any]:
         "version": _required_int(source.get("version"), "version"),
         "status": status,
         "thesis": _required_text(source.get("thesis"), "thesis"),
+        # The briefing is authored and persisted before delivery.  Neither
+        # website nor Discord should call a model or infer this copy at view
+        # time.  Older records remain readable with an empty briefing.
+        "briefing": _briefing_card(script.get("briefing")),
+        "visuals": _visuals_card(script.get("visuals")),
+        "timing": {
+            "is_preliminary": _optional_text(timing.get("state")) == "preliminary",
+        },
         "game_script": {
             "tags": _string_list(script.get("tags")),
             "selection_relationship": _optional_text(script.get("selection_relationship")),
@@ -123,6 +132,31 @@ def _string_list(value: Any) -> list[str]:
     if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
         return []
     return [str(item) for item in value if str(item).strip()]
+
+
+def _briefing_card(value: Any) -> Dict[str, Any]:
+    briefing = _mapping_or_empty(value)
+    bullets = _string_list(briefing.get("bullets"))[:3]
+    return {
+        "summary": _optional_text(briefing.get("summary")),
+        "bullets": bullets,
+        "source": _optional_text(briefing.get("source")),
+        "model": _optional_text(briefing.get("model")),
+    }
+
+
+def _visuals_card(value: Any) -> Dict[str, str | None]:
+    visuals = _mapping_or_empty(value)
+    return {
+        "home_team_logo": _safe_image_url(visuals.get("home_team_logo")),
+        "away_team_logo": _safe_image_url(visuals.get("away_team_logo")),
+        "league_logo": _safe_image_url(visuals.get("league_logo")),
+    }
+
+
+def _safe_image_url(value: Any) -> str | None:
+    url = _optional_text(value)
+    return url if url and url.lower().startswith(("https://", "http://")) else None
 
 
 def _required_text(value: Any, field: str) -> str:

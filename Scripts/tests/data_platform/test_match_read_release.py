@@ -66,13 +66,21 @@ def _services(session_factory):
     return reads, MatchReadReleaseService(match_reads=reads, deliveries=delivery)
 
 
-def _save(reads, result: dict, *, thesis: str, stage: str = "pre_match", evaluated_at: str = "2026-09-06T12:00:00Z") -> dict:
+def _save(
+    reads,
+    result: dict,
+    *,
+    thesis: str,
+    stage: str = "pre_match",
+    evaluated_at: str = "2026-09-06T12:00:00Z",
+    game_script: dict | None = None,
+) -> dict:
     return reads.create(
         canonical_results=[result],
         thesis=thesis,
         status="recommended",
         selections=[{"result_index": 0, "role": "core"}],
-        game_script={"tags": ["test"]},
+        game_script=game_script or {"tags": ["test"]},
         stage=stage,
         evaluated_at=evaluated_at,
     )
@@ -152,3 +160,25 @@ def test_release_dry_run_has_no_delivery_side_effect(settings, engine, session_f
         surface="website",
     ) == []
 
+
+def test_release_allows_a_recent_preliminary_card_for_a_future_fixture(settings, engine, session_factory):
+    """Four-day cards have a slower freshness policy until final window."""
+    reads, release = _services(session_factory)
+    saved = _save(
+        reads,
+        _market_result("fixture-future", kickoff="2026-09-09T18:00:00Z"),
+        thesis="Future pre-match read.",
+        evaluated_at="2026-09-06T12:00:00Z",
+        game_script={
+            "tags": ["test"],
+            "publication_timing": {"state": "preliminary", "refresh_policy": "early_pre_match"},
+        },
+    )
+
+    result = release.release_matchday_to_website(
+        league="EPL",
+        target_date="2026-09-09",
+        now="2026-09-06T18:00:00Z",
+    )
+
+    assert [item["match_read_id"] for item in result["released"]] == [saved["id"]]

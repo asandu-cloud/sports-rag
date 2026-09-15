@@ -80,6 +80,10 @@ class MatchReadCycleJob:
     fixture_ids: Tuple[str, ...]
     force_refresh: bool
     release_fixture_ids: Tuple[str, ...] = ()
+    # Only these pre-match fixtures receive the longer preliminary-card
+    # freshness policy. A stale same-day card must never acquire that status
+    # merely because it happens to be hours from kickoff.
+    preliminary_fixture_ids: Tuple[str, ...] = ()
     reasons: Tuple[str, ...] = ()
 
 
@@ -103,6 +107,7 @@ class MatchReadCyclePlan:
                     "fixture_ids": list(job.fixture_ids),
                     "force_refresh": job.force_refresh,
                     "release_fixture_ids": list(job.release_fixture_ids),
+                    "preliminary_fixture_ids": list(job.preliminary_fixture_ids),
                     "reasons": list(job.reasons),
                 }
                 for job in self.jobs
@@ -158,10 +163,11 @@ def build_match_read_cycle_plan(
 
     Policy:
 
-    * Shadow mode creates one early pre-match baseline inside the outlook
-      window, then refreshes in the final two hours.
-    * Website mode does not make early cards public. It starts work in the
-      final window only, where every successful result can meet the release
+    * Both modes create a pre-match baseline throughout the four-day outlook.
+      Website mode releases that preliminary card, then keeps it current on a
+      slower early cadence; shadow mode keeps it internal.
+    * In the final window, both modes switch to the normal rapid refresh
+      cadence so every successful website result meets the strict final-window
       freshness requirement.
     * Near kickoff, a verified-XI stage is retried independently. A fresh
       pre-match card is kept as fallback while lineups are unavailable.
@@ -171,7 +177,7 @@ def build_match_read_cycle_plan(
     reference_now = _as_utc(now)
     _validate_matchday_timezone(config)
 
-    actions: list[Tuple[ScheduledMatchReadFixture, str, bool, bool, str]] = []
+    actions: list[Tuple[ScheduledMatchReadFixture, str, bool, bool, bool, str]] = []
     skipped: list[Dict[str, Any]] = []
     outlook_minutes = config.outlook_hours * 60
 
@@ -206,30 +212,35 @@ def build_match_read_cycle_plan(
                 config.max_age_minutes,
                 retry_minutes=config.refresh_minutes,
             ):
-                actions.append((fixture, "pre_match", True, normalised_mode == "website", "fresh pre-match fallback"))
+                actions.append((fixture, "pre_match", True, normalised_mode == "website", False, "fresh pre-match fallback"))
             if _observation_due(confirmed, reference_now, config.lineup_refresh_minutes):
-                actions.append((fixture, "confirmed_lineups", True, normalised_mode == "website", "verified-lineup refresh"))
+                actions.append((fixture, "confirmed_lineups", True, normalised_mode == "website", False, "verified-lineup refresh"))
         elif in_final_window:
             if _observation_due(pre, reference_now, config.refresh_minutes):
-                actions.append((fixture, "pre_match", True, normalised_mode == "website", "final-window price refresh"))
-        elif normalised_mode == "shadow":
-            # Earlier than the final window, one baseline makes the shadow
-            # comparison useful but does not spend calls every ten minutes.
-            if _observation_due(pre, reference_now, max(config.refresh_minutes * 6, 60)):
-                actions.append((fixture, "pre_match", False, False, "shadow baseline"))
+                actions.append((fixture, "pre_match", True, normalised_mode == "website", False, "final-window price refresh"))
         else:
-            skipped.append({
-                "fixture_id": fixture.fixture_id,
-                "league": fixture.league,
-                "reason": "Website mode waits for the final publication window.",
-            })
+            # Earlier than the final window, a pre-match read is useful for
+            # planning a matchday. It is deliberately refreshed on a slower
+            # cadence, rather than treating every four-day-ahead fixture as a
+            # live ten-minute odds check. Website mode releases the same
+            # immutable early card; shadow mode retains it for review only.
+            if _observation_due(pre, reference_now, config.early_refresh_minutes):
+                actions.append((
+                    fixture,
+                    "pre_match",
+                    False,
+                    normalised_mode == "website",
+                    normalised_mode == "website",
+                    "website early pre-match refresh" if normalised_mode == "website" else "shadow baseline",
+                ))
 
     grouped: Dict[Tuple[str, date, str], Dict[str, Any]] = {}
-    for fixture, stage, force_refresh, should_release, reason in actions:
+    for fixture, stage, force_refresh, should_release, is_preliminary, reason in actions:
         key = (fixture.league, fixture.target_date, stage)
         bucket = grouped.setdefault(key, {
             "fixture_ids": set(),
             "release_fixture_ids": set(),
+            "preliminary_fixture_ids": set(),
             "reasons": set(),
             "force_refresh": False,
         })
@@ -241,6 +252,8 @@ def build_match_read_cycle_plan(
         bucket["force_refresh"] = bool(bucket["force_refresh"] or force_refresh)
         if should_release:
             bucket["release_fixture_ids"].add(fixture.fixture_id)
+        if is_preliminary:
+            bucket["preliminary_fixture_ids"].add(fixture.fixture_id)
         bucket["reasons"].add(reason)
 
     jobs = tuple(
@@ -251,6 +264,7 @@ def build_match_read_cycle_plan(
             fixture_ids=tuple(sorted(values["fixture_ids"])),
             force_refresh=bool(values["force_refresh"]),
             release_fixture_ids=tuple(sorted(values["release_fixture_ids"])),
+            preliminary_fixture_ids=tuple(sorted(values["preliminary_fixture_ids"])),
             reasons=tuple(sorted(values["reasons"])),
         )
         for (league, target_date, stage), values in sorted(
@@ -361,7 +375,7 @@ class MatchReadCycleService:
         # never survives to a later scheduled invocation.
         slate_cache: Dict[Any, Any] = {}
         try:
-            for job in plan.jobs:
+            for position, job in enumerate(plan.jobs):
                 dispatch_report, successful_ids = self._dispatch_job(
                     job,
                     sync_run_id=run_id,
@@ -373,14 +387,23 @@ class MatchReadCycleService:
                     permitted = set(job.release_fixture_ids)
                     release_candidates[(job.league, job.target_date)].update(successful_ids & permitted)
 
-            if normalised_mode == "website":
-                for (league, target_date), fixture_ids in sorted(release_candidates.items()):
+                # Do not make the public board wait for every league in a
+                # four-day cycle. A league/date can be released as soon as
+                # all of *its* stages have completed; this still lets a
+                # confirmed-lineups amendment win over its pre-match sibling.
+                next_job = plan.jobs[position + 1] if position + 1 < len(plan.jobs) else None
+                is_last_stage_for_matchday = (
+                    next_job is None
+                    or (next_job.league, next_job.target_date) != (job.league, job.target_date)
+                )
+                if normalised_mode == "website" and is_last_stage_for_matchday:
+                    fixture_ids = release_candidates.pop((job.league, job.target_date), set())
                     if not fixture_ids:
                         continue
                     try:
                         release = self._release.release_matchday_to_website(
-                            league=league,
-                            target_date=target_date,
+                            league=job.league,
+                            target_date=job.target_date,
                             now=reference_now,
                             max_age_minutes=self._settings.max_age_minutes,
                             fixture_ids=sorted(fixture_ids),
@@ -388,7 +411,7 @@ class MatchReadCycleService:
                         report.releases.append(release)
                     except Exception as exc:
                         report.errors.append(
-                            f"{league} {target_date}: website release failed ({type(exc).__name__}: {exc})."
+                            f"{job.league} {job.target_date}: website release failed ({type(exc).__name__}: {exc})."
                         )
 
             for dispatch in report.dispatches:
@@ -444,6 +467,7 @@ class MatchReadCycleService:
                 persist=True,
                 lineup_provider=lineup_provider,
                 event_filter=event_filter,
+                preliminary_fixture_ids=set(job.preliminary_fixture_ids),
                 force_refresh=job.force_refresh,
                 slate_cache=slate_cache,
             )

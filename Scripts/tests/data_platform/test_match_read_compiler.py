@@ -245,8 +245,15 @@ def test_shared_card_projection_keeps_individual_angles_separate_from_packages(
 
     card = build_match_read_card(saved)
 
-    assert card["schema_version"] == "match-read-card.v1"
+    assert card["schema_version"] == "match-read-card.v2"
     assert card["fixture"]["event_id"] == "fixture-123"
     assert [item["role"] for item in card["selections"]] == ["core", "supporting"]
     assert card["packages"] == []
+    assert card["briefing"] == {"summary": None, "bullets": [], "source": None, "model": None}
+    assert card["visuals"] == {
+        "home_team_logo": None,
+        "away_team_logo": None,
+        "league_logo": None,
+    }
+    assert card["timing"] == {"is_preliminary": False}
     assert "not a combined-bet recommendation" in card["game_script"]["selection_relationship"]

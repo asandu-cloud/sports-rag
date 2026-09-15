@@ -453,6 +453,8 @@ const appModule = {
     { id: 'PrimeiraLiga', name: 'Primeira Liga', color: '#15803D' },
     { id: 'BelgianProLeague', name: 'Jupiler Pro League', color: '#EAB308' },
     { id: 'UCL', name: 'Champions League', color: '#001489' },
+    { id: 'UEL', name: 'Europa League', color: '#F97316' },
+    { id: 'UECL', name: 'Conference League', color: '#22C55E' },
   ],
 
   FIXTURES: [
@@ -687,6 +689,8 @@ const appModule = {
     const fixture = card.fixture || {};
     const update = card.update || {};
     const status = card.status || 'unavailable';
+    const briefing = card.briefing || {};
+    const visuals = card.visuals || {};
     return {
       id: String(fixture.event_id || card.id),
       matchReadId: card.id,
@@ -705,6 +709,16 @@ const appModule = {
       best: status === 'recommended' && Boolean(core) && Number.isFinite(coreOdds),
       status,
       thesis: card.thesis || '',
+      briefing: {
+        summary: briefing.summary || '',
+        bullets: Array.isArray(briefing.bullets) ? briefing.bullets.slice(0, 3) : [],
+      },
+      visuals: {
+        homeTeamLogo: visuals.home_team_logo || '',
+        awayTeamLogo: visuals.away_team_logo || '',
+        leagueLogo: visuals.league_logo || '',
+      },
+      isPreliminary: Boolean(card.timing?.is_preliminary),
       selections,
       alternatives: Array.isArray(card.game_script?.alternative_candidates)
         ? card.game_script.alternative_candidates
@@ -942,6 +956,10 @@ const appModule = {
       group.className = 'league-group';
       group.innerHTML = `<div class="league-header"><div class="league-header-left"><span class="league-stripe" style="background:${esc(league.color)}"></span><span class="league-name">${esc(league.name)}</span></div><span class="league-count mono">${fxs.length} matches</span></div>`;
       fxs.forEach((f, i) => {
+        if (f.isMatchRead) {
+          group.appendChild(this._createMatchReadFixtureCard(f, league, i));
+          return;
+        }
         const slipKey = `${f.home} vs ${f.away}|${f.pick}`;
         const inSlip = slip.legs.find(l => l.key === slipKey);
         const row = document.createElement('div');
@@ -982,6 +1000,78 @@ const appModule = {
       });
       container.appendChild(group);
     });
+  },
+
+  _createMatchReadFixtureCard(f, league, index) {
+    const card = document.createElement('article');
+    card.className = 'match-read-fixture-card';
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-label', `Open Match Read for ${f.home} versus ${f.away}`);
+
+    const initials = team => String(team || '?')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(part => part[0])
+      .join('')
+      .toUpperCase() || '?';
+    const emblem = (url, label, className) => {
+      const safeUrl = /^https?:\/\//i.test(String(url || '')) ? esc(url) : '';
+      const fallback = esc(initials(label));
+      return `<span class="match-card-emblem ${className}${safeUrl ? '' : ' is-fallback'}">${safeUrl ? `<img src="${safeUrl}" alt="" loading="lazy">` : ''}<span aria-hidden="true">${fallback}</span></span>`;
+    };
+    const leagueLogo = /^https?:\/\//i.test(String(f.visuals?.leagueLogo || ''))
+      ? `<img class="match-card-league-logo" src="${esc(f.visuals.leagueLogo)}" alt="" loading="lazy">`
+      : `<span class="match-card-league-dot" style="background:${esc(league.color)}"></span>`;
+    const bullets = Array.isArray(f.briefing?.bullets) ? f.briefing.bullets.slice(0, 3) : [];
+    const bulletMarkup = bullets.length
+      ? bullets.map(bullet => `<li>${esc(bullet)}</li>`).join('')
+      : '<li class="match-card-briefing-pending">Full fixture briefing will appear after the next model refresh.</li>';
+    const updateLabel = f.update?.is_updated && f.update?.label
+      ? `<span class="match-read-update-label">${esc(f.update.label)}</span>`
+      : '';
+    const statusLabel = f.isPreliminary
+      ? 'Preliminary Match Read'
+      : f.status === 'recommended'
+      ? 'Match Read ready'
+      : f.status === 'no_bet' ? 'No bet released' : 'Assessment unavailable';
+    const statusClass = f.isPreliminary
+      ? 'preliminary'
+      : f.status === 'recommended' ? 'ready' : f.status === 'no_bet' ? 'no-bet' : 'unavailable';
+
+    card.innerHTML = `
+      <div class="match-card-topline">
+        <span class="match-card-league">${leagueLogo}<span>${esc(league.name)}</span></span>
+        <span class="match-card-time mono">${esc(f.time)}</span>
+      </div>
+      <div class="match-card-teams">
+        <div class="match-card-team home">${emblem(f.visuals?.homeTeamLogo, f.home, 'home')}<span>${esc(f.home)}</span></div>
+        <span class="match-card-vs">vs</span>
+        <div class="match-card-team away"><span>${esc(f.away)}</span>${emblem(f.visuals?.awayTeamLogo, f.away, 'away')}</div>
+      </div>
+      <ul class="match-card-signals">${bulletMarkup}</ul>
+      <div class="match-card-footer">
+        <span class="match-card-status ${statusClass}">${esc(statusLabel)}</span>
+        <span class="match-card-open">View Match Read <span aria-hidden="true">→</span></span>
+        ${updateLabel}
+      </div>
+    `;
+    card.querySelectorAll('img').forEach(image => {
+      image.addEventListener('error', () => {
+        const emblemNode = image.closest('.match-card-emblem');
+        if (emblemNode) emblemNode.classList.add('is-fallback');
+        image.remove();
+      }, { once: true });
+    });
+    card.addEventListener('click', () => this._showMatch(f.id));
+    card.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        this._showMatch(f.id);
+      }
+    });
+    return card;
   },
 
   _toggleSlipFromFixture(fxId) {
@@ -1037,7 +1127,7 @@ const appModule = {
     const selections = Array.isArray(f.selections) ? f.selections : [];
     const updateLabel = f.update?.is_updated && f.update?.label
       ? `<span class="match-read-update-label">${esc(f.update.label)}</span>`
-      : '<span class="match-read-stage-label">Pre-match read</span>';
+      : `<span class="match-read-stage-label">${f.isPreliminary ? 'Preliminary pre-match read' : 'Pre-match read'}</span>`;
     const noBetCopy = f.status === 'no_bet'
       ? 'No selection was released: the fixture was assessed but no current price qualified.'
       : 'No selection was released because the fixture cannot be assessed safely yet.';
@@ -1083,7 +1173,8 @@ const appModule = {
           <span class="match-read-summary-title">Match Read</span>
           ${updateLabel}
         </div>
-        <p class="match-read-thesis">${esc(f.thesis || 'No fixture-level thesis is available yet.')}</p>
+        <p class="match-read-thesis">${esc(f.briefing?.summary || f.thesis || 'No fixture-level briefing is available yet.')}</p>
+        ${Array.isArray(f.briefing?.bullets) && f.briefing.bullets.length ? `<ul class="match-read-key-points">${f.briefing.bullets.map(point => `<li>${esc(point)}</li>`).join('')}</ul>` : ''}
         ${actionable}
         ${f.selectionRelationship ? `<p class="match-read-relationship">${esc(f.selectionRelationship)}</p>` : ''}
         ${alternativesHtml}
