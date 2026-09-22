@@ -369,3 +369,165 @@ def test_worker_lease_makes_an_overlapping_cycle_a_harmless_skip(settings, engin
     assert report.errors == []
     assert report.lease_acquired is False
     assert report.skipped_reason
+
+
+def test_delayed_generation_uses_live_release_clock(settings, engine, session_factory):
+    from data_platform.repositories.match_reads import MatchReadRepository
+    from data_platform.services.match_reads import MatchReadService
+    from data_platform.services.match_read_cycle import MatchReadCycleService
+
+    now = datetime(2026, 9, 6, 12, tzinfo=timezone.utc)
+    current = [now]
+    kickoff = now + timedelta(minutes=110)
+    reads = MatchReadService(repo=MatchReadRepository(session_factory=session_factory))
+    dispatcher, _ = _persisting_dispatcher(reads, kickoff, generated_at=(now + timedelta(minutes=6)).isoformat())
+
+    def delayed(*args, **kwargs):
+        current[0] += timedelta(minutes=6)
+        return dispatcher(*args, **kwargs)
+
+    worker = MatchReadCycleService(
+        settings=replace(_settings(), lease_seconds=1200), session_factory=session_factory,
+        fixture_loader=lambda **_: [_fixture(kickoff=kickoff)], dispatcher=delayed, clock=lambda: current[0],
+    )
+    report = worker.run_once(now=now, mode="website")
+    assert not report.errors
+    assert len(report.releases[0]["released"]) == 1  # Previously rejected as "in the future".
+
+
+def test_fixture_publish_is_immediate_and_kickoff_ordered(settings, engine, session_factory, monkeypatch):
+    from types import SimpleNamespace
+    from data_platform.services.match_read_cycle import MatchReadCycleService, _dispatch_summary
+
+    now = datetime(2026, 9, 6, 12, tzinfo=timezone.utc)
+    current = [now]
+    events = []
+    checked = []
+    fixtures = [_fixture(fixture_id="9001", kickoff=now + timedelta(hours=6)),
+                _fixture(fixture_id="9002", kickoff=now + timedelta(hours=3))]
+
+    def dispatch(job, *, slate_cache, checked_at, **_):
+        events.append(("dispatch", job.fixture_ids[0]))
+        checked.append(checked_at)
+        slate_cache[(job.league, job.target_date, job.force_refresh)] = object()
+        current[0] += timedelta(seconds=20)
+        return _dispatch_summary(job, run=None), set(job.fixture_ids)
+
+    def release(**kwargs):
+        events.append(("release", kwargs["fixture_ids"][0]))
+        assert kwargs["now"] == current[0]
+        return {"released": kwargs["fixture_ids"], "skipped": []}
+
+    worker = MatchReadCycleService(
+        settings=_settings(), session_factory=session_factory, fixture_loader=lambda **_: fixtures,
+        clock=lambda: current[0], release_service=SimpleNamespace(release_matchday_to_website=release),
+    )
+    monkeypatch.setattr(worker, "_dispatch_job", dispatch)
+    report = worker.run_once(now=now, mode="website")
+    assert not report.errors
+    assert events == [("dispatch", "9002"), ("release", "9002"), ("dispatch", "9001"), ("release", "9001")]
+    assert checked == [now, now]  # Reused prices retain the original observation time.
+
+
+def test_budget_yields_remaining_work_for_next_tick(settings, engine, session_factory, monkeypatch):
+    from data_platform.models import SyncRun
+    from data_platform.services.match_read_cycle import MatchReadCycleService, _dispatch_summary
+
+    now = datetime(2026, 9, 6, 12, tzinfo=timezone.utc)
+    current = [now]
+    fixtures = [_fixture(fixture_id=str(i), kickoff=now + timedelta(hours=3)) for i in range(3)]
+    worker = MatchReadCycleService(
+        settings=replace(_settings(), max_cycle_seconds=60), session_factory=session_factory,
+        fixture_loader=lambda **_: fixtures, clock=lambda: current[0],
+    )
+
+    def dispatch(job, **_):
+        current[0] += timedelta(seconds=61)
+        return _dispatch_summary(job, run=None), set()
+
+    monkeypatch.setattr(worker, "_dispatch_job", dispatch)
+    report = worker.run_once(now=now, mode="shadow")
+    assert not report.errors
+    assert len(report.dispatches) == 1
+    assert report.deferred_fixture_stages == 2
+    with session_factory() as session:
+        assert session.get(SyncRun, report.run_id).status == "deferred"
+
+
+def test_fixture_timeout_does_not_abort_other_fixtures(settings, engine, session_factory, monkeypatch):
+    import signal
+    from data_platform.services.match_read_cycle import MatchReadCycleService, _dispatch_summary
+    from data_platform.models import MatchReadObservation, SyncRun
+
+    now = datetime(2026, 9, 6, 12, tzinfo=timezone.utc)
+    worker = MatchReadCycleService(
+        settings=_settings(), session_factory=session_factory,
+        fixture_loader=lambda **_: [_fixture(fixture_id=str(i), kickoff=now + timedelta(hours=3)) for i in range(2)],
+    )
+
+    def dispatch(job, **_):
+        if job.fixture_ids == ("0",):
+            from core.prediction_metrics import measure_generation, timed_call
+
+            @measure_generation
+            def timed_dispatch(*args):
+                timed_call("profile_context", signal.raise_signal, signal.SIGALRM)
+
+            timed_dispatch("EPL", now.date())
+        return _dispatch_summary(job, run=None), set()
+
+    monkeypatch.setattr(worker, "_dispatch_job", dispatch)
+    report = worker.run_once(now=now, mode="shadow")
+    assert len(report.dispatches) == 2
+    assert len(report.errors) == 1
+    assert "exceeded" in report.errors[0]
+    with session_factory() as session:
+        assert session.query(MatchReadObservation).one().status == "failed"
+        performance = session.get(SyncRun, report.run_id).stats["fixture_performance"]
+        assert performance[0]["performance"]["counts"]["profile_context.calls"] == 1
+        assert performance[0]["performance"]["interrupted_by"] == "DispatchTimeout"
+
+
+def test_expired_lease_cannot_publish_after_resume(settings, engine, session_factory, monkeypatch):
+    from data_platform.services.match_read_cycle import MatchReadCycleService, _dispatch_summary
+    from data_platform.models import MatchReadObservation
+
+    now = datetime(2026, 9, 6, 12, tzinfo=timezone.utc)
+    current = [now]
+    worker = MatchReadCycleService(
+        settings=_settings(), session_factory=session_factory, clock=lambda: current[0],
+        fixture_loader=lambda **_: [_fixture(kickoff=now + timedelta(hours=3))],
+    )
+
+    def dispatch(job, **_):
+        current[0] += timedelta(hours=1)
+        return _dispatch_summary(job, run=None), set(job.fixture_ids)
+
+    monkeypatch.setattr(worker, "_dispatch_job", dispatch)
+    report = worker.run_once(now=now, mode="website")
+    assert report.releases == []
+    assert report.deferred_fixture_stages == 1
+    with session_factory() as session:
+        assert session.query(MatchReadObservation).one().status == "failed"
+
+
+def test_release_skip_is_partial_and_retries_on_short_cadence(settings, engine, session_factory, monkeypatch):
+    from types import SimpleNamespace
+    from data_platform.models import SyncRun
+    from data_platform.services.match_read_cycle import MatchReadCycleService, _dispatch_summary
+
+    now = datetime(2026, 9, 6, 12, tzinfo=timezone.utc)
+    worker = MatchReadCycleService(
+        settings=_settings(), session_factory=session_factory,
+        fixture_loader=lambda **_: [_fixture(kickoff=now + timedelta(hours=8))],
+        release_service=SimpleNamespace(release_matchday_to_website=lambda **_: {
+            "released": [], "skipped": [{"fixture_id": "9001", "reason": "Read is stale."}],
+        }),
+    )
+    monkeypatch.setattr(worker, "_dispatch_job", lambda job, **_: (_dispatch_summary(job, run=None), set(job.fixture_ids)))
+    report = worker.run_once(now=now, mode="website")
+    assert len(report.errors) == 1
+    with session_factory() as session:
+        assert session.get(SyncRun, report.run_id).status == "partial"
+    assert worker.plan(now=now + timedelta(minutes=9), mode="website").jobs == ()
+    assert len(worker.plan(now=now + timedelta(minutes=10), mode="website").jobs) == 1

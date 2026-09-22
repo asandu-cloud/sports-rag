@@ -172,13 +172,15 @@ def main(argv: Iterable[str] | None = None) -> int:
     )
     parser.add_argument(
         "--retrain-ml", action="store_true",
-        help="Retrain cumulative-profile ML models after normalize/embed."
+        help="Retired: fitting now runs separately through prediction_candidate.py."
     )
     parser.add_argument(
         "--skip-player-profiles", action="store_true",
         help="Skip domestic player-profile aggregation (normally rebuilt after every refresh).",
     )
     args = parser.parse_args(argv)
+    if args.retrain_ml:
+        parser.error("--retrain-ml is retired. Refresh data without it; use Scripts/ops/prediction_candidate.py for isolated fitting.")
 
     leagues = args.league if args.league else list(LEAGUES.keys())
     # Validate league names
@@ -257,16 +259,6 @@ def main(argv: Iterable[str] | None = None) -> int:
         if len(args.season) == 1:
             cmd.extend(["--season", str(args.season[0])])
         if not run_command(cmd, "embed normalized documents"):
-            return 1
-
-    # Stage 5: Retrain ML models
-    if args.retrain_ml:
-        print(f"\n{'='*60}")
-        print("RETRAINING ML MODELS (ml_edge.py --train-cumulative)")
-        print(f"{'='*60}")
-        ml_script = ROOT / "Scripts" / "rag_ingest" / "ml_edge.py"
-        cmd = [sys.executable, str(ml_script), "--train-cumulative"]
-        if not run_command(cmd, "retrain cumulative ML models"):
             return 1
 
     print("\nDone.")

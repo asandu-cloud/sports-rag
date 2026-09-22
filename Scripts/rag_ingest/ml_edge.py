@@ -1886,6 +1886,14 @@ def main():
                         help="Print feature importance for a stat (requires LightGBM training).")
     args = parser.parse_args()
 
+    if args.train or args.train_cumulative or args.cv or args.predict:
+        parser.error(
+            "Legacy training/CV/raw-row prediction commands are retired: they use an incompatible "
+            "feature path or write active models. Use Scripts/ops/prediction_features.py for "
+            "export/capture and Scripts/ops/prediction_candidate.py for isolated fitting/inference. "
+            "Chronological candidate benchmarks are a separate rollout step."
+        )
+
     leagues = [args.league] if args.league else None
 
     if args.importance:

@@ -106,7 +106,6 @@ class PullSeasonFailFastTests(unittest.TestCase):
                     "EPL",
                     "--normalize",
                     "--embed",
-                    "--retrain-ml",
                 ]
             )
 
@@ -114,6 +113,12 @@ class PullSeasonFailFastTests(unittest.TestCase):
         self.assertEqual(run_script.call_count, 3)
         run_profiles.assert_called_once_with("EPL", 2026)
         run_command.assert_not_called()
+
+    def test_retrain_flag_fails_before_any_data_or_model_work(self):
+        with mock.patch.object(self.pull_season, "run_script") as run_script:
+            with self.assertRaises(SystemExit):
+                self.pull_season.main(["--season", "2026", "--retrain-ml"])
+            run_script.assert_not_called()
 
 
 if __name__ == "__main__":

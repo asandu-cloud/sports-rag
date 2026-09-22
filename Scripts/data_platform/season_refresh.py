@@ -15,6 +15,7 @@ path replaces it.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import time
@@ -136,7 +137,7 @@ def build_refresh_plan(
     sync_platform: bool = True,
     build_referees: bool = True,
     embed: bool = True,
-    retrain_ml: bool = True,
+    retrain_ml: bool = False,
     build_platform_features: bool = True,
 ) -> List[RefreshStage]:
     """Build the ordered refresh plan without executing it.
@@ -150,6 +151,8 @@ def build_refresh_plan(
         raise ValueError(f"Invalid season year: {season}")
     if lookback_days < 1:
         raise ValueError("lookback_days must be at least 1")
+    if retrain_ml:
+        raise ValueError("ML training is now an isolated candidate operation; use Scripts/ops/prediction_candidate.py")
 
     codes = resolve_competitions(competitions)
     py = sys.executable
@@ -182,14 +185,12 @@ def build_refresh_plan(
             legacy_command.append("--build-referees")
         if embed:
             legacy_command.append("--embed")
-        if retrain_ml:
-            legacy_command.append("--retrain-ml")
         plan.append(RefreshStage(
             name="legacy_model_refresh",
             description=(
                 "Refresh Output data, rebuild features and domestic player profiles, "
                 "then normalize the current season" + (", update Chroma" if embed else "") +
-                (", and retrain cumulative ML artefacts." if retrain_ml else ".")
+                ". Saved ML models are preserved; candidate training is a separate operation."
             ),
             command=tuple(legacy_command),
         ))
@@ -247,7 +248,11 @@ def build_refresh_plan(
 
 def _run_command(command: Sequence[str], *, runner: Runner) -> object:
     """Run a child command from repository root (small seam for test fakes)."""
-    return runner(list(command), cwd=str(ROOT), check=False)
+    kwargs = {}
+    descriptor = os.environ.get("BETTING_REFRESH_LOCK_FD")
+    if descriptor is not None:
+        kwargs["pass_fds"] = (int(descriptor),)
+    return runner(list(command), cwd=str(ROOT), check=False, **kwargs)
 
 
 def execute_refresh_plan(
@@ -369,7 +374,7 @@ def run_refresh_season(args, *, runner: Runner = subprocess.run) -> SeasonRefres
         sync_platform=not args.skip_platform_sync,
         build_referees=not args.skip_referees,
         embed=not args.skip_embedding,
-        retrain_ml=not args.skip_training,
+        retrain_ml=False,  # --skip-training remains a backwards-compatible no-op.
         build_platform_features=not args.skip_platform_features,
     )
     return execute_refresh_plan(

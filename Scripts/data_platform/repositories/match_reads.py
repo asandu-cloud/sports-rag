@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence
 from sqlalchemy import desc, select
 from sqlalchemy.exc import IntegrityError
 
-from ..db import session_scope
+from ..db import session_scope, retry_database_busy
 from ..models import (
     MatchRead,
     MatchReadDelivery,
@@ -83,6 +83,7 @@ class MatchReadRepository:
     def __init__(self, session_factory=session_scope):
         self._factory = session_factory
 
+    @retry_database_busy
     def record(
         self,
         *,
@@ -318,6 +319,7 @@ class MatchReadRepository:
             ).all()
             return [_read_to_dict(session, row) for row in rows]
 
+    @retry_database_busy
     def record_delivery(
         self,
         match_read_id: int,
@@ -398,6 +400,7 @@ class MatchReadRepository:
                     return _delivery_to_dict(delivery)
         return None
 
+    @retry_database_busy
     def link_published_recommendation(
         self,
         match_read_id: int,

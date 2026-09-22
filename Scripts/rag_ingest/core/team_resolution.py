@@ -11,11 +11,16 @@ from __future__ import annotations
 import difflib
 import re
 import sys
+from contextvars import ContextVar
+from functools import wraps
 from pathlib import Path
+from threading import RLock
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 # Ensure sibling modules are importable when running from Scripts/rag_ingest/
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from core.prediction_metrics import count, timed, timed_call
 
 # --- weights ---
 try:
@@ -64,6 +69,74 @@ _team_fixture_meta_cache: Dict[Tuple[str, str, str, str, str], Optional[Dict]] =
 _domestic_league_cache: Dict[str, Optional[str]] = {}
 _chroma_client = None
 _chroma_collection = None
+
+_cache_revision = None
+_profile_cache_lock = RLock()
+_inside_profile_read = ContextVar("inside_profile_read", default=False)
+
+
+def _profile_data_revision():
+    """Local metadata/WAL writes invalidate all derived profile caches.
+
+    Include inode to detect database replacement. For remote Chroma (or an
+    unavailable local token), reuse is restricted to one evaluation boundary.
+    This is invalidation, not an assertion of cross-store snapshot isolation.
+    """
+    mode = (env_first("CHROMA_MODE", "CHROMA_CLIENT", default="local") or "local").lower()
+    if mode in {"http", "remote"} or env_first("CHROMA_HTTP_HOST", "CHROMA_HOST"):
+        return None
+    database = Path(CHROMA_DIR) / "chroma.sqlite3"
+    try:
+        main = database.stat()
+        wal = Path(str(database) + "-wal")
+        try:
+            info = wal.stat()
+            wal_revision = (info.st_ino, info.st_mtime_ns, info.st_size)
+        except FileNotFoundError:
+            wal_revision = None
+        return (str(database.resolve()), COLLECTION, main.st_ino, main.st_mtime_ns,
+                main.st_size, wal_revision)
+    except OSError:
+        return None
+
+
+def clear_profile_caches():
+    for cache in (
+        _team_meta_cache, _team_profile_doc_cache, _team_profile_docs_cache,
+        _team_fixture_rows_cache, _team_profile_context_cache,
+        _team_recent_stats_cache, _team_recent_var_cache, _team_fixture_meta_cache,
+        _domestic_league_cache,
+    ):
+        cache.clear()
+
+
+def profile_cache_boundary(function):
+    """Check the data revision once for a complete, nested fixture evaluation."""
+    @wraps(function)
+    def wrapped(*args, **kwargs):
+        global _cache_revision
+        if _inside_profile_read.get():
+            return function(*args, **kwargs)
+        # Existing caches are shared by synchronous callers in one process.
+        # Do not let an older concurrent request refill them after a refresh
+        # invalidated them for a newer request. Separate worker processes
+        # retain their own caches; this lock does not coordinate ingestion.
+        with _profile_cache_lock:
+            revision = _profile_data_revision()
+            if revision is None or revision != _cache_revision:
+                clear_profile_caches()
+                _cache_revision = revision
+                count("profile_cache.invalidations")
+            token = _inside_profile_read.set(True)
+            try:
+                return function(*args, **kwargs)
+            finally:
+                _inside_profile_read.reset(token)
+    return wrapped
+
+
+def _collection_get(collection, **kwargs):
+    return timed_call("chroma_get", collection.get, **kwargs)
 
 
 # This records which historical evidence actually fed a prediction.  It is
@@ -546,6 +619,7 @@ def _kb_team_variants(team_name: str) -> List[str]:
 # Chroma profile retrieval
 # ---------------------------------------------------------------------------
 
+@profile_cache_boundary
 def get_team_profile_docs(team_name: str, league: str) -> List[Dict]:
     """Return one profile document per available season, newest first.
 
@@ -564,7 +638,7 @@ def get_team_profile_docs(team_name: str, league: str) -> List[Dict]:
     rows_by_season: Dict[str, Dict] = {}
     for v in variants:
         where = build_where(league, extra_filters=[{"doc_type": "team_profile"}, {"team": v}])
-        res = col.get(where=where, include=["documents", "metadatas"], limit=24)
+        res = _collection_get(col, where=where, include=["documents", "metadatas"], limit=24)
         docs = res.get("documents") or []
         metas = res.get("metadatas") or []
         for d, m in zip(docs, metas):
@@ -588,6 +662,7 @@ def get_team_profile_docs(team_name: str, league: str) -> List[Dict]:
     return rows
 
 
+@profile_cache_boundary
 def get_team_profile_doc(team_name: str, league: str) -> Dict:
     """Return the newest stored team-profile document for compatibility."""
     cache_key = (league, canonical_team_name(team_name).lower())
@@ -598,6 +673,7 @@ def get_team_profile_doc(team_name: str, league: str) -> Dict:
     return docs[0] if docs else {}
 
 
+@profile_cache_boundary
 def get_team_profile_meta(team_name: str, league: str) -> Dict:
     cache_key = (league, canonical_team_name(team_name).lower())
     cached = _team_meta_cache.get(cache_key)
@@ -632,6 +708,7 @@ def _season_label(rank: Optional[int]) -> Optional[str]:
     return f"{rank}/{str(rank + 1)[-2:]}"
 
 
+@profile_cache_boundary
 def _get_all_team_fixture_rows(team_name: str, league: str) -> List[Dict]:
     """Return immutable team-fixture rows once, ready for as-of filtering."""
     cache_key = (league, canonical_team_name(team_name).lower())
@@ -643,7 +720,7 @@ def _get_all_team_fixture_rows(team_name: str, league: str) -> List[Dict]:
     dedup: Dict[str, Dict] = {}
     for variant in _kb_team_variants(team_name):
         where = build_where(league, extra_filters=[{"doc_type": "team_fixture"}, {"team": variant}])
-        result = col.get(where=where, include=["documents", "metadatas"], limit=500)
+        result = _collection_get(col, where=where, include=["documents", "metadatas"], limit=500)
         documents = result.get("documents") or []
         metadatas = result.get("metadatas") or []
         for document, meta in zip(documents, metadatas):
@@ -705,6 +782,8 @@ def _profile_from_fixture_rows(
     metas = [(row.get("meta") or {}) for row in rows]
     if not metas:
         return {}
+
+    _prefetch_opponent_fixture_meta(league, metas, season=str(season or "") or None)
 
     def avg(key: str) -> Optional[float]:
         return _mean_numeric([_numeric(meta.get(key)) for meta in metas])
@@ -852,6 +931,8 @@ def _blend_sparse_current_profile(current: Dict, prior: Dict) -> Tuple[Dict, flo
     return result, prior_weight, "current_plus_prior"
 
 
+@profile_cache_boundary
+@timed("profile_context")
 def get_team_profile_context(
     team_name: str,
     league: str,
@@ -869,7 +950,10 @@ def get_team_profile_context(
     cache_key = (league, canonical_team_name(team_name).lower(), cutoff)
     cached = _team_profile_context_cache.get(cache_key)
     if cached is not None:
+        count("profile_context.cache_hits")
         return cached
+
+    count("profile_context.cache_misses")
 
     documents = get_team_profile_docs(team_name, league)
     if not target_date:
@@ -962,6 +1046,7 @@ def get_team_profile_context(
 # European competition: domestic-anchored projection helpers
 # ---------------------------------------------------------------------------
 
+@profile_cache_boundary
 def resolve_domestic_league(team_name: str) -> Optional[str]:
     """Find which domestic league a team belongs to by searching Chroma profiles."""
     canon = canonical_team_name(team_name).lower()
@@ -1254,18 +1339,78 @@ def get_recent_team_fixture_rows(team_name: str, league: str, limit: int = 8,
     return rows[:limit]
 
 
+def _fixture_meta_key(team_name, league, fixture, fixture_date, season):
+    return (league, canonical_team_name(team_name).lower(), str(fixture or ""),
+            str(fixture_date or ""), str(season or ""))
+
+
+def _prefetch_opponent_fixture_meta(league, metas, *, season=None):
+    """Batch the exact historical lookups used by profiles and recent form.
+
+    Query only requested fixture labels in the same league/season, paginate
+    fully, then apply the original alias/date/season matching in memory. Do
+    not mark requests missing until the entire batch has succeeded. On an
+    ordinary backend error, the established individual lookup remains usable.
+    """
+    pending = {}
+    for meta in metas:
+        opponent, fixture = str(meta.get("opponent") or ""), str(meta.get("fixture") or "")
+        if not opponent or not fixture:
+            continue
+        fixture_date = str(meta.get("fixture_date") or "")
+        source_season = season if season is not None else str(meta.get("season") or "")
+        key = _fixture_meta_key(opponent, league, fixture, fixture_date, source_season)
+        if key not in _team_fixture_meta_cache:
+            pending.setdefault(source_season, {}).setdefault(key, opponent)
+    if not pending:
+        return
+    try:
+        col = get_collection_handle(create_if_missing=True)
+        resolved = {}
+        for source_season, requests in pending.items():
+            fixtures = sorted({key[2] for key in requests})
+            index = {}
+            for start in range(0, len(fixtures), 64):
+                filters = [{"doc_type": "team_fixture"}, {"fixture": {"$in": fixtures[start:start + 64]}}]
+                if source_season:
+                    filters.append({"season": source_season})
+                offset = 0
+                while True:
+                    result = _collection_get(col, where=build_where(league, filters),
+                                             include=["metadatas"], limit=256, offset=offset)
+                    rows = result.get("metadatas") or []
+                    for row in rows:
+                        if row:
+                            index.setdefault((row.get("team"), row.get("fixture")), []).append(row)
+                    if len(rows) < 256:
+                        break
+                    offset += 256
+            for key, opponent in requests.items():
+                match = None
+                for variant in _kb_team_variants(opponent):
+                    candidates = index.get((variant, key[2]), ())
+                    match = next((row for row in candidates
+                                  if (not key[3] or row.get("fixture_date") == key[3])
+                                  and (not key[4] or row.get("season") == key[4])), None)
+                    if match is not None:
+                        break
+                resolved[key] = match
+        _team_fixture_meta_cache.update(resolved)
+        count("opponent_batch.resolved", len(resolved))
+    except Exception:
+        count("opponent_batch.fallbacks")
+
+
+@profile_cache_boundary
 def _get_team_fixture_meta(team_name: str, league: str, fixture: str,
                            fixture_date: str = "", season: Optional[str] = None) -> Optional[Dict]:
     """Fetch one team_fixture metadata row for a specific team+fixture."""
-    cache_key = (
-        league,
-        canonical_team_name(team_name).lower(),
-        str(fixture or ""),
-        str(fixture_date or ""),
-        str(season or ""),
-    )
+    cache_key = _fixture_meta_key(team_name, league, fixture, fixture_date, season)
     if cache_key in _team_fixture_meta_cache:
+        count("opponent_lookup.cache_hits")
         return _team_fixture_meta_cache[cache_key]
+
+    count("opponent_lookup.cache_misses")
 
     col = get_collection_handle(create_if_missing=True)
     variants = _kb_team_variants(team_name)
@@ -1276,7 +1421,7 @@ def _get_team_fixture_meta(team_name: str, league: str, fixture: str,
         if season:
             filters.append({"season": season})
         where = build_where(league, extra_filters=filters)
-        res = col.get(where=where, include=["metadatas"], limit=4)
+        res = _collection_get(col, where=where, include=["metadatas"], limit=4)
         metas = res.get("metadatas") or []
         if metas:
             meta = metas[0] or None
@@ -1287,6 +1432,7 @@ def _get_team_fixture_meta(team_name: str, league: str, fixture: str,
     return None
 
 
+@profile_cache_boundary
 def get_team_recent_stats(team_name: str, league: str, last_n: int = 6,
                           venue: Optional[str] = None,
                           target_date: Optional[str] = None) -> Dict:
@@ -1309,6 +1455,8 @@ def get_team_recent_stats(team_name: str, league: str, last_n: int = 6,
                 if (r.get("meta") or {}).get("home_away", "").lower() == venue.lower()]
     rows = rows[:last_n]
     metas = [(r.get("meta") or {}) for r in rows]
+
+    _prefetch_opponent_fixture_meta(league, metas)
 
     alpha = SCORING_WEIGHTS.get("recency", {}).get("alpha", 0.85)
 
@@ -1395,6 +1543,7 @@ def get_team_recent_stats(team_name: str, league: str, last_n: int = 6,
     return stats
 
 
+@profile_cache_boundary
 def get_team_recent_variance(team_name: str, league: str, last_n: int = 8,
                              target_date: Optional[str] = None) -> Dict:
     """Compute per-stat variance from recent fixtures for distribution modeling."""
@@ -1431,6 +1580,7 @@ def get_team_recent_variance(team_name: str, league: str, last_n: int = 8,
     return result
 
 
+@profile_cache_boundary
 def get_blended_variance(team_name: str, league: str, stat_key: str,
                          fixture_date: Optional[str] = None) -> Optional[float]:
     """Bayesian blend of season variance (prior) with recent variance (update).

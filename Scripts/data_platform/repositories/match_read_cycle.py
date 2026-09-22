@@ -10,10 +10,10 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple
 
-from sqlalchemy import desc, select
+from sqlalchemy import desc, select, update, or_
 from sqlalchemy.exc import IntegrityError
 
-from ..db import session_scope
+from ..db import session_scope, retry_database_busy
 from ..models import MatchReadObservation, WorkerLease
 
 
@@ -60,6 +60,7 @@ class MatchReadCycleRepository:
     def __init__(self, session_factory=session_scope):
         self._factory = session_factory
 
+    @retry_database_busy
     def acquire_lease(
         self,
         *,
@@ -85,16 +86,18 @@ class MatchReadCycleRepository:
 
         try:
             with self._factory() as session:
+                # Compare-and-swap, not read-then-write: two contenders may
+                # both observe an expired lease, but only one can claim it.
+                claimed = session.execute(update(WorkerLease).where(
+                    WorkerLease.lease_key == key,
+                    or_(WorkerLease.owner_id == owner, WorkerLease.expires_at <= acquired_at),
+                ).values(owner_id=owner, acquired_at=acquired_at, heartbeat_at=acquired_at,
+                         expires_at=expires_at, metadata_json=dict(metadata) if metadata else None))
+                if claimed.rowcount:
+                    return True
                 row = session.scalar(select(WorkerLease).where(WorkerLease.lease_key == key))
                 if row is not None:
-                    expires = _as_utc(row.expires_at)
-                    if row.owner_id != owner and expires > acquired_at:
-                        return False
-                    row.owner_id = owner
-                    row.acquired_at = acquired_at
-                    row.heartbeat_at = acquired_at
-                    row.expires_at = expires_at
-                    row.metadata_json = dict(metadata) if metadata else None
+                    return False
                 else:
                     session.add(WorkerLease(
                         lease_key=key,
@@ -112,6 +115,15 @@ class MatchReadCycleRepository:
             # tick run normally.
             return False
 
+    @retry_database_busy
+    def owns_lease(self, *, lease_key: str, owner_id: str, now: Any) -> bool:
+        """A worker resumed after sleep must not publish under an expired lease."""
+        with self._factory() as session:
+            row = session.scalar(select(WorkerLease).where(WorkerLease.lease_key == lease_key))
+            return bool(row is not None and row.owner_id == owner_id
+                        and _as_utc(row.expires_at) > _as_utc(now))
+
+    @retry_database_busy
     def release_lease(
         self,
         *,
@@ -121,13 +133,12 @@ class MatchReadCycleRepository:
     ) -> bool:
         released_at = _as_utc(now)
         with self._factory() as session:
-            row = session.scalar(select(WorkerLease).where(WorkerLease.lease_key == str(lease_key)))
-            if row is None or row.owner_id != str(owner_id):
-                return False
-            row.heartbeat_at = released_at
-            row.expires_at = released_at
-            return True
+            result = session.execute(update(WorkerLease).where(
+                WorkerLease.lease_key == str(lease_key), WorkerLease.owner_id == str(owner_id),
+            ).values(heartbeat_at=released_at, expires_at=released_at))
+            return bool(result.rowcount)
 
+    @retry_database_busy
     def record_observation(
         self,
         *,
@@ -171,6 +182,7 @@ class MatchReadCycleRepository:
             session.flush()
             return _observation_to_dict(row)
 
+    @retry_database_busy
     def latest_for_fixture_stages(
         self,
         fixture_ids: Iterable[str],

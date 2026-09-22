@@ -162,6 +162,8 @@ class MatchReadWorkerSettings:
     lineup_refresh_minutes: int
     max_age_minutes: int
     lease_seconds: int
+    max_cycle_seconds: int = 480
+    fixture_timeout_seconds: int = 120
 
 
 def load_match_read_worker_settings() -> MatchReadWorkerSettings:
@@ -188,9 +190,11 @@ def load_match_read_worker_settings() -> MatchReadWorkerSettings:
         max_age_minutes=_positive_int_env("MATCH_READ_MAX_AGE_MINUTES", 120),
         # A ten-minute external scheduler needs a lease that outlives one
         # normal cadence.  The worker is one-shot and deliberately has no
-        # background lease heartbeat, so 20 minutes prevents a slow provider
-        # call from allowing a second invocation to overlap.
+        # background lease heartbeat. Execution is budgeted below this lease,
+        # and a worker resumed after expiry must yield before publishing.
         lease_seconds=_positive_int_env("MATCH_READ_WORKER_LEASE_SECONDS", 1200),
+        max_cycle_seconds=_positive_int_env("MATCH_READ_MAX_CYCLE_SECONDS", 480),
+        fixture_timeout_seconds=_positive_int_env("MATCH_READ_FIXTURE_TIMEOUT_SECONDS", 120),
     )
 
 

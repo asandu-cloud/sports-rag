@@ -134,9 +134,21 @@ def cmd_refresh(args) -> int:
             lookback_days=args.lookback_days,
             fetch_players=not args.no_players,
             archiver=archiver,
+            short_transactions=True,
+            lookahead_days=args.lookahead_days,
         )
     print(json.dumps(res, indent=2, default=str))
-    return 0
+    return 1 if res.get("error_count") else 0
+
+
+def cmd_sync_schedule(args) -> int:
+    from .services.fixture_schedule import sync_fixture_schedule
+    from .config import DEFAULT_MATCH_READ_WORKER_LEAGUES
+    result = sync_fixture_schedule(codes=args.competition or DEFAULT_MATCH_READ_WORKER_LEAGUES,
+                                  years=args.season, days_ahead=args.days_ahead,
+                                  if_stale_hours=args.if_stale_hours)
+    print(json.dumps(result, indent=2, default=str))
+    return 1 if result["errors"] else 0
 
 
 def cmd_refresh_season(args) -> int:
@@ -246,18 +258,21 @@ def cmd_match_read_cycle(args) -> int:
     should invoke it every ten minutes; leases make an accidental overlap a
     harmless skipped run rather than duplicate public tracking exposure.
     """
+    from contextlib import nullcontext
     from .config import load_match_read_worker_settings
     from .services.match_read_cycle import MatchReadCycleService
+    from .services.worker_runtime import prevent_idle_sleep
 
     settings = load_match_read_worker_settings()
     if args.league:
         settings = replace(settings, leagues=tuple(args.league))
     service = MatchReadCycleService(settings=settings)
-    report = service.run_once(
-        mode=args.mode,
-        now=args.now,
-        dry_run=args.dry_run,
-    )
+    with nullcontext() if args.dry_run else prevent_idle_sleep():
+        report = service.run_once(
+            mode=args.mode,
+            now=args.now,
+            dry_run=args.dry_run,
+        )
     print(json.dumps(report.as_dict(), indent=2, default=str))
     # A concurrent scheduled invocation is expected operational behaviour,
     # not a failed health check. Actual planner/dispatcher/release errors use
@@ -290,6 +305,7 @@ def _match_read_run_summary(run: Any) -> dict:
         "fixture_count": len(run.fixtures),
         "draft_count": len(run.drafts),
         "persisted_count": len(run.records),
+        "performance": getattr(run, "performance", {}),
         "fixtures": fixtures,
         "notes": list(run.notes),
     }
@@ -566,10 +582,19 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--competition", nargs="*", help="Restrict to these codes (default: all)")
     p.add_argument("--season", nargs="*", type=int, help="Restrict to these season years (default: current)")
     p.add_argument("--lookback-days", type=int, default=7)
+    p.add_argument("--lookahead-days", type=int, choices=range(4, 91), default=35)
     p.add_argument("--no-players", action="store_true")
     p.add_argument("--archive", action="store_true", default=True)
     p.add_argument("--no-archive", dest="archive", action="store_false")
     p.set_defaults(func=cmd_refresh)
+
+    p = sub.add_parser("sync-schedule", help="Refresh upcoming schedules only; no player data or embeddings")
+    _add_common_args(p)
+    p.add_argument("--competition", nargs="*", help="Default: all 13 public competitions")
+    p.add_argument("--season", nargs="*", type=int)
+    p.add_argument("--days-ahead", type=int, choices=range(4, 91), default=35)
+    p.add_argument("--if-stale-hours", type=int, choices=range(25), default=0)
+    p.set_defaults(func=cmd_sync_schedule)
 
     p = sub.add_parser(
         "refresh-season",
@@ -607,7 +632,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--skip-training", action="store_true",
-        help="Recovery-only: do not retrain cumulative ML artefacts.",
+        help="Compatibility flag: refresh now preserves saved ML models; fitting is candidate-only.",
     )
     p.add_argument(
         "--dry-run", action="store_true",
@@ -800,6 +825,30 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     _setup_logging(getattr(args, "verbose", False))
+    # All supported ingestion entry points share a gate with the scheduled
+    # Match Read worker. The full refresh retains it across child commands.
+    writes = {"refresh-season", "refresh", "sync-schedule", "bootstrap", "build-features",
+              "build-canonical-features", "kb-refresh", "kb-enqueue-all"}
+    if args.command in writes and not getattr(args, "dry_run", False):
+        from .services.refresh_coordination import data_access, RefreshBusy
+        from .services.worker_runtime import prevent_idle_sleep
+        try:
+            with data_access(writer=True, full_refresh=args.command == "refresh-season", wait_seconds=180), prevent_idle_sleep():
+                result = args.func(args)
+                if result:
+                    raise RefreshBusy(f"{args.command} exited with code {result}; check the refresh report before retrying.")
+                return result
+        except RefreshBusy as exc:
+            logger.error("%s", exc)
+            return 1
+    if args.command in {"match-reads", "publish-match-reads"} and not getattr(args, "dry_run", False):
+        from .services.refresh_coordination import data_access, RefreshBusy
+        try:
+            with data_access():
+                return args.func(args)
+        except RefreshBusy as exc:
+            logger.error("%s", exc)
+            return 1
     return args.func(args)
 
 

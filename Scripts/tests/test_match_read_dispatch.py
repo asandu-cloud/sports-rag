@@ -78,6 +78,9 @@ def test_dispatch_fetches_and_enriches_once_then_evaluates_every_market_once_per
     assert len(run.drafts) == 2
     assert run.records == ()
     assert run.notes == ("provider note", "odds refreshed")
+    assert run.performance["counts"]["odds_fetch.calls"] == 1
+    assert run.performance["counts"]["market_evaluation.calls"] == len(run.fixtures)
+    assert set(run.performance["fixtures"]) == {item.event_id for item in run.fixtures}
 
 
 def test_dispatch_reuses_one_worker_cycle_slate_between_pre_match_and_lineup_stages():
@@ -97,7 +100,7 @@ def test_dispatch_reuses_one_worker_cycle_slate_between_pre_match_and_lineup_sta
     }
 
     match_read_dispatch.generate_match_reads_sync("EPL", date(2026, 9, 6), **common)
-    match_read_dispatch.generate_match_reads_sync(
+    lineup_run = match_read_dispatch.generate_match_reads_sync(
         "EPL",
         date(2026, 9, 6),
         stage="confirmed_lineups",
@@ -106,6 +109,8 @@ def test_dispatch_reuses_one_worker_cycle_slate_between_pre_match_and_lineup_sta
     )
 
     assert fetched.call_count == 1
+    assert lineup_run.performance["counts"]["odds_slate.cache_hits"] == 1
+    assert "odds_fetch.calls" not in lineup_run.performance["counts"]
 
 
 def test_dispatch_persists_only_when_explicitly_requested_and_keeps_fixture_draft_on_failure():

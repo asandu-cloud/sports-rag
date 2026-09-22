@@ -269,10 +269,12 @@ def incremental_refresh(
     lookback_days: int = 7,
     fetch_players: bool = True,
     archiver=None,
+    short_transactions: bool = False,
+    lookahead_days: int = 35,
 ) -> Dict[str, Any]:
     """Refresh one-or-more competitions.
 
-    For each (competition, year) we pull fixtures in ``[watermark - 1d, today + 7d]``
+    For each (competition, year) we pull fixtures in ``[watermark - 1d, today + lookahead_days]``
     and re-fetch details for any fixture whose row digest changed. Fixtures
     with unchanged digests are skipped cheaply.
     """
@@ -291,7 +293,9 @@ def incremental_refresh(
                 season = upsert_season(session, competition=competition, year=year)
                 session.flush()
                 from_date = _watermark_from_date(session, code=spec.code, year=year, lookback_days=lookback_days)
-                to_date = (today + timedelta(days=7)).isoformat()
+                to_date = (today + timedelta(days=lookahead_days)).isoformat()
+                if short_transactions:
+                    session.commit()
                 logger.info("Incremental %s:%s window %s..%s", spec.code, year, from_date, to_date)
 
                 fixtures_payload = client.fixtures(
@@ -309,39 +313,94 @@ def incremental_refresh(
                         sync_run_id=run.id,
                     )
                 stats.fixtures_seen += len(fixtures_payload)
+                if short_transactions:
+                    session.commit()
+                errors_before_competition = len(stats.errors)
 
                 for api_row in fixtures_payload:
                     try:
-                        fixture, changed = upsert_fixture_from_api_row(
-                            session, api_row=api_row, competition=competition, season=season
-                        )
+                        with session.begin_nested():
+                            fixture, changed = upsert_fixture_from_api_row(
+                                session, api_row=api_row, competition=competition, season=season
+                            )
+                            session.flush()
                     except Exception as exc:  # pragma: no cover - malformed row
                         stats.errors.append({"stage": "fixture_upsert", "error": str(exc)})
                         continue
                     if not changed:
+                        if short_transactions:
+                            session.commit()
                         continue
                     stats.fixtures_changed += 1
                     if fixture.status in {"FT", "AET", "PEN"}:
+                        detail_client = client
+                        digest = fixture.payload_digest
+                        errors_before_fixture = len(stats.errors)
+                        if short_transactions:
+                            # A committed NULL digest is an explicit incomplete
+                            # checkpoint. A crash/detail failure must re-fetch
+                            # this fixture on the next incremental run.
+                            api_id = fixture.api_football_id
+                            fixture.payload_digest = None
+                            session.commit()
+                            detail_client = _buffer_fixture_details(client, api_id, fetch_players)
                         sync_fixture_details(
                             session,
-                            client=client,
+                            client=detail_client,
                             fixture=fixture,
                             stats=stats,
                             archiver=archiver,
                             sync_run_id=run.id,
                             fetch_players=fetch_players,
                         )
+                        if short_transactions and len(stats.errors) == errors_before_fixture:
+                            fixture.payload_digest = digest
+                    if short_transactions:
+                        session.commit()
 
-                upsert_watermark(
-                    session,
-                    scope=f"fixtures:{spec.code}:{year}",
-                    last_successful_at=datetime.now(timezone.utc),
-                    last_cursor=today.isoformat(),
-                    meta={"mode": "incremental", "lookback_days": lookback_days},
-                )
+                if len(stats.errors) == errors_before_competition:
+                    upsert_watermark(
+                        session,
+                        scope=f"fixtures:{spec.code}:{year}",
+                        last_successful_at=datetime.now(timezone.utc),
+                        last_cursor=today.isoformat(),
+                        meta={"mode": "incremental", "lookback_days": lookback_days},
+                    )
+                if short_transactions:
+                    session.commit()
 
-        _finish_run(session, run, status="completed", stats=stats.as_dict())
+        _finish_run(session, run, status="partial" if stats.errors else "completed", stats=stats.as_dict())
+        if short_transactions:
+            session.commit()
         return {"run_id": run.id, **stats.as_dict()}
     except Exception as exc:
+        if short_transactions:
+            session.rollback()
         _finish_run(session, run, status="failed", stats=stats.as_dict(), error=str(exc))
+        if short_transactions:
+            session.commit()
         raise
+
+
+def _buffer_fixture_details(client, api_id, fetch_players):
+    """Fetch remote details without an open write transaction.
+
+    Replay the responses through the existing normalization/upsert code.
+    Failures are replayed too, so its usual error accounting is preserved.
+    """
+    responses = {}
+    for name in ("fixture_statistics", "fixture_players") if fetch_players else ("fixture_statistics",):
+        try:
+            responses[name] = getattr(client, name)(api_id)
+        except Exception as exc:
+            responses[name] = exc
+
+    class BufferedClient:
+        def __getattr__(self, name):
+            def response(_fixture_id):
+                value = responses[name]
+                if isinstance(value, Exception):
+                    raise value
+                return value
+            return response
+    return BufferedClient()

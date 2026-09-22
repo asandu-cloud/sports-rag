@@ -9,11 +9,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Mapping, Optional
+from .projection_cache import statistic, statistical_reuse, invalidate as invalidate_statistical_cache
 
 try:
+    from core.prediction_metrics import timed, timed_call
+    from core.team_resolution import profile_cache_boundary
     from core.line_selection import (
         choose_best_moneyline_side,
         confidence_from_edge,
@@ -55,6 +59,8 @@ try:
     )
     from core.release_control import apply_release_policy
 except ImportError:
+    from .prediction_metrics import timed, timed_call
+    from .team_resolution import profile_cache_boundary
     from .line_selection import (  # type: ignore[no-redef]
         choose_best_moneyline_side,
         confidence_from_edge,
@@ -186,6 +192,7 @@ def _lineup_quality(lineup_ctx: Any) -> Dict[str, Any]:
     }
 
 
+@timed("input_quality")
 def _input_quality(
     *,
     fixture: FixtureRef,
@@ -199,6 +206,29 @@ def _input_quality(
     quality score.  It travels in ``MarketResult.context`` so every delivery
     surface, snapshot, and later tracker has the same input facts.
     """
+    profiles = statistic("profile_quality", _profile_quality, fixture, fixture_date)
+    if profiles.get("status") != "available":
+        invalidate_statistical_cache()
+
+    bookmaker_count = sum(
+        1 for bookmaker in (event.get("bookmakers") or []) if isinstance(bookmaker, Mapping)
+    )
+    odds_snapshot_at = _event_timestamp(event)
+    return {
+        "schema_version": "prediction-input-quality.v1",
+        "fixture_date": fixture_date,
+        "profiles": profiles,
+        "odds": {
+            "bookmaker_count": bookmaker_count,
+            "priced_option_count": _priced_option_count(event),
+            "snapshot_at": odds_snapshot_at,
+            "freshness": "timestamped" if odds_snapshot_at else "unknown",
+        },
+        "lineup": _lineup_quality(lineup_ctx),
+    }
+
+
+def _profile_quality(fixture, fixture_date):
     try:
         home_effective, home_profile = get_prediction_profile_context(
             fixture.home_team, fixture.league, target_date=fixture_date,
@@ -212,25 +242,8 @@ def _input_quality(
         away_profile = {"team": fixture.away_team, "status": "unavailable"}
         profile_status = f"unavailable:{type(exc).__name__}"
 
-    bookmaker_count = sum(
-        1 for bookmaker in (event.get("bookmakers") or []) if isinstance(bookmaker, Mapping)
-    )
-    odds_snapshot_at = _event_timestamp(event)
     return {
-        "schema_version": "prediction-input-quality.v1",
-        "fixture_date": fixture_date,
-        "profiles": {
-            "status": profile_status,
-            "home": home_profile,
-            "away": away_profile,
-        },
-        "odds": {
-            "bookmaker_count": bookmaker_count,
-            "priced_option_count": _priced_option_count(event),
-            "snapshot_at": odds_snapshot_at,
-            "freshness": "timestamped" if odds_snapshot_at else "unknown",
-        },
-        "lineup": _lineup_quality(lineup_ctx),
+        "status": profile_status, "home": home_profile, "away": away_profile,
     }
 
 
@@ -335,7 +348,7 @@ def _build_result(
     )
 
 
-def evaluate_market(
+def _evaluate_market(
     event: Mapping[str, Any],
     league: str,
     market_name: str,
@@ -349,6 +362,7 @@ def evaluate_market(
     generated_at: Optional[str] = None,
     model_version: Optional[str] = None,
     context: Optional[Mapping[str, Any]] = None,
+    _shared_quality: Optional[Dict[str, Any]] = None,
 ) -> MarketResult:
     """Evaluate one supported pre-match market for an already-fetched event.
 
@@ -375,41 +389,39 @@ def evaluate_market(
     result_context.update(dict(context or {}))
     # The audit record controls public-pick eligibility, so it must be derived
     # from canonical inputs rather than overridden by presentation context.
-    result_context["data_quality"] = _input_quality(
-        fixture=fixture,
-        event=event,
-        fixture_date=source_date,
-        lineup_ctx=lineup_ctx,
+    result_context["data_quality"] = (
+        deepcopy(_shared_quality) if _shared_quality is not None else _input_quality(
+            fixture=fixture, event=event, fixture_date=source_date, lineup_ctx=lineup_ctx,
+        )
     )
     home, away = fixture.home_team, fixture.away_team
 
     if market_name in _TOTAL_MARKETS:
         referee_source = None
         if market_name == "goals":
-            value, season, recent = projected_total_goals(
+            value, season, recent = statistic("goals", projected_total_goals,
                 home, away, league, knockout_ctx=knockout_ctx,
                 league_ctx=league_ctx, fixture_date=source_date,
             )
         elif market_name == "corners":
-            value, season, recent = projected_total_corners(
+            value, season, recent = statistic("corners", projected_total_corners,
                 home, away, league, knockout_ctx=knockout_ctx,
                 league_ctx=league_ctx, fixture_date=source_date,
             )
         elif market_name == "cards":
-            value, season, recent, resolved_ref = projected_total_cards(
+            value, season, recent, referee_source = statistic("cards", _card_statistics,
                 home, away, league, knockout_ctx=knockout_ctx, ref_mod=ref_mod,
                 lineup_ctx=lineup_ctx, league_ctx=league_ctx, fixture_date=source_date,
             )
-            if resolved_ref is not None:
-                referee_source = str(getattr(resolved_ref, "source", "unavailable"))
+            if referee_source is not None:
                 result_context["referee_source"] = referee_source
         else:
-            value, season, recent = projected_total_sot(
+            value, season, recent = statistic("sot", projected_total_sot,
                 home, away, league, knockout_ctx=knockout_ctx,
                 league_ctx=league_ctx, fixture_date=source_date,
             )
 
-        combined_variance, variance_details = _total_variance(
+        combined_variance, variance_details = statistic(f"variance.{market_name}", _total_variance,
             home, away, league, market_name, value, source_date,
         )
         data_quality = result_context.get("data_quality")
@@ -446,7 +458,7 @@ def evaluate_market(
         )
 
     if market_name == "btts":
-        p_yes, home_goals, away_goals, _, _ = projected_btts_prob(
+        p_yes, home_goals, away_goals, _, _ = statistic("btts", projected_btts_prob,
             home, away, league, league_ctx=league_ctx, fixture_date=source_date,
         )
         projection = Projection(
@@ -474,7 +486,7 @@ def evaluate_market(
         )
 
     if market_name == "moneyline":
-        p_home, p_draw, p_away, home_goals, away_goals = projected_moneyline_probs(
+        p_home, p_draw, p_away, home_goals, away_goals = statistic("moneyline", projected_moneyline_probs,
             home, away, league, league_ctx=league_ctx, fixture_date=source_date,
         )
         projection = Projection(
@@ -507,7 +519,7 @@ def evaluate_market(
             context=result_context,
         )
 
-    projected_diff, season_diff, recent_diff = projected_goal_difference(
+    projected_diff, season_diff, recent_diff = statistic("spreads", projected_goal_difference,
         home, away, league, league_ctx=league_ctx, fixture_date=source_date,
     )
     projection = Projection(
@@ -534,6 +546,28 @@ def evaluate_market(
     )
 
 
+@profile_cache_boundary
+def evaluate_market(
+    event: Mapping[str, Any], league: str, market_name: str, *,
+    fixture_date: Optional[str] = None, league_ctx: Any = None, knockout_ctx: Any = None,
+    lineup_ctx: Any = None, ref_mod: Any = None, input_snapshot_id: Optional[str] = None,
+    generated_at: Optional[str] = None, model_version: Optional[str] = None,
+    context: Optional[Mapping[str, Any]] = None,
+) -> MarketResult:
+    """Evaluate one market, deriving quality evidence from its own inputs."""
+    return timed_call(f"market.{market_name}", _evaluate_market, event, league, market_name,
+                      fixture_date=fixture_date, league_ctx=league_ctx, knockout_ctx=knockout_ctx,
+                      lineup_ctx=lineup_ctx, ref_mod=ref_mod, input_snapshot_id=input_snapshot_id,
+                      generated_at=generated_at, model_version=model_version, context=context)
+
+
+def _card_statistics(*args, **kwargs):
+    value, season, recent, referee = projected_total_cards(*args, **kwargs)
+    source = str(getattr(referee, "source", "unavailable")) if referee is not None else None
+    return value, season, recent, source
+
+
+@profile_cache_boundary
 def evaluate_event(
     event: Mapping[str, Any],
     league: str,
@@ -542,4 +576,33 @@ def evaluate_event(
 ) -> List[MarketResult]:
     """Evaluate requested canonical markets for one event in stable input order."""
 
-    return [evaluate_market(event, league, market_name, **kwargs) for market_name in markets]
+    market_names = tuple(str(name or "").lower().strip() for name in markets)
+    for name in market_names:
+        if name not in SUPPORTED_MARKETS:
+            raise ValueError(f"Unsupported canonical market: {name!r}")
+    if not market_names:
+        return []
+    reuse = kwargs.pop("reuse_statistics", False)
+    # Statistical functions consume fixture identity/date and model contexts,
+    # never prices. Keep all caller contexts in the key, excluding only fresh
+    # output provenance. Odds quality and every selector are always rebuilt.
+    identity = (_fixture_ref(event, league), market_names,
+                {key: value for key, value in kwargs.items() if key not in {"generated_at", "input_snapshot_id"}})
+    with statistical_reuse(identity, enabled=reuse):
+        results = _evaluate_event_uncached(event, league, market_names, **kwargs)
+        if any(result.projection.value is None for result in results):
+            invalidate_statistical_cache()
+        return results
+
+
+def _evaluate_event_uncached(event, league, market_names, **kwargs):
+    fixture = _fixture_ref(event, league)
+    quality = _input_quality(
+        fixture=fixture, event=event,
+        fixture_date=kwargs.get("fixture_date") or fixture.kickoff,
+        lineup_ctx=kwargs.get("lineup_ctx"),
+    )
+    # Each market gets an independent copy: variance and release guardrails
+    # mutate their market's audit and must never contaminate another result.
+    return [timed_call(f"market.{name}", _evaluate_market, event, league, name,
+                       _shared_quality=quality, **kwargs) for name in market_names]

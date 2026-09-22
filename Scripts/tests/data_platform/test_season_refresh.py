@@ -47,13 +47,21 @@ def test_default_plan_refreshes_every_public_domestic_league_in_both_active_path
     assert legacy_leagues == DOMESTIC_COMPETITIONS
     assert "--normalize" in legacy
     assert "--embed" in legacy
-    assert "--retrain-ml" in legacy
+    assert "--retrain-ml" not in legacy
     assert "--build-referees" in legacy
 
     canonical = plan[3].command
     assert "build-canonical-features" in canonical
     assert all(code in canonical for code in GENERIC_DOMESTIC_COMPETITIONS)
     assert plan[-1].accepted_exit_codes == (0, 1)
+
+
+def test_refresh_cannot_retrain_active_models():
+    import pytest
+    from data_platform.season_refresh import build_refresh_plan
+
+    with pytest.raises(ValueError, match="isolated candidate"):
+        build_refresh_plan(season=2026, competitions=("EPL",), retrain_ml=True)
 
 
 def test_new_league_plan_uses_canonical_features_not_legacy_output_scripts():

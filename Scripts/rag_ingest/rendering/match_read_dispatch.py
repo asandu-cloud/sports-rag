@@ -14,7 +14,7 @@ for shadow review before it becomes a delivery source.
 from __future__ import annotations
 
 import copy
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import date
 from pathlib import Path
 import sys
@@ -27,6 +27,8 @@ from typing import Any, Callable, Dict, Iterable, List, Mapping, MutableMapping,
 _RAG_ROOT = Path(__file__).resolve().parents[1]
 if str(_RAG_ROOT) not in sys.path:
     sys.path.insert(0, str(_RAG_ROOT))
+
+from core.prediction_metrics import count, measure_generation, select_fixture, timed_call
 
 try:
     from core.events import fetch_events, filter_events_by_exact_date
@@ -107,6 +109,7 @@ class MatchReadGenerationRun:
     stage: str
     fixtures: Tuple[FixtureMatchReadGeneration, ...]
     notes: Tuple[str, ...]
+    performance: Dict[str, Any] = field(default_factory=dict)
 
     @property
     def drafts(self) -> Tuple[MatchReadDraft, ...]:
@@ -119,6 +122,7 @@ class MatchReadGenerationRun:
         return tuple(item.record for item in self.fixtures if item.record is not None)
 
 
+@measure_generation
 def generate_match_reads_sync(
     league: str,
     target_date: date,
@@ -213,6 +217,7 @@ def generate_match_reads_sync(
     cache_key = (normalised_league, target_date, bool(force_refresh))
     cached_slate = slate_cache.get(cache_key) if slate_cache is not None else None
     if cached_slate is not None:
+        count("odds_slate.cache_hits")
         fetched_events = copy.deepcopy(list(cached_slate[0]))
         fetch_notes = list(cached_slate[1])
     else:
@@ -221,13 +226,13 @@ def generate_match_reads_sync(
             # Keep them compatible while the real provider path can deliberately
             # bypass its ten-minute in-process cache in the final match window.
             if fetcher is None and force_refresh:
-                fetched_events, fetch_notes = fetch(
+                fetched_events, fetch_notes = timed_call("odds_fetch", fetch,
                     normalised_league,
                     target_date=target_date,
                     force_refresh=force_refresh,
                 )
             else:
-                fetched_events, fetch_notes = fetch(normalised_league, target_date=target_date)
+                fetched_events, fetch_notes = timed_call("odds_fetch", fetch, normalised_league, target_date=target_date)
         except Exception as exc:
             return MatchReadGenerationRun(
                 league=normalised_league,
@@ -293,7 +298,7 @@ def generate_match_reads_sync(
     # base prices we already fetched; those still produce auditable
     # unavailable/no-bet canonical results where appropriate.
     try:
-        enriched_events, enrich_notes = enrich(day_events, normalised_league, set(CANONICAL_ODDS_GROUPS))
+        enriched_events, enrich_notes = timed_call("odds_enrichment", enrich, day_events, normalised_league, set(CANONICAL_ODDS_GROUPS))
         notes.extend(_normalise_notes(enrich_notes))
         if enriched_events:
             day_events = list(enriched_events)
@@ -316,6 +321,7 @@ def generate_match_reads_sync(
             notes.append(f"{normalised_league}: ignored a non-mapping fixture payload.")
             continue
         event_id = _event_identity(event)
+        select_fixture(event_id)
         fixture_label = _fixture_label(event)
         if event_id in seen_fixture_ids:
             notes.append(f"{fixture_label}: duplicate fixture payload ignored ({event_id}).")
@@ -325,7 +331,7 @@ def generate_match_reads_sync(
         lineup_ctx = None
         if normalised_stage == "confirmed_lineups":
             try:
-                lineup_ctx = lineup_provider(event, normalised_league, target_date)  # type: ignore[misc]
+                lineup_ctx = timed_call("lineup_lookup", lineup_provider, event, normalised_league, target_date)
             except Exception as exc:
                 message = f"{fixture_label}: confirmed-lineups lookup failed ({type(exc).__name__}: {exc})."
                 notes.append(message)
@@ -363,7 +369,9 @@ def generate_match_reads_sync(
             }
             if lineup_ctx is not None:
                 evaluation_kwargs["lineup_ctx"] = lineup_ctx
-            canonical_results = tuple(evaluate(event, normalised_league, **evaluation_kwargs))
+            if evaluator is None and persist:
+                evaluation_kwargs["reuse_statistics"] = True
+            canonical_results = tuple(timed_call("market_evaluation", evaluate, event, normalised_league, **evaluation_kwargs))
         except Exception as exc:
             message = f"{fixture_label}: canonical fixture evaluation failed ({type(exc).__name__}: {exc})."
             notes.append(message)
@@ -377,7 +385,7 @@ def generate_match_reads_sync(
             continue
 
         try:
-            draft = compile_read(canonical_results, stage=normalised_stage)
+            draft = timed_call("compilation", compile_read, canonical_results, stage=normalised_stage)
         except Exception as exc:
             message = f"{fixture_label}: Match Read compilation failed ({type(exc).__name__}: {exc})."
             notes.append(message)
@@ -404,7 +412,7 @@ def generate_match_reads_sync(
                 cached_briefing = None
                 if active_service is not None and callable(getattr(active_service, "list_for_fixture", None)):
                     try:
-                        historical_reads = active_service.list_for_fixture(
+                        historical_reads = timed_call("briefing_cache", active_service.list_for_fixture,
                             event_id,
                             stage=normalised_stage,
                             limit=40,
@@ -419,7 +427,7 @@ def generate_match_reads_sync(
                             f"({type(exc).__name__}: {exc}); regenerating safely."
                         )
                 try:
-                    draft, briefing_note = enrich_briefing(
+                    draft, briefing_note = timed_call("briefing", enrich_briefing,
                         draft,
                         event,
                         cached_briefing=cached_briefing,
@@ -434,7 +442,7 @@ def generate_match_reads_sync(
                         f"({type(exc).__name__}: {exc}); storing compiler thesis."
                     )
             try:
-                record = persist_read(draft, service=active_service)
+                record = timed_call("persistence", persist_read, draft, service=active_service)
             except Exception as exc:
                 error = f"{fixture_label}: Match Read persistence failed ({type(exc).__name__}: {exc})."
                 notes.append(error)
