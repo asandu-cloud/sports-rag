@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 import sys
 import logging
-from typing import Optional
+from typing import Optional, Literal
 
 # ---------------------------------------------------------------------------
 # Path setup
@@ -69,6 +69,7 @@ class DailyEntry(BaseModel):
 
 
 class TrackRecordResponse(BaseModel):
+    publication_scope: Optional[str] = None
     total_graded: int = 0
     hits: int = 0
     misses: int = 0
@@ -102,6 +103,23 @@ class PredictionEntry(BaseModel):
     outcome: Optional[str] = None
     prediction_date: Optional[str] = None
     created_at: Optional[str] = None
+    tracking_cohort: Optional[str] = None
+    publication_role: Optional[str] = None
+    recommendation_id: Optional[int] = None
+    fixture_date: Optional[str] = None
+    publication_date: Optional[str] = None
+    published_at: Optional[str] = None
+    market_key: Optional[str] = None
+    market_period: Optional[str] = None
+    system_version: Optional[str] = None
+    pipeline_version: Optional[str] = None
+    model_version: Optional[str] = None
+    input_snapshot_id: Optional[str] = None
+    selection_key: Optional[str] = None
+    match_read_ids: list[int] = Field(default_factory=list)
+    match_read_versions: list[dict] = Field(default_factory=list)
+    missing_identity_fields: list[str] = Field(default_factory=list)
+    card_definition_status: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -110,6 +128,7 @@ class PredictionEntry(BaseModel):
 
 @router.get("", response_model=TrackRecordResponse)
 async def track_record(
+    publication_scope: Literal["initial", "amendments", "all"] = Query("initial"),
     days: Optional[int] = Query(None, description="Limit to last N days"),
     league: Optional[str] = Query(None, description="Filter to one league"),
     market: Optional[str] = Query(None, description="Filter to one market"),
@@ -126,6 +145,7 @@ async def track_record(
         market=market,
         confidence=confidence,
         published_only=official_only,
+        publication_scope=publication_scope,
     )
     if "error" in stats:
         return TrackRecordResponse()
@@ -134,6 +154,7 @@ async def track_record(
 
 @router.get("/daily", response_model=list[DailyEntry])
 async def daily_performance(
+    publication_scope: Literal["initial", "amendments", "all"] = Query("initial"),
     days: int = Query(30, description="Number of days to return"),
     league: Optional[str] = Query(None, description="Filter to one league"),
     official_only: bool = Query(
@@ -146,6 +167,7 @@ async def daily_performance(
         days=days,
         league=league,
         published_only=official_only,
+        publication_scope=publication_scope,
     )
     if "error" in stats:
         return []
@@ -154,6 +176,7 @@ async def daily_performance(
 
 @router.get("/recent", response_model=list[PredictionEntry])
 async def recent_predictions(
+    publication_scope: Literal["initial", "amendments", "all"] = Query("initial"),
     limit: int = Query(20, description="Number of predictions to return", ge=1, le=100),
     league: Optional[str] = Query(None, description="Filter to one league"),
     official_only: bool = Query(
@@ -167,6 +190,7 @@ async def recent_predictions(
         league=league,
         graded_only=True,
         published_only=official_only,
+        publication_scope=publication_scope,
     )
     result = []
     for p in preds:
@@ -190,6 +214,12 @@ async def recent_predictions(
                 outcome=p.get("outcome"),
                 prediction_date=p.get("prediction_date"),
                 created_at=p.get("created_at"),
+                **{key: p[key] for key in (
+                    "tracking_cohort", "publication_role", "recommendation_id", "fixture_date",
+                    "publication_date", "published_at", "market_key", "market_period", "system_version",
+                    "pipeline_version", "model_version", "input_snapshot_id", "selection_key",
+                    "match_read_ids", "match_read_versions", "missing_identity_fields", "card_definition_status",
+                ) if key in p},
             ))
         except Exception:
             continue

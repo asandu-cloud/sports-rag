@@ -522,6 +522,7 @@ def _read_to_dict(session, read: MatchRead) -> Dict[str, Any]:
             "pipeline_version": read.pipeline_version,
             "model_version": read.model_version,
             "evaluated_at": _iso(read.evaluated_at),
+            "system_version": (read.read_json.get("provenance") or {}).get("system_version"),
         },
         "data": read.read_json,
         "selections": selection_dicts,

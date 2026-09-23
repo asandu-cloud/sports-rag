@@ -43,10 +43,12 @@ class PredictionService:
         *,
         target_date: date,
         published_only: bool = False,
+        publication_scope: str = "initial",
     ) -> Dict[str, Any]:
         return self._repo.get_daily_breakdown(
             target_date=target_date,
             published_only=published_only,
+            publication_scope=publication_scope,
         )
 
     def calibration(
@@ -54,10 +56,12 @@ class PredictionService:
         *,
         buckets: int = 20,
         published_only: bool = False,
+        publication_scope: str = "initial",
     ) -> List[Dict[str, Any]]:
         return self._repo.get_calibration_data(
             buckets=buckets,
             published_only=published_only,
+            publication_scope=publication_scope,
         )
 
     # ---- grading -----------------------------------------------------

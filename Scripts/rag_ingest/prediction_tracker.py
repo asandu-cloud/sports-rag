@@ -2363,12 +2363,14 @@ def resolve_outcomes(
 def _maybe_platform_track_record(kwargs: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if kwargs.get("db_path", DB_PATH) != DB_PATH:
         return None
-    if not _platform_on():
+    if not _platform_on() and not kwargs.get("published_only"):
         return None
     try:
         from data_platform.compat import platform_get_track_record
         return platform_get_track_record(**{k: v for k, v in kwargs.items() if k != "db_path"})
     except Exception:
+        if kwargs.get("published_only"):
+            raise
         log.exception("platform get_track_record failed; falling through to SQLite")
         return None
 
@@ -2380,6 +2382,7 @@ def get_track_record(
     confidence: str = None,
     source: str = None,
     published_only: bool = False,
+    publication_scope: str = "initial",
     *,
     db_path: Path = DB_PATH,
 ) -> dict:
@@ -2392,6 +2395,7 @@ def get_track_record(
         "days": days, "league": league, "market": market,
         "confidence": confidence, "source": source,
         "published_only": published_only, "db_path": db_path,
+        "publication_scope": publication_scope,
     })
     if platform_result is not None:
         return platform_result
@@ -2525,12 +2529,14 @@ def _compute_daily_performance(preds: List[dict], days: int = 30) -> List[dict]:
 def _maybe_platform_daily(kwargs: Dict[str, Any]):
     if kwargs.get("db_path", DB_PATH) != DB_PATH:
         return None
-    if not _platform_on():
+    if not _platform_on() and not kwargs.get("published_only"):
         return None
     try:
         from data_platform.compat import platform_get_daily_breakdown
         return platform_get_daily_breakdown(**{k: v for k, v in kwargs.items() if k != "db_path"})
     except Exception:
+        if kwargs.get("published_only"):
+            raise
         log.exception("platform get_daily_breakdown failed; falling through to SQLite")
         return None
 
@@ -2538,6 +2544,7 @@ def _maybe_platform_daily(kwargs: Dict[str, Any]):
 def get_daily_breakdown(
     prediction_date: str = None,
     published_only: bool = False,
+    publication_scope: str = "initial",
     *,
     db_path: Path = DB_PATH,
 ) -> dict:
@@ -2559,6 +2566,7 @@ def get_daily_breakdown(
     platform = _maybe_platform_daily({
         "target_date": prediction_date,
         "published_only": published_only,
+        "publication_scope": publication_scope,
         "db_path": db_path,
     })
     if platform is not None:
@@ -2588,12 +2596,14 @@ def get_daily_breakdown(
 def _maybe_platform_recent(kwargs: Dict[str, Any]):
     if kwargs.get("db_path", DB_PATH) != DB_PATH:
         return None
-    if not _platform_on():
+    if not _platform_on() and not kwargs.get("published_only"):
         return None
     try:
         from data_platform.compat import platform_get_recent_predictions
         return platform_get_recent_predictions(**{k: v for k, v in kwargs.items() if k != "db_path"})
     except Exception:
+        if kwargs.get("published_only"):
+            raise
         log.exception("platform get_recent_predictions failed; falling through to SQLite")
         return None
 
@@ -2603,6 +2613,7 @@ def get_recent_predictions(
     league: str = None,
     graded_only: bool = True,
     published_only: bool = False,
+    publication_scope: str = "initial",
     *,
     db_path: Path = DB_PATH,
 ) -> List[dict]:
@@ -2611,6 +2622,7 @@ def get_recent_predictions(
         "limit": limit, "league": league,
         "days": 180,  # sensible upper bound for "recent"
         "published_only": published_only,
+        "publication_scope": publication_scope, "graded_only": graded_only,
         "db_path": db_path,
     })
     if platform is not None:
@@ -2916,16 +2928,20 @@ def _maybe_platform_calibration(
     db_path: Path,
     buckets: int = 10,
     published_only: bool = False,
+    publication_scope: str = "initial",
 ):
-    if db_path != DB_PATH or not _platform_on():
+    if db_path != DB_PATH or (not _platform_on() and not published_only):
         return None
     try:
         from data_platform.compat import platform_get_calibration_data
         return platform_get_calibration_data(
             buckets=buckets,
             published_only=published_only,
+            publication_scope=publication_scope,
         )
     except Exception:
+        if published_only:
+            raise
         log.exception("platform get_calibration_data failed; falling through to SQLite")
         return None
 
@@ -2933,6 +2949,7 @@ def _maybe_platform_calibration(
 def get_calibration_data(
     *,
     published_only: bool = False,
+    publication_scope: str = "initial",
     db_path: Path = DB_PATH,
 ) -> List[Dict]:
     """Return calibration data: for each probability bucket, model prob vs actual hit rate.
@@ -2940,7 +2957,7 @@ def get_calibration_data(
     Groups resolved predictions by model probability into 5% buckets (50-55%, 55-60%, etc.)
     and computes the actual hit rate for each bucket.
     """
-    platform = _maybe_platform_calibration(db_path, published_only=published_only)
+    platform = _maybe_platform_calibration(db_path, published_only=published_only, publication_scope=publication_scope)
     if platform is not None:
         return platform
     try:

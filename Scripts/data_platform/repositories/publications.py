@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from datetime import datetime
+from contextlib import contextmanager
 from typing import Any, Dict, Mapping, Optional
 
 from sqlalchemy import select
 
 from ..db import session_scope
 from ..models import Prediction, PublishedRecommendation, RecommendationDelivery
+from ..publication_identity import decision_identity, digest
 
 
 class PublicationRepository:
@@ -17,10 +19,19 @@ class PublicationRepository:
     def __init__(self, session_factory=session_scope):
         self._factory = session_factory
 
+    @contextmanager
+    def transaction(self):
+        with self._factory() as session:
+            @contextmanager
+            def bound_factory():
+                yield session
+            yield bound_factory
+
     def record(
         self,
         *,
         recommendation_key: str,
+        legacy_recommendation_key: Optional[str] = None,
         prediction_fields: Mapping[str, Any],
         released_at: datetime,
         input_snapshot_id: str,
@@ -45,6 +56,18 @@ class PublicationRepository:
                     PublishedRecommendation.recommendation_key == recommendation_key
                 )
             )
+            if recommendation is None and legacy_recommendation_key:
+                legacy = session.scalar(select(PublishedRecommendation).where(
+                    PublishedRecommendation.recommendation_key == legacy_recommendation_key))
+                # Retry an old immutable read without fabricating a new public
+                # release. A changed model/decision is never an old-key match.
+                if legacy is not None and decision_identity(legacy.decision_json) == decision_identity(decision_json):
+                    recommendation = legacy
+                    # Use the original delivery key as well for old retries.
+                    delivery_key = digest({
+                        "recommendation_key": legacy.recommendation_key, "surface": surface,
+                        "external_reference": str(external_reference or "default"),
+                    })
             created = recommendation is None
             if recommendation is None:
                 prediction = Prediction(**dict(prediction_fields))

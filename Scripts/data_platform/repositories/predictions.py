@@ -19,6 +19,8 @@ from ..db import session_scope
 from ..models import Prediction, PublishedRecommendation
 from ..outcomes import normalize_outcome
 from ..tracking_metrics import build_calibration, build_daily_breakdown, build_track_record
+from ..publication_identity import source_cohort, utc_date
+from ..publication_reporting import publication_metadata, select_publication_scope
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +56,9 @@ def _row_to_dict(row: Optional[Prediction]) -> Optional[Dict[str, Any]]:
         "closing_implied_prob": _to_float(row.closing_implied_prob),
         "clv": _to_float(row.clv),
         "created_at": row.created_at.isoformat() if row.created_at else None,
+        "tracking_cohort": source_cohort(row.source),
+        "fixture_date": utc_date(row.kickoff),
+        "tracking": (row.extras or {}).get("tracking"),
     }
 
 
@@ -71,6 +76,14 @@ class PredictionRepository:
 
     def __init__(self, session_factory=session_scope):
         self._factory = session_factory
+
+    @staticmethod
+    def _report_rows(session, rows, *, published_only=False, publication_scope="initial"):
+        rows = [_row_to_dict(row) for row in rows]
+        metadata = publication_metadata(session, [row["id"] for row in rows])
+        for row in rows:
+            row.update(metadata.get(row["id"], {}))
+        return select_publication_scope(rows, publication_scope) if published_only else rows
 
     # ------------------------------------------------------------------
     # Logging
@@ -180,6 +193,8 @@ class PredictionRepository:
         league: Optional[str] = None,
         market: Optional[str] = None,
         published_only: bool = False,
+        publication_scope: str = "initial",
+        graded_only: bool = False,
         limit: int = 500,
     ) -> List[Dict[str, Any]]:
         since = date.today() - timedelta(days=days)
@@ -189,14 +204,19 @@ class PredictionRepository:
                 stmt = stmt.where(Prediction.league == league)
             if market is not None:
                 stmt = stmt.where(Prediction.market == market)
+            if graded_only:
+                stmt = stmt.where(Prediction.outcome.isnot(None))
             if published_only:
                 stmt = stmt.join(
                     PublishedRecommendation,
                     PublishedRecommendation.prediction_id == Prediction.id,
                 )
-            stmt = stmt.order_by(desc(Prediction.prediction_date), desc(Prediction.id)).limit(limit)
+            stmt = stmt.order_by(desc(Prediction.prediction_date), desc(Prediction.id))
+            if not published_only:
+                stmt = stmt.limit(limit)
             rows = session.scalars(stmt).all()
-            return [d for d in (_row_to_dict(r) for r in rows) if d]
+            return self._report_rows(session, rows, published_only=published_only,
+                                     publication_scope=publication_scope)[:limit]
 
     def get_track_record(
         self,
@@ -206,6 +226,7 @@ class PredictionRepository:
         confidence: Optional[str] = None,
         source: Optional[str] = None,
         published_only: bool = False,
+        publication_scope: str = "initial",
         days: Optional[int] = None,
         min_odds: Optional[float] = None,
     ) -> Dict[str, Any]:
@@ -230,15 +251,15 @@ class PredictionRepository:
             if min_odds is not None:
                 stmt = stmt.where(Prediction.odds >= min_odds)
             rows = session.scalars(stmt.order_by(Prediction.prediction_date, Prediction.id)).all()
-        return build_track_record(
-            [row for row in (_row_to_dict(item) for item in rows) if row is not None]
-        )
+            data = self._report_rows(session, rows, published_only=published_only, publication_scope=publication_scope)
+        return {**build_track_record(data), "publication_scope": publication_scope if published_only else None}
 
     def get_daily_breakdown(
         self,
         *,
         target_date: date,
         published_only: bool = False,
+        publication_scope: str = "initial",
     ) -> Dict[str, Any]:
         with self._factory() as session:
             stmt = select(Prediction).where(
@@ -251,8 +272,9 @@ class PredictionRepository:
                     PublishedRecommendation.prediction_id == Prediction.id,
                 )
             rows = session.scalars(stmt).all()
+            data = self._report_rows(session, rows, published_only=published_only, publication_scope=publication_scope)
         return build_daily_breakdown(
-            [row for row in (_row_to_dict(item) for item in rows) if row is not None],
+            data,
             target_date=target_date,
         )
 
@@ -261,6 +283,7 @@ class PredictionRepository:
         *,
         buckets: int = 20,
         published_only: bool = False,
+        publication_scope: str = "initial",
     ) -> List[Dict[str, Any]]:
         """Return the shared calibration contract used by the Discord embed."""
         with self._factory() as session:
@@ -274,8 +297,9 @@ class PredictionRepository:
                     PublishedRecommendation.prediction_id == Prediction.id,
                 )
             rows = session.scalars(stmt).all()
+            data = self._report_rows(session, rows, published_only=published_only, publication_scope=publication_scope)
         return build_calibration(
-            [row for row in (_row_to_dict(item) for item in rows) if row is not None],
+            data,
             buckets=buckets,
         )
 

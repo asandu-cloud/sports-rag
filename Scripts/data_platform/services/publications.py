@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import date, datetime, timezone
 import hashlib
 import json
+import math
 from typing import Any, Dict, Mapping, Optional
 
 from ..repositories.publications import PublicationRepository
+from ..publication_identity import decision_identity, tracking_identity
 
 
 PUBLISHED_PREDICTION_SOURCE = "canonical_published"
@@ -42,7 +45,10 @@ def _optional_number(value: Any, field: str) -> Optional[float]:
     if value is None:
         return None
     try:
-        return float(value)
+        number = float(value)
+        if not math.isfinite(number) or isinstance(value, bool):
+            raise ValueError("non-finite or boolean")
+        return number
     except (TypeError, ValueError) as exc:
         raise PublicationValidationError(f"{field} must be numeric.") from exc
 
@@ -51,13 +57,13 @@ def _as_utc(value: Optional[Any]) -> datetime:
     if value is None:
         return datetime.now(timezone.utc)
     if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return (value if value.tzinfo else value.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
     text = str(value).strip().replace("Z", "+00:00")
     try:
         parsed = datetime.fromisoformat(text)
     except ValueError as exc:
         raise PublicationValidationError("published_at must be an ISO-8601 timestamp.") from exc
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    return (parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
 
 
 def _season_for(value: date) -> str:
@@ -81,6 +87,15 @@ class PublicationService:
 
     def __init__(self, repo: Optional[PublicationRepository] = None):
         self._repo = repo or PublicationRepository()
+
+    @contextmanager
+    def match_read_transaction(self):
+        """Bind both existing repositories to one all-or-nothing publication."""
+        from ..repositories.match_reads import MatchReadRepository
+        from .match_reads import MatchReadService
+        with self._repo.transaction() as factory:
+            yield (PublicationService(PublicationRepository(session_factory=factory)),
+                   MatchReadService(MatchReadRepository(session_factory=factory)))
 
     def publish(
         self,
@@ -123,11 +138,11 @@ class PublicationService:
         input_snapshot_id = _required_text(provenance, "input_snapshot_id")
         model_probability = _optional_number(decision.get("model_probability"), "decision.model_probability")
         odds = _optional_number(quote.get("odds"), "quote.odds")
-        if model_probability is None or odds is None or odds <= 1.0:
+        if model_probability is None or not 0 <= model_probability <= 1 or odds is None or odds <= 1.0:
             raise PublicationValidationError("A publication requires a model probability and decimal odds above 1.0.")
 
         release_time = _as_utc(published_at)
-        recommendation_key = _hash_key({
+        legacy_recommendation_key = _hash_key({
             "event_id": event_id,
             "market_key": market_key,
             "market_group": market_group,
@@ -135,6 +150,8 @@ class PublicationService:
             "input_snapshot_id": input_snapshot_id,
             "pipeline_version": pipeline_version,
         })
+        recommendation_key = _hash_key({"identity_version": 2, "decision": decision_identity(result)})
+        tracking = tracking_identity(result)
         delivery_key = _hash_key({
             "recommendation_key": recommendation_key,
             "surface": normalised_surface,
@@ -170,10 +187,12 @@ class PublicationService:
                 "tracking_cohort": "published",
                 "recommendation_key": recommendation_key,
                 "market_result_schema": result.get("schema_version"),
+                "tracking": tracking,
             },
         }
         return self._repo.record(
             recommendation_key=recommendation_key,
+            legacy_recommendation_key=legacy_recommendation_key,
             prediction_fields=prediction_fields,
             released_at=release_time,
             input_snapshot_id=input_snapshot_id,

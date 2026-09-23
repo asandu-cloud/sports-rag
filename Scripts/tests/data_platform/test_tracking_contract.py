@@ -178,7 +178,9 @@ def test_publication_service_creates_one_auditable_recommendation_and_delivery_c
 
     predictions = PredictionRepository(session_factory=session_factory)
     assert predictions.set_outcome(first["prediction_id"], outcome="win", actual_result=3)
-    official = predictions.get_track_record(published_only=True)
+    # Direct publication has no fixture-card lineage; retained in the explicit
+    # all-releases audit, not silently assigned to the first-card headline.
+    official = predictions.get_track_record(published_only=True, publication_scope="all")
     assert official["total_graded"] == 1
     assert official["hits"] == 1
     assert official["roi_flat_stake"] == pytest.approx(1.0)
@@ -242,21 +244,22 @@ def test_published_cohort_filters_and_quote_versions_are_auditable(
     assert predictions.set_outcome(second["prediction_id"], outcome="miss")
     assert predictions.set_outcome(research_id, outcome="hit")
 
-    official = predictions.get_track_record(published_only=True)
+    official = predictions.get_track_record(published_only=True, publication_scope="all")
     assert official["total_graded"] == 2
     assert official["hits"] == 1
 
     daily = predictions.get_daily_breakdown(
         target_date=date(2026, 9, 5),
         published_only=True,
+        publication_scope="all",
     )
-    # The daily recap intentionally collapses price revisions of the same
-    # selection into one user-facing result, retaining the logged best price.
-    assert daily["total"] == 1
+    # An explicit all-release audit preserves both prices. Headline reports
+    # select the original card, never the best price after the fact.
+    assert daily["total"] == 2
     assert daily["misses"] == 1
 
-    recent = predictions.get_recent(days=30, published_only=True)
+    recent = predictions.get_recent(days=30, published_only=True, publication_scope="all")
     assert {row["id"] for row in recent} == {first["prediction_id"], second["prediction_id"]}
 
-    calibration = predictions.get_calibration_data(published_only=True)
+    calibration = predictions.get_calibration_data(published_only=True, publication_scope="all")
     assert sum(bucket["count"] for bucket in calibration) == 2

@@ -12,6 +12,8 @@ from typing import Any, Dict, Mapping, Optional
 
 from .match_reads import MatchReadService, MatchReadValidationError
 from .publications import PublicationService
+from ..db import retry_database_busy
+from sqlalchemy.exc import IntegrityError
 
 
 class MatchReadDeliveryError(ValueError):
@@ -37,6 +39,29 @@ class MatchReadDeliveryService:
         self._publications = publications or PublicationService()
 
     def record_visible(
+        self, match_read_id: int, *, surface: str,
+        external_reference: Optional[str], delivered_at: Optional[Any] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Atomically record a successful external delivery and its selections."""
+        kwargs = dict(surface=surface, external_reference=external_reference,
+                      delivered_at=delivered_at, metadata=metadata)
+        # A competing website/Discord transaction may win a unique key. Retry
+        # the entire transaction with a fresh session, never a partial write.
+        for attempt in range(3):
+            try:
+                return self._record_atomic(match_read_id, **kwargs)
+            except IntegrityError:
+                if attempt == 2:
+                    raise
+
+    @retry_database_busy
+    def _record_atomic(self, match_read_id: int, **kwargs: Any) -> Dict[str, Any]:
+        with self._publications.match_read_transaction() as (publications, reads):
+            bound = MatchReadDeliveryService(match_reads=reads, publications=publications)
+            return bound._record_visible(match_read_id, **kwargs)
+
+    def _record_visible(
         self,
         match_read_id: int,
         *,
@@ -59,13 +84,14 @@ class MatchReadDeliveryService:
             raise MatchReadDeliveryError(f"Unknown Match Read {match_read_id}.")
 
         delivery_metadata = {
+            **(dict(metadata) if metadata else {}),
             "match_read_id": int(read["id"]),
             "match_read_version": int(read["version"]),
             "match_read_stage": read["stage"],
             "match_read_status": read["status"],
+            "match_read_input_snapshot_id": read["provenance"].get("input_snapshot_id"),
+            "system_version": read["provenance"].get("system_version"),
         }
-        if metadata:
-            delivery_metadata.update(dict(metadata))
         try:
             delivery = self._match_reads.record_delivery(
                 int(read["id"]),

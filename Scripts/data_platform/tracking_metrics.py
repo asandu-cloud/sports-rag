@@ -285,6 +285,11 @@ def _deduplicate_daily(rows: Iterable[Mapping[str, Any]]) -> List[Dict[str, Any]
     """Match the old recap rule: retain the best logged price per exact leg."""
     selected: Dict[Tuple[str, str, str, str], Dict[str, Any]] = {}
     for row in _normalise_rows(rows):
+        if row.get("recommendation_id") is not None:
+            # Official rows already have immutable release identity and a
+            # selected publication cohort. Never pick a later/better price.
+            selected[("published", str(row["recommendation_id"]), "", "")] = row
+            continue
         key = (
             str(row.get("home_team") or ""),
             str(row.get("away_team") or ""),

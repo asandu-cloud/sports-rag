@@ -14,6 +14,7 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 from .projection_cache import statistic, statistical_reuse, invalidate as invalidate_statistical_cache
+from .system_identity import prediction_system_manifest
 
 try:
     from core.prediction_metrics import timed, timed_call
@@ -337,6 +338,10 @@ def _build_result(
     evidence: Iterable[EvidenceItem] = (),
     context: Optional[Mapping[str, Any]] = None,
 ) -> MarketResult:
+    # Supported selectors above are full-game pre-match markets. Retain their
+    # period explicitly; never retroactively assign it to old stored quotes.
+    if decision.quote is not None and decision.quote.period is None:
+        decision = replace(decision, quote=replace(decision.quote, period="regulation_time"))
     return MarketResult(
         fixture=fixture,
         market=market,
@@ -384,9 +389,11 @@ def _evaluate_market(
         model_version=model_version,
         as_of=source_date,
         sources=("core.projections", "core.line_selection", "core.odds_extraction"),
+        system_version=prediction_system_manifest()["version"],
     )
     result_context = {"fixture_date": source_date} if source_date else {}
     result_context.update(dict(context or {}))
+    result_context["prediction_system"] = deepcopy(prediction_system_manifest())
     # The audit record controls public-pick eligibility, so it must be derived
     # from canonical inputs rather than overridden by presentation context.
     result_context["data_quality"] = (

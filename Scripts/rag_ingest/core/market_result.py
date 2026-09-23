@@ -199,6 +199,7 @@ class PriceQuote:
     odds: Optional[float] = None
     bookmaker: Optional[str] = None
     market_key: Optional[str] = None
+    period: Optional[str] = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "side", _text(self.side, "price.side", required=True))
@@ -209,6 +210,7 @@ class PriceQuote:
         object.__setattr__(self, "odds", odds)
         object.__setattr__(self, "bookmaker", _text(self.bookmaker, "price.bookmaker"))
         object.__setattr__(self, "market_key", _text(self.market_key, "price.market_key"))
+        object.__setattr__(self, "period", _text(self.period, "price.period"))
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -217,6 +219,7 @@ class PriceQuote:
             "odds": self.odds,
             "bookmaker": self.bookmaker,
             "market_key": self.market_key,
+            **({"period": self.period} if self.period is not None else {}),
         }
 
     @classmethod
@@ -227,6 +230,7 @@ class PriceQuote:
             odds=option.get("odds", option.get("best_odds")),
             bookmaker=option.get("bookmaker"),
             market_key=option.get("market_key", option.get("key")),
+            period=option.get("period"),
         )
 
     @classmethod
@@ -237,6 +241,7 @@ class PriceQuote:
             odds=data.get("odds"),
             bookmaker=data.get("bookmaker"),
             market_key=data.get("market_key"),
+            period=data.get("period"),
         )
 
 
@@ -337,12 +342,14 @@ class Provenance:
     model_version: Optional[str] = None
     as_of: Optional[str] = None
     sources: Tuple[str, ...] = ()
+    system_version: Optional[str] = None
 
     def __post_init__(self) -> None:
         for name in ("pipeline_version", "input_snapshot_id", "generated_at"):
             value = _text(getattr(self, name), f"provenance.{name}", required=True)
             object.__setattr__(self, name, value)
         object.__setattr__(self, "model_version", _text(self.model_version, "provenance.model_version"))
+        object.__setattr__(self, "system_version", _text(self.system_version, "provenance.system_version"))
         object.__setattr__(self, "as_of", _text(self.as_of, "provenance.as_of"))
         object.__setattr__(self, "sources", tuple(
             source for source in (_text(item, "provenance.sources") for item in self.sources) if source
@@ -356,6 +363,7 @@ class Provenance:
             "model_version": self.model_version,
             "as_of": self.as_of,
             "sources": list(self.sources),
+            **({"system_version": self.system_version} if self.system_version is not None else {}),
         }
 
     @classmethod
@@ -367,6 +375,7 @@ class Provenance:
             model_version=data.get("model_version"),
             as_of=data.get("as_of"),
             sources=tuple(data.get("sources") or ()),
+            system_version=data.get("system_version"),
         )
 
 

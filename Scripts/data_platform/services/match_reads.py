@@ -68,12 +68,12 @@ def _as_utc(value: Optional[Any]) -> datetime:
     if value is None:
         return datetime.now(timezone.utc)
     if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return (value if value.tzinfo else value.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
     try:
         parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     except ValueError as exc:
         raise MatchReadValidationError("evaluated_at must be an ISO-8601 timestamp.") from exc
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    return (parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
 
 
 def _hash(payload: Mapping[str, Any]) -> str:
@@ -406,12 +406,14 @@ def _provenance_from_results(results: Sequence[Mapping[str, Any]]) -> Dict[str, 
     snapshots = []
     pipeline_versions = []
     model_versions = []
+    system_versions = []
     generated_at = []
     for index, result in enumerate(results):
         provenance = result.get("provenance") if isinstance(result.get("provenance"), Mapping) else {}
         snapshots.append(_text(provenance.get("input_snapshot_id"), f"canonical_results[{index}].provenance.input_snapshot_id"))
         pipeline_versions.append(_text(provenance.get("pipeline_version"), f"canonical_results[{index}].provenance.pipeline_version"))
         model_value = str(provenance.get("model_version") or "").strip()
+        system_versions.append(provenance.get("system_version"))
         if model_value:
             model_versions.append(model_value)
         timestamp = str(provenance.get("generated_at") or provenance.get("as_of") or "").strip()
@@ -426,6 +428,8 @@ def _provenance_from_results(results: Sequence[Mapping[str, Any]]) -> Dict[str, 
         "model_version": model_versions[0] if len(set(model_versions)) == 1 and model_versions else None,
         "generated_at": generated_at[0] if generated_at else None,
         "source_snapshot_ids": snapshots,
+        **({"system_version": system_versions[0], "source_system_versions": system_versions}
+           if system_versions and all(system_versions) and len(set(system_versions)) == 1 else {}),
     }
 
 

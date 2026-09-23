@@ -185,6 +185,7 @@ def platform_get_track_record(
     confidence: Optional[str] = None,
     source: Optional[str] = None,
     published_only: bool = False,
+    publication_scope: str = "initial",
     min_odds: Optional[float] = None,
     **_: Any,
 ) -> Dict[str, Any]:
@@ -192,6 +193,7 @@ def platform_get_track_record(
         days=days, market=market, league=league,
         confidence=confidence, source=source, published_only=published_only,
         min_odds=min_odds,
+        publication_scope=publication_scope,
     )
 
 
@@ -201,12 +203,15 @@ def platform_get_recent_predictions(
     league: Optional[str] = None,
     market: Optional[str] = None,
     published_only: bool = False,
+    publication_scope: str = "initial",
+    graded_only: bool = False,
     limit: int = 500,
     **_: Any,
 ) -> list:
     return get_prediction_service().recent(
         days=days, league=league, market=market,
         published_only=published_only, limit=limit,
+        publication_scope=publication_scope, graded_only=graded_only,
     )
 
 
@@ -214,6 +219,7 @@ def platform_get_daily_breakdown(
     *,
     target_date=None,
     published_only: bool = False,
+    publication_scope: str = "initial",
     **_: Any,
 ) -> Dict[str, Any]:
     from datetime import date as _date
@@ -226,6 +232,7 @@ def platform_get_daily_breakdown(
     return get_prediction_service().daily_breakdown(
         target_date=the_date,
         published_only=published_only,
+        publication_scope=publication_scope,
     )
 
 
@@ -233,11 +240,13 @@ def platform_get_calibration_data(
     *,
     buckets: int = 20,
     published_only: bool = False,
+    publication_scope: str = "initial",
     **_: Any,
 ) -> list:
     return get_prediction_service().calibration(
         buckets=buckets,
         published_only=published_only,
+        publication_scope=publication_scope,
     )
 
 
