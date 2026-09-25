@@ -10,6 +10,7 @@ from sqlalchemy import select, func
 from Scripts.data_platform.features.historical_recovery import build_recovery_plan, apply_recovery_plan
 from Scripts.data_platform.models import Competition, Fixture, FixtureTeamStats, Team
 from Scripts.ops import prediction_history as history_ops
+from Scripts.team_stat_export import EVIDENCE_KEY, export_statistics
 
 
 def inputs():
@@ -38,6 +39,47 @@ def test_null_filled_zeros_are_unknown_but_scores_keep_true_zero():
     assert entry["stats"][0]["yellow_cards"] == 1
     assert entry["stats"][0]["possession"] == 0.5
     assert entry["api_row"]["goals"]["home"] == 0
+
+
+def test_new_export_keeps_evidenced_zero_but_not_unknown_cards(session_factory, settings):
+    from Scripts.data_platform.features.model_dataset import load_canonical_inputs
+    meta, rows = inputs()
+    for team_id, row in enumerate(rows["EPL"], 1):
+        row.update(export_statistics({"team": {"id": team_id}, "statistics": [
+            {"type": "Red Cards", "value": 0},
+            {"type": "Yellow Cards", "value": 0 if team_id == 1 else None},
+        ]}, 123))
+    prepared = plan(meta, rows)
+    assert [r["red_cards"] for r in prepared["entries"][0]["stats"]] == [0, 0]
+    assert [r["yellow_cards"] for r in prepared["entries"][0]["stats"]] == [0, None]
+    with session_factory() as session:
+        session.add(Competition(code="EPL", name="Premier League", api_football_id=39))
+        session.flush()
+        apply_recovery_plan(session, prepared)
+        for row in session.scalars(select(FixtureTeamStats)):
+            assert row.stats_json["_history_recovery"]["statistics_evidence"]
+    _, history, _ = load_canonical_inputs(Path(settings.database_url.removeprefix("sqlite:///")))
+    assert history[0]["home"]["cards"] == 0
+    assert history[0]["away"]["cards"] is None
+
+
+def test_new_export_evidence_does_not_certify_unrecorded_legacy_zeros():
+    meta, rows = inputs()
+    for team_id, row in enumerate(rows["EPL"], 1):
+        row.update(export_statistics({"team": {"id": team_id}, "statistics": [
+            {"type": "Yellow Cards", "value": 1},
+        ]}, 123))
+    result = plan(meta, rows)
+    assert all(s["red_cards"] is None for s in result["entries"][0]["stats"])
+
+
+def test_mismatched_export_identity_quarantines_statistics():
+    meta, rows = inputs()
+    rows["EPL"][0].update(export_statistics({"team": {"id": 999}, "statistics": [
+        {"type": "Red Cards", "value": 0},
+    ]}, 123))
+    result = plan(meta, rows)
+    assert result["entries"][0]["stats"] == [{}, {}]
 
 
 @pytest.mark.parametrize("mutation", ["name", "score", "date", "duplicate", "side"])

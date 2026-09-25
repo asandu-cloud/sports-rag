@@ -484,7 +484,7 @@ def cmd_kb_refresh(args) -> int:
         upserter = lambda _docs: 0  # noqa: E731
     stats = refresh_kb(batch_size=args.batch_size, chroma_upserter=upserter, dry_run=args.dry_run)
     print(json.dumps(stats, indent=2))
-    return 0
+    return 1 if stats.get("error_count") or (not args.dry_run and stats.get("pending_embed")) else 0
 
 
 def cmd_kb_enqueue_all(args) -> int:

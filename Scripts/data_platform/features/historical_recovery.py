@@ -3,7 +3,8 @@
 Legacy exports dropped provider team IDs and changed null statistics to zero.
 Only an independently supplied API fixture list can recover identities. Exact
 names are used *inside that identified fixture*, never as global team identity.
-Exported zero statistics remain unknown; actual API score zeros are retained.
+Old exported zero statistics remain unknown; new exports can retain explicit
+zeros with matching per-team provider evidence. API score zeros are retained.
 """
 from __future__ import annotations
 
@@ -12,6 +13,8 @@ from datetime import datetime, timezone
 import math
 
 from sqlalchemy import select
+
+from Scripts.team_stat_export import EVIDENCE_KEY, verified_export_values
 
 from ..models import Competition, Fixture, FixtureTeamStats, Season, Team
 from ..sync.apifootball import COMPETITIONS
@@ -82,6 +85,9 @@ def recover_statistics(rows, api_row):
     values, warnings = [], []
     for name in names:
         row = paired[name]
+        side = "home" if name == names[0] else "away"
+        evidenced = verified_export_values(row, fixture_id=api_row["fixture"]["id"],
+                                          team_id=api_row["teams"][side]["id"])
         if [row.get("home_team"), row.get("away_team")] != names:
             raise ValueError("Legacy home/away mismatch")
         if _parse_dt(row.get("fixture_date_utc")) != _parse_dt(api_row["fixture"]["date"]):
@@ -91,7 +97,7 @@ def recover_statistics(rows, api_row):
         stats = {}
         for key, column in _STAT_KEY_MAP.items():
             n = numeric(row.get(key))
-            if n == 0:
+            if n == 0 and evidenced.get(key) != 0:
                 warnings.append("ambiguous_zero:" + column)
                 n = None
             elif n is not None and ((column != "goals_prevented" and n < 0)
@@ -138,6 +144,9 @@ def build_recovery_plan(metadata, legacy, *, season, sources, as_of=None):
                     partial += 1
                 entries.append({"league": code, "season": season, "api_row": row,
                                 "stats": stats, "source": sources[code]})
+                evidence = [r[EVIDENCE_KEY] for r in grouped.get(fid, []) if r.get(EVIDENCE_KEY)]
+                if evidence and all(stats):
+                    entries[-1]["statistics_evidence"] = evidence
             except (ValueError, KeyError, TypeError) as exc:
                 excluded.append({"league": code, "fixture_id": fid, "reason": str(exc), "scope": "fixture"})
         provider_ids = {r.get("fixture", {}).get("id") for r in fixtures}
@@ -203,6 +212,9 @@ def apply_recovery_plan(session, plan):
             values = entry["stats"][index]
             provenance = {"source": entry["source"], "prepared_at": plan["prepared_at"],
                           "zero_policy": "legacy_zero_is_unknown", "source_kind": "legacy_team_export_verified_fixture"}
+            if entry.get("statistics_evidence"):
+                provenance["statistics_evidence"] = entry["statistics_evidence"]
+                provenance["zero_policy"] = "explicit_provider_zero_or_unknown"
             session.add(FixtureTeamStats(
                 fixture_id=fixture.id, team_id=teams[index].id, opponent_team_id=teams[1-index].id,
                 is_home=index == 0, goals=int(row["goals"][side]), **values,

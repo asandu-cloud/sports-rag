@@ -19,15 +19,13 @@ from typing import Any, Dict, Iterable, List, Optional
 
 import requests
 
+from Scripts.football_http import ApiFootballResponseError, get_json, validate_stat_blocks
+
 from ..config import SETTINGS, Settings
 
 logger = logging.getLogger(__name__)
 
 API_BASE = "https://v3.football.api-sports.io"
-
-
-class ApiFootballResponseError(RuntimeError):
-    """HTTP success does not imply a successful API-Football request."""
 
 
 @dataclass(frozen=True)
@@ -102,32 +100,11 @@ class ApiFootballClient:
 
     def _get(self, path: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         url = f"{API_BASE}{path}"
-        last_err: Optional[Exception] = None
-        for attempt in range(3):
-            try:
-                resp = self.session.get(url, params=params or {}, timeout=30)
-                if resp.status_code == 429:
-                    backoff = 2 ** attempt
-                    logger.warning("API-Football 429 (attempt %s); sleeping %ss", attempt + 1, backoff)
-                    time.sleep(backoff)
-                    continue
-                resp.raise_for_status()
-                data = resp.json()
-                if not isinstance(data, dict) or not isinstance(data.get("response"), list):
-                    raise ApiFootballResponseError(f"API-Football {path} returned an invalid response envelope")
-                if data.get("errors"):
-                    # Quota/auth/parameter errors often arrive as HTTP 200.
-                    # Never turn these into a successful empty schedule.
-                    raise ApiFootballResponseError(f"API-Football {path}: {data['errors']}")
-                if self.request_pause_s:
-                    time.sleep(self.request_pause_s)
-                return data
-            except ApiFootballResponseError:
-                raise
-            except Exception as exc:  # pragma: no cover - network path
-                last_err = exc
-                time.sleep(0.5 + attempt)
-        raise RuntimeError(f"API-Football GET {path} failed after retries: {last_err}")
+        data = get_json(url, params=params, session=self.session)
+        validate_stat_blocks(data, path, params=params)
+        if self.request_pause_s:
+            time.sleep(self.request_pause_s)
+        return data
 
     # ------------------------------------------------------------------
     # Endpoints

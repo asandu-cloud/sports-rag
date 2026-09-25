@@ -24,6 +24,8 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Callable, Iterable, List, Optional, Sequence, Tuple
 
+from Scripts.refresh_runtime import positive_seconds, run_bounded
+
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -246,13 +248,14 @@ def build_refresh_plan(
     return plan
 
 
-def _run_command(command: Sequence[str], *, runner: Runner) -> object:
+def _run_command(command: Sequence[str], *, runner: Runner, timeout: float = 7200) -> object:
     """Run a child command from repository root (small seam for test fakes)."""
     kwargs = {}
     descriptor = os.environ.get("BETTING_REFRESH_LOCK_FD")
     if descriptor is not None:
         kwargs["pass_fds"] = (int(descriptor),)
-    return runner(list(command), cwd=str(ROOT), check=False, **kwargs)
+    bounded_runner = run_bounded if runner is subprocess.run else runner
+    return bounded_runner(list(command), cwd=str(ROOT), check=False, timeout=timeout, **kwargs)
 
 
 def execute_refresh_plan(
@@ -290,10 +293,11 @@ def execute_refresh_plan(
         return report
 
     for stage in stages:
-        print(f"\n[refresh-season] RUN {stage.name}: {' '.join(stage.command)}", flush=True)
+        timeout = positive_seconds("REFRESH_STAGE_TIMEOUT_SECONDS", 7200)
+        print(f"\n[refresh-season] RUN {stage.name} (deadline {timeout:g}s): {' '.join(stage.command)}", flush=True)
         started = monotonic()
         try:
-            completed = _run_command(stage.command, runner=runner)
+            completed = _run_command(stage.command, runner=runner, timeout=timeout)
             return_code = getattr(completed, "returncode", None)
             if not isinstance(return_code, int):
                 raise RuntimeError("child runner returned no integer return code")

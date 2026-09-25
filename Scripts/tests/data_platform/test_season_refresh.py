@@ -160,3 +160,21 @@ def test_dry_run_never_invokes_a_child_process():
     assert report.succeeded is True
     assert report.stages[0].status == "not_run"
     assert report.as_dict()["restart_long_lived_workers"] is False
+
+
+def test_timeout_fails_stage_without_running_any_later_stage(monkeypatch):
+    import subprocess
+    from data_platform.season_refresh import RefreshStage, execute_refresh_plan
+    monkeypatch.setenv("REFRESH_STAGE_TIMEOUT_SECONDS", "15")
+    calls = []
+    def timeout_runner(command, **kwargs):
+        calls.append(command)
+        assert kwargs["timeout"] == 15
+        raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+    report = execute_refresh_plan(
+        [RefreshStage("download", ("download",)), RefreshStage("publish", ("publish",))],
+        season=2026, competitions=["EPL"], runner=timeout_runner,
+    )
+    assert not report.succeeded and report.failed_stage == "download"
+    assert len(calls) == 1
+    assert report.stages[0].status == "failed"

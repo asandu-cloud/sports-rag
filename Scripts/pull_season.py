@@ -26,6 +26,8 @@ from pathlib import Path
 from typing import Iterable, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from Scripts.refresh_runtime import positive_seconds, run_bounded
 
 # ---- Script registry: league → scripts ----
 LEAGUES = {
@@ -84,8 +86,13 @@ LEAGUES = {
 
 def run_command(command: Sequence[str], label: str) -> bool:
     """Run one child stage and make failures visible to the caller."""
-    print(f"  [RUN] {label}: {' '.join(command)}")
-    result = subprocess.run(command, cwd=str(ROOT))
+    timeout = positive_seconds("REFRESH_CHILD_TIMEOUT_SECONDS", 1800)
+    print(f"  [RUN] {label} (deadline {timeout:g}s): {' '.join(command)}", flush=True)
+    try:
+        result = run_bounded(command, cwd=str(ROOT), timeout=timeout)
+    except (subprocess.TimeoutExpired, InterruptedError) as exc:
+        print(f"  [FAIL] {label}: {type(exc).__name__}; refresh remains incomplete", flush=True)
+        return False
     if result.returncode != 0:
         print(f"  [FAIL] {label} exited with code {result.returncode}")
         return False

@@ -53,7 +53,7 @@ def _locked_file(path, mode, deadline):
 
 
 @contextmanager
-def data_access(*, writer=False, full_refresh=False, wait_seconds=0):
+def _data_access(*, writer=False, full_refresh=False, wait_seconds=0):
     lock_path, incomplete = _paths()
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     # refresh-season passes its descriptor explicitly to its child commands.
@@ -89,7 +89,9 @@ def data_access(*, writer=False, full_refresh=False, wait_seconds=0):
                 os.environ["BETTING_REFRESH_LOCK_FD"] = str(handle.fileno())
                 Path(str(lock_path) + ".generation").write_text(uuid4().hex)
             if full_refresh:
-                incomplete.write_text("Full refresh in progress or interrupted; rerun refresh-season.\n")
+                # Keep the age of an interrupted refresh across retries.
+                if not incomplete.exists():
+                    incomplete.write_text("Full refresh in progress or interrupted; rerun refresh-season.\n")
             yield
             if full_refresh:
                 incomplete.unlink(missing_ok=True)
@@ -99,3 +101,20 @@ def data_access(*, writer=False, full_refresh=False, wait_seconds=0):
                     os.environ.pop("BETTING_REFRESH_LOCK_FD", None)
                 else:
                     os.environ["BETTING_REFRESH_LOCK_FD"] = previous
+
+
+@contextmanager
+def data_access(*, writer=False, full_refresh=False, wait_seconds=0):
+    from .refresh_alerts import observe_gate
+    _, marker = _paths()
+    try:
+        with _data_access(writer=writer, full_refresh=full_refresh, wait_seconds=wait_seconds):
+            if not writer and not marker.exists():
+                observe_gate(marker, blocked=False)
+            yield
+    except RefreshBusy:
+        observe_gate(marker, blocked=True)
+        raise
+    else:
+        if full_refresh and not marker.exists():
+            observe_gate(marker, blocked=False)

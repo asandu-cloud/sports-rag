@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import date
@@ -35,6 +36,8 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+from Scripts.football_http import get_json
 OUTPUT_DIR = ROOT / "Output"
 PROFILES_PATH = ROOT / "Index" / "referee_profiles.json"
 FIXTURE_REFEREE_DETAIL_PATH = ROOT / "Index" / "fixture_referee_detail.json"
@@ -119,10 +122,12 @@ def _api_football_key() -> Optional[str]:
     return None
 
 
-def _api_get(endpoint: str, params: dict) -> Optional[list]:
+def _api_get(endpoint: str, params: dict, *, required=False) -> Optional[list]:
     """Call API-Football. Returns the 'response' list or None on failure."""
     key = _api_football_key()
     if not key:
+        if required:
+            raise RuntimeError("API-Football key missing; refusing partial referee rebuild")
         global _api_key_warned
         if not _api_key_warned:
             print("[referee_data] Warning: API-FOOTBALL-KEY not set. Referee features disabled.")
@@ -131,14 +136,11 @@ def _api_get(endpoint: str, params: dict) -> Optional[list]:
     url = f"{API_FOOTBALL_BASE}{endpoint}"
     headers = {"x-apisports-key": key}
     try:
-        r = requests.get(url, headers=headers, params=params, timeout=25)
-        if r.status_code != 200:
-            print(f"[referee_data] API-Football HTTP {r.status_code}: {(r.text or '')[:200]}")
-            return None
-        data = r.json()
-        return data.get("response", [])
+        return get_json(url, headers=headers, params=params)["response"]
     except Exception as exc:
-        print(f"[referee_data] API-Football request failed: {exc}")
+        if required:
+            raise
+        print(f"[referee_data] API-Football request failed: {type(exc).__name__}")
         return None
 
 
@@ -247,7 +249,7 @@ def fetch_completed_fixtures(league_id: int, season: int = SEASON) -> List[dict]
         "league": league_id,
         "season": season,
         "status": "FT",
-    })
+    }, required=True)
     return result or []
 
 

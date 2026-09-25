@@ -1,7 +1,6 @@
 # UECL players per gw
 
 import argparse
-import requests
 import json
 import pandas as pd
 from pathlib import Path
@@ -9,6 +8,10 @@ from datetime import datetime
 import time
 from dotenv import load_dotenv
 import os
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from Scripts.football_http import legacy_json, preserve_fixture_coverage
 
 load_dotenv()
 API_KEY = os.getenv('API-FOOTBALL-KEY')
@@ -27,8 +30,7 @@ def get_fixture_info():
     headers = {"x-apisports-key": API_KEY}
     params = {"league": LEAGUE_ID, "season": SEASON, "status": "FT"}
 
-    response = requests.get(url, headers=headers, params=params)
-    data = response.json()
+    data = legacy_json(url, headers=headers, params=params)
 
     fixture_map = {}
     for f in data.get("response", []):
@@ -47,8 +49,7 @@ def fetch_fixture_player_stats(fixture_id, fixture_map):
     headers = {"x-apisports-key": API_KEY}
     params = {"fixture": fixture_id}
 
-    r = requests.get(url, headers=headers, params=params)
-    data = r.json()
+    data = legacy_json(url, headers=headers, params=params)
     response = data.get("response", [])
     players = []
 
@@ -134,6 +135,7 @@ def fetch_all_fixtures():
             all_players.extend(fixture_players)
         except Exception as e:
             print(f"⚠️ Error fetching fixture {fid}: {e}")
+            raise  # Never save a partial season after a failed download.
         time.sleep(0.5)  # avoid hitting rate limit
         if i % 10 == 0:
             print(f"Progress: {i}/{len(fixture_ids)} fixtures processed")
@@ -327,6 +329,8 @@ def save_outputs(per_fixture_df, total_df):
 def main():
     start = datetime.now()
     all_players = fetch_all_fixtures()
+    preserve_fixture_coverage(all_players, OUTPUT_DIR,
+                              f"*player_fixture_stats_{SEASON}.json")
     per_fixture_df, total_df = aggregate_player_totals(all_players)
     clustered_players = cluster_player_performances(all_players)
 

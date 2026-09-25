@@ -1,7 +1,6 @@
 # UCL Statistics for teams
 
 import argparse
-import requests
 import json
 import pandas as pd
 from pathlib import Path
@@ -9,6 +8,11 @@ from datetime import datetime
 import time
 from dotenv import load_dotenv
 import os
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from Scripts.football_http import legacy_json, preserve_fixture_coverage
+from Scripts.team_stat_export import EVIDENCE_KEY, export_statistics
 
 # --- CONFIGURATION ---
 load_dotenv()
@@ -33,8 +37,7 @@ def get_fixture_info():
         "status": "FT",  # finished matches only
     }
 
-    response = requests.get(url, headers=headers, params=params)
-    data = response.json()
+    data = legacy_json(url, headers=headers, params=params)
     fixture_map = {}
 
     for f in data.get("response", []):
@@ -80,14 +83,12 @@ def fetch_fixture_team_stats(fixture_id, fixture_info):
     headers = {"x-apisports-key": API_KEY}
     params = {"fixture": fixture_id}
 
-    response = requests.get(url, headers=headers, params=params)
-    data = response.json()
+    data = legacy_json(url, headers=headers, params=params)
 
     teams_data = []
 
     for entry in data.get("response", []):
         team_name = entry.get("team", {}).get("name")
-        stats_list = entry.get("statistics", [])
 
         # ✅ Start with fixture context (score, teams, date, etc.)
         team_stats = {
@@ -108,22 +109,7 @@ def fetch_fixture_team_stats(fixture_id, fixture_info):
         }
 
         # Attach stat metrics (possession, shots, corners, etc.)
-        for stat in stats_list:
-            key = stat.get("type")
-            value = stat.get("value")
-
-            # Convert percentages like "62%" -> 0.62
-            if isinstance(value, str) and "%" in value:
-                try:
-                    value = float(value.replace("%", "")) / 100.0
-                except:
-                    value = None
-
-            # Normalize None -> 0 for numeric stats; keep None for weird text fields if any
-            if value is None:
-                value = 0
-
-            team_stats[key] = value
+        team_stats.update(export_statistics(entry, fixture_id))
 
         teams_data.append(team_stats)
 
@@ -145,6 +131,7 @@ def fetch_all_team_fixtures():
             all_team_stats.extend(team_stats)
         except Exception as e:
             print(f"⚠️ Error fetching fixture {fid}: {e}")
+            raise  # Never save a partial season after a failed download.
 
         time.sleep(0.5)
         if i % 10 == 0:
@@ -171,7 +158,7 @@ def aggregate_team_stats(team_fixture_data):
     ]
 
     for col in df.columns:
-        if col not in string_cols:
+        if col != EVIDENCE_KEY and col not in string_cols:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
     # --- 1) Team 'for' averages (their own stats per match)
@@ -241,6 +228,8 @@ def save_team_outputs(per_fixture_df, aggregate_df):
 def main():
     start = datetime.now()
     all_team_stats = fetch_all_team_fixtures()
+    preserve_fixture_coverage(all_team_stats, OUTPUT_DIR,
+                              f"*team_fixture_stats_{SEASON}.json")
     per_fixture_df, aggregate_df = aggregate_team_stats(all_team_stats)
     save_team_outputs(per_fixture_df, aggregate_df)
     print(f"⏱️ Completed in {(datetime.now() - start).seconds} seconds")

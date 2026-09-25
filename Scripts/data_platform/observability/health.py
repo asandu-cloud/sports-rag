@@ -65,6 +65,22 @@ def _severity_to_status(severity: str) -> str:
 def build_health_report(*, include_data_quality: bool = True) -> HealthReport:
     report = HealthReport(status="ok")
 
+    from ..services.refresh_alerts import blockage_status
+    from ..services.refresh_coordination import _paths
+    try:
+        blockage = blockage_status(_paths()[1])
+        if blockage["prolonged"]:
+            # A warning keeps the post-refresh health stage from deadlocking
+            # its own successful recovery. Readers still respect the gate.
+            report.signals.append(HealthSignal(
+                name="prolonged_refresh_blockage", status="warn",
+                message="Refresh gate has blocked workers longer than the configured threshold.",
+                details=blockage,
+            ))
+            report.status = "warn"
+    except RuntimeError:
+        pass  # Local gate is not used for non-SQLite deployments.
+
     # Pull high-level counts first
     with session_scope() as session:
         from ..models import KBDocument, Prediction, LiveFixture
