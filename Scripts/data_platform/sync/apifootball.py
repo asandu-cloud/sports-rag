@@ -144,6 +144,10 @@ class ApiFootballClient:
         data = self._get("/fixtures", params=params)
         return data.get("response", []) or []
 
+    def fixture(self, fixture_id: int) -> List[Dict[str, Any]]:
+        """Resolve a stable fixture ID without a publication-date/season filter."""
+        return self._get("/fixtures", params={"id": fixture_id})["response"]
+
     def fixture_statistics(self, fixture_id: int) -> List[Dict[str, Any]]:
         data = self._get("/fixtures/statistics", params={"fixture": fixture_id})
         return data.get("response", []) or []

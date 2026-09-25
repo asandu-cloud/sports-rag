@@ -280,6 +280,69 @@ def cmd_match_read_cycle(args) -> int:
     return 1 if report.errors else 0
 
 
+def cmd_settlement_recovery(args) -> int:
+    from pathlib import Path
+    from uuid import uuid4
+    from datetime import datetime, timedelta, timezone
+    from .services.historical_settlement import HistoricalSettlementRecovery, SavedProviderEvidence
+    from .services.measurement_runtime import MeasurementRuntime, CONTROL, BudgetExceeded
+    from .services.measurement_cycle import LEASE
+    from .repositories.match_read_cycle import MatchReadCycleRepository
+    from .services.refresh_coordination import data_access, RefreshBusy
+    if not args.apply_plan:
+        cutoff = args.cutoff
+        if cutoff is None:
+            cutoff = MeasurementRuntime().state(CONTROL).get("after_recommendation_id")
+        if cutoff is None:
+            raise ValueError("Specify --cutoff or activate prospective measurement first")
+        recovery = HistoricalSettlementRecovery(evidence=SavedProviderEvidence(args.evidence_directory))
+        plan = recovery.plan(cutoff=int(cutoff))
+        args.plan_out.parent.mkdir(parents=True, exist_ok=True)
+        with args.plan_out.open("x") as handle:
+            json.dump(plan, handle, indent=2)
+        print(json.dumps({k: v for k, v in plan.items() if k != "entries"}, indent=2))
+        return 0
+    plan = json.loads(args.apply_plan.read_text())
+    recovery = HistoricalSettlementRecovery(evidence=SavedProviderEvidence(plan["evidence_directory"]))
+    leases, owner = MatchReadCycleRepository(), uuid4().hex
+    now = datetime.now(timezone.utc)
+    try:
+        with data_access():
+            if not leases.acquire_lease(lease_key=LEASE, owner_id=owner, ttl_seconds=120, now=now):
+                raise RefreshBusy("Measurement worker is active; retry recovery later")
+            def guard():
+                instant = datetime.now(timezone.utc)
+                if instant >= now + timedelta(seconds=50) or not leases.owns_lease(lease_key=LEASE, owner_id=owner, now=instant):
+                    raise BudgetExceeded("Recovery lease/deadline expired; resume with the same plan")
+            try:
+                report = recovery.apply(plan, guard=guard)
+            finally:
+                leases.release_lease(lease_key=LEASE, owner_id=owner)
+        print(json.dumps(report, indent=2))
+        return int(bool(report["counts"].get("conflict")))
+    except RefreshBusy as exc:
+        print(json.dumps({"status": "deferred", "reason": str(exc), "api_calls": 0, "writes": 0}))
+        return 1
+
+
+def cmd_measurement(args) -> int:
+    from .services.measurement_runtime import MeasurementRuntime
+    runtime = MeasurementRuntime()
+    if args.command == "measurement-status":
+        result = runtime.status()
+    elif args.command == "measurement-enable":
+        result = runtime.activate()
+    elif args.command == "measurement-disable":
+        runtime.deactivate()
+        result = runtime.status()
+    else:
+        from .services.measurement_cycle import run_measurement_cycle
+        kinds = ("settlement",) if args.settlement_only else ("closing",) if args.closing_only else ("closing", "settlement")
+        result = run_measurement_cycle(dry_run=args.dry_run, kinds=kinds)
+    print(json.dumps(result, indent=2, default=str))
+    return int(bool(result.get("errors")) or result.get("status") == "error")
+
+
 def _match_read_run_summary(run: Any) -> dict:
     fixtures = []
     for item in run.fixtures:
@@ -818,6 +881,30 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-executor", action="store_true", help="Skip calling the executor")
     p.set_defaults(func=cmd_replay)
 
+    for name, help_text in (
+        ("measurement-cycle", "One bounded prospective settlement/closing-price cycle"),
+        ("measurement-status", "Inspect measurement runs, request budget and worker health"),
+        ("measurement-enable", "Enable prospective measurement; preserve existing historical rows"),
+        ("measurement-disable", "Pause automatic measurement without deleting history"),
+    ):
+        p = sub.add_parser(name, help=help_text)
+        _add_common_args(p)
+        if name == "measurement-cycle":
+            p.add_argument("--once", action="store_true", required=True)
+            p.add_argument("--dry-run", action="store_true", help="Offline plan: no provider calls or writes")
+            group = p.add_mutually_exclusive_group()
+            group.add_argument("--settlement-only", action="store_true")
+            group.add_argument("--closing-only", action="store_true")
+        p.set_defaults(func=cmd_measurement)
+
+    p = sub.add_parser("settlement-recovery", help="Plan or apply explicit offline historical settlement recovery")
+    mode = p.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--plan-out", type=Path, help="Create a new reviewable JSON plan; no writes to predictions")
+    mode.add_argument("--apply-plan", type=Path, help="Apply only unchanged rows from an approved plan")
+    p.add_argument("--cutoff", type=int, help="Maximum historical recommendation ID; defaults to activation cutoff")
+    p.add_argument("--evidence-directory", type=Path, help="Checksum-verified diagnostic response directory")
+    p.set_defaults(func=cmd_settlement_recovery)
+
     return parser
 
 
@@ -837,6 +924,16 @@ def main(argv: Optional[List[str]] = None) -> int:
                 result = args.func(args)
                 if result:
                     raise RefreshBusy(f"{args.command} exited with code {result}; check the refresh report before retrying.")
+                if args.command in {"refresh", "refresh-season"}:
+                    # The prospective activation gate prevents historical
+                    # backfill. Scheduled retries remain independent of Discord.
+                    from .services.measurement_cycle import run_measurement_cycle
+                    try:
+                        measurement = run_measurement_cycle(kinds=("settlement",))
+                        if measurement.get("errors"):
+                            logger.warning("Result ingestion succeeded; measurement needs review: %s", measurement)
+                    except Exception:
+                        logger.exception("Result ingestion succeeded; measurement hook failed")
                 return result
         except RefreshBusy as exc:
             logger.error("%s", exc)

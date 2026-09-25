@@ -82,6 +82,10 @@ def watermark_metrics(*, stale_after_minutes: int = 120) -> Dict[str, Any]:
     total = len(rows)
     stale = []
     for row in rows:
+        if row.scope.startswith(("prediction_measurement:", "measurement:")):
+            # Budgets/retry ledgers are not upstream ingestion watermarks.
+            # Their freshness and pending state have a dedicated health signal.
+            continue
         last = row.last_successful_at
         if last is None:
             stale.append({"scope": row.scope, "last_successful_at": None})

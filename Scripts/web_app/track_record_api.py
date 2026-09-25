@@ -25,7 +25,7 @@ _RAG_INGEST = os.path.join(_PROJECT_ROOT, "Scripts", "rag_ingest")
 if _RAG_INGEST not in sys.path:
     sys.path.insert(0, _RAG_INGEST)
 
-from fastapi import APIRouter, FastAPI, Query
+from fastapi import APIRouter, FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from prediction_tracker import get_track_record, get_recent_predictions
@@ -66,14 +66,49 @@ class DailyEntry(BaseModel):
     total: int
     hits: int
     hit_rate: float
+    half_hits: int = 0
+    misses: int = 0
+    half_misses: int = 0
+    pushes: int = 0
+    voids: int = 0
+    win_units: float = 0.0
+    resolved_units: float = 0.0
+    roi_flat_stake: float = 0.0
+    stake_units: float = 0.0
+    date_basis: str = "publication_date"
+    product_rule_settlements: int = 0
+    participation_card_settlements: int = 0
+    settlement_policy_note: Optional[str] = None
 
 
 class TrackRecordResponse(BaseModel):
     publication_scope: Optional[str] = None
     total_graded: int = 0
     hits: int = 0
+    half_hits: int = 0
     misses: int = 0
+    half_misses: int = 0
     pushes: int = 0
+    voids: int = 0
+    unknown_outcomes: int = 0
+    total_recommendations: int = 0
+    pending_count: int = 0
+    pending_reasons: dict = Field(default_factory=dict)
+    oldest_pending_kickoff: Optional[str] = None
+    has_settled_sample: bool = False
+    hit_rate_definition: Optional[str] = None
+    roi_definition: Optional[str] = None
+    product_rule_settlements: int = 0
+    participation_card_settlements: int = 0
+    settlement_policy_note: Optional[str] = None
+    win_units: float = 0.0
+    resolved_units: float = 0.0
+    stake_units: float = 0.0
+    returned_units: float = 0.0
+    profit_units: float = 0.0
+    avg_clv: Optional[float] = None
+    clv_positive_rate: Optional[float] = None
+    clv_sample_size: int = 0
     hit_rate: float = 0.0
     roi_flat_stake: float = 0.0
     by_confidence: dict = Field(default_factory=dict)
@@ -120,6 +155,11 @@ class PredictionEntry(BaseModel):
     match_read_versions: list[dict] = Field(default_factory=list)
     missing_identity_fields: list[str] = Field(default_factory=list)
     card_definition_status: Optional[str] = None
+    settlement: Optional[dict] = None
+    settlement_policy: Optional[dict] = None
+    closing_capture: Optional[dict] = None
+    closing_odds: Optional[float] = None
+    clv: Optional[float] = None
 
 
 # ---------------------------------------------------------------------------
@@ -148,7 +188,7 @@ async def track_record(
         publication_scope=publication_scope,
     )
     if "error" in stats:
-        return TrackRecordResponse()
+        raise HTTPException(status_code=503, detail="Official tracking data is temporarily unavailable")
     return TrackRecordResponse(**stats)
 
 
@@ -170,7 +210,7 @@ async def daily_performance(
         publication_scope=publication_scope,
     )
     if "error" in stats:
-        return []
+        raise HTTPException(status_code=503, detail="Official tracking data is temporarily unavailable")
     return [DailyEntry(**d) for d in stats.get("daily_performance", [])]
 
 
@@ -179,6 +219,7 @@ async def recent_predictions(
     publication_scope: Literal["initial", "amendments", "all"] = Query("initial"),
     limit: int = Query(20, description="Number of predictions to return", ge=1, le=100),
     league: Optional[str] = Query(None, description="Filter to one league"),
+    graded_only: bool = Query(True, description="Set false to include pending recommendations and reasons"),
     official_only: bool = Query(
         True,
         description="Use only recommendations actually released to users",
@@ -188,7 +229,7 @@ async def recent_predictions(
     preds = get_recent_predictions(
         limit=limit,
         league=league,
-        graded_only=True,
+        graded_only=graded_only,
         published_only=official_only,
         publication_scope=publication_scope,
     )
@@ -214,15 +255,26 @@ async def recent_predictions(
                 outcome=p.get("outcome"),
                 prediction_date=p.get("prediction_date"),
                 created_at=p.get("created_at"),
+                settlement={k: v for k, v in (p.get("settlement") or {}).items() if k in {
+                    "status", "pending_reason", "first_checked_at", "last_checked_at", "attempts", "policy_version", "basis",
+                }} or None,
+                settlement_policy={k: v for k, v in (p.get("settlement_policy") or {}).items() if k in {
+                    "version", "basis", "period", "void_statuses", "card_market_key", "card_count", "card_eligibility",
+                }} or None,
+                closing_capture={k: v for k, v in (p.get("closing_capture") or {}).items() if k in {
+                    "status", "odds", "quote_time", "quote_time_source", "captured_at", "finalized_at", "clv_definition",
+                }} or None,
                 **{key: p[key] for key in (
                     "tracking_cohort", "publication_role", "recommendation_id", "fixture_date",
                     "publication_date", "published_at", "market_key", "market_period", "system_version",
                     "pipeline_version", "model_version", "input_snapshot_id", "selection_key",
                     "match_read_ids", "match_read_versions", "missing_identity_fields", "card_definition_status",
+                    "closing_odds", "clv",
                 ) if key in p},
             ))
-        except Exception:
-            continue
+        except Exception as exc:
+            log.warning("Invalid tracking record %s: %s", p.get("id"), type(exc).__name__)
+            raise HTTPException(status_code=503, detail="Tracking records require review") from exc
     return result
 
 

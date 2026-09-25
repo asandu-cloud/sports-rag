@@ -35,7 +35,7 @@ def test_shared_metrics_support_legacy_aliases_and_asian_outcomes():
         "recent_streak", "best_streak", "daily_performance",
     }.issubset(record)
     assert record["total_graded"] == 6
-    assert (record["hits"], record["half_hits"], record["misses"], record["half_misses"], record["pushes"]) == (1, 1, 1, 1, 2)
+    assert (record["hits"], record["half_hits"], record["misses"], record["half_misses"], record["pushes"], record["voids"]) == (1, 1, 1, 1, 1, 1)
     assert record["hit_rate"] == pytest.approx(0.5)
     assert record["roi_flat_stake"] == pytest.approx(0.0)
     assert record["recent_streak"] == -1
@@ -64,44 +64,25 @@ def test_platform_daily_breakdown_uses_the_discord_recap_contract(pred_repo):
     assert breakdown["notable_hits"][0]["pick"] == "Over 2.5"
 
 
-def test_platform_resolver_requests_results_with_date_then_league(monkeypatch):
+def test_platform_resolver_delegates_cutoff_and_dry_run_without_legacy_date_fetch(monkeypatch):
     rag_ingest = Path(__file__).resolve().parents[2] / "rag_ingest"
     if str(rag_ingest) not in sys.path:
         sys.path.insert(0, str(rag_ingest))
     import prediction_tracker as tracker
     import data_platform.compat as compat
 
-    fetched = []
-    marked = []
+    calls = []
     monkeypatch.setattr(tracker, "_platform_on", lambda: True)
-    monkeypatch.setattr(
-        compat,
-        "platform_get_unresolved_for_grading",
-        lambda **_: [{
-            "id": 99, "prediction_date": "2026-09-01", "league": "EPL",
-            "home_team": "A", "away_team": "B", "market": "goals",
-        }],
-    )
-    monkeypatch.setattr(
-        tracker,
-        "_fetch_results_from_api",
-        lambda prediction_date, league=None: fetched.append((prediction_date, league)) or [{"fixture_id": "1"}],
-    )
-    monkeypatch.setattr(tracker, "_match_prediction_to_result", lambda *_: {"goals_home": 2, "goals_away": 1})
-    monkeypatch.setattr(tracker, "_grade_prediction", lambda *_: ("hit", 3))
-    monkeypatch.setattr(
-        compat,
-        "platform_mark_outcome",
-        lambda prediction_id, **kwargs: marked.append((prediction_id, kwargs)) or True,
-    )
-
-    result = tracker._maybe_platform_resolve({
-        "prediction_date": "2026-09-01", "league": None, "db_path": tracker.DB_PATH,
-    })
-    assert fetched == [("2026-09-01", "EPL")]
-    assert marked == [(99, {"outcome": "hit", "actual_result": 3})]
-    assert result["graded"] == 1
-    assert result["hit"] == 1
+    class Service:
+        def resolve(self, **kwargs):
+            calls.append(kwargs)
+            return {"graded": 0, "would_grade": 1, "backend": "platform"}
+    monkeypatch.setattr(compat, "get_prediction_service", lambda: Service())
+    monkeypatch.setattr(tracker, "_get_db", lambda *_: pytest.fail("must not open legacy DB"))
+    result = tracker.resolve_outcomes("2026-09-01", league="EPL", dry_run=True)
+    assert calls == [{"on_or_before": "2026-09-01", "league": "EPL", "dry_run": True}]
+    assert result["would_grade"] == 1
+    assert result["backend"] == "platform"
 
 
 def _published_market_result() -> dict:

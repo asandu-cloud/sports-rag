@@ -8,8 +8,8 @@ identical while the storage backend changes.
 from __future__ import annotations
 
 import math
-from collections import defaultdict
-from datetime import date, timedelta
+from collections import Counter, defaultdict
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from .outcomes import (
@@ -23,6 +23,7 @@ from .outcomes import (
     normalize_outcome,
     outcome_accounting,
 )
+from .settlement_policy import policy_reporting
 
 
 def _number(value: Any) -> Optional[float]:
@@ -65,6 +66,7 @@ def outcome_totals(rows: Iterable[Mapping[str, Any]]) -> Dict[str, float]:
         "misses": 0,
         "half_misses": 0,
         "pushes": 0,
+        "voids": 0,
         "unknown_outcomes": 0,
         "win_units": 0.0,
         "resolved_units": 0.0,
@@ -79,8 +81,10 @@ def outcome_totals(rows: Iterable[Mapping[str, Any]]) -> Dict[str, float]:
             totals["misses"] += 1
         elif canonical == HALF_MISS:
             totals["half_misses"] += 1
-        elif canonical in {PUSH, VOID}:
+        elif canonical == PUSH:
             totals["pushes"] += 1
+        elif canonical == VOID:
+            totals["voids"] += 1
         else:
             totals["unknown_outcomes"] += 1
             continue
@@ -107,7 +111,25 @@ def flat_stake_roi(rows: Iterable[Mapping[str, Any]]) -> Tuple[float, float, flo
 
 
 def _clv_summary(rows: Iterable[Mapping[str, Any]]) -> Tuple[Optional[float], Optional[float], int]:
-    values = [_number(row.get("clv")) for row in rows]
+    from .settlement import utc_datetime
+    from .closing_contract import CLV_DEFINITION, MAX_QUOTE_AGE_MINUTES, WINDOW_MINUTES
+    values = []
+    for row in rows:
+        if row.get("tracking_cohort") == "published":
+            capture = row.get("closing_capture") or {}
+            quoted, captured, kickoff = (utc_datetime(capture.get(k)) for k in ("quote_time", "captured_at", "kickoff"))
+            if not (capture.get("status") == "final" and capture.get("clv_definition") == CLV_DEFINITION
+                    and bool(row.get("selection_key")) and capture.get("selection_key") == row.get("selection_key")
+                    and quoted and captured and kickoff and quoted <= captured < kickoff
+                    and 0 < (kickoff - quoted).total_seconds() <= MAX_QUOTE_AGE_MINUTES * 60
+                    and 0 < (kickoff - captured).total_seconds() <= WINDOW_MINUTES * 60):
+                continue
+            opening, closing, value = (_number(row.get(k)) for k in ("odds", "closing_odds", "clv"))
+            if not (opening and closing and opening > 1 and closing > 1 and value is not None
+                    and _number(capture.get("odds")) == closing
+                    and math.isclose(value, opening / closing - 1, abs_tol=1e-6)):
+                continue
+        values.append(_number(row.get("clv")))
     values = [value for value in values if value is not None]
     if not values:
         return None, None, 0
@@ -118,16 +140,21 @@ def _summary(rows: Sequence[Mapping[str, Any]], *, include_roi: bool = False) ->
     totals = outcome_totals(rows)
     result: Dict[str, Any] = {
         "total": len(rows),
+        **policy_reporting(rows),
         "hits": int(totals["hits"]),
         "half_hits": int(totals["half_hits"]),
         "misses": int(totals["misses"]),
         "half_misses": int(totals["half_misses"]),
         "pushes": int(totals["pushes"]),
+        "voids": int(totals["voids"]),
+        "win_units": totals["win_units"],
+        "resolved_units": totals["resolved_units"],
         "hit_rate": totals["win_units"] / totals["resolved_units"] if totals["resolved_units"] else 0.0,
     }
     if include_roi:
-        roi, _, _ = flat_stake_roi(rows)
+        roi, stake, returned = flat_stake_roi(rows)
         result["roi"] = roi
+        result.update(stake_units=stake, returned_units=returned, profit_units=returned - stake)
     return result
 
 
@@ -173,10 +200,21 @@ def _daily_performance(rows: Sequence[Mapping[str, Any]], *, days: int, today: d
             "date": day,
             "total": summary["total"],
             "hits": summary["hits"],
+            "half_hits": summary["half_hits"],
+            "misses": summary["misses"],
+            "half_misses": summary["half_misses"],
+            "pushes": summary["pushes"],
+            "voids": summary["voids"],
             "hit_rate": summary["hit_rate"],
+            "win_units": summary["win_units"],
+            "resolved_units": summary["resolved_units"],
+            "roi_flat_stake": summary["roi"],
+            "stake_units": summary["stake_units"],
+            "date_basis": "publication_date",
+            **policy_reporting(by_date[day]),
         }
         for day, summary in (
-            (day, _summary(day_rows)) for day, day_rows in sorted(by_date.items())
+            (day, _summary(day_rows, include_roi=True)) for day, day_rows in sorted(by_date.items())
         )
     ]
 
@@ -235,7 +273,9 @@ def build_track_record(
     interface.  Existing consumers therefore get correct platform metrics
     without a second API migration.
     """
-    ordered = _ordered(rows)
+    all_rows = _ordered(rows)
+    ordered = [row for row in all_rows if normalize_outcome(row.get("outcome")) is not None]
+    pending = [row for row in all_rows if row.get("outcome") is None]
     overall = _summary(ordered, include_roi=True)
     avg_clv, clv_positive_rate, clv_sample_size = _clv_summary(ordered)
     recent_streak, best_streak = _streaks(ordered)
@@ -249,26 +289,52 @@ def build_track_record(
     by_market: Dict[str, Any] = {}
     for market in sorted({str(row.get("market") or "") for row in ordered} - {""}):
         subset = [row for row in ordered if str(row.get("market") or "") == market]
-        summary = _summary(subset)
+        summary = _summary(subset, include_roi=True)
         summary["avg_clv"] = _clv_summary(subset)[0]
         by_market[market] = summary
 
     by_league: Dict[str, Any] = {}
     for league in sorted({str(row.get("league") or "") for row in ordered} - {""}):
         subset = [row for row in ordered if str(row.get("league") or "") == league]
-        by_league[league] = _summary(subset)
+        by_league[league] = _summary(subset, include_roi=True)
+
+    reasons = Counter()
+    oldest = None
+    now = datetime.now(timezone.utc)
+    from .settlement import utc_datetime
+    for row in pending:
+        reason = (row.get("settlement") or {}).get("pending_reason")
+        if not reason and "period" in row.get("missing_identity_fields", []):
+            reason = "missing_or_unsupported_period"
+        reasons[reason or "awaiting_result_or_review"] += 1
+        kickoff = utc_datetime(row.get("kickoff"))
+        if kickoff and kickoff < now:
+            oldest = kickoff if oldest is None else min(oldest, kickoff)
 
     return {
         "total_graded": len(ordered),
+        **policy_reporting(ordered),
         "hits": overall["hits"],
         "half_hits": overall["half_hits"],
         "misses": overall["misses"],
         "half_misses": overall["half_misses"],
         "pushes": overall["pushes"],
-        "unknown_outcomes": outcome_totals(ordered)["unknown_outcomes"],
+        "voids": overall["voids"],
+        "win_units": overall["win_units"],
+        "resolved_units": overall["resolved_units"],
+        "total_recommendations": len(all_rows),
+        "pending_count": len(pending),
+        "pending_reasons": dict(reasons),
+        "oldest_pending_kickoff": oldest.isoformat() if oldest else None,
+        "has_settled_sample": bool(ordered),
+        "hit_rate_definition": "win_units / resolved_units; Asian half results count as half; pushes and voids excluded",
+        "roi_definition": "profit / one-unit stakes on settled selections with valid recorded odds; refunds retained",
+        "unknown_outcomes": sum(row.get("outcome") is not None and normalize_outcome(row.get("outcome")) is None for row in all_rows),
         "hit_rate": overall["hit_rate"],
         "roi_flat_stake": overall["roi"],
         "stake_units": flat_stake_roi(ordered)[1],
+        "returned_units": overall["returned_units"],
+        "profit_units": overall["profit_units"],
         "avg_clv": avg_clv,
         "clv_positive_rate": clv_positive_rate,
         "clv_sample_size": clv_sample_size,
@@ -308,10 +374,11 @@ def build_daily_breakdown(
     rows: Iterable[Mapping[str, Any]],
     *,
     target_date: Any,
+    deduplicate: bool = True,
 ) -> Dict[str, Any]:
     """Return the recap contract used by scheduled Discord result posts."""
     prediction_date = _date_text(target_date)
-    deduped = _deduplicate_daily(rows)
+    deduped = _deduplicate_daily(rows) if deduplicate else list(rows)
     if not deduped:
         return {
             "date": prediction_date,
@@ -321,6 +388,11 @@ def build_daily_breakdown(
             "misses": 0,
             "half_misses": 0,
             "pushes": 0,
+            "voids": 0,
+            "roi_flat_stake": 0.0,
+            "stake_units": 0.0,
+            "win_units": 0.0,
+            "resolved_units": 0.0,
             "hit_rate": 0.0,
             "avg_clv": None,
             "clv_positive_rate": None,
@@ -330,9 +402,10 @@ def build_daily_breakdown(
             "by_confidence": {},
             "notable_hits": [],
             "notable_misses": [],
+            **policy_reporting([]),
         }
 
-    overall = _summary(deduped)
+    overall = _summary(deduped, include_roi=True)
     avg_clv, clv_positive_rate, clv_sample_size = _clv_summary(deduped)
 
     def grouped(field: str, *, confidence: bool = False) -> Dict[str, Any]:
@@ -361,11 +434,17 @@ def build_daily_breakdown(
     return {
         "date": prediction_date,
         "total": overall["total"],
+        **policy_reporting(deduped),
         "hits": overall["hits"],
         "half_hits": overall["half_hits"],
         "misses": overall["misses"],
         "half_misses": overall["half_misses"],
         "pushes": overall["pushes"],
+        "voids": overall["voids"],
+        "win_units": overall["win_units"],
+        "resolved_units": overall["resolved_units"],
+        "roi_flat_stake": overall["roi"],
+        "stake_units": overall["stake_units"],
         "hit_rate": overall["hit_rate"],
         "avg_clv": avg_clv,
         "clv_positive_rate": clv_positive_rate,
@@ -394,3 +473,18 @@ def build_daily_breakdown(
             for row in miss_rows
         ],
     }
+
+
+def record_summary_text(stats):
+    """Use weighted percentages without claiming that full hits/total equal them."""
+    total = stats.get("total_graded", stats.get("total", 0))
+    pending = stats.get("pending_count", 0)
+    if not total:
+        return f"No settled recommendations yet. {pending} pending; no measured ROI yet."
+    outcomes = (f"{stats.get('hits', 0)} wins, {stats.get('half_hits', 0)} half wins, "
+                f"{stats.get('misses', 0)} losses, {stats.get('half_misses', 0)} half losses, "
+                f"{stats.get('pushes', 0)} pushes, {stats.get('voids', 0)} voids")
+    note = f"\n{stats['settlement_policy_note']}" if stats.get("settlement_policy_note") else ""
+    return (f"{total} settled · {pending} pending\n{outcomes}\n"
+            f"Asian-weighted hit rate: {stats.get('hit_rate', 0):.1%} · "
+            f"Flat-stake ROI: {stats.get('roi_flat_stake', 0):+.1%}{note}")

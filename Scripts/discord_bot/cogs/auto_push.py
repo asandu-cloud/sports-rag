@@ -25,6 +25,7 @@ if str(_SCRIPTS_ROOT) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_ROOT))
 sys.path.insert(0, str(_SCRIPTS_ROOT / "rag_ingest"))
 import rag_cli_v2 as rag  # noqa: E402  (kept for text-based workflows: parlays, player props)
+from discord_bot.tracking_report import record_summary_text, resolve_official_outcomes  # noqa: E402
 from rendering.market_dispatch import (  # noqa: E402
     canonical_market_name,
     evaluate_market_results_sync,
@@ -1341,11 +1342,10 @@ def _build_best_picks_embeds(breakdown: dict, date_str: str) -> list:
         header = "Yesterday's Recap  —  Tough Day"
 
     em = discord.Embed(
-        title=header,
+        title=f"Published-pick recap — {date_str}",
         description=(
             f"**{date_str}**\n"
-            f"**{hits}/{decided}** predictions hit (**{hit_rate:.0%}**)"
-            + (f"  |  {pushes} push" if pushes else "")
+            + record_summary_text(breakdown)
         ),
         color=color,
     )
@@ -1367,7 +1367,7 @@ def _build_best_picks_embeds(breakdown: dict, date_str: str) -> list:
     for mkt, data in sorted_markets:
         mh = data.get("hits", 0)
         mm = data.get("misses", 0)
-        md = mh + mm
+        md = data.get("total", 0)
         if md == 0:
             continue
         mr = data.get("hit_rate", 0)
@@ -1380,7 +1380,7 @@ def _build_best_picks_embeds(breakdown: dict, date_str: str) -> list:
             ind = "-"
         label = market_emojis.get(mkt, mkt.title())
         push_str = f" (+{data.get('pushes', 0)}P)" if data.get("pushes", 0) else ""
-        market_lines.append(f"`{ind}` **{label}**: {mh}/{md} ({mr:.0%}){push_str}")
+        market_lines.append(f"`{ind}` **{label}**: {md} settled · weighted hit rate {mr:.0%}")
 
     if market_lines:
         em.add_field(name="By Market", value="\n".join(market_lines), inline=False)
@@ -1401,7 +1401,7 @@ def _build_best_picks_embeds(breakdown: dict, date_str: str) -> list:
     for lg, data in sorted_leagues:
         lh = data.get("hits", 0)
         lm = data.get("misses", 0)
-        ld = lh + lm
+        ld = data.get("total", 0)
         if ld == 0:
             continue
         lr = data.get("hit_rate", 0)
@@ -1412,7 +1412,7 @@ def _build_best_picks_embeds(breakdown: dict, date_str: str) -> list:
         else:
             ind = "-"
         label = league_emojis.get(lg, lg)
-        league_lines.append(f"`{ind}` **{label}**: {lh}/{ld} ({lr:.0%})")
+        league_lines.append(f"`{ind}` **{label}**: {ld} settled · weighted hit rate {lr:.0%}")
 
     if league_lines:
         em.add_field(name="By League", value="\n".join(league_lines), inline=False)
@@ -1429,11 +1429,11 @@ def _build_best_picks_embeds(breakdown: dict, date_str: str) -> list:
         ch = c.get("hits", 0)
         cr = c.get("hit_rate", 0)
         label = conf_labels.get(level, level.title())
-        conf_lines.append(f"**{label}**: {ch}/{ct} ({cr:.0%})")
+        conf_lines.append(f"**{label}**: {ct} settled · weighted hit rate {cr:.0%}")
     if conf_lines:
         em.add_field(name="By Confidence", value="\n".join(conf_lines), inline=False)
 
-    em.set_footer(text=f"{total} predictions graded | Spix's Picks")
+    em.set_footer(text=f"{total} settled selections | Grouped by publication date, not match date")
 
     embeds = [em]
 
@@ -2025,7 +2025,7 @@ class AutoPush(commands.Cog):
         yesterday = (date.today() - timedelta(days=1)).isoformat()
 
         try:
-            resolve_result = resolve_outcomes(prediction_date=yesterday)
+            resolve_result = await asyncio.get_running_loop().run_in_executor(_rag_executor, resolve_official_outcomes)
             graded = resolve_result.get("graded", 0)
             hits = resolve_result.get("hit", 0)
             misses = resolve_result.get("miss", 0)
@@ -2041,6 +2041,8 @@ class AutoPush(commands.Cog):
                 prediction_date=yesterday,
                 published_only=True,
             )
+            if stats.get("error") or yesterday_breakdown.get("error"):
+                raise RuntimeError("Official tracking data is unavailable")
         except Exception as exc:
             log.error("Failed to get track record: %s", exc)
             return
@@ -2060,16 +2062,13 @@ class AutoPush(commands.Cog):
             color = COLOR_RED
 
         em = discord.Embed(
-            title=f"Daily Track Record — {yesterday}",
+            title=f"Track Record — Picks Published {yesterday}",
             color=color,
         )
 
         em.add_field(
-            name="Yesterday's Results",
-            value=(
-                f"**{hits}/{graded}** ({hit_rate_yesterday:.0%})\n"
-                f"Hits: {hits} | Misses: {misses}"
-            ),
+            name="Settled Results for This Publication Date",
+            value=record_summary_text(yesterday_breakdown),
             inline=False,
         )
 
@@ -2081,7 +2080,7 @@ class AutoPush(commands.Cog):
                 label = {"high": "Strong Edge", "medium": "Leaning",
                          "low": "Speculative"}[level]
                 conf_lines.append(
-                    f"**{label}**: {c['hits']}/{c['total']} ({c['hit_rate']:.0%})"
+                    f"**{label}**: {c['total']} settled · weighted hit rate {c['hit_rate']:.0%}"
                 )
         if conf_lines:
             em.add_field(
@@ -2097,8 +2096,7 @@ class AutoPush(commands.Cog):
                                 reverse=True)[:5]:
             if m.get("total", 0) > 0:
                 market_lines.append(
-                    f"**{market.title()}**: {m['hits']}/{m['total']} "
-                    f"({m['hit_rate']:.0%})"
+                    f"**{market.title()}**: {m['total']} settled · weighted hit rate {m['hit_rate']:.0%}"
                 )
         if market_lines:
             em.add_field(
@@ -2117,13 +2115,10 @@ class AutoPush(commands.Cog):
 
         em.add_field(
                 name="Official Record",
-            value=(
-                f"**{overall_hits}/{total}** ({overall_rate:.1%})\n"
-                f"ROI: {roi:+.1%} | Streak: {streak_str}"
-            ),
+            value=record_summary_text(stats),
             inline=False,
         )
-        em.set_footer(text="Official Discord releases only | Updated daily at noon CET")
+        em.set_footer(text="First published Match Reads across website and Discord | Amendments reported separately")
         await channel.send(embed=em)
 
     @daily_track_record.before_loop
@@ -2150,7 +2145,7 @@ class AutoPush(commands.Cog):
         loop = asyncio.get_running_loop()
         try:
             resolve_result = await loop.run_in_executor(
-                _rag_executor, lambda: resolve_outcomes(prediction_date=yesterday)
+                _rag_executor, resolve_official_outcomes
             )
             graded = resolve_result.get("graded", 0)
             log.info("Best picks recap: resolved %d predictions for %s", graded, yesterday)
@@ -2410,7 +2405,7 @@ class AutoPush(commands.Cog):
                     yesterday = (date.today() - timedelta(days=1)).isoformat()
                     loop = asyncio.get_running_loop()
                     await loop.run_in_executor(
-                        _rag_executor, lambda: resolve_outcomes(prediction_date=yesterday)
+                        _rag_executor, resolve_official_outcomes
                     )
                     breakdown = await loop.run_in_executor(
                         _rag_executor,
@@ -2433,7 +2428,7 @@ class AutoPush(commands.Cog):
                 elif task.value == "track_record":
                     from prediction_tracker import resolve_outcomes, get_track_record
                     yesterday = (date.today() - timedelta(days=1)).isoformat()
-                    resolve_outcomes(prediction_date=yesterday)
+                    await asyncio.get_running_loop().run_in_executor(_rag_executor, resolve_official_outcomes)
                     tr_channel = self.bot.get_channel(CHANNEL_PARLAYS)
                     if tr_channel:
                         await self._post_track_record_embed(tr_channel)
@@ -2486,7 +2481,7 @@ class AutoPush(commands.Cog):
                 try:
                     from prediction_tracker import resolve_outcomes, get_track_record
                     yesterday = (date.today() - timedelta(days=1)).isoformat()
-                    resolve_result = resolve_outcomes(prediction_date=yesterday)
+                    resolve_result = await asyncio.get_running_loop().run_in_executor(_rag_executor, resolve_official_outcomes)
                     graded = resolve_result.get("graded", 0)
                     log.info("Resolved %d predictions for %s", graded, yesterday)
                     # Post the track record embed
@@ -2503,7 +2498,7 @@ class AutoPush(commands.Cog):
                     yesterday = (date.today() - timedelta(days=1)).isoformat()
                     loop = asyncio.get_running_loop()
                     await loop.run_in_executor(
-                        _rag_executor, lambda: resolve_outcomes(prediction_date=yesterday)
+                        _rag_executor, resolve_official_outcomes
                     )
                     breakdown = await loop.run_in_executor(
                         _rag_executor,
@@ -3400,11 +3395,19 @@ class AutoPush(commands.Cog):
         except Exception:
             return
 
+        if stats.get("error"):
+            await channel.send(embed=discord.Embed(
+                title="Official Track Record — Temporarily Unavailable",
+                description="Tracking data could not be loaded. This is not an empty or zero-performance record.",
+                color=COLOR_YELLOW,
+            ))
+            return
+
         total = stats.get("total_graded", 0)
         if total == 0:
             em = discord.Embed(
                 title="\U0001f4ca Track Record",
-                description="No official recommendations resolved yet. Check back after today's matches finish.",
+                description=record_summary_text(stats),
                 color=COLOR_BLUE,
             )
             await channel.send(embed=em)
@@ -3427,7 +3430,7 @@ class AutoPush(commands.Cog):
 
         em = discord.Embed(
             title="\U0001f4ca Official Track Record \u2014 All Time",
-            description=f"**{hits}/{total}** predictions hit ({hit_rate:.1%}) | ROI: {roi:+.1%} | Streak: {streak_str}",
+            description=record_summary_text(stats),
             color=color,
         )
 
@@ -3438,7 +3441,7 @@ class AutoPush(commands.Cog):
             c = by_conf.get(level, {})
             if c.get("total", 0) > 0:
                 label = {"high": "\u25cf\u25cf\u25cf\u25cf\u25cb Strong Edge", "medium": "\u25cf\u25cf\u25cf\u25cb\u25cb Leaning", "low": "\u25cf\u25cb\u25cb\u25cb\u25cb Speculative"}[level]
-                conf_lines.append(f"{label}: **{c['hits']}/{c['total']}** ({c['hit_rate']:.0%})")
+                conf_lines.append(f"{label}: **{c['total']} settled** · weighted hit rate {c['hit_rate']:.0%}")
         if conf_lines:
             em.add_field(name="By Confidence", value="\n".join(conf_lines), inline=False)
 
@@ -3450,7 +3453,7 @@ class AutoPush(commands.Cog):
         for market, m in sorted(by_market.items(), key=lambda x: x[1].get("total", 0), reverse=True):
             if m.get("total", 0) > 0:
                 emoji = market_emojis.get(market, "\U0001f4cb")
-                market_lines.append(f"{emoji} {market.title()}: **{m['hits']}/{m['total']}** ({m['hit_rate']:.0%})")
+                market_lines.append(f"{emoji} {market.title()}: **{m['total']} settled** · weighted hit rate {m['hit_rate']:.0%}")
         if market_lines:
             em.add_field(name="By Market", value="\n".join(market_lines[:8]), inline=False)
 

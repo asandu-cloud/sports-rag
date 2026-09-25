@@ -11,6 +11,7 @@ from typing import Any, Dict, Mapping, Optional
 
 from ..repositories.publications import PublicationRepository
 from ..publication_identity import decision_identity, tracking_identity
+from ..settlement_policy import new_publication_policy
 
 
 PUBLISHED_PREDICTION_SOURCE = "canonical_published"
@@ -188,6 +189,7 @@ class PublicationService:
                 "recommendation_key": recommendation_key,
                 "market_result_schema": result.get("schema_version"),
                 "tracking": tracking,
+                "settlement_policy": new_publication_policy(),
             },
         }
         return self._repo.record(

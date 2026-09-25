@@ -34,6 +34,7 @@ class HealthReport:
     queue: Dict[str, Any] = field(default_factory=dict)
     watermarks: Dict[str, Any] = field(default_factory=dict)
     match_read_cycle: Dict[str, Any] = field(default_factory=dict)
+    prediction_measurement: Dict[str, Any] = field(default_factory=dict)
     data_quality: List[Dict[str, Any]] = field(default_factory=list)
     env: Dict[str, Any] = field(default_factory=dict)
 
@@ -46,6 +47,7 @@ class HealthReport:
             "queue": self.queue,
             "watermarks": self.watermarks,
             "match_read_cycle": self.match_read_cycle,
+            "prediction_measurement": self.prediction_measurement,
             "data_quality": self.data_quality,
             "env": self.env,
         }
@@ -79,6 +81,15 @@ def build_health_report(*, include_data_quality: bool = True) -> HealthReport:
     report.queue = queue_metrics()
     report.watermarks = watermark_metrics()
     report.match_read_cycle = match_read_cycle_metrics()
+    from ..services.measurement_runtime import MeasurementRuntime
+    report.prediction_measurement = MeasurementRuntime().status()
+    measurement_status = report.prediction_measurement["status"]
+    if measurement_status in {"warn", "error"}:
+        report.signals.append(HealthSignal(
+            name="prediction_measurement", status=measurement_status,
+            message="Measurement worker is stale, partial, failed, or has held/overdue results; inspect measurement-status.",
+        ))
+        report.status = _worst(report.status, measurement_status)
 
     # Turn watermark staleness into a signal
     if report.watermarks["stale"]:

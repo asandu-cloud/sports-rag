@@ -1,8 +1,8 @@
 """PredictionService — orchestrates the PredictionRepository.
 
-Keeps the bot-facing contract (log / resolve / track-record) but drives
-the writes through Postgres. Outcome grading against API-Football lives
-here so callers don't need to know about the repo + fixtures pipeline.
+Keeps the bot-facing contract (log / resolve / track-record) but drives writes
+through the canonical repository (SQLite or Postgres). Exact-fixture grading
+is delegated to SettlementService, independently of any delivery surface.
 """
 
 from __future__ import annotations
@@ -65,6 +65,11 @@ class PredictionService:
         )
 
     # ---- grading -----------------------------------------------------
+    def resolve(self, **kwargs: Any) -> Dict[str, Any]:
+        """Settle by provider fixture ID, retaining ambiguous evidence as pending."""
+        from .settlement import SettlementService
+        return SettlementService(repo=self._repo).resolve(**kwargs)
+
     def mark_outcome(
         self,
         prediction_id: int,

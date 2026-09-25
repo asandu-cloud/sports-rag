@@ -1612,10 +1612,14 @@ def _fetch_results_from_api(
                         params={"fixture": fixture_id},
                         timeout=15,
                     )
+                    stat_resp.raise_for_status()
                     stat_data = stat_resp.json().get("response", [])
                     for team_stats in stat_data:
-                        team_name = team_stats.get("team", {}).get("name", "")
-                        is_home = _names_match(team_name, home)
+                        team_id = team_stats.get("team", {}).get("id")
+                        home_id, away_id = teams.get("home", {}).get("id"), teams.get("away", {}).get("id")
+                        if team_id is None or team_id not in {home_id, away_id}:
+                            continue
+                        is_home = team_id == home_id
                         stats_list = team_stats.get("statistics", [])
                         for s in stats_list:
                             stat_type = (s.get("type") or "").lower()
@@ -1626,13 +1630,15 @@ def _fetch_results_from_api(
                                 else:
                                     corners_away = _safe_float(val)
                             elif stat_type == "yellow cards":
-                                yc = _safe_float(val) or 0
+                                from data_platform.settlement import count
+                                yc = count(val)
                                 rc_stat = next((x for x in stats_list if (x.get("type") or "").lower() == "red cards"), None)
-                                rc = _safe_float(rc_stat.get("value")) if rc_stat else 0
+                                rc = count(rc_stat.get("value")) if rc_stat else None
+                                total_cards = yc + rc if yc is not None and rc is not None else None
                                 if is_home:
-                                    cards_home = yc + (rc or 0)
+                                    cards_home = total_cards
                                 else:
-                                    cards_away = yc + (rc or 0)
+                                    cards_away = total_cards
                             elif stat_type == "shots on goal":
                                 if is_home:
                                     sot_home = _safe_float(val)
@@ -1770,6 +1776,16 @@ def capture_closing_odds(
 
     Returns {"captured": int, "skipped": int, "errors": int}.
     """
+    if db_path == DB_PATH and _platform_on():
+        try:
+            from data_platform.services.measurement_cycle import run_measurement_cycle
+            result = run_measurement_cycle(kinds=("closing",))
+            return {"backend": "platform", "status": result["status"],
+                    "captured": sum(d.get("result", {}).get("captured", 0) for d in result.get("details", [])),
+                    "skipped": 0, "errors": result.get("errors", 0), "measurement": result}
+        except Exception:
+            log.exception("Canonical closing-price capture failed; legacy fallback is disabled")
+            return {"backend": "platform", "captured": 0, "skipped": 0, "errors": 1}
     if prediction_date is None:
         prediction_date = date.today().isoformat()
 
@@ -1940,7 +1956,12 @@ def _match_prediction_to_result(
     pred: dict,
     results: List[dict],
 ) -> Optional[dict]:
-    """Find the result matching a prediction by team names and date."""
+    """Prefer exact IDs; fuzzy fallback is legacy-only when no ID was saved."""
+    from data_platform.settlement import provider_id
+    if pred.get("fixture_id"):
+        fid = provider_id(pred["fixture_id"])
+        matches = [r for r in results if fid and provider_id(r.get("fixture_id")) == fid]
+        return matches[0] if len(matches) == 1 else None
     pred_home = str(pred.get("home_team", ""))
     pred_away = str(pred.get("away_team", ""))
 
@@ -1983,18 +2004,12 @@ def _grade_prediction(pred: dict, result: dict) -> Tuple[Optional[str], Optional
     def _grade_asian_total(total: float) -> Optional[str]:
         if line is None or side not in {"over", "under"}:
             return None
-        try:
-            from prob_models import asian_total_settlement_outcome
-        except ImportError:
-            from Scripts.rag_ingest.prob_models import asian_total_settlement_outcome  # type: ignore[import]
-        settlement = asian_total_settlement_outcome(int(total), float(line), side)
-        return {
-            "full_win": "hit",
-            "half_win": "half_hit",
-            "push": "push",
-            "half_loss": "half_miss",
-            "full_loss": "miss",
-        }[settlement]
+        from data_platform.settlement import asian_outcome
+        return asian_outcome(total, line, over=side == "over")
+
+    from data_platform.settlement import count
+    result = {key: count(value) if key.endswith(("_home", "_away")) else value
+              for key, value in result.items()}
 
     # --- Goals Over/Under ---
     if market == "goals":
@@ -2016,12 +2031,9 @@ def _grade_prediction(pred: dict, result: dict) -> Tuple[Optional[str], Optional
 
     # --- Cards Over/Under ---
     if market == "cards":
-        ch = result.get("cards_home")
-        ca = result.get("cards_away")
-        if ch is None or ca is None:
-            return None, None
-        total = ch + ca
-        return _grade_asian_total(total), total
+        # Broad legacy "cards" has neither an exact yellow/total definition
+        # nor a verified bookmaker rule. Use canonical settlement for these.
+        return None, None
 
     # --- SoT Over/Under ---
     if market == "sot":
@@ -2048,6 +2060,8 @@ def _grade_prediction(pred: dict, result: dict) -> Tuple[Optional[str], Optional
 
     # --- Moneyline ---
     if market == "moneyline":
+        if side not in {"home", "away", "draw"}:
+            return None, None
         gh = result.get("goals_home")
         ga = result.get("goals_away")
         if gh is None or ga is None:
@@ -2071,24 +2085,18 @@ def _grade_prediction(pred: dict, result: dict) -> Tuple[Optional[str], Optional
         if gh is None or ga is None:
             return None, None
         actual_diff = gh - ga  # positive = home won by that margin
-        if line is None:
+        if line is None or isinstance(line, bool) or side not in {"home", "away"}:
             return None, actual_diff
         # Spread logic: the "side" tells us home or away.
         # line is the handicap (e.g., -1.5 for favorites).
         # A "home -1.5" pick means home must win by > 1.5.
         # The stored line already has the sign: home_team -1.5 → line = -1.5
         # Cover condition: actual_diff + line > 0 for the picked side.
-        if side == "home":
-            adjusted = actual_diff + line
-        else:  # away
-            adjusted = -actual_diff + line
-
-        if adjusted > 0:
-            return "hit", actual_diff
-        elif adjusted < 0:
-            return "miss", actual_diff
-        else:
-            return "push", actual_diff
+        from data_platform.settlement import asian_outcome
+        try:
+            return asian_outcome(actual_diff if side == "home" else -actual_diff, -float(line)), actual_diff
+        except (TypeError, ValueError, OverflowError):
+            return None, actual_diff
 
     # --- Correct Score ---
     if market == "correct_score":
@@ -2109,81 +2117,20 @@ def _grade_prediction(pred: dict, result: dict) -> Tuple[Optional[str], Optional
 
 
 def _maybe_platform_resolve(kwargs: Dict[str, Any]):
-    """When running against the canonical store, route outcome grading
-    through :class:`PredictionService`.
-
-    Grading logic (API-Football fetch, name-matching, market-specific
-    rules) stays in the legacy helpers — we only change where rows are
-    read from and where outcomes are written to.
-    """
+    """Use canonical exact-fixture settlement; failures never switch stores."""
     if kwargs.get("db_path", DB_PATH) != DB_PATH or not _platform_on():
         return None
     try:
-        from data_platform.compat import (
-            platform_get_unresolved_for_grading,
-            platform_mark_outcome,
+        from data_platform.compat import get_prediction_service
+        return get_prediction_service().resolve(
+            on_or_before=kwargs.get("prediction_date"), league=kwargs.get("league"),
+            dry_run=kwargs.get("dry_run", False),
         )
     except Exception:
-        return None
-    try:
-        prediction_date = kwargs.get("prediction_date")
-        before = None
-        if prediction_date:
-            try:
-                before = date.fromisoformat(str(prediction_date))
-            except ValueError:
-                before = None
-        unresolved = platform_get_unresolved_for_grading(on_or_before=before)
-        if not unresolved:
-            return {"graded": 0, "errors": 0, "skipped": 0}
-
-        league = kwargs.get("league")
-        if league:
-            unresolved = [p for p in unresolved if (p.get("league") or "") == league]
-
-        # Group by (date, league) so we only hit API-Football once per slice.
-        by_slice: Dict[Tuple[str, str], List[dict]] = {}
-        for pred in unresolved:
-            key = (pred.get("prediction_date") or "", pred.get("league") or "")
-            by_slice.setdefault(key, []).append(pred)
-
-        graded = 0
-        errors = 0
-        skipped = 0
-        outcome_counts = {"hit": 0, "half_hit": 0, "miss": 0, "half_miss": 0, "push": 0}
-        for (slice_date, slice_league), preds in by_slice.items():
-            try:
-                results = _fetch_results_from_api(slice_date, slice_league)
-            except Exception:
-                log.exception("platform _fetch_results_from_api failed for %s %s",
-                              slice_date, slice_league)
-                errors += 1
-                continue
-            if not results:
-                skipped += len(preds)
-                continue
-            for pred in preds:
-                match = _match_prediction_to_result(pred, results)
-                if match is None:
-                    skipped += 1
-                    continue
-                outcome, actual = _grade_prediction(pred, match)
-                if outcome is None:
-                    skipped += 1
-                    continue
-                if platform_mark_outcome(int(pred["id"]), outcome=outcome, actual_result=actual):
-                    graded += 1
-                    canonical = normalize_outcome(outcome)
-                    if canonical == "void":
-                        canonical = "push"
-                    if canonical in outcome_counts:
-                        outcome_counts[canonical] += 1
-                else:
-                    errors += 1
-        return {"graded": graded, "errors": errors, "skipped": skipped, **outcome_counts}
-    except Exception:
-        log.exception("platform resolve_outcomes failed; falling through to SQLite")
-        return None
+        log.exception("Canonical settlement failed; legacy database was not touched")
+        return {"backend": "platform", "graded": 0, "errors": 1, "skipped": 0,
+                "hit": 0, "half_hit": 0, "miss": 0, "half_miss": 0, "push": 0, "void": 0,
+                "details": [], "error": "canonical_settlement_failed", "dry_run": kwargs.get("dry_run", False)}
 
 
 def resolve_outcomes(
@@ -2202,23 +2149,11 @@ def resolve_outcomes(
 
     stats = {"graded": 0, "hit": 0, "miss": 0, "push": 0, "errors": 0, "details": []}
 
-    if not dry_run:
-        platform_result = _maybe_platform_resolve({
-            "prediction_date": prediction_date, "league": league, "db_path": db_path,
-        })
-        if platform_result is not None:
-            return {
-                "graded": platform_result.get("graded", 0),
-                "hit": platform_result.get("hit", 0),
-                "half_hit": platform_result.get("half_hit", 0),
-                "miss": platform_result.get("miss", 0),
-                "half_miss": platform_result.get("half_miss", 0),
-                "push": platform_result.get("push", 0),
-                "errors": platform_result.get("errors", 0),
-                "details": [],
-                "backend": "platform",
-                "skipped": platform_result.get("skipped", 0),
-            }
+    platform_result = _maybe_platform_resolve({
+        "prediction_date": prediction_date, "league": league, "db_path": db_path, "dry_run": dry_run,
+    })
+    if platform_result is not None:
+        return platform_result
 
     try:
         conn = _get_db(db_path)
@@ -2817,15 +2752,18 @@ def _format_resolve_report(stats: dict, dry_run: bool = False) -> str:
         "=" * 50,
         "",
         f"Graded: {stats['graded']}  |  Hit: {stats['hit']}  |  Miss: {stats['miss']}  |  Push: {stats['push']}  |  Errors: {stats['errors']}",
+        f"Half wins: {stats.get('half_hit', 0)} | Half losses: {stats.get('half_miss', 0)} | Voids: {stats.get('void', 0)} | Pending: {stats.get('pending', 0)}",
     ]
+    if dry_run:
+        lines.append(f"Would grade: {stats.get('would_grade', stats['graded'])}; no settlement writes")
 
     details = stats.get("details", [])
     for d in details:
-        status = d.get("outcome") or d.get("status", "?")
+        status = d.get("outcome") or d.get("pending_reason") or d.get("status", "?")
         fixture = d.get("fixture", "?")
         market = d.get("market", "")
         pick = d.get("pick", "")
-        actual = d.get("actual")
+        actual = d.get("actual", d.get("actual_result"))
         actual_str = f" (actual: {actual})" if actual is not None else ""
         lines.append(f"  [{status:>15s}]  {fixture} — {market} {pick}{actual_str}")
 
@@ -2988,7 +2926,7 @@ def main():
     parser.add_argument("--resolve", action="store_true",
                         help="Resolve yesterday's outcomes")
     parser.add_argument("--resolve-date", type=str, default=None,
-                        help="Resolve outcomes for a specific date (YYYY-MM-DD)")
+                        help="Canonical: settle fixtures through this UTC date; legacy: publication date (YYYY-MM-DD)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Show what would be graded without writing")
     parser.add_argument("--stats", action="store_true",
@@ -3028,6 +2966,7 @@ def main():
             dry_run=args.dry_run,
         )
         print(_format_resolve_report(result, dry_run=args.dry_run))
+        return 1 if result.get("errors") else 0
 
     elif args.stats:
         stats = get_track_record(
@@ -3086,4 +3025,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
