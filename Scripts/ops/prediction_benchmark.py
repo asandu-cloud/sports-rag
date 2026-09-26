@@ -332,6 +332,12 @@ def main():
     develop.add_argument("--variants", type=Path, required=True)
     develop.add_argument("--experiment", required=True)
     develop.add_argument("--resume", action="store_true")
+    extend = sub.add_parser("extend", help="Fixed 78-fit Batch C extension; development only")
+    extend.add_argument("--dataset", type=Path, required=True)
+    extend.add_argument("--baselines", type=Path, required=True)
+    extend.add_argument("--batch-c", type=Path, required=True)
+    extend.add_argument("--experiment", required=True)
+    extend.add_argument("--resume", action="store_true")
     smoke = sub.add_parser("smoke", help="One fixed development fold; requires isolated locked research environment")
     smoke.add_argument("--dataset", type=Path, required=True)
     smoke.add_argument("--baselines", type=Path, required=True)
@@ -364,6 +370,15 @@ def main():
         done = (path / "COMPLETE.json").exists()
         print(json.dumps({"experiment": str(path), "status": "complete" if done else "paused",
                           "qualification": "UNCONFIRMED_BATCH_C_DEVELOPMENT"}))
+        if not done:
+            raise SystemExit(2)
+    elif args.command == "extend":
+        from Scripts.data_platform.features.benchmarks.extension import run_extension
+        path = run_extension(root=ROOT, dataset=args.dataset, baselines=args.baselines,
+                             batch_c=args.batch_c, name=args.experiment, resume=args.resume)
+        done = (path / "COMPLETE.json").exists()
+        print(json.dumps({"experiment": str(path), "status": "complete" if done else "paused",
+                          "qualification": "UNCONFIRMED_BATCH_C_EXTENSION"}))
         if not done:
             raise SystemExit(2)
     elif args.command == "verify-run":
