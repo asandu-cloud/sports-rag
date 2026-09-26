@@ -251,88 +251,10 @@ class DevelopmentDataset:
             raise ValueError("No development folds")
 
     def _validate_row(self, row):
-        fixture = row.get("fixture", {})
-        fid = fixture.get("fixture_id")
-        if not _integer(fid, positive=True) or fid not in self.memberships:
-            raise ValueError("Invalid development fixture ID")
-        if (any(not _integer(fixture.get(k), positive=True) for k in ("home_team_id", "away_team_id", "season"))
-                or fixture["home_team_id"] == fixture["away_team_id"] or fixture.get("competition") not in COMPETITIONS
-                or fixture.get("status") != "FT"):
-            raise ValueError("Invalid fixture identity/status")
-        m = self.memberships[fid]
-        if (row.get("partition") not in DEVELOPMENT or m["partition"] != row["partition"]
-                or m.get("competition") != fixture["competition"] or m.get("season") != fixture["season"]
-                or m.get("completed") is not True or m.get("row_count") != 1):
-            raise ValueError("Fixture metadata differs from split membership")
-        kickoff = _utc(fixture.get("kickoff")); as_of = _utc(row.get("as_of"))
-        if (kickoff != _utc(m["kickoff"]) or as_of != kickoff or kickoff >= self.boundaries["phase3_confirmation_start"]
-                or _utc(row.get("label_available_at")) != kickoff + timedelta(hours=3)):
-            raise ValueError("Invalid feature/label availability or held-out chronology")
-        for key in ("observed_at", "actual_observed_at"):
-            if row.get(key) is not None:
-                _utc(row[key])
-        if row.get("observed_at") != row.get("actual_observed_at"):
-            raise ValueError("Conflicting actual observation timestamps")
-        if (row.get("availability") != "assumed_final" or row.get("forecast_stage") != self.schema["forecast_stage"]
-                or row.get("feature_contract_id") != self.manifest["feature_contract_id"]
-                or not isinstance(row.get("snapshot_id"), str) or not _HEX.fullmatch(row["snapshot_id"])):
-            raise ValueError("Row feature contract/snapshot mismatch")
-        if (row.get("source_class") not in {"raw_provider_archive", "verified_local_reconstruction", "unresolved"}
-                or row.get("round_group") not in {"domestic_regular", "domestic_integral_split", "domestic_separate_playoff",
-                    "european_group", "european_knockout", "european_qualifying", "unknown"}
-                or "observed_at" not in row or "actual_observed_at" not in row):
-            raise ValueError("Missing/unsupported source or round evidence metadata")
-        values = row.get("values")
-        if not isinstance(values, list) or len(values) != len(self.schema["names"]) or any(v is not None and not _finite(v) for v in values):
-            raise ValueError("Invalid feature vector shape/numbers")
-        by_name = dict(zip(self.schema["names"], values))
-        for name, value in by_name.items():
-            if name.endswith("__missing") and value != float(by_name[name[:-9]] is None):
-                raise ValueError("Missingness indicator disagrees with value")
-        for competition in COMPETITIONS:
-            if by_name["competition_" + competition] != float(fixture["competition"] == competition):
-                raise ValueError("Competition feature disagrees with identity")
-        decisions = row.get("market_eligibility", {})
-        if set(decisions) != {*MARKETS, "cards"} or set(row.get("support", {})) != set(MARKETS):
-            raise ValueError("Incomplete eligibility/support contract")
-        eligible = []
-        for market, decision in decisions.items():
-            reasons = decision.get("reasons")
-            if (type(decision.get("eligible")) is not bool or not isinstance(reasons, list)
-                    or any(not isinstance(r, str) or not r for r in reasons) or len(set(reasons)) != len(reasons)
-                    or decision["eligible"] != (not reasons) or decision.get("primary_reason") != (reasons[0] if reasons else None)):
-                raise ValueError("Contradictory eligibility reasons")
-            if market == "cards":
-                if decision["eligible"] or "cards_target_not_qualified" not in reasons:
-                    raise ValueError("Unqualified cards cannot enter benchmarks")
-                continue
-            if decision["eligible"]:
-                if (row["source_class"] == "unresolved" or row["round_group"] in {"domestic_separate_playoff", "european_qualifying", "unknown"}
-                        or kickoff < self.boundaries["initial_training_start"]):
-                    raise ValueError("Eligible fixture contradicts source/round/cohort scope")
-                eligible.append(market)
-            if set(row["support"][market]) != {"home", "away"}:
-                raise ValueError("Invalid support sides")
-            for side in ("home", "away"):
-                support = row["support"][market][side]
-                n, ids = support.get("count"), support.get("fixture_ids")
-                if not _integer(n) or not _ids(ids) or n != len(ids) or not _ids(support.get("primary_fixture_ids")):
-                    raise ValueError("Support count/fixture identities disagree")
-                if support.get("band") != ("0" if n == 0 else "1-4" if n < 5 else "5-9" if n < 10 else "10+"):
-                    raise ValueError("Invalid support band")
-                rate = by_name[side + "_" + core.RATE_FIELDS[market]]
-                if type(support.get("rate_available")) is not bool or support["rate_available"] != (rate is not None):
-                    raise ValueError("Support production-rate mismatch")
-                if (n < 5 and f"insufficient_{side}_history" not in reasons) or (rate is None and f"missing_{side}_production_rate" not in reasons):
-                    raise ValueError("Support exclusion reason missing")
-                if decision["eligible"] and (n < 5 or rate is None or rate < 0):
-                    raise ValueError("Eligible row fails support gate")
-                for source_id in set(ids) | set(support["primary_fixture_ids"]):
-                    source = self.memberships.get(source_id)
-                    if not source or source_id == fid or _utc(source["kickoff"]) + timedelta(hours=3) >= as_of:
-                        raise ValueError("Future/missing fixture in support history")
-        if sorted(eligible) != sorted(m.get("eligible_markets", [])):
-            raise ValueError("Eligibility differs from split membership")
+        # Keep the ordinary reader's access scope fixed; the confirmation
+        # operation uses the shared pure validator with its own fixed interval.
+        _validate_feature_row(self, row, partitions=DEVELOPMENT, start=None,
+                              end=self.boundaries["phase3_confirmation_start"])
 
     def select_fold(self, market, fold_id, lookback_days=None, half_life_days=None):
         if market not in MARKETS:
@@ -416,3 +338,89 @@ def family_gate(report, family):
         raise ValueError("Invalid family-gate sample support")
     reasons = ["insufficient_" + key for key, minimum in thresholds.items() if report.get(key, 0) < minimum]
     return {"qualified": not reasons, "reasons": reasons, "thresholds": thresholds}
+
+
+def _validate_feature_row(data, row, *, partitions, start, end):
+    """Pure schema/identity/temporal validation; does not read any data store."""
+    fixture = row.get("fixture", {})
+    fid = fixture.get("fixture_id")
+    if not _integer(fid, positive=True) or fid not in data.memberships:
+        raise ValueError("Invalid development fixture ID")
+    if (any(not _integer(fixture.get(k), positive=True) for k in ("home_team_id", "away_team_id", "season"))
+            or fixture["home_team_id"] == fixture["away_team_id"] or fixture.get("competition") not in COMPETITIONS
+            or fixture.get("status") != "FT"):
+        raise ValueError("Invalid fixture identity/status")
+    m = data.memberships[fid]
+    if (row.get("partition") not in partitions or m["partition"] != row["partition"]
+            or m.get("competition") != fixture["competition"] or m.get("season") != fixture["season"]
+            or m.get("completed") is not True or m.get("row_count") != 1):
+        raise ValueError("Fixture metadata differs from split membership")
+    kickoff = _utc(fixture.get("kickoff")); as_of = _utc(row.get("as_of"))
+    if (kickoff != _utc(m["kickoff"]) or as_of != kickoff or kickoff >= end or (start is not None and kickoff < start)
+            or _utc(row.get("label_available_at")) != kickoff + timedelta(hours=3)):
+        raise ValueError("Invalid feature/label availability or held-out chronology")
+    for key in ("observed_at", "actual_observed_at"):
+        if row.get(key) is not None:
+            _utc(row[key])
+    if row.get("observed_at") != row.get("actual_observed_at"):
+        raise ValueError("Conflicting actual observation timestamps")
+    if (row.get("availability") != "assumed_final" or row.get("forecast_stage") != data.schema["forecast_stage"]
+            or row.get("feature_contract_id") != data.manifest["feature_contract_id"]
+            or not isinstance(row.get("snapshot_id"), str) or not _HEX.fullmatch(row["snapshot_id"])):
+        raise ValueError("Row feature contract/snapshot mismatch")
+    if (row.get("source_class") not in {"raw_provider_archive", "verified_local_reconstruction", "unresolved"}
+            or row.get("round_group") not in {"domestic_regular", "domestic_integral_split", "domestic_separate_playoff",
+                "european_group", "european_league", "european_knockout", "european_qualifying", "unknown"}
+            or "observed_at" not in row or "actual_observed_at" not in row):
+        raise ValueError("Missing/unsupported source or round evidence metadata")
+    values = row.get("values")
+    if not isinstance(values, list) or len(values) != len(data.schema["names"]) or any(v is not None and not _finite(v) for v in values):
+        raise ValueError("Invalid feature vector shape/numbers")
+    by_name = dict(zip(data.schema["names"], values))
+    for name, value in by_name.items():
+        if name.endswith("__missing") and value != float(by_name[name[:-9]] is None):
+            raise ValueError("Missingness indicator disagrees with value")
+    for competition in COMPETITIONS:
+        if by_name["competition_" + competition] != float(fixture["competition"] == competition):
+            raise ValueError("Competition feature disagrees with identity")
+    decisions = row.get("market_eligibility", {})
+    if set(decisions) != {*MARKETS, "cards"} or set(row.get("support", {})) != set(MARKETS):
+        raise ValueError("Incomplete eligibility/support contract")
+    eligible = []
+    for market, decision in decisions.items():
+        reasons = decision.get("reasons")
+        if (type(decision.get("eligible")) is not bool or not isinstance(reasons, list)
+                or any(not isinstance(r, str) or not r for r in reasons) or len(set(reasons)) != len(reasons)
+                or decision["eligible"] != (not reasons) or decision.get("primary_reason") != (reasons[0] if reasons else None)):
+            raise ValueError("Contradictory eligibility reasons")
+        if market == "cards":
+            if decision["eligible"] or "cards_target_not_qualified" not in reasons:
+                raise ValueError("Unqualified cards cannot enter benchmarks")
+            continue
+        if decision["eligible"]:
+            if (row["source_class"] == "unresolved" or row["round_group"] in {"domestic_separate_playoff", "european_qualifying", "unknown"}
+                    or kickoff < data.boundaries["initial_training_start"]):
+                raise ValueError("Eligible fixture contradicts source/round/cohort scope")
+            eligible.append(market)
+        if set(row["support"][market]) != {"home", "away"}:
+            raise ValueError("Invalid support sides")
+        for side in ("home", "away"):
+            support = row["support"][market][side]
+            n, ids = support.get("count"), support.get("fixture_ids")
+            if not _integer(n) or not _ids(ids) or n != len(ids) or not _ids(support.get("primary_fixture_ids")):
+                raise ValueError("Support count/fixture identities disagree")
+            if support.get("band") != ("0" if n == 0 else "1-4" if n < 5 else "5-9" if n < 10 else "10+"):
+                raise ValueError("Invalid support band")
+            rate = by_name[side + "_" + core.RATE_FIELDS[market]]
+            if type(support.get("rate_available")) is not bool or support["rate_available"] != (rate is not None):
+                raise ValueError("Support production-rate mismatch")
+            if (n < 5 and f"insufficient_{side}_history" not in reasons) or (rate is None and f"missing_{side}_production_rate" not in reasons):
+                raise ValueError("Support exclusion reason missing")
+            if decision["eligible"] and (n < 5 or rate is None or rate < 0):
+                raise ValueError("Eligible row fails support gate")
+            for source_id in set(ids) | set(support["primary_fixture_ids"]):
+                source = data.memberships.get(source_id)
+                if not source or source_id == fid or _utc(source["kickoff"]) + timedelta(hours=3) >= as_of:
+                    raise ValueError("Future/missing fixture in support history")
+    if sorted(eligible) != sorted(m.get("eligible_markets", [])):
+        raise ValueError("Eligibility differs from split membership")

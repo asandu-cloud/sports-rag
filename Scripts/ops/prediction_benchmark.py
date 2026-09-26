@@ -338,6 +338,13 @@ def main():
     extend.add_argument("--batch-c", type=Path, required=True)
     extend.add_argument("--experiment", required=True)
     extend.add_argument("--resume", action="store_true")
+    confirm = sub.add_parser("confirm", help="Consume Phase 3 confirmation once; frozen predictions, no fitting/promotion")
+    confirm.add_argument("--dataset", type=Path, required=True)
+    confirm.add_argument("--baselines", type=Path, required=True)
+    confirm.add_argument("--batch-c", type=Path, required=True)
+    confirm.add_argument("--extension", type=Path, required=True)
+    confirm.add_argument("--experiment", required=True)
+    confirm.add_argument("--resume", action="store_true")
     smoke = sub.add_parser("smoke", help="One fixed development fold; requires isolated locked research environment")
     smoke.add_argument("--dataset", type=Path, required=True)
     smoke.add_argument("--baselines", type=Path, required=True)
@@ -381,6 +388,12 @@ def main():
                           "qualification": "UNCONFIRMED_BATCH_C_EXTENSION"}))
         if not done:
             raise SystemExit(2)
+    elif args.command == "confirm":
+        from Scripts.data_platform.features.benchmarks.confirmation import run_confirmation
+        path = run_confirmation(root=ROOT, dataset=args.dataset, baselines=args.baselines,
+            batch_c=args.batch_c, extension=args.extension, name=args.experiment, resume=args.resume)
+        print(json.dumps({"experiment": str(path), "status": "complete", "confirmation": "consumed",
+                          "publication_enabled": False, "promotion_allowed": False}))
     elif args.command == "verify-run":
         from Scripts.data_platform.features.benchmarks.artifacts import verify_complete
         verified = verify_complete(args.experiment)
