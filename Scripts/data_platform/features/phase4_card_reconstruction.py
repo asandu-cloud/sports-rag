@@ -120,13 +120,13 @@ def legacy_rows(text, *, competition, season, identities, source):
     return admitted, ledger, dict(counts)
 
 
-def evidence(fixture, rows):
+def evidence(fixture, rows, *, minimum_recorded_minutes=1):
     return parse_participation_cards(
         {'status': fixture['status'], **{k: provider_id(fixture[k]) for k in ('home_team_id', 'away_team_id')}},
-        cards.normalized_payload(rows))
+        cards.normalized_payload(rows), minimum_recorded_minutes=minimum_recorded_minutes)
 
 
-def reconcile(canonical_results, canonical_players, legacy_players):
+def reconcile(canonical_results, canonical_players, legacy_players, *, minimum_recorded_minutes=1):
     """Do not merge partial rosters or allow a provisional source to certify itself."""
     sources = defaultdict(lambda: defaultdict(list))
     for r in canonical_players:
@@ -137,7 +137,7 @@ def reconcile(canonical_results, canonical_players, legacy_players):
     for f in canonical_results:
         alternatives, canonical = [], sources[f['fixture_id']].get('platform_normalized', [])
         for source, rows in sorted(sources[f['fixture_id']].items()):
-            parsed = evidence(f, rows)
+            parsed = evidence(f, rows, minimum_recorded_minutes=minimum_recorded_minutes)
             reasons = [] if source == 'platform_normalized' else [
                 'legacy_original_response_unavailable', 'legacy_participant_completeness_unverified',
                 'legacy_identity_reconstructed_from_names']
@@ -201,7 +201,10 @@ def coverage(rows):
     return {'overall': summary(rows), 'league_season': {k: summary(v) for k, v in sorted(groups.items())}}
 
 
-def qualified_rows(rows):
+def qualified_rows(rows, *, minimum_recorded_minutes=1):
+    if type(minimum_recorded_minutes) is not int or minimum_recorded_minutes not in cards.MINUTE_POLICIES:
+        raise ValueError('Unsupported participation minimum')
+    contract, policy = cards.MINUTE_POLICIES[minimum_recorded_minutes]
     selected, seen = [], set()
     for r in rows:
         if r['fixture_id'] in seen:
@@ -212,13 +215,17 @@ def qualified_rows(rows):
         if not r['eligible']:
             continue
         totals = r.get('team_targets')
-        if (r.get('exclusions') or r.get('contract') != cards.CONTRACT or not r.get('raw_reference')
-                or r.get('settlement_policy') != 'spix-participation-settlement.v1'
+        if (r.get('exclusions') or r.get('contract') != contract or not r.get('raw_reference')
+                or r.get('settlement_policy') != policy
                 or r['status'] != 'FT' or not isinstance(totals, dict) or set(totals) != {'home', 'away'}
                 or any(type(x) not in (int, float) or not math.isfinite(x) or x < 0 or not float(x).is_integer()
                        for x in totals.values())
                 or sum(totals.values()) != r.get('target')):
             raise ValueError('Inconsistent qualified target contract')
+        if minimum_recorded_minutes == 2:
+            from .phase4_card_policy import scope
+            if not scope(r)['eligible']:
+                raise ValueError('Qualified v2 target outside agreed league scope')
         selected.append(r)
     return sorted(selected, key=lambda r: (cards.utc(r['kickoff']), r['fixture_id']))
 
@@ -229,11 +236,11 @@ def support(rows, fitting=False):
             'sufficient': len(rows) >= (500 if fitting else 200) and len(weeks) >= (26 if fitting else 20)}
 
 
-def dated_inputs(fixture, history):
+def dated_inputs(fixture, history, *, minimum_recorded_minutes=1):
     cutoff = cards.utc(fixture['kickoff']).replace(hour=0, minute=0, second=0, microsecond=0)
     # Validate evidence at this public boundary too; synthetic tests supply the
     # same explicit contract as an actual source-certified target.
-    past = [r for r in qualified_rows(history) if r['competition'] == fixture['competition']
+    past = [r for r in qualified_rows(history, minimum_recorded_minutes=minimum_recorded_minutes) if r['competition'] == fixture['competition']
             and r['season'] in (fixture['season'] - 1, fixture['season'])
             and cards.utc(r['kickoff']) + timedelta(hours=3) < cutoff
             and r['fixture_id'] != fixture['fixture_id']]
@@ -342,8 +349,8 @@ def comparison(rows):
             'paired_week_bootstrap95': interval}
 
 
-def backtest(rows, weights):
-    qualified = qualified_rows(rows)
+def backtest(rows, weights, *, minimum_recorded_minutes=1):
+    qualified = qualified_rows(rows, minimum_recorded_minutes=minimum_recorded_minutes)
     fitting = [r for r in qualified if cards.utc(r['kickoff']).year == 2022
                and (cards.utc(r['kickoff']) + timedelta(hours=3)).year == 2022]
     evaluation = [r for r in qualified if cards.utc(r['kickoff']).year == 2023]
@@ -352,6 +359,9 @@ def backtest(rows, weights):
               'weight_optimisation': False, 'production_qualification': False,
               'model': 'fixed_participation_aligned_team_and_referee_poisson_reference',
               'exact_frozen_control_replay': False, 'availability': 'assumed_final'}
+    if minimum_recorded_minutes == 2:
+        report.update(version='phase4-local-card-reconstruction.v2', minimum_recorded_minutes=2,
+                      target_contract=cards.MINUTE_POLICIES[2][0], settlement_policy=cards.MINUTE_POLICIES[2][1])
     reasons = []
     if not report['fitting_support']['sufficient']:
         reasons.append('insufficient_qualified_2022_fitting_history')
@@ -362,7 +372,7 @@ def backtest(rows, weights):
                          'scored_fixtures': 0, 'metrics': None}, [], []
     predictions, snapshots, exclusions = [], [], Counter()
     for f in evaluation:
-        inputs = dated_inputs(f, qualified)
+        inputs = dated_inputs(f, qualified, minimum_recorded_minutes=minimum_recorded_minutes)
         prediction, reason = fixed_prediction(f, inputs, weights)
         if reason:
             exclusions[reason] += 1

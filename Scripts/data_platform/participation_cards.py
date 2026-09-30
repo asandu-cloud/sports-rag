@@ -4,15 +4,21 @@ from collections.abc import Mapping
 from .settlement import count, provider_id
 
 
-def parse_participation_cards(result, players):
+def parse_participation_cards(result, players, *, minimum_recorded_minutes=1):
     """Return separate weighted totals and compact auditable player evidence.
 
     Only FT player totals are usable: AET/PEN player statistics include extra time.
     Nulls, partial teams and contradictory card combinations never become zeroes.
     An explicit zero-card row cannot affect the total even if minutes are unknown.
     """
+    if type(minimum_recorded_minutes) is not int or minimum_recorded_minutes not in (1, 2):
+        raise ValueError('Unsupported participation minimum')
     evidence = {"period": "regulation_time" if result.get("status") == "FT" else "unknown",
                 "source": "api_football_fixture_players", "players": [], "totals": {}}
+    # Existing production consumers retain the exact v1 output and >0 behavior.
+    # Two minutes is an explicit research opt-in until joint engine promotion.
+    if minimum_recorded_minutes == 2:
+        evidence['minimum_recorded_minutes'] = 2
 
     def pending(reason):
         evidence["pending_reason"] = reason
@@ -55,8 +61,8 @@ def parse_participation_cards(result, players):
             item = {"team_id": team_id, "player_id": player_id, "minutes": minutes,
                     "yellow": yellow, "red": red, "weighted_cards": None}
             evidence["players"].append(item)
-            if minutes == 0:
-                item.update(weighted_cards=0, reason="zero_minutes")
+            if minutes is not None and minutes < minimum_recorded_minutes:
+                item.update(weighted_cards=0, reason="zero_minutes" if minutes == 0 else "below_minimum_recorded_minutes")
                 continue
             if yellow is None or red is None:
                 return pending("missing_player_card_counts")

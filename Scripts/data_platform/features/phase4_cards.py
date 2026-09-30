@@ -11,6 +11,10 @@ from Scripts.data_platform.settlement_policy import POLICY_VERSION
 from Scripts.data_platform.settlement import provider_id
 
 CONTRACT = 'phase4-participation-card-target.v1'
+MINUTE_POLICIES = {
+    1: (CONTRACT, POLICY_VERSION),
+    2: ('phase4-participation-card-target.v2', 'spix-participation-settlement.v2'),
+}
 END = datetime(2024, 1, 1, tzinfo=timezone.utc)
 
 
@@ -90,7 +94,8 @@ def normalized_payload(rows):
     return [{'team': {'id': team}, 'players': values} for team, values in sorted(teams.items(), key=lambda x: str(x[0]))]
 
 
-def qualify(fixture, rows, certified, *, raw_players=None, raw_reference=None, raw_error=None):
+def qualify(fixture, rows, certified, *, raw_players=None, raw_reference=None, raw_error=None,
+            minimum_recorded_minutes=1):
     """Raw evidence must already have checksum/endpoint/fixture-envelope verification.
 
     Normalized arithmetic is diagnostic. Only complete equivalent source evidence
@@ -99,7 +104,11 @@ def qualify(fixture, rows, certified, *, raw_players=None, raw_reference=None, r
     if not permitted(fixture['kickoff']):
         raise ValueError('Reserved outcome access refused')
     result = {'status': fixture['status'], **{k: provider_id(fixture[k]) for k in ('home_team_id', 'away_team_id')}}
-    diagnostic = parse_participation_cards(result, normalized_payload(rows))
+    if type(minimum_recorded_minutes) is not int or minimum_recorded_minutes not in MINUTE_POLICIES:
+        raise ValueError('Unsupported participation minimum')
+    target_contract, policy_version = MINUTE_POLICIES[minimum_recorded_minutes]
+    diagnostic = parse_participation_cards(result, normalized_payload(rows),
+                                           minimum_recorded_minutes=minimum_recorded_minutes)
     reasons = []
     period_keys = ('fixture_id', 'competition', 'season', 'home_team_id', 'away_team_id', 'status')
     if certified is None:
@@ -112,7 +121,7 @@ def qualify(fixture, rows, certified, *, raw_players=None, raw_reference=None, r
         reasons.append('original_player_response_unavailable')
         evidence = diagnostic
     else:
-        evidence = parse_participation_cards(result, raw_players)
+        evidence = parse_participation_cards(result, raw_players, minimum_recorded_minutes=minimum_recorded_minutes)
         # Missing normalized rows may be repaired in an artifact from complete raw
         # evidence; contradictory existing rows require review rather than overwrite.
         raw = {(x['team_id'], x['player_id']): (x['minutes'], x['yellow'], x['red'])
@@ -123,7 +132,7 @@ def qualify(fixture, rows, certified, *, raw_players=None, raw_reference=None, r
             reasons.append('normalized_raw_player_conflict')
     if evidence['pending_reason']:
         reasons.append(evidence['pending_reason'])
-    return {**fixture, 'contract': CONTRACT, 'settlement_policy': POLICY_VERSION,
+    return {**fixture, 'contract': target_contract, 'settlement_policy': policy_version,
             'availability': 'assumed_final', 'eligible': not reasons,
             'exclusions': sorted(set(reasons)),
             'target': sum(evidence['totals'].values()) if not reasons else None,
