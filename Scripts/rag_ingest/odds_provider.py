@@ -334,7 +334,12 @@ def _transform_apifootball_odds(
                 outcomes.append(outcome)
 
             if outcomes:
-                markets.append({"key": market_key, "outcomes": outcomes})
+                market = {"key": market_key, "outcomes": outcomes,
+                          "provider_bet_id": bet_id, "provider_bet_name": bet_name}
+                for field in ("period", "market_period", "settlement_definition", "includes_extra_time"):
+                    if field in bet:
+                        market[field] = bet[field]
+                markets.append(market)
 
         if markets:
             transformed.append({"title": bm_name, "markets": markets})

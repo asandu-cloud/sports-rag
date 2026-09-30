@@ -298,7 +298,7 @@ class TeamlineProjectionTests(unittest.TestCase):
         blended, season_proj, recent_proj = result
         self.assertIsNotNone(blended)
 
-    def test_team_total_corner_quality_probability_uses_team_projection(self):
+    def test_unqualified_team_total_does_not_receive_match_probability(self):
         leg = parlay.CandidateLeg(
             event_id="1",
             fixture="Arsenal vs Chelsea",
@@ -329,9 +329,7 @@ class TeamlineProjectionTests(unittest.TestCase):
              mock.patch.object(parlay, "over_prob", side_effect=fake_over_prob):
             parlay.kb_leg_quality(leg, "EPL")
 
-        self.assertEqual(seen["mean"], 5.0)
-        self.assertEqual(seen["point"], 4.5)
-        self.assertEqual(seen["variance"], 2.0)
+        self.assertEqual(seen, {})
         total_proj.assert_not_called()
 
 

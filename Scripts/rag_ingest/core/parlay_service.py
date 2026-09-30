@@ -403,6 +403,9 @@ def build_and_store_parlay(
     return result
 
 
+from .quote_assessment import assessment_scope as _assessment_scope
+
+@_assessment_scope
 def build_parlay(request: ParlayBuildRequest) -> ParlayBuildResult:
     notes: List[str] = []
     events, fetch_notes = _fetch_events_for_request(request)
@@ -421,6 +424,9 @@ def build_parlay(request: ParlayBuildRequest) -> ParlayBuildResult:
 
     constraint = _build_constraint_spec(request)
     locked_legs = _resolve_locked_legs(candidates, request.locked_legs)
+    for leg in locked_legs:
+        if not leg_standalone_confidence(leg, leg.league or request.default_league).get("eligible", False):
+            raise ParlayBuildError("A locked selection no longer clears canonical recommendation gates.", notes)
     filtered_candidates = _filter_candidate_pool(candidates, request, constraint, locked_legs)
 
     remaining_needed = max(0, request.legs_requested - len(locked_legs))
@@ -454,6 +460,7 @@ def build_parlay(request: ParlayBuildRequest) -> ParlayBuildResult:
         raise ParlayBuildError("The selected legs conflict with each other after follow-up adjustments.", notes)
 
     leg_results, cross_warnings = _build_leg_results(selected, request)
+    notes.append("Individual price product is a selection aid; combined bookmaker price and joint EV are unverified.")
     result = ParlayBuildResult(
         request=request,
         selected_legs=leg_results,
@@ -675,8 +682,10 @@ def _filter_candidate_pool(
         group = rag.market_group_from_key(candidate.market_key)
         if allowed_groups and group not in allowed_groups:
             continue
+        sc = leg_standalone_confidence(candidate, candidate.league or request.default_league)
+        if not sc.get("eligible", False):
+            continue
         if request.min_model_prob is not None or allowed_confidences:
-            sc = leg_standalone_confidence(candidate, candidate.league or request.default_league)
             model_prob = sc.get("model_prob")
             confidence = str(sc.get("confidence") or "").lower()
             if request.min_model_prob is not None and (model_prob is None or model_prob < request.min_model_prob):
@@ -757,8 +766,8 @@ def _build_leg_results(
         league = leg.league or request.default_league
         standalone = leg_standalone_confidence(leg, league)
         model_prob = standalone.get("model_prob")
-        implied = implied_prob(float(leg.odds)) if getattr(leg, "odds", None) else None
-        edge = value_edge(model_prob, implied) if model_prob is not None and implied is not None else None
+        implied = standalone.get("implied_prob")
+        edge = standalone.get("value_edge")
         quality = rag.kb_leg_quality(leg, league)
         reasons = leg_evidence(leg, league)[:3]
         if not standalone.get("side_agrees", True):
@@ -789,6 +798,13 @@ def _build_leg_results(
                 implied_prob=implied,
                 value_edge=edge,
                 projected_total=standalone.get("projected"),
+                probability_basis=standalone.get("probability_basis"),
+                probability_version=standalone.get("probability_version"),
+                settlement_profile=standalone.get("settlement_profile"),
+                expected_value=standalone.get("expected_value"),
+                assessment_source=standalone.get("assessment_source"),
+                input_snapshot_id=standalone.get("input_snapshot_id"),
+                prediction_system_version=standalone.get("prediction_system_version"),
                 side_agrees=bool(standalone.get("side_agrees", True)),
                 warning=standalone.get("warning"),
                 reasons=reasons,
@@ -823,10 +839,10 @@ def _build_deterministic_summary(result: ParlayBuildResult) -> str:
 
     if result.request.target_odds:
         parts.append(
-            f"Combined odds landed at {result.combined_odds:.2f}x against a {result.request.target_odds:.2f}x target."
+            f"Individual price product is {result.combined_odds:.2f}x against a {result.request.target_odds:.2f}x target."
         )
     else:
-        parts.append(f"Combined odds landed at {result.combined_odds:.2f}x.")
+        parts.append(f"Individual price product is {result.combined_odds:.2f}x.")
 
     if result.cross_warnings:
         parts.append(f"{len(result.cross_warnings)} leg(s) conflict with standalone projections.")
@@ -863,7 +879,7 @@ def _generate_llm_summary(result: ParlayBuildResult) -> Tuple[Optional[str], Opt
             "role": "user",
             "content": (
                 f"Parlay target: {result.request.target_odds or 'none'}x\n"
-                f"Combined odds: {result.combined_odds:.2f}x\n"
+                f"Individual price product (unverified combined price): {result.combined_odds:.2f}x\n"
                 + "\n".join(leg_lines)
             ),
         },

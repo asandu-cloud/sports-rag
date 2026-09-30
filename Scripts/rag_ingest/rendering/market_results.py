@@ -92,7 +92,9 @@ def render_market_results_text(results: Iterable[MarketResult], *, notes: Iterab
             source_suffix = f" ({price_source})" if price_source else ""
             lines.append(f"  Recommended: {result_pick_label(result)} @ {quote.odds:.2f}{source_suffix}.")
             if decision.model_probability is not None:
-                lines.append(f"  Model probability: {decision.model_probability:.1%}")
+                label = ("Asian price-comparison probability" if decision.probability_basis == "asian_equivalent_non_push"
+                         else "Model probability")
+                lines.append(f"  {label}: {decision.model_probability:.1%}")
             if decision.implied_probability is not None:
                 lines.append(f"  Book implied probability: {decision.implied_probability:.1%}")
             if decision.value_edge is not None:

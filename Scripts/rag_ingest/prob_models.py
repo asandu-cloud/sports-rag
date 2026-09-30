@@ -6,7 +6,7 @@ corners, cards, SoT), implied probability extraction from bookmaker odds,
 expected value, value edge, and Kelly criterion.
 """
 
-from math import ceil, exp, lgamma, log, sqrt
+from math import ceil, exp, isfinite, lgamma, log, sqrt
 from typing import Dict, List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
@@ -234,6 +234,19 @@ def asian_total_settlement_profile(
     return profile
 
 
+def asian_total_profile_from_counts(probabilities: Dict[int, float], line: float,
+                                    side: str) -> Dict[str, float]:
+    """Price totals from the same discrete distribution as other goal markets."""
+    profile = dict.fromkeys(("full_win", "half_win", "push", "half_loss", "full_loss"), 0.0)
+    for total, probability in probabilities.items():
+        if total < 0 or int(total) != total or not isfinite(probability) or probability < 0:
+            raise ValueError("Invalid total-count probability.")
+        profile[_asian_total_bucket(total, line, side)] += probability
+    if abs(sum(profile.values()) - 1.0) > 1e-8:
+        raise ValueError("Total-count probabilities must sum to one.")
+    return profile
+
+
 def asian_total_expected_value(profile: Dict[str, float], decimal_odds: float) -> float:
     """Expected net return per unit stake under Asian total settlement rules."""
     if decimal_odds <= 1.0:
@@ -362,8 +375,8 @@ def _tau(x: int, y: int, lam: float, mu: float, rho: float) -> float:
 
     Adjusts the independent Poisson probability for low-scoring outcomes:
       - (0,0): 1 - lam*mu*rho
-      - (1,0): 1 + lam*rho
-      - (0,1): 1 + mu*rho
+      - (1,0): 1 + mu*rho
+      - (0,1): 1 + lam*rho
       - (1,1): 1 - rho
       - otherwise: 1  (no adjustment)
 
@@ -378,12 +391,21 @@ def _tau(x: int, y: int, lam: float, mu: float, rho: float) -> float:
     if x == 0 and y == 0:
         return 1.0 - lam * mu * rho
     if x == 1 and y == 0:
-        return 1.0 + lam * rho
-    if x == 0 and y == 1:
         return 1.0 + mu * rho
+    if x == 0 and y == 1:
+        return 1.0 + lam * rho
     if x == 1 and y == 1:
         return 1.0 - rho
     return 1.0
+
+
+def _validate_dixon_coles(lambda_h: float, lambda_a: float, rho: float) -> None:
+    if not all(isfinite(v) for v in (lambda_h, lambda_a, rho)):
+        raise ValueError("Dixon-Coles parameters must be finite.")
+    if min(lambda_h, lambda_a) < 0:
+        raise ValueError("Goal means must be nonnegative.")
+    if min(_tau(h, a, lambda_h, lambda_a, rho) for h in (0, 1) for a in (0, 1)) < 0:
+        raise ValueError("Dixon-Coles rho produces negative score probabilities.")
 
 
 def dixon_coles_scoreline_prob(home_goals: int, away_goals: int,
@@ -406,6 +428,7 @@ def dixon_coles_scoreline_prob(home_goals: int, away_goals: int,
     -------
     float -- adjusted scoreline probability
     """
+    _validate_dixon_coles(lambda_h, lambda_a, rho)
     p_home = poisson_pmf(home_goals, lambda_h)
     p_away = poisson_pmf(away_goals, lambda_a)
     tau = _tau(home_goals, away_goals, lambda_h, lambda_a, rho)
@@ -414,24 +437,25 @@ def dixon_coles_scoreline_prob(home_goals: int, away_goals: int,
 
 def dixon_coles_scoreline_matrix(lambda_h: float, lambda_a: float,
                                  rho: float = -0.10,
-                                 max_goals: int = 7) -> list:
-    """Full scoreline probability matrix under Dixon-Coles.
+                                 max_goals: int = 7,
+                                 tail_tolerance: float = 1e-10) -> list:
+    """Normalized score matrix with bounded omitted mass.
 
-    Returns a nested list of shape (max_goals+1) x (max_goals+1) where
-    matrix[i][j] = P(Home=i, Away=j).  The matrix is normalized so that
-    all probabilities sum to 1.0.
-
-    Parameters
-    ----------
-    lambda_h : float  -- home team expected goals
-    lambda_a : float  -- away team expected goals
-    rho : float       -- correlation parameter (default -0.10)
-    max_goals : int   -- maximum goals per team to consider (default 7)
-
-    Returns
-    -------
-    list[list[float]] -- (max_goals+1) x (max_goals+1) probability matrix
+    ``max_goals`` is a minimum grid extent. Expand until the independent
+    Poisson joint tail is at most ``tail_tolerance``. The DC adjustment
+    preserves total mass and marginals, so this is also its omitted mass.
+    Invalid parameters or an unbounded numerical grid fail explicitly.
     """
+    _validate_dixon_coles(lambda_h, lambda_a, rho)
+    if not isfinite(tail_tolerance) or not 0 < tail_tolerance < 1:
+        raise ValueError("tail_tolerance must lie strictly between zero and one.")
+    max_goals = max(1, int(max_goals))
+    if max_goals > 500:
+        raise ValueError("Score grid exceeds the numerical limit.")
+    while 1.0 - poisson_cdf(max_goals, lambda_h) * poisson_cdf(max_goals, lambda_a) > tail_tolerance:
+        max_goals += 1
+        if max_goals > 500:
+            raise ValueError("Score distribution tail exceeds the numerical limit.")
     size = max_goals + 1
     matrix = [[0.0] * size for _ in range(size)]
     total = 0.0
@@ -440,7 +464,7 @@ def dixon_coles_scoreline_matrix(lambda_h: float, lambda_a: float,
             p = dixon_coles_scoreline_prob(i, j, lambda_h, lambda_a, rho)
             matrix[i][j] = p
             total += p
-    # Normalize to account for truncation at max_goals
+    # Renormalize only the explicitly bounded numerical tail.
     if total > 0:
         for i in range(size):
             for j in range(size):
@@ -453,8 +477,8 @@ def dixon_coles_match_probs(lambda_h: float, lambda_a: float,
     """Match outcome probabilities under Dixon-Coles.
 
     Returns (p_home_win, p_draw, p_away_win) by summing the scoreline
-    matrix.  More accurate than independent Poisson for 1X2 markets
-    because it accounts for the correlation in low-scoring outcomes.
+    matrix. Low-score dependence is explicit; predictive accuracy still
+    requires held-out evaluation.
 
     Parameters
     ----------
@@ -482,8 +506,8 @@ def dixon_coles_btts_prob(lambda_h: float, lambda_a: float,
     """P(Both Teams To Score) under Dixon-Coles.
 
     Sums all scoreline probabilities where home >= 1 AND away >= 1.
-    More accurate than the independent approximation P(H>=1)*P(A>=1)
-    because Dixon-Coles adjusts the (0,0), (1,0), (0,1) cells.
+    Dixon-Coles adjusts the low-score cells; superiority to independent
+    Poisson remains an empirical evaluation question.
 
     Parameters
     ----------

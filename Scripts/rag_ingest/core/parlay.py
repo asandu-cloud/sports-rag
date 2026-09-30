@@ -364,6 +364,7 @@ def enrich_events_for_groups(events: List[Dict], league: str, desired_groups: Se
 
 
 def build_candidates(events: List[Dict]) -> List[CandidateLeg]:
+    from .market_contract import compatible
     best_rows: Dict[Tuple[str, str, str, str], CandidateLeg] = {}
     for ev in events:
         event_id = str(ev.get("id") or "")
@@ -375,7 +376,7 @@ def build_candidates(events: List[Dict]) -> List[CandidateLeg]:
             bm_title = bm.get("title")
             for mk in bm.get("markets", []) or []:
                 market_key = str(mk.get("key") or "")
-                if not is_full_game_market(market_key):
+                if not compatible(mk):
                     continue
                 for out in mk.get("outcomes", []) or []:
                     name = str(out.get("name") or "")
@@ -407,6 +408,7 @@ def build_candidates(events: List[Dict]) -> List[CandidateLeg]:
                         point=point,
                         bookmaker=bm_title,
                         league=ev_league,
+                        event=ev,
                     )
                     k = (event_id, market_key, name, "" if point is None else str(point))
                     cur = best_rows.get(k)
@@ -503,270 +505,9 @@ def combo_valid(combo: List[CandidateLeg], require_unique_events: bool) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def kb_leg_quality(leg: CandidateLeg, league: str) -> float:
-    """
-    Positive score indicates stronger multi-signal support from local KB.
-    """
-    hm = _profile_meta(leg.home_team, league)
-    am = _profile_meta(leg.away_team, league)
-    h_recent = _recent_stats(leg.home_team, league, last_n=6)
-    a_recent = _recent_stats(leg.away_team, league, last_n=6)
-    heur_groups = heuristic_groups_for_event(hm, am)
-
-    g = market_group_from_key(leg.market_key)
-    score = 0.0
-
-    h_ctrl = _numeric(hm.get("control_index"))
-    a_ctrl = _numeric(am.get("control_index"))
-    h_form = _numeric(hm.get("form_index_team"))
-    a_form = _numeric(am.get("form_index_team"))
-    h_dom = _numeric(hm.get("dominance_index"))
-    a_dom = _numeric(am.get("dominance_index"))
-
-    w = SCORING_WEIGHTS["kb_quality"]
-
-    if g in heur_groups:
-        score += w["heuristic_group_bonus"]
-
-    if g == "moneyline":
-        edge = 0.0
-        home_sign = 1.0 if leg.outcome.lower().startswith(leg.home_team.lower()) else -1.0
-        if h_form is not None and a_form is not None:
-            edge += (h_form - a_form) * w["form_edge"] * home_sign
-        if h_ctrl is not None and a_ctrl is not None:
-            edge += (h_ctrl - a_ctrl) * w["control_edge"] * home_sign
-        if h_dom is not None and a_dom is not None:
-            edge += (h_dom - a_dom) * w["dominance_edge"] * home_sign
-        h_sot = h_recent.get("sot_for_avg")
-        a_sot = a_recent.get("sot_for_avg")
-        if h_sot is not None and a_sot is not None:
-            edge += (h_sot - a_sot) * w["sot_edge"] * home_sign
-        score += edge
-        # Probability-based moneyline scoring (consistent with count markets)
-        try:
-            ml_probs = projected_moneyline_probs(leg.home_team, leg.away_team, league)
-            if ml_probs is not None:
-                p_home, p_draw, p_away = ml_probs[:3]
-                if p_home is not None and p_away is not None:
-                    is_home = leg.outcome.lower().startswith(leg.home_team.lower())
-                    model_p = p_home if is_home else p_away
-                    prob_bonus = (model_p - 0.50) * SCORING_WEIGHTS["prob"]["prob_quality_weight"]
-                    score += prob_bonus
-        except Exception:
-            pass
-
-    if g == "spreads":
-        proj_diff, _, _ = projected_goal_difference(leg.home_team, leg.away_team, league)
-        if proj_diff is not None:
-            is_home = leg.outcome.lower().startswith(leg.home_team.lower())
-            sign = 1.0 if is_home else -1.0
-            point = leg.point if leg.point is not None else 0.0
-            edge = sign * proj_diff + point
-            score += edge * w["spreads_edge_weight"]
-
-    if g == "totals":
-        if _is_team_total_market(leg.market_key):
-            side = _team_total_side(leg)
-            is_home = side == "home"
-            team = leg.home_team if is_home else leg.away_team
-            opp = leg.away_team if is_home else leg.home_team
-            tg_proj, _, _ = projected_team_goals(team, opp, league, is_home)
-            if tg_proj is not None and leg.point is not None:
-                direction = leg.outcome.lower()
-                if "over" in direction:
-                    score += (tg_proj - leg.point) * w["goals_line_fit"]
-                elif "under" in direction:
-                    score += (leg.point - tg_proj) * w["goals_line_fit"]
-        else:
-            goals_proj, _, _ = projected_total_goals(leg.home_team, leg.away_team, league)
-            if goals_proj is not None:
-                direction = leg.outcome.lower()
-                if "over" in direction:
-                    score += goals_proj - w["goals_over_offset"]
-                elif "under" in direction:
-                    score += w["goals_under_offset"] - goals_proj
-                if leg.point is not None:
-                    if "over" in direction:
-                        score += (goals_proj - leg.point) * w["goals_line_fit"]
-                    elif "under" in direction:
-                        score += (leg.point - goals_proj) * w["goals_line_fit"]
-
-    if g == "corners":
-        if _is_team_total_market(leg.market_key):
-            side = _team_total_side(leg)
-            is_home = side == "home"
-            team = leg.home_team if is_home else leg.away_team
-            opp = leg.away_team if is_home else leg.home_team
-            tc_proj, _, _ = projected_team_corners(team, opp, league, is_home)
-            if tc_proj is not None and leg.point is not None:
-                direction = leg.outcome.lower()
-                if "over" in direction:
-                    score += (tc_proj - leg.point) * w["corners_line_fit"]
-                elif "under" in direction:
-                    score += (leg.point - tc_proj) * w["corners_line_fit"]
-        else:
-            corners_proj, _, _ = projected_total_corners(leg.home_team, leg.away_team, league)
-            if corners_proj is not None:
-                direction = leg.outcome.lower()
-                if leg.point is not None and "total" in leg.market_key.lower():
-                    if "over" in direction:
-                        score += (corners_proj - leg.point) * w["corners_line_fit"]
-                    elif "under" in direction:
-                        score += (leg.point - corners_proj) * w["corners_line_fit"]
-                # Side edge for corner-winner markets
-                if leg.point is None or "total" not in leg.market_key.lower():
-                    h_proj_c, a_proj_c = projected_corners(hm, am)
-                    if h_proj_c is not None and a_proj_c is not None:
-                        side_edge = h_proj_c - a_proj_c
-                        h_recent_for = h_recent.get("corners_for_avg")
-                        a_recent_for = a_recent.get("corners_for_avg")
-                        if h_recent_for is not None and a_recent_for is not None:
-                            recent_side = h_recent_for - a_recent_for
-                            side_edge = 0.65 * side_edge + 0.35 * recent_side
-                        if leg.outcome.lower().startswith(leg.home_team.lower()):
-                            score += side_edge * w["corners_side_edge"]
-                        elif leg.outcome.lower().startswith(leg.away_team.lower()):
-                            score -= side_edge * w["corners_side_edge"]
-
-    if g == "cards":
-        if _is_team_total_market(leg.market_key):
-            side = _team_total_side(leg)
-            is_home = side == "home"
-            team = leg.home_team if is_home else leg.away_team
-            opp = leg.away_team if is_home else leg.home_team
-            tc_proj, _, _ = projected_team_cards(team, opp, league, is_home)
-            if tc_proj is not None and leg.point is not None:
-                direction = leg.outcome.lower()
-                if "over" in direction:
-                    score += (tc_proj - leg.point) * w["cards_line_fit"]
-                elif "under" in direction:
-                    score += (leg.point - tc_proj) * w["cards_line_fit"]
-        else:
-            cards_result = projected_total_cards(leg.home_team, leg.away_team, league)
-            cards_proj = cards_result[0] if cards_result else None
-
-            if cards_proj is not None:
-                direction = leg.outcome.lower()
-                if leg.point is not None and "total" in leg.market_key.lower():
-                    if "over" in direction:
-                        score += (cards_proj - leg.point) * w["cards_line_fit"]
-                    elif "under" in direction:
-                        score += (leg.point - cards_proj) * w["cards_line_fit"]
-
-                    # Foul momentum: recent fouls trending up -> cards more likely
-                    h_fouls = _numeric(hm.get("fouls_per_90_team"))
-                    a_fouls = _numeric(am.get("fouls_per_90_team"))
-                    h_recent_fouls = h_recent.get("fouls_avg")
-                    a_recent_fouls = a_recent.get("fouls_avg")
-                    foul_momentum = 0.0
-                    n_mom = 0
-                    if h_fouls is not None and h_recent_fouls is not None:
-                        foul_momentum += h_recent_fouls - h_fouls; n_mom += 1
-                    if a_fouls is not None and a_recent_fouls is not None:
-                        foul_momentum += a_recent_fouls - a_fouls; n_mom += 1
-                    if n_mom > 0:
-                        avg_mom = foul_momentum / n_mom
-                        if "over" in direction:
-                            score += avg_mom * w["cards_foul_momentum"]
-                        elif "under" in direction:
-                            score -= avg_mom * w["cards_foul_momentum"]
-
-                # Side edge for card-winner markets
-                if leg.point is None or "total" not in leg.market_key.lower():
-                    h_cards_proj, a_cards_proj = projected_cards(hm, am)
-                    if h_cards_proj is not None and a_cards_proj is not None:
-                        side_edge = h_cards_proj - a_cards_proj
-                        if leg.outcome.lower().startswith(leg.home_team.lower()):
-                            score += side_edge * w["cards_side_edge"]
-                        elif leg.outcome.lower().startswith(leg.away_team.lower()):
-                            score -= side_edge * w["cards_side_edge"]
-                    # Card-induction side edge
-                    h_opp_induced = _numeric(hm.get("opp_cards_induced_pm"))
-                    a_opp_induced = _numeric(am.get("opp_cards_induced_pm"))
-                    if h_opp_induced is not None and a_opp_induced is not None:
-                        induction_edge = a_opp_induced - h_opp_induced
-                        if leg.outcome.lower().startswith(leg.home_team.lower()):
-                            score += induction_edge * w["cards_opp_induced_w"]
-                        elif leg.outcome.lower().startswith(leg.away_team.lower()):
-                            score -= induction_edge * w["cards_opp_induced_w"]
-
-    if g == "sot":
-        sot_total, sot_season, sot_recent = projected_total_sot(leg.home_team, leg.away_team, league)
-        if sot_total is not None:
-            direction = leg.outcome.lower()
-            if "over" in direction:
-                score += sot_total - w["sot_over_offset"]
-            elif "under" in direction:
-                score += w["sot_under_offset"] - sot_total
-            if leg.point is not None:
-                if "over" in direction:
-                    score += (sot_total - leg.point) * w["sot_line_fit"]
-                elif "under" in direction:
-                    score += (leg.point - sot_total) * w["sot_line_fit"]
-
-    if g == "btts":
-        result = projected_btts_prob(leg.home_team, leg.away_team, league)
-        p_btts = result[0] if result else None
-        if p_btts is not None:
-            direction = leg.outcome.lower().strip()
-            if direction == "yes":
-                score += (p_btts - 0.50) * w.get("btts_quality_weight", 1.5)
-            elif direction == "no":
-                score += (0.50 - p_btts) * w.get("btts_quality_weight", 1.5)
-
-    if leg.odds >= w["long_odds_threshold"]:
-        score -= (leg.odds - w["long_odds_offset"]) * w["long_odds_penalty"]
-
-    # --- Group preference multiplier ---
-    group_pref = SCORING_WEIGHTS["group_preference"].get(g, 1.0)
-    score *= group_pref
-
-    # --- Elo signal for count-based markets ---
-    if g in ("corners", "cards", "sot", "totals"):
-        stat_map = {"corners": "corners", "cards": "cards", "sot": "sot", "totals": "goals"}
-        mw = SCORING_WEIGHTS["ml"]
-        elo_diff = get_elo_edge(leg.home_team, leg.away_team, stat_map[g])
-        if elo_diff is not None and abs(elo_diff) >= mw["min_elo_diff"]:
-            elo_norm = elo_diff / mw["elo_scale"]
-            direction = leg.outcome.lower()
-            home_outcome = direction.startswith(leg.home_team.lower()) if hasattr(leg, 'home_team') else False
-            if "over" in direction:
-                score += elo_norm * mw["elo_signal_weight"]
-            elif "under" in direction:
-                score -= elo_norm * mw["elo_signal_weight"]
-            elif home_outcome:
-                score += elo_norm * mw["elo_signal_weight"]
-            else:
-                score -= elo_norm * mw["elo_signal_weight"]
-
-    # --- Probability-aware quality bonus for count-based markets ---
-    if leg.point is not None and g in ("corners", "cards", "sot", "totals"):
-        proj_total, combined_var = _team_total_projection_and_variance(leg, league, g)
-        if proj_total is None:
-            proj_funcs = {
-                "corners": lambda: projected_total_corners(leg.home_team, leg.away_team, league),
-                "cards": lambda: projected_total_cards(leg.home_team, leg.away_team, league),
-                "sot": lambda: projected_total_sot(leg.home_team, leg.away_team, league),
-                "totals": lambda: projected_total_goals(leg.home_team, leg.away_team, league),
-            }
-            proj_result = proj_funcs[g]()
-            proj_total = proj_result[0] if proj_result else None
-            h_var = get_team_recent_variance(leg.home_team, league)
-            a_var = get_team_recent_variance(leg.away_team, league)
-            _stat_var_key = {"corners": "corners_for_var", "cards": "cards_var",
-                             "sot": "sot_for_var", "totals": "goals_var"}[g]
-            h_v = h_var.get(_stat_var_key)
-            a_v = a_var.get(_stat_var_key)
-            combined_var = (h_v + a_v) if (h_v is not None and a_v is not None) else None
-        if proj_total is not None:
-            direction = leg.outcome.lower()
-            is_over = "over" in direction
-            model_p = (over_prob(proj_total, leg.point, combined_var) if is_over
-                       else under_prob(proj_total, leg.point, combined_var))
-            prob_bonus = (model_p - 0.50) * SCORING_WEIGHTS["prob"]["prob_quality_weight"]
-            score += prob_bonus
-
-    return score
+def kb_leg_quality(leg, league):
+    from .quote_assessment import marginal_quality
+    return marginal_quality(leg, league)
 
 
 # ---------------------------------------------------------------------------
@@ -787,74 +528,9 @@ def _leg_side(leg: CandidateLeg) -> Optional[str]:
     return None
 
 
-def _combo_leg_model_probability(leg: CandidateLeg, fallback_league: str) -> Optional[float]:
-    leg_lg = _leg_league(leg, fallback_league)
-    g = market_group_from_key(leg.market_key)
-
-    if leg.point is not None and g in ("corners", "cards", "sot", "totals"):
-        # Team-total markets need per-team projection, not match total
-        if _is_team_total_market(leg.market_key) and g in ("corners", "cards", "totals"):
-            proj_total, combined_var = _team_total_projection_and_variance(leg, leg_lg, g)
-        else:
-            proj_funcs = {
-                "corners": lambda: projected_total_corners(leg.home_team, leg.away_team, leg_lg),
-                "cards": lambda: projected_total_cards(leg.home_team, leg.away_team, leg_lg),
-                "sot": lambda: projected_total_sot(leg.home_team, leg.away_team, leg_lg),
-                "totals": lambda: projected_total_goals(leg.home_team, leg.away_team, leg_lg),
-            }
-            proj_result = proj_funcs[g]()
-            proj_total = proj_result[0] if proj_result else None
-            var_key = {
-                "corners": "corners_for_var",
-                "cards": "cards_var",
-                "sot": "sot_for_var",
-                "totals": "goals_var",
-            }[g]
-            h_var = get_team_recent_variance(leg.home_team, leg_lg)
-            a_var = get_team_recent_variance(leg.away_team, leg_lg)
-            h_v = h_var.get(var_key)
-            a_v = a_var.get(var_key)
-            combined_var = (h_v + a_v) if (h_v is not None and a_v is not None) else None
-        if proj_total is None:
-            return None
-        is_over = "over" in (leg.outcome or "").lower()
-        return over_prob(proj_total, leg.point, combined_var) if is_over else under_prob(proj_total, leg.point, combined_var)
-
-    if g == "btts":
-        result = projected_btts_prob(leg.home_team, leg.away_team, leg_lg)
-        p_btts = result[0] if result else None
-        if p_btts is None:
-            return None
-        return p_btts if (leg.outcome or "").strip().lower() == "yes" else (1.0 - p_btts)
-
-    if g == "moneyline":
-        p_home, p_draw, p_away, _, _ = projected_moneyline_probs(leg.home_team, leg.away_team, leg_lg)
-        side = _leg_side(leg)
-        if side == "home":
-            return p_home
-        if side == "away":
-            return p_away
-        if side == "draw":
-            return p_draw
-        return None
-
-    if g == "spreads" and leg.point is not None:
-        side = _leg_side(leg)
-        if side not in {"home", "away"}:
-            return None
-        is_home = side == "home"
-        proj_diff, _, _ = projected_goal_difference(leg.home_team, leg.away_team, leg_lg)
-        if proj_diff is None:
-            return None
-        sign = 1.0 if is_home else -1.0
-        margin_std = compute_margin_std(leg.home_team, leg.away_team, leg_lg)
-        profile = _score_matrix_spread_profile(leg.home_team, leg.away_team, leg_lg, is_home, leg.point)
-        if profile is None:
-            profile = _normal_spread_profile(sign * proj_diff, margin_std, leg.point)
-        ev = _spread_expected_value(profile, leg.odds)
-        return _equivalent_binary_prob(ev, leg.odds)
-
-    return None
+def _combo_leg_model_probability(leg, fallback_league):
+    from .quote_assessment import assess_leg
+    return assess_leg(leg, _leg_league(leg, fallback_league)).get("model_prob")
 
 
 # ---------------------------------------------------------------------------
@@ -921,20 +597,8 @@ def score_combo(combo: List[CandidateLeg], c: ConstraintSpec, leg_quality: Dict[
     quality = sum(leg_quality.get(leg, 0.0) for leg in combo)
     score -= quality * w["kb_quality_weight"]
 
-    # --- EV-aware scoring: reward positive-EV combos ---
-    pw = SCORING_WEIGHTS["prob"]
-    joint_prob = 1.0
-    any_prob = False
-    for leg in combo:
-        model_p = _combo_leg_model_probability(leg, c.league)
-        if model_p is not None:
-            joint_prob *= model_p
-            any_prob = True
-        else:
-            joint_prob *= 0.5
-    if any_prob:
-        combo_ev = (joint_prob * combo_odds) - 1.0
-        score -= combo_ev * pw["ev_combo_weight"]
+    # Quote quality above uses marginal EV. Joint EV is unavailable: multiplying
+    # probabilities assumes independence and also mishandles Asian pushes.
 
     # Diversity penalty for same-event, same-thesis stacking beyond contradictions.
     for i in range(len(combo)):
@@ -1136,7 +800,12 @@ def _beam_search_combos(
 # ---------------------------------------------------------------------------
 
 
+from .quote_assessment import assessment_scope as _assessment_scope
+
+@_assessment_scope
 def select_parlay(candidates: List[CandidateLeg], leg_count: int, c: ConstraintSpec) -> Tuple[List[CandidateLeg], List[str]]:
+    from .quote_assessment import assess_leg
+    candidates = [leg for leg in candidates if assess_leg(leg, _leg_league(leg, c.league)).get("eligible")]
     notes: List[str] = []
     if leg_count <= 0:
         return [], ["Invalid leg count."]

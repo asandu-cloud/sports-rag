@@ -329,3 +329,20 @@ def test_public_board_withholds_started_and_stale_cards(
     expired = client.get("/api/match-reads/fixtures/fixture-started")
     assert expired.status_code == 410
     assert "no longer actionable" in expired.json()["detail"]
+
+
+def test_asian_probability_details_survive_persistence_and_public_card(settings,engine,session_factory):
+    from data_platform.services.match_read_cards import build_match_read_card
+    service=_service(session_factory)
+    result=_market_result(fixture_id='synthetic-asian')
+    result['decision'].update(probability_basis='asian_equivalent_non_push',
+        probability_version='market-probability.v2',
+        settlement_profile={'full_win':.4,'half_win':.16,'push':.12,'half_loss':0.,'full_loss':.32})
+    saved=_save(service,result,thesis='Synthetic Asian contract.')
+    # Persistence stores the full canonical decision in existing selection JSON.
+    restored=service.get(saved['id'])
+    card=build_match_read_card(restored)
+    selection=card['selections'][0]
+    assert selection['probability_basis']=='asian_equivalent_non_push'
+    assert selection['probability_version']=='market-probability.v2'
+    assert selection['settlement_profile']==result['decision']['settlement_profile']

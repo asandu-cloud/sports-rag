@@ -23,6 +23,11 @@ def test_all_market_outputs_match_cold_evaluation_after_prices_change(tmp_path, 
         "projected_total_sot": (9.2, 9.0, 9.4),
         "projected_goal_difference": (0.8, 0.7, 0.9),
     }
+    # The coherent goal selector additionally consumes a score snapshot.
+    from prob_models import dixon_coles_scoreline_matrix
+    matrix = dixon_coles_scoreline_matrix(1.8, 1.4)
+    score_probs = {(h,a):p for h,row in enumerate(matrix) for a,p in enumerate(row)}
+    monkeypatch.setattr(markets, "projected_correct_score_probs", Mock(return_value=(score_probs,1.8,1.4)))
     projections = []
     for name, values in overrides.items():
         function = Mock(return_value=tuple(values))

@@ -119,6 +119,13 @@ class ParlayLegResult:
     side_agrees: bool = True
     warning: Optional[str] = None
     reasons: List[str] = field(default_factory=list)
+    probability_basis: Optional[str] = None
+    probability_version: Optional[str] = None
+    settlement_profile: Optional[Dict[str, float]] = None
+    expected_value: Optional[float] = None
+    assessment_source: Optional[str] = None
+    input_snapshot_id: Optional[str] = None
+    prediction_system_version: Optional[str] = None
 
     @property
     def ref(self) -> ParlayLegRef:
@@ -159,6 +166,7 @@ class ParlayBuildResult:
     deterministic_summary: str = ""
     llm_summary: Optional[str] = None
     session_id: Optional[int] = None
+    combined_odds_basis: Optional[str] = "individual_price_product_unverified"
 
     @property
     def summary_text(self) -> str:
@@ -169,6 +177,7 @@ class ParlayBuildResult:
             "request": self.request.to_dict(),
             "selected_legs": [leg.to_dict() for leg in self.selected_legs],
             "combined_odds": self.combined_odds,
+            "combined_odds_basis": self.combined_odds_basis,
             "notes": list(self.notes),
             "cross_warnings": list(self.cross_warnings),
             "confidence_breakdown": self.confidence_breakdown,
@@ -185,6 +194,7 @@ class ParlayBuildResult:
             request=ParlayBuildRequest.from_dict(payload.get("request") or {}),
             selected_legs=[ParlayLegResult.from_dict(x) for x in payload.get("selected_legs") or []],
             combined_odds=float(payload.get("combined_odds") or 0.0),
+            combined_odds_basis=payload.get("combined_odds_basis"),
             notes=[str(x) for x in payload.get("notes") or []],
             cross_warnings=[str(x) for x in payload.get("cross_warnings") or []],
             confidence_breakdown=str(payload.get("confidence_breakdown") or ""),

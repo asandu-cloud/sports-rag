@@ -48,7 +48,18 @@ def replay_scenario(scenario: dict):
     if unknown:
         raise ValueError(f"Unsupported projection overrides: {sorted(unknown)}")
 
+    def synthetic_scores(*args, **kwargs):
+        # These are selector-delivery fixtures, not archived score forecasts.
+        # Supply the additional coherent-score boundary from their frozen mean.
+        from prob_models import dixon_coles_scoreline_matrix
+        mean = (overrides.get("projected_total_goals") or [None])[0]
+        if mean is None:
+            return None, None, None
+        matrix = dixon_coles_scoreline_matrix(mean / 2, mean / 2)
+        return {(h,a):p for h,row in enumerate(matrix) for a,p in enumerate(row)}, mean / 2, mean / 2
+
     with ExitStack() as stack:
+        stack.enter_context(mock.patch.object(market_service, "projected_correct_score_probs", side_effect=synthetic_scores))
         for function_name, result in overrides.items():
             stack.enter_context(mock.patch.object(
                 market_service, function_name, return_value=tuple(result),

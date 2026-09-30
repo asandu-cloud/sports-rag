@@ -1,6 +1,6 @@
 {
-  "baseline_revision": 1,
-  "baseline_reason": "Initial synthetic selector/delivery baseline. It protects common priced recommendations across goals, BTTS, and moneyline.",
+  "baseline_revision": 2,
+  "baseline_reason": "Synthetic selector/delivery baseline. Revision 2 preserves the source h2h market key on moneyline quotes; numerical expectations are unchanged.",
   "input_snapshot_id": "synthetic:priced-standard:v1",
   "generated_at": "2026-08-22T12:00:00Z",
   "fixture_date": "2026-09-01",
@@ -73,7 +73,7 @@
       "projection": {"value": 0.55, "season_component": null, "recent_component": null},
       "decision": {
         "status": "recommended",
-        "quote": {"side": "home", "line": null, "odds": 2.1, "bookmaker": "Synthetic Book", "market_key": null},
+        "quote": {"side": "home", "line": null, "odds": 2.1, "bookmaker": "Synthetic Book", "market_key": "h2h"},
         "model_probability": 0.55,
         "implied_probability": 0.4681724845995893,
         "value_edge": 0.08182751540041072,

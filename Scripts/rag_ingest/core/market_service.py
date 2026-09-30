@@ -2,7 +2,7 @@
 
 The service assembles core projections, normalized odds, and shared line
 selection into ``MarketResult`` objects.  It is intentionally presentation-free
-and has no production callers yet; delivery surfaces migrate in Phase 4.
+and supplies the canonical website and Discord prediction paths.
 """
 
 from __future__ import annotations
@@ -45,6 +45,7 @@ try:
     )
     from core.projections import (
         projected_btts_prob,
+        projected_correct_score_probs,
         projected_goal_difference,
         projected_moneyline_probs,
         projected_total_cards,
@@ -88,6 +89,7 @@ except ImportError:
     )
     from .projections import (  # type: ignore[no-redef]
         projected_btts_prob,
+        projected_correct_score_probs,
         projected_goal_difference,
         projected_moneyline_probs,
         projected_total_cards,
@@ -353,6 +355,28 @@ def _build_result(
     )
 
 
+def _quote_decision(selector, requested):
+    if requested is None:
+        return decision_from_selector(selector)
+    def matches(option):
+        side = str(option.get("team") or option.get("side") or "").lower()
+        requested_side = str(requested["outcome"]).lower()
+        return (requested_side in {side, str(option.get("side") or "").lower()}
+                and option.get("market_key") == requested["market_key"]
+                and option.get("bookmaker") == requested["bookmaker"]
+                and option.get("point") == requested.get("point")
+                and option.get("odds", option.get("best_odds")) == requested["odds"])
+    rows = selector.get("all_lines", selector.get("all_sides", []))
+    row = next((row for row in rows if matches(row)), None)
+    if row is None:
+        return _unavailable("Exact requested quote is unavailable or incompatible.")
+    return decision_from_selector({
+        "best_value": row,
+        "bet_recommendation": row if row.get("_eligible") else None,
+        "no_bet_reason": "Requested quote does not clear canonical recommendation thresholds.",
+    })
+
+
 def _evaluate_market(
     event: Mapping[str, Any],
     league: str,
@@ -368,6 +392,7 @@ def _evaluate_market(
     model_version: Optional[str] = None,
     context: Optional[Mapping[str, Any]] = None,
     _shared_quality: Optional[Dict[str, Any]] = None,
+    _requested_quote: Optional[Dict[str, Any]] = None,
 ) -> MarketResult:
     """Evaluate one supported pre-match market for an already-fetched event.
 
@@ -393,7 +418,16 @@ def _evaluate_market(
     )
     result_context = {"fixture_date": source_date} if source_date else {}
     result_context.update(dict(context or {}))
+    result_context["market_contract_version"] = "canonical-market-contract.v1"
     result_context["prediction_system"] = deepcopy(prediction_system_manifest())
+    result_context["probability_engine"] = {
+        "version": "probability-engine.v2",
+        "calibration": "unfitted",
+        "confidence_basis": "heuristic_thresholds_with_quality_caps",
+        "goal_distribution": "dixon_coles.v2",
+        "goal_tail_tolerance": 1e-10,
+        "rho": -0.10,
+    }
     # The audit record controls public-pick eligibility, so it must be derived
     # from canonical inputs rather than overridden by presentation context.
     result_context["data_quality"] = (
@@ -431,6 +465,28 @@ def _evaluate_market(
         combined_variance, variance_details = statistic(f"variance.{market_name}", _total_variance,
             home, away, league, market_name, value, source_date,
         )
+        count_probabilities = None
+        if market_name == "goals" and value is not None:
+            scores, home_mean, away_mean = projected_correct_score_probs(
+                home, away, league, league_ctx=league_ctx,
+                fixture_date=source_date, knockout_ctx=knockout_ctx,
+            )
+            if scores:
+                count_probabilities = {}
+                for (h, a), probability in scores.items():
+                    count_probabilities[h + a] = count_probabilities.get(h + a, 0.0) + probability
+                value = home_mean + away_mean
+                combined_variance = sum((total - value) ** 2 * probability
+                                        for total, probability in count_probabilities.items())
+                # Preserve the existing conservative confidence cap until fitting.
+                variance_details = {**variance_details, "count_distribution": "dixon_coles.v2",
+                                    "legacy_variance_source": variance_details.get("source"),
+                                    "source": "shared_goal_score_distribution",
+                                    "variance": combined_variance,
+                                    "distribution_variance_source": "shared_goal_score_distribution"}
+            else:
+                # Do not silently price goals from a different distribution.
+                value = None
         data_quality = result_context.get("data_quality")
         if isinstance(data_quality, dict):
             data_quality["variance"] = variance_details
@@ -438,19 +494,21 @@ def _evaluate_market(
             value=value, unit=market_name,
             season_component=season, recent_component=recent,
             variance=combined_variance,
-            components={"variance_source": variance_details.get("source")},
+            components={"variance_source": variance_details.get("distribution_variance_source", variance_details.get("source")),
+                        "distribution_version": "dixon_coles.v2" if market_name == "goals" else "count_totals.v1"},
         )
         decision = _unavailable("Insufficient profile data to project this market.")
         if value is not None:
             selector_result = select_best_total_recommendation(
                 extract_total_line_options(dict(event), market_name), value, combined_variance,
+                count_probabilities=count_probabilities,
             )
-            decision = _with_confidence(decision_from_selector(selector_result), market_name)
+            decision = _with_confidence(_quote_decision(selector_result, _requested_quote), market_name)
         decision = _apply_quality_guardrails(
             decision,
             result_context,
             market_name,
-            variance_source=variance_details.get("source"),
+            variance_source=variance_details.get("legacy_variance_source", variance_details.get("source")),
             referee_source=referee_source,
         )
         decision = apply_release_policy(decision, result_context)
@@ -466,7 +524,7 @@ def _evaluate_market(
 
     if market_name == "btts":
         p_yes, home_goals, away_goals, _, _ = statistic("btts", projected_btts_prob,
-            home, away, league, league_ctx=league_ctx, fixture_date=source_date,
+            home, away, league, league_ctx=league_ctx, fixture_date=source_date, knockout_ctx=knockout_ctx,
         )
         projection = Projection(
             value=p_yes, unit="probability",
@@ -475,7 +533,7 @@ def _evaluate_market(
         decision = _unavailable("Insufficient profile data to project BTTS.")
         if p_yes is not None:
             selector_result = select_best_btts_recommendation(extract_btts_odds(dict(event)), p_yes)
-            decision = _with_confidence(decision_from_selector(selector_result), "goals")
+            decision = _with_confidence(_quote_decision(selector_result, _requested_quote), "goals")
             if decision.quote is not None:
                 decision = replace(decision, quote=replace(
                     decision.quote, side=decision.quote.side.lower()
@@ -494,7 +552,7 @@ def _evaluate_market(
 
     if market_name == "moneyline":
         p_home, p_draw, p_away, home_goals, away_goals = statistic("moneyline", projected_moneyline_probs,
-            home, away, league, league_ctx=league_ctx, fixture_date=source_date,
+            home, away, league, league_ctx=league_ctx, fixture_date=source_date, knockout_ctx=knockout_ctx,
         )
         projection = Projection(
             value=p_home, unit="probability",
@@ -513,7 +571,7 @@ def _evaluate_market(
                 decision = _unavailable("No market prices are available for this moneyline fixture.")
             else:
                 selector_result = choose_best_moneyline_side(p_home, p_draw, p_away, options, home, away)
-                decision = _with_confidence(decision_from_selector(selector_result), "goals")
+                decision = _with_confidence(_quote_decision(selector_result, _requested_quote), "goals")
         decision = _apply_quality_guardrails(decision, result_context, "moneyline")
         decision = apply_release_policy(decision, result_context)
         return _build_result(
@@ -527,7 +585,7 @@ def _evaluate_market(
         )
 
     projected_diff, season_diff, recent_diff = statistic("spreads", projected_goal_difference,
-        home, away, league, league_ctx=league_ctx, fixture_date=source_date,
+        home, away, league, league_ctx=league_ctx, fixture_date=source_date, knockout_ctx=knockout_ctx,
     )
     projection = Projection(
         value=projected_diff, unit="goals",
@@ -537,9 +595,10 @@ def _evaluate_market(
     if projected_diff is not None:
         selector_result = select_best_spread_recommendation(
             extract_spread_line_options(dict(event)), projected_diff, home,
-            away_team=away, league=league,
+            away_team=away, league=league, fixture_date=source_date,
+            league_ctx=league_ctx, knockout_ctx=knockout_ctx,
         )
-        decision = _with_confidence(decision_from_selector(selector_result), "goals")
+        decision = _with_confidence(_quote_decision(selector_result, _requested_quote), "goals")
     decision = _apply_quality_guardrails(decision, result_context, "spreads")
     decision = apply_release_policy(decision, result_context)
     return _build_result(
@@ -613,3 +672,18 @@ def _evaluate_event_uncached(event, league, market_names, **kwargs):
     # mutate their market's audit and must never contaminate another result.
     return [timed_call(f"market.{name}", _evaluate_market, event, league, name,
                        _shared_quality=quality, **kwargs) for name in market_names]
+
+
+@profile_cache_boundary
+def evaluate_market_quote(event, league, market_name, quote, **contexts):
+    """Assess an existing quote using canonical probabilities and all release gates.
+
+    Keep its opposing quotes for vig removal. Never synthesize a missing slate.
+    """
+    filtered = deepcopy(dict(event))
+    filtered["bookmakers"] = [
+        {**book, "markets": [market for market in book.get("markets", [])
+                              if market.get("key") == quote["market_key"]]}
+        for book in event.get("bookmakers", []) if book.get("title") == quote["bookmaker"]
+    ]
+    return _evaluate_market(filtered, league, market_name, _requested_quote=quote, **contexts)

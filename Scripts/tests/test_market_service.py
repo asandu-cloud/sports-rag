@@ -58,6 +58,23 @@ def _event() -> dict:
 
 
 class MarketServiceTests(unittest.TestCase):
+    def setUp(self):
+        audit = {"temporal_status": "fixture_rows_strictly_before_target_date",
+                 "current_season_matches": 12, "effective_sample_size": 12}
+        quality = mock.patch.object(market_service, "get_prediction_profile_context", return_value=({"goals_for_pm": 1.6}, audit))
+        quality.start()
+        self.addCleanup(quality.stop)
+        def score_snapshot(*args, **kwargs):
+            from prob_models import dixon_coles_scoreline_matrix
+            total = market_service.projected_total_goals(*args, **kwargs)[0]
+            if total is None:
+                return None, None, None
+            matrix = dixon_coles_scoreline_matrix(total / 2, total / 2)
+            return {(h, a): p for h, row in enumerate(matrix) for a, p in enumerate(row)}, total / 2, total / 2
+        scores = mock.patch.object(market_service, "projected_correct_score_probs", side_effect=score_snapshot)
+        scores.start()
+        self.addCleanup(scores.stop)
+
     def test_goals_total_returns_a_reproducible_structured_recommendation(self):
         with mock.patch.object(market_service, "projected_total_goals", return_value=(3.2, 3.0, 3.4)):
             result = market_service.evaluate_market(

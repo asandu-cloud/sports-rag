@@ -200,6 +200,7 @@ class PriceQuote:
     bookmaker: Optional[str] = None
     market_key: Optional[str] = None
     period: Optional[str] = None
+    settlement_definition: Optional[str] = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "side", _text(self.side, "price.side", required=True))
@@ -211,6 +212,7 @@ class PriceQuote:
         object.__setattr__(self, "bookmaker", _text(self.bookmaker, "price.bookmaker"))
         object.__setattr__(self, "market_key", _text(self.market_key, "price.market_key"))
         object.__setattr__(self, "period", _text(self.period, "price.period"))
+        object.__setattr__(self, "settlement_definition", _text(self.settlement_definition, "price.settlement_definition"))
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -220,6 +222,7 @@ class PriceQuote:
             "bookmaker": self.bookmaker,
             "market_key": self.market_key,
             **({"period": self.period} if self.period is not None else {}),
+            **({"settlement_definition": self.settlement_definition} if self.settlement_definition is not None else {}),
         }
 
     @classmethod
@@ -231,6 +234,7 @@ class PriceQuote:
             bookmaker=option.get("bookmaker"),
             market_key=option.get("market_key", option.get("key")),
             period=option.get("period"),
+            settlement_definition=option.get("settlement_definition"),
         )
 
     @classmethod
@@ -242,6 +246,7 @@ class PriceQuote:
             bookmaker=data.get("bookmaker"),
             market_key=data.get("market_key"),
             period=data.get("period"),
+            settlement_definition=data.get("settlement_definition"),
         )
 
 
@@ -257,6 +262,9 @@ class Decision:
     expected_value: Optional[float] = None
     confidence: Optional[str] = None
     reason: Optional[str] = None
+    probability_basis: Optional[str] = None
+    settlement_profile: Optional[Mapping[str, float]] = None
+    probability_version: Optional[str] = None
 
     def __post_init__(self) -> None:
         status = self.status if isinstance(self.status, DecisionStatus) else DecisionStatus(str(self.status))
@@ -271,6 +279,28 @@ class Decision:
         object.__setattr__(self, "expected_value", _number(self.expected_value, "decision.expected_value"))
         object.__setattr__(self, "confidence", _text(self.confidence, "decision.confidence"))
         object.__setattr__(self, "reason", _text(self.reason, "decision.reason"))
+
+        if self.probability_basis not in {None, "outcome_probability", "asian_equivalent_non_push"}:
+            raise MarketResultError("Unknown probability basis.")
+        if self.settlement_profile is not None:
+            keys = {"full_win", "half_win", "push", "half_loss", "full_loss"}
+            if set(self.settlement_profile) != keys:
+                raise MarketResultError("A settlement profile requires all five outcome probabilities.")
+            profile = {k: _number(v, "settlement_profile." + k, minimum=0, maximum=1)
+                       for k, v in self.settlement_profile.items()}
+            if any(v is None for v in profile.values()) or abs(sum(profile.values()) - 1) > 1e-8:
+                raise MarketResultError("Settlement probabilities must sum to one.")
+            object.__setattr__(self, "settlement_profile", profile)
+            if self.probability_basis == "asian_equivalent_non_push":
+                win = profile["full_win"] + 0.5 * profile["half_win"]
+                loss = profile["full_loss"] + 0.5 * profile["half_loss"]
+                equivalent = win / (win + loss) if win + loss > 0 else 0.0
+                if self.model_probability is None or abs(self.model_probability - equivalent) > 1e-8:
+                    raise MarketResultError("Asian probability disagrees with the settlement profile.")
+        if self.probability_basis == "asian_equivalent_non_push" and self.settlement_profile is None:
+            raise MarketResultError("Asian probability requires a settlement profile.")
+        if self.probability_version not in {None, "market-probability.v2"}:
+            raise MarketResultError("Unknown probability contract version.")
 
         if status is DecisionStatus.RECOMMENDED:
             if self.quote is None or self.quote.odds is None:
@@ -296,6 +326,9 @@ class Decision:
             "expected_value": self.expected_value,
             "confidence": self.confidence,
             "reason": self.reason,
+            **({"probability_basis": self.probability_basis} if self.probability_basis is not None else {}),
+            **({"settlement_profile": dict(self.settlement_profile)} if self.settlement_profile is not None else {}),
+            **({"probability_version": self.probability_version} if self.probability_version is not None else {}),
         }
 
     @classmethod
@@ -310,6 +343,9 @@ class Decision:
             expected_value=data.get("expected_value"),
             confidence=data.get("confidence"),
             reason=data.get("reason"),
+            probability_basis=data.get("probability_basis"),
+            settlement_profile=data.get("settlement_profile"),
+            probability_version=data.get("probability_version"),
         )
 
 
@@ -481,6 +517,9 @@ def decision_from_selector(selector_result: Mapping[str, Any]) -> Decision:
             value_edge=_optional_metric(selected, "value_edge", "_value_edge"),
             expected_value=_optional_metric(selected, "expected_value", "ev", "_ev"),
             confidence=_text(selected.get("confidence"), "selector.confidence"),
+            probability_basis=selected.get("_probability_basis", "outcome_probability"),
+            settlement_profile=selected.get("_settlement_profile"),
+            probability_version="market-probability.v2",
         )
 
     best_value = result.get("best_value")
@@ -501,4 +540,7 @@ def decision_from_selector(selector_result: Mapping[str, Any]) -> Decision:
         expected_value=_optional_metric(option, "expected_value", "ev", "_ev") if option else None,
         confidence=_text(option.get("confidence"), "selector.confidence") if option else None,
         reason=reason,
+        probability_basis=option.get("_probability_basis", "outcome_probability") if option else None,
+        settlement_profile=option.get("_settlement_profile") if option else None,
+        probability_version="market-probability.v2" if option else None,
     )

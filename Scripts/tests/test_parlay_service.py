@@ -396,10 +396,12 @@ class ParlayServiceTests(unittest.TestCase):
              mock.patch.object(service.rag, "combined_odds", return_value=3.10), \
              mock.patch.object(service.rag, "kb_leg_quality", side_effect=[0.8, 0.6]), \
              mock.patch.object(service, "_generate_llm_summary", return_value=(None, "LLM unavailable")), \
-             mock.patch.object(service, "leg_standalone_confidence", side_effect=[
-                 {"confidence": "high", "model_prob": 0.64, "projected": 3.0, "side_agrees": True, "warning": None},
-                 {"confidence": "medium", "model_prob": 0.58, "projected": 10.4, "side_agrees": True, "warning": None},
-             ]), \
+             mock.patch.object(service, "leg_standalone_confidence", side_effect=lambda leg, league: {
+                 "eligible": True, "confidence": "high" if leg.event_id == "1" else "medium",
+                 "model_prob": 0.64 if leg.event_id == "1" else 0.58,
+                 "projected": 3.0 if leg.event_id == "1" else 10.4,
+                 "side_agrees": True, "warning": None,
+             }), \
              mock.patch.object(service, "leg_evidence", side_effect=[
                  ["Projected combined goals: 3.0."],
                  ["Projected combined corners: 10.4."],
@@ -409,7 +411,7 @@ class ParlayServiceTests(unittest.TestCase):
         self.assertEqual(len(result.selected_legs), 2)
         self.assertEqual(result.selected_legs[0].fixture, "Arsenal vs Chelsea")
         self.assertEqual(result.notes[-1], "LLM unavailable")
-        self.assertIn("Combined odds landed", result.deterministic_summary)
+        self.assertIn("Individual price product", result.deterministic_summary)
 
 
 if __name__ == "__main__":

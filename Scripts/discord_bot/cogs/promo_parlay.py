@@ -188,7 +188,8 @@ def _promo_embeds(result, league: str, match: str) -> List[discord.Embed]:
         if confidence:
             confidence_bits.append(f"{_conf_bar(confidence)} {_conf_label(confidence)}")
         if model_prob is not None:
-            confidence_bits.append(f"{model_prob:.0%} model confidence")
+            basis = "price-comparison probability" if getattr(leg, "probability_basis", None) == "asian_equivalent_non_push" else "outcome probability"
+            confidence_bits.append(f"{model_prob:.0%} {basis}")
         confidence_joined = " • ".join(confidence_bits)
         confidence_line = f"\n\u2728 {confidence_joined}" if confidence_joined else ""
 
@@ -198,7 +199,7 @@ def _promo_embeds(result, league: str, match: str) -> List[discord.Embed]:
         signal_score = getattr(leg, "odds", None)
         signal_line = ""
         if signal_score is not None:
-            signal_line = f"\n\U0001f4ca Analysis score: {float(signal_score):.2f}"
+            signal_line = f"\n\U0001f4ca Individual odds: {float(signal_score):.2f}"
 
         em.add_field(
             name=f"Insight {index}",
@@ -214,7 +215,7 @@ def _promo_embeds(result, league: str, match: str) -> List[discord.Embed]:
     if combined_score is not None:
         em.add_field(
             name="Overview",
-            value=f"**Combined analysis score: {float(combined_score):.2f}**",
+            value=f"**Individual price product (combined quote unverified): {float(combined_score):.2f}**",
             inline=False,
         )
 

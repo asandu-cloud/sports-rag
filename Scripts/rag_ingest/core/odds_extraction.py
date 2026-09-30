@@ -9,6 +9,8 @@ updating the original file (until the migration is complete).
 from __future__ import annotations
 
 import re
+from math import isfinite
+from .market_contract import compatible, quote_metadata
 from typing import Dict, List, Optional, Set, Tuple
 
 # --- team resolution helpers ---
@@ -97,43 +99,7 @@ def extract_total_line_options(event: Dict, stat_group: str) -> List[Dict]:
         bm_name = str(bm.get("title") or "")
         for mk in bm.get("markets", []) or []:
             key = str(mk.get("key") or "")
-            k = key.lower()
-            if not is_full_game_market(key):
-                continue
-            if stat_group == "corners":
-                if ("corner" not in k) or ("total" not in k):
-                    continue
-                # Exclude per-team corner lines -- we want match totals only
-                if "team_total" in k or "home_corner" in k or "away_corner" in k:
-                    continue
-            elif stat_group == "cards":
-                if (("card" not in k) and ("booking" not in k) and ("yellow" not in k)) or ("total" not in k):
-                    continue
-                # Exclude per-team card lines -- we want match totals only
-                if "team_total" in k or "home_card" in k or "away_card" in k or "home_team_total" in k or "away_team_total" in k:
-                    continue
-            elif stat_group == "goals":
-                # Match totals goals markets. Avoid corners/cards/teams/goalscorer props.
-                if "total" not in k:
-                    continue
-                if "corner" in k or "card" in k or "booking" in k:
-                    continue
-                if "team_total" in k or "player" in k or "goalscorer" in k:
-                    continue
-                if "shot" in k or "yellow" in k:
-                    continue
-            elif stat_group == "sot":
-                if "shot" not in k:
-                    continue
-                # Must be a totals-style market (over/under), not 1x2 or handicap
-                if "total" not in k and "over" not in k and "under" not in k:
-                    continue
-                # Exclude per-team SoT and 1x2/handicap shot markets
-                if "team_total" in k or "home" in k or "away" in k:
-                    continue
-                if "1x2" in k or "handicap" in k or "double" in k:
-                    continue
-            else:
+            if not compatible(mk, stat_group):
                 continue
             for outcome in mk.get("outcomes", []) or []:
                 name = str(outcome.get("name") or "").lower().strip()
@@ -141,11 +107,11 @@ def extract_total_line_options(event: Dict, stat_group: str) -> List[Dict]:
                     continue
                 point = safe_float(outcome.get("point"))
                 price = safe_float(outcome.get("price"))
-                if point is None or price is None or price <= 1.0:
+                if point is None or not isfinite(point) or price is None or not isfinite(price) or price <= 1.0:
                     continue
                 out.append(
                     {
-                        "market_key": key,
+                        **quote_metadata(event, mk),
                         "bookmaker": bm_name,
                         "side": name,
                         "point": point,
@@ -223,7 +189,7 @@ def extract_team_total_line_options(
                     continue
                 point = safe_float(outcome.get("point"))
                 price = safe_float(outcome.get("price"))
-                if point is None or price is None or price <= 1.0:
+                if point is None or not isfinite(point) or price is None or not isfinite(price) or price <= 1.0:
                     continue
                 out.append({
                     "market_key": key, "bookmaker": bm_name,
@@ -244,10 +210,7 @@ def extract_spread_line_options(event: Dict) -> List[Dict]:
         bm_name = str(bm.get("title") or "")
         for mk in bm.get("markets", []) or []:
             key = str(mk.get("key") or "")
-            k = key.lower()
-            if not is_full_game_market(key):
-                continue
-            if "spread" not in k and "handicap" not in k:
+            if not compatible(mk, "spreads"):
                 continue
             for oc in mk.get("outcomes", []) or []:
                 name = str(oc.get("name") or "")
@@ -258,10 +221,10 @@ def extract_spread_line_options(event: Dict) -> List[Dict]:
                     price = float(price) if price is not None else None
                 except (TypeError, ValueError):
                     continue
-                if point is None or price is None or price < 1.10:
+                if point is None or not isfinite(point) or price is None or not isfinite(price) or price < 1.10:
                     continue
                 out.append({
-                    "market_key": key,
+                    **quote_metadata(event, mk),
                     "bookmaker": bm_name,
                     "team": name,
                     "point": point,
@@ -282,26 +245,24 @@ def extract_moneyline_odds(event: Dict) -> List[Dict]:
     for bm in event.get("bookmakers", []) or []:
         bm_name = str(bm.get("title") or "")
         for mk in bm.get("markets", []) or []:
-            key = str(mk.get("key") or "").lower()
-            if market_group_from_key(key) != "moneyline":
-                continue
-            if not is_full_game_market(key):
+            key = str(mk.get("key") or "")
+            if not compatible(mk, "moneyline"):
                 continue
             for oc in mk.get("outcomes", []) or []:
                 name = str(oc.get("name") or "")
                 odds = safe_float(oc.get("price"))
-                if odds is None or odds <= 1.0:
+                if odds is None or not isfinite(odds) or odds <= 1.0:
                     continue
                 name_l = name.lower().strip()
                 if name_l == "draw" or name_l == "x":
                     side, team = "draw", "Draw"
-                elif name_l == home.lower().strip() or name_l.startswith("home") or name_l == "1":
+                elif name_l == home.lower().strip() or name_l == "home" or name_l == "1":
                     side, team = "home", home
-                elif name_l == away.lower().strip() or name_l.startswith("away") or name_l == "2":
+                elif name_l == away.lower().strip() or name_l == "away" or name_l == "2":
                     side, team = "away", away
                 else:
                     continue
-                results.append({"side": side, "odds": odds, "bookmaker": bm_name, "team": team})
+                results.append({**quote_metadata(event, mk), "side": side, "odds": odds, "bookmaker": bm_name, "team": team})
     return results
 
 
@@ -316,17 +277,15 @@ def extract_btts_odds(event: Dict) -> List[Dict]:
         bm_name = str(bm.get("title") or "")
         for mk in bm.get("markets", []) or []:
             key = str(mk.get("key") or "")
-            if market_group_from_key(key) != "btts":
-                continue
-            if not is_full_game_market(key):
+            if not compatible(mk, "btts"):
                 continue
             for outcome in mk.get("outcomes", []) or []:
                 name = str(outcome.get("name") or "").strip()
                 price = safe_float(outcome.get("price"))
-                if not name or price is None or price <= 1.0:
+                if name.lower() not in {"yes", "no"} or price is None or not isfinite(price) or price <= 1.0:
                     continue
                 out.append({
-                    "market_key": key,
+                    **quote_metadata(event, mk),
                     "bookmaker": bm_name,
                     "side": name,
                     "odds": price,
@@ -353,7 +312,7 @@ def extract_correct_score_odds(event: Dict) -> Dict[Tuple[int, int], List[Dict]]
             for oc in mk.get("outcomes", []) or []:
                 name = str(oc.get("name") or "")
                 odds = safe_float(oc.get("price"))
-                if odds is None or odds <= 1.0:
+                if odds is None or not isfinite(odds) or odds <= 1.0:
                     continue
                 m = re.match(r"(\d+)\s*[-:]\s*(\d+)", name.strip())
                 if not m:
@@ -422,7 +381,7 @@ def extract_goal_interval_odds(event: Dict) -> Dict[str, Dict]:
             for outcome in mk.get("outcomes", []) or []:
                 name = str(outcome.get("name") or "").strip()
                 price = safe_float(outcome.get("price"))
-                if price is None or price <= 1.0:
+                if price is None or not isfinite(price) or price <= 1.0:
                     continue
                 # Map outcome name to our standard bands
                 label = _match_interval_label(name)

@@ -1401,6 +1401,7 @@ def _goal_market_team_projections(
     league: str,
     league_ctx=None,
     fixture_date: Optional[str] = None,
+    knockout_ctx=None,
 ) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float]]:
     """Canonical team-goal split for BTTS / scoreline / moneyline / spreads."""
     bs, br = _stat_blend("goals")
@@ -1427,6 +1428,7 @@ def _goal_market_team_projections(
         league,
         league_ctx=league_ctx,
         fixture_date=fixture_date,
+        knockout_ctx=knockout_ctx,
     )
     if h_proj is not None and a_proj is not None and total_blended is not None:
         raw_total = h_proj + a_proj
@@ -1442,99 +1444,90 @@ def _goal_market_team_projections(
 #  Derived projections (BTTS, correct score, moneyline, goal diff)
 # ===================================================================
 
+def _compute_goal_score_snapshot(home, away, league, league_ctx=None,
+                                 fixture_date=None, knockout_ctx=None, max_goals=6):
+    h, a, hs, aws = _goal_market_team_projections(
+        home, away, league, league_ctx=league_ctx,
+        fixture_date=fixture_date, knockout_ctx=knockout_ctx,
+    )
+    if h is None or a is None:
+        return None, h, a, hs, aws
+    return dixon_coles_scoreline_matrix(h, a, rho=-0.10, max_goals=max_goals), h, a, hs, aws
+
+
+def _goal_score_snapshot(home, away, league, league_ctx=None,
+                         fixture_date=None, knockout_ctx=None, max_goals=6):
+    # Reuse only inside the existing fixture/context/data-version cache boundary.
+    # Nested lists, rather than tuple-key dictionaries, survive JSON caching.
+    try:
+        from .projection_cache import statistic
+    except ImportError:
+        from core.projection_cache import statistic
+    return statistic(
+        f"goal_score_distribution.v2.min_grid_{max_goals}", _compute_goal_score_snapshot,
+        home, away, league, league_ctx=league_ctx, fixture_date=fixture_date,
+        knockout_ctx=knockout_ctx, max_goals=max_goals,
+    )
+
+
 def projected_btts_prob(home: str, away: str, league: str,
-                        league_ctx=None,
-                        fixture_date: Optional[str] = None) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[float]]:
-    """
-    Project P(BTTS Yes) using Dixon-Coles bivariate Poisson.
-    Returns (p_btts_yes, h_proj, a_proj, h_season, a_season).
-    """
-    h_proj, a_proj, h_season, a_season = _goal_market_team_projections(
-        home, away, league, league_ctx=league_ctx, fixture_date=fixture_date,
+                        league_ctx=None, fixture_date: Optional[str] = None,
+                        knockout_ctx=None):
+    """BTTS from the shared, tail-bounded goal distribution."""
+    matrix, h, a, hs, aws = _goal_score_snapshot(
+        home, away, league, league_ctx=league_ctx,
+        fixture_date=fixture_date, knockout_ctx=knockout_ctx,
     )
-
-    if h_proj is None or a_proj is None:
-        return None, None, None, h_season, a_season
-
-    # Dixon-Coles bivariate Poisson for BTTS (accounts for goal correlation)
-    p_btts_yes = dixon_coles_btts_prob(h_proj, a_proj)
-
-    return p_btts_yes, h_proj, a_proj, h_season, a_season
+    if matrix is None:
+        return None, h, a, hs, aws
+    return sum(p for row in matrix[1:] for p in row[1:]), h, a, hs, aws
 
 
-def projected_correct_score_probs(
-    home: str, away: str, league: str, max_goals: int = 6,
-    league_ctx=None,
-    fixture_date: Optional[str] = None,
-) -> Tuple[Optional[Dict[Tuple[int, int], float]], Optional[float], Optional[float]]:
-    """
-    Compute P(Home=i, Away=j) for all i,j in [0, max_goals] using Dixon-Coles
-    bivariate Poisson (rho correction for low-scoring outcomes).
-    Returns (prob_matrix, h_proj, a_proj).
-    """
-    h_proj, a_proj, _, _ = _goal_market_team_projections(
+def projected_correct_score_probs(home: str, away: str, league: str, max_goals: int = 6,
+                                  league_ctx=None, fixture_date: Optional[str] = None,
+                                  knockout_ctx=None):
+    """Score probabilities; max_goals is a minimum extent, not a hard cutoff."""
+    matrix, h, a, _, _ = _goal_score_snapshot(
         home, away, league, league_ctx=league_ctx, fixture_date=fixture_date,
+        knockout_ctx=knockout_ctx, max_goals=max_goals,
     )
-    if h_proj is None or a_proj is None:
-        return None, None, None
-
-    matrix = dixon_coles_scoreline_matrix(h_proj, a_proj, rho=-0.10, max_goals=max_goals)
-    probs: Dict[Tuple[int, int], float] = {}
-    for i in range(max_goals + 1):
-        for j in range(max_goals + 1):
-            probs[(i, j)] = matrix[i][j]
-
-    return probs, h_proj, a_proj
+    if matrix is None:
+        return None, h, a
+    return {(i, j): p for i, row in enumerate(matrix) for j, p in enumerate(row)}, h, a
 
 
-def projected_moneyline_probs(
-    home: str, away: str, league: str,
-    league_ctx=None,
-    fixture_date: Optional[str] = None,
-) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[float]]:
-    """
-    Compute P(Home Win), P(Draw), P(Away Win) from the Poisson/NegBin scoreline matrix.
-    Returns (p_home, p_draw, p_away, h_proj, a_proj).
-    """
-    probs, h_proj, a_proj = projected_correct_score_probs(
-        home, away, league, league_ctx=league_ctx, fixture_date=fixture_date,
+def projected_moneyline_probs(home: str, away: str, league: str,
+                              league_ctx=None, fixture_date: Optional[str] = None,
+                              knockout_ctx=None):
+    """Home/draw/away probabilities from the shared goal distribution."""
+    probs, h, a = projected_correct_score_probs(
+        home, away, league, league_ctx=league_ctx,
+        fixture_date=fixture_date, knockout_ctx=knockout_ctx,
     )
     if probs is None:
-        return None, None, None, None, None
-
-    p_home = sum(p for (h, a), p in probs.items() if h > a)
-    p_draw = sum(p for (h, a), p in probs.items() if h == a)
-    p_away = sum(p for (h, a), p in probs.items() if h < a)
-
-    return p_home, p_draw, p_away, h_proj, a_proj
+        return None, None, None, h, a
+    return (sum(p for (i,j),p in probs.items() if i>j),
+            sum(p for (i,j),p in probs.items() if i==j),
+            sum(p for (i,j),p in probs.items() if i<j), h, a)
 
 
 def projected_goal_difference(home: str, away: str, league: str,
-                              league_ctx=None,
-                              fixture_date: Optional[str] = None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
-    """
-    Project expected goal difference (home - away). Positive = home favored.
-    Returns (blended_diff, season_diff, recent_diff).
-    """
-    h_proj, a_proj, h_season, a_season = _goal_market_team_projections(
-        home, away, league, league_ctx=league_ctx, fixture_date=fixture_date,
+                              league_ctx=None, fixture_date: Optional[str] = None,
+                              knockout_ctx=None):
+    """Expected home-away margin using the same snapshot as handicap pricing."""
+    matrix, h, a, hs, aws = _goal_score_snapshot(
+        home, away, league, league_ctx=league_ctx,
+        fixture_date=fixture_date, knockout_ctx=knockout_ctx,
     )
-    if h_proj is None or a_proj is None:
+    if matrix is None:
         return None, None, None
-
-    probs, _, _ = projected_correct_score_probs(
-        home, away, league, max_goals=7, league_ctx=league_ctx, fixture_date=fixture_date,
-    )
-    blended_diff = sum((h - a) * p for (h, a), p in (probs or {}).items()) if probs else (h_proj - a_proj)
-    season_diff = (h_season - a_season) if (h_season is not None and a_season is not None) else None
-
+    difference = sum((i-j)*p for i,row in enumerate(matrix) for j,p in enumerate(row))
+    season = hs-aws if hs is not None and aws is not None else None
     hr = _recent_stats(home, league, last_n=6, target_date=fixture_date)
     ar = _recent_stats(away, league, last_n=6, target_date=fixture_date)
-    h_xg = hr.get("xg_for_avg")
-    a_xg = ar.get("xg_for_avg")
-    recent_diff = (h_xg - a_xg) if (h_xg is not None and a_xg is not None) else None
-
-    return blended_diff, season_diff, recent_diff
+    hx, ax = hr.get("xg_for_avg"), ar.get("xg_for_avg")
+    recent = hx-ax if hx is not None and ax is not None else None
+    return difference, season, recent
 
 
 # ---------------------------------------------------------------------------

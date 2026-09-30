@@ -657,8 +657,11 @@ const appModule = {
   },
 
   _formatMatchReadSelection(selection) {
-    const probability = Number(selection?.model_probability);
-    if (Number.isFinite(probability)) return `${(probability * 100).toFixed(1)}% model probability`;
+    const raw = selection?.model_probability;
+    const probability = raw === null || raw === undefined ? NaN : Number(raw);
+    const label = selection?.probability_basis === 'asian_equivalent_non_push'
+      ? 'Asian price-comparison probability' : 'model probability';
+    if (Number.isFinite(probability)) return `${(probability * 100).toFixed(1)}% ${label}`;
     return 'Model probability unavailable';
   },
 

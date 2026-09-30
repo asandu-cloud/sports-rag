@@ -756,6 +756,14 @@ def _unit_bet_rejected_legs(result, used_card_legs: int) -> list:
     rejected = []
     rejected_ids = set()
 
+    # A same-game combination or cross-book product has no executable quote.
+    # Keep compatible match selections elsewhere; do not stake this as one slip.
+    event_ids = [str(getattr(leg, "event_id", "") or "") for leg in legs]
+    bookmakers = {str(getattr(leg, "bookmaker", "") or "").strip().lower() for leg in legs}
+    if len(legs) > 1 and (len(set(event_ids)) != len(event_ids) or "" in event_ids
+                          or len(bookmakers) != 1 or "" in bookmakers):
+        return [(leg, "combined executable quote unavailable") for leg in legs]
+
     for leg in legs:
         if _is_unit_integer_under(leg):
             rejected.append((leg, "integer under line"))
@@ -836,6 +844,13 @@ def _unit_leg_tracker_payload(leg) -> dict:
         "odds": getattr(leg, "odds", None),
         "bookmaker": getattr(leg, "bookmaker", None),
         "model_prob": getattr(leg, "model_prob", None),
+        "probability_basis": getattr(leg, "probability_basis", None),
+        "probability_version": getattr(leg, "probability_version", None),
+        "settlement_profile": getattr(leg, "settlement_profile", None),
+        "expected_value": getattr(leg, "expected_value", None),
+        "assessment_source": getattr(leg, "assessment_source", None),
+        "input_snapshot_id": getattr(leg, "input_snapshot_id", None),
+        "prediction_system_version": getattr(leg, "prediction_system_version", None),
         "implied_prob": getattr(leg, "implied_prob", None),
         "value_edge": getattr(leg, "value_edge", None),
         "confidence": getattr(leg, "confidence", None),
@@ -3054,7 +3069,8 @@ class AutoPush(commands.Cog):
             em.title = f"\U0001f3af  {'Single' if is_single else 'Double'} @ {combo_odds:.2f}"
 
             for leg in legs:
-                model_str = f"{leg.model_prob:.0%}" if leg.model_prob else "—"
+                model_str = f"{leg.model_prob:.0%}" if leg.model_prob is not None else "—"
+                probability_label = "Price-comparison probability" if getattr(leg, "probability_basis", None) == "asian_equivalent_non_push" else "Outcome probability"
                 edge_str = f"{leg.value_edge:+.1%}" if leg.value_edge else ""
                 conf_label = (leg.confidence or "—").title()
 
@@ -3062,7 +3078,7 @@ class AutoPush(commands.Cog):
                     name=f"{leg.fixture} [{leg.league}]",
                     value=(
                         f"\U0001f4cb **{leg.pick_display}** @ {leg.odds:.2f}\n"
-                        f"\U0001f4ca Model: {model_str} \u2022 Edge: {edge_str} \u2022 {conf_label}"
+                        f"\U0001f4ca {probability_label}: {model_str} \u2022 Edge: {edge_str} \u2022 {conf_label}"
                     ),
                     inline=False,
                 )

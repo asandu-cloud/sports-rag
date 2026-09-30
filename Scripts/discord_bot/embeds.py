@@ -1725,7 +1725,8 @@ def structured_parlay_embeds(result, league: Optional[str] = None) -> List[disco
         if confidence:
             conf_line = f"\n{_conf_bar(confidence)} {_conf_label(confidence)}"
             if model_prob is not None:
-                conf_line += f" \u2022 {model_prob:.0%}"
+                basis = "price-comparison probability" if getattr(leg, "probability_basis", None) == "asian_equivalent_non_push" else "outcome probability"
+                conf_line += f" • {basis}: {model_prob:.0%}"
 
         warning = getattr(leg, "warning", None)
         warning_line = f"\n\u26a0\ufe0f {warning}" if warning else ""
@@ -1744,7 +1745,7 @@ def structured_parlay_embeds(result, league: Optional[str] = None) -> List[disco
 
     slip.add_field(
         name="\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
-        value=f"**\U0001f4b5 Combined Odds: {getattr(result, 'combined_odds', 0.0):.2f}x**",
+        value=f"**\U0001f4b5 Individual price product (combined quote unverified): {getattr(result, 'combined_odds', 0.0):.2f}x**",
         inline=False,
     )
 
