@@ -31,6 +31,10 @@ ROOT = Path(__file__).resolve().parents[2]
 LEAGUES = ('EPL', 'LaLiga', 'SerieA', 'Bundesliga', 'Ligue1', 'Championship',
            'SuperLig', 'Eredivisie', 'PrimeiraLiga', 'BelgianProLeague', 'UCL', 'UEL', 'UECL')
 DEFAULT_SEASONS = (2021, 2022, 2023, 2024, 2025, 2026)
+DEFAULT_RPM = 420
+MAX_RPM = 420  # Ultra's seven-per-second limit, with evenly spaced starts.
+DEFAULT_DAILY_BUDGET = 75000
+DEFAULT_RESERVE = 0
 SCHEMA = 'fixture-player-history-collection.v2'
 ENDPOINT = '/fixtures/players'
 ENDPOINTS = (ENDPOINT, '/fixtures/lineups', '/fixtures/events')
@@ -54,13 +58,22 @@ def digest(value):
     return hashlib.sha256(encoded(value)).hexdigest()
 
 
-def write_json(path, value):
+def write_bytes(path, data):
     temporary = path.with_suffix(path.suffix + '.tmp')
     with temporary.open('wb') as handle:
-        handle.write(encoded(value) + b'\n')
+        handle.write(data)
         handle.flush()
         os.fsync(handle.fileno())
     temporary.replace(path)
+    parent_fd = os.open(path.parent, os.O_RDONLY)
+    try:
+        os.fsync(parent_fd)
+    finally:
+        os.close(parent_fd)
+
+
+def write_json(path, value):
+    write_bytes(path, encoded(value) + b'\n')
 
 
 def readonly(path):
@@ -100,6 +113,8 @@ def safe_directory(root, directory):
     parent = root / 'Index/history_staging'
     if directory == parent or not directory.is_relative_to(parent):
         raise ValueError('Collection directory must be a child of Index/history_staging')
+    if directory.resolve() == parent.resolve() or not directory.resolve().is_relative_to(parent.resolve()):
+        raise ValueError('Resolved collection path must remain a child of Index/history_staging')
     # Forbid symlinks anywhere on the staging path, including future writes.
     for p in (directory, *directory.parents):
         if p == root:
@@ -152,18 +167,26 @@ def validate_players(fixture, payload):
     for block in blocks:
         if not positive_id(block['team']['id']) or len(block['players']) < 11:
             raise ValueError('Incomplete team roster')
+        if block['team'].get('name') is not None and not isinstance(block['team']['name'], str):
+            raise ValueError('Invalid team name')
         for row in block['players']:
             player = row.get('player') or {}
             pid = player.get('id')
             if not positive_id(pid) or pid in seen:
                 raise ValueError('Missing or duplicate player identity')
+            if player.get('name') is not None and not isinstance(player['name'], str):
+                raise ValueError('Invalid player name')
             seen.add(pid)
             stats = row.get('statistics')
             if not isinstance(stats, list) or len(stats) != 1 or not isinstance(stats[0], dict):
                 raise ValueError('Ambiguous player statistics blocks')
-            for key, value in stats[0].items():
-                if value is not None and key != 'offsides' and not isinstance(value, dict):
+            for key in ('games', 'shots', 'goals', 'passes', 'tackles', 'duels', 'dribbles', 'fouls', 'cards', 'penalty'):
+                value = stats[0].get(key)
+                if value is not None and not isinstance(value, dict):
                     raise ValueError('Malformed player statistics section')
+            position = (stats[0].get('games') or {}).get('position')
+            if position is not None and not isinstance(position, str):
+                raise ValueError('Invalid player position')
             for section, fields in (
                 ('games', ('minutes', 'number')), ('shots', ('total', 'on')),
                 ('goals', ('total', 'assists', 'conceded', 'saves')),
@@ -232,8 +255,11 @@ def validate_events(fixture, payload):
         timing = event.get('time') or {}
         for key in ('elapsed', 'extra'):
             value = timing.get(key)
-            if value is not None and (type(value) is not int or value < 0):
+            if value is not None and type(value) is not int:
                 raise ValueError('Invalid event time')
+            # Observed provider sentinel -5 has no established minute meaning.
+            # Retain the event as partial evidence, never turn it into minute 0.
+            partial |= value is not None and value < 0
         if not isinstance(event.get('type'), str) or not event['type']:
             raise ValueError('Missing event type')
         if event.get('detail') is not None and not isinstance(event['detail'], str):
@@ -354,14 +380,25 @@ class BudgetPause(RuntimeError):
 
 class BudgetSession:
     """Count every HTTP attempt (including shared-client retries) durably."""
-    def __init__(self, database, key, *, daily_budget=40000, reserve=5000, rpm=120,
+    def __init__(self, database, key, *, daily_budget=DEFAULT_DAILY_BUDGET, reserve=DEFAULT_RESERVE, rpm=DEFAULT_RPM,
                  session=None, sleep=time.sleep, clock=time.monotonic, utc=now):
+        if not 1 <= rpm <= MAX_RPM:
+            raise ValueError(f'Request rate must be between 1 and {MAX_RPM} per minute')
         self.database, self.daily_budget, self.reserve, self.rpm = database, daily_budget, reserve, rpm
         self.session = session or requests.Session()
         self.session.headers.update({'x-apisports-key': key})
         self.sleep, self.clock, self.utc = sleep, clock, utc
         self.next_at = 0.0
         self.provider_remaining = None
+        self.provider_rpm = None
+
+    def request_interval(self):
+        interval = 60 / self.rpm
+        if self.provider_rpm is not None:
+            # The provider also meters whole requests per second (Ultra: 7).
+            interval = max(interval, 60 / self.provider_rpm,
+                           1 / max(1, self.provider_rpm // 60))
+        return interval
 
     def get(self, url, **kwargs):
         if url not in {BASE_URL + endpoint for endpoint in ENDPOINTS}:
@@ -379,7 +416,8 @@ class BudgetSession:
                 raise BudgetPause('This collection reached its UTC daily request budget')
             db.execute('''INSERT INTO player_collection_budget VALUES (?,1)
                 ON CONFLICT(day) DO UPDATE SET attempts=attempts+1''', (day,))
-        self.next_at = self.clock() + 60 / self.rpm
+        started_at = self.clock()
+        self.next_at = started_at + self.request_interval()
         response = self.session.get(url, **kwargs)
         headers = {k.lower(): v for k, v in response.headers.items()}
         remaining = headers.get('x-ratelimit-requests-remaining')
@@ -388,7 +426,10 @@ class BudgetSession:
         per_minute = headers.get('x-ratelimit-remaining')
         limit = headers.get('x-ratelimit-limit')
         if limit is not None and str(limit).isdigit() and int(limit) > 0:
-            self.next_at = max(self.next_at, self.clock() + 60 / min(self.rpm, int(limit)))
+            self.provider_rpm = int(limit)
+        # Space request starts; response latency already consumes this interval.
+        # Retain the last advertised cap if a later response omits the header.
+        self.next_at = max(self.next_at, started_at + self.request_interval())
         if per_minute is not None and str(per_minute).isdigit() and int(per_minute) == 0:
             self.next_at = max(self.next_at, self.clock() + 60)
         if response.status_code == 429:
@@ -412,15 +453,27 @@ def update_state(session, fixture, endpoint, state, archive_id, error=None):
             error=:e,updated_at=:t WHERE fixture_id=:f'''), params)
 
 
-def archive_response(directory, fixture, payload, endpoint=ENDPOINT):
+def archive_response(directory, fixture, payload, endpoint=ENDPOINT, fetched_at=None):
     from sqlalchemy import create_engine, text
     from sqlalchemy.orm import Session
     from Scripts.data_platform.storage.archive import LocalDiskStorage, PayloadArchiver
+    from Scripts.data_platform.models import RawPayloadArchive
+    class DurableStorage(LocalDiskStorage):
+        def put(self, key, data, *, content_type='application/octet-stream'):
+            path = self._path(key)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            write_bytes(path, data)
+            return path.resolve().as_uri()
     engine = create_engine(f"sqlite:///{directory / 'platform.db'}")
     try:
         with Session(engine) as session, session.begin():
-            result = PayloadArchiver(session, LocalDiskStorage(directory / 'raw_archive')).archive_json(
+            result = PayloadArchiver(session, DurableStorage(directory / 'raw_archive')).archive_json(
                 provider='api_football', endpoint=endpoint, params={'fixture': fixture['fixture_id']}, payload=payload)
+            if fetched_at is not None and result.was_new:
+                captured = datetime.fromisoformat(fetched_at)
+                if captured.tzinfo is None:
+                    raise ValueError('Response capture timestamp must include its timezone')
+                session.get(RawPayloadArchive, result.archive_id).fetched_at = captured
             update_state(session, fixture, endpoint, 'downloaded', result.archive_id)
         return result.archive_id
     finally:
@@ -474,13 +527,18 @@ def normalize_context(session, fixture, payload, endpoint, archive_id):
                 VALUES (:f,:a,:i,:t,:p,:assist,:elapsed,:extra,:type,:detail,:raw)'''),
                 {'f': fid, 'a': archive_id, 'i': index, 't': team_ids.get((event.get('team') or {}).get('id')),
                  'p': (event.get('player') or {}).get('id'), 'assist': (event.get('assist') or {}).get('id'),
-                 'elapsed': (event.get('time') or {}).get('elapsed'),
-                 'extra': (event.get('time') or {}).get('extra'),
+                 'elapsed': usable_event_time((event.get('time') or {}).get('elapsed')),
+                 'extra': usable_event_time((event.get('time') or {}).get('extra')),
                  'type': event['type'], 'detail': event.get('detail'), 'raw': encoded(event).decode()})
 
 
+def usable_event_time(value):
+    """Unknown/negative source timing stays unknown; raw_json retains the value."""
+    return value if type(value) is int and value >= 0 else None
+
+
 def normalize_response(directory, fixture, archive_id, endpoint=ENDPOINT):
-    from sqlalchemy import create_engine, select, text
+    from sqlalchemy import create_engine, select, text, delete
     from sqlalchemy.orm import Session
     from Scripts.data_platform.models import Fixture, FixturePlayerStats, Player
     from Scripts.data_platform.sync.upserts import upsert_fixture_player_stats
@@ -501,6 +559,9 @@ def normalize_response(directory, fixture, archive_id, endpoint=ENDPOINT):
                         saved.home_team_id != fixture['home_id'] or saved.away_team_id != fixture['away_id']):
                     raise ValueError('Staging fixture identity mismatch')
             if state == 'ready' and endpoint == ENDPOINT:
+                # Derived staging rows can be rebuilt from their original response.
+                # Deleting only this fixture's derived rows avoids stale columns/roster entries.
+                session.execute(delete(FixturePlayerStats).where(FixturePlayerStats.fixture_id == saved.id))
                 upsert_fixture_player_stats(session, fixture=saved, players_response=normalization_payload(payload))
                 session.flush()
                 raw = {p['player']['id']: p['statistics'][0] for b in payload['response'] for p in b['players']}
@@ -510,6 +571,9 @@ def normalize_response(directory, fixture, archive_id, endpoint=ENDPOINT):
                     row.stats_json = {**(row.stats_json or {}), 'provider_statistics': raw[pid],
                                       'source_archive_id': archive_id, 'source_fixture_id': fixture['fixture_id']}
             elif state in ('ready', 'partial'):
+                tables = ('fixture_lineup_entries', 'fixture_lineup_teams') if endpoint == '/fixtures/lineups' else ('fixture_events',)
+                for table in tables:
+                    session.execute(text(f'DELETE FROM {table} WHERE fixture_id=:f'), {'f': saved.id})
                 normalize_context(session, fixture, payload, endpoint, archive_id)
             update_state(session, fixture, endpoint, state, archive_id, error)
         return state
@@ -539,6 +603,74 @@ def summary(directory, *, stopped=None):
     return value
 
 
+def verify_saved(directory, fixtures, endpoints):
+    """Verify the frozen identities and every checkpoint archive without HTTP."""
+    by_id = {f['platform_fixture_id']: f for f in fixtures}
+    with closing(readonly(directory / 'platform.db')) as db:
+        if db.execute('PRAGMA quick_check').fetchone()[0] != 'ok' or db.execute('PRAGMA foreign_key_check').fetchone():
+            raise ValueError('Staging database integrity check failed')
+        rows = [dict(r) for r in db.execute('SELECT * FROM fixture_endpoint_collection')]
+        actual = {(r['fixture_id'], r['endpoint']) for r in rows}
+        expected = {(f, e) for f in by_id for e in endpoints}
+        if actual != expected:
+            raise ValueError('Endpoint checkpoints do not match the frozen fixture scope')
+        for r in db.execute('''SELECT f.id AS platform_fixture_id,f.api_football_id AS fixture_id,
+                f.home_team_id AS home_id,f.away_team_id AS away_id,f.season_id,f.competition_id,
+                f.kickoff_utc,f.status,f.round,f.referee,c.code,c.api_football_id AS league_id,
+                s.year AS season,h.api_football_id AS home_team_id,a.api_football_id AS away_team_id
+                FROM fixtures f JOIN competitions c ON c.id=f.competition_id
+                JOIN seasons s ON s.id=f.season_id JOIN teams h ON h.id=f.home_team_id
+                JOIN teams a ON a.id=f.away_team_id'''):
+            f = by_id.get(r['platform_fixture_id'])
+            if f is None or any(f[k] != r[k] for k in r.keys()):
+                raise ValueError('Staging fixture catalogue differs from its saved identity')
+    checked = 0
+    for row in rows:
+        if row['state'] not in (*TERMINAL_STATES, 'pending', 'downloaded'):
+            raise ValueError('Unknown endpoint checkpoint state')
+        if row['state'] == 'pending':
+            if row['archive_id'] is not None:
+                raise ValueError('Pending checkpoint unexpectedly refers to an archive')
+            continue
+        if row['archive_id'] is None:
+            raise ValueError('Completed/downloaded checkpoint has no source archive')
+        read_archive(directory, row['archive_id'], fixture=by_id[row['fixture_id']], endpoint=row['endpoint'])
+        checked += 1
+        if checked % 1000 == 0:
+            print(f'Archive verification: {checked} saved responses checked', flush=True)
+    print(f'Archive verification: {checked} saved responses verified', flush=True)
+    return checked
+
+
+def pending_response(directory, fixture, endpoint, payload=None):
+    """A durable response spool recovers interruption before the DB archive commit."""
+    path = directory / 'pending-responses' / f"{fixture['fixture_id']}-{endpoint.rsplit('/', 1)[-1]}.json"
+    if payload is not None:
+        path.parent.mkdir(exist_ok=True)
+        write_json(path, {'fixture_id': fixture['fixture_id'], 'endpoint': endpoint,
+                         'fetched_at': now().isoformat(), 'payload': payload, 'sha256': digest(payload)})
+    if not path.exists():
+        return path, None
+    saved = json.loads(path.read_text())
+    if (saved['fixture_id'] != fixture['fixture_id'] or saved['endpoint'] != endpoint
+            or saved['sha256'] != digest(saved['payload'])):
+        raise ValueError('Pending response identity or checksum mismatch')
+    return path, saved
+
+
+def reprocess_saved(directory, fixtures, endpoints):
+    """Rebuild derived rows from archives, never from another paid request."""
+    by_id = {f['platform_fixture_id']: f for f in fixtures}
+    with closing(readonly(directory / 'platform.db')) as db:
+        rows = [dict(r) for r in db.execute('SELECT * FROM fixture_endpoint_collection WHERE archive_id IS NOT NULL')]
+    for i, row in enumerate(rows, 1):
+        if row['endpoint'] in endpoints:
+            normalize_response(directory, by_id[row['fixture_id']], row['archive_id'], row['endpoint'])
+        if i % 1000 == 0:
+            print(f'Local replay: {i} saved responses processed', flush=True)
+    return summary(directory, stopped=None)
+
+
 def collect(directory, fixtures, *, key, daily_budget, reserve, rpm, max_fixtures=None,
             retry_unavailable=False, transport=None, endpoints=(ENDPOINT,)):
     network = transport or BudgetSession(directory / 'platform.db', key, daily_budget=daily_budget, reserve=reserve, rpm=rpm)
@@ -559,10 +691,15 @@ def collect(directory, fixtures, *, key, daily_budget, reserve, rpm, max_fixture
             for endpoint, saved in due:
                 print(f"[{processed + 1}] {f['code']}:{f['season']} fixture={f['fixture_id']} {endpoint}", flush=True)
                 archive_id = saved['archive_id']
+                spool, response = pending_response(directory, f, endpoint)
                 if saved['state'] != 'downloaded':
-                    payload = get_json(BASE_URL + endpoint, params={'fixture': f['fixture_id']}, session=network)
-                    archive_id = archive_response(directory, f, payload, endpoint)
+                    if response is None:
+                        payload = get_json(BASE_URL + endpoint, params={'fixture': f['fixture_id']}, session=network)
+                        spool, response = pending_response(directory, f, endpoint, payload)
+                    archive_id = archive_response(directory, f, response['payload'], endpoint, response['fetched_at'])
                 state = normalize_response(directory, f, archive_id, endpoint)
+                if spool.exists():
+                    spool.unlink()
                 consecutive_gaps[endpoint] = consecutive_gaps[endpoint] + 1 if state == 'invalid' else 0
                 if consecutive_gaps[endpoint] >= 10:
                     raise BudgetPause(f'Ten consecutive invalid responses from {endpoint}; inspect source structure before resuming')
@@ -595,12 +732,14 @@ def saved_scope(directory):
         value = json.loads(preparing.read_text())
         return value['manifest'], value['fixtures']
     if (directory / 'manifest.json').exists():
+        if not database.exists():
+            raise ValueError('Saved collection database is missing; restore it before resuming, rather than redownloading')
         return (json.loads((directory / 'manifest.json').read_text()),
                 json.loads((directory / 'fixture-identities.json').read_text()))
     return None
 
 
-def prepare_scope(database, seasons, directory, endpoints, *, extend_scope=False):
+def prepare_scope(database, seasons, directory, endpoints, *, extend_scope=False, allow_local_replay=False):
     previous = saved_scope(directory)
     if previous is None:
         if any(p.name != 'collection.lock' for p in directory.iterdir()):
@@ -614,8 +753,11 @@ def prepare_scope(database, seasons, directory, endpoints, *, extend_scope=False
             or old.get('fixture_identity_sha256') != digest(fixtures)
             or old.get('fixture_count') != len(fixtures)):
         raise ValueError('Collection scope/identity checksum mismatch')
-    if old['schema'] == SCHEMA and old != plan(database, tuple(old['seasons']), fixtures, old_endpoints):
-        raise ValueError('Collection implementation changed; preserve the collection for review')
+    expected = plan(database, tuple(old['seasons']), fixtures, old_endpoints)
+    if old['schema'] == SCHEMA and old != expected:
+        identity_fields = set(expected) - {'source_sha256', 'dependencies'}
+        if (not allow_local_replay or any(old.get(k) != expected[k] for k in identity_fields)):
+            raise ValueError('Collection implementation changed; use --reprocess-saved for offline replay after review')
     changed = tuple(old['seasons']) != tuple(seasons) or old_endpoints != tuple(endpoints)
     if changed and not extend_scope:
         raise ValueError('Collection scope/identity changed; add --extend-scope for an additive extension')
@@ -630,10 +772,10 @@ def prepare_scope(database, seasons, directory, endpoints, *, extend_scope=False
     return plan(database, seasons, fixtures, endpoints), fixtures, old
 
 
-def run(root, database, seasons, directory, *, execute=False, daily_budget=40000, reserve=5000,
-        rpm=120, max_fixtures=None, retry_unavailable=False, key=None, transport=None,
-        endpoints=(ENDPOINT,), extend_scope=False):
-    if (daily_budget < 1 or reserve < 0 or not 1 <= rpm <= 300
+def run(root, database, seasons, directory, *, execute=False, daily_budget=DEFAULT_DAILY_BUDGET, reserve=DEFAULT_RESERVE,
+        rpm=DEFAULT_RPM, max_fixtures=None, retry_unavailable=False, key=None, transport=None,
+        endpoints=(ENDPOINT,), extend_scope=False, replay=False, verify_only=False):
+    if (daily_budget < 1 or reserve < 0 or not 1 <= rpm <= MAX_RPM
             or (max_fixtures is not None and max_fixtures < 1)):
         raise ValueError('Invalid request budget, rate or fixture limit')
     if not seasons or len(seasons) > 8 or tuple(seasons) != tuple(range(seasons[0], seasons[-1] + 1)):
@@ -641,17 +783,23 @@ def run(root, database, seasons, directory, *, execute=False, daily_budget=40000
     if not endpoints or len(set(endpoints)) != len(endpoints) or not set(endpoints).issubset(ENDPOINTS):
         raise ValueError('Choose unique approved fixture endpoints')
     directory = safe_directory(root, directory)
-    if not execute:
+    if replay and verify_only:
+        raise ValueError('Choose replay or verification')
+    if (replay or verify_only) and (extend_scope or retry_unavailable):
+        raise ValueError('Offline archive operations cannot extend scope or retry HTTP requests')
+    if not execute and not replay and not verify_only:
         fixtures = fixture_inventory(database, seasons)
         result = {**plan(database, seasons, fixtures, endpoints), 'dry_run': True, 'directory': str(directory),
                   'daily_budget': daily_budget, 'reserve': reserve, 'requests_per_minute': rpm}
         print(json.dumps(result, indent=2))
         return result
-    if key is None:
+    if (replay or verify_only) and saved_scope(directory) is None:
+        raise ValueError('No saved collection to verify/replay')
+    if key is None and not replay and not verify_only:
         from dotenv import load_dotenv
         load_dotenv(root / '.env', override=False)
         key = os.getenv('API_FOOTBALL_KEY') or os.getenv('API-FOOTBALL-KEY')
-    if not key:
+    if not key and not replay and not verify_only:
         raise ValueError('Set API_FOOTBALL_KEY or API-FOOTBALL-KEY in the project .env')
     previous_mask = os.umask(0o077)
     try:
@@ -661,14 +809,40 @@ def run(root, database, seasons, directory, *, execute=False, daily_budget=40000
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
                 raise ValueError('This collection is already running') from None
-            manifest, fixtures, previous = prepare_scope(database, seasons, directory, endpoints, extend_scope=extend_scope)
+            replay_marker = directory / 'REPLAY_REQUIRED.json'
+            if replay_marker.exists() and not replay:
+                raise ValueError('Local replay was interrupted; complete --reprocess-saved before downloading')
+            manifest, fixtures, previous = prepare_scope(database, seasons, directory, endpoints,
+                extend_scope=extend_scope, allow_local_replay=replay)
+            # Check an existing committed ledger BEFORE initialize can insert new
+            # pending rows. Lost progress must not silently become another API job.
+            preverified = False
+            if (directory / 'platform.db').exists():
+                with closing(readonly(directory / 'platform.db')) as check_db:
+                    has_scope = check_db.execute("SELECT name FROM sqlite_master WHERE name='player_collection_scope'").fetchone()
+                    committed = check_db.execute('SELECT fixtures,manifest FROM player_collection_scope WHERE id=1').fetchone() if has_scope else None
+                if committed:
+                    committed_manifest = json.loads(committed['manifest'])
+                    verify_saved(directory, json.loads(committed['fixtures']), committed_manifest['endpoints'])
+                    preverified = True
             if previous is not None and previous != manifest:
                 history = directory / 'scope-history'
                 history.mkdir(exist_ok=True)
                 write_json(history / (digest(previous) + '.json'), {'manifest': previous, 'fixtures': saved_scope(directory)[1]})
+            if replay:
+                write_json(replay_marker, {'schema': SCHEMA, 'source_sha256': manifest['source_sha256'],
+                                          'started_at': now().isoformat()})
             write_json(directory / 'preparing-scope.json', {'manifest': manifest, 'fixtures': fixtures})
             initialize(directory, fixtures, manifest)
             (directory / 'preparing-scope.json').unlink()
+            if not preverified or previous != manifest:
+                verify_saved(directory, fixtures, endpoints)
+            if replay:
+                result = reprocess_saved(directory, fixtures, endpoints)
+                replay_marker.unlink()
+                return result
+            if verify_only:
+                return summary(directory)
             print(f"Collecting {len(fixtures)} saved fixtures, {len(endpoints)} endpoints into {directory}; canonical database remains unchanged", flush=True)
             return collect(directory, fixtures, key=key, daily_budget=daily_budget, reserve=reserve, rpm=rpm,
                            max_fixtures=max_fixtures, retry_unavailable=retry_unavailable, transport=transport, endpoints=endpoints)
@@ -681,26 +855,30 @@ def main(argv=None):
     parser.add_argument('--seasons', nargs='+', type=int, default=DEFAULT_SEASONS)
     parser.add_argument('--endpoints', nargs='+', choices=['players', 'lineups', 'events'], default=['players', 'lineups', 'events'])
     parser.add_argument('--directory', type=Path)
-    parser.add_argument('--daily-budget', type=int, default=40000)
-    parser.add_argument('--reserve', type=int, default=5000, help='Stop at this provider-reported remaining daily quota')
-    parser.add_argument('--rpm', type=int, default=120)
+    parser.add_argument('--daily-budget', type=int, default=DEFAULT_DAILY_BUDGET)
+    parser.add_argument('--reserve', type=int, default=DEFAULT_RESERVE, help='Stop at this provider-reported remaining daily quota')
+    parser.add_argument('--rpm', type=int, default=DEFAULT_RPM,
+                        help=f'Maximum evenly paced requests/minute (1–{MAX_RPM}; default: {DEFAULT_RPM})')
     parser.add_argument('--max-fixtures', type=int, help='Optional bounded pilot; rerun without this flag for the remainder')
     parser.add_argument('--retry-unavailable', action='store_true', help='Retry previously empty responses; invalid responses require review')
     parser.add_argument('--extend-scope', action='store_true', help='Append newly completed fixtures/seasons/endpoints to this staging collection')
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument('--execute', action='store_true')
     mode.add_argument('--dry-run', action='store_true', help='Read-only plan; default')
+    mode.add_argument('--verify-saved', action='store_true', help='Verify saved archive hashes and identities without API requests')
+    mode.add_argument('--reprocess-saved', action='store_true', help='Rebuild staging rows from saved responses, without API requests')
     args = parser.parse_args(argv)
     directory = args.directory or Path(f'Index/history_staging/player-stats-{args.seasons[0]}-{args.seasons[-1]}')
     try:
         result = run(ROOT, ROOT / 'Index/platform.db', tuple(args.seasons), directory,
                      execute=args.execute, daily_budget=args.daily_budget, reserve=args.reserve,
                      rpm=args.rpm, max_fixtures=args.max_fixtures, retry_unavailable=args.retry_unavailable,
-                     endpoints=tuple('/fixtures/' + e for e in args.endpoints), extend_scope=args.extend_scope)
+                     endpoints=tuple('/fixtures/' + e for e in args.endpoints), extend_scope=args.extend_scope,
+                     replay=args.reprocess_saved, verify_only=args.verify_saved)
     except (ValueError, OSError, sqlite3.Error) as exc:
         print(f'Player collection stopped: {exc}', file=sys.stderr)
         return 1
-    if args.execute:
+    if args.execute or args.reprocess_saved or args.verify_saved:
         states = result['states']
         if result['stopped'] or states.get('pending') or states.get('downloaded'):
             return 2

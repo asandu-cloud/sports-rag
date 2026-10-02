@@ -246,9 +246,10 @@ def test_attempt_budget_counts_retries_and_survives_restarts(tmp_path):
     assert next_day.get(job.BASE_URL + job.ENDPOINT).status_code == 200
 
 
-def test_remaining_provider_quota_stops_before_next_request(tmp_path):
-    transport = Transport([Response(headers={'x-ratelimit-requests-remaining': '5000'})])
-    session = job.BudgetSession(budget_database(tmp_path), 'test', session=transport, reserve=5000)
+@pytest.mark.parametrize('reserve', [0, 5000])
+def test_remaining_provider_quota_stops_before_next_request(tmp_path, reserve):
+    transport = Transport([Response(headers={'x-ratelimit-requests-remaining': str(reserve)})])
+    session = job.BudgetSession(budget_database(tmp_path), 'test', session=transport, reserve=reserve)
     session.get(job.BASE_URL + job.ENDPOINT)
     with pytest.raises(job.BudgetPause):
         session.get(job.BASE_URL + job.ENDPOINT)
@@ -273,6 +274,58 @@ def test_lower_provider_minute_limit_is_respected(tmp_path):
     session.get(job.BASE_URL + job.ENDPOINT)
     session.get(job.BASE_URL + job.ENDPOINT)
     assert sleeps == [2]
+
+
+@pytest.mark.parametrize('latency', [0.01, 0.4])
+def test_ultra_paces_starts_without_adding_response_latency(tmp_path, latency):
+    timeline = [0.0]
+    starts = []
+    class TimedTransport(Transport):
+        def get(self, url, **kwargs):
+            starts.append(timeline[0])
+            timeline[0] += latency
+            return Response(headers={'X-RateLimit-Limit': '450'})
+    def advance(seconds):
+        timeline[0] += seconds
+    session = job.BudgetSession(budget_database(tmp_path), 'test', rpm=420,
+        session=TimedTransport(), clock=lambda: timeline[0], sleep=advance)
+    for _ in range(430):
+        session.get(job.BASE_URL + job.ENDPOINT)
+    assert starts == pytest.approx([i * max(1 / 7, latency) for i in range(430)])
+    # Every eighth start must be at least one second after the first; no bursts.
+    assert all(starts[i + 7] - starts[i] >= 1 - 1e-10 for i in range(423))
+    assert starts[420] - starts[0] >= 60 - 1e-10
+
+
+def test_lower_provider_cap_persists_when_later_headers_are_missing(tmp_path):
+    timeline = [0.0]
+    sleeps = []
+    def advance(seconds):
+        sleeps.append(seconds)
+        timeline[0] += seconds
+    session = job.BudgetSession(budget_database(tmp_path), 'test', rpm=420,
+        session=Transport([Response(headers={'X-RateLimit-Limit': '300'}), Response(), Response()]),
+        clock=lambda: timeline[0], sleep=advance)
+    for _ in range(3):
+        session.get(job.BASE_URL + job.ENDPOINT)
+    assert sleeps == pytest.approx([0.2, 0.2])
+
+
+@pytest.mark.parametrize('rpm', [0, 421])
+def test_invalid_rate_rejected_before_creating_collection(source, rpm):
+    root, database = source
+    directory = root / 'Index/history_staging/rate-check'
+    with pytest.raises(ValueError, match='rate'):
+        job.run(root, database, TEST_SEASONS, directory, rpm=rpm)
+    assert not directory.exists()
+
+
+def test_dry_run_accepts_ultra_rate_without_creating_collection(source):
+    root, database = source
+    directory = root / 'Index/history_staging/ultra-plan'
+    result = job.run(root, database, TEST_SEASONS, directory, rpm=420)
+    assert result['requests_per_minute'] == 420
+    assert not directory.exists()
 
 
 @pytest.mark.parametrize('accuracy', ['85%', -1, True, 'nan', 21, 'unknown'])
@@ -426,7 +479,7 @@ def test_one_shared_budget_across_endpoints_and_resume_only_remaining_endpoint(s
     ('/fixtures/lineups', lineup_payload, lambda p: p['response'][0].update(formation={})),
     ('/fixtures/events', events_payload, lambda p: p['parameters'].update(fixture=999)),
     ('/fixtures/events', events_payload, lambda p: p['response'][0]['team'].update(id=999)),
-    ('/fixtures/events', events_payload, lambda p: p['response'][0]['time'].update(elapsed=-1)),
+    ('/fixtures/events', events_payload, lambda p: p['response'][0]['time'].update(elapsed='unknown')),
     ('/fixtures/events', events_payload, lambda p: p['response'][0]['player'].update(id=True)),
     ('/fixtures/events', events_payload, lambda p: p['response'][0].update(detail={})),
 ])
@@ -564,3 +617,198 @@ def test_cli_defaults_to_six_seasons_and_three_endpoints(monkeypatch):
     assert job.main(['--dry-run']) == 0
     assert captured['seasons'] == (2021, 2022, 2023, 2024, 2025, 2026)
     assert captured['endpoints'] == job.ENDPOINTS
+    assert captured['rpm'] == 420
+    assert captured['daily_budget'] == 75000
+    assert captured['reserve'] == 0
+
+
+def test_response_before_archive_commit_is_recovered_without_another_request(source, monkeypatch):
+    root, database = source
+    directory = root / 'Index/history_staging/archive-crash'
+    archive = job.archive_response
+    def interrupted(*args, **kwargs):
+        raise OSError('simulated archive write failure')
+    monkeypatch.setattr(job, 'archive_response', interrupted)
+    network = Transport([Response(payload(45))])
+    with pytest.raises(OSError, match='archive write'):
+        job.run(root, database, (2026,), directory, execute=True, key='test', transport=network)
+    assert len(network.calls) == 1
+    pending = json.loads(next((directory / 'pending-responses').glob('*.json')).read_text())
+    monkeypatch.setattr(job, 'archive_response', archive)
+    no_http = Transport()
+    result = job.run(root, database, (2026,), directory, execute=True, key='test', transport=no_http)
+    assert result['states'] == {'ready': 1}
+    assert not no_http.calls
+    assert not list((directory / 'pending-responses').glob('*.json'))
+    with sqlite3.connect(directory / 'platform.db') as db:
+        stamp = db.execute('SELECT fetched_at FROM raw_payload_archive').fetchone()[0]
+    assert datetime.fromisoformat(stamp).replace(tzinfo=timezone.utc) == datetime.fromisoformat(pending['fetched_at'])
+
+
+def test_corrupt_completed_archive_is_detected_before_any_new_requests(source):
+    root, database = source
+    directory = root / 'Index/history_staging/corrupt-ready'
+    job.run(root, database, (2026,), directory, execute=True, key='test', transport=Transport([Response(payload(45))]))
+    next((directory / 'raw_archive').rglob('*.gz')).write_bytes(job.gzip.compress(b'{}'))
+    no_http = Transport()
+    with pytest.raises(ValueError, match='checksum'):
+        job.run(root, database, (2026,), directory, execute=True, key='test', transport=no_http)
+    assert not no_http.calls
+
+
+def test_offline_replay_repairs_staging_rows_and_does_not_use_api_credentials(source, monkeypatch):
+    root, database = source
+    directory = root / 'Index/history_staging/replay'
+    job.run(root, database, (2026,), directory, endpoints=job.ENDPOINTS, execute=True, key='test',
+            transport=Transport([Response(payload(45)), Response(lineup_payload(45)), Response(events_payload(45))]))
+    originals = {p: p.read_bytes() for p in (directory / 'raw_archive').rglob('*.gz')}
+    before = hashlib.sha256(database.read_bytes()).hexdigest()
+    with sqlite3.connect(directory / 'platform.db') as db:
+        db.execute('UPDATE fixture_player_stats SET shots_total=999')
+        db.execute('DELETE FROM fixture_lineup_entries')
+        db.execute('DELETE FROM fixture_events')
+        db.execute("INSERT INTO player_collection_budget VALUES ('2026-09-30',3)")
+    monkeypatch.delenv('API_FOOTBALL_KEY', raising=False)
+    monkeypatch.delenv('API-FOOTBALL-KEY', raising=False)
+    def no_key_or_network(*args, **kwargs):
+        raise AssertionError('Offline replay must not load keys or create an HTTP client')
+    monkeypatch.setattr(job, 'BudgetSession', no_key_or_network)
+    import dotenv
+    monkeypatch.setattr(dotenv, 'load_dotenv', no_key_or_network)
+    result = job.run(root, database, (2026,), directory, endpoints=job.ENDPOINTS, replay=True)
+    assert result['states'] == {'ready': 3}
+    assert result['linked_player_rows'] == 22
+    assert result['linked_lineup_rows'] == 30
+    assert result['linked_event_rows'] == 3
+    assert result['http_attempts_by_utc_day']['2026-09-30'] == 3
+    with sqlite3.connect(directory / 'platform.db') as db:
+        assert db.execute('SELECT DISTINCT shots_total FROM fixture_player_stats').fetchall() == [(2,)]
+    assert {p: p.read_bytes() for p in originals} == originals
+    assert hashlib.sha256(database.read_bytes()).hexdigest() == before
+
+
+def test_offline_replay_can_record_a_parser_fingerprint_change(source):
+    root, database = source
+    directory = root / 'Index/history_staging/changed-parser'
+    job.run(root, database, (2026,), directory, execute=True, key='test', transport=Transport([Response(payload(45))]))
+    with sqlite3.connect(directory / 'platform.db') as db:
+        manifest = json.loads(db.execute('SELECT manifest FROM player_collection_scope').fetchone()[0])
+        manifest['source_sha256'] = {'previous_parser': 'retained'}
+        db.execute('UPDATE player_collection_scope SET manifest=?', (json.dumps(manifest),))
+    with pytest.raises(ValueError, match='--reprocess-saved'):
+        job.run(root, database, (2026,), directory, execute=True, key='test', transport=Transport())
+    result = job.run(root, database, (2026,), directory, replay=True)
+    assert result['states'] == {'ready': 1}
+    old = json.loads(next((directory / 'scope-history').glob('*.json')).read_text())
+    assert old['manifest']['source_sha256'] == {'previous_parser': 'retained'}
+
+
+def test_unknown_additional_provider_fields_are_preserved_without_rejection(source):
+    root, database = source
+    directory = root / 'Index/history_staging/extra-fields'
+    p = payload(45)
+    p['response'][0]['players'][0]['statistics'][0]['additional_provider_stat'] = 0.73
+    result = job.run(root, database, (2026,), directory, execute=True, key='test', transport=Transport([Response(p)]))
+    assert result['states'] == {'ready': 1}
+    assert job.read_archive(directory, 1) == p
+    with sqlite3.connect(directory / 'platform.db') as db:
+        stats = json.loads(db.execute('SELECT stats_json FROM fixture_player_stats ORDER BY id LIMIT 1').fetchone()[0])
+    assert stats['provider_statistics']['additional_provider_stat'] == 0.73
+
+
+@pytest.mark.parametrize('relative', ['Index/history_staging/../../outside', 'Index/history_staging/nested/../../platform.db'])
+def test_staging_path_cannot_escape_through_parent_components(source, relative):
+    root, database = source
+    with pytest.raises(ValueError, match='child'):
+        job.run(root, database, (2026,), root / relative, execute=True, key='test', transport=Transport())
+
+
+def test_corrupt_pending_spool_is_not_silently_refetched(source, monkeypatch):
+    root, database = source
+    directory = root / 'Index/history_staging/bad-spool'
+    archive = job.archive_response
+    def interrupted(*args, **kwargs):
+        raise OSError('stop before archive')
+    monkeypatch.setattr(job, 'archive_response', interrupted)
+    with pytest.raises(OSError):
+        job.run(root, database, (2026,), directory, execute=True, key='test', transport=Transport([Response(payload(45))]))
+    path = next((directory / 'pending-responses').glob('*.json'))
+    value = json.loads(path.read_text())
+    value['sha256'] = 'wrong'
+    job.write_json(path, value)
+    monkeypatch.setattr(job, 'archive_response', archive)
+    no_http = Transport()
+    with pytest.raises(ValueError, match='Pending response'):
+        job.run(root, database, (2026,), directory, execute=True, key='test', transport=no_http)
+    assert not no_http.calls
+
+
+def test_saved_verification_works_offline(source, monkeypatch):
+    root, database = source
+    directory = root / 'Index/history_staging/verify'
+    job.run(root, database, (2026,), directory, execute=True, key='test', transport=Transport([Response(payload(45))]))
+    monkeypatch.setattr(job, 'BudgetSession', lambda *a, **kw: pytest.fail('No HTTP client allowed'))
+    result = job.run(root, database, (2026,), directory, verify_only=True)
+    assert result['states'] == {'ready': 1}
+    with sqlite3.connect(directory / 'platform.db') as db:
+        db.execute('UPDATE fixtures SET api_football_id=999 WHERE api_football_id=45')
+    with pytest.raises(ValueError, match='catalogue'):
+        job.run(root, database, (2026,), directory, verify_only=True)
+
+
+def test_interrupted_replay_blocks_network_until_local_replay_finishes(source, monkeypatch):
+    root, database = source
+    directory = root / 'Index/history_staging/replay-interrupted'
+    job.run(root, database, (2026,), directory, execute=True, key='test', transport=Transport([Response(payload(45))]))
+    normalize = job.normalize_response
+    def interrupted(*args, **kwargs):
+        raise OSError('simulated local replay interruption')
+    monkeypatch.setattr(job, 'normalize_response', interrupted)
+    with pytest.raises(OSError, match='replay interruption'):
+        job.run(root, database, (2026,), directory, replay=True)
+    assert (directory / 'REPLAY_REQUIRED.json').exists()
+    with pytest.raises(ValueError, match='replay was interrupted'):
+        job.run(root, database, (2026,), directory, execute=True, key='test', transport=Transport())
+    monkeypatch.setattr(job, 'normalize_response', normalize)
+    result = job.run(root, database, (2026,), directory, replay=True)
+    assert result['states'] == {'ready': 1}
+    assert not (directory / 'REPLAY_REQUIRED.json').exists()
+
+
+@pytest.mark.parametrize('statement', [
+    "UPDATE fixtures SET kickoff_utc='2030-01-01 00:00:00'",
+    "UPDATE fixtures SET round='Final'",
+    "UPDATE teams SET api_football_id=999 WHERE id=10",
+    "UPDATE seasons SET year=2030",
+])
+def test_saved_identity_checks_cover_date_round_and_catalogue_mappings(source, statement):
+    root, database = source
+    directory = root / 'Index/history_staging/identity-change'
+    job.run(root, database, (2026,), directory, execute=True, key='test', transport=Transport([Response(payload(45))]))
+    with sqlite3.connect(directory / 'platform.db') as db:
+        db.execute(statement)
+    with pytest.raises(ValueError, match='catalogue'):
+        job.run(root, database, (2026,), directory, verify_only=True)
+
+
+def test_lost_collection_database_does_not_silently_restart_download(source):
+    root, database = source
+    directory = root / 'Index/history_staging/missing-db'
+    job.run(root, database, (2026,), directory, execute=True, key='test', transport=Transport([Response(payload(45))]))
+    (directory / 'platform.db').rename(directory / 'preserved.db')
+    no_http = Transport()
+    with pytest.raises(ValueError, match='database is missing'):
+        job.run(root, database, (2026,), directory, execute=True, key='test', transport=no_http)
+    assert not no_http.calls
+
+
+def test_lost_checkpoint_does_not_silently_restart_download(source):
+    root, database = source
+    directory = root / 'Index/history_staging/missing-checkpoint'
+    job.run(root, database, (2026,), directory, execute=True, key='test', transport=Transport([Response(payload(45))]))
+    with sqlite3.connect(directory / 'platform.db') as db:
+        db.execute('DELETE FROM fixture_endpoint_collection')
+    no_http = Transport()
+    with pytest.raises(ValueError, match='checkpoints do not match'):
+        job.run(root, database, (2026,), directory, execute=True, key='test', transport=no_http)
+    assert not no_http.calls
