@@ -13,7 +13,7 @@ endpoint for transparent amendment history.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 import logging
 import sys
 from pathlib import Path
@@ -70,6 +70,12 @@ def _get_match_read_observation_service():
     from data_platform.services.match_read_observations import MatchReadObservationService
 
     return MatchReadObservationService()
+
+
+def _get_fixture_schedule_repository():
+    from data_platform.repositories.fixture_schedule import FixtureScheduleRepository
+
+    return FixtureScheduleRepository()
 
 
 def _utc_now() -> datetime:
@@ -328,6 +334,33 @@ def _core_rank(card: Mapping[str, Any]) -> tuple[int, float, float, str]:
         probability,
         str(card.get("id") or ""),
     )
+
+
+@router.get("/schedule/{target_date}")
+def get_matchday_schedule(target_date: str, league: Optional[str] = None) -> Dict[str, Any]:
+    """Return the seven-day board's stored schedule, independent of publication.
+
+    A schedule entry is not a Match Read or a recommendation. This endpoint
+    cannot invoke providers, the prediction engine, or the publication worker.
+    """
+    matchday = _parse_matchday(target_date)
+    today = _utc_now().date()
+    # The browser offers seven local calendar dates; allow the adjoining UTC
+    # dates so the last tab also works across midnight in other timezones.
+    if not today - timedelta(days=1) <= matchday <= today + timedelta(days=7):
+        raise HTTPException(status_code=400, detail="Choose a date within the current fixture schedule.")
+    if league is not None and league not in PUBLIC_MATCH_READ_LEAGUES:
+        raise HTTPException(status_code=400, detail="Unsupported schedule league.")
+    leagues = (league,) if league else PUBLIC_MATCH_READ_LEAGUES
+    try:
+        fixtures = _get_fixture_schedule_repository().list_for_matchday(
+            target_date=matchday, leagues=leagues,
+        )
+    except Exception as exc:
+        logger.exception("Stored fixture schedule failed for %s", matchday)
+        raise HTTPException(status_code=503, detail="The fixture schedule is temporarily unavailable.") from exc
+    return {"schema_version": "fixture-schedule.v1", "date": matchday.isoformat(),
+            "fixtures": fixtures, "count": len(fixtures)}
 
 
 @router.get("/best/{target_date}")

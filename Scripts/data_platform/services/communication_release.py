@@ -16,9 +16,15 @@ _FILES = (
     'Scripts/discord_bot/match_read_hubs.py',
     'Scripts/rag_ingest/core/market_service.py',
     'Scripts/web_app/api.py',
+    'Scripts/web_app/routers/match_reads.py',
+    'Scripts/data_platform/repositories/fixture_schedule.py',
     'Scripts/web_app/static/app.js',
     'Scripts/web_app/static/style.css',
     'Scripts/web_app/static/index.html',
+    'Scripts/web_app/static/league-logos/sources.json',
+) + tuple(
+    f'Scripts/web_app/static/league-logos/{provider_id}.png'
+    for provider_id in (39, 140, 135, 78, 61, 40, 203, 88, 94, 144, 2, 3, 848)
 )
 _HASHES = {name: hashlib.sha256((_ROOT / name).read_bytes()).hexdigest() for name in _FILES}
 _MANIFEST = {'version': VERSION, 'identity': VERSION + ':' + digest(_HASHES),

@@ -48,33 +48,208 @@ function toggleFaq(btn) {
   answer.classList.toggle('open', !expanded);
 }
 
-// ----- Router -----
-const router = {
-  go(view) {
-    const landing = document.getElementById('landingPage');
-    const app = document.getElementById('appPage');
-    const landingNavEls = document.querySelectorAll('.landing-nav');
-    const appNavEls = document.querySelectorAll('.app-nav');
-    if (view === 'app') {
-      // The Match Read board is deliberately public.  Authentication remains
-      // available for account/member features, but it must not gate the
-      // published matchday briefing.
-      landing.classList.add('hidden');
-      app.classList.remove('hidden');
-      landingNavEls.forEach(el => el.classList.add('hidden'));
-      appNavEls.forEach(el => el.classList.remove('hidden'));
-      this._appInit();
-    } else {
-      app.classList.add('hidden');
-      landing.classList.remove('hidden');
-      landingNavEls.forEach(el => el.classList.remove('hidden'));
-      appNavEls.forEach(el => el.classList.add('hidden'));
-    }
+// ----- Presentation: motion, focus and navigation (no prediction logic) -----
+const ui = {
+  reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)'),
+  animations: new WeakMap(),
+  modal: null,
+  focusable(root) {
+    return [...root.querySelectorAll('button, a[href], input, [tabindex="0"]')]
+      .filter(el => !el.disabled && !el.closest('[inert]') && el.getClientRects().length);
   },
-  _appInit() {
-    appModule.init();
-  }
+  enter(el, direction = 1) {
+    const running = this.animations.get(el);
+    const live = running ? getComputedStyle(el) : null;
+    const from = live ? { opacity: live.opacity, transform: live.transform }
+      : { opacity: 0, transform: `translateY(${direction * 8}px)` };
+    running?.cancel();
+    if (this.reducedMotion.matches || !el.animate) return;
+    const animation = el.animate([from, { opacity: 1, transform: 'translateY(0)' }],
+      { duration: 230, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    this.animations.set(el, animation);
+    animation.onfinish = () => this.animations.delete(el);
+  },
+  // Exact critically damped spring. Retargeting preserves position AND velocity.
+  spring(draw, settled) {
+    const state = { value: 0, velocity: 0, target: 0, frame: 0, last: 0 };
+    const tick = time => {
+      const dt = Math.min((time - state.last) / 1000, 0.05);
+      state.last = time;
+      const offset = state.value - state.target;
+      const coefficient = state.velocity + 24 * offset;
+      const decay = Math.exp(-24 * dt);
+      state.value = state.target + (offset + coefficient * dt) * decay;
+      state.velocity = (state.velocity - 24 * coefficient * dt) * decay;
+      if (Math.abs(state.value - state.target) < .001 && Math.abs(state.velocity) < .01) {
+        state.value = state.target; state.velocity = 0; state.frame = 0;
+        draw(state.value); settled?.(state.target); return;
+      }
+      draw(state.value);
+      state.frame = requestAnimationFrame(tick);
+    };
+    state.set = target => {
+      state.target = target;
+      if (this.reducedMotion.matches) {
+        cancelAnimationFrame(state.frame); state.frame = 0;
+        state.value = target; state.velocity = 0;
+        draw(target); settled?.(target);
+      } else if (!state.frame) {
+        state.last = performance.now(); state.frame = requestAnimationFrame(tick);
+      }
+    };
+    this.reducedMotion.addEventListener('change', () => state.set(state.target));
+    return state;
+  },
+  overlay(id, backdropId, open, close) {
+    const el = document.getElementById(id), backdrop = document.getElementById(backdropId);
+    if (!el._motion) {
+      const draw = value => {
+        backdrop.style.opacity = value;
+        if (id === 'betSlip') {
+          const axis = window.matchMedia('(max-width: 1100px)').matches ? 'Y' : 'X';
+          el.style.transform = `translate${axis}(${(1 - value) * 100}%)`;
+        } else {
+          el.style.opacity = value;
+          el.style.transform = `translate(-50%, -50%) scale(${.97 + .03 * value})`;
+        }
+      };
+      draw(0);
+      el._motion = this.spring(draw, target => {
+        if (!target) { el.classList.add('hidden'); backdrop.classList.add('hidden'); }
+      });
+      window.addEventListener('resize', () => draw(el._motion.value));
+    }
+    if (open) {
+      if (this.modal?.el === el) return;
+      this.modal?.close();
+      const trigger = document.activeElement;
+      el.classList.remove('hidden'); backdrop.classList.remove('hidden');
+      el.inert = false;
+      // Inert only the background branches; keep the dialog and its scrim usable.
+      const disabled = [];
+      let branch = el;
+      while (branch.parentElement && branch !== document.body) {
+        [...branch.parentElement.children].forEach(sibling => {
+          if (sibling !== branch && sibling !== backdrop && !sibling.contains(backdrop)
+              && !sibling.inert && !['SCRIPT', 'STYLE'].includes(sibling.tagName)) {
+            sibling.inert = true; disabled.push(sibling);
+          }
+        });
+        branch = branch.parentElement;
+      }
+      this.modal = { el, close, trigger, disabled };
+      document.body.classList.add('overlay-open');
+      (el.querySelector('[autofocus]') || this.focusable(el)[0] || el).focus({ preventScroll: true });
+    } else {
+      el.inert = true;
+      if (this.modal?.el === el) {
+        const { trigger, disabled } = this.modal;
+        disabled.forEach(node => { node.inert = false; });
+        this.modal = null;
+        document.body.classList.remove('overlay-open');
+        if (trigger?.isConnected && trigger.getClientRects().length) trigger.focus({ preventScroll: true });
+      }
+    }
+    el._motion.set(open ? 1 : 0);
+  },
+  scrollTo(id) {
+    document.getElementById(id)?.scrollIntoView({ behavior: this.reducedMotion.matches ? 'instant' : 'smooth' });
+  },
 };
+
+document.addEventListener('keydown', event => {
+  if (!ui.modal) return;
+  if (event.key === 'Escape') { event.preventDefault(); ui.modal.close(); return; }
+  if (event.key !== 'Tab') return;
+  const items = ui.focusable(ui.modal.el), first = items[0], last = items[items.length - 1];
+  if (!first) { event.preventDefault(); return; }
+  if (event.shiftKey && (document.activeElement === first || !ui.modal.el.contains(document.activeElement))) {
+    event.preventDefault(); last.focus();
+  } else if (!event.shiftKey && (document.activeElement === last || !ui.modal.el.contains(document.activeElement))) {
+    event.preventDefault(); first.focus();
+  }
+});
+
+const router = {
+  state: null,
+  positions: new Map(),
+  focusTargets: new Map(),
+  sequence: 0,
+  key(state) { return `${state.page}:${state.tab}:${state.matchId || ''}`; },
+  remember() {
+    if (!this.state) return;
+    this.state.scrollY = window.scrollY;
+    this.positions.set(this.key(this.state), window.scrollY);
+    history.replaceState(this.state, '');
+  },
+  go(page, tab = 'fixtures', restored = null) {
+    const previous = this.state;
+    if (!restored) {
+      this.remember();
+      if (previous) this.focusTargets.set(this.key(previous), document.activeElement);
+    }
+    const next = restored || { spix: true, page, tab,
+      matchId: tab === 'match' ? appModule.currentMatch?.id : null };
+    if (previous && this.key(previous) === this.key(next) && !restored) return;
+    ui.modal?.close();
+    this.state = next;
+    const token = ++this.sequence;
+    document.body.dataset.page = page;
+    document.getElementById('landingPage').classList.toggle('hidden', page !== 'landing');
+    document.getElementById('appPage').classList.toggle('hidden', page !== 'app');
+    document.querySelectorAll('.landing-nav').forEach(el => el.classList.toggle('hidden', page !== 'landing'));
+    document.querySelectorAll('.app-nav').forEach(el => el.classList.toggle('hidden', page !== 'app'));
+    auth._updateUI();
+    const ready = page === 'app' ? appModule.init() : Promise.resolve();
+    appModule.currentTab = tab;
+    const viewId = { fixtures: 'viewFixtures', 'best-bets': 'viewBestBets', match: 'viewMatch' }[tab];
+    document.querySelectorAll('.app-view').forEach(el => el.classList.toggle('hidden', el.id !== viewId));
+    document.querySelectorAll('[data-view]').forEach(el => {
+      const active = el.dataset.view === tab;
+      el.classList.toggle('active', active);
+      if (active) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
+    });
+    const url = page === 'app' ? '/app' + (tab === 'best-bets' ? '#best-bets' : '') : '/';
+    if (!restored) history[previous ? 'pushState' : 'replaceState'](next, '', url + (previous ? '' : location.search));
+    const view = document.getElementById(page === 'app' ? viewId : 'landingPage');
+    ui.enter(view, restored ? -1 : 1);
+    const top = restored?.scrollY ?? this.positions.get(this.key(next)) ?? 0;
+    window.scrollTo({ top, behavior: 'instant' });
+    const focus = this.focusTargets.get(this.key(next));
+    const heading = view.querySelector('h1, .match-teams-title, .page-title');
+    if (previous) {
+      const target = focus?.isConnected && focus.getClientRects().length ? focus : heading;
+      if (target) { if (target === heading) target.tabIndex = -1; target.focus({ preventScroll: true }); }
+    }
+    ready.then(() => {
+      if (token === this.sequence && Math.abs(window.scrollY - top) < 2) {
+        window.scrollTo({ top, behavior: 'instant' });
+      }
+    });
+  },
+  backToBoard() {
+    if (this.state?.tab === 'match' && this.state.fromBoard) history.back();
+    else this.go('app', 'fixtures');
+  },
+};
+history.scrollRestoration = 'manual';
+let scrollRecordTimer;
+window.addEventListener('scroll', () => {
+  if (router.state) router.state.scrollY = window.scrollY;
+  clearTimeout(scrollRecordTimer);
+  scrollRecordTimer = setTimeout(() => router.remember(), 150);
+}, { passive: true });
+window.addEventListener('popstate', event => {
+  const state = event.state;
+  if (!state?.spix) return;
+  if (state.tab === 'match' && appModule.fixtureIndex[state.matchId]
+      && !appModule.fixtureIndex[state.matchId].isScheduleOnly) {
+    // Render detail before restoring history, without adding a second entry.
+    appModule._restoringRoute = state;
+    appModule._showMatch(state.matchId);
+  } else router.go(state.page, state.tab === 'match' ? 'fixtures' : state.tab,
+    state.tab === 'match' ? { ...state, tab: 'fixtures', matchId: null } : state);
+});
 
 // ----- Pricing -----
 const pricing = {
@@ -183,13 +358,14 @@ const auth = {
   },
 
   _updateUI() {
-    if (!this._user) return;
     const loginBtn = document.getElementById('loginBtn');
     const badge = document.getElementById('userBadge');
     const avatar = document.getElementById('userAvatar');
     const name = document.getElementById('userName');
-    if (loginBtn) loginBtn.classList.add('hidden');
-    if (badge) badge.classList.remove('hidden');
+    const onLanding = document.body.dataset.page !== 'app';
+    if (loginBtn) loginBtn.classList.toggle('hidden', !onLanding || Boolean(this._user));
+    if (badge) badge.classList.toggle('hidden', !onLanding || !this._user);
+    if (!this._user) return;
     if (avatar) {
       if (this._user.avatar_url) {
         avatar.src = this._user.avatar_url;
@@ -235,20 +411,19 @@ const auth = {
   showLoginModal() {
     this._isSignup = false;
     this._renderModalState();
-    document.getElementById('authModal').classList.remove('hidden');
-    document.getElementById('authBackdrop').classList.remove('hidden');
-    document.getElementById('authEmail').focus();
+    document.getElementById('authError').classList.add('hidden');
+    ui.overlay('authModal', 'authBackdrop', true, () => this.hideLoginModal());
   },
 
   hideLoginModal() {
-    document.getElementById('authModal').classList.add('hidden');
-    document.getElementById('authBackdrop').classList.add('hidden');
+    ui.overlay('authModal', 'authBackdrop', false, () => this.hideLoginModal());
     document.getElementById('authError').classList.add('hidden');
     document.getElementById('authForm').reset();
   },
 
   toggleMode() {
     this._isSignup = !this._isSignup;
+    document.getElementById('authError').classList.add('hidden');
     this._renderModalState();
   },
 
@@ -257,7 +432,6 @@ const auth = {
     const btn = document.getElementById('authSubmitBtn');
     const toggle = document.getElementById('authToggle');
     const pw = document.getElementById('authPassword');
-    document.getElementById('authError').classList.add('hidden');
     if (this._isSignup) {
       title.textContent = 'Create your account';
       btn.textContent = 'Sign Up';
@@ -269,6 +443,7 @@ const auth = {
       btn.textContent = 'Log In';
       toggle.innerHTML = 'Don\'t have an account? <a href="#" onclick="event.preventDefault(); auth.toggleMode()">Sign up</a>';
       pw.setAttribute('autocomplete', 'current-password');
+      pw.removeAttribute('minlength');
     }
   },
 
@@ -338,8 +513,10 @@ const slip = {
     this.open = !this.open;
     const el = document.getElementById('betSlip');
     el.classList.toggle('open', this.open);
-    document.getElementById('slipBackdrop').classList.toggle('hidden', !this.open);
-    document.getElementById('appLayout').classList.toggle('slip-open', this.open);
+    document.querySelectorAll('[aria-controls="betSlip"]').forEach(button => {
+      button.setAttribute('aria-expanded', String(this.open));
+    });
+    ui.overlay('betSlip', 'slipBackdrop', this.open, () => { if (this.open) this.toggle(); });
   },
 
   add(fixture, pick, odds, market, options = {}) {
@@ -442,19 +619,19 @@ slip._update();
 // ----- App Module -----
 const appModule = {
   LEAGUES: [
-    { id: 'EPL', name: 'Premier League', color: '#3D195B' },
-    { id: 'LaLiga', name: 'La Liga', color: '#EE8707' },
-    { id: 'SerieA', name: 'Serie A', color: '#024494' },
-    { id: 'Bundesliga', name: 'Bundesliga', color: '#D20515' },
-    { id: 'Ligue1', name: 'Ligue 1', color: '#DAE025' },
-    { id: 'Championship', name: 'Championship', color: '#1D4ED8' },
-    { id: 'SuperLig', name: 'Süper Lig', color: '#E30A17' },
-    { id: 'Eredivisie', name: 'Eredivisie', color: '#F97316' },
-    { id: 'PrimeiraLiga', name: 'Primeira Liga', color: '#15803D' },
-    { id: 'BelgianProLeague', name: 'Jupiler Pro League', color: '#EAB308' },
-    { id: 'UCL', name: 'Champions League', color: '#001489' },
-    { id: 'UEL', name: 'Europa League', color: '#F97316' },
-    { id: 'UECL', name: 'Conference League', color: '#22C55E' },
+    { id: 'EPL', name: 'Premier League', color: '#3D195B', logo: '/static/league-logos/39.png' },
+    { id: 'LaLiga', name: 'La Liga', color: '#EE8707', logo: '/static/league-logos/140.png' },
+    { id: 'SerieA', name: 'Serie A', color: '#024494', logo: '/static/league-logos/135.png' },
+    { id: 'Bundesliga', name: 'Bundesliga', color: '#D20515', logo: '/static/league-logos/78.png' },
+    { id: 'Ligue1', name: 'Ligue 1', color: '#DAE025', logo: '/static/league-logos/61.png' },
+    { id: 'Championship', name: 'Championship', color: '#1D4ED8', logo: '/static/league-logos/40.png' },
+    { id: 'SuperLig', name: 'Süper Lig', color: '#E30A17', logo: '/static/league-logos/203.png' },
+    { id: 'Eredivisie', name: 'Eredivisie', color: '#F97316', logo: '/static/league-logos/88.png' },
+    { id: 'PrimeiraLiga', name: 'Primeira Liga', color: '#15803D', logo: '/static/league-logos/94.png' },
+    { id: 'BelgianProLeague', name: 'Jupiler Pro League', color: '#EAB308', logo: '/static/league-logos/144.png' },
+    { id: 'UCL', name: 'Champions League', color: '#001489', logo: '/static/league-logos/2.png' },
+    { id: 'UEL', name: 'Europa League', color: '#F97316', logo: '/static/league-logos/3.png' },
+    { id: 'UECL', name: 'Conference League', color: '#22C55E', logo: '/static/league-logos/848.png' },
   ],
 
   FIXTURES: [
@@ -528,9 +705,9 @@ const appModule = {
       this._buildLeagueFilters();
       this._installMatchReadPolling();
       this.initialized = true;
+      this._initialLoad = this._loadMatchday();
     }
-    this.switchTab('fixtures');
-    await this._loadMatchday();
+    return this._initialLoad;
   },
 
   _installMatchReadPolling() {
@@ -539,10 +716,10 @@ const appModule = {
     // the local legacy-preview fallback if the published board is unavailable.
     if (this._matchReadPollTimer || !window.setInterval) return;
     const poll = () => {
-      if (document.visibilityState === 'hidden') return;
-      if (!['published', 'not-published'].includes(this.matchReadSource)) return;
+      if (document.visibilityState === 'hidden' || router.state?.page !== 'app') return;
+      if (!['published', 'not-published', 'schedule', 'unavailable'].includes(this.matchReadSource)) return;
       this._lastMatchReadPollAt = Date.now();
-      this._loadMatchday();
+      this._loadMatchday({ background: true });
     };
     this._matchReadPollTimer = window.setInterval(poll, 90 * 1000);
     document.addEventListener('visibilitychange', () => {
@@ -554,14 +731,15 @@ const appModule = {
   },
 
   switchTab(tab) {
-    this.currentTab = tab;
-    document.querySelectorAll('.app-view').forEach(v => v.classList.add('hidden'));
-    document.querySelectorAll('.app-nav[data-view]').forEach(b => {
-      b.classList.toggle('active', b.dataset.view === tab);
-    });
-    if (tab === 'fixtures') document.getElementById('viewFixtures').classList.remove('hidden');
-    else if (tab === 'best-bets') document.getElementById('viewBestBets').classList.remove('hidden');
-    else if (tab === 'match') document.getElementById('viewMatch').classList.remove('hidden');
+    const restored = this._restoringRoute;
+    this._restoringRoute = null;
+    const fromBoard = tab === 'match' && router.state?.page === 'app'
+      && ['fixtures', 'best-bets'].includes(router.state.tab);
+    router.go('app', tab, restored);
+    if (fromBoard && !restored) {
+      router.state.fromBoard = true;
+      router.remember();
+    }
   },
 
   _buildDateStrips() {
@@ -578,6 +756,7 @@ const appModule = {
         btn.className = 'date-chip' + (i === this.activeDate ? ' active' : '');
         btn.textContent = label;
         btn.dataset.dateOffset = String(i);
+        btn.setAttribute('aria-pressed', String(i === this.activeDate));
         btn.onclick = () => this._setActiveDate(i);
         strip.appendChild(btn);
       }
@@ -585,9 +764,11 @@ const appModule = {
   },
 
   _setActiveDate(offset) {
+    if (this.activeDate === offset) return;
     this.activeDate = offset;
     document.querySelectorAll('.date-chip').forEach(btn => {
       btn.classList.toggle('active', Number(btn.dataset.dateOffset) === offset);
+      btn.setAttribute('aria-pressed', String(Number(btn.dataset.dateOffset) === offset));
     });
     this._loadMatchday();
   },
@@ -595,24 +776,126 @@ const appModule = {
   _buildLeagueFilters() {
     const filters = document.getElementById('leagueFilters');
     if (!filters) return;
-    filters.innerHTML = '';
-    const allBtn = document.createElement('button');
-    allBtn.className = 'league-chip active';
-    allBtn.innerHTML = 'All Leagues';
-    allBtn.onclick = () => { this.activeLeague = 'all'; this._syncLeagueChips(allBtn); this._loadMatchday(); };
-    filters.appendChild(allBtn);
-    this.LEAGUES.forEach(l => {
-      const btn = document.createElement('button');
-      btn.className = 'league-chip';
-      btn.innerHTML = `<span class="league-dot" style="background:${l.color}"></span>${l.name}`;
-      btn.onclick = () => { this.activeLeague = l.id; this._syncLeagueChips(btn); this._loadMatchday(); };
-      filters.appendChild(btn);
+    this._leagueResizeObserver?.disconnect();
+    filters.innerHTML = `
+      <button class="league-chip league-all" data-league="all" aria-label="All leagues">All</button>
+      <div class="league-scroll-wrap">
+        <div class="league-viewport" id="leagueViewport">
+          <div class="league-scroll-content">
+            ${this.LEAGUES.map(league => `<button class="league-chip" data-league="${esc(league.id)}">
+              <span class="league-logo" aria-hidden="true"><img src="${esc(league.logo)}" width="20" height="20" alt="" decoding="async" draggable="false"></span>
+              <span>${esc(league.name)}</span>
+            </button>`).join('')}
+            <span class="league-selected-line" aria-hidden="true"></span>
+          </div>
+        </div>
+      </div>
+      <div class="league-scroll-controls hidden">
+        <button class="league-scroll-button league-scroll-prev" aria-label="Scroll to earlier leagues" aria-controls="leagueViewport">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="league-scroll-button league-scroll-next" aria-label="Scroll to more leagues" aria-controls="leagueViewport">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>`;
+    filters.querySelectorAll('.league-chip').forEach(button => {
+      button.setAttribute('aria-controls', 'fixturesContainer');
+      button.addEventListener('click', () => {
+        const changed = this.activeLeague !== button.dataset.league;
+        this.activeLeague = button.dataset.league;
+        this._syncLeagueChips(button);
+        this._revealLeague(button);
+        if (changed) this._loadMatchday();
+      });
     });
+    filters.querySelectorAll('.league-logo img').forEach(img => {
+      img.addEventListener('error', () => { img.parentElement.style.visibility = 'hidden'; }, { once: true });
+    });
+    const viewport = filters.querySelector('.league-viewport');
+    viewport.addEventListener('scroll', () => this._queueLeagueRailUpdate(), { passive: true });
+    filters.querySelector('.league-scroll-prev').onclick = () => this._scrollLeagues(-1);
+    filters.querySelector('.league-scroll-next').onclick = () => this._scrollLeagues(1);
+    // Toolbar arrows move focus; Enter/Space activate the focused filter.
+    // Browsing league names alone does not trigger a stream of data requests.
+    filters.onkeydown = event => {
+      const button = event.target.closest('.league-chip');
+      if (!button || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const buttons = [...filters.querySelectorAll('.league-chip')];
+      const current = buttons.indexOf(button);
+      const index = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
+        : Math.max(0, Math.min(buttons.length - 1, current + (event.key === 'ArrowRight' ? 1 : -1)));
+      buttons.forEach(item => { item.tabIndex = item === buttons[index] ? 0 : -1; });
+      buttons[index].focus({ preventScroll: true });
+      this._revealLeague(buttons[index]);
+    };
+    this._syncLeagueChips([...filters.querySelectorAll('.league-chip')]
+      .find(button => button.dataset.league === this.activeLeague) || filters.querySelector('.league-all'));
+    if (window.ResizeObserver) {
+      this._leagueResizeObserver = new ResizeObserver(() => this._queueLeagueRailUpdate());
+      this._leagueResizeObserver.observe(viewport);
+      this._leagueResizeObserver.observe(filters.querySelector('.league-scroll-content'));
+    }
+    document.fonts?.ready.then(() => this._queueLeagueRailUpdate());
   },
 
   _syncLeagueChips(activeBtn) {
-    document.querySelectorAll('#leagueFilters .league-chip').forEach(c => c.classList.remove('active'));
-    activeBtn.classList.add('active');
+    document.querySelectorAll('#leagueFilters .league-chip').forEach(button => {
+      const active = button === activeBtn;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+      button.tabIndex = active ? 0 : -1;
+    });
+    this._queueLeagueRailUpdate();
+  },
+
+  _queueLeagueRailUpdate() {
+    if (this._leagueRailFrame) return;
+    this._leagueRailFrame = requestAnimationFrame(() => {
+      this._leagueRailFrame = 0;
+      this._updateLeagueRail();
+    });
+  },
+
+  _updateLeagueRail() {
+    const filters = document.getElementById('leagueFilters');
+    const viewport = filters?.querySelector('.league-viewport');
+    if (!viewport?.clientWidth) return;
+    const controls = filters.querySelector('.league-scroll-controls');
+    const gap = parseFloat(getComputedStyle(filters).columnGap) || 0;
+    // Measure the space available without arrows to avoid making their own
+    // width create a permanent overflow state at a breakpoint.
+    const available = viewport.clientWidth + controls.offsetWidth + (controls.offsetWidth ? gap : 0);
+    const overflow = viewport.scrollWidth > available + 1;
+    controls.classList.toggle('hidden', !overflow);
+    const maxScroll = viewport.scrollWidth - viewport.clientWidth;
+    const atStart = viewport.scrollLeft <= 2;
+    const atEnd = viewport.scrollLeft >= maxScroll - 2;
+    filters.classList.toggle('can-scroll-left', overflow && !atStart);
+    filters.classList.toggle('can-scroll-right', overflow && !atEnd);
+    filters.querySelector('.league-scroll-prev').disabled = !overflow || atStart;
+    filters.querySelector('.league-scroll-next').disabled = !overflow || atEnd;
+    const active = filters.querySelector('.league-scroll-content .league-chip.active');
+    const line = filters.querySelector('.league-selected-line');
+    line.style.opacity = active ? '1' : '0';
+    if (active) line.style.transform = `translateX(${active.offsetLeft}px) scaleX(${active.offsetWidth})`;
+  },
+
+  _revealLeague(button) {
+    const viewport = document.getElementById('leagueViewport');
+    if (!viewport) return;
+    const behavior = ui.reducedMotion.matches ? 'instant' : 'smooth';
+    if (button.dataset.league === 'all') { viewport.scrollTo({ left: 0, behavior }); return; }
+    const target = button.getBoundingClientRect(), windowRect = viewport.getBoundingClientRect();
+    if (target.left < windowRect.left + 12) viewport.scrollBy({ left: target.left - windowRect.left - 12, behavior });
+    else if (target.right > windowRect.right - 12) viewport.scrollBy({ left: target.right - windowRect.right + 12, behavior });
+  },
+
+  _scrollLeagues(direction) {
+    const viewport = document.getElementById('leagueViewport');
+    if (!viewport) return;
+    viewport.scrollBy({ left: direction * Math.max(140, viewport.clientWidth * .7),
+      behavior: ui.reducedMotion.matches ? 'instant' : 'smooth' });
   },
 
   _selectedDateISO() {
@@ -781,9 +1064,9 @@ const appModule = {
     };
   },
 
-  _buildBestBetsFromFixtures() {
+  _buildBestBetsFromFixtures(fixtures = this.fixtures) {
     const confidenceRank = { high: 3, medium: 2, low: 1 };
-    return this.fixtures
+    return fixtures
       .filter(fixture => fixture.best && ['high', 'medium'].includes(fixture.conf))
       .sort((a, b) => (
         (confidenceRank[b.conf] || 0) - (confidenceRank[a.conf] || 0)
@@ -792,105 +1075,152 @@ const appModule = {
       .slice(0, 5);
   },
 
-  async _loadMatchday() {
+  _normaliseScheduledFixture(row, analysisAvailable) {
+    const fixture = row.fixture || {};
+    const status = String(row.status || '').toUpperCase();
+    const scheduled = ['NS', 'TBD'].includes(status) && Date.parse(fixture.kickoff) > Date.now();
+    const labels = { PST: 'Postponed', CANC: 'Cancelled', ABD: 'Abandoned', SUSP: 'Suspended',
+      FT: 'Full time', AET: 'Full time', PEN: 'Full time', AWD: 'Match awarded', WO: 'Walkover' };
+    const label = scheduled
+      ? (analysisAvailable ? 'Analysis pending' : 'Analysis temporarily unavailable')
+      : (labels[status] || (['NS', 'TBD', '1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE', 'INT'].includes(status)
+        ? 'Match started' : 'Schedule status unavailable'));
+    return {
+      id: String(fixture.event_id), league: fixture.league,
+      home: fixture.home_team || 'Home team TBC', away: fixture.away_team || 'Away team TBC',
+      kickoff: fixture.kickoff, time: this._formatFixtureTime(fixture.kickoff),
+      isScheduleOnly: true, scheduled, status: 'pending', scheduleLabel: label,
+      scheduleNote: scheduled
+        ? (analysisAvailable ? 'A Match Read will appear here once it is published.' : 'Please check back for the latest Match Read.')
+        : 'No pre-match recommendation is available for this fixture.',
+      best: false, odds: null, edge: null, selections: [], markets: {},
+      visuals: { homeTeamLogo: row.visuals?.home_team_logo || '', awayTeamLogo: row.visuals?.away_team_logo || '' },
+    };
+  },
+
+  _mergeSchedule(schedule, cards, availableLeagues) {
+    const published = new Map(cards.map(card => [String(card.id), card]));
+    const merged = new Map();
+    schedule.forEach(row => {
+      const fixture = this._normaliseScheduledFixture(row, availableLeagues.has(row.fixture?.league));
+      const read = published.get(fixture.id);
+      // A known postponement/cancellation or kickoff must not become actionable
+      // because an earlier published card still exists.
+      merged.set(fixture.id, fixture.scheduled && read ? read : fixture);
+    });
+    // Preserve valid public reads if their fixture is temporarily absent from
+    // the schedule response. An unavailable schedule is not a withdrawal.
+    cards.forEach(card => { if (!merged.has(String(card.id))) merged.set(String(card.id), card); });
+    return [...merged.values()].sort((a, b) => String(a.kickoff).localeCompare(String(b.kickoff))
+      || String(a.league).localeCompare(String(b.league)) || String(a.id).localeCompare(String(b.id)));
+  },
+
+  async _loadMatchday({ background = false } = {}) {
+    const requestId = ++this._requestId;
+    const containers = ['fixturesContainer', 'bestBetsContainer'].map(id => document.getElementById(id));
+    containers.forEach(el => el?.setAttribute('aria-busy', 'true'));
+    try {
+      await this._fetchMatchday(requestId, background);
+    } finally {
+      if (requestId === this._requestId) {
+        containers.forEach(el => el?.setAttribute('aria-busy', 'false'));
+        if (!background) containers.forEach(el => { if (el) ui.enter(el); });
+      }
+    }
+  },
+
+  async _fetchMatchday(requestId, background) {
     const container = document.getElementById('fixturesContainer');
     const bestBetsContainer = document.getElementById('bestBetsContainer');
     if (!container || !bestBetsContainer) return;
 
-    const requestId = ++this._requestId;
     const targetDate = this._selectedDateISO();
     const requestedLeagues = this.activeLeague === 'all'
       ? this.LEAGUES
       : this.LEAGUES.filter(league => league.id === this.activeLeague);
 
-    this.fixtures = [];
-    this.bestBets = [];
-    this.fixtureIndex = {};
-    this.matchReadSource = 'loading';
-    this._renderFixtures({ loading: true });
-    this._renderBestBets({ loading: true });
+    if (!background) {
+      this.fixtures = [];
+      this.bestBets = [];
+      this.fixtureIndex = {};
+      this.matchReadSource = 'loading';
+      this._renderFixtures({ loading: true });
+      this._renderBestBets({ loading: true });
+    }
 
-    const boardResponses = await Promise.allSettled(requestedLeagues.map(async league => {
-      const response = await fetch(`/api/match-reads/${encodeURIComponent(league.id)}/${targetDate}`);
-      if (!response.ok) throw new Error(`${league.name} Match Reads could not be loaded (${response.status})`);
-      const payload = await response.json();
-      return { league, payload };
-    }));
-
-    // A date/filter could change before a slow persisted-board request completes.
+    const scheduleUrl = `/api/match-reads/schedule/${targetDate}`
+      + (this.activeLeague === 'all' ? '' : `?league=${encodeURIComponent(this.activeLeague)}`);
+    const responses = await Promise.allSettled([
+      (async () => {
+        const response = await fetch(scheduleUrl);
+        if (!response.ok) throw new Error('Fixture schedule could not be loaded');
+        const payload = await response.json();
+        if (!Array.isArray(payload.fixtures)) throw new Error('Invalid fixture schedule');
+        return payload.fixtures;
+      })(),
+      ...requestedLeagues.map(async league => {
+        const response = await fetch(`/api/match-reads/${encodeURIComponent(league.id)}/${targetDate}`);
+        if (!response.ok) throw new Error(`${league.name} Match Reads could not be loaded (${response.status})`);
+        const payload = await response.json();
+        if (!Array.isArray(payload.cards)) throw new Error('Invalid Match Read board');
+        return { league, payload };
+      }),
+    ]);
     if (requestId !== this._requestId) return;
 
+    const [scheduleResponse, ...boardResponses] = responses;
+    const scheduleLoaded = scheduleResponse.status === 'fulfilled';
     const successfulBoards = boardResponses.filter(result => result.status === 'fulfilled');
-    const persistedCards = successfulBoards.flatMap(result => (
-      (Array.isArray(result.value.payload.cards) ? result.value.payload.cards : [])
-        .map(card => this._normaliseMatchReadCard(card, result.value.league.id))
-    ));
+    const availableLeagues = new Set(successfulBoards.map(result => result.value.league.id));
+    const persistedCards = successfulBoards.flatMap(result => result.value.payload.cards
+      .map(card => this._normaliseMatchReadCard(card, result.value.league.id)));
+    const fixtures = this._mergeSchedule(scheduleLoaded ? scheduleResponse.value : [], persistedCards, availableLeagues);
+    const notices = [];
+    if (!scheduleLoaded) notices.push('The full fixture schedule could not be loaded. Showing published Match Reads only.');
+    const failed = boardResponses.length - successfulBoards.length;
+    if (failed) notices.push(`${failed} league${failed === 1 ? '' : 's'} could not load its analyses. Please try again shortly.`);
 
+    let bestBets = [];
     if (persistedCards.length) {
-      this.matchReadSource = 'published';
-      this.fixtures = persistedCards;
-      this._indexFixtures(this.fixtures);
-
-      // The cross-league endpoint enforces the approved five-fixture cap.
-      // If it is temporarily unavailable, use only the already-persisted
-      // board cards we have; never re-run the legacy model here.
+      // The shortlist still comes exclusively from the published-card endpoint.
+      // Schedule-only fixtures cannot participate in ranking or bet selection.
       try {
         const response = await fetch(`/api/match-reads/best/${targetDate}`);
-        if (!response.ok) throw new Error(`Best Match Reads could not be loaded (${response.status})`);
+        if (!response.ok) throw new Error('Best Match Reads could not be loaded');
         const payload = await response.json();
-        const bestCards = Array.isArray(payload.cards) ? payload.cards : [];
-        this.bestBets = bestCards.map(card => this._normaliseMatchReadCard(
-          card,
-          card.fixture?.league,
-        ));
+        bestBets = (Array.isArray(payload.cards) ? payload.cards : [])
+          .map(card => this._normaliseMatchReadCard(card, card.fixture?.league));
       } catch (error) {
         console.warn('Persisted Best Match Reads unavailable; using board cards only.', error);
-        this.bestBets = this._buildBestBetsFromFixtures();
+        bestBets = this._buildBestBetsFromFixtures(persistedCards);
       }
-      this._indexFixtures(this.bestBets);
-      if (requestId !== this._requestId) return;
-
-      const failed = boardResponses.length - successfulBoards.length;
-      this._renderFixtures({
-        notice: failed
-          ? `${failed} league${failed === 1 ? '' : 's'} could not load its published Match Reads.`
-          : '',
-      });
-      this._renderBestBets();
+    }
+    if (requestId !== this._requestId) return;
+    // Remove any known non-actionable schedule state from this display too;
+    // never replace a published recommendation with an invented selection.
+    const closedIds = new Set(fixtures.filter(f => f.isScheduleOnly && !f.scheduled).map(f => f.id));
+    bestBets = bestBets.filter(f => !closedIds.has(String(f.id)));
+    const notice = notices.join(' ');
+    const unchanged = background && JSON.stringify(this.fixtures) === JSON.stringify(fixtures)
+      && JSON.stringify(this.bestBets) === JSON.stringify(bestBets) && this._boardNotice === notice;
+    this._boardNotice = notice;
+    this.fixtures = fixtures;
+    this.bestBets = bestBets;
+    this.fixtureIndex = {};
+    this._indexFixtures(fixtures);
+    this._indexFixtures(bestBets);
+    this.matchReadSource = persistedCards.length ? 'published' : scheduleLoaded ? 'schedule' : 'unavailable';
+    if (unchanged) return;
+    if (!scheduleLoaded && !successfulBoards.length) {
+      this._renderFixtures({ error: 'The fixture schedule and Match Reads are temporarily unavailable. Please try again shortly.' });
+      this._renderBestBets({ error: 'Published Best Bets are temporarily unavailable.' });
       return;
     }
-
-    // A successful empty response is an intentional release state: shadows
-    // may exist internally, but there is no public Match Read yet.  Do not
-    // make an untracked legacy recalculation look like an official card.
-    if (successfulBoards.length === boardResponses.length) {
-      this.matchReadSource = 'not-published';
-      this._renderFixtures({
-        emptyMessage: 'Match Reads have not been published for this matchday yet.',
-        emptyHint: 'A fixture card will appear here only after its persisted briefing is ready.',
-      });
-      this._renderBestBets({
-        emptyMessage: 'No published Best of Today reads yet.',
-        emptyHint: 'The five-fixture shortlist is built only from published Match Reads.',
-      });
-      return;
-    }
-
-    // A local development server can retain the old live-calculation view as
-    // a clearly labelled diagnostic fallback.  Production never presents it
-    // as a public recommendation when the persisted delivery API is down.
-    if (!this._allowsLegacyPreview()) {
-      this.matchReadSource = 'unavailable';
-      this._renderFixtures({
-        error: 'The published Match Read board is temporarily unavailable. Please check back shortly.',
-      });
-      this._renderBestBets({
-        error: 'Best of Today is temporarily unavailable while Match Reads are loading.',
-      });
-      return;
-    }
-
-    await this._loadLegacyPreview(requestId, targetDate, requestedLeagues);
+    this._renderFixtures({ notice,
+      emptyMessage: scheduleLoaded ? 'No fixtures are listed for this matchday.' : 'No published Match Reads are available.',
+      emptyHint: scheduleLoaded ? 'Try another date or league.' : 'The full schedule is temporarily unavailable.',
+    });
+    this._renderBestBets();
   },
 
   async _loadLegacyPreview(requestId, targetDate, requestedLeagues) {
@@ -929,7 +1259,7 @@ const appModule = {
     const container = document.getElementById('fixturesContainer');
     if (!container) return;
     if (state.loading) {
-      container.innerHTML = '<div class="empty-state"><p>Preparing the matchday board…</p><span class="empty-state-hint">Loading live fixtures, prices and model decisions.</span></div>';
+      container.innerHTML = '<div class="empty-state"><p>Preparing the matchday board…</p><span class="empty-state-hint">Loading the fixture schedule and published Match Reads.</span></div>';
       return;
     }
     if (state.error) {
@@ -959,7 +1289,7 @@ const appModule = {
       group.className = 'league-group';
       group.innerHTML = `<div class="league-header"><div class="league-header-left"><span class="league-stripe" style="background:${esc(league.color)}"></span><span class="league-name">${esc(league.name)}</span></div><span class="league-count mono">${fxs.length} matches</span></div>`;
       fxs.forEach((f, i) => {
-        if (f.isMatchRead) {
+        if (f.isMatchRead || f.isScheduleOnly) {
           group.appendChild(this._createMatchReadFixtureCard(f, league, i));
           return;
         }
@@ -994,6 +1324,14 @@ const appModule = {
           ${addButton}
         `;
         row.onclick = () => this._showMatch(f.id);
+        row.tabIndex = 0;
+        row.setAttribute('role', 'button');
+        row.setAttribute('aria-label', `Open Match Read for ${f.home} versus ${f.away}`);
+        row.onkeydown = event => {
+          if (event.target === row && ['Enter', ' '].includes(event.key)) {
+            event.preventDefault(); this._showMatch(f.id);
+          }
+        };
         const add = row.querySelector('[data-fixture-add]');
         if (add) add.addEventListener('click', event => {
           event.stopPropagation();
@@ -1008,9 +1346,15 @@ const appModule = {
   _createMatchReadFixtureCard(f, league, index) {
     const card = document.createElement('article');
     card.className = 'match-read-fixture-card';
-    card.tabIndex = 0;
-    card.setAttribute('role', 'button');
-    card.setAttribute('aria-label', `Open Match Read for ${f.home} versus ${f.away}`);
+    card.dataset.fixtureId = String(f.id);
+    if (f.isScheduleOnly) {
+      card.classList.add('schedule-fixture-card');
+      card.setAttribute('aria-label', `${f.home} versus ${f.away}: ${f.scheduleLabel}`);
+    } else {
+      card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      card.setAttribute('aria-label', `Open Match Read for ${f.home} versus ${f.away}`);
+    }
 
     const initials = team => String(team || '?')
       .split(/\s+/)
@@ -1034,12 +1378,12 @@ const appModule = {
     const updateLabel = f.update?.is_updated && f.update?.label
       ? `<span class="match-read-update-label">${esc(f.update.label)}</span>`
       : '';
-    const statusLabel = f.isPreliminary
+    const statusLabel = f.isScheduleOnly ? f.scheduleLabel : f.isPreliminary
       ? 'Preliminary Match Read'
       : f.status === 'recommended'
       ? 'Match Read ready'
       : f.status === 'no_bet' ? 'No bet released' : 'Assessment unavailable';
-    const statusClass = f.isPreliminary
+    const statusClass = f.isScheduleOnly ? 'pending' : f.isPreliminary
       ? 'preliminary'
       : f.status === 'recommended' ? 'ready' : f.status === 'no_bet' ? 'no-bet' : 'unavailable';
 
@@ -1053,10 +1397,12 @@ const appModule = {
         <span class="match-card-vs">vs</span>
         <div class="match-card-team away"><span>${esc(f.away)}</span>${emblem(f.visuals?.awayTeamLogo, f.away, 'away')}</div>
       </div>
-      <ul class="match-card-signals">${bulletMarkup}</ul>
+      ${f.isScheduleOnly
+        ? `<p class="match-card-schedule-note empty-state-hint">${esc(f.scheduleNote)}</p>`
+        : `<ul class="match-card-signals">${bulletMarkup}</ul>`}
       <div class="match-card-footer">
         <span class="match-card-status ${statusClass}">${esc(statusLabel)}</span>
-        <span class="match-card-open">View Match Read <span aria-hidden="true">→</span></span>
+        ${f.isScheduleOnly ? '' : '<span class="match-card-open">View Match Read <span aria-hidden="true">→</span></span>'}
         ${updateLabel}
       </div>
     `;
@@ -1067,6 +1413,7 @@ const appModule = {
         image.remove();
       }, { once: true });
     });
+    if (f.isScheduleOnly) return card;
     card.addEventListener('click', () => this._showMatch(f.id));
     card.addEventListener('keydown', event => {
       if (event.key === 'Enter' || event.key === ' ') {
@@ -1078,6 +1425,7 @@ const appModule = {
   },
 
   _matchReadQuoteUsable(f, pick, odds) {
+    if (f.isScheduleOnly) return false;
     if (!f.isMatchRead) return true;
     const selected = (f.selections || []).find(s => s.pick === pick && Number(s.odds) === odds);
     if (f.status !== 'recommended' || !selected || !Number.isFinite(odds) || odds <= 1) return false;
@@ -1104,7 +1452,7 @@ const appModule = {
 
   _showMatch(fxId) {
     const f = this.fixtures.find(x => String(x.id) === String(fxId)) || this.fixtureIndex[String(fxId)];
-    if (!f) return;
+    if (!f || f.isScheduleOnly) return;
     this.currentMatch = f;
     this.currentMarketTab = Object.keys(f.markets)[0];
     const league = this.LEAGUES.find(l => l.id === f.league) || { name: f.league };
@@ -1240,10 +1588,14 @@ const appModule = {
       const btn = document.createElement('button');
       btn.className = 'market-tab' + (mk === this.currentMarketTab ? ' active' : '');
       btn.textContent = marketLabels[mk] || mk;
+      btn.setAttribute('aria-pressed', String(mk === this.currentMarketTab));
       btn.onclick = () => {
         this.currentMarketTab = mk;
-        tabs.querySelectorAll('.market-tab').forEach(b => b.classList.remove('active'));
+        tabs.querySelectorAll('.market-tab').forEach(b => {
+          b.classList.remove('active'); b.setAttribute('aria-pressed', 'false');
+        });
         btn.classList.add('active');
+        btn.setAttribute('aria-pressed', 'true');
         this._renderMarkets(f, mk);
       };
       tabs.appendChild(btn);
@@ -1350,6 +1702,14 @@ const appModule = {
     }).join('');
     container.querySelectorAll('.fixture-row').forEach((row, index) => {
       const fixture = this.bestBets[index];
+      row.tabIndex = 0;
+      row.setAttribute('role', 'button');
+      row.setAttribute('aria-label', `Open Match Read for ${fixture.home} versus ${fixture.away}`);
+      row.addEventListener('keydown', event => {
+        if (event.target === row && ['Enter', ' '].includes(event.key)) {
+          event.preventDefault(); this._showMatch(fixture.id);
+        }
+      });
       row.addEventListener('click', () => this._showMatch(fixture.id));
     });
     container.querySelectorAll('[data-best-bet-add]').forEach(button => {
@@ -1368,4 +1728,11 @@ const app = appModule;
 // when someone arrives there directly instead of leaving them on the home
 // screen with the league controls hidden.
 const initialPath = window.location.pathname.replace(/\/+$/, '') || '/';
-if (initialPath === '/app') router.go('app');
+const initialAnchor = initialPath === '/app' ? '' : location.hash;
+router.go(initialPath === '/app' ? 'app' : 'landing',
+  location.hash === '#best-bets' ? 'best-bets' : 'fixtures');
+
+if (initialAnchor && document.getElementById(initialAnchor.slice(1))) {
+  history.replaceState(router.state, '', '/' + location.search + initialAnchor);
+  requestAnimationFrame(() => document.getElementById(initialAnchor.slice(1)).scrollIntoView({ behavior: 'instant' }));
+}

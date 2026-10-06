@@ -1,0 +1,124 @@
+{
+  "downloaded_at": "2026-10-06T14:10:56.023962+00:00",
+  "source": "Public API-Sports league logo CDN; IDs verified against stored competition catalogue. No authenticated API calls.",
+  "assets": [
+    {
+      "league": "EPL",
+      "provider_id": 39,
+      "source_url": "https://media.api-sports.io/football/leagues/39.png",
+      "source_sha256": "ee162444b9ce8a00de813ed38152f88590a17fe92e22296fd86d132083c212df",
+      "source_bytes": 90381,
+      "sha256": "db3e4fd134654009120b605beae3b4ef8c190bdabb28c2389a8c88ebe9a47e0b",
+      "bytes": 4379
+    },
+    {
+      "league": "LaLiga",
+      "provider_id": 140,
+      "source_url": "https://media.api-sports.io/football/leagues/140.png",
+      "source_sha256": "320106f929dc5984cae891d5312ea5be69de45db17d6e6d805505d3d99d84400",
+      "source_bytes": 118622,
+      "sha256": "9d96391a2f21a5fb4110aac763f1f4969071b30cd03a02ff7dc004838b90837a",
+      "bytes": 3880
+    },
+    {
+      "league": "SerieA",
+      "provider_id": 135,
+      "source_url": "https://media.api-sports.io/football/leagues/135.png",
+      "source_sha256": "59a0fece857f60d23f4b7571777f35a3894564740b4a4056c7ebd2b25e48e6a6",
+      "source_bytes": 90381,
+      "sha256": "135e411a0ebe97950482dacda4f336ea5fdd302faacd67baa84ed1013ac924bf",
+      "bytes": 5572
+    },
+    {
+      "league": "Bundesliga",
+      "provider_id": 78,
+      "source_url": "https://media.api-sports.io/football/leagues/78.png",
+      "source_sha256": "41008525e75e6a6206c4469b2947ff3579e46b86ed7991dbe6ec452e522518d0",
+      "source_bytes": 90381,
+      "sha256": "5fe992e15ce6ed8cf610d90ec665dda891a2a6acce5c2e283c5fa630deb04ae0",
+      "bytes": 5715
+    },
+    {
+      "league": "Ligue1",
+      "provider_id": 61,
+      "source_url": "https://media.api-sports.io/football/leagues/61.png",
+      "source_sha256": "4ccb07f4cb560024deb1f3eb5d5b15573e095c7398228d0f9d78ac4c0b1d9448",
+      "source_bytes": 160687,
+      "sha256": "83adf2d6227454aad51826bbe9334015d6146ead1094487105557d5cd62b937d",
+      "bytes": 1634
+    },
+    {
+      "league": "Championship",
+      "provider_id": 40,
+      "source_url": "https://media.api-sports.io/football/leagues/40.png",
+      "source_sha256": "8cdd60fb0f11404ea2b09d0e7ce431a7a50c5e8efc5033b5cc5573ef4e0a7917",
+      "source_bytes": 75357,
+      "sha256": "9ce1f38e1b69c4b59ae403eded6bc5f70220293585ed730d515a6e9e347cad56",
+      "bytes": 6133
+    },
+    {
+      "league": "SuperLig",
+      "provider_id": 203,
+      "source_url": "https://media.api-sports.io/football/leagues/203.png",
+      "source_sha256": "7e97717c5a1d945b046f2fc5f1dcbc50d710288699b29d09593cd8599fdef900",
+      "source_bytes": 227393,
+      "sha256": "e15f6b0d893dc1f280998a650802b53634e4908c12c3013924e6dd80bf294169",
+      "bytes": 2699
+    },
+    {
+      "league": "Eredivisie",
+      "provider_id": 88,
+      "source_url": "https://media.api-sports.io/football/leagues/88.png",
+      "source_sha256": "c760aa11c1afca6ca832e24634a9c85a24e6419d9d1cae271514082e495252e6",
+      "source_bytes": 154675,
+      "sha256": "fcc176089767916ed926ca0b232823cc2bf10f718b164242b242a0b34b50927d",
+      "bytes": 3393
+    },
+    {
+      "league": "PrimeiraLiga",
+      "provider_id": 94,
+      "source_url": "https://media.api-sports.io/football/leagues/94.png",
+      "source_sha256": "73994d5ef3902b242f9f5f9ff76fc2040c2d1aa37ddbad5d78489bab0bb56b77",
+      "source_bytes": 67545,
+      "sha256": "39d27da8a64be0553449c8b5fd6958c6daa0420672baa796c9f51372b40aeb06",
+      "bytes": 5014
+    },
+    {
+      "league": "BelgianProLeague",
+      "provider_id": 144,
+      "source_url": "https://media.api-sports.io/football/leagues/144.png",
+      "source_sha256": "989c52997e4aaef7bd60013c73a39061e3f08bc3489b58b81509794dbfe5b144",
+      "source_bytes": 90381,
+      "sha256": "45aa03897579e826128b103421db59bbeebea45e846161081eac8f680bcd800d",
+      "bytes": 5003
+    },
+    {
+      "league": "UCL",
+      "provider_id": 2,
+      "source_url": "https://media.api-sports.io/football/leagues/2.png",
+      "source_sha256": "c6f9da8e0f9e8c0beb93392b967dab013010af53cf2889b7e99e24aa9d29a3b2",
+      "source_bytes": 95181,
+      "sha256": "14c73e54062c0d5f6b2151a35119accebbfe72c5b7229f562d7b10866c913875",
+      "bytes": 4907
+    },
+    {
+      "league": "UEL",
+      "provider_id": 3,
+      "source_url": "https://media.api-sports.io/football/leagues/3.png",
+      "source_sha256": "67ca992a9c44746e692edd3fbd9e169fdee3fbf565c086f9006cfc205b5125fd",
+      "source_bytes": 63328,
+      "sha256": "3e6a77ae950b2db3c165d3cdba4d8a9bb81eb815d1fd0be0a8bf0f08d4cf49dd",
+      "bytes": 3289
+    },
+    {
+      "league": "UECL",
+      "provider_id": 848,
+      "source_url": "https://media.api-sports.io/football/leagues/848.png",
+      "source_sha256": "7f994861d4ac18110fa23f4009768a50f942fc73aa949f47cdcac74bca784b68",
+      "source_bytes": 59128,
+      "sha256": "9f3d06700df55c926afb5399000ef17a02d2cd68bc629eb8939d820b506c6d70",
+      "bytes": 3307
+    }
+  ],
+  "preparation": "Proportional thumbnails, maximum 64 pixels, generated with macOS sips. Original CDN responses preserved in release provider-originals."
+}
