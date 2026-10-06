@@ -21,6 +21,12 @@ _FILES = (
     'Scripts/web_app/static/app.js',
     'Scripts/web_app/static/style.css',
     'Scripts/web_app/static/index.html',
+    'Scripts/web_app/static/landing.css',
+    'Scripts/web_app/static/methodology.html',
+    'Scripts/web_app/static/methodology.js',
+    'Scripts/web_app/static/privacy.html',
+    'Scripts/web_app/static/terms.html',
+    'Scripts/web_app/static/responsible-gambling.html',
     'Scripts/web_app/static/league-logos/sources.json',
 ) + tuple(
     f'Scripts/web_app/static/league-logos/{provider_id}.png'

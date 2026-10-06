@@ -1,29 +1,4 @@
-
-// ============================================================
-// SpixBot — stub JS for preview (app.js not included)
-// ============================================================
-
-// ----- Active users counter -----
-(function() {
-  const el = document.getElementById("activeUsers");
-  if (!el) return;
-  let base = 34 + Math.floor(Math.random() * 8);
-  el.textContent = base;
-  setInterval(() => {
-    base += Math.random() > 0.5 ? 1 : -1;
-    base = Math.max(28, Math.min(52, base));
-    el.textContent = base;
-  }, 4000);
-})();
-
-// ----- Seamless review carousel -----
-(function() {
-  const slide = document.getElementById("reviewsSlide");
-  if (!slide) return;
-  // Clone all cards and append so translateX(-50%) loops perfectly
-  const cards = Array.from(slide.children);
-  cards.forEach(card => slide.appendChild(card.cloneNode(true)));
-})();
+// Spix presentation and Matchday Board.
 
 // ----- Utilities -----
 function esc(str) {
@@ -251,55 +226,7 @@ window.addEventListener('popstate', event => {
     state.tab === 'match' ? { ...state, tab: 'fixtures', matchId: null } : state);
 });
 
-// ----- Pricing -----
-const pricing = {
-  setInterval(interval) {
-    document.querySelectorAll('.billing-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.interval === interval);
-    });
-    document.querySelectorAll('.pricing-amount').forEach(el => {
-      el.textContent = el.dataset[interval];
-    });
-    document.querySelectorAll('.pricing-period').forEach(el => {
-      el.textContent = el.dataset[interval];
-    });
-  },
-  async subscribe(plan) {
-    // Require Discord login before checkout
-    if (!auth.isLoggedIn()) {
-      showToast('Please log in with Discord first', 'info');
-      window.location.href = '/auth/discord/login';
-      return;
-    }
-
-    const interval = document.querySelector('.billing-btn.active')?.dataset.interval || 'monthly';
-    showToast('Redirecting to checkout...', 'success');
-
-    try {
-      const resp = await fetch('/api/checkout/create-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + auth.getToken(),
-        },
-        body: JSON.stringify({ tier: plan, interval }),
-      });
-
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        showToast(err.detail || 'Checkout failed', 'error');
-        return;
-      }
-
-      const data = await resp.json();
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (e) {
-      showToast('Checkout failed — please try again', 'error');
-    }
-  }
-};
+// Paid membership is not offered until the single-plan price and terms are configured.
 
 // ----- Auth -----
 const auth = {
