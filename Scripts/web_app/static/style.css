@@ -1590,6 +1590,7 @@ ul { list-style: none; }
 }
 .match-read-selection {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -2547,3 +2548,12 @@ ul { list-style: none; }
   .home-principles-intro { padding-bottom: 27px; font-size: 21px; }
   .home-principle, .home-principle:first-of-type { padding: 20px 0; border-top: 1px solid rgba(225, 239, 226, 0.1); border-left: 0; }
 }
+
+.match-read-selection-explanation {
+  flex-basis: 100%;
+  color: var(--text2);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.match-read-selection-explanation p { margin: 4px 0; }

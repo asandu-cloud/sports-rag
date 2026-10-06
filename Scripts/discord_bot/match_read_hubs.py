@@ -185,15 +185,18 @@ def build_match_read_hub_embeds(
         )
     now = _as_utc(rendered_at or datetime.now(timezone.utc))
     confirmed = has_confirmed_lineup_read(effective)
-    fields = [_fixture_field(read) for read in effective]
+    fields = [field for read in effective for field in _fixture_fields(read)]
     if not fields:
         fields = [(
             "No Match Reads available",
             "No persisted fixture read is available for this league and matchday yet.",
         )]
 
-    pages = [fields[index:index + _FIXTURES_PER_EMBED]
-             for index in range(0, len(fields), _FIXTURES_PER_EMBED)]
+    # Each numerical explanation gets its own field. Keep a five-fixture
+    # shortlist together without repeating message headers fifteen times.
+    fields_per_embed = 15 if any(any((s.get('data') or {}).get('decision', {}).get('quote') for s in read.get('selections', [])) for read in effective) else _FIXTURES_PER_EMBED
+    pages = [fields[index:index + fields_per_embed]
+             for index in range(0, len(fields), fields_per_embed)]
     embeds: list[discord.Embed] = []
     for page_index, fields_on_page in enumerate(pages, start=1):
         first_page = page_index == 1
@@ -218,7 +221,17 @@ def build_match_read_hub_embeds(
             )
         )
         embeds.append(embed)
+    if sum(_embed_characters(embed) for embed in embeds) > 6000 or len(embeds) > 10:
+        raise ValueError(f'Match Read explanations exceed the Discord message budget ({sum(_embed_characters(e) for e in embeds)} characters); split delivery before sending, never truncate decision facts.')
     return embeds
+
+
+def _embed_characters(embed):
+    data = embed.to_dict()
+    return (len(data.get('title', '')) + len(data.get('description', ''))
+            + len((data.get('footer') or {}).get('text', ''))
+            + len((data.get('author') or {}).get('name', ''))
+            + sum(len(f.get('name', '')) + len(f.get('value', '')) for f in data.get('fields', [])))
 
 
 def discord_message_reference(message: Any, channel: Any) -> str:
@@ -265,6 +278,26 @@ def _fixture_sort_key(read: Mapping[str, Any]) -> tuple[datetime, str]:
     return (kickoff, str(fixture.get("event_id") or ""))
 
 
+def _fixture_fields(read):
+    try:
+        card = build_match_read_card(read)
+    except MatchReadCardError:
+        return [_fixture_field(read)]
+    if not any(item.get('explanation') for item in card.get('selections', [])):
+        return [_fixture_field(read)]
+    name, value = _fixture_field(read)
+    selections = card.get('selections') or []
+    if not selections:
+        values = [value]
+    else:
+        values = [_selection_line(selection) for selection in selections]
+        if len(selections) > 1:
+            values[-1] += '\nRelated selections; no combined probability or return is claimed.'
+    if any(len(value) > _MAX_FIELD_VALUE for value in values):
+        raise ValueError('A decision explanation exceeds the Discord field budget; never truncate its price or uncertainty.')
+    return [(name if i == 0 else 'Supporting selection · ' + str((selections[i].get('market') or {}).get('group', '')), value) for i, value in enumerate(values)]
+
+
 def _fixture_field(read: Mapping[str, Any]) -> tuple[str, str]:
     try:
         card = build_match_read_card(read)
@@ -300,10 +333,13 @@ def _fixture_field(read: Mapping[str, Any]) -> tuple[str, str]:
 
 
 def _selection_line(selection: Mapping[str, Any]) -> str:
+    explanation = selection.get("explanation")
+    if explanation:
+        return '• ' + explanation['compact']
     role = _ROLE_LABELS.get(str(selection.get("role") or "").lower(), "Selection")
     pick = str(selection.get("pick") or "Selection")
     odds = _number(selection.get("odds"))
-    odds_text = f" @ **{odds:.2f}**" if odds is not None else ""
+    odds_text = f" @ **{odds:g}**" if odds is not None else ""
     details = []
     confidence = str(selection.get("confidence") or "").strip()
     if confidence:

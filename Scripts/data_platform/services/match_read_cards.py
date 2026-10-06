@@ -79,7 +79,11 @@ def _selection_card(value: Any) -> Dict[str, Any]:
     data = _mapping_or_empty(selection.get("data"))
     decision = _mapping_or_empty(data.get("decision"))
     evidence = data.get("evidence")
+    from .decision_communication import build_decision_explanation
+    explanation = build_decision_explanation(data) if decision.get("quote") and decision.get("status") == "recommended" else None
     return {
+        "recommendation_id": explanation["recommendation_id"] if explanation else None,
+        "explanation": explanation,
         "position": _required_int(selection.get("position"), "selection.position"),
         "role": _required_text(selection.get("role"), "selection.role"),
         "market": _mapping(selection.get("market"), "selection.market"),

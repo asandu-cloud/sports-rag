@@ -160,6 +160,9 @@ class MatchReadService:
             selections,
             status=normalised_status,
         )
+        from .decision_audit import fixture_decision_audit
+        normalised_script = dict(normalised_script or {})
+        normalised_script["decision_audit"] = fixture_decision_audit(result_snapshots, selection_fields)
         package_fields = _normalise_packages(
             packages,
             selected_positions=selected_positions,

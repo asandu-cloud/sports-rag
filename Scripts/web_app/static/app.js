@@ -672,8 +672,8 @@ const appModule = {
     selections.forEach(selection => {
       const group = selection.market?.group;
       if (!group) return;
-      const odds = Number(selection.odds);
-      const edge = Number(selection.value_edge);
+      const odds = selection.odds == null ? NaN : Number(selection.odds);
+      const edge = selection.value_edge == null ? NaN : Number(selection.value_edge);
       markets[group] = [{
         pick: selection.pick || 'Selection unavailable',
         odds: Number.isFinite(odds) ? odds : null,
@@ -687,8 +687,8 @@ const appModule = {
       }];
     });
 
-    const coreOdds = Number(core?.odds);
-    const coreEdge = Number(core?.value_edge);
+    const coreOdds = core?.odds == null ? NaN : Number(core.odds);
+    const coreEdge = core?.value_edge == null ? NaN : Number(core.value_edge);
     const fixture = card.fixture || {};
     const update = card.update || {};
     const status = card.status || 'unavailable';
@@ -989,8 +989,8 @@ const appModule = {
           </div>
           <span class="fixture-pick-text">${esc(f.pick)}${esc(supportingLabel)}</span>
           <span class="conf-badge ${esc(confidenceClass)}">${esc(confidenceLabel)}</span>
-          <span class="fixture-odds-val mono">${f.odds ? esc(f.odds.toFixed(2)) : '—'}</span>
-          <span class="fixture-edge mono ${f.edge && f.edge > 0 ? 'edge-pos' : ''}">${f.edge ? `+${esc(f.edge.toFixed(1))}%` : '—'}</span>
+          <span class="fixture-odds-val mono">${f.odds ? esc(String(f.odds)) : '—'}</span>
+          <span class="fixture-edge mono ${f.edge && f.edge > 0 ? 'edge-pos' : ''}">${Number.isFinite(f.edge) ? `${f.edge >= 0 ? '+' : ''}${esc(f.edge.toFixed(1))}%` : '—'}</span>
           ${addButton}
         `;
         row.onclick = () => this._showMatch(f.id);
@@ -1077,9 +1077,22 @@ const appModule = {
     return card;
   },
 
+  _matchReadQuoteUsable(f, pick, odds) {
+    if (!f.isMatchRead) return true;
+    const selected = (f.selections || []).find(s => s.pick === pick && Number(s.odds) === odds);
+    if (f.status !== 'recommended' || !selected || !Number.isFinite(odds) || odds <= 1) return false;
+    const expiry = selected.explanation?.expires_at;
+    if (selected.justification && !expiry) return false;
+    return !expiry || Date.parse(expiry) > Date.now();
+  },
+
   _toggleSlipFromFixture(fxId) {
     const f = this.fixtures.find(x => String(x.id) === String(fxId)) || this.fixtureIndex[String(fxId)];
     if (!f || !f.best || !Number.isFinite(f.odds)) return;
+    if (!this._matchReadQuoteUsable(f, f.pick, f.odds)) {
+      showToast('This selection needs a current verified price.', 'error');
+      return;
+    }
     const slipKey = `${f.home} vs ${f.away}|${f.pick}`;
     const added = slip.add(f.home + ' vs ' + f.away, f.pick, f.odds, 'Best Pick', { fixtureId: f.id });
     document.querySelectorAll('[data-fixture-add]').forEach(btn => {
@@ -1136,27 +1149,35 @@ const appModule = {
       : 'No selection was released because the fixture cannot be assessed safely yet.';
     const actionable = selections.length
       ? `<div class="match-read-selections">${selections.map((selection, index) => {
-          const odds = Number(selection.odds);
-          const edge = Number(selection.value_edge);
+          const odds = selection.odds == null ? NaN : Number(selection.odds);
+          const edge = selection.value_edge == null ? NaN : Number(selection.value_edge);
           const role = selection.role === 'core' ? 'Core selection' : 'Supporting selection';
           const market = marketLabels[selection.market?.group] || selection.market?.group || 'Market';
           const slipKey = `${f.home} vs ${f.away}|${selection.pick}`;
           const inSlip = slip.legs.find(leg => leg.key === slipKey);
-          const canAdd = f.status === 'recommended' && Number.isFinite(odds);
+          const explanation = selection.explanation;
+          const quoteFresh = !explanation?.expires_at || Date.parse(explanation.expires_at) > Date.now();
+          const canAdd = f.status === 'recommended' && Number.isFinite(odds) && odds > 1 && quoteFresh;
           const addButton = canAdd
             ? `<button class="market-add-btn${inSlip ? ' added' : ''}" data-match-read-add="${index}">${inSlip ? '✓ Added' : '+ Add'}</button>`
             : '';
-          return `<div class="match-read-selection">
+          return `<div class="match-read-selection" data-recommendation-id="${esc(selection.recommendation_id || '')}">
             <div class="match-read-selection-main">
               <span class="match-read-role">${esc(role)}</span>
               <span class="match-read-selection-pick">${esc(market)}: ${esc(selection.pick || 'Selection unavailable')}</span>
-              <span class="conf-badge ${esc(selection.confidence || 'low')}">${esc(String(selection.confidence || 'low').toUpperCase())}</span>
-              ${Number.isFinite(edge) ? `<span class="value-badge ${edge > 0.06 ? 'strong' : 'good'}">+${esc((edge * 100).toFixed(1))}%</span>` : ''}
+              <span class="conf-badge ${esc(selection.confidence || 'low')}">${esc(String(selection.confidence || 'low').toUpperCase())}${selection.justification ? ' SUPPORT' : ''}</span>
+              ${Number.isFinite(edge) ? `<span class="value-badge ${edge > 0.06 ? 'strong' : 'good'}">${edge >= 0 ? '+' : ''}${esc((edge * 100).toFixed(1))}% probability edge</span>` : ''}
             </div>
             <div class="match-read-selection-quote">
-              <span class="market-line-odds mono">${Number.isFinite(odds) ? esc(odds.toFixed(2)) : '—'}</span>
+              <span class="market-line-odds mono">${Number.isFinite(odds) ? esc(String(odds)) : '—'}</span>
               ${addButton}
             </div>
+            ${explanation ? `<div class="match-read-selection-explanation">
+              <p>${esc(explanation.reasoning)}</p>
+              <p>${esc(explanation.uncertainty)}</p>
+              <p>${esc(explanation.price_conditions)}</p>
+              ${!quoteFresh ? '<p>Quote expired. Wait for a current price.</p>' : ''}
+            </div>` : ''}
           </div>`;
         }).join('')}</div>`
       : `<p class="match-read-no-selection">${esc(noBetCopy)}</p>`;
@@ -1187,7 +1208,12 @@ const appModule = {
       button.addEventListener('click', () => {
         const selection = selections[Number(button.dataset.matchReadAdd)];
         const odds = Number(selection?.odds);
-        if (!selection || !Number.isFinite(odds)) return;
+        if (!selection || f.status !== 'recommended' || !Number.isFinite(odds) || odds <= 1) return;
+        if (selection.explanation?.expires_at && !(Date.parse(selection.explanation.expires_at) > Date.now())) {
+          button.disabled = true;
+          button.textContent = 'Quote expired';
+          return;
+        }
         const added = slip.add(
           f.home + ' vs ' + f.away,
           selection.pick,
@@ -1255,7 +1281,7 @@ const appModule = {
               ${line.reason ? `<span class="market-line-reason">${esc(line.reason)}</span>` : ''}
             </div>
             <div class="market-line-right">
-              <span class="market-line-odds mono">${line.odds ? esc(line.odds.toFixed(2)) : '—'}</span>
+              <span class="market-line-odds mono">${line.odds ? esc(String(line.odds)) : '—'}</span>
               ${addButton}
             </div>
           </div>`;
@@ -1271,6 +1297,10 @@ const appModule = {
   _toggleSlipFromMarket(fxId, pick, odds) {
     const f = this.fixtures.find(x => String(x.id) === String(fxId)) || this.fixtureIndex[String(fxId)];
     if (!f || !Number.isFinite(odds)) return;
+    if (!this._matchReadQuoteUsable(f, pick, odds)) {
+      showToast('This selection needs a current verified price.', 'error');
+      return;
+    }
     const slipKey = `${f.home} vs ${f.away}|${pick}`;
     const added = slip.add(f.home + ' vs ' + f.away, pick, odds, 'Market', { fixtureId: f.id });
     document.querySelectorAll('[data-market-add]').forEach(btn => {
@@ -1313,8 +1343,8 @@ const appModule = {
           <div class="fixture-meta-line"><span class="fixture-time">${esc(f.pick)}</span>${updateLabel}</div>
         </div>
         <span class="conf-badge ${esc(f.conf)}">${esc(f.conf.toUpperCase())}</span>
-        <span class="fixture-odds-val mono">${Number.isFinite(f.odds) ? esc(f.odds.toFixed(2)) : '—'}</span>
-        <span class="fixture-edge mono edge-pos">${Number.isFinite(f.edge) ? `+${esc(f.edge.toFixed(1))}%` : '—'}</span>
+        <span class="fixture-odds-val mono">${Number.isFinite(f.odds) ? esc(String(f.odds)) : '—'}</span>
+        <span class="fixture-edge mono edge-pos">${Number.isFinite(f.edge) ? `${f.edge >= 0 ? '+' : ''}${esc(f.edge.toFixed(1))}%` : '—'}</span>
         <button class="fixture-add-btn${inSlip ? ' added' : ''}" data-best-bet-add="${esc(f.id)}">${inSlip ? '✓' : '+'}</button>
       </div>`;
     }).join('');

@@ -340,10 +340,6 @@ def _build_result(
     evidence: Iterable[EvidenceItem] = (),
     context: Optional[Mapping[str, Any]] = None,
 ) -> MarketResult:
-    try:
-        from data_platform.services.decision_audit import complete_market_audit
-    except ImportError:
-        from Scripts.data_platform.services.decision_audit import complete_market_audit
     # Supported selectors above are full-game pre-match markets. Retain their
     # period explicitly; never retroactively assign it to old stored quotes.
     if decision.quote is not None and decision.quote.period is None:
@@ -355,7 +351,7 @@ def _build_result(
         decision=decision,
         provenance=provenance,
         evidence=tuple(evidence),
-        context=complete_market_audit(context, decision, provenance),
+        context=dict(context or {}),
     )
 
 
@@ -420,10 +416,6 @@ def _evaluate_market(
         sources=("core.projections", "core.line_selection", "core.odds_extraction"),
         system_version=prediction_system_manifest()["version"],
     )
-    try:
-        from data_platform.services.decision_audit import run_selector
-    except ImportError:
-        from Scripts.data_platform.services.decision_audit import run_selector
     result_context = {"fixture_date": source_date} if source_date else {}
     result_context.update(dict(context or {}))
     result_context["market_contract_version"] = "canonical-market-contract.v1"
@@ -507,7 +499,7 @@ def _evaluate_market(
         )
         decision = _unavailable("Insufficient profile data to project this market.")
         if value is not None:
-            selector_result = run_selector(result_context, select_best_total_recommendation, 
+            selector_result = select_best_total_recommendation(
                 extract_total_line_options(dict(event), market_name), value, combined_variance,
                 count_probabilities=count_probabilities,
             )
@@ -540,7 +532,7 @@ def _evaluate_market(
         )
         decision = _unavailable("Insufficient profile data to project BTTS.")
         if p_yes is not None:
-            selector_result = run_selector(result_context, select_best_btts_recommendation, extract_btts_odds(dict(event)), p_yes)
+            selector_result = select_best_btts_recommendation(extract_btts_odds(dict(event)), p_yes)
             decision = _with_confidence(_quote_decision(selector_result, _requested_quote), "goals")
             if decision.quote is not None:
                 decision = replace(decision, quote=replace(
@@ -578,7 +570,7 @@ def _evaluate_market(
             if not options:
                 decision = _unavailable("No market prices are available for this moneyline fixture.")
             else:
-                selector_result = run_selector(result_context, choose_best_moneyline_side, p_home, p_draw, p_away, options, home, away)
+                selector_result = choose_best_moneyline_side(p_home, p_draw, p_away, options, home, away)
                 decision = _with_confidence(_quote_decision(selector_result, _requested_quote), "goals")
         decision = _apply_quality_guardrails(decision, result_context, "moneyline")
         decision = apply_release_policy(decision, result_context)
@@ -601,7 +593,7 @@ def _evaluate_market(
     )
     decision = _unavailable("Insufficient profile data to project the goal difference.")
     if projected_diff is not None:
-        selector_result = run_selector(result_context, select_best_spread_recommendation, 
+        selector_result = select_best_spread_recommendation(
             extract_spread_line_options(dict(event)), projected_diff, home,
             away_team=away, league=league, fixture_date=source_date,
             league_ctx=league_ctx, knockout_ctx=knockout_ctx,

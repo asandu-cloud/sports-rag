@@ -51,6 +51,7 @@ from core.line_selection import (
     _best_model_only_line, _best_model_only_spread,
 )
 from core.market_service import SUPPORTED_MARKETS, evaluate_event
+from Scripts.data_platform.services.communication_release import communication_release_manifest
 from core.parlay import build_candidates, kb_leg_quality, CandidateLeg, enrich_events_for_groups
 
 from prob_models import over_prob, implied_prob, value_edge
@@ -1118,6 +1119,7 @@ def health_check():
         "status": "ok",
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "leagues_available": len(LEAGUE_TO_ODDS_SPORT),
+        "communication_release": communication_release_manifest(),
     }
 
 
