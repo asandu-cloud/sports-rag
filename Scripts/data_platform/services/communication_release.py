@@ -22,6 +22,11 @@ _FILES = (
     'Scripts/web_app/static/style.css',
     'Scripts/web_app/static/index.html',
     'Scripts/web_app/static/landing.css',
+    'Scripts/web_app/static/research/content.html',
+    'Scripts/web_app/static/research/research.css',
+    'Scripts/web_app/static/research/research.js',
+    'Scripts/web_app/static/research/data.js',
+
     'Scripts/web_app/static/methodology.html',
     'Scripts/web_app/static/methodology.js',
     'Scripts/web_app/static/privacy.html',

@@ -150,21 +150,22 @@ const router = {
   positions: new Map(),
   focusTargets: new Map(),
   sequence: 0,
-  key(state) { return `${state.page}:${state.tab}:${state.matchId || ''}`; },
+  key(state) { return `${state.page}:${state.tab}:${state.matchId || ''}:${state.researchRoute || ''}`; },
   remember() {
     if (!this.state) return;
     this.state.scrollY = window.scrollY;
     this.positions.set(this.key(this.state), window.scrollY);
     history.replaceState(this.state, '');
   },
-  go(page, tab = 'fixtures', restored = null) {
+  go(page, tab = 'fixtures', restored = null, researchRoute = null) {
     const previous = this.state;
     if (!restored) {
       this.remember();
       if (previous) this.focusTargets.set(this.key(previous), document.activeElement);
     }
     const next = restored || { spix: true, page, tab,
-      matchId: tab === 'match' ? appModule.currentMatch?.id : null };
+      matchId: tab === 'match' ? appModule.currentMatch?.id : null,
+      researchRoute: tab === 'research' ? researchRoute || appModule.researchRoute || 'players' : null };
     if (previous && this.key(previous) === this.key(next) && !restored) return;
     ui.modal?.close();
     this.state = next;
@@ -175,16 +176,19 @@ const router = {
     document.querySelectorAll('.landing-nav').forEach(el => el.classList.toggle('hidden', page !== 'landing'));
     document.querySelectorAll('.app-nav').forEach(el => el.classList.toggle('hidden', page !== 'app'));
     auth._updateUI();
-    const ready = page === 'app' ? appModule.init() : Promise.resolve();
+    const ready = page === 'app' ? (tab === 'research'
+      ? customElements.whenDefined('spix-research').then(() => document.querySelector('spix-research').showRoute(next.researchRoute || 'players'))
+      : appModule.init()) : Promise.resolve();
+    if (tab === 'research') appModule.researchRoute = next.researchRoute || 'players';
     appModule.currentTab = tab;
-    const viewId = { fixtures: 'viewFixtures', 'best-bets': 'viewBestBets', match: 'viewMatch' }[tab];
+    const viewId = { fixtures: 'viewFixtures', 'best-bets': 'viewBestBets', research: 'viewResearch', match: 'viewMatch' }[tab];
     document.querySelectorAll('.app-view').forEach(el => el.classList.toggle('hidden', el.id !== viewId));
     document.querySelectorAll('[data-view]').forEach(el => {
       const active = el.dataset.view === tab;
       el.classList.toggle('active', active);
       if (active) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
     });
-    const url = page === 'app' ? '/app' + (tab === 'best-bets' ? '#best-bets' : '') : '/';
+    const url = page === 'app' ? '/app' + (tab === 'best-bets' ? '#best-bets' : tab === 'research' ? '#research/' + next.researchRoute : '') : '/';
     if (!restored) history[previous ? 'pushState' : 'replaceState'](next, '', url + (previous ? '' : location.search));
     const view = document.getElementById(page === 'app' ? viewId : 'landingPage');
     ui.enter(view, restored ? -1 : 1);
@@ -200,7 +204,7 @@ const router = {
       if (token === this.sequence && Math.abs(window.scrollY - top) < 2) {
         window.scrollTo({ top, behavior: 'instant' });
       }
-    });
+    }).catch(error => console.warn('Page content could not load', error));
   },
   backToBoard() {
     if (this.state?.tab === 'match' && this.state.fromBoard) history.back();
@@ -1649,6 +1653,9 @@ const appModule = {
 };
 
 const app = appModule;
+document.addEventListener('research-navigate', event => {
+  router.go('app', 'research', null, event.detail.route);
+});
 
 // ``/app`` is the shareable/direct Matchday Board URL served by FastAPI.
 // The same HTML shell powers the landing page, so select the board explicitly
@@ -1657,7 +1664,8 @@ const app = appModule;
 const initialPath = window.location.pathname.replace(/\/+$/, '') || '/';
 const initialAnchor = initialPath === '/app' ? '' : location.hash;
 router.go(initialPath === '/app' ? 'app' : 'landing',
-  location.hash === '#best-bets' ? 'best-bets' : 'fixtures');
+  location.hash.startsWith('#research') ? 'research' : location.hash === '#best-bets' ? 'best-bets' : 'fixtures', null,
+  location.hash.startsWith('#research/') ? location.hash.slice('#research/'.length) : 'players');
 
 if (initialAnchor && document.getElementById(initialAnchor.slice(1))) {
   history.replaceState(router.state, '', '/' + location.search + initialAnchor);

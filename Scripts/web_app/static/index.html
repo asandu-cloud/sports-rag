@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css?v=landing-20261006">
+  <link rel="stylesheet" href="/static/style.css?v=logo-20261007">
   <link rel="stylesheet" href="/static/landing.css?v=landing-20261006">
 </head>
 <body>
@@ -19,7 +19,14 @@
   <header class="topbar" id="topbar" role="banner">
     <div class="topbar-inner">
       <div class="logo" onclick="router.go('landing')" onkeydown="if(event.key === 'Enter' || event.key === ' '){event.preventDefault();router.go('landing')}" tabindex="0" role="link" aria-label="Spix home">
-        <span class="logo-mark">S</span>
+        <svg class="logo-mark" width="34" height="40" viewBox="186 273 177 207" aria-hidden="true" focusable="false">
+          <g transform="matrix(1 0 -.14 1 52.78 0)">
+            <path d="M323 298H227V377H323V455H227" fill="none" stroke="currentColor" stroke-width="37.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="191" y="346.5" width="166" height="60" rx="30" fill="currentColor"/>
+            <rect x="206" y="359.5" width="136" height="34" rx="17" fill="var(--on-accent)"/>
+            <g fill="var(--text)"><ellipse cx="252" cy="376.5" rx="10" ry="8"/><ellipse cx="297" cy="376.5" rx="10" ry="8"/></g>
+          </g>
+        </svg>
         <span class="logo-text">Spix</span>
       </div>
       <nav class="nav" id="mainNav" aria-label="Main navigation">
@@ -29,6 +36,7 @@
         <a class="nav-link landing-nav" href="#pricing">Membership</a>
         <!-- App nav links -->
         <button class="nav-link app-nav hidden" data-view="fixtures" onclick="app.switchTab('fixtures')">Fixtures</button>
+        <button class="nav-link app-nav hidden" data-view="research" onclick="app.switchTab('research')">Research Area</button>
         <button class="nav-link app-nav hidden" data-view="best-bets" onclick="app.switchTab('best-bets')">Best Bets</button>
       </nav>
       <div class="topbar-right">
@@ -124,6 +132,9 @@
           <div id="fixturesContainer"></div>
         </section>
 
+        <!-- Research is an isolated UI component; it does not select bets. -->
+        <section class="app-view hidden" id="viewResearch" aria-label="Research Area"><spix-research></spix-research></section>
+
         <!-- Best Bets View -->
         <section class="app-view hidden" id="viewBestBets">
           <div class="page-header">
@@ -211,7 +222,8 @@
     </div>
     <nav class="mobile-app-nav" aria-label="Matchday navigation">
       <button class="nav-link app-nav hidden" data-view="fixtures" onclick="app.switchTab('fixtures')">Fixtures</button>
-      <button class="nav-link app-nav hidden" data-view="best-bets" onclick="app.switchTab('best-bets')">Best Bets</button>
+      <button class="nav-link app-nav hidden" data-view="research" onclick="app.switchTab('research')">Research Area</button>
+        <button class="nav-link app-nav hidden" data-view="best-bets" onclick="app.switchTab('best-bets')">Best Bets</button>
       <button class="nav-link app-nav hidden" onclick="slip.toggle()" aria-controls="betSlip" aria-expanded="false">Bet Slip</button>
     </nav>
   </div>
@@ -246,6 +258,7 @@
   <!-- Toast -->
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
-  <script src="/static/app.js?v=landing-20261006"></script>
+  <script type="module" src="/static/research/research.js?v=research-20261007"></script>
+  <script src="/static/app.js?v=research-20261007"></script>
 </body>
 </html>
