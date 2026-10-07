@@ -167,6 +167,12 @@ const ui = {
         if (id === 'betSlip') {
           const axis = window.matchMedia('(max-width: 1100px)').matches ? 'Y' : 'X';
           el.style.transform = `translate${axis}(${(1 - value) * 100}%)`;
+        } else if (id === 'mobileMenu') {
+          // The panel slides in from the right and pushes the page by its own
+          // width; the backdrop dims what remains visible.
+          el.style.transform = `translateX(${(1 - value) * 100}%)`;
+          document.documentElement.style.setProperty('--menu-shift', `${-value * el.offsetWidth}px`);
+          document.body.classList.toggle('menu-shifted', value > 0);
         } else {
           el.style.opacity = value;
           el.style.transform = `translate(-50%, -50%) scale(${.97 + .03 * value})`;
@@ -602,7 +608,7 @@ const slip = {
 
   _update() {
     const n = this.legs.length;
-    ['slipCount','slipToggleCount','slipMobileCount'].forEach(id => {
+    ['slipCount','slipToggleCount','slipMobileCount','menuSlipCount'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.textContent = n;
     });
@@ -626,6 +632,34 @@ const slip = {
     document.getElementById('slipPayout').textContent = '$' + (stake ? payout.toFixed(2) : '0.00');
   }
 };
+
+// ----- Mobile section menu (phones only; the toggle is hidden on wider screens) -----
+const mobileMenu = {
+  open: false,
+  phone: window.matchMedia('(max-width: 640px)'),
+
+  set(open) {
+    if (this.open === open) return;
+    this.open = open;
+    document.querySelectorAll('[aria-controls="mobileMenu"]').forEach(button => {
+      button.setAttribute('aria-expanded', String(open));
+      button.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    });
+    ui.overlay('mobileMenu', 'menuBackdrop', open, () => this.close());
+  },
+  toggle() { this.set(!this.open); },
+  close() { this.set(false); },
+  go(tab) {
+    this.close();
+    app.switchTab(tab);
+  },
+  openSlip() {
+    this.close();
+    if (!slip.open) slip.toggle();
+  },
+};
+// Leaving phone width with the menu open would strand a hidden dialog.
+mobileMenu.phone.addEventListener('change', event => { if (!event.matches) mobileMenu.close(); });
 
 document.getElementById('slipStake').addEventListener('input', () => slip._calcPayout());
 slip._render();
