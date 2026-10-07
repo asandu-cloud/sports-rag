@@ -75,30 +75,7 @@
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* ---- Tokens: Floodlit (dark) ---- */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #0D1511; --bg2: #090F0C; --surface: #151E1A; --surface2: #1C2521; --surface-hover: #19231E;
-    --border: #2B3631; --border2: #5D6A63; --border-soft: #202925;
-    --text: #EFF1EC; --text2: #C1C6C0; --text3: #99A19A;
-    --accent: #89CD9B; --accent-l: #89CD9B; --accent-hover: #A1DFB1; --on-accent: #091A11;
-    --accent-dim: #1A3424; --accent-dim2: #20462F;
-    --marker: #E7DB79; --on-marker: #0D1511;
-    --green: #89CD9B; --green-dim: #1A3424;
-    --amber: #F2B966; --amber-dim: #3A2B16;
-    --loss: #F4928A; --loss-dim: #402624;
-    --info: #98C3E8; --info-dim: #21303C;
-    --crest-bg: #EFF1EC;
-    --header-bg: rgba(13, 21, 17, 0.9);
-    --overlay: rgba(0, 0, 0, 0.6);
-    --hover-wash: rgba(239, 241, 236, 0.035);
-    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.25), 0 8px 20px rgba(0, 0, 0, 0.25);
-    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.35), 0 24px 48px rgba(0, 0, 0, 0.45);
-    --theme-icon-moon: none;
-    --theme-icon-sun: block;
-  }
-}
+/* ---- Tokens: Floodlit (dark), only when the visitor chooses it ---- */
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #0D1511; --bg2: #090F0C; --surface: #151E1A; --surface2: #1C2521; --surface-hover: #19231E;
