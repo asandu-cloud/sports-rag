@@ -1,4 +1,4 @@
-import {catalogues} from './data.js?v=research-20261007';
+import {catalogues} from './data.js?v=chalk-20261007b';
 function mountResearch(root,navigate) {
   const $=id=>root.getElementById(id);
   const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -252,8 +252,8 @@ class SpixResearch extends HTMLElement {
     const root=this.attachShadow({mode:'open'});
     root.innerHTML='<p role="status">Loading Research Area…</p>';
     this.ready=Promise.all([
-      fetch(new URL('./content.html?v=research-20261007',import.meta.url)).then(r=>{if(!r.ok)throw new Error('Research content unavailable');return r.text();}),
-      fetch(new URL('./research.css?v=research-20261007',import.meta.url)).then(r=>{if(!r.ok)throw new Error('Research styles unavailable');return r.text();})
+      fetch(new URL('./content.html?v=chalk-20261007b',import.meta.url)).then(r=>{if(!r.ok)throw new Error('Research content unavailable');return r.text();}),
+      fetch(new URL('./research.css?v=chalk-20261007b',import.meta.url)).then(r=>{if(!r.ok)throw new Error('Research styles unavailable');return r.text();})
     ]).then(([html,css])=>{
       root.innerHTML=`<style>${css}</style>${html}`;
       this.controller=mountResearch(root,route=>this.dispatchEvent(new CustomEvent('research-navigate',{bubbles:true,composed:true,detail:{route}})));

@@ -4,7 +4,48 @@
 function esc(str) {
   const d = document.createElement('div');
   d.textContent = str;
-  return d.innerHTML;
+  // Double quotes are escaped too so the result is safe inside attributes.
+  return d.innerHTML.replace(/"/g, '&quot;');
+}
+
+// Escapes text and highlights the projected match total when the sentence
+// states one ("Goals: 3.03 projected", "projects 3.03 total goals"). That total
+// is the one figure a read is marked by; team goals and probabilities never
+// are. The match runs on the raw text so escaped entities cannot match.
+const PROJECTED_TOTAL = /(?:^Goals:\s*|projects\s+)(\d+(?:\.\d+)?)(?=\s+(?:projected|total goals))/;
+function hasProjectedTotal(text) {
+  return PROJECTED_TOTAL.test(String(text || ''));
+}
+function markProjectedTotal(text) {
+  const raw = String(text || '');
+  const match = raw.match(PROJECTED_TOTAL);
+  if (!match) return esc(raw);
+  const start = match.index + match[0].length - match[1].length;
+  const end = start + match[1].length;
+  return `${esc(raw.slice(0, start))}<mark class="figure-mark">${esc(match[1])}</mark>${esc(raw.slice(end))}`;
+}
+
+// "Result balance: Home 54%, draw 24%, Away 21%." → {home, draw, away}
+function parseResultBalance(text) {
+  const match = String(text || '').match(/^Result balance:.*?(\d+(?:\.\d+)?)%,\s*draw\s+(\d+(?:\.\d+)?)%,.*?(\d+(?:\.\d+)?)%\.?$/i);
+  return match ? { home: Number(match[1]), draw: Number(match[2]), away: Number(match[3]) } : null;
+}
+
+const ICONS = {
+  plus: '<svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  check: '<svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  close: '<svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+};
+// Content for add-to-slip buttons: icon only on compact buttons, icon plus label on market buttons.
+function addButtonContent(added, withLabel) {
+  const icon = added ? ICONS.check : ICONS.plus;
+  return withLabel
+    ? `${icon}<span>${added ? 'Added' : 'Add'}</span>`
+    : `${icon}<span class="sr-only">${added ? 'Remove from slip' : 'Add to slip'}</span>`;
+}
+
+function pluralise(count, singular, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
 }
 
 function showToast(msg, type = 'info') {
@@ -300,10 +341,10 @@ const auth = {
     if (avatar) {
       if (this._user.avatar_url) {
         avatar.src = this._user.avatar_url;
-        avatar.style.display = '';
+        avatar.hidden = false;
       } else {
         // Email users — hide avatar img, the name is enough
-        avatar.style.display = 'none';
+        avatar.hidden = true;
       }
     }
     if (name) name.textContent = this._user.username || this._user.email || '';
@@ -327,7 +368,7 @@ const auth = {
 
   showMenu() {
     if (!this._user) return;
-    if (confirm('Log out of SpixBot?')) this.logout();
+    if (confirm('Log out of Spix?')) this.logout();
   },
 
   requireLogin() {
@@ -370,7 +411,7 @@ const auth = {
       pw.setAttribute('autocomplete', 'new-password');
       pw.setAttribute('minlength', '8');
     } else {
-      title.textContent = 'Log in to SpixBot';
+      title.textContent = 'Log in to Spix';
       btn.textContent = 'Log In';
       toggle.innerHTML = 'Don\'t have an account? <a href="#" onclick="event.preventDefault(); auth.toggleMode()">Sign up</a>';
       pw.setAttribute('autocomplete', 'current-password');
@@ -511,7 +552,7 @@ const slip = {
         <div class="slip-leg-fixture">${esc(l.fixture)}</div>
         <div class="slip-leg-pick">${esc(l.pick)}</div>
         <div class="slip-leg-odds mono">${esc(String(l.odds))}</div>
-        <button class="slip-leg-remove" onclick="slip.remove('${esc(l.key).replace(/'/g,"\\'")}')">×</button>
+        <button class="slip-leg-remove" aria-label="Remove ${esc(l.pick)} from slip" onclick="slip.remove('${esc(l.key).replace(/'/g,"\\'")}')">${ICONS.close}</button>
       </div>
     `).join('');
   },
@@ -1215,10 +1256,14 @@ const appModule = {
       return;
     }
     Object.entries(byLeague).forEach(([leagueId, fxs]) => {
-      const league = this.LEAGUES.find(l => l.id === leagueId) || { name: leagueId, color: '#666' };
-      const group = document.createElement('div');
+      const league = this.LEAGUES.find(l => l.id === leagueId) || { name: leagueId };
+      const group = document.createElement('section');
       group.className = 'league-group';
-      group.innerHTML = `<div class="league-header"><div class="league-header-left"><span class="league-stripe" style="background:${esc(league.color)}"></span><span class="league-name">${esc(league.name)}</span></div><span class="league-count mono">${fxs.length} matches</span></div>`;
+      group.setAttribute('aria-label', league.name);
+      const crest = league.logo
+        ? `<span class="league-crest" aria-hidden="true"><img src="${esc(league.logo)}" alt=""></span>`
+        : '';
+      group.innerHTML = `<div class="league-header"><div class="league-header-left">${crest}<h2 class="league-name">${esc(league.name)}</h2></div><span class="league-count">${esc(pluralise(fxs.length, 'match', 'matches'))}</span></div>`;
       fxs.forEach((f, i) => {
         if (f.isMatchRead || f.isScheduleOnly) {
           group.appendChild(this._createMatchReadFixtureCard(f, league, i));
@@ -1240,12 +1285,12 @@ const appModule = {
           ? `<span class="match-read-update-label">${esc(f.update.label)}</span>`
           : '';
         const addButton = f.best
-          ? `<button class="fixture-add-btn${inSlip ? ' added' : ''}" data-fixture-add="${esc(f.id)}">${inSlip ? '✓' : '+'}</button>`
+          ? `<button class="fixture-add-btn${inSlip ? ' added' : ''}" data-fixture-add="${esc(f.id)}">${addButtonContent(Boolean(inSlip), false)}</button>`
           : '<span class="fixture-add-placeholder" aria-hidden="true"></span>';
         row.innerHTML = `
           <span class="fixture-num mono">${i + 1}</span>
           <div class="fixture-match">
-            <div class="fixture-teams">${esc(f.home)} <span class="fixture-vs">vs</span> ${esc(f.away)}</div>
+            <button class="fixture-teams" type="button" aria-label="Open Match Read: ${esc(f.home)} versus ${esc(f.away)}">${esc(f.home)} <span class="fixture-vs">v</span> ${esc(f.away)}</button>
             <div class="fixture-meta-line"><span class="fixture-time mono">${esc(f.time)}</span>${updateLabel}</div>
           </div>
           <span class="fixture-pick-text">${esc(f.pick)}${esc(supportingLabel)}</span>
@@ -1254,15 +1299,9 @@ const appModule = {
           <span class="fixture-edge mono ${f.edge && f.edge > 0 ? 'edge-pos' : ''}">${Number.isFinite(f.edge) ? `${f.edge >= 0 ? '+' : ''}${esc(f.edge.toFixed(1))}%` : '—'}</span>
           ${addButton}
         `;
+        // The whole row opens the read for pointer users; the team-name button
+        // is the keyboard and screen-reader entry point.
         row.onclick = () => this._showMatch(f.id);
-        row.tabIndex = 0;
-        row.setAttribute('role', 'button');
-        row.setAttribute('aria-label', `Open Match Read for ${f.home} versus ${f.away}`);
-        row.onkeydown = event => {
-          if (event.target === row && ['Enter', ' '].includes(event.key)) {
-            event.preventDefault(); this._showMatch(f.id);
-          }
-        };
         const add = row.querySelector('[data-fixture-add]');
         if (add) add.addEventListener('click', event => {
           event.stopPropagation();
@@ -1275,17 +1314,13 @@ const appModule = {
   },
 
   _createMatchReadFixtureCard(f, league, index) {
+    // The card's content is read in full by assistive technology; the "View
+    // Match Read" button is its keyboard entry point, while a click anywhere
+    // on the card opens the read for pointer users.
     const card = document.createElement('article');
     card.className = 'match-read-fixture-card';
     card.dataset.fixtureId = String(f.id);
-    if (f.isScheduleOnly) {
-      card.classList.add('schedule-fixture-card');
-      card.setAttribute('aria-label', `${f.home} versus ${f.away}: ${f.scheduleLabel}`);
-    } else {
-      card.tabIndex = 0;
-      card.setAttribute('role', 'button');
-      card.setAttribute('aria-label', `Open Match Read for ${f.home} versus ${f.away}`);
-    }
+    if (f.isScheduleOnly) card.classList.add('schedule-fixture-card');
 
     const initials = team => String(team || '?')
       .split(/\s+/)
@@ -1299,15 +1334,21 @@ const appModule = {
       const fallback = esc(initials(label));
       return `<span class="match-card-emblem ${className}${safeUrl ? '' : ' is-fallback'}">${safeUrl ? `<img src="${safeUrl}" alt="" loading="lazy">` : ''}<span aria-hidden="true">${fallback}</span></span>`;
     };
-    const leagueLogo = /^https?:\/\//i.test(String(f.visuals?.leagueLogo || ''))
-      ? `<img class="match-card-league-logo" src="${esc(f.visuals.leagueLogo)}" alt="" loading="lazy">`
-      : `<span class="match-card-league-dot" style="background:${esc(league.color)}"></span>`;
     const bullets = Array.isArray(f.briefing?.bullets) ? f.briefing.bullets.slice(0, 3) : [];
+    const balanceBar = (balance, home, away) => `<li class="match-card-balance">
+        <span class="sr-only">Result balance: ${esc(home)} ${balance.home}%, draw ${balance.draw}%, ${esc(away)} ${balance.away}%.</span>
+        <span class="balance-track" aria-hidden="true"><i style="flex:${balance.home}"></i><i style="flex:${balance.draw}"></i><i style="flex:${balance.away}"></i></span>
+        <span class="balance-legend" aria-hidden="true"><span>Home <b>${balance.home}%</b></span><span>Draw <b>${balance.draw}%</b></span><span>Away <b>${balance.away}%</b></span></span>
+      </li>`;
     const bulletMarkup = bullets.length
-      ? bullets.map(bullet => `<li>${esc(bullet)}</li>`).join('')
+      ? bullets.map(bullet => {
+          const balance = parseResultBalance(bullet);
+          if (balance) return balanceBar(balance, f.home, f.away);
+          return `<li>${markProjectedTotal(bullet)}</li>`;
+        }).join('')
       : '<li class="match-card-briefing-pending">Full fixture briefing will appear after the next model refresh.</li>';
     const updateLabel = f.update?.is_updated && f.update?.label
-      ? `<span class="match-read-update-label">${esc(f.update.label)}</span>`
+      ? `<span class="match-card-updated">${esc(f.update.label)}</span>`
       : '';
     const statusLabel = f.isScheduleOnly ? f.scheduleLabel : f.isPreliminary
       ? 'Preliminary Match Read'
@@ -1318,23 +1359,26 @@ const appModule = {
       ? 'preliminary'
       : f.status === 'recommended' ? 'ready' : f.status === 'no_bet' ? 'no-bet' : 'unavailable';
 
+    const openButton = f.isScheduleOnly
+      ? ''
+      : `<button class="match-card-open" type="button" aria-label="View Match Read: ${esc(f.home)} versus ${esc(f.away)}">View Match Read <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+
     card.innerHTML = `
       <div class="match-card-topline">
-        <span class="match-card-league">${leagueLogo}<span>${esc(league.name)}</span></span>
         <span class="match-card-time mono">${esc(f.time)}</span>
+        ${updateLabel}
       </div>
-      <div class="match-card-teams">
-        <div class="match-card-team home">${emblem(f.visuals?.homeTeamLogo, f.home, 'home')}<span>${esc(f.home)}</span></div>
-        <span class="match-card-vs">vs</span>
-        <div class="match-card-team away"><span>${esc(f.away)}</span>${emblem(f.visuals?.awayTeamLogo, f.away, 'away')}</div>
-      </div>
+      <h3 class="match-card-teams">
+        <span class="match-card-team home">${emblem(f.visuals?.homeTeamLogo, f.home, 'home')}<span>${esc(f.home)}</span></span>
+        <span class="sr-only"> versus </span>
+        <span class="match-card-team away">${emblem(f.visuals?.awayTeamLogo, f.away, 'away')}<span>${esc(f.away)}</span></span>
+      </h3>
       ${f.isScheduleOnly
         ? `<p class="match-card-schedule-note empty-state-hint">${esc(f.scheduleNote)}</p>`
         : `<ul class="match-card-signals">${bulletMarkup}</ul>`}
       <div class="match-card-footer">
         <span class="match-card-status ${statusClass}">${esc(statusLabel)}</span>
-        ${f.isScheduleOnly ? '' : '<span class="match-card-open">View Match Read <span aria-hidden="true">→</span></span>'}
-        ${updateLabel}
+        ${openButton}
       </div>
     `;
     card.querySelectorAll('img').forEach(image => {
@@ -1346,12 +1390,6 @@ const appModule = {
     });
     if (f.isScheduleOnly) return card;
     card.addEventListener('click', () => this._showMatch(f.id));
-    card.addEventListener('keydown', event => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        this._showMatch(f.id);
-      }
-    });
     return card;
   },
 
@@ -1376,8 +1414,8 @@ const appModule = {
     const added = slip.add(f.home + ' vs ' + f.away, f.pick, f.odds, 'Best Pick', { fixtureId: f.id });
     document.querySelectorAll('[data-fixture-add]').forEach(btn => {
       if (btn.dataset.fixtureAdd !== String(f.id)) return;
-      if (added === false) { btn.textContent = '+'; btn.classList.remove('added'); }
-      else if (added === true) { btn.textContent = '✓'; btn.classList.add('added'); }
+      if (added === false) { btn.innerHTML = addButtonContent(false, false); btn.classList.remove('added'); }
+      else if (added === true) { btn.innerHTML = addButtonContent(true, false); btn.classList.add('added'); }
     });
   },
 
@@ -1388,11 +1426,13 @@ const appModule = {
     this.currentMarketTab = Object.keys(f.markets)[0];
     const league = this.LEAGUES.find(l => l.id === f.league) || { name: f.league };
 
+    const crest = league.logo
+      ? `<span class="league-crest" aria-hidden="true"><img src="${esc(league.logo)}" alt=""></span>`
+      : '';
     document.getElementById('matchHeader').innerHTML = `
       <div class="match-hero">
-        <div class="match-league-badge">${esc(league.name)}</div>
-        <div class="match-teams-title">${esc(f.home)} <span class="match-teams-vs">vs</span> ${esc(f.away)}</div>
-        <div class="match-meta">${esc(f.time)} · ${esc(this._selectedDateISO())}</div>
+        <h1 class="match-teams-title">${esc(f.home)}&nbsp;<span class="match-teams-vs">v</span> ${esc(f.away)}</h1>
+        <div class="match-meta">${crest}<span>${esc(league.name)}</span><span aria-hidden="true">·</span><span>${esc(f.time)}</span><span aria-hidden="true">·</span><span>${esc(this._selectedDateISO())}</span></div>
       </div>
     `;
 
@@ -1426,40 +1466,60 @@ const appModule = {
     const noBetCopy = f.status === 'no_bet'
       ? 'No selection was released: the fixture was assessed but no current price qualified.'
       : 'No selection was released because the fixture cannot be assessed safely yet.';
+    // Caveats that every selection repeats word for word are shown once,
+    // after the selections, instead of under each one.
+    const explanationLines = selection => {
+      const e = selection.explanation;
+      return e ? [e.uncertainty, e.price_conditions].filter(Boolean) : [];
+    };
+    const sharedLines = selections.length > 1
+      ? explanationLines(selections[0]).filter(line => selections.every(s => explanationLines(s).includes(line)))
+      : [];
     const actionable = selections.length
       ? `<div class="match-read-selections">${selections.map((selection, index) => {
           const odds = selection.odds == null ? NaN : Number(selection.odds);
           const edge = selection.value_edge == null ? NaN : Number(selection.value_edge);
-          const role = selection.role === 'core' ? 'Core selection' : 'Supporting selection';
+          const role = selection.role === 'core' ? 'Core' : 'Supporting';
           const market = marketLabels[selection.market?.group] || selection.market?.group || 'Market';
           const slipKey = `${f.home} vs ${f.away}|${selection.pick}`;
           const inSlip = slip.legs.find(leg => leg.key === slipKey);
           const explanation = selection.explanation;
+          const restated = String(explanation?.reasoning || '').match(/^.*?@\s*\d+(?:\.\d+)?\s*\(([^)]+)\)\.\s*/);
+          const bookmaker = selection.bookmaker || (restated ? restated[1] : '');
+          const reasoning = restated ? explanation.reasoning.slice(restated[0].length) : explanation?.reasoning;
           const quoteFresh = !explanation?.expires_at || Date.parse(explanation.expires_at) > Date.now();
           const canAdd = f.status === 'recommended' && Number.isFinite(odds) && odds > 1 && quoteFresh;
           const addButton = canAdd
-            ? `<button class="market-add-btn${inSlip ? ' added' : ''}" data-match-read-add="${index}">${inSlip ? '✓ Added' : '+ Add'}</button>`
+            ? `<button class="market-add-btn${inSlip ? ' added' : ''}" data-match-read-add="${index}">${addButtonContent(Boolean(inSlip), true)}</button>`
             : '';
           return `<div class="match-read-selection" data-recommendation-id="${esc(selection.recommendation_id || '')}">
             <div class="match-read-selection-main">
-              <span class="match-read-role">${esc(role)}</span>
-              <span class="match-read-selection-pick">${esc(market)}: ${esc(selection.pick || 'Selection unavailable')}</span>
+              <h3 class="match-read-selection-pick">${esc(market)}: ${esc(selection.pick || 'Selection unavailable')}</h3>
+              <span class="match-read-role ${selection.role === 'core' ? 'core' : ''}">${esc(role)}</span>
               <span class="conf-badge ${esc(selection.confidence || 'low')}">${esc(String(selection.confidence || 'low').toUpperCase())}${selection.justification ? ' SUPPORT' : ''}</span>
               ${Number.isFinite(edge) ? `<span class="value-badge ${edge > 0.06 ? 'strong' : 'good'}">${edge >= 0 ? '+' : ''}${esc((edge * 100).toFixed(1))}% probability edge</span>` : ''}
             </div>
             <div class="match-read-selection-quote">
-              <span class="market-line-odds mono">${Number.isFinite(odds) ? esc(String(odds)) : '—'}</span>
+              <span class="match-read-price"><span class="market-line-odds mono">${Number.isFinite(odds) ? esc(String(odds)) : '—'}</span>${bookmaker ? `<span class="match-read-bookmaker">${esc(bookmaker)}</span>` : ''}</span>
               ${addButton}
             </div>
             ${explanation ? `<div class="match-read-selection-explanation">
-              <p>${esc(explanation.reasoning)}</p>
-              <p>${esc(explanation.uncertainty)}</p>
-              <p>${esc(explanation.price_conditions)}</p>
+              ${[reasoning, explanation.uncertainty, explanation.price_conditions]
+                .filter(line => line && !sharedLines.includes(line))
+                .map(line => `<p>${esc(line)}</p>`).join('')}
               ${!quoteFresh ? '<p>Quote expired. Wait for a current price.</p>' : ''}
             </div>` : ''}
           </div>`;
-        }).join('')}</div>`
+        }).join('')}</div>${sharedLines.length ? `<div class="match-read-shared"><p class="match-read-shared-title">Applies to every selection</p>${sharedLines.map(line => `<p>${esc(line)}</p>`).join('')}</div>` : ''}`
       : `<p class="match-read-no-selection">${esc(noBetCopy)}</p>`;
+    // A key point is dropped when every figure in it already appears in the thesis.
+    const thesisText = String(f.briefing?.summary || f.thesis || '');
+    const allPoints = Array.isArray(f.briefing?.bullets) ? f.briefing.bullets : [];
+    const restatesThesis = point => {
+      const figures = String(point).match(/\d+(?:\.\d+)?/g) || [];
+      return thesisText && figures.length > 0 && figures.every(figure => thesisText.includes(figure));
+    };
+    const keyPoints = allPoints.filter(point => !restatesThesis(point));
     const alternatives = Array.isArray(f.alternatives) ? f.alternatives : [];
     const alternativesHtml = alternatives.length
       ? `<div class="match-read-alternatives">
@@ -1472,12 +1532,9 @@ const appModule = {
       : '';
     container.innerHTML = `
       <section class="match-read-summary" aria-label="Published Match Read">
-        <div class="match-read-summary-head">
-          <span class="match-read-summary-title">Match Read</span>
-          ${updateLabel}
-        </div>
-        <p class="match-read-thesis">${esc(f.briefing?.summary || f.thesis || 'No fixture-level briefing is available yet.')}</p>
-        ${Array.isArray(f.briefing?.bullets) && f.briefing.bullets.length ? `<ul class="match-read-key-points">${f.briefing.bullets.map(point => `<li>${esc(point)}</li>`).join('')}</ul>` : ''}
+        <div class="match-read-summary-head">${updateLabel}</div>
+        <p class="match-read-thesis">${(f.briefing?.summary || f.thesis) ? markProjectedTotal(f.briefing?.summary || f.thesis) : 'No fixture-level briefing is available yet.'}</p>
+        ${keyPoints.length ? `<ul class="match-read-key-points">${keyPoints.map(point => `<li>${esc(point)}</li>`).join('')}</ul>` : ''}
         ${actionable}
         ${f.selectionRelationship ? `<p class="match-read-relationship">${esc(f.selectionRelationship)}</p>` : ''}
         ${alternativesHtml}
@@ -1501,10 +1558,10 @@ const appModule = {
           { fixtureId: f.id },
         );
         if (added === false) {
-          button.textContent = '+ Add';
+          button.innerHTML = addButtonContent(false, true);
           button.classList.remove('added');
         } else if (added === true) {
-          button.textContent = '✓ Added';
+          button.innerHTML = addButtonContent(true, true);
           button.classList.add('added');
         }
       });
@@ -1553,7 +1610,7 @@ const appModule = {
           const confidence = line.rec ? `<span class="conf-badge ${esc(line.conf)}">${esc(line.conf.toUpperCase())}</span>` : '<span class="market-no-bet">NO BET</span>';
           const edge = line.rec && line.edge !== null ? `<span class="value-badge ${line.edge > 6 ? 'strong' : 'good'}">+${esc(line.edge.toFixed(1))}%</span>` : '';
           const addButton = line.rec && Number.isFinite(line.odds)
-            ? `<button class="market-add-btn${inSlip ? ' added' : ''}" data-market-add="${index}">${inSlip ? '✓ Added' : '+ Add'}</button>`
+            ? `<button class="market-add-btn${inSlip ? ' added' : ''}" data-market-add="${index}">${addButtonContent(Boolean(inSlip), true)}</button>`
             : '';
           return `<div class="market-line${line.rec ? ' recommended' : ''}">
             <div class="market-line-left">
@@ -1587,8 +1644,8 @@ const appModule = {
     const slipKey = `${f.home} vs ${f.away}|${pick}`;
     const added = slip.add(f.home + ' vs ' + f.away, pick, odds, 'Market', { fixtureId: f.id });
     document.querySelectorAll('[data-market-add]').forEach(btn => {
-      if (added === false) { btn.textContent = '+ Add'; btn.classList.remove('added'); }
-      else if (added === true) { btn.textContent = '✓ Added'; btn.classList.add('added'); }
+      if (added === false) { btn.innerHTML = addButtonContent(false, true); btn.classList.remove('added'); }
+      else if (added === true) { btn.innerHTML = addButtonContent(true, true); btn.classList.add('added'); }
     });
   },
 
@@ -1609,7 +1666,7 @@ const appModule = {
       container.innerHTML = `<div class="empty-state"><p>${esc(message)}</p><span class="empty-state-hint">${esc(hint)}</span></div>`;
       return;
     }
-    const league = id => this.LEAGUES.find(l => l.id === id) || { name: id, color: '#666' };
+    const league = id => this.LEAGUES.find(l => l.id === id) || { name: id };
     const notice = state.notice
       ? `<p class="empty-state-hint" style="margin:0 0 16px">${esc(state.notice)}</p>`
       : '';
@@ -1619,28 +1676,25 @@ const appModule = {
       const updateLabel = f.isMatchRead && f.update?.is_updated && f.update?.label
         ? `<span class="match-read-update-label">${esc(f.update.label)}</span>`
         : '';
-      return `<div class="fixture-row" style="cursor:pointer">
-        <span class="fixture-num mono" style="background:${esc(league(f.league).color)};border-radius:3px;padding:2px 4px;font-size:9px;color:#fff">${esc(league(f.league).name)}</span>
+      const leagueInfo = league(f.league);
+      const crest = leagueInfo.logo
+        ? `<span class="league-crest" aria-hidden="true"><img src="${esc(leagueInfo.logo)}" alt=""></span>`
+        : '';
+      return `<div class="fixture-row">
+        <span class="fixture-league">${crest}${esc(leagueInfo.name)}</span>
         <div class="fixture-match">
-          <div class="fixture-teams">${esc(f.home)} <span class="fixture-vs">vs</span> ${esc(f.away)}</div>
+          <button class="fixture-teams" type="button" data-best-bet-open aria-label="Open Match Read: ${esc(f.home)} versus ${esc(f.away)}">${esc(f.home)} <span class="fixture-vs">v</span> ${esc(f.away)}</button>
           <div class="fixture-meta-line"><span class="fixture-time">${esc(f.pick)}</span>${updateLabel}</div>
         </div>
         <span class="conf-badge ${esc(f.conf)}">${esc(f.conf.toUpperCase())}</span>
         <span class="fixture-odds-val mono">${Number.isFinite(f.odds) ? esc(String(f.odds)) : '—'}</span>
         <span class="fixture-edge mono edge-pos">${Number.isFinite(f.edge) ? `${f.edge >= 0 ? '+' : ''}${esc(f.edge.toFixed(1))}%` : '—'}</span>
-        <button class="fixture-add-btn${inSlip ? ' added' : ''}" data-best-bet-add="${esc(f.id)}">${inSlip ? '✓' : '+'}</button>
+        <button class="fixture-add-btn${inSlip ? ' added' : ''}" data-best-bet-add="${esc(f.id)}">${addButtonContent(Boolean(inSlip), false)}</button>
       </div>`;
     }).join('');
+    // Rows open the read on click; the team-name button is the keyboard entry point.
     container.querySelectorAll('.fixture-row').forEach((row, index) => {
       const fixture = this.bestBets[index];
-      row.tabIndex = 0;
-      row.setAttribute('role', 'button');
-      row.setAttribute('aria-label', `Open Match Read for ${fixture.home} versus ${fixture.away}`);
-      row.addEventListener('keydown', event => {
-        if (event.target === row && ['Enter', ' '].includes(event.key)) {
-          event.preventDefault(); this._showMatch(fixture.id);
-        }
-      });
       row.addEventListener('click', () => this._showMatch(fixture.id));
     });
     container.querySelectorAll('[data-best-bet-add]').forEach(button => {

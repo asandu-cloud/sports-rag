@@ -7,11 +7,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Spix — Football analysis for matchday</title>
   <meta name="description" content="Football forecasts, Match Reads and clear reasoning. Explore the matchday board and understand when a bet may not be justified.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css?v=logo-20261007">
-  <link rel="stylesheet" href="/static/landing.css?v=landing-20261006">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#F3F7F3" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0D1511" media="(prefers-color-scheme: dark)">
+  <script>try{var t=localStorage.getItem('spix-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}</script>
+  <link rel="preload" href="/static/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/static/style.css?v=chalk-20261007e">
+  <link rel="stylesheet" href="/static/landing.css?v=chalk-20261007e">
 </head>
 <body>
 
@@ -40,10 +42,14 @@
         <button class="nav-link app-nav hidden" data-view="best-bets" onclick="app.switchTab('best-bets')">Best Bets</button>
       </nav>
       <div class="topbar-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch theme">
+          <svg class="icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+          <svg class="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.7"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </button>
         <!-- Landing buttons -->
         <button class="nav-link landing-nav" id="loginBtn" onclick="auth.showLoginModal()">Log In</button>
         <div class="user-badge landing-nav hidden" id="userBadge" onclick="auth.showMenu()">
-          <img class="user-avatar" id="userAvatar" src="" alt="">
+          <img class="user-avatar" id="userAvatar" alt="" hidden>
           <span class="user-name" id="userName"></span>
         </div>
         <button class="btn-primary-sm landing-nav" onclick="router.go('app')">Explore matchday</button>
@@ -71,10 +77,10 @@
       <div class="landing-actions"><a class="landing-primary" href="/app" onclick="event.preventDefault();router.go('app')">Explore the matchday board <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a><span>Browse without an account · 18+</span></div>
     </div>
     <article class="landing-example" aria-labelledby="exampleFixture">
-      <div class="example-heading"><span>Example Match Read</span><span class="example-label">Illustrative</span></div>
+      <div class="example-heading"><span class="example-label">Illustrative example</span></div>
       <h2 id="exampleFixture">Arsenal <span>vs</span> Chelsea</h2>
       <p class="example-context">Example fixture · not a live recommendation</p>
-      <dl class="example-stat"><div><dt>Projected total goals</dt><dd>2.8</dd></div><div><dt>Decision</dt><dd class="example-decision">No bet</dd></div></dl>
+      <dl class="example-stat"><div><dt>Projected total goals</dt><dd><mark class="figure-mark">2.8</mark></dd></div><div><dt>Decision</dt><dd class="example-decision">No bet</dd></div></dl>
       <h3>The read</h3>
       <p>An open game is plausible, but a goals forecast alone does not justify a bet.</p>
       <h3>Why pass?</h3>
@@ -232,7 +238,7 @@
   <div class="auth-backdrop hidden" id="authBackdrop" onclick="auth.hideLoginModal()"></div>
   <div class="auth-modal hidden" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle" tabindex="-1" inert>
     <button class="auth-modal-close" onclick="auth.hideLoginModal()" aria-label="Close">&times;</button>
-    <h2 class="auth-modal-title" id="authModalTitle">Log in to SpixBot</h2>
+    <h2 class="auth-modal-title" id="authModalTitle">Log in to Spix</h2>
 
     <!-- Email form -->
     <form class="auth-form" id="authForm" onsubmit="event.preventDefault(); auth.submitEmailForm()">
@@ -258,7 +264,8 @@
   <!-- Toast -->
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
-  <script type="module" src="/static/research/research.js?v=research-20261007"></script>
-  <script src="/static/app.js?v=research-20261007"></script>
+  <script src="/static/theme.js?v=chalk-20261007e"></script>
+  <script type="module" src="/static/research/research.js?v=chalk-20261007e"></script>
+  <script src="/static/app.js?v=chalk-20261007e"></script>
 </body>
 </html>
