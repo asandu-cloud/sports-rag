@@ -10,7 +10,12 @@ let click, adds = 0, now = Date.parse('2023-10-01T12:00:00Z');
 const button = {dataset:{matchReadAdd:'0'}, classList:{add(){},remove(){}}, addEventListener(type, fn){click=fn;}};
 const container = {innerHTML:'',querySelectorAll(){return this.innerHTML.includes('data-match-read-add')?[button]:[];}};
 const esc = value => String(value ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
-const obj = Function('document','slip','esc','Date','return ({'+source.slice(start,end)+'})')(
+// The panel uses app.js's pure render helpers (icons, figures); load them from the source too.
+const helpersStart = source.indexOf('// ----- Pure render helpers');
+const helpersEnd = source.indexOf('// ----- End of pure render helpers -----');
+assert.ok(helpersStart >= 0 && helpersEnd > helpersStart);
+const helpers = source.slice(helpersStart, helpersEnd);
+const obj = Function('document','slip','esc','Date',helpers+'return ({'+source.slice(start,end)+'})')(
   {getElementById(){return container;}}, {legs:[],add(){adds++;return true;}},esc,{now:()=>now,parse:Date.parse});
 const card={id:1,status:'recommended',home:'HomeFC',away:'AwayFC',selections:[{
   recommendation_id:'recommendation.v1:exact',market:{group:'goals'},role:'core',pick:'Over 2.5',odds:2.075,
@@ -60,3 +65,20 @@ assert.equal(slipCalls.length,2);assert.equal(slipCalls[0][2],2.075);
 entryPoints._toggleSlipFromMarket(1,'Under 2.5',2.075);assert.equal(slipCalls.length,2);
 assert.doesNotMatch(source,/f\.odds\.toFixed\(2\)|line\.odds\.toFixed\(2\)/);
 console.log('Headline/market entry points preserve the exact selected quote and reject expired or unselected quotes.');
+
+// Model figures come from structured metrics, never from briefing prose.
+const figured={...card,thesis:'An open fixture.',metrics:{projectedTotal:3.0263,teamGoals:{home:1.8973,away:1.129},
+  resultBalance:{home:54.25,draw:24.4,away:21.35}},briefing:{summary:'The model sees an open fixture with both sides creating chances and a busy match overall.',
+  bullets:['Goals: 3.03 projected — HomeFC 1.90, AwayFC 1.13.','HomeFC lead the result balance at 54%.','Expect elevated activity: 10.84 shots on target.']}};
+obj._renderMatchReadSummary(figured);
+assert.match(container.innerHTML,/<mark class="figure-mark">3.03<\/mark>/);
+assert.match(container.innerHTML,/Home <b>54%<\/b>/);
+assert.match(container.innerHTML,/Away <b>21%<\/b>/);
+assert.doesNotMatch(container.innerHTML,/Goals: 3.03 projected/);
+assert.doesNotMatch(container.innerHTML,/lead the result balance at 54%/);
+assert.match(container.innerHTML,/10.84 shots on target/);
+const bare={...figured,metrics:{projectedTotal:null,teamGoals:{home:null,away:null},resultBalance:null}};
+obj._renderMatchReadSummary(bare);
+assert.doesNotMatch(container.innerHTML,/figure-mark|balance-track/);
+assert.match(container.innerHTML,/Goals: 3.03 projected/);
+console.log('Figures render from structured metrics; repeated lines are dropped only when the figures are shown.');

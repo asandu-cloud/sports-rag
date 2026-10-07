@@ -8,28 +8,7 @@ function esc(str) {
   return d.innerHTML.replace(/"/g, '&quot;');
 }
 
-// Escapes text and highlights the projected match total when the sentence
-// states one ("Goals: 3.03 projected", "projects 3.03 total goals"). That total
-// is the one figure a read is marked by; team goals and probabilities never
-// are. The match runs on the raw text so escaped entities cannot match.
-const PROJECTED_TOTAL = /(?:^Goals:\s*|projects\s+)(\d+(?:\.\d+)?)(?=\s+(?:projected|total goals))/;
-function hasProjectedTotal(text) {
-  return PROJECTED_TOTAL.test(String(text || ''));
-}
-function markProjectedTotal(text) {
-  const raw = String(text || '');
-  const match = raw.match(PROJECTED_TOTAL);
-  if (!match) return esc(raw);
-  const start = match.index + match[0].length - match[1].length;
-  const end = start + match[1].length;
-  return `${esc(raw.slice(0, start))}<mark class="figure-mark">${esc(match[1])}</mark>${esc(raw.slice(end))}`;
-}
-
-// "Result balance: Home 54%, draw 24%, Away 21%." → {home, draw, away}
-function parseResultBalance(text) {
-  const match = String(text || '').match(/^Result balance:.*?(\d+(?:\.\d+)?)%,\s*draw\s+(\d+(?:\.\d+)?)%,.*?(\d+(?:\.\d+)?)%\.?$/i);
-  return match ? { home: Number(match[1]), draw: Number(match[2]), away: Number(match[3]) } : null;
-}
+// ----- Pure render helpers (no DOM access; also loaded by Scripts/tests) -----
 
 const ICONS = {
   plus: '<svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
@@ -47,6 +26,70 @@ function addButtonContent(added, withLabel) {
 function pluralise(count, singular, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
+
+// A Match Read's model figures arrive as structured card metrics, so every card
+// draws the projected total and the home/draw/away balance the same way,
+// whichever source wrote the briefing prose.
+function figuresMarkup(metrics, home, away, className) {
+  if (!metrics) return '';
+  const parts = [];
+  if (Number.isFinite(metrics.projectedTotal)) {
+    const split = Number.isFinite(metrics.teamGoals.home) && Number.isFinite(metrics.teamGoals.away)
+      ? `<span class="figures-split">${esc(home)} ${metrics.teamGoals.home.toFixed(2)} · ${esc(away)} ${metrics.teamGoals.away.toFixed(2)}</span>`
+      : '';
+    parts.push(`<div class="figures-total"><div><span class="figures-label">Projected total goals</span>${split}</div><mark class="figure-mark">${metrics.projectedTotal.toFixed(2)}</mark></div>`);
+  }
+  const balance = metrics.resultBalance;
+  if (balance) {
+    const pct = value => Math.round(value);
+    parts.push(`<div class="figures-balance">
+      <span class="sr-only">Result balance: ${esc(home)} ${pct(balance.home)}%, draw ${pct(balance.draw)}%, ${esc(away)} ${pct(balance.away)}%.</span>
+      <span class="balance-track" aria-hidden="true"><i style="flex:${balance.home}"></i><i style="flex:${balance.draw}"></i><i style="flex:${balance.away}"></i></span>
+      <span class="balance-legend" aria-hidden="true"><span>Home <b>${pct(balance.home)}%</b></span><span>Draw <b>${pct(balance.draw)}%</b></span><span>Away <b>${pct(balance.away)}%</b></span></span>
+    </div>`);
+  }
+  return parts.length ? `<div class="${className}">${parts.join('')}</div>` : '';
+}
+
+// Fallback for servers that predate card metrics: recover the model figures
+// from the deterministic briefing wording. Free-form prose is never guessed at.
+function briefingFigures(bullets, summary) {
+  const lines = [...(bullets || []), summary || ''].map(line => String(line || ''));
+  const number = text => (text == null ? null : Number(text));
+  let resultBalance = null;
+  let projectedTotal = null;
+  let teamGoals = { home: null, away: null };
+  for (const line of lines) {
+    const balance = line.match(/^Result balance:.*?(\d+(?:\.\d+)?)%,\s*draw\s+(\d+(?:\.\d+)?)%,.*?(\d+(?:\.\d+)?)%\.?$/i)
+      || line.match(/(\d+(?:\.\d+)?)% win chance, with the draw at (\d+(?:\.\d+)?)% and .*? at (\d+(?:\.\d+)?)%/i);
+    if (balance && !resultBalance) resultBalance = { home: number(balance[1]), draw: number(balance[2]), away: number(balance[3]) };
+    const goals = line.match(/^Goals:\s*(\d+(?:\.\d+)?) projected — .*? (\d+(?:\.\d+)?), .*? (\d+(?:\.\d+)?)\.$/)
+      || line.match(/projects (\d+(?:\.\d+)?) total goals, split (\d+(?:\.\d+)?) for .*? and (\d+(?:\.\d+)?) for /);
+    if (goals && projectedTotal === null) {
+      projectedTotal = number(goals[1]);
+      teamGoals = { home: number(goals[2]), away: number(goals[3]) };
+    }
+  }
+  return { projectedTotal, teamGoals, resultBalance };
+}
+
+// True when every figure in a briefing line is already drawn by figuresMarkup,
+// so the line would only repeat it. Lines without figures are never redundant.
+function restatesFigures(text, metrics) {
+  if (!metrics) return false;
+  const tokens = String(text || '').match(/\d+(?:\.\d+)?%?/g) || [];
+  if (!tokens.length) return false;
+  const goals = [metrics.projectedTotal, metrics.teamGoals.home, metrics.teamGoals.away].filter(Number.isFinite);
+  const percents = metrics.resultBalance ? Object.values(metrics.resultBalance) : [];
+  return tokens.every(token => {
+    const value = parseFloat(token);
+    return token.endsWith('%')
+      ? percents.some(percent => Math.abs(percent - value) < 0.5)
+      : goals.some(goal => Math.abs(goal - value) < 0.006);
+  });
+}
+
+// ----- End of pure render helpers -----
 
 function showToast(msg, type = 'info') {
   const container = document.getElementById('toastContainer');
@@ -949,6 +992,20 @@ const appModule = {
     const status = card.status || 'unavailable';
     const briefing = card.briefing || {};
     const visuals = card.visuals || {};
+    const rawMetrics = card.metrics || {};
+    const finite = value => (value == null || !Number.isFinite(Number(value)) ? null : Number(value));
+    const probabilities = rawMetrics.result_probabilities || null;
+    const fromText = briefingFigures(briefing.bullets, briefing.summary || card.thesis);
+    // Structured card metrics first; the deterministic briefing wording only
+    // when the API response predates them.
+    const balance = probabilities
+      && [probabilities.home, probabilities.draw, probabilities.away].every(value => finite(value) !== null)
+      ? { home: finite(probabilities.home) * 100, draw: finite(probabilities.draw) * 100, away: finite(probabilities.away) * 100 }
+      : fromText.resultBalance;
+    const projectedTotal = finite(rawMetrics.projected_total_goals) ?? fromText.projectedTotal;
+    const teamGoals = finite(rawMetrics.team_goals?.home) !== null
+      ? { home: finite(rawMetrics.team_goals?.home), away: finite(rawMetrics.team_goals?.away) }
+      : fromText.teamGoals;
     return {
       id: String(fixture.event_id || card.id),
       matchReadId: card.id,
@@ -971,6 +1028,7 @@ const appModule = {
         summary: briefing.summary || '',
         bullets: Array.isArray(briefing.bullets) ? briefing.bullets.slice(0, 3) : [],
       },
+      metrics: { projectedTotal, teamGoals, resultBalance: balance },
       visuals: {
         homeTeamLogo: visuals.home_team_logo || '',
         awayTeamLogo: visuals.away_team_logo || '',
@@ -1335,18 +1393,14 @@ const appModule = {
       return `<span class="match-card-emblem ${className}${safeUrl ? '' : ' is-fallback'}">${safeUrl ? `<img src="${safeUrl}" alt="" loading="lazy">` : ''}<span aria-hidden="true">${fallback}</span></span>`;
     };
     const bullets = Array.isArray(f.briefing?.bullets) ? f.briefing.bullets.slice(0, 3) : [];
-    const balanceBar = (balance, home, away) => `<li class="match-card-balance">
-        <span class="sr-only">Result balance: ${esc(home)} ${balance.home}%, draw ${balance.draw}%, ${esc(away)} ${balance.away}%.</span>
-        <span class="balance-track" aria-hidden="true"><i style="flex:${balance.home}"></i><i style="flex:${balance.draw}"></i><i style="flex:${balance.away}"></i></span>
-        <span class="balance-legend" aria-hidden="true"><span>Home <b>${balance.home}%</b></span><span>Draw <b>${balance.draw}%</b></span><span>Away <b>${balance.away}%</b></span></span>
-      </li>`;
-    const bulletMarkup = bullets.length
-      ? bullets.map(bullet => {
-          const balance = parseResultBalance(bullet);
-          if (balance) return balanceBar(balance, f.home, f.away);
-          return `<li>${markProjectedTotal(bullet)}</li>`;
-        }).join('')
-      : '<li class="match-card-briefing-pending">Full fixture briefing will appear after the next model refresh.</li>';
+    const figures = figuresMarkup(f.metrics, f.home, f.away, 'match-card-figures');
+    const notes = bullets.filter(bullet => !restatesFigures(bullet, f.metrics));
+    const bulletMarkup = notes.length
+      ? `<ul class="match-card-signals">${notes.map(bullet => `<li>${esc(bullet)}</li>`).join('')}</ul>`
+      : '';
+    const briefingMarkup = bullets.length || figures
+      ? figures + bulletMarkup
+      : '<ul class="match-card-signals"><li class="match-card-briefing-pending">Full fixture briefing will appear after the next model refresh.</li></ul>';
     const updateLabel = f.update?.is_updated && f.update?.label
       ? `<span class="match-card-updated">${esc(f.update.label)}</span>`
       : '';
@@ -1375,7 +1429,7 @@ const appModule = {
       </h3>
       ${f.isScheduleOnly
         ? `<p class="match-card-schedule-note empty-state-hint">${esc(f.scheduleNote)}</p>`
-        : `<ul class="match-card-signals">${bulletMarkup}</ul>`}
+        : briefingMarkup}
       <div class="match-card-footer">
         <span class="match-card-status ${statusClass}">${esc(statusLabel)}</span>
         ${openButton}
@@ -1519,7 +1573,7 @@ const appModule = {
       const figures = String(point).match(/\d+(?:\.\d+)?/g) || [];
       return thesisText && figures.length > 0 && figures.every(figure => thesisText.includes(figure));
     };
-    const keyPoints = allPoints.filter(point => !restatesThesis(point));
+    const keyPoints = allPoints.filter(point => !restatesThesis(point) && !restatesFigures(point, f.metrics));
     const alternatives = Array.isArray(f.alternatives) ? f.alternatives : [];
     const alternativesHtml = alternatives.length
       ? `<div class="match-read-alternatives">
@@ -1533,7 +1587,8 @@ const appModule = {
     container.innerHTML = `
       <section class="match-read-summary" aria-label="Published Match Read">
         <div class="match-read-summary-head">${updateLabel}</div>
-        <p class="match-read-thesis">${(f.briefing?.summary || f.thesis) ? markProjectedTotal(f.briefing?.summary || f.thesis) : 'No fixture-level briefing is available yet.'}</p>
+        <p class="match-read-thesis">${esc(f.briefing?.summary || f.thesis || 'No fixture-level briefing is available yet.')}</p>
+        ${figuresMarkup(f.metrics, f.home, f.away, 'match-read-figures')}
         ${keyPoints.length ? `<ul class="match-read-key-points">${keyPoints.map(point => `<li>${esc(point)}</li>`).join('')}</ul>` : ''}
         ${actionable}
         ${f.selectionRelationship ? `<p class="match-read-relationship">${esc(f.selectionRelationship)}</p>` : ''}

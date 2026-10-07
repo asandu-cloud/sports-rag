@@ -23,6 +23,7 @@ import re
 from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Sequence, Tuple
 
 from .match_read_compiler import MatchReadDraft
+from .match_read_metrics import match_metrics
 
 
 MATCH_READ_BRIEFING_SCHEMA_VERSION = "match-read-briefing.v1"
@@ -103,63 +104,15 @@ def build_match_read_facts(draft: MatchReadDraft) -> Dict[str, Any]:
     Match Read itself for audit.
     """
     fixture = _fixture_from_results(draft.canonical_results)
-    markets = {
-        _text(_mapping(result.get("market")).get("group")).lower(): result
-        for result in draft.canonical_results
-        if _text(_mapping(result.get("market")).get("group"))
-    }
-    facts: Dict[str, Any] = {
+    return {
         "fixture": fixture,
         "stage": draft.stage,
-        "metrics": {},
+        "metrics": match_metrics(draft.canonical_results),
         "coverage": {
             "evaluated_markets": len(draft.canonical_results),
             "lineup_state": _lineup_state(draft.canonical_results, draft.stage),
         },
     }
-    metrics: Dict[str, Any] = facts["metrics"]
-
-    for group, label in (("goals", "goals"), ("corners", "corners"), ("cards", "cards"), ("sot", "shots_on_target")):
-        projection = _mapping(markets.get(group, {}).get("projection"))
-        value = _finite(projection.get("value"))
-        if value is None:
-            continue
-        metric: Dict[str, Any] = {"projected": _round(value)}
-        season = _finite(projection.get("season_component"))
-        recent = _finite(projection.get("recent_component"))
-        if season is not None:
-            metric["season_baseline"] = _round(season)
-        if recent is not None:
-            metric["recent_baseline"] = _round(recent)
-        metrics[label] = metric
-
-    for group in ("btts", "moneyline"):
-        components = _mapping(_mapping(markets.get(group, {}).get("projection")).get("components"))
-        if group == "btts":
-            home_goals = _finite(components.get("home_goals"))
-            away_goals = _finite(components.get("away_goals"))
-            both_score = _finite(components.get("yes_probability"))
-            if any(value is not None for value in (home_goals, away_goals, both_score)):
-                metrics["team_goals"] = {
-                    key: _round(value)
-                    for key, value in (
-                        ("home", home_goals),
-                        ("away", away_goals),
-                        ("both_teams_score_probability", both_score),
-                    )
-                    if value is not None
-                }
-        else:
-            home = _finite(components.get("home_probability"))
-            draw = _finite(components.get("draw_probability"))
-            away = _finite(components.get("away_probability"))
-            if any(value is not None for value in (home, draw, away)):
-                metrics["result_probabilities"] = {
-                    key: _round(value)
-                    for key, value in (("home", home), ("draw", draw), ("away", away))
-                    if value is not None
-                }
-    return facts
 
 
 def match_read_fact_key(draft: MatchReadDraft) -> str:

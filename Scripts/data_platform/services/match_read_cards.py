@@ -56,6 +56,9 @@ def build_match_read_card(read: Mapping[str, Any]) -> Dict[str, Any]:
         # website nor Discord should call a model or infer this copy at view
         # time.  Older records remain readable with an empty briefing.
         "briefing": _briefing_card(script.get("briefing")),
+        # The model's own figures, read from the persisted canonical results,
+        # so surfaces can chart them without parsing the briefing prose.
+        "metrics": _metrics_card(_mapping_or_empty(source.get("data")).get("canonical_results")),
         "visuals": _visuals_card(script.get("visuals")),
         "timing": {
             "is_preliminary": _optional_text(timing.get("state")) == "preliminary",
@@ -149,6 +152,28 @@ def _briefing_card(value: Any) -> Dict[str, Any]:
         "bullets": bullets,
         "source": _optional_text(briefing.get("source")),
         "model": _optional_text(briefing.get("model")),
+    }
+
+
+def _metrics_card(canonical_results: Any) -> Dict[str, Any]:
+    """Project the fixture figures a card can display; absent stays null."""
+    from .match_read_metrics import match_metrics
+
+    results = canonical_results if isinstance(canonical_results, Sequence) and not isinstance(canonical_results, (str, bytes)) else []
+    metrics = match_metrics([item for item in results if isinstance(item, Mapping)])
+    goals = _mapping_or_empty(metrics.get("goals"))
+    team_goals = _mapping_or_empty(metrics.get("team_goals"))
+    result = _mapping_or_empty(metrics.get("result_probabilities"))
+    probabilities = {key: _number(result.get(key)) for key in ("home", "draw", "away")}
+    return {
+        "projected_total_goals": _number(goals.get("projected")),
+        "team_goals": {
+            "home": _number(team_goals.get("home")),
+            "away": _number(team_goals.get("away")),
+        },
+        # A partial home/draw/away split cannot be drawn honestly, so it is
+        # delivered only when all three probabilities exist.
+        "result_probabilities": probabilities if all(value is not None for value in probabilities.values()) else None,
     }
 
 

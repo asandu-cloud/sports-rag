@@ -346,3 +346,56 @@ def test_asian_probability_details_survive_persistence_and_public_card(settings,
     assert selection['probability_basis']=='asian_equivalent_non_push'
     assert selection['probability_version']=='market-probability.v2'
     assert selection['settlement_profile']==result['decision']['settlement_profile']
+
+
+def _metrics_read(service, *, with_moneyline: bool = True) -> dict:
+    """Persist one read whose canonical results carry goals, BTTS and 1X2 projections."""
+    from Scripts.tests.data_platform.test_match_reads import _market_result as canonical
+
+    goals = canonical(fixture_id='synthetic-metrics')
+    goals['projection'] = {'value': 3.0263, 'unit': 'goals', 'components': {}}
+    btts = canonical(fixture_id='synthetic-metrics', key='btts', group='btts', status='no_bet')
+    btts['projection'] = {'value': 0.58, 'unit': 'probability',
+                          'components': {'home_goals': 1.8973, 'away_goals': 1.129, 'yes_probability': 0.58}}
+    results = [goals, btts]
+    if with_moneyline:
+        moneyline = canonical(fixture_id='synthetic-metrics', key='h2h', group='moneyline', status='no_bet')
+        moneyline['projection'] = {'value': 0.5425, 'unit': 'probability',
+                                   'components': {'home_probability': 0.5425, 'draw_probability': 0.244,
+                                                  'away_probability': 0.2135}}
+        results.append(moneyline)
+    saved = service.create(canonical_results=results, thesis='Synthetic metrics read.', status='recommended',
+                           selections=[{'result_index': 0, 'role': 'core'}])
+    return service.get(saved['id'])
+
+
+def test_card_carries_model_metrics_from_canonical_results(settings, engine, session_factory):
+    from data_platform.services.match_read_cards import build_match_read_card
+
+    card = build_match_read_card(_metrics_read(_service(session_factory)))
+
+    assert card['metrics'] == {
+        'projected_total_goals': 3.0263,
+        'team_goals': {'home': 1.8973, 'away': 1.129},
+        'result_probabilities': {'home': 0.5425, 'draw': 0.244, 'away': 0.2135},
+    }
+
+
+def test_card_metrics_leave_missing_figures_null(settings, engine, session_factory):
+    from data_platform.services.match_read_cards import build_match_read_card
+
+    card = build_match_read_card(_metrics_read(_service(session_factory), with_moneyline=False))
+
+    assert card['metrics']['projected_total_goals'] == 3.0263
+    # A partial home/draw/away split is never delivered as if it were complete.
+    assert card['metrics']['result_probabilities'] is None
+
+
+def test_card_metrics_are_empty_without_canonical_results():
+    from data_platform.services.match_read_cards import _metrics_card
+
+    assert _metrics_card(None) == {
+        'projected_total_goals': None,
+        'team_goals': {'home': None, 'away': None},
+        'result_probabilities': None,
+    }
