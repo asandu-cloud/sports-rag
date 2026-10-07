@@ -559,6 +559,15 @@ button, a, [role="button"], [role="link"] { touch-action: manipulation; }
 /* -- League groups flow into columns so short leagues sit side by side -- */
 #fixturesContainer { column-width: 360px; column-gap: 24px; }
 #fixturesContainer > :not(.league-group) { column-span: all; }
+/* One filtered league on desktop: its cards fill rows instead of one column.
+   Phones keep the single-column flow. */
+@media (min-width: 769px) {
+  #fixturesContainer.is-single-league { columns: auto; }
+  #fixturesContainer.is-single-league .league-group {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+    gap: 16px 24px;
+  }
+}
 .league-group {
   display: grid;
   gap: 12px;

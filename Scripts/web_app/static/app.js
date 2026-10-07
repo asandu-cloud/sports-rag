@@ -1288,6 +1288,8 @@ const appModule = {
   _renderFixtures(state = {}) {
     const container = document.getElementById('fixturesContainer');
     if (!container) return;
+    // A single filtered league lays its cards out in rows on desktop (style.css).
+    container.classList.toggle('is-single-league', this.activeLeague !== 'all');
     if (state.loading) {
       container.innerHTML = '<div class="empty-state"><p>Preparing the matchday board…</p><span class="empty-state-hint">Loading the fixture schedule and published Match Reads.</span></div>';
       return;
