@@ -151,6 +151,13 @@ try:
 except Exception as _match_reads_exc:
     log.warning("Match Read router not mounted: %s", _match_reads_exc)
 
+try:
+    from web_app.routers.research import router as research_router
+    app.include_router(research_router)
+    log.info("Research router mounted at /api/research/*")
+except Exception as _research_exc:
+    log.warning("Research router not mounted: %s", _research_exc)
+
 # The public track-record endpoints use the immutable publication cohort by
 # default.  Mount them in the main website process rather than leaving the
 # standalone module disconnected from the product API.

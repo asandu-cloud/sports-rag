@@ -39,6 +39,10 @@ Entry points
     This is the generic path for newly onboarded leagues and does not depend
     on a bespoke ``Output/`` script folder.
 
+``research-build [--competition EPL] [--season 2025]``
+    Atomically replace descriptive research peer ranks from canonical data.
+    Omitting both filters rebuilds every stored competition and season.
+
 ``migrate-users [--sqlite-path ...] [--dry-run]``
     Copy users / subscription_events / referrals from
     ``Index/predictions.db`` into the canonical tables.
@@ -85,6 +89,14 @@ def cmd_init_db(args) -> int:
     cfg.set_main_option("sqlalchemy.url", SETTINGS.database_url)
     command.upgrade(cfg, "head")
     print(f"[init-db] Schema upgraded on {SETTINGS.database_url}")
+    return 0
+
+
+def cmd_research_build(args) -> int:
+    from .services.research_profiles import ResearchProfileService
+
+    result = ResearchProfileService().build(season=args.season, competition=args.competition)
+    print(json.dumps(result, indent=2))
     return 0
 
 
@@ -629,6 +641,12 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("init-db", help="Apply Alembic migrations to the configured DATABASE_URL")
     _add_common_args(p)
     p.set_defaults(func=cmd_init_db)
+
+    p = sub.add_parser("research-build", help="Atomically rebuild canonical research peer ranks")
+    _add_common_args(p)
+    p.add_argument("--season", type=int, help="Starting year; omit for all stored seasons")
+    p.add_argument("--competition", help="Competition code; referee ranks still use all competitions")
+    p.set_defaults(func=cmd_research_build)
 
     p = sub.add_parser("bootstrap", help="Full backfill for one or more competition/season pairs")
     _add_common_args(p)

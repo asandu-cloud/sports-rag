@@ -21,6 +21,7 @@ class Fixture(Base, TimestampMixin):
         Index("ix_fixtures_competition_status", "competition_id", "status"),
         Index("ix_fixtures_home_team", "home_team_id"),
         Index("ix_fixtures_away_team", "away_team_id"),
+        Index("ix_research_fixture_referee", "referee", "season_id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -97,6 +98,7 @@ class FixturePlayerStats(Base, TimestampMixin):
         UniqueConstraint("fixture_id", "player_id", name="uq_player_stats_fixture_player"),
         Index("ix_player_stats_player", "player_id"),
         Index("ix_player_stats_team", "team_id"),
+        Index("ix_research_player_fixture", "player_id", "fixture_id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

@@ -54,6 +54,11 @@
   --loss-dim: #FFE4E1;
   --info: #2D5F87;
   --info-dim: #E0EDF9;
+  /* Validated chart pair (CVD-checked against this surface) */
+  --chart-1: #0A6D37;
+  --chart-2: #4D97DE;
+  --chart-muted: #87918A;
+  --chart-track: #DAF1DD;
   --crest-bg: #FFFFFF;
   --header-bg: rgba(243, 247, 243, 0.92);
   --overlay: rgba(17, 30, 23, 0.42);
@@ -88,6 +93,7 @@
   --amber: #F2B966; --amber-dim: #3A2B16;
   --loss: #F4928A; --loss-dim: #402624;
   --info: #98C3E8; --info-dim: #21303C;
+  --chart-1: #47AA62; --chart-2: #2773C0; --chart-muted: #66736B; --chart-track: #1A3424;
   --crest-bg: #EFF1EC;
   --header-bg: rgba(13, 21, 17, 0.9);
   --overlay: rgba(0, 0, 0, 0.6);

@@ -441,7 +441,7 @@ class MatchReadCycleService:
             run_id = self._start_run(mode=normalised_mode, started_at=reference_now, plan=plan)
         except Exception as exc:
             report.errors.append(f"Could not start worker run: {type(exc).__name__}: {exc}")
-            self._safe_release_lease(owner_id, report)
+            self._safe_release_lease(owner_id, report, now=clock())
             return report
         report.run_id = run_id
         # Scope this cache to exactly one one-shot run. It shares a fresh
@@ -575,14 +575,14 @@ class MatchReadCycleService:
                 report,
                 run_id,
                 status="failed",
-                finished_at=_as_utc(),
+                finished_at=clock(),
                 stats=_run_stats(report),
                 error_text="\n".join(report.errors),
             )
         finally:
             if data_gate is not None:
                 data_gate.__exit__(None, None, None)
-            self._safe_release_lease(owner_id, report)
+            self._safe_release_lease(owner_id, report, now=clock())
         return report
 
     def _dispatch_job(
@@ -750,9 +750,11 @@ class MatchReadCycleService:
                     "next_retry_at": (checked_at + timedelta(minutes=retry_minutes)).isoformat()},
         )
 
-    def _safe_release_lease(self, owner_id, report):
+    def _safe_release_lease(self, owner_id, report, now):
+        # Release on the run's own clock: lease acquisition and ownership checks
+        # use it, so mixing in wall time breaks injected or --now clocks.
         try:
-            self._repo.release_lease(lease_key=MATCH_READ_CYCLE_LEASE_KEY, owner_id=owner_id, now=_as_utc())
+            self._repo.release_lease(lease_key=MATCH_READ_CYCLE_LEASE_KEY, owner_id=owner_id, now=now)
         except Exception as exc:
             message = f"Worker lease cleanup failed (lease will expire): {type(exc).__name__}: {exc}"
             logger.error(message)

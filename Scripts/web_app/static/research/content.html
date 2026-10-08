@@ -1,18 +1,21 @@
-<div class="research-heading"><h1 id="researchTitle" tabindex="-1">Research Area</h1><p>Explore the context behind a pick, one statistic at a time.</p></div>
+<div class="research-heading"><h1 id="researchTitle" tabindex="-1">Research Area</h1><p>The match records behind a pick: players, teams and referees.</p></div>
 <nav class="area-navigation" aria-label="Research sections"><a href="/app#research/players" data-area="players">Players</a><a href="/app#research/teams" data-area="teams">Teams</a><a href="/app#research/referees" data-area="referees">Referees</a></nav>
-<p class="sample-notice">Design preview · All names, fixtures and values are fictional.</p>
 <div id="main" class="shell">
   <section id="searchView" aria-labelledby="searchTitle">
     <div class="search-intro"><h2 id="searchTitle">Find a player</h2><p id="searchDescription">Get a clearer picture of their game.</p></div>
     <div class="search-field"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><label for="playerSearch" class="sr-only">Search by player, club or position</label><input id="playerSearch" type="search" autocomplete="off" placeholder="Search a player or club" aria-describedby="searchHelp" aria-controls="playerResults"></div>
-    <p id="searchHelp" class="search-help">Try a sample player below. All records in this preview are fictional.</p>
-    <div class="results-heading"><h2 id="resultsTitle">Explore a sample player</h2><span id="resultCount" aria-live="polite"></span></div>
-    <div id="playerResults" class="player-results"></div>
+    <p id="searchHelp" class="search-help">Type at least two letters.</p>
+    <div class="results-heading"><h2 id="resultsTitle">Try a search</h2><span id="resultCount" aria-live="polite"></span></div>
+    <div id="playerResults" class="player-results" aria-busy="false"></div>
     <div class="research-introduction"><div><h2>A little context goes a long way.</h2><p id="researchIntroduction"></p></div><div class="research-topics" id="researchTopics"></div></div>
   </section>
+  <section id="profileView" hidden aria-labelledby="profileName">
+    <button id="profileBack" class="text-button back-button"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg><span id="profileBackLabel">Find another player</span></button>
+    <div id="profileBody" class="profile" aria-live="polite"></div>
+  </section>
   <section id="playerView" hidden aria-labelledby="playerName">
-    <button id="backSearch" class="text-button back-button"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg><span id="backSearchLabel">Find another player</span></button>
-    <div class="player-heading"><div id="playerAvatar" class="avatar avatar-large" aria-hidden="true"></div><div><h2 id="playerName" tabindex="-1"></h2><p id="playerMeta"></p></div><div class="next-match"><span id="nextFixtureLabel">Example next fixture</span><strong id="nextFixture"></strong><small id="fixtureHint">Lineup not confirmed</small></div></div>
+    <button id="backSearch" class="text-button back-button"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg><span id="backSearchLabel">Back to profile</span></button>
+    <div class="player-heading"><div id="playerAvatar" class="avatar avatar-large" aria-hidden="true"></div><div><h2 id="playerName" tabindex="-1"></h2><p id="playerMeta"></p></div><div class="next-match"><span id="nextFixtureLabel">Showing</span><strong id="nextFixture"></strong><small id="fixtureHint"></small></div></div>
     <div class="stat-navigation"><div id="statTabs" class="stat-tabs" role="tablist" aria-label="Statistic"></div><button id="moreStats" class="more-stats" aria-expanded="false" aria-controls="extraStats">More<span class="sr-only"> statistics</span><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button></div>
     <div id="extraStats" class="extra-stats" hidden></div>
     <div class="research-layout">
@@ -26,9 +29,10 @@
         <div id="chartBlock"><p class="chart-caption"><span id="chartMeasure"></span><span class="chart-chronology">Older to newer</span></p><div class="chart-frame"><div id="chartAxis" class="chart-axis" aria-hidden="true"></div><div class="chart-viewport" id="chartViewport" tabindex="0" aria-label="Recent match chart. Scroll horizontally to explore all matches."><div id="chartStage" class="chart-stage"><div id="plotGrid" class="plot-grid"></div><div id="referenceLines" class="reference-lines" aria-hidden="true"></div><div id="chartColumns" class="chart-columns"></div></div></div></div><div class="chart-legend"><span><i class="legend-dot selected"></i>Selected match</span><span><i class="legend-missing"></i>Missing statistic</span><span id="dnpLegend">DNP = did not play</span><span class="scroll-hint">Scroll for more matches</span></div><div id="selectedMatch" class="selected-match" aria-live="polite"></div></div>
         <details class="definition"><summary><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .4c0 1.6-2.5 1.9-2.5 3.6M12 16.5v.1"/></svg>What does this statistic mean?</summary><p id="statDefinition"></p></details>
       </section>
-      <aside class="context-panel" aria-labelledby="contextTitle"><h2 id="contextTitle">Keep it in context</h2><section class="minutes-context"><h3 id="contextHeading">Time on the pitch</h3><p id="minutesInsight"></p><p id="contextFootnote" class="context-footnote">Short appearances mean fewer opportunities.</p></section><section class="comparison-context"><h3>A wider view</h3><dl><div><dt id="recentAverageLabel">This view</dt><dd id="recentAverage"></dd></div><div><dt>Sample season</dt><dd id="seasonAverage"></dd></div></dl><p id="comparisonInsight"></p></section><details class="coverage-detail"><summary>Data behind this view</summary><p id="coverageText"></p><p>All names, fixtures and values here are synthetic. A historical pattern is not a forecast.</p></details></aside>
+      <aside class="context-panel" aria-labelledby="contextTitle"><h2 id="contextTitle">Keep it in context</h2><section class="minutes-context"><h3 id="contextHeading">Time on the pitch</h3><p id="minutesInsight"></p><p id="contextFootnote" class="context-footnote">Short appearances mean fewer opportunities.</p></section><section class="comparison-context"><h3>A wider view</h3><dl><div><dt id="recentAverageLabel">This view</dt><dd id="recentAverage"></dd></div><div><dt id="seasonAverageLabel">Whole season</dt><dd id="seasonAverage"></dd></div></dl><p id="comparisonInsight"></p></section><details class="coverage-detail"><summary>Data behind this view</summary><p id="coverageText"></p><p>Source: match records from API-Football in our database. A historical pattern is not a forecast.</p></details></aside>
       <details id="matchDetails" class="match-details"><summary><span>View match details<small>The individual records behind the chart</small></span><span id="detailCount"></span></summary><div class="table-wrap"><table><caption id="tableCaption" class="sr-only"></caption><thead><tr><th scope="col">Match</th><th scope="col" id="tableVenue">Venue</th><th scope="col" id="tableStat"></th><th scope="col" id="tableContext">Minutes</th></tr></thead><tbody id="matchRows"></tbody></table></div></details>
     </div>
     <p class="research-disclaimer">Explore the evidence, keep the uncertainty. Past performance alone does not establish a profitable bet.</p>
   </section>
 </div>
+<div id="tip" class="tip" role="tooltip" hidden></div>

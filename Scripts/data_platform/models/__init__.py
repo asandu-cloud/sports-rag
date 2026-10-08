@@ -31,6 +31,7 @@ from .live import (  # noqa: F401
 from .kb import KBDocument, KBRefreshQueueItem  # noqa: F401
 from .odds import OddsSnapshot  # noqa: F401
 from .feature_builds import FeatureBuild  # noqa: F401
+from .research import ResearchPeerStat, ResearchProfileBuild, ResearchRefereeAlias  # noqa: F401
 
 __all__ = [
     "Base",
@@ -72,4 +73,7 @@ __all__ = [
     "KBRefreshQueueItem",
     "OddsSnapshot",
     "FeatureBuild",
+    "ResearchPeerStat",
+    "ResearchProfileBuild",
+    "ResearchRefereeAlias",
 ]
