@@ -1136,20 +1136,26 @@ def health_check():
 
 _STATIC_DIR = Path(__file__).parent / "static"
 
+
+def _app_shell():
+    # The shell names versioned asset URLs, so browsers must revalidate it on
+    # every visit (a cheap 304 when unchanged) or they keep loading old code.
+    return FileResponse(_STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
+
 @app.get("/")
 def serve_root():
     """Serve the main HTML page."""
-    return FileResponse(_STATIC_DIR / "index.html")
+    return _app_shell()
 
 @app.get("/app")
 def serve_app():
     """Serve the SPA for the /app route (client-side routing)."""
-    return FileResponse(_STATIC_DIR / "index.html")
+    return _app_shell()
 
 @app.get("/checkout/success")
 def serve_checkout_success():
     """Serve the SPA for checkout success (client-side handles the token)."""
-    return FileResponse(_STATIC_DIR / "index.html")
+    return _app_shell()
 
 # Mount static files AFTER API routes so /api/* takes priority
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
