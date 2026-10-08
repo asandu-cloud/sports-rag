@@ -772,6 +772,22 @@ button.fixture-teams:hover { color: var(--accent-l); }
 .fixture-add-btn:hover { background: var(--accent-dim); color: var(--accent-l); border-color: var(--accent); }
 .fixture-add-btn.added { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .fixture-add-placeholder { width: 44px; height: 44px; display: block; }
+
+/* -- Best of Today rows: a league crest column and the market named with the pick -- */
+.fixture-row.best-bet-row { grid-template-columns: 48px minmax(0, 1fr) auto auto auto auto; gap: 16px; }
+.best-bet-crest {
+  display: grid; place-items: center;
+  width: 48px; height: 48px;
+  border-radius: 10px;
+  background: var(--crest-bg);
+  box-shadow: inset 0 0 0 1px var(--border-soft);
+}
+.best-bet-crest img { width: 34px; height: 34px; object-fit: contain; }
+.best-bet-crest-text { font-size: 12px; font-weight: 800; color: var(--text2); text-transform: uppercase; }
+.best-bet-pick { font-size: 15px; font-weight: 700; color: var(--text); }
+.best-bet-market { font-weight: 500; color: var(--text2); }
+/* A pick never splits across lines; it moves below the market name as a unit. */
+.best-bet-value { display: inline-block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 .match-read-update-label,
 .match-read-stage-label {
   display: inline-flex;
@@ -1236,6 +1252,12 @@ spix-research { display: block; min-width: 0; }
   .fixture-row { grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 12px; }
   .fixture-num, .fixture-league, .fixture-pick-text, .fixture-edge { display: none; }
   .fixture-row .conf-badge { display: none; }
+  .fixture-row.best-bet-row { grid-template-columns: 40px minmax(0, 1fr) auto auto; gap: 8px 12px; padding: 12px; }
+  .best-bet-crest { width: 40px; height: 40px; border-radius: 8px; align-self: start; }
+  .best-bet-crest img { width: 28px; height: 28px; }
+  /* Full team names on phones: wrap rather than cut off. */
+  .best-bet-row .fixture-teams { white-space: normal; overflow: visible; line-height: 1.1; }
+  .best-bet-row .fixture-meta-line { flex-wrap: wrap; row-gap: 4px; }
 }
 
 @media (max-width: 640px) {

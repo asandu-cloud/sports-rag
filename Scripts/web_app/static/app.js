@@ -89,6 +89,12 @@ function restatesFigures(text, metrics) {
   });
 }
 
+// Display names for a market group, shared by every surface that names a pick.
+const MARKET_LABELS = { goals: 'Goals', btts: 'BTTS', corners: 'Corners', cards: 'Cards', sot: 'Shots on target', moneyline: 'Moneyline', spreads: 'Handicap' };
+function marketLabel(group) {
+  return MARKET_LABELS[group] || group || '';
+}
+
 // ----- End of pure render helpers -----
 
 function showToast(msg, type = 'info') {
@@ -1052,6 +1058,7 @@ const appModule = {
       kickoff: fixture.kickoff,
       time: this._formatFixtureTime(fixture.kickoff),
       pick: core?.pick || (status === 'no_bet' ? 'No bet' : 'Unavailable'),
+      market: core?.market?.group || null,
       odds: Number.isFinite(coreOdds) ? coreOdds : null,
       edge: Number.isFinite(coreEdge) ? coreEdge * 100 : null,
       conf: core?.confidence || status,
@@ -1548,7 +1555,7 @@ const appModule = {
   _renderMatchReadSummary(f) {
     const container = document.getElementById('matchReadSummary');
     if (!container) return;
-    const marketLabels = { goals: 'Goals', btts: 'BTTS', corners: 'Corners', cards: 'Cards', sot: 'Shots on target', moneyline: 'Moneyline', spreads: 'Handicap' };
+    const marketLabels = MARKET_LABELS;
     const selections = Array.isArray(f.selections) ? f.selections : [];
     const updateLabel = f.update?.is_updated && f.update?.label
       ? `<span class="match-read-update-label">${esc(f.update.label)}</span>`
@@ -1662,7 +1669,7 @@ const appModule = {
   _buildMarketTabs(f) {
     const tabs = document.getElementById('marketTabs');
     tabs.innerHTML = '';
-    const marketLabels = { goals: 'Goals', btts: 'BTTS', corners: 'Corners', cards: 'Cards', sot: 'Shots on target', moneyline: 'Moneyline', spreads: 'Handicap' };
+    const marketLabels = MARKET_LABELS;
     Object.keys(f.markets).forEach(mk => {
       const btn = document.createElement('button');
       btn.className = 'market-tab' + (mk === this.currentMarketTab ? ' active' : '');
@@ -1685,7 +1692,7 @@ const appModule = {
   _renderMarkets(f, marketKey) {
     const lines = f.markets[marketKey] || [];
     const container = document.getElementById('matchMarkets');
-    const marketLabels = { goals: 'Goals', btts: 'BTTS', corners: 'Corners', cards: 'Cards', sot: 'Shots on target', moneyline: 'Moneyline', spreads: 'Handicap' };
+    const marketLabels = MARKET_LABELS;
     if (!lines.length) {
       container.innerHTML = '<div class="empty-state"><p>This market is not available for the fixture.</p></div>';
       return;
@@ -1769,13 +1776,14 @@ const appModule = {
         : '';
       const leagueInfo = league(f.league);
       const crest = leagueInfo.logo
-        ? `<span class="league-crest" aria-hidden="true"><img src="${esc(leagueInfo.logo)}" alt=""></span>`
-        : '';
-      return `<div class="fixture-row">
-        <span class="fixture-league">${crest}${esc(leagueInfo.name)}</span>
+        ? `<img src="${esc(leagueInfo.logo)}" alt="">`
+        : `<span class="best-bet-crest-text" aria-hidden="true">${esc(String(leagueInfo.name || '').slice(0, 3))}</span>`;
+      const market = marketLabel(f.market);
+      return `<div class="fixture-row best-bet-row">
+        <span class="best-bet-crest" title="${esc(leagueInfo.name)}">${crest}<span class="sr-only">${esc(leagueInfo.name)}</span></span>
         <div class="fixture-match">
           <button class="fixture-teams" type="button" data-best-bet-open aria-label="Open Match Read: ${esc(f.home)} versus ${esc(f.away)}">${esc(f.home)} <span class="fixture-vs">v</span> ${esc(f.away)}</button>
-          <div class="fixture-meta-line"><span class="fixture-time">${esc(f.pick)}</span>${updateLabel}</div>
+          <div class="fixture-meta-line"><span class="best-bet-pick">${market ? `<span class="best-bet-market">${esc(market)}:</span> ` : ''}<span class="best-bet-value">${esc(f.pick)}</span></span>${updateLabel}</div>
         </div>
         <span class="conf-badge ${esc(f.conf)}">${esc(f.conf.toUpperCase())}</span>
         <span class="fixture-odds-val mono">${Number.isFinite(f.odds) ? esc(String(f.odds)) : '—'}</span>
