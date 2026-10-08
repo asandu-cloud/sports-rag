@@ -1,4 +1,4 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=real-20261008a';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=real-20261008c';
 
 const API = '/api/research';
 
@@ -99,23 +99,16 @@ function mountResearch(root, navigate) {
     $('rateField').hidden = !isPlayer();
     $('filterButton').hidden = isReferee();
     $('contextHeading').textContent = isPlayer() ? 'Time on the pitch' : state.area === 'teams' ? 'Results' : 'Appointments';
-    $('researchIntroduction').textContent = current().introduction;
-    $('researchTopics').textContent = current().topics;
     $('dnpLegend').hidden = true;
     root.querySelectorAll('[data-area]').forEach(a => { if (a.dataset.area === state.area) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
     $('extraStats').innerHTML = current().groups.map(([title, keys]) => `<div><h3>${title}</h3>${keys.map(key => `<button data-stat="${key}">${metrics[key].label}</button>`).join('')}</div>`).join('');
-    renderSuggestions();
-  }
-  function renderSuggestions() {
-    $('resultsTitle').textContent = 'Try a search';
-    $('resultCount').textContent = '';
-    $('searchHelp').textContent = 'Type at least two letters of a name.';
-    $('playerResults').innerHTML = `<div class="search-suggestions"><p>Popular searches</p><div>${current().suggestions.map(s => `<button class="suggestion" type="button" data-suggest="${escape(s)}">${escape(s)}</button>`).join('')}</div></div>`;
+    showHome();
   }
   function search() {
     const query = $('playerSearch').value.trim();
     clearTimeout(searchTimer); searchController?.abort();
-    if (query.length < 2) { $('playerResults').setAttribute('aria-busy', 'false'); renderSuggestions(); return; }
+    if (query.length < 2) { $('playerResults').setAttribute('aria-busy', 'false'); showHome(); return; }
+    $('searchResults').hidden = false; $('researchHome').hidden = true;
     $('playerResults').setAttribute('aria-busy', 'true');
     const area = state.area;
     searchTimer = setTimeout(async () => {
@@ -162,7 +155,136 @@ function mountResearch(root, navigate) {
     const fromProfile = state.view !== 'search';
     view('search');
     Object.assign(state, {profileKey: null, profile: null, id: null, scope: null});
+    if (fromProfile && $('playerSearch').value.trim().length < 2) showHome();
     if (fromProfile) $('playerSearch').focus({preventScroll: true});
+  }
+
+
+  // ----- Landing: recently viewed, this weekend, season leaders -----
+  const LEAGUES = [['top5', 'Top five'], ['EPL', 'Premier League'], ['LaLiga', 'La Liga'], ['SerieA', 'Serie A'],
+    ['Bundesliga', 'Bundesliga'], ['Ligue1', 'Ligue 1'], ['europe', 'European cups'], ['all', 'All competitions']];
+  const BOARDS = {
+    players: {main: [['goals', 'Goals'], ['shots_on_target', 'On target'], ['assists', 'Assists']], side: ['cards', 'Most cards']},
+    teams: {main: [['goals_for', 'Goals scored'], ['goals_against', 'Fewest conceded'], ['cards', 'Cards']], side: ['corners', 'Corners per match']},
+    referees: {main: [['most_cards', 'Most cards per match']], side: ['fewest_cards', 'Fewest cards per match']}
+  };
+  const store = {
+    get(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } },
+    set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage unavailable */ } }
+  };
+  const homeData = new Map();
+  let homeToken = 0;
+  state.league = LEAGUES.some(([key]) => key === store.get('spix-research-league')) ? store.get('spix-research-league') : 'top5';
+  state.board = {}; state.expanded = {};
+  const ordinal = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+  const kickoff = iso => { const d = new Date(iso); return {day: d.toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short'}), time: d.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'})}; };
+  const tier = pct => pct == null ? '' : pct >= 67 ? '<span class="tag strict">Strict</span>' : pct <= 33 ? '<span class="tag lenient">Lenient</span>' : '<span class="tag">Average</span>';
+  const routeTo = (area, id, scope) => [area, encodeURIComponent(id), scope].filter(Boolean).join('/');
+  function saveRecent(profile) {
+    const all = store.get('spix-research-recent', {}), s = profile.subject, id = String(s.referee_key ?? s.id);
+    all[state.area] = [{id, name: s.name}, ...(all[state.area] || []).filter(r => r.id !== id)].slice(0, 6);
+    store.set('spix-research-recent', all);
+  }
+  function showHome() {
+    $('searchResults').hidden = true; $('researchHome').hidden = false;
+    $('searchHelp').textContent = 'Type at least two letters of a name.';
+    renderHome();
+  }
+  function homeTop() {
+    const recent = store.get('spix-research-recent', {})[state.area] || [];
+    const row = recent.length
+      ? `<div class="recent"><span>Recently viewed</span>${recent.map(r => `<button type="button" class="chip" data-go="${escape(routeTo(state.area, r.id))}">${escape(r.name)}</button>`).join('')}</div>`
+      : `<div class="recent"><span>Try</span>${current().suggestions.map(s => `<button type="button" class="chip" data-suggest="${escape(s)}">${escape(s)}</button>`).join('')}</div>`;
+    return row + `<div class="league-chips" role="group" aria-label="League">${LEAGUES.map(([key, label]) => `<button type="button" class="chip" data-league="${key}" aria-pressed="${key === state.league}">${label}</button>`).join('')}</div>`;
+  }
+  async function renderHome(focus) {
+    const area = state.area, url = `${API}/home?type=${area}&league=${encodeURIComponent(state.league)}`, token = ++homeToken;
+    if (homeData.has(url)) return drawHome(homeData.get(url), focus);
+    $('researchHome').innerHTML = homeTop() + '<p class="profile-loading" role="status">Loading this weekend and the season leaders…</p>';
+    restoreFocus(focus);
+    try {
+      const data = await load(url);
+      homeData.set(url, data);
+      if (token === homeToken && area === state.area) drawHome(data, focus);
+    } catch (error) {
+      if (token !== homeToken) return;
+      $('researchHome').innerHTML = homeTop() + '<div class="search-empty"><h3>This page could not load</h3><p>Search still works. Please try again in a moment.</p></div>';
+      restoreFocus(focus);
+    }
+  }
+  function restoreFocus(selector) { if (selector) $('researchHome').querySelector(selector)?.focus({preventScroll: true}); }
+  function drawHome(d, focus) {
+    $('researchHome').innerHTML = homeTop() + weekendBlock(d) + leadersBlock(d) + homeFoot(d);
+    wireImages($('researchHome'));
+    restoreFocus(focus);
+  }
+  function weekendBlock(d) {
+    const list = d.weekend.fixtures;
+    if (!list.length) return '';
+    return `<section class="home-block" aria-labelledby="weekendTitle"><div class="sec-h"><h3 id="weekendTitle">${isReferee() ? 'Appointed this weekend' : 'Playing this weekend'}</h3><small>Next 7 days · ${escape(d.league.label)}</small></div><div class="rail" tabindex="0" aria-label="Upcoming matches. Scroll sideways for more.">${list.map(fixtureCard).join('')}</div></section>`;
+  }
+  function personRow(route, pic, title, sub, stat) {
+    const tag = route ? 'button' : 'div', attrs = route ? ` type="button" data-go="${escape(route)}"` : '';
+    return `<${tag} class="who${route ? '' : ' is-static'}"${attrs}>${pic}<span class="who-text"><strong>${escape(title)}</strong><small>${escape(sub)}</small></span><span class="stat">${stat}</span></${tag}>`;
+  }
+  function fixtureCard(f) {
+    const k = kickoff(f.kickoff);
+    const meta = `<div class="fx-meta"><span><b>${k.day}</b> · ${k.time}</span><span>${escape(f.competition.name)}</span></div>`;
+    if (isReferee()) {
+      const r = f.referee, c = r.cards;
+      const row = personRow(r.referee_key && routeTo('referees', r.referee_key), badge(null, r.name, false, false), r.name, `${f.home.name} v ${f.away.name}`,
+        c ? `<b>${fixed(c.cards_per_match)}</b>cards/match` : '<b>–</b>no rate');
+      const foot = c ? `${tier(c.percentile)}<span>${escape(c.season_label)} · ${plural(c.matches, 'match', 'matches')}</span>` : '<span>Fewer than 15 matches in a recent season</span>';
+      return `<article class="fx-card">${meta}${row}<div class="fx-foot">${foot}</div></article>`;
+    }
+    const rows = ['home', 'away'].map(side => {
+      const t = f[side];
+      if (isPlayer()) {
+        const p = t.top_scorer;
+        if (!p) return personRow(routeTo('teams', t.id, f.scope), badge(t.logo_url, t.name, true, false), t.name, 'No goals yet this season', '');
+        return personRow(routeTo('players', p.player_id, p.scope), badge(p.photo_url, p.name, false, false), p.name,
+          `${t.name} · ${p.shots_on_target} on target`, `<b>${p.goals}</b>${p.goals === 1 ? 'goal' : 'goals'} in ${p.appearances}`);
+      }
+      const st = t.standing;
+      return personRow(routeTo('teams', t.id, st ? f.scope : null), badge(t.logo_url, t.name, true, false), t.name,
+        st ? `${st.goals_for}–${st.goals_against} goals from ${st.played}` : f.competition.name,
+        st ? `<b>${ordinal(st.position)}</b>${st.points} pts` : '');
+    }).join('');
+    return `<article class="fx-card">${meta}${rows}${!isPlayer() && f.referee ? `<div class="fx-foot"><span>Referee: ${escape(f.referee.name)}</span></div>` : ''}</article>`;
+  }
+  function leadersBlock(d) {
+    const boards = d.leaders.boards, conf = BOARDS[state.area], season = d.leaders.season?.label || '';
+    if (!Object.keys(boards).length) return '';
+    const wanted = state.board[state.area];
+    const active = conf.main.some(([key]) => key === wanted) ? wanted : conf.main[0][0];
+    const head = conf.main.length > 1
+      ? `<div class="sec-h"><h3>Season leaders</h3><small>${escape(season)}</small></div><div class="tabs" role="tablist" aria-label="Statistic">${conf.main.map(([key, label]) => `<button type="button" role="tab" data-board="${key}" aria-selected="${key === active}" tabindex="${key === active ? 0 : -1}">${label}</button>`).join('')}</div>`
+      : `<div class="sec-h"><h3>${conf.main[0][1]}</h3><small>${escape(season)}</small></div>`;
+    const main = `<section class="card home-card">${head}<div role="tabpanel">${boardList(active, boards[active])}</div></section>`;
+    const [sideKey, sideTitle] = conf.side;
+    const side = `<section class="card home-card"><div class="sec-h"><h3>${sideTitle}</h3><small>${escape(season)}</small></div>${boardList(sideKey, boards[sideKey])}</section>`;
+    return `<div class="home-grid">${main}${side}</div>`;
+  }
+  function boardList(key, board) {
+    if (!board?.rows?.length) return `<p class="note">Not enough matches yet.${state.area === 'teams' ? ' Teams appear after three matches with statistics.' : ''}</p>`;
+    const open = state.expanded[key], rows = board.rows.slice(0, open ? 10 : 5);
+    const max = Math.max(...board.rows.map(r => r.value)) || 1;
+    const list = rows.map((r, i) => {
+      let route, pic, name, sub, value;
+      if (isPlayer()) { route = routeTo('players', r.player_id, r.scope); pic = badge(r.photo_url, r.name, false, false); name = r.name; sub = `${r.team?.name || ''} · ${plural(r.appearances, 'app')}`; value = whole(r.value); }
+      else if (state.area === 'teams') { route = routeTo('teams', r.team_id, r.scope); pic = badge(r.logo_url, r.name, true, false); name = r.name; sub = `${r.competition} · ${plural(r.matches, 'match', 'matches')}`; value = fixed(r.value); }
+      else { route = routeTo('referees', r.referee_key); pic = badge(null, r.name, false, false); name = r.name; sub = plural(r.matches, 'match', 'matches'); value = fixed(r.value); }
+      return `<button type="button" class="lb-row" data-go="${escape(route)}"><span class="lb-rank">${i + 1}</span>${pic}<span class="lb-name"><strong>${escape(name)}</strong><small>${escape(sub)}</small></span><span class="lb-bar" aria-hidden="true"><i style="width:${Math.max(2, r.value / max * 100)}%"></i></span><span class="lb-val">${value}</span></button>`;
+    }).join('');
+    const more = board.rows.length > 5 ? `<button type="button" class="text-button" data-expand="${key}" aria-expanded="${!!open}">${open ? 'Show top 5' : `Show top ${board.rows.length}`}</button>` : '';
+    return `<div class="lb">${list}</div>${more}`;
+  }
+  function homeFoot(d) {
+    const latest = d.data_basis.latest_finished_kickoff;
+    const rule = isPlayer() ? 'Leaders are season totals in the selected competitions.'
+      : state.area === 'teams' ? 'Per-match averages for teams with three or more matches with statistics.'
+      : `Referees ranked across all competitions with ${d.data_basis.referee_minimum_matches} or more matches in ${d.leaders.season?.label || 'the season'}.`;
+    return `<p class="note home-foot">${latest ? `Includes matches up to ${dayYear(latest)}. ` : ''}${rule} Past matches, not predictions.</p>`;
   }
 
   // ----- Routing -----
@@ -203,6 +325,7 @@ function mountResearch(root, navigate) {
     view('profile');
     if (changed) {
       state.rendered = state.profile;
+      saveRecent(state.profile);
       $('profileBody').innerHTML = renderProfile(state.profile);
       wireImages($('profileBody')); wireTips($('profileBody'));
       $('profileBody').querySelector('.p-name')?.focus({preventScroll: true});
@@ -687,6 +810,22 @@ function mountResearch(root, navigate) {
     if (suggestion) { $('playerSearch').value = suggestion.dataset.suggest; search(); $('playerSearch').focus(); }
   });
   $('profileBack').addEventListener('click', () => go(state.area));
+  $('researchHome').addEventListener('click', event => {
+    const target = event.target.closest('[data-go],[data-league],[data-board],[data-expand],[data-suggest]');
+    if (!target) return;
+    const {go: route, league, board, expand, suggest} = target.dataset;
+    if (route) return navigate(route);
+    if (league) { state.league = league; store.set('spix-research-league', league); return renderHome(`[data-league="${league}"]`); }
+    if (board) { state.board[state.area] = board; return renderHome(`[data-board="${board}"]`); }
+    if (expand) { state.expanded[expand] = !state.expanded[expand]; return renderHome(`[data-expand="${expand}"]`); }
+    if (suggest) { $('playerSearch').value = suggest; search(); $('playerSearch').focus(); }
+  });
+  $('researchHome').addEventListener('keydown', event => {
+    const tab = event.target.closest('[role=tab]');
+    if (!tab || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+    const tabs = [...tab.parentElement.children], next = tabs[(tabs.indexOf(tab) + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+    event.preventDefault(); next.click();
+  });
   $('backSearch').addEventListener('click', () => go(state.area, state.id, state.scope));
   $('profileBody').addEventListener('click', event => {
     const rank = event.target.closest('.rank[data-stat]');
@@ -744,8 +883,8 @@ class SpixResearch extends HTMLElement {
     const root = this.attachShadow({mode: 'open'});
     root.innerHTML = '<p role="status">Loading Research Area…</p>';
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=real-20261008a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=real-20261008a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=real-20261008c', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=real-20261008c', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));

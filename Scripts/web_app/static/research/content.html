@@ -2,12 +2,16 @@
 <nav class="area-navigation" aria-label="Research sections"><a href="/app#research/players" data-area="players">Players</a><a href="/app#research/teams" data-area="teams">Teams</a><a href="/app#research/referees" data-area="referees">Referees</a></nav>
 <div id="main" class="shell">
   <section id="searchView" aria-labelledby="searchTitle">
-    <div class="search-intro"><h2 id="searchTitle">Find a player</h2><p id="searchDescription">Get a clearer picture of their game.</p></div>
-    <div class="search-field"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><label for="playerSearch" class="sr-only">Search by player, club or position</label><input id="playerSearch" type="search" autocomplete="off" placeholder="Search a player or club" aria-describedby="searchHelp" aria-controls="playerResults"></div>
-    <p id="searchHelp" class="search-help">Type at least two letters.</p>
-    <div class="results-heading"><h2 id="resultsTitle">Try a search</h2><span id="resultCount" aria-live="polite"></span></div>
-    <div id="playerResults" class="player-results" aria-busy="false"></div>
-    <div class="research-introduction"><div><h2>A little context goes a long way.</h2><p id="researchIntroduction"></p></div><div class="research-topics" id="researchTopics"></div></div>
+    <div class="search-top">
+      <div class="search-intro"><h2 id="searchTitle">Find a player</h2><p id="searchDescription">Get a clearer picture of their game.</p></div>
+      <div class="search-field"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><label for="playerSearch" class="sr-only">Search by name</label><input id="playerSearch" type="search" autocomplete="off" placeholder="Search a player" aria-describedby="searchHelp" aria-controls="playerResults"></div>
+      <p id="searchHelp" class="search-help">Type at least two letters of a name.</p>
+    </div>
+    <div id="searchResults" class="search-results" hidden>
+      <div class="results-heading"><h2 id="resultsTitle">Search results</h2><span id="resultCount" aria-live="polite"></span></div>
+      <div id="playerResults" class="player-results" aria-busy="false"></div>
+    </div>
+    <div id="researchHome" class="research-home"></div>
   </section>
   <section id="profileView" hidden aria-labelledby="profileName">
     <button id="profileBack" class="text-button back-button"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg><span id="profileBackLabel">Find another player</span></button>

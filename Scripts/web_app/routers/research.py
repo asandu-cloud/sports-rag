@@ -3,6 +3,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Path, Query
 
+from data_platform.services.research_home import ResearchHomeService
 from data_platform.services.research_profiles import ResearchProfileService
 
 router = APIRouter(prefix="/api/research", tags=["research"])
@@ -22,6 +23,16 @@ def _call(method, *args, **kwargs):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _get_home_service():
+    return ResearchHomeService()
+
+
+@router.get("/home")
+def home(type: Literal["players", "teams", "referees"],
+         league: Annotated[str | None, Query(min_length=1, max_length=32, pattern=r"^\w+$")] = None):
+    return _call(_get_home_service().home, type, league=league)
 
 
 @router.get("/search")
