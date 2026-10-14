@@ -269,21 +269,54 @@ def quote_rows(db, request_id):
     return normalize(json.loads(raw), json.loads(row[0]), parse_time(row[1]))[1]
 
 
-def config(leagues=None, days_ahead=14, max_requests=600, daily_budget=3600, reserve=1000, rpm=60):
+def config(leagues=None, days_ahead=14, max_requests=600, daily_budget=3600, reserve=1000, rpm=60,
+           near_kickoff_hours=None):
     leagues = list(leagues or LEAGUE_TO_API_ID)
     if not leagues or len(set(leagues)) != len(leagues) or set(leagues) - LEAGUE_TO_API_ID.keys():
         raise ValueError("Invalid leagues")
     if not 0 <= days_ahead <= 14 or not 1 <= max_requests <= 2000 or not 1 <= daily_budget <= 10000 or reserve < 0 or not 1 <= rpm <= 120:
         raise ValueError("Invalid collection limits")
-    return dict(leagues=leagues, days_ahead=days_ahead, max_requests=max_requests,
-                daily_budget=daily_budget, reserve=reserve, rpm=rpm)
+    if near_kickoff_hours is not None and not 0 < near_kickoff_hours <= 6:
+        raise ValueError("Invalid near-kickoff window")
+    settings = dict(leagues=leagues, days_ahead=days_ahead, max_requests=max_requests,
+                    daily_budget=daily_budget, reserve=reserve, rpm=rpm)
+    if near_kickoff_hours is not None:
+        settings["near_kickoff_hours"] = near_kickoff_hours
+    return settings
+
+
+def near_kickoff_scopes(db, started, settings):
+    """League-dates with an archived fixture kicking off inside the window.
+
+    Kick-offs come from this archive's own fixture index, so the near-kickoff
+    mode never opens the platform database. Each scope re-requests the same
+    league-date pages as the full cycle, so receipts stay comparable.
+    """
+    league_ids = {LEAGUE_TO_API_ID[league] for league in settings["leagues"]}
+    end = started + timedelta(hours=settings["near_kickoff_hours"])
+    rows = db.execute("""SELECT DISTINCT league_id, kickoff_utc FROM fixture_snapshots
+        WHERE kickoff_utc IS NOT NULL AND league_id IS NOT NULL""").fetchall()
+    scopes = set()
+    for league, kickoff in rows:
+        kickoff = parse_time(kickoff)
+        if league in league_ids and kickoff and started < kickoff <= end:
+            scopes.add((league, kickoff.date()))
+    return sorted(scopes, key=lambda scope: (scope[1], scope[0]))
 
 
 def collect(db, key, settings, *, session=None, clock=now, sleep=time.sleep, monotonic=time.monotonic):
+    started = clock()
+    if "near_kickoff_hours" in settings:
+        scopes = near_kickoff_scopes(db, started, settings)
+        if not scopes:
+            # Most ticks have nothing to capture; do not record an empty run.
+            return dict(run_id=None, status="idle", requests=0, scopes=0,
+                        incomplete_scopes=0, stop_reason=None)
+    else:
+        scopes = [(LEAGUE_TO_API_ID[league], (started + timedelta(days=day)).date())
+                  for day in range(settings["days_ahead"] + 1) for league in settings["leagues"]]
     transport = session or requests.Session()
-    run_id, started = uuid.uuid4().hex, clock()
-    scopes = [(LEAGUE_TO_API_ID[league], (started + timedelta(days=day)).date())
-              for day in range(settings["days_ahead"] + 1) for league in settings["leagues"]]
+    run_id = uuid.uuid4().hex
     # Schedule every requested scope before networking, so failures/omissions
     # have a denominator. Outcomes and the live platform DB are never opened.
     with db:
@@ -448,9 +481,12 @@ def main(argv=None):
     parser.add_argument("--daily-budget", type=int, default=3600)
     parser.add_argument("--reserve", type=int, default=1000)
     parser.add_argument("--rpm", type=int, default=60)
+    parser.add_argument("--near-kickoff-hours", type=float,
+                        help="Only capture league-dates with a fixture kicking off within this many hours")
     args = parser.parse_args(argv)
     try:
-        settings = config(args.leagues, args.days_ahead, args.max_requests, args.daily_budget, args.reserve, args.rpm)
+        settings = config(args.leagues, args.days_ahead, args.max_requests, args.daily_budget, args.reserve, args.rpm,
+                          args.near_kickoff_hours)
         result = run(execute=args.execute, show_status=args.status, settings=settings)
         print(json.dumps(result, indent=2))
         return 2 if result.get("status") == "incomplete" else 0
