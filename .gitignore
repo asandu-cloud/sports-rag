@@ -14,8 +14,10 @@ __pycache__/
 
 # Hide output
 /Output
+Output/
 
 # Hide local vector DB artifacts
+Research/football-data/raw/
 Index/chroma/
 /Index/chroma/**
 /Index/chroma.sqlite3
