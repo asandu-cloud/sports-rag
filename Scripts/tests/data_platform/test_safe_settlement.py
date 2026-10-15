@@ -95,6 +95,24 @@ def test_supported_markets(market, key, side, line, outcome, actual):
     assert (grade.outcome, grade.actual_result) == (outcome, actual)
 
 
+@pytest.mark.parametrize("side,line,outcome", [
+    ("A", -.75, "half_hit"),        # home team by name (the engine stores the team, not "home")
+    (" b ", .75, "half_miss"),      # away team, matched like the engine: case- and space-insensitive
+    ("B", 1.25, "half_hit"),
+])
+def test_handicap_side_given_as_a_team_name_grades_like_home_or_away(side, line, outcome):
+    prediction = pred("spreads", "spreads", side, line)
+    prediction.update(home_team="A", away_team="B")
+    grade = grade_selection(prediction, parse_fixture_result(fixture()))  # provider renames teams; ours stay A/B
+    assert (grade.outcome, grade.actual_result) == (outcome, 1)
+
+
+def test_handicap_side_matching_neither_team_stays_pending():
+    prediction = pred("spreads", "spreads", "C", -.5)
+    prediction.update(home_team="A", away_team="B")
+    assert grade_selection(prediction, parse_fixture_result(fixture())).pending_reason == "invalid_side"
+
+
 @pytest.mark.parametrize("status", ["AET", "PEN"])
 def test_extended_matches_use_only_fulltime_score_and_withhold_unsegmented_stats(status):
     fx = fixture(status)

@@ -151,6 +151,22 @@ def selection_issue(prediction: Mapping) -> str | None:
     return None
 
 
+def handicap_side(prediction: Mapping) -> str | None:
+    """"home"/"away" for a handicap pick, whose side the engine stores as the team name.
+
+    Matched against the prediction's own team names (the ones the engine
+    compared at publication), case- and space-insensitively like the engine.
+    """
+    side = str(prediction.get("side") or "").strip().lower()
+    if side in {"home", "away"}:
+        return side
+    home = str(prediction.get("home_team") or "").strip().lower()
+    away = str(prediction.get("away_team") or "").strip().lower()
+    if not side or home == away:
+        return None
+    return "home" if side == home else "away" if side == away else None
+
+
 def grade_selection(prediction: Mapping, result: Mapping, *, rules: Mapping | None = None) -> Grade:
     """Grade exact identities; never retrofit a product policy onto old bets."""
     pending = lambda reason: Grade(pending_reason=reason)
@@ -203,7 +219,8 @@ def grade_selection(prediction: Mapping, result: Mapping, *, rules: Mapping | No
                 return pending("invalid_score_selection")
             return Grade("hit" if (int(score[1]), int(score[2])) == (home, away) else "miss")
         if market == "spreads":
-            if side not in {"home", "away"}:
+            side = handicap_side(prediction)
+            if side is None:
                 return pending("invalid_side")
             try:
                 line = prediction.get("line")
