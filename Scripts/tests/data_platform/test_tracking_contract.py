@@ -239,7 +239,8 @@ def test_published_cohort_filters_and_quote_versions_are_auditable(
     assert daily["total"] == 2
     assert daily["misses"] == 1
 
-    recent = predictions.get_recent(days=30, published_only=True, publication_scope="all")
+    recent = predictions.get_recent(days=(date.today() - date(2026, 9, 5)).days + 1,  # window must reach the fixed test date
+                                     published_only=True, publication_scope="all")
     assert {row["id"] for row in recent} == {first["prediction_id"], second["prediction_id"]}
 
     calibration = predictions.get_calibration_data(published_only=True, publication_scope="all")

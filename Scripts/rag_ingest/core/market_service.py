@@ -411,14 +411,17 @@ def _evaluate_market(
 
     fixture = _fixture_ref(event, league)
     source_date = fixture_date or fixture.kickoff
+    system_version = prediction_system_manifest()["version"]
     provenance = Provenance(
         pipeline_version=CANONICAL_PIPELINE_VERSION,
         input_snapshot_id=input_snapshot_id or _snapshot_id(event, league, source_date),
         generated_at=_generated_at(generated_at),
-        model_version=model_version,
+        # Without a separately versioned model, the deployed code fingerprint
+        # identifies what produced the result (fills match_reads.model_version).
+        model_version=model_version or system_version,
         as_of=source_date,
         sources=("core.projections", "core.line_selection", "core.odds_extraction"),
-        system_version=prediction_system_manifest()["version"],
+        system_version=system_version,
     )
     try:
         from data_platform.services.decision_audit import run_selector

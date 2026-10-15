@@ -598,7 +598,9 @@ def team_name_aliases(name: str) -> Set[str]:
 def _kb_team_variants(team_name: str) -> List[str]:
     """Generate team name variants for KB lookup: exact -> alias -> fuzzy."""
     canonical = canonical_team_name(team_name)
-    variants = list({team_name, canonical, team_name.lower(), canonical.lower(), team_name.title(), canonical.title()})
+    # Ordered, not a set: lookups stop at the first hit, so order must not depend on hashing.
+    variants = list(dict.fromkeys([team_name, canonical, team_name.lower(), canonical.lower(),
+                                   team_name.title(), canonical.title()]))
     # Add token-stripped variants (e.g., "AFC Bournemouth" -> "Bournemouth")
     for suffix in [" united", " hotspur", " fc", " afc", " cf", " city"]:
         for base in [team_name.lower(), canonical.lower()]:

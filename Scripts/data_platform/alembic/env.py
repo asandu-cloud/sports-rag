@@ -33,7 +33,8 @@ config = context.config
 # Logging config (alembic.ini) if present
 if config.config_file_name is not None:
     try:
-        fileConfig(config.config_file_name)
+        # Keep loggers created before migrations (in-process init-db) working.
+        fileConfig(config.config_file_name, disable_existing_loggers=False)
     except Exception:
         pass
 

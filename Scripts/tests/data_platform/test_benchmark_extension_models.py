@@ -5,6 +5,10 @@ import joblib
 import numpy as np
 import pytest
 
+# Phase 3 research estimators: installed from requirements-phase3.lock.txt, not the app environment.
+pytest.importorskip("xgboost")
+pytest.importorskip("catboost")
+
 from Scripts.data_platform.features.benchmarks import extension_models as extension
 from Scripts.data_platform.features.benchmarks import estimators as base
 from Scripts.data_platform.features.benchmarks.data import expected_schema

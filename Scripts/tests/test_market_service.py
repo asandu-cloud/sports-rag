@@ -93,6 +93,16 @@ class MarketServiceTests(unittest.TestCase):
         self.assertEqual(result.provenance.input_snapshot_id, "recorded:fixture-123")
         self.assertEqual(result.provenance.generated_at, "2026-08-21T12:00:00Z")
 
+    def test_model_version_defaults_to_the_deployed_system_version(self):
+        with mock.patch.object(market_service, "projected_total_goals", return_value=(3.2, 3.0, 3.4)):
+            default = market_service.evaluate_market(_event(), "EPL", "goals")
+            explicit = market_service.evaluate_market(_event(), "EPL", "goals", model_version="ml-goals.v3")
+
+        system = market_service.prediction_system_manifest()["version"]
+        self.assertEqual(default.provenance.model_version, system)
+        self.assertEqual(default.provenance.system_version, system)
+        self.assertEqual(explicit.provenance.model_version, "ml-goals.v3")
+
     def test_missing_profile_data_is_unavailable_without_running_selection(self):
         with mock.patch.object(market_service, "projected_total_corners", return_value=(None, None, None)):
             result = market_service.evaluate_market(

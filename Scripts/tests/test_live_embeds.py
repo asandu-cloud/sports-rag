@@ -4,7 +4,9 @@ import sys
 import unittest
 from types import SimpleNamespace
 
-if "discord" not in sys.modules:
+try:  # stub discord only when it is not installed; a stub leaks into later tests
+    import discord  # noqa: F401
+except ImportError:
     class _DummyEmbed:
         def __init__(self, *args, **kwargs):
             self.fields = []

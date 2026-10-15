@@ -393,7 +393,8 @@ def _build_where(league: str, extra_filters: List[Dict]) -> Dict:
 def _team_variants(team_name: str) -> List[str]:
     """Generate team name variants for Chroma lookup."""
     base = team_name.strip()
-    variants = list({base, base.lower(), base.title()})
+    # Ordered, not a set: lookups stop at the first hit, so order must not depend on hashing.
+    variants = list(dict.fromkeys([base, base.lower(), base.title()]))
     for suffix in [" united", " hotspur", " fc", " afc", " cf", " city"]:
         for b in [base.lower()]:
             if b.endswith(suffix):
