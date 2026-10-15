@@ -1,0 +1,22 @@
+{
+  "command": ".venv/bin/python -m pytest -q Scripts/tests/data_platform",
+  "passed": 1109,
+  "skipped": 2,
+  "failed": 2,
+  "errors": 78,
+  "seconds": 41.85,
+  "research_cases_passed": 45,
+  "known_issues": [
+    "78 xgboost dependency setup errors",
+    "team_catboost dependency failure",
+    "date-relative published-cohort tracking assertion"
+  ],
+  "javascript": {
+    "command": "node Scripts/tests/test_phase5_communication_web.js",
+    "passed": true
+  },
+  "protected_file_hash_checks": 46,
+  "protected_files_changed": [],
+  "new_frontend_files": [],
+  "git_diff_check": "passed"
+}

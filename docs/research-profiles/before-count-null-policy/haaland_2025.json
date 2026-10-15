@@ -1,0 +1,584 @@
+{
+  "schema_version": "research-profile.v1",
+  "subject": {
+    "type": "player",
+    "id": 52,
+    "name": "Erling Haaland",
+    "api_football_id": 1100,
+    "nationality": null
+  },
+  "competition": {
+    "id": 1,
+    "code": "EPL",
+    "name": "Premier League"
+  },
+  "season": {
+    "year": 2025,
+    "label": "2025/26",
+    "id": 1
+  },
+  "totals": {
+    "appearances": 35,
+    "minutes": 2958,
+    "goals": 27,
+    "assists": 8,
+    "shots": 102,
+    "shots_on_target": 59,
+    "fouls_won": 25,
+    "fouls_committed": 24,
+    "yellow_cards": 2,
+    "red_cards": 0,
+    "cards": 2,
+    "starts": 34
+  },
+  "metrics": {
+    "goals_per_90": {
+      "value": 0.821501014198783,
+      "unit": "per_90",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 20,
+        "missing_matches": 15
+      },
+      "basis": "recorded_sum_over_all_appearance_minutes",
+      "rank": 1,
+      "percentile": 99,
+      "peer_count": 58,
+      "league_average": null
+    },
+    "assists_per_90": {
+      "value": 0.2434077079107505,
+      "unit": "per_90",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "recorded_sum_over_all_appearance_minutes",
+      "rank": 5,
+      "percentile": 93,
+      "peer_count": 61,
+      "league_average": null
+    },
+    "shots_per_90": {
+      "value": 3.103448275862069,
+      "unit": "per_90",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 33,
+        "missing_matches": 2
+      },
+      "basis": "recorded_sum_over_all_appearance_minutes",
+      "rank": 1,
+      "percentile": 99,
+      "peer_count": 61,
+      "league_average": null
+    },
+    "shots_on_target_per_90": {
+      "value": 1.795131845841785,
+      "unit": "per_90",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 29,
+        "missing_matches": 6
+      },
+      "basis": "recorded_sum_over_all_appearance_minutes",
+      "rank": 2,
+      "percentile": 98,
+      "peer_count": 61,
+      "league_average": null
+    },
+    "fouls_won_per_90": {
+      "value": 0.7606490872210954,
+      "unit": "per_90",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 20,
+        "missing_matches": 15
+      },
+      "basis": "recorded_sum_over_all_appearance_minutes",
+      "rank": 49,
+      "percentile": 19,
+      "peer_count": 60,
+      "league_average": null
+    },
+    "fouls_committed_per_90": {
+      "value": 0.7302231237322515,
+      "unit": "per_90",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 17,
+        "missing_matches": 18
+      },
+      "basis": "recorded_sum_over_all_appearance_minutes",
+      "rank": 49,
+      "percentile": 20,
+      "peer_count": 61,
+      "league_average": null
+    },
+    "yellow_cards_per_90": {
+      "value": 0.060851926977687626,
+      "unit": "per_90",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "recorded_sum_over_all_appearance_minutes",
+      "rank": 46,
+      "percentile": 25,
+      "peer_count": 61,
+      "league_average": null
+    },
+    "red_cards_per_90": {
+      "value": 0.0,
+      "unit": "per_90",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "recorded_sum_over_all_appearance_minutes",
+      "rank": 2,
+      "percentile": 49,
+      "peer_count": 61,
+      "league_average": null
+    },
+    "cards_per_90": {
+      "value": 0.060851926977687626,
+      "unit": "per_90",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "recorded_sum_over_all_appearance_minutes",
+      "rank": 46,
+      "percentile": 25,
+      "peer_count": 61,
+      "league_average": null
+    },
+    "duel_win_pct": {
+      "value": 54.20168067226891,
+      "unit": "percent",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 32,
+        "missing_matches": 3
+      },
+      "basis": "sum_over_sum_on_paired_observations",
+      "numerator": 129,
+      "denominator": 238,
+      "rank": 2,
+      "percentile": 98,
+      "peer_count": 61,
+      "league_average": null
+    },
+    "pass_accuracy_pct": {
+      "value": 65.78947368421052,
+      "unit": "percent",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "sum_over_sum_on_paired_observations",
+      "numerator": 250,
+      "denominator": 380,
+      "rank": 49,
+      "percentile": 20,
+      "peer_count": 61,
+      "league_average": null
+    },
+    "average_rating": {
+      "value": 7.308571428571429,
+      "unit": "rating",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "observed_matches",
+      "rank": 1,
+      "percentile": 99,
+      "peer_count": 61,
+      "league_average": null
+    }
+  },
+  "ranking": {
+    "ranked": true,
+    "reason": null,
+    "peer_group": "F",
+    "sample_minutes": 2958,
+    "sample_matches": 35,
+    "minimum_minutes": 900,
+    "minimum_matches": 1
+  },
+  "frequencies": {
+    "shots_on_target_1_plus": {
+      "count": 29,
+      "denominator": 29,
+      "unknown": 6
+    },
+    "shots_on_target_2_plus": {
+      "count": 16,
+      "denominator": 29,
+      "unknown": 6
+    },
+    "shots_3_plus": {
+      "count": 18,
+      "denominator": 33,
+      "unknown": 2
+    },
+    "scored": {
+      "count": 20,
+      "denominator": 20,
+      "unknown": 15
+    },
+    "assisted": {
+      "count": 7,
+      "denominator": 35,
+      "unknown": 0
+    },
+    "booked": {
+      "count": 2,
+      "denominator": 35,
+      "unknown": 0
+    }
+  },
+  "headline": {
+    "subject_type": "player",
+    "metric": "goals_per_90",
+    "value": 0.821501014198783,
+    "percentile": 99,
+    "rank": 1,
+    "peer_count": 58,
+    "partial_observations": true,
+    "text": "Erling Haaland records 0.82 goals per 90 minutes; this is around the 99th percentile among 58 Premier League forwards. Some match observations are missing."
+  },
+  "data_basis": {
+    "source": "canonical_database",
+    "matches": 35,
+    "minutes": 2958,
+    "competition": {
+      "id": 1,
+      "code": "EPL",
+      "name": "Premier League"
+    },
+    "season": {
+      "year": 2025,
+      "label": "2025/26",
+      "id": 1
+    },
+    "finished_statuses": [
+      "FT",
+      "AET",
+      "PEN"
+    ],
+    "match_scope": "as_stored_including_extra_time_when_present",
+    "generated_at": "2026-10-08T09:38:38.633805+00:00",
+    "build_id": "bb7f9f89492c4de19a962ce49870de50",
+    "ranks_built_at": "2026-10-08T09:34:58.337798+00:00",
+    "null_policy": "unknown_not_zero; recorded_sums; frequencies_exclude_unknown",
+    "frequency_scope": "whole_selected_season",
+    "cards_definition": "yellow_plus_red; booked_means_either"
+  },
+  "previous_season": null,
+  "starts_basis": {
+    "method": "substitute_flag",
+    "substitute_flag_matches": 35,
+    "minutes_fallback_matches": 0
+  },
+  "last_10": [
+    {
+      "fixture_id": 6787,
+      "date": "2026-02-11T19:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 13,
+        "name": "Manchester City"
+      },
+      "away": {
+        "id": 4,
+        "name": "Fulham"
+      },
+      "score": {
+        "home": 3,
+        "away": 0
+      },
+      "venue": "home",
+      "opponent": {
+        "id": 4,
+        "name": "Fulham"
+      },
+      "values": {
+        "minutes": 45,
+        "shots": 1,
+        "shots_on_target": 1,
+        "goals": 1,
+        "yellow_cards": 0
+      }
+    },
+    {
+      "fixture_id": 6798,
+      "date": "2026-02-21T20:00:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 13,
+        "name": "Manchester City"
+      },
+      "away": {
+        "id": 2,
+        "name": "Newcastle"
+      },
+      "score": {
+        "home": 2,
+        "away": 1
+      },
+      "venue": "home",
+      "opponent": {
+        "id": 2,
+        "name": "Newcastle"
+      },
+      "values": {
+        "minutes": 90,
+        "shots": 3,
+        "shots_on_target": 1,
+        "goals": null,
+        "yellow_cards": 0
+      }
+    },
+    {
+      "fixture_id": 6819,
+      "date": "2026-03-04T19:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 13,
+        "name": "Manchester City"
+      },
+      "away": {
+        "id": 18,
+        "name": "Nottingham Forest"
+      },
+      "score": {
+        "home": 2,
+        "away": 2
+      },
+      "venue": "home",
+      "opponent": {
+        "id": 18,
+        "name": "Nottingham Forest"
+      },
+      "values": {
+        "minutes": 90,
+        "shots": 1,
+        "shots_on_target": null,
+        "goals": null,
+        "yellow_cards": 0
+      }
+    },
+    {
+      "fixture_id": 6828,
+      "date": "2026-03-14T20:00:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 11,
+        "name": "West Ham"
+      },
+      "away": {
+        "id": 13,
+        "name": "Manchester City"
+      },
+      "score": {
+        "home": 1,
+        "away": 1
+      },
+      "venue": "away",
+      "opponent": {
+        "id": 11,
+        "name": "West Ham"
+      },
+      "values": {
+        "minutes": 90,
+        "shots": 3,
+        "shots_on_target": 1,
+        "goals": null,
+        "yellow_cards": 0
+      }
+    },
+    {
+      "fixture_id": 6850,
+      "date": "2026-04-12T15:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 12,
+        "name": "Chelsea"
+      },
+      "away": {
+        "id": 13,
+        "name": "Manchester City"
+      },
+      "score": {
+        "home": 0,
+        "away": 3
+      },
+      "venue": "away",
+      "opponent": {
+        "id": 12,
+        "name": "Chelsea"
+      },
+      "values": {
+        "minutes": 90,
+        "shots": 3,
+        "shots_on_target": 1,
+        "goals": null,
+        "yellow_cards": 0
+      }
+    },
+    {
+      "fixture_id": 6860,
+      "date": "2026-04-19T15:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 13,
+        "name": "Manchester City"
+      },
+      "away": {
+        "id": 7,
+        "name": "Arsenal"
+      },
+      "score": {
+        "home": 2,
+        "away": 1
+      },
+      "venue": "home",
+      "opponent": {
+        "id": 7,
+        "name": "Arsenal"
+      },
+      "values": {
+        "minutes": 90,
+        "shots": 4,
+        "shots_on_target": 1,
+        "goals": 1,
+        "yellow_cards": 1
+      }
+    },
+    {
+      "fixture_id": 6864,
+      "date": "2026-04-22T19:00:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 8,
+        "name": "Burnley"
+      },
+      "away": {
+        "id": 13,
+        "name": "Manchester City"
+      },
+      "score": {
+        "home": 0,
+        "away": 1
+      },
+      "venue": "away",
+      "opponent": {
+        "id": 8,
+        "name": "Burnley"
+      },
+      "values": {
+        "minutes": 90,
+        "shots": 4,
+        "shots_on_target": 2,
+        "goals": 1,
+        "yellow_cards": 0
+      }
+    },
+    {
+      "fixture_id": 6881,
+      "date": "2026-05-04T19:00:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 9,
+        "name": "Everton"
+      },
+      "away": {
+        "id": 13,
+        "name": "Manchester City"
+      },
+      "score": {
+        "home": 3,
+        "away": 3
+      },
+      "venue": "away",
+      "opponent": {
+        "id": 9,
+        "name": "Everton"
+      },
+      "values": {
+        "minutes": 90,
+        "shots": 1,
+        "shots_on_target": 1,
+        "goals": 1,
+        "yellow_cards": 0
+      }
+    },
+    {
+      "fixture_id": 6886,
+      "date": "2026-05-09T16:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 13,
+        "name": "Manchester City"
+      },
+      "away": {
+        "id": 16,
+        "name": "Brentford"
+      },
+      "score": {
+        "home": 3,
+        "away": 0
+      },
+      "venue": "home",
+      "opponent": {
+        "id": 16,
+        "name": "Brentford"
+      },
+      "values": {
+        "minutes": 90,
+        "shots": 5,
+        "shots_on_target": 4,
+        "goals": 1,
+        "yellow_cards": 0
+      }
+    },
+    {
+      "fixture_id": 6901,
+      "date": "2026-05-19T18:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 3,
+        "name": "Bournemouth"
+      },
+      "away": {
+        "id": 13,
+        "name": "Manchester City"
+      },
+      "score": {
+        "home": 1,
+        "away": 1
+      },
+      "venue": "away",
+      "opponent": {
+        "id": 3,
+        "name": "Bournemouth"
+      },
+      "values": {
+        "minutes": 90,
+        "shots": 1,
+        "shots_on_target": 1,
+        "goals": 1,
+        "yellow_cards": 0
+      }
+    }
+  ]
+}

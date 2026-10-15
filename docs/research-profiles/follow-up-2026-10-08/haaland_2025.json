@@ -1,0 +1,1032 @@
+{
+  "schema_version": "research-profile.v1",
+  "subject": {
+    "type": "player",
+    "id": 52,
+    "name": "Erling Haaland",
+    "api_football_id": 1100,
+    "nationality": null,
+    "club": {
+      "id": 13,
+      "name": "Manchester City",
+      "logo_url": "https://media.api-sports.io/football/teams/50.png"
+    },
+    "position": {
+      "code": "F",
+      "label": "Forward"
+    },
+    "photo_url": "https://media.api-sports.io/football/players/1100.png"
+  },
+  "competition": {
+    "id": 1,
+    "code": "EPL",
+    "name": "Premier League"
+  },
+  "season": {
+    "year": 2025,
+    "label": "2025/26",
+    "id": 1
+  },
+  "totals": {
+    "appearances": 35,
+    "minutes": 2958,
+    "goals": 27,
+    "assists": 8,
+    "shots": 102,
+    "shots_on_target": 59,
+    "fouls_won": 25,
+    "fouls_committed": 24,
+    "yellow_cards": 2,
+    "red_cards": 0,
+    "cards": 2,
+    "starts": 34
+  },
+  "metrics": {
+    "goals_per_90": {
+      "value": 0.821501014198783,
+      "unit": "per_90",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "count_sum_after_null_policy_over_all_appearance_minutes",
+      "rank": 1,
+      "percentile": 99,
+      "peer_count": 61,
+      "league_average": null,
+      "metric_label": "goals per 90 minutes",
+      "display_value": "0.82",
+      "peer_label": "Premier League forwards",
+      "comparison": "higher",
+      "comparison_share": 99,
+      "rank_phrase": null,
+      "comparison_text": "more than 99% of Premier League forwards"
+    },
+    "assists_per_90": {
+      "value": 0.2434077079107505,
+      "unit": "per_90",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "count_sum_after_null_policy_over_all_appearance_minutes",
+      "rank": 5,
+      "percentile": 93,
+      "peer_count": 61,
+      "league_average": null,
+      "metric_label": "assists per 90 minutes",
+      "display_value": "0.24",
+      "peer_label": "Premier League forwards",
+      "comparison": "higher",
+      "comparison_share": 93,
+      "rank_phrase": null,
+      "comparison_text": "more than 93% of Premier League forwards"
+    },
+    "shots_per_90": {
+      "value": 3.103448275862069,
+      "unit": "per_90",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "count_sum_after_null_policy_over_all_appearance_minutes",
+      "rank": 1,
+      "percentile": 99,
+      "peer_count": 61,
+      "league_average": null,
+      "metric_label": "shots per 90 minutes",
+      "display_value": "3.10",
+      "peer_label": "Premier League forwards",
+      "comparison": "higher",
+      "comparison_share": 99,
+      "rank_phrase": null,
+      "comparison_text": "more than 99% of Premier League forwards"
+    },
+    "shots_on_target_per_90": {
+      "value": 1.795131845841785,
+      "unit": "per_90",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "count_sum_after_null_policy_over_all_appearance_minutes",
+      "rank": 2,
+      "percentile": 98,
+      "peer_count": 61,
+      "league_average": null,
+      "metric_label": "shots on target per 90 minutes",
+      "display_value": "1.80",
+      "peer_label": "Premier League forwards",
+      "comparison": "higher",
+      "comparison_share": 98,
+      "rank_phrase": null,
+      "comparison_text": "more than 98% of Premier League forwards"
+    },
+    "fouls_won_per_90": {
+      "value": 0.7606490872210954,
+      "unit": "per_90",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "count_sum_after_null_policy_over_all_appearance_minutes",
+      "rank": 49,
+      "percentile": 20,
+      "peer_count": 61,
+      "league_average": null,
+      "metric_label": "fouls won per 90 minutes",
+      "display_value": "0.76",
+      "peer_label": "Premier League forwards",
+      "comparison": "lower",
+      "comparison_share": 80,
+      "rank_phrase": null,
+      "comparison_text": "fewer than 80% of Premier League forwards"
+    },
+    "fouls_committed_per_90": {
+      "value": 0.7302231237322515,
+      "unit": "per_90",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "count_sum_after_null_policy_over_all_appearance_minutes",
+      "rank": 49,
+      "percentile": 20,
+      "peer_count": 61,
+      "league_average": null,
+      "metric_label": "fouls committed per 90 minutes",
+      "display_value": "0.73",
+      "peer_label": "Premier League forwards",
+      "comparison": "lower",
+      "comparison_share": 80,
+      "rank_phrase": null,
+      "comparison_text": "fewer than 80% of Premier League forwards"
+    },
+    "yellow_cards_per_90": {
+      "value": 0.060851926977687626,
+      "unit": "per_90",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "count_sum_after_null_policy_over_all_appearance_minutes",
+      "rank": 46,
+      "percentile": 25,
+      "peer_count": 61,
+      "league_average": null,
+      "metric_label": "yellow cards per 90 minutes",
+      "display_value": "0.06",
+      "peer_label": "Premier League forwards",
+      "comparison": "lower",
+      "comparison_share": 75,
+      "rank_phrase": null,
+      "comparison_text": "fewer than 75% of Premier League forwards"
+    },
+    "red_cards_per_90": {
+      "value": 0.0,
+      "unit": "per_90",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "count_sum_after_null_policy_over_all_appearance_minutes",
+      "rank": 2,
+      "percentile": 49,
+      "peer_count": 61,
+      "league_average": null,
+      "metric_label": "red cards per 90 minutes",
+      "display_value": "0.00",
+      "peer_label": "Premier League forwards",
+      "comparison": "lower",
+      "comparison_share": 51,
+      "rank_phrase": null,
+      "comparison_text": "fewer than 51% of Premier League forwards"
+    },
+    "cards_per_90": {
+      "value": 0.060851926977687626,
+      "unit": "per_90",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "count_sum_after_null_policy_over_all_appearance_minutes",
+      "rank": 46,
+      "percentile": 25,
+      "peer_count": 61,
+      "league_average": null,
+      "metric_label": "cards per 90 minutes",
+      "display_value": "0.06",
+      "peer_label": "Premier League forwards",
+      "comparison": "lower",
+      "comparison_share": 75,
+      "rank_phrase": null,
+      "comparison_text": "fewer than 75% of Premier League forwards"
+    },
+    "duel_win_pct": {
+      "value": 53.75,
+      "unit": "percent",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "sum_over_sum_after_count_null_policy",
+      "numerator": 129,
+      "denominator": 240,
+      "rank": 1,
+      "percentile": 99,
+      "peer_count": 61,
+      "league_average": null,
+      "metric_label": "duel win rate",
+      "display_value": "53.75",
+      "peer_label": "Premier League forwards",
+      "comparison": "higher",
+      "comparison_share": 99,
+      "rank_phrase": null,
+      "comparison_text": "higher than 99% of Premier League forwards"
+    },
+    "pass_accuracy_pct": {
+      "value": 65.78947368421052,
+      "unit": "percent",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "sum_over_sum_after_count_null_policy",
+      "numerator": 250,
+      "denominator": 380,
+      "rank": 47,
+      "percentile": 24,
+      "peer_count": 61,
+      "league_average": null,
+      "metric_label": "pass accuracy",
+      "display_value": "65.79",
+      "peer_label": "Premier League forwards",
+      "comparison": "lower",
+      "comparison_share": 76,
+      "rank_phrase": null,
+      "comparison_text": "lower than 76% of Premier League forwards"
+    },
+    "shooting_accuracy_pct": {
+      "value": 57.84313725490196,
+      "unit": "percent",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "sum_over_sum_after_count_null_policy",
+      "numerator": 59,
+      "denominator": 102,
+      "rank": 17,
+      "percentile": 73,
+      "peer_count": 61,
+      "league_average": null,
+      "metric_label": "shooting accuracy",
+      "display_value": "57.84",
+      "peer_label": "Premier League forwards",
+      "comparison": "higher",
+      "comparison_share": 73,
+      "rank_phrase": null,
+      "comparison_text": "higher than 73% of Premier League forwards"
+    },
+    "conversion_pct": {
+      "value": 26.470588235294116,
+      "unit": "percent",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "sum_over_sum_after_count_null_policy",
+      "numerator": 27,
+      "denominator": 102,
+      "rank": 11,
+      "percentile": 83,
+      "peer_count": 61,
+      "league_average": null,
+      "metric_label": "shot conversion",
+      "display_value": "26.47",
+      "peer_label": "Premier League forwards",
+      "comparison": "higher",
+      "comparison_share": 83,
+      "rank_phrase": null,
+      "comparison_text": "higher than 83% of Premier League forwards"
+    },
+    "average_rating": {
+      "value": 7.308571428571429,
+      "unit": "rating",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 0
+      },
+      "basis": "known_matches_after_count_null_policy",
+      "rank": 1,
+      "percentile": 99,
+      "peer_count": 61,
+      "league_average": null,
+      "metric_label": "average rating",
+      "display_value": "7.31",
+      "peer_label": "Premier League forwards",
+      "comparison": "higher",
+      "comparison_share": 99,
+      "rank_phrase": null,
+      "comparison_text": "higher than 99% of Premier League forwards"
+    }
+  },
+  "ranking": {
+    "ranked": true,
+    "reason": null,
+    "peer_group": "F",
+    "sample_minutes": 2958,
+    "sample_matches": 35,
+    "minimum_minutes": 900,
+    "minimum_matches": 1
+  },
+  "frequencies": {
+    "shots_on_target_1_plus": {
+      "count": 29,
+      "denominator": 35,
+      "unknown": 0
+    },
+    "shots_on_target_2_plus": {
+      "count": 16,
+      "denominator": 35,
+      "unknown": 0
+    },
+    "shots_3_plus": {
+      "count": 18,
+      "denominator": 35,
+      "unknown": 0
+    },
+    "scored": {
+      "count": 20,
+      "denominator": 35,
+      "unknown": 0
+    },
+    "assisted": {
+      "count": 7,
+      "denominator": 35,
+      "unknown": 0
+    },
+    "booked": {
+      "count": 2,
+      "denominator": 35,
+      "unknown": 0
+    }
+  },
+  "headline": {
+    "subject_type": "player",
+    "metric": "goals_per_90",
+    "value": 0.821501014198783,
+    "percentile": 99,
+    "rank": 1,
+    "peer_count": 61,
+    "metric_label": "goals per 90 minutes",
+    "display_value": "0.82",
+    "peer_label": "Premier League forwards",
+    "comparison": "higher",
+    "comparison_share": 99,
+    "rank_phrase": null,
+    "partial_observations": false,
+    "text": "0.82 goals per 90 minutes, more than 99% of Premier League forwards"
+  },
+  "data_basis": {
+    "source": "canonical_database",
+    "matches": 35,
+    "minutes": 2958,
+    "competition": {
+      "id": 1,
+      "code": "EPL",
+      "name": "Premier League"
+    },
+    "season": {
+      "year": 2025,
+      "label": "2025/26",
+      "id": 1
+    },
+    "finished_matches": 35,
+    "stats_observed_matches": 35,
+    "excluded_matches": 0,
+    "finished_statuses": [
+      "FT",
+      "AET",
+      "PEN"
+    ],
+    "match_scope": "as_stored_including_extra_time_when_present",
+    "generated_at": "2026-10-08T10:47:11.961808+00:00",
+    "build_id": "profiles-v2:9138da19bc5d47648103e55d4eadfeb0",
+    "ranks_built_at": "2026-10-08T10:45:25.208404+00:00",
+    "null_policy": "played_players_observed; team_stats_require_both_nonempty_sides; count_nulls_zero; measurements_nullable; results_from_fixture_score",
+    "count_null_policy_version": "observed-match-count-zero.v2",
+    "stats_rows": {
+      "subject": {
+        "populated": 35,
+        "empty": 0,
+        "count_fields_filled_zero": 116
+      }
+    },
+    "frequency_scope": "whole_selected_season",
+    "cards_definition": "yellow_plus_red; booked_means_either",
+    "shots_off_target_definition": "shots_minus_on_target_including_blocked"
+  },
+  "previous_season": null,
+  "starts_basis": {
+    "method": "substitute_flag",
+    "substitute_flag_matches": 35,
+    "minutes_fallback_matches": 0
+  },
+  "role_summary": {
+    "role": "regular_starter",
+    "starts": 34,
+    "appearances": 35,
+    "start_rate": 0.9714285714285714,
+    "average_minutes_per_appearance": 84.51428571428572
+  },
+  "shooting_funnel": {
+    "shots": 102,
+    "shots_on_target": 59,
+    "goals": 27
+  },
+  "last_10": [
+    {
+      "fixture_id": 6787,
+      "date": "2026-02-11T19:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 13,
+        "name": "Manchester City",
+        "short_code": "MCI",
+        "logo_url": "https://media.api-sports.io/football/teams/50.png"
+      },
+      "away": {
+        "id": 4,
+        "name": "Fulham",
+        "short_code": "FUL",
+        "logo_url": "https://media.api-sports.io/football/teams/36.png"
+      },
+      "score": {
+        "home": 3,
+        "away": 0
+      },
+      "stats_available": {
+        "subject": true
+      },
+      "stats_observed": true,
+      "venue": "home",
+      "opponent": {
+        "id": 4,
+        "name": "Fulham",
+        "short_code": "FUL",
+        "logo_url": "https://media.api-sports.io/football/teams/36.png",
+        "abbreviation": "FUL"
+      },
+      "values": {
+        "minutes": 45,
+        "shots": 1,
+        "shots_on_target": 1,
+        "goals": 1,
+        "yellow_cards": 0,
+        "shots_off_target": 0
+      }
+    },
+    {
+      "fixture_id": 6798,
+      "date": "2026-02-21T20:00:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 13,
+        "name": "Manchester City",
+        "short_code": "MCI",
+        "logo_url": "https://media.api-sports.io/football/teams/50.png"
+      },
+      "away": {
+        "id": 2,
+        "name": "Newcastle",
+        "short_code": "NEW",
+        "logo_url": "https://media.api-sports.io/football/teams/34.png"
+      },
+      "score": {
+        "home": 2,
+        "away": 1
+      },
+      "stats_available": {
+        "subject": true
+      },
+      "stats_observed": true,
+      "venue": "home",
+      "opponent": {
+        "id": 2,
+        "name": "Newcastle",
+        "short_code": "NEW",
+        "logo_url": "https://media.api-sports.io/football/teams/34.png",
+        "abbreviation": "NEW"
+      },
+      "values": {
+        "minutes": 90,
+        "shots": 3,
+        "shots_on_target": 1,
+        "goals": 0,
+        "yellow_cards": 0,
+        "shots_off_target": 2
+      }
+    },
+    {
+      "fixture_id": 6819,
+      "date": "2026-03-04T19:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 13,
+        "name": "Manchester City",
+        "short_code": "MCI",
+        "logo_url": "https://media.api-sports.io/football/teams/50.png"
+      },
+      "away": {
+        "id": 18,
+        "name": "Nottingham Forest",
+        "short_code": "NOT",
+        "logo_url": "https://media.api-sports.io/football/teams/65.png"
+      },
+      "score": {
+        "home": 2,
+        "away": 2
+      },
+      "stats_available": {
+        "subject": true
+      },
+      "stats_observed": true,
+      "venue": "home",
+      "opponent": {
+        "id": 18,
+        "name": "Nottingham Forest",
+        "short_code": "NOT",
+        "logo_url": "https://media.api-sports.io/football/teams/65.png",
+        "abbreviation": "NOT"
+      },
+      "values": {
+        "minutes": 90,
+        "shots": 1,
+        "shots_on_target": 0,
+        "goals": 0,
+        "yellow_cards": 0,
+        "shots_off_target": 1
+      }
+    },
+    {
+      "fixture_id": 6828,
+      "date": "2026-03-14T20:00:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 11,
+        "name": "West Ham",
+        "short_code": "WES",
+        "logo_url": "https://media.api-sports.io/football/teams/48.png"
+      },
+      "away": {
+        "id": 13,
+        "name": "Manchester City",
+        "short_code": "MCI",
+        "logo_url": "https://media.api-sports.io/football/teams/50.png"
+      },
+      "score": {
+        "home": 1,
+        "away": 1
+      },
+      "stats_available": {
+        "subject": true
+      },
+      "stats_observed": true,
+      "venue": "away",
+      "opponent": {
+        "id": 11,
+        "name": "West Ham",
+        "short_code": "WES",
+        "logo_url": "https://media.api-sports.io/football/teams/48.png",
+        "abbreviation": "WES"
+      },
+      "values": {
+        "minutes": 90,
+        "shots": 3,
+        "shots_on_target": 1,
+        "goals": 0,
+        "yellow_cards": 0,
+        "shots_off_target": 2
+      }
+    },
+    {
+      "fixture_id": 6850,
+      "date": "2026-04-12T15:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 12,
+        "name": "Chelsea",
+        "short_code": "CHE",
+        "logo_url": "https://media.api-sports.io/football/teams/49.png"
+      },
+      "away": {
+        "id": 13,
+        "name": "Manchester City",
+        "short_code": "MCI",
+        "logo_url": "https://media.api-sports.io/football/teams/50.png"
+      },
+      "score": {
+        "home": 0,
+        "away": 3
+      },
+      "stats_available": {
+        "subject": true
+      },
+      "stats_observed": true,
+      "venue": "away",
+      "opponent": {
+        "id": 12,
+        "name": "Chelsea",
+        "short_code": "CHE",
+        "logo_url": "https://media.api-sports.io/football/teams/49.png",
+        "abbreviation": "CHE"
+      },
+      "values": {
+        "minutes": 90,
+        "shots": 3,
+        "shots_on_target": 1,
+        "goals": 0,
+        "yellow_cards": 0,
+        "shots_off_target": 2
+      }
+    },
+    {
+      "fixture_id": 6860,
+      "date": "2026-04-19T15:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 13,
+        "name": "Manchester City",
+        "short_code": "MCI",
+        "logo_url": "https://media.api-sports.io/football/teams/50.png"
+      },
+      "away": {
+        "id": 7,
+        "name": "Arsenal",
+        "short_code": "ARS",
+        "logo_url": "https://media.api-sports.io/football/teams/42.png"
+      },
+      "score": {
+        "home": 2,
+        "away": 1
+      },
+      "stats_available": {
+        "subject": true
+      },
+      "stats_observed": true,
+      "venue": "home",
+      "opponent": {
+        "id": 7,
+        "name": "Arsenal",
+        "short_code": "ARS",
+        "logo_url": "https://media.api-sports.io/football/teams/42.png",
+        "abbreviation": "ARS"
+      },
+      "values": {
+        "minutes": 90,
+        "shots": 4,
+        "shots_on_target": 1,
+        "goals": 1,
+        "yellow_cards": 1,
+        "shots_off_target": 3
+      }
+    },
+    {
+      "fixture_id": 6864,
+      "date": "2026-04-22T19:00:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 8,
+        "name": "Burnley",
+        "short_code": "BUR",
+        "logo_url": "https://media.api-sports.io/football/teams/44.png"
+      },
+      "away": {
+        "id": 13,
+        "name": "Manchester City",
+        "short_code": "MCI",
+        "logo_url": "https://media.api-sports.io/football/teams/50.png"
+      },
+      "score": {
+        "home": 0,
+        "away": 1
+      },
+      "stats_available": {
+        "subject": true
+      },
+      "stats_observed": true,
+      "venue": "away",
+      "opponent": {
+        "id": 8,
+        "name": "Burnley",
+        "short_code": "BUR",
+        "logo_url": "https://media.api-sports.io/football/teams/44.png",
+        "abbreviation": "BUR"
+      },
+      "values": {
+        "minutes": 90,
+        "shots": 4,
+        "shots_on_target": 2,
+        "goals": 1,
+        "yellow_cards": 0,
+        "shots_off_target": 2
+      }
+    },
+    {
+      "fixture_id": 6881,
+      "date": "2026-05-04T19:00:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 9,
+        "name": "Everton",
+        "short_code": "EVE",
+        "logo_url": "https://media.api-sports.io/football/teams/45.png"
+      },
+      "away": {
+        "id": 13,
+        "name": "Manchester City",
+        "short_code": "MCI",
+        "logo_url": "https://media.api-sports.io/football/teams/50.png"
+      },
+      "score": {
+        "home": 3,
+        "away": 3
+      },
+      "stats_available": {
+        "subject": true
+      },
+      "stats_observed": true,
+      "venue": "away",
+      "opponent": {
+        "id": 9,
+        "name": "Everton",
+        "short_code": "EVE",
+        "logo_url": "https://media.api-sports.io/football/teams/45.png",
+        "abbreviation": "EVE"
+      },
+      "values": {
+        "minutes": 90,
+        "shots": 1,
+        "shots_on_target": 1,
+        "goals": 1,
+        "yellow_cards": 0,
+        "shots_off_target": 0
+      }
+    },
+    {
+      "fixture_id": 6886,
+      "date": "2026-05-09T16:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 13,
+        "name": "Manchester City",
+        "short_code": "MCI",
+        "logo_url": "https://media.api-sports.io/football/teams/50.png"
+      },
+      "away": {
+        "id": 16,
+        "name": "Brentford",
+        "short_code": "BRE",
+        "logo_url": "https://media.api-sports.io/football/teams/55.png"
+      },
+      "score": {
+        "home": 3,
+        "away": 0
+      },
+      "stats_available": {
+        "subject": true
+      },
+      "stats_observed": true,
+      "venue": "home",
+      "opponent": {
+        "id": 16,
+        "name": "Brentford",
+        "short_code": "BRE",
+        "logo_url": "https://media.api-sports.io/football/teams/55.png",
+        "abbreviation": "BRE"
+      },
+      "values": {
+        "minutes": 90,
+        "shots": 5,
+        "shots_on_target": 4,
+        "goals": 1,
+        "yellow_cards": 0,
+        "shots_off_target": 1
+      }
+    },
+    {
+      "fixture_id": 6901,
+      "date": "2026-05-19T18:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 3,
+        "name": "Bournemouth",
+        "short_code": "BOU",
+        "logo_url": "https://media.api-sports.io/football/teams/35.png"
+      },
+      "away": {
+        "id": 13,
+        "name": "Manchester City",
+        "short_code": "MCI",
+        "logo_url": "https://media.api-sports.io/football/teams/50.png"
+      },
+      "score": {
+        "home": 1,
+        "away": 1
+      },
+      "stats_available": {
+        "subject": true
+      },
+      "stats_observed": true,
+      "venue": "away",
+      "opponent": {
+        "id": 3,
+        "name": "Bournemouth",
+        "short_code": "BOU",
+        "logo_url": "https://media.api-sports.io/football/teams/35.png",
+        "abbreviation": "BOU"
+      },
+      "values": {
+        "minutes": 90,
+        "shots": 1,
+        "shots_on_target": 1,
+        "goals": 1,
+        "yellow_cards": 0,
+        "shots_off_target": 0
+      }
+    }
+  ],
+  "available_scopes": [
+    {
+      "competition": {
+        "code": "EPL",
+        "name": "Premier League"
+      },
+      "season": {
+        "year": 2026,
+        "label": "2026/27"
+      },
+      "matches": 5,
+      "ranked": false,
+      "minutes": 450
+    },
+    {
+      "competition": {
+        "code": "UCL",
+        "name": "UEFA Champions League"
+      },
+      "season": {
+        "year": 2026,
+        "label": "2026/27"
+      },
+      "matches": 1,
+      "ranked": false,
+      "minutes": 90
+    },
+    {
+      "competition": {
+        "code": "EPL",
+        "name": "Premier League"
+      },
+      "season": {
+        "year": 2025,
+        "label": "2025/26"
+      },
+      "matches": 35,
+      "ranked": true,
+      "minutes": 2958
+    },
+    {
+      "competition": {
+        "code": "UCL",
+        "name": "UEFA Champions League"
+      },
+      "season": {
+        "year": 2025,
+        "label": "2025/26"
+      },
+      "matches": 10,
+      "ranked": false,
+      "minutes": 755
+    },
+    {
+      "competition": {
+        "code": "EPL",
+        "name": "Premier League"
+      },
+      "season": {
+        "year": 2024,
+        "label": "2024/25"
+      },
+      "matches": 31,
+      "ranked": true,
+      "minutes": 2741
+    },
+    {
+      "competition": {
+        "code": "UCL",
+        "name": "UEFA Champions League"
+      },
+      "season": {
+        "year": 2024,
+        "label": "2024/25"
+      },
+      "matches": 9,
+      "ranked": false,
+      "minutes": 772
+    },
+    {
+      "competition": {
+        "code": "EPL",
+        "name": "Premier League"
+      },
+      "season": {
+        "year": 2023,
+        "label": "2023/24"
+      },
+      "matches": 31,
+      "ranked": true,
+      "minutes": 2556
+    },
+    {
+      "competition": {
+        "code": "UCL",
+        "name": "UEFA Champions League"
+      },
+      "season": {
+        "year": 2023,
+        "label": "2023/24"
+      },
+      "matches": 8,
+      "ranked": false,
+      "minutes": 688
+    },
+    {
+      "competition": {
+        "code": "EPL",
+        "name": "Premier League"
+      },
+      "season": {
+        "year": 2022,
+        "label": "2022/23"
+      },
+      "matches": 35,
+      "ranked": true,
+      "minutes": 2776
+    },
+    {
+      "competition": {
+        "code": "UCL",
+        "name": "UEFA Champions League"
+      },
+      "season": {
+        "year": 2022,
+        "label": "2022/23"
+      },
+      "matches": 11,
+      "ranked": false,
+      "minutes": 845
+    },
+    {
+      "competition": {
+        "code": "Bundesliga",
+        "name": "Bundesliga"
+      },
+      "season": {
+        "year": 2021,
+        "label": "2021/22"
+      },
+      "matches": 24,
+      "ranked": true,
+      "minutes": 1914
+    },
+    {
+      "competition": {
+        "code": "UCL",
+        "name": "UEFA Champions League"
+      },
+      "season": {
+        "year": 2021,
+        "label": "2021/22"
+      },
+      "matches": 3,
+      "ranked": false,
+      "minutes": 203
+    }
+  ]
+}

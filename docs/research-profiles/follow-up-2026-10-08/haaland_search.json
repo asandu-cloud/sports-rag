@@ -1,0 +1,54 @@
+{
+  "schema_version": "research-search.v1",
+  "type": "players",
+  "query": "Haaland",
+  "results": [
+    {
+      "id": 52,
+      "name": "Erling Haaland",
+      "api_football_id": 1100,
+      "last_activity_at": "2026-09-20T13:00:00+00:00",
+      "latest_competition": "EPL",
+      "latest_season": 2026,
+      "position": {
+        "code": "F",
+        "label": "Forward"
+      },
+      "club_name": "Manchester City",
+      "club": {
+        "id": 13,
+        "name": "Manchester City",
+        "logo_url": "https://media.api-sports.io/football/teams/50.png"
+      }
+    },
+    {
+      "id": 24671,
+      "name": "M. Haaland",
+      "api_football_id": 319130,
+      "last_activity_at": "2026-02-26T20:00:00+00:00",
+      "latest_competition": "UEL",
+      "latest_season": 2025,
+      "position": {
+        "code": "M",
+        "label": "Midfielder"
+      },
+      "club_name": "Brann",
+      "club": {
+        "id": 158,
+        "name": "Brann",
+        "logo_url": "https://media.api-sports.io/football/teams/319.png"
+      }
+    }
+  ],
+  "count": 2,
+  "data_basis": {
+    "source": "canonical_database",
+    "competition": null,
+    "season": null,
+    "matches": null,
+    "minutes": null,
+    "build_id": null,
+    "generated_at": "2026-10-08T10:47:12.567179+00:00",
+    "scope": "subjects_with_finished_data; referee_aliases_from_latest_build"
+  }
+}

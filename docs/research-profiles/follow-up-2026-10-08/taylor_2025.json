@@ -1,0 +1,1044 @@
+{
+  "schema_version": "research-profile.v1",
+  "subject": {
+    "type": "referee",
+    "referee_key": "a-taylor-68af826d",
+    "name": "Anthony Taylor",
+    "aliases": [
+      "A. Taylor",
+      "Anthony Taylor, England"
+    ],
+    "country": "England"
+  },
+  "competition": null,
+  "season": {
+    "year": 2025,
+    "label": "2025/26",
+    "id": null
+  },
+  "totals": {
+    "matches": 39,
+    "finished_matches": 40,
+    "stats_observed_matches": 39,
+    "excluded_matches": 1,
+    "cards": 166,
+    "yellows": 162,
+    "reds": 4,
+    "fouls": 820
+  },
+  "metrics": {
+    "cards": {
+      "value": 4.256410256410256,
+      "unit": "per_match",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 39,
+        "missing_matches": 1
+      },
+      "basis": "known_matches_after_count_null_policy",
+      "rank": 50,
+      "percentile": 59,
+      "peer_count": 120,
+      "league_average": null,
+      "metric_label": "cards per match",
+      "display_value": "4.26",
+      "peer_label": "referees",
+      "comparison": "higher",
+      "comparison_share": 59,
+      "rank_phrase": null,
+      "comparison_text": "more than 59% of referees"
+    },
+    "yellows": {
+      "value": 4.153846153846154,
+      "unit": "per_match",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 39,
+        "missing_matches": 1
+      },
+      "basis": "known_matches_after_count_null_policy",
+      "rank": 49,
+      "percentile": 60,
+      "peer_count": 120,
+      "league_average": null,
+      "metric_label": "yellow cards per match",
+      "display_value": "4.15",
+      "peer_label": "referees",
+      "comparison": "higher",
+      "comparison_share": 60,
+      "rank_phrase": null,
+      "comparison_text": "more than 60% of referees"
+    },
+    "reds": {
+      "value": 0.10256410256410256,
+      "unit": "per_match",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 39,
+        "missing_matches": 1
+      },
+      "basis": "known_matches_after_count_null_policy",
+      "rank": 89,
+      "percentile": 26,
+      "peer_count": 120,
+      "league_average": null,
+      "metric_label": "red cards per match",
+      "display_value": "0.10",
+      "peer_label": "referees",
+      "comparison": "lower",
+      "comparison_share": 74,
+      "rank_phrase": null,
+      "comparison_text": "fewer than 74% of referees"
+    },
+    "fouls": {
+      "value": 21.025641025641026,
+      "unit": "per_match",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 39,
+        "missing_matches": 1
+      },
+      "basis": "known_matches_after_count_null_policy",
+      "rank": 103,
+      "percentile": 15,
+      "peer_count": 120,
+      "league_average": null,
+      "metric_label": "fouls per match",
+      "display_value": "21.03",
+      "peer_label": "referees",
+      "comparison": "lower",
+      "comparison_share": 85,
+      "rank_phrase": null,
+      "comparison_text": "fewer than 85% of referees"
+    },
+    "cards_per_foul": {
+      "value": 0.2024390243902439,
+      "unit": "cards_per_foul",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 39,
+        "missing_matches": 1
+      },
+      "basis": "sum_over_sum_after_count_null_policy",
+      "numerator": 166,
+      "denominator": 820,
+      "rank": 30,
+      "percentile": 75,
+      "peer_count": 120,
+      "league_average": null,
+      "metric_label": "cards per foul",
+      "display_value": "0.20",
+      "peer_label": "referees",
+      "comparison": "higher",
+      "comparison_share": 75,
+      "rank_phrase": null,
+      "comparison_text": "more than 75% of referees"
+    }
+  },
+  "ranking": {
+    "ranked": true,
+    "reason": null,
+    "peer_group": "all",
+    "sample_minutes": null,
+    "sample_matches": 39,
+    "minimum_minutes": null,
+    "minimum_matches": 15
+  },
+  "frequencies": {
+    "cards_4_plus": {
+      "count": 25,
+      "denominator": 39,
+      "unknown": 1
+    },
+    "cards_5_plus": {
+      "count": 19,
+      "denominator": 39,
+      "unknown": 1
+    },
+    "red_card_shown": {
+      "count": 4,
+      "denominator": 39,
+      "unknown": 1
+    },
+    "fouls_25_plus": {
+      "count": 9,
+      "denominator": 39,
+      "unknown": 1
+    }
+  },
+  "headline": {
+    "subject_type": "referee",
+    "metric": "fouls",
+    "value": 21.025641025641026,
+    "percentile": 15,
+    "rank": 103,
+    "peer_count": 120,
+    "metric_label": "fouls per match",
+    "display_value": "21.03",
+    "peer_label": "referees",
+    "comparison": "lower",
+    "comparison_share": 85,
+    "rank_phrase": null,
+    "partial_observations": true,
+    "text": "21.03 fouls per match, fewer than 85% of referees. Some match observations are missing."
+  },
+  "data_basis": {
+    "source": "canonical_database",
+    "matches": 39,
+    "minutes": null,
+    "competition": null,
+    "season": {
+      "year": 2025,
+      "label": "2025/26",
+      "id": null
+    },
+    "finished_matches": 40,
+    "stats_observed_matches": 39,
+    "excluded_matches": 1,
+    "finished_statuses": [
+      "FT",
+      "AET",
+      "PEN"
+    ],
+    "match_scope": "as_stored_including_extra_time_when_present",
+    "generated_at": "2026-10-08T10:47:12.378729+00:00",
+    "build_id": "profiles-v2:9138da19bc5d47648103e55d4eadfeb0",
+    "ranks_built_at": "2026-10-08T10:45:25.208404+00:00",
+    "null_policy": "played_players_observed; team_stats_require_both_nonempty_sides; count_nulls_zero; measurements_nullable; results_from_fixture_score",
+    "count_null_policy_version": "observed-match-count-zero.v2",
+    "stats_rows": {
+      "home": {
+        "populated": 39,
+        "empty": 1,
+        "count_fields_filled_zero": 66
+      },
+      "away": {
+        "populated": 39,
+        "empty": 1,
+        "count_fields_filled_zero": 54
+      }
+    },
+    "frequency_scope": "whole_selected_season",
+    "cards_definition": "yellow_plus_red; booked_means_either",
+    "identity_method": "legacy_first_initial_last_name_grouping"
+  },
+  "previous_season": null,
+  "competition_breakdown": [
+    {
+      "competition": "EPL",
+      "matches": 30,
+      "finished_matches": 31,
+      "stats_observed_matches": 30,
+      "excluded_matches": 1,
+      "minutes": null,
+      "peer_group": "all",
+      "totals": {
+        "matches": 30,
+        "finished_matches": 31,
+        "stats_observed_matches": 30,
+        "excluded_matches": 1,
+        "cards": 120,
+        "yellows": 118,
+        "reds": 2,
+        "fouls": 610
+      },
+      "metrics": {
+        "cards": {
+          "value": 4.0,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 30,
+            "missing_matches": 1
+          },
+          "basis": "known_matches_after_count_null_policy"
+        },
+        "yellows": {
+          "value": 3.933333333333333,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 30,
+            "missing_matches": 1
+          },
+          "basis": "known_matches_after_count_null_policy"
+        },
+        "reds": {
+          "value": 0.06666666666666667,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 30,
+            "missing_matches": 1
+          },
+          "basis": "known_matches_after_count_null_policy"
+        },
+        "fouls": {
+          "value": 20.333333333333332,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 30,
+            "missing_matches": 1
+          },
+          "basis": "known_matches_after_count_null_policy"
+        },
+        "cards_per_foul": {
+          "value": 0.19672131147540983,
+          "unit": "cards_per_foul",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 30,
+            "missing_matches": 1
+          },
+          "basis": "sum_over_sum_after_count_null_policy",
+          "numerator": 120,
+          "denominator": 610
+        }
+      },
+      "frequencies": {
+        "cards_4_plus": {
+          "count": 18,
+          "denominator": 30,
+          "unknown": 1
+        },
+        "cards_5_plus": {
+          "count": 13,
+          "denominator": 30,
+          "unknown": 1
+        },
+        "red_card_shown": {
+          "count": 2,
+          "denominator": 30,
+          "unknown": 1
+        },
+        "fouls_25_plus": {
+          "count": 6,
+          "denominator": 30,
+          "unknown": 1
+        }
+      },
+      "small_sample": false
+    },
+    {
+      "competition": "UCL",
+      "matches": 5,
+      "finished_matches": 5,
+      "stats_observed_matches": 5,
+      "excluded_matches": 0,
+      "minutes": null,
+      "peer_group": "all",
+      "totals": {
+        "matches": 5,
+        "finished_matches": 5,
+        "stats_observed_matches": 5,
+        "excluded_matches": 0,
+        "cards": 22,
+        "yellows": 21,
+        "reds": 1,
+        "fouls": 109
+      },
+      "metrics": {
+        "cards": {
+          "value": 4.4,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 5,
+            "missing_matches": 0
+          },
+          "basis": "known_matches_after_count_null_policy"
+        },
+        "yellows": {
+          "value": 4.2,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 5,
+            "missing_matches": 0
+          },
+          "basis": "known_matches_after_count_null_policy"
+        },
+        "reds": {
+          "value": 0.2,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 5,
+            "missing_matches": 0
+          },
+          "basis": "known_matches_after_count_null_policy"
+        },
+        "fouls": {
+          "value": 21.8,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 5,
+            "missing_matches": 0
+          },
+          "basis": "known_matches_after_count_null_policy"
+        },
+        "cards_per_foul": {
+          "value": 0.2018348623853211,
+          "unit": "cards_per_foul",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 5,
+            "missing_matches": 0
+          },
+          "basis": "sum_over_sum_after_count_null_policy",
+          "numerator": 22,
+          "denominator": 109
+        }
+      },
+      "frequencies": {
+        "cards_4_plus": {
+          "count": 3,
+          "denominator": 5,
+          "unknown": 0
+        },
+        "cards_5_plus": {
+          "count": 3,
+          "denominator": 5,
+          "unknown": 0
+        },
+        "red_card_shown": {
+          "count": 1,
+          "denominator": 5,
+          "unknown": 0
+        },
+        "fouls_25_plus": {
+          "count": 1,
+          "denominator": 5,
+          "unknown": 0
+        }
+      },
+      "small_sample": false
+    },
+    {
+      "competition": "UECL",
+      "matches": 1,
+      "finished_matches": 1,
+      "stats_observed_matches": 1,
+      "excluded_matches": 0,
+      "minutes": null,
+      "peer_group": "all",
+      "totals": {
+        "matches": 1,
+        "finished_matches": 1,
+        "stats_observed_matches": 1,
+        "excluded_matches": 0,
+        "cards": 4,
+        "yellows": 4,
+        "reds": 0,
+        "fouls": 20
+      },
+      "metrics": {
+        "cards": {
+          "value": 4.0,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 1,
+            "missing_matches": 0
+          },
+          "basis": "known_matches_after_count_null_policy"
+        },
+        "yellows": {
+          "value": 4.0,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 1,
+            "missing_matches": 0
+          },
+          "basis": "known_matches_after_count_null_policy"
+        },
+        "reds": {
+          "value": 0.0,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 1,
+            "missing_matches": 0
+          },
+          "basis": "known_matches_after_count_null_policy"
+        },
+        "fouls": {
+          "value": 20.0,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 1,
+            "missing_matches": 0
+          },
+          "basis": "known_matches_after_count_null_policy"
+        },
+        "cards_per_foul": {
+          "value": 0.2,
+          "unit": "cards_per_foul",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 1,
+            "missing_matches": 0
+          },
+          "basis": "sum_over_sum_after_count_null_policy",
+          "numerator": 4,
+          "denominator": 20
+        }
+      },
+      "frequencies": {
+        "cards_4_plus": {
+          "count": 1,
+          "denominator": 1,
+          "unknown": 0
+        },
+        "cards_5_plus": {
+          "count": 0,
+          "denominator": 1,
+          "unknown": 0
+        },
+        "red_card_shown": {
+          "count": 0,
+          "denominator": 1,
+          "unknown": 0
+        },
+        "fouls_25_plus": {
+          "count": 0,
+          "denominator": 1,
+          "unknown": 0
+        }
+      },
+      "small_sample": true
+    },
+    {
+      "competition": "UEL",
+      "matches": 3,
+      "finished_matches": 3,
+      "stats_observed_matches": 3,
+      "excluded_matches": 0,
+      "minutes": null,
+      "peer_group": "all",
+      "totals": {
+        "matches": 3,
+        "finished_matches": 3,
+        "stats_observed_matches": 3,
+        "excluded_matches": 0,
+        "cards": 20,
+        "yellows": 19,
+        "reds": 1,
+        "fouls": 81
+      },
+      "metrics": {
+        "cards": {
+          "value": 6.666666666666667,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 3,
+            "missing_matches": 0
+          },
+          "basis": "known_matches_after_count_null_policy"
+        },
+        "yellows": {
+          "value": 6.333333333333333,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 3,
+            "missing_matches": 0
+          },
+          "basis": "known_matches_after_count_null_policy"
+        },
+        "reds": {
+          "value": 0.3333333333333333,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 3,
+            "missing_matches": 0
+          },
+          "basis": "known_matches_after_count_null_policy"
+        },
+        "fouls": {
+          "value": 27.0,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 3,
+            "missing_matches": 0
+          },
+          "basis": "known_matches_after_count_null_policy"
+        },
+        "cards_per_foul": {
+          "value": 0.24691358024691357,
+          "unit": "cards_per_foul",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 3,
+            "missing_matches": 0
+          },
+          "basis": "sum_over_sum_after_count_null_policy",
+          "numerator": 20,
+          "denominator": 81
+        }
+      },
+      "frequencies": {
+        "cards_4_plus": {
+          "count": 3,
+          "denominator": 3,
+          "unknown": 0
+        },
+        "cards_5_plus": {
+          "count": 3,
+          "denominator": 3,
+          "unknown": 0
+        },
+        "red_card_shown": {
+          "count": 1,
+          "denominator": 3,
+          "unknown": 0
+        },
+        "fouls_25_plus": {
+          "count": 2,
+          "denominator": 3,
+          "unknown": 0
+        }
+      },
+      "small_sample": true
+    }
+  ],
+  "last_10": [
+    {
+      "fixture_id": 6839,
+      "date": "2026-03-22T12:00:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 2,
+        "name": "Newcastle",
+        "short_code": "NEW",
+        "logo_url": "https://media.api-sports.io/football/teams/34.png"
+      },
+      "away": {
+        "id": 20,
+        "name": "Sunderland",
+        "short_code": "SUN",
+        "logo_url": "https://media.api-sports.io/football/teams/746.png"
+      },
+      "score": {
+        "home": 1,
+        "away": 2
+      },
+      "stats_available": {
+        "home": true,
+        "away": true
+      },
+      "stats_observed": true,
+      "competition": "EPL",
+      "values": {
+        "yellows": 7,
+        "reds": 0,
+        "cards": 7,
+        "fouls": 27
+      }
+    },
+    {
+      "fixture_id": 6846,
+      "date": "2026-04-11T16:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 6,
+        "name": "Liverpool",
+        "short_code": "LIV",
+        "logo_url": "https://media.api-sports.io/football/teams/40.png"
+      },
+      "away": {
+        "id": 4,
+        "name": "Fulham",
+        "short_code": "FUL",
+        "logo_url": "https://media.api-sports.io/football/teams/36.png"
+      },
+      "score": {
+        "home": 2,
+        "away": 0
+      },
+      "stats_available": {
+        "home": true,
+        "away": true
+      },
+      "stats_observed": true,
+      "competition": "EPL",
+      "values": {
+        "yellows": 0,
+        "reds": 0,
+        "cards": 0,
+        "fouls": 14
+      }
+    },
+    {
+      "fixture_id": 8805,
+      "date": "2026-04-16T16:45:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 27,
+        "name": "Celta Vigo",
+        "short_code": "CEL",
+        "logo_url": "https://media.api-sports.io/football/teams/538.png"
+      },
+      "away": {
+        "id": 62,
+        "name": "SC Freiburg",
+        "short_code": "FRE",
+        "logo_url": "https://media.api-sports.io/football/teams/160.png"
+      },
+      "score": {
+        "home": 1,
+        "away": 3
+      },
+      "stats_available": {
+        "home": true,
+        "away": true
+      },
+      "stats_observed": true,
+      "competition": "UEL",
+      "values": {
+        "yellows": 6,
+        "reds": 0,
+        "cards": 6,
+        "fouls": 33
+      }
+    },
+    {
+      "fixture_id": 6860,
+      "date": "2026-04-19T15:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 13,
+        "name": "Manchester City",
+        "short_code": "MCI",
+        "logo_url": "https://media.api-sports.io/football/teams/50.png"
+      },
+      "away": {
+        "id": 7,
+        "name": "Arsenal",
+        "short_code": "ARS",
+        "logo_url": "https://media.api-sports.io/football/teams/42.png"
+      },
+      "score": {
+        "home": 2,
+        "away": 1
+      },
+      "stats_available": {
+        "home": true,
+        "away": true
+      },
+      "stats_observed": true,
+      "competition": "EPL",
+      "values": {
+        "yellows": 4,
+        "reds": 0,
+        "cards": 4,
+        "fouls": 17
+      }
+    },
+    {
+      "fixture_id": 6867,
+      "date": "2026-04-25T14:00:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 5,
+        "name": "Wolves",
+        "short_code": "WOL",
+        "logo_url": "https://media.api-sports.io/football/teams/39.png"
+      },
+      "away": {
+        "id": 10,
+        "name": "Tottenham",
+        "short_code": "TOT",
+        "logo_url": "https://media.api-sports.io/football/teams/47.png"
+      },
+      "score": {
+        "home": 0,
+        "away": 1
+      },
+      "stats_available": {
+        "home": true,
+        "away": true
+      },
+      "stats_observed": true,
+      "competition": "EPL",
+      "values": {
+        "yellows": 7,
+        "reds": 0,
+        "cards": 7,
+        "fouls": 22
+      }
+    },
+    {
+      "fixture_id": 8810,
+      "date": "2026-04-30T19:00:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 186,
+        "name": "SC Braga",
+        "short_code": "BRA",
+        "logo_url": "https://media.api-sports.io/football/teams/217.png"
+      },
+      "away": {
+        "id": 62,
+        "name": "SC Freiburg",
+        "short_code": "FRE",
+        "logo_url": "https://media.api-sports.io/football/teams/160.png"
+      },
+      "score": {
+        "home": 2,
+        "away": 1
+      },
+      "stats_available": {
+        "home": true,
+        "away": true
+      },
+      "stats_observed": true,
+      "competition": "UEL",
+      "values": {
+        "yellows": 5,
+        "reds": 0,
+        "cards": 5,
+        "fouls": 26
+      }
+    },
+    {
+      "fixture_id": 6880,
+      "date": "2026-05-04T14:00:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 12,
+        "name": "Chelsea",
+        "short_code": "CHE",
+        "logo_url": "https://media.api-sports.io/football/teams/49.png"
+      },
+      "away": {
+        "id": 18,
+        "name": "Nottingham Forest",
+        "short_code": "NOT",
+        "logo_url": "https://media.api-sports.io/football/teams/65.png"
+      },
+      "score": {
+        "home": 1,
+        "away": 3
+      },
+      "stats_available": {
+        "home": true,
+        "away": true
+      },
+      "stats_observed": true,
+      "competition": "EPL",
+      "values": {
+        "yellows": 4,
+        "reds": 0,
+        "cards": 4,
+        "fouls": 22
+      }
+    },
+    {
+      "fixture_id": 6887,
+      "date": "2026-05-10T13:00:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 8,
+        "name": "Burnley",
+        "short_code": "BUR",
+        "logo_url": "https://media.api-sports.io/football/teams/44.png"
+      },
+      "away": {
+        "id": 19,
+        "name": "Aston Villa",
+        "short_code": "AST",
+        "logo_url": "https://media.api-sports.io/football/teams/66.png"
+      },
+      "score": {
+        "home": 2,
+        "away": 2
+      },
+      "stats_available": {
+        "home": true,
+        "away": true
+      },
+      "stats_observed": true,
+      "competition": "EPL",
+      "values": {
+        "yellows": 2,
+        "reds": 0,
+        "cards": 2,
+        "fouls": 26
+      }
+    },
+    {
+      "fixture_id": 6901,
+      "date": "2026-05-19T18:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 3,
+        "name": "Bournemouth",
+        "short_code": "BOU",
+        "logo_url": "https://media.api-sports.io/football/teams/35.png"
+      },
+      "away": {
+        "id": 13,
+        "name": "Manchester City",
+        "short_code": "MCI",
+        "logo_url": "https://media.api-sports.io/football/teams/50.png"
+      },
+      "score": {
+        "home": 1,
+        "away": 1
+      },
+      "stats_available": {
+        "home": true,
+        "away": true
+      },
+      "stats_observed": true,
+      "competition": "EPL",
+      "values": {
+        "yellows": 5,
+        "reds": 0,
+        "cards": 5,
+        "fouls": 23
+      }
+    },
+    {
+      "fixture_id": 6907,
+      "date": "2026-05-24T15:00:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 11,
+        "name": "West Ham",
+        "short_code": "WES",
+        "logo_url": "https://media.api-sports.io/football/teams/48.png"
+      },
+      "away": {
+        "id": 17,
+        "name": "Leeds",
+        "short_code": "LEE",
+        "logo_url": "https://media.api-sports.io/football/teams/63.png"
+      },
+      "score": {
+        "home": 3,
+        "away": 0
+      },
+      "stats_available": {
+        "home": false,
+        "away": false
+      },
+      "stats_observed": false,
+      "competition": "EPL",
+      "values": {
+        "yellows": null,
+        "reds": null,
+        "cards": null,
+        "fouls": null
+      }
+    }
+  ],
+  "available_scopes": [
+    {
+      "competition": {
+        "code": "ALL",
+        "name": "All competitions"
+      },
+      "season": {
+        "year": 2025,
+        "label": "2025/26"
+      },
+      "matches": 39,
+      "ranked": true,
+      "finished_matches": 40,
+      "excluded_matches": 1
+    },
+    {
+      "competition": {
+        "code": "ALL",
+        "name": "All competitions"
+      },
+      "season": {
+        "year": 2024,
+        "label": "2024/25"
+      },
+      "matches": 39,
+      "ranked": true,
+      "finished_matches": 39,
+      "excluded_matches": 0
+    },
+    {
+      "competition": {
+        "code": "ALL",
+        "name": "All competitions"
+      },
+      "season": {
+        "year": 2023,
+        "label": "2023/24"
+      },
+      "matches": 37,
+      "ranked": true,
+      "finished_matches": 37,
+      "excluded_matches": 0
+    },
+    {
+      "competition": {
+        "code": "ALL",
+        "name": "All competitions"
+      },
+      "season": {
+        "year": 2022,
+        "label": "2022/23"
+      },
+      "matches": 36,
+      "ranked": true,
+      "finished_matches": 36,
+      "excluded_matches": 0
+    },
+    {
+      "competition": {
+        "code": "ALL",
+        "name": "All competitions"
+      },
+      "season": {
+        "year": 2021,
+        "label": "2021/22"
+      },
+      "matches": 36,
+      "ranked": true,
+      "finished_matches": 36,
+      "excluded_matches": 0
+    },
+    {
+      "competition": {
+        "code": "ALL",
+        "name": "All competitions"
+      },
+      "season": {
+        "year": 2020,
+        "label": "2020/21"
+      },
+      "matches": 33,
+      "ranked": true,
+      "finished_matches": 33,
+      "excluded_matches": 0
+    },
+    {
+      "competition": {
+        "code": "ALL",
+        "name": "All competitions"
+      },
+      "season": {
+        "year": 2019,
+        "label": "2019/20"
+      },
+      "matches": 41,
+      "ranked": true,
+      "finished_matches": 41,
+      "excluded_matches": 0
+    }
+  ]
+}

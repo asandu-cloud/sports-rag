@@ -1,0 +1,890 @@
+{
+  "schema_version": "research-profile.v1",
+  "subject": {
+    "type": "team",
+    "id": 7,
+    "name": "Arsenal",
+    "api_football_id": 42,
+    "logo_url": "https://media.api-sports.io/football/teams/42.png"
+  },
+  "competition": {
+    "id": 1,
+    "code": "EPL",
+    "name": "Premier League"
+  },
+  "season": {
+    "year": 2025,
+    "label": "2025/26",
+    "id": 1
+  },
+  "totals": {
+    "matches": 38,
+    "wins": 26,
+    "draws": 7,
+    "losses": 5,
+    "unknown_results": 0,
+    "goals_for": 71,
+    "goals_against": 27,
+    "xg_for": 62.8,
+    "xg_against": 27.49,
+    "shots_on_target_for": 179,
+    "shots_on_target_faced": 87,
+    "corners_for": 212,
+    "corners_against": 123,
+    "cards": null,
+    "clean_sheets": 19
+  },
+  "metrics": {
+    "goals_for": {
+      "value": 1.868421052631579,
+      "unit": "per_match",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 38,
+        "missing_matches": 0
+      },
+      "basis": "observed_matches",
+      "rank": 2,
+      "percentile": 92,
+      "peer_count": 20,
+      "league_average": 1.375
+    },
+    "goals_against": {
+      "value": 0.7105263157894737,
+      "unit": "per_match",
+      "higher_is_more": false,
+      "coverage": {
+        "observed_matches": 38,
+        "missing_matches": 0
+      },
+      "basis": "observed_matches",
+      "rank": 1,
+      "percentile": 2,
+      "peer_count": 20,
+      "league_average": 1.375
+    },
+    "xg_for": {
+      "value": 1.6972972972972973,
+      "unit": "per_match",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 37,
+        "missing_matches": 1
+      },
+      "basis": "observed_matches",
+      "rank": 4,
+      "percentile": 82,
+      "peer_count": 20,
+      "league_average": 1.3931081081081083
+    },
+    "xg_against": {
+      "value": 0.7429729729729729,
+      "unit": "per_match",
+      "higher_is_more": false,
+      "coverage": {
+        "observed_matches": 37,
+        "missing_matches": 1
+      },
+      "basis": "observed_matches",
+      "rank": 1,
+      "percentile": 2,
+      "peer_count": 20,
+      "league_average": 1.3931081081081083
+    },
+    "shots_on_target_for": {
+      "value": 4.837837837837838,
+      "unit": "per_match",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 37,
+        "missing_matches": 1
+      },
+      "basis": "observed_matches",
+      "rank": 3,
+      "percentile": 88,
+      "peer_count": 20,
+      "league_average": 4.273480662983426
+    },
+    "shots_on_target_faced": {
+      "value": 2.806451612903226,
+      "unit": "per_match",
+      "higher_is_more": false,
+      "coverage": {
+        "observed_matches": 31,
+        "missing_matches": 7
+      },
+      "basis": "observed_matches",
+      "rank": 1,
+      "percentile": 2,
+      "peer_count": 20,
+      "league_average": 4.273480662983426
+    },
+    "corners_for": {
+      "value": 5.72972972972973,
+      "unit": "per_match",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 37,
+        "missing_matches": 1
+      },
+      "basis": "observed_matches",
+      "rank": 6,
+      "percentile": 72,
+      "peer_count": 20,
+      "league_average": 5.043835616438356
+    },
+    "corners_against": {
+      "value": 3.5142857142857142,
+      "unit": "per_match",
+      "higher_is_more": false,
+      "coverage": {
+        "observed_matches": 35,
+        "missing_matches": 3
+      },
+      "basis": "observed_matches",
+      "rank": 1,
+      "percentile": 2,
+      "peer_count": 20,
+      "league_average": 5.043835616438356
+    },
+    "possession": {
+      "value": 56.054054054054056,
+      "unit": "percent",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 37,
+        "missing_matches": 1
+      },
+      "basis": "observed_matches",
+      "rank": 4,
+      "percentile": 82,
+      "peer_count": 20,
+      "league_average": 50.0
+    },
+    "cards": {
+      "value": null,
+      "unit": "per_match",
+      "higher_is_more": true,
+      "coverage": {
+        "observed_matches": 0,
+        "missing_matches": 38
+      },
+      "basis": "observed_matches",
+      "rank": null,
+      "percentile": null,
+      "peer_count": null,
+      "league_average": null
+    }
+  },
+  "ranking": {
+    "ranked": true,
+    "reason": null,
+    "peer_group": "all",
+    "sample_minutes": null,
+    "sample_matches": 38,
+    "minimum_minutes": null,
+    "minimum_matches": 1
+  },
+  "frequencies": {
+    "over_2_5_goals": {
+      "count": 20,
+      "denominator": 38,
+      "unknown": 0
+    },
+    "both_teams_scored": {
+      "count": 18,
+      "denominator": 38,
+      "unknown": 0
+    },
+    "clean_sheet": {
+      "count": 19,
+      "denominator": 38,
+      "unknown": 0
+    },
+    "corners_10_plus": {
+      "count": 16,
+      "denominator": 35,
+      "unknown": 3
+    },
+    "cards_4_plus": {
+      "count": 0,
+      "denominator": 0,
+      "unknown": 38
+    }
+  },
+  "headline": {
+    "subject_type": "team",
+    "metric": "goals_against",
+    "value": 0.7105263157894737,
+    "percentile": 2,
+    "rank": 1,
+    "peer_count": 20,
+    "partial_observations": false,
+    "text": "Arsenal records 0.71 goals against per match; this is around the 2nd percentile among 20 Premier League teams."
+  },
+  "data_basis": {
+    "source": "canonical_database",
+    "matches": 38,
+    "minutes": null,
+    "competition": {
+      "id": 1,
+      "code": "EPL",
+      "name": "Premier League"
+    },
+    "season": {
+      "year": 2025,
+      "label": "2025/26",
+      "id": 1
+    },
+    "finished_statuses": [
+      "FT",
+      "AET",
+      "PEN"
+    ],
+    "match_scope": "as_stored_including_extra_time_when_present",
+    "generated_at": "2026-10-08T09:38:38.810637+00:00",
+    "build_id": "bb7f9f89492c4de19a962ce49870de50",
+    "ranks_built_at": "2026-10-08T09:34:58.337798+00:00",
+    "null_policy": "unknown_not_zero; recorded_sums; frequencies_exclude_unknown",
+    "frequency_scope": "whole_selected_season",
+    "cards_definition": "yellow_plus_red; booked_means_either"
+  },
+  "previous_season": null,
+  "last_5_form": [
+    "W",
+    "W",
+    "W",
+    "W",
+    "W"
+  ],
+  "home_away": {
+    "home": {
+      "matches": 19,
+      "minutes": null,
+      "peer_group": "all",
+      "totals": {
+        "matches": 19,
+        "wins": 15,
+        "draws": 2,
+        "losses": 2,
+        "unknown_results": 0,
+        "goals_for": 41,
+        "goals_against": 11,
+        "xg_for": 34.62,
+        "xg_against": 12.58,
+        "shots_on_target_for": 95,
+        "shots_on_target_faced": 36,
+        "corners_for": 112,
+        "corners_against": 53,
+        "cards": null,
+        "clean_sheets": 11
+      },
+      "last_5_form": [
+        "W",
+        "L",
+        "W",
+        "W",
+        "W"
+      ],
+      "metrics": {
+        "goals_for": {
+          "value": 2.1578947368421053,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 19,
+            "missing_matches": 0
+          },
+          "basis": "observed_matches"
+        },
+        "goals_against": {
+          "value": 0.5789473684210527,
+          "unit": "per_match",
+          "higher_is_more": false,
+          "coverage": {
+            "observed_matches": 19,
+            "missing_matches": 0
+          },
+          "basis": "observed_matches"
+        },
+        "xg_for": {
+          "value": 1.8221052631578947,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 19,
+            "missing_matches": 0
+          },
+          "basis": "observed_matches"
+        },
+        "xg_against": {
+          "value": 0.6621052631578948,
+          "unit": "per_match",
+          "higher_is_more": false,
+          "coverage": {
+            "observed_matches": 19,
+            "missing_matches": 0
+          },
+          "basis": "observed_matches"
+        },
+        "shots_on_target_for": {
+          "value": 5.0,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 19,
+            "missing_matches": 0
+          },
+          "basis": "observed_matches"
+        },
+        "shots_on_target_faced": {
+          "value": 2.25,
+          "unit": "per_match",
+          "higher_is_more": false,
+          "coverage": {
+            "observed_matches": 16,
+            "missing_matches": 3
+          },
+          "basis": "observed_matches"
+        },
+        "corners_for": {
+          "value": 5.894736842105263,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 19,
+            "missing_matches": 0
+          },
+          "basis": "observed_matches"
+        },
+        "corners_against": {
+          "value": 3.1176470588235294,
+          "unit": "per_match",
+          "higher_is_more": false,
+          "coverage": {
+            "observed_matches": 17,
+            "missing_matches": 2
+          },
+          "basis": "observed_matches"
+        },
+        "possession": {
+          "value": 56.526315789473685,
+          "unit": "percent",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 19,
+            "missing_matches": 0
+          },
+          "basis": "observed_matches"
+        },
+        "cards": {
+          "value": null,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 0,
+            "missing_matches": 19
+          },
+          "basis": "observed_matches"
+        }
+      },
+      "frequencies": {
+        "over_2_5_goals": {
+          "count": 11,
+          "denominator": 19,
+          "unknown": 0
+        },
+        "both_teams_scored": {
+          "count": 8,
+          "denominator": 19,
+          "unknown": 0
+        },
+        "clean_sheet": {
+          "count": 11,
+          "denominator": 19,
+          "unknown": 0
+        },
+        "corners_10_plus": {
+          "count": 8,
+          "denominator": 17,
+          "unknown": 2
+        },
+        "cards_4_plus": {
+          "count": 0,
+          "denominator": 0,
+          "unknown": 19
+        }
+      }
+    },
+    "away": {
+      "matches": 19,
+      "minutes": null,
+      "peer_group": "all",
+      "totals": {
+        "matches": 19,
+        "wins": 11,
+        "draws": 5,
+        "losses": 3,
+        "unknown_results": 0,
+        "goals_for": 30,
+        "goals_against": 16,
+        "xg_for": 28.18,
+        "xg_against": 14.91,
+        "shots_on_target_for": 84,
+        "shots_on_target_faced": 51,
+        "corners_for": 100,
+        "corners_against": 70,
+        "cards": null,
+        "clean_sheets": 8
+      },
+      "last_5_form": [
+        "W",
+        "W",
+        "L",
+        "W",
+        "W"
+      ],
+      "metrics": {
+        "goals_for": {
+          "value": 1.5789473684210527,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 19,
+            "missing_matches": 0
+          },
+          "basis": "observed_matches"
+        },
+        "goals_against": {
+          "value": 0.8421052631578947,
+          "unit": "per_match",
+          "higher_is_more": false,
+          "coverage": {
+            "observed_matches": 19,
+            "missing_matches": 0
+          },
+          "basis": "observed_matches"
+        },
+        "xg_for": {
+          "value": 1.5655555555555556,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 18,
+            "missing_matches": 1
+          },
+          "basis": "observed_matches"
+        },
+        "xg_against": {
+          "value": 0.8283333333333334,
+          "unit": "per_match",
+          "higher_is_more": false,
+          "coverage": {
+            "observed_matches": 18,
+            "missing_matches": 1
+          },
+          "basis": "observed_matches"
+        },
+        "shots_on_target_for": {
+          "value": 4.666666666666667,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 18,
+            "missing_matches": 1
+          },
+          "basis": "observed_matches"
+        },
+        "shots_on_target_faced": {
+          "value": 3.4,
+          "unit": "per_match",
+          "higher_is_more": false,
+          "coverage": {
+            "observed_matches": 15,
+            "missing_matches": 4
+          },
+          "basis": "observed_matches"
+        },
+        "corners_for": {
+          "value": 5.555555555555555,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 18,
+            "missing_matches": 1
+          },
+          "basis": "observed_matches"
+        },
+        "corners_against": {
+          "value": 3.888888888888889,
+          "unit": "per_match",
+          "higher_is_more": false,
+          "coverage": {
+            "observed_matches": 18,
+            "missing_matches": 1
+          },
+          "basis": "observed_matches"
+        },
+        "possession": {
+          "value": 55.55555555555556,
+          "unit": "percent",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 18,
+            "missing_matches": 1
+          },
+          "basis": "observed_matches"
+        },
+        "cards": {
+          "value": null,
+          "unit": "per_match",
+          "higher_is_more": true,
+          "coverage": {
+            "observed_matches": 0,
+            "missing_matches": 19
+          },
+          "basis": "observed_matches"
+        }
+      },
+      "frequencies": {
+        "over_2_5_goals": {
+          "count": 9,
+          "denominator": 19,
+          "unknown": 0
+        },
+        "both_teams_scored": {
+          "count": 10,
+          "denominator": 19,
+          "unknown": 0
+        },
+        "clean_sheet": {
+          "count": 8,
+          "denominator": 19,
+          "unknown": 0
+        },
+        "corners_10_plus": {
+          "count": 8,
+          "denominator": 18,
+          "unknown": 1
+        },
+        "cards_4_plus": {
+          "count": 0,
+          "denominator": 0,
+          "unknown": 19
+        }
+      }
+    }
+  },
+  "last_10": [
+    {
+      "fixture_id": 6813,
+      "date": "2026-03-01T16:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 7,
+        "name": "Arsenal"
+      },
+      "away": {
+        "id": 12,
+        "name": "Chelsea"
+      },
+      "score": {
+        "home": 2,
+        "away": 1
+      },
+      "venue": "home",
+      "opponent": {
+        "id": 12,
+        "name": "Chelsea"
+      },
+      "values": {
+        "goals_for": 2,
+        "goals_against": 1,
+        "xg_for": 1.09,
+        "xg_against": 1.07,
+        "corners_for": 5,
+        "corners_against": 10,
+        "cards": null
+      }
+    },
+    {
+      "fixture_id": 6820,
+      "date": "2026-03-04T19:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 14,
+        "name": "Brighton"
+      },
+      "away": {
+        "id": 7,
+        "name": "Arsenal"
+      },
+      "score": {
+        "home": 0,
+        "away": 1
+      },
+      "venue": "away",
+      "opponent": {
+        "id": 14,
+        "name": "Brighton"
+      },
+      "values": {
+        "goals_for": 1,
+        "goals_against": 0,
+        "xg_for": 0.47,
+        "xg_against": 0.82,
+        "corners_for": 3,
+        "corners_against": 4,
+        "cards": null
+      }
+    },
+    {
+      "fixture_id": 6826,
+      "date": "2026-03-14T17:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 7,
+        "name": "Arsenal"
+      },
+      "away": {
+        "id": 9,
+        "name": "Everton"
+      },
+      "score": {
+        "home": 2,
+        "away": 0
+      },
+      "venue": "home",
+      "opponent": {
+        "id": 9,
+        "name": "Everton"
+      },
+      "values": {
+        "goals_for": 2,
+        "goals_against": 0,
+        "xg_for": 2.7,
+        "xg_against": 1.05,
+        "corners_for": 8,
+        "corners_against": 3,
+        "cards": null
+      }
+    },
+    {
+      "fixture_id": 6843,
+      "date": "2026-04-11T11:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 7,
+        "name": "Arsenal"
+      },
+      "away": {
+        "id": 3,
+        "name": "Bournemouth"
+      },
+      "score": {
+        "home": 1,
+        "away": 2
+      },
+      "venue": "home",
+      "opponent": {
+        "id": 3,
+        "name": "Bournemouth"
+      },
+      "values": {
+        "goals_for": 1,
+        "goals_against": 2,
+        "xg_for": 2.32,
+        "xg_against": 1.19,
+        "corners_for": 10,
+        "corners_against": 1,
+        "cards": null
+      }
+    },
+    {
+      "fixture_id": 6860,
+      "date": "2026-04-19T15:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 13,
+        "name": "Manchester City"
+      },
+      "away": {
+        "id": 7,
+        "name": "Arsenal"
+      },
+      "score": {
+        "home": 2,
+        "away": 1
+      },
+      "venue": "away",
+      "opponent": {
+        "id": 13,
+        "name": "Manchester City"
+      },
+      "values": {
+        "goals_for": 1,
+        "goals_against": 2,
+        "xg_for": 1.62,
+        "xg_against": 1.36,
+        "corners_for": 5,
+        "corners_against": 8,
+        "cards": null
+      }
+    },
+    {
+      "fixture_id": 6870,
+      "date": "2026-04-25T16:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 7,
+        "name": "Arsenal"
+      },
+      "away": {
+        "id": 2,
+        "name": "Newcastle"
+      },
+      "score": {
+        "home": 1,
+        "away": 0
+      },
+      "venue": "home",
+      "opponent": {
+        "id": 2,
+        "name": "Newcastle"
+      },
+      "values": {
+        "goals_for": 1,
+        "goals_against": 0,
+        "xg_for": 0.49,
+        "xg_against": 1.0,
+        "corners_for": 7,
+        "corners_against": 2,
+        "cards": null
+      }
+    },
+    {
+      "fixture_id": 6876,
+      "date": "2026-05-02T16:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 7,
+        "name": "Arsenal"
+      },
+      "away": {
+        "id": 4,
+        "name": "Fulham"
+      },
+      "score": {
+        "home": 3,
+        "away": 0
+      },
+      "venue": "home",
+      "opponent": {
+        "id": 4,
+        "name": "Fulham"
+      },
+      "values": {
+        "goals_for": 3,
+        "goals_against": 0,
+        "xg_for": 3.23,
+        "xg_against": 0.37,
+        "corners_for": 3,
+        "corners_against": 4,
+        "cards": null
+      }
+    },
+    {
+      "fixture_id": 6890,
+      "date": "2026-05-10T15:30:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 11,
+        "name": "West Ham"
+      },
+      "away": {
+        "id": 7,
+        "name": "Arsenal"
+      },
+      "score": {
+        "home": 0,
+        "away": 1
+      },
+      "venue": "away",
+      "opponent": {
+        "id": 11,
+        "name": "West Ham"
+      },
+      "values": {
+        "goals_for": 1,
+        "goals_against": 0,
+        "xg_for": 1.18,
+        "xg_against": 1.15,
+        "corners_for": 3,
+        "corners_against": 4,
+        "cards": null
+      }
+    },
+    {
+      "fixture_id": 6900,
+      "date": "2026-05-18T19:00:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 7,
+        "name": "Arsenal"
+      },
+      "away": {
+        "id": 8,
+        "name": "Burnley"
+      },
+      "score": {
+        "home": 1,
+        "away": 0
+      },
+      "venue": "home",
+      "opponent": {
+        "id": 8,
+        "name": "Burnley"
+      },
+      "values": {
+        "goals_for": 1,
+        "goals_against": 0,
+        "xg_for": 1.29,
+        "xg_against": 0.19,
+        "corners_for": 3,
+        "corners_against": 3,
+        "cards": null
+      }
+    },
+    {
+      "fixture_id": 6910,
+      "date": "2026-05-24T15:00:00+00:00",
+      "status": "FT",
+      "home": {
+        "id": 15,
+        "name": "Crystal Palace"
+      },
+      "away": {
+        "id": 7,
+        "name": "Arsenal"
+      },
+      "score": {
+        "home": 1,
+        "away": 2
+      },
+      "venue": "away",
+      "opponent": {
+        "id": 15,
+        "name": "Crystal Palace"
+      },
+      "values": {
+        "goals_for": 2,
+        "goals_against": 1,
+        "xg_for": null,
+        "xg_against": null,
+        "corners_for": null,
+        "corners_against": null,
+        "cards": null
+      }
+    }
+  ]
+}

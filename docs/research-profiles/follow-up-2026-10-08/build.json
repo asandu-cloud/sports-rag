@@ -1,0 +1,9 @@
+{
+  "build_id": "profiles-v2:9138da19bc5d47648103e55d4eadfeb0",
+  "built_at": "2026-10-08T10:45:25.208404+00:00",
+  "count_null_policy": "observed-match-count-zero.v2",
+  "scopes": 110,
+  "peer_rows": 264138,
+  "referee_aliases": 1599,
+  "elapsed_seconds": 19.566
+}

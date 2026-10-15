@@ -1,0 +1,51 @@
+{
+  "schema_version": "research-search.v1",
+  "type": "teams",
+  "query": "Arsenal",
+  "results": [
+    {
+      "id": 7,
+      "name": "Arsenal",
+      "api_football_id": 42,
+      "last_activity_at": "2026-09-19T14:00:00+00:00",
+      "latest_competition": "EPL",
+      "latest_season": 2026,
+      "country": "England",
+      "short_code": "ARS",
+      "logo_url": "https://media.api-sports.io/football/teams/42.png"
+    },
+    {
+      "id": 513,
+      "name": "Arsenal Tivat",
+      "api_football_id": 3742,
+      "last_activity_at": "2023-07-20T18:30:00+00:00",
+      "latest_competition": "UECL",
+      "latest_season": 2023,
+      "country": null,
+      "short_code": null,
+      "logo_url": "https://media.api-sports.io/football/teams/3742.png"
+    },
+    {
+      "id": 598,
+      "name": "Arsenal Tula",
+      "api_football_id": 1077,
+      "last_activity_at": "2019-08-01T17:00:00+00:00",
+      "latest_competition": "UEL",
+      "latest_season": 2019,
+      "country": null,
+      "short_code": null,
+      "logo_url": "https://media.api-sports.io/football/teams/1077.png"
+    }
+  ],
+  "count": 3,
+  "data_basis": {
+    "source": "canonical_database",
+    "competition": null,
+    "season": null,
+    "matches": null,
+    "minutes": null,
+    "build_id": null,
+    "generated_at": "2026-10-08T10:47:12.743624+00:00",
+    "scope": "subjects_with_finished_data; referee_aliases_from_latest_build"
+  }
+}

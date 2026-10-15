@@ -1,0 +1,10 @@
+{
+  "build_id": "counts-v1:59c4090a396242ab9538ce50e0a028d5",
+  "built_at": "2026-10-08T10:10:07.409347+00:00",
+  "count_null_policy": "populated-row-count-zero.v1",
+  "scopes": 110,
+  "peer_rows": 237736,
+  "referee_aliases": 1599,
+  "elapsed_seconds": 19.735,
+  "rank_content_sha256": "94cabc6150353dcb5124c9aa4a434f78d15903e94d68e7bfc55136e66273edb9"
+}

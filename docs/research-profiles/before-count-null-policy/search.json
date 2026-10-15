@@ -1,0 +1,23 @@
+{
+  "schema_version": "research-search.v1",
+  "type": "players",
+  "query": "Haaland",
+  "results": [
+    {
+      "id": 52,
+      "name": "Erling Haaland",
+      "api_football_id": 1100
+    }
+  ],
+  "count": 1,
+  "data_basis": {
+    "source": "canonical_database",
+    "competition": "EPL",
+    "season": null,
+    "matches": null,
+    "minutes": null,
+    "build_id": null,
+    "generated_at": "2026-10-08T09:38:39.049438+00:00",
+    "scope": "subjects_with_finished_data; referee_aliases_from_latest_build"
+  }
+}

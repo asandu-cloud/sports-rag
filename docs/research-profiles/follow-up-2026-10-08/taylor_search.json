@@ -1,0 +1,25 @@
+{
+  "schema_version": "research-search.v1",
+  "type": "referees",
+  "query": "Taylor",
+  "results": [
+    {
+      "referee_key": "a-taylor-68af826d",
+      "name": "Anthony Taylor",
+      "matches": 262,
+      "last_activity_at": "2026-05-24T15:00:00+00:00",
+      "country": "England"
+    }
+  ],
+  "count": 1,
+  "data_basis": {
+    "source": "canonical_database",
+    "competition": null,
+    "season": null,
+    "matches": null,
+    "minutes": null,
+    "build_id": null,
+    "generated_at": "2026-10-08T10:47:13.258261+00:00",
+    "scope": "subjects_with_finished_data; referee_aliases_from_latest_build"
+  }
+}

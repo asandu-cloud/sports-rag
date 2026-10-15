@@ -1,0 +1,49 @@
+{
+  "method": "Read-only SQLAlchemy raw rows; independent arithmetic without service summaries or null normalization",
+  "epl_2025_forward_peer_count": 61,
+  "eligible_forwards_without_any_explicit_goal_count": [
+    {
+      "player_id": 339,
+      "name": "Anthony Elanga",
+      "minutes": 1338,
+      "appearances": 32,
+      "goals": 0,
+      "explicit_goals_observations": 0
+    },
+    {
+      "player_id": 2,
+      "name": "J. Bruun Larsen",
+      "minutes": 1038,
+      "appearances": 28,
+      "goals": 0,
+      "explicit_goals_observations": 0
+    },
+    {
+      "player_id": 448,
+      "name": "Wilson Odobert",
+      "minutes": 990,
+      "appearances": 24,
+      "goals": 0,
+      "explicit_goals_observations": 0
+    }
+  ],
+  "arsenal": {
+    "finished_matches": 38,
+    "stats_observed_matches": 37,
+    "excluded_fixture_ids": [
+      6910
+    ],
+    "cards_per_match": 1.3513513513513513,
+    "cards_4_plus": 18,
+    "corners_10_plus": 16
+  },
+  "taylor": {
+    "finished_matches": 40,
+    "stats_observed_matches": 39,
+    "excluded_fixture_ids": [
+      6907
+    ],
+    "cards_per_match": 4.256410256410256,
+    "fouls_per_match": 21.025641025641026
+  }
+}

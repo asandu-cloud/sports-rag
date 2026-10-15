@@ -1,0 +1,495 @@
+{
+  "referee_rank_counts": {
+    "cards": 972,
+    "cards_per_foul": 972,
+    "fouls": 972,
+    "reds": 972,
+    "yellows": 972
+  },
+  "timings": {
+    "haaland_2025": {
+      "path": "/api/research/players/52?competition=EPL&season=2025",
+      "first_ms": 22.48,
+      "n": 20,
+      "median_ms": 4.28,
+      "p95_ms": 5.15,
+      "max_ms": 5.26
+    },
+    "haaland_2026": {
+      "path": "/api/research/players/52?competition=EPL&season=2026",
+      "first_ms": 6.43,
+      "n": 20,
+      "median_ms": 5.77,
+      "p95_ms": 6.07,
+      "max_ms": 6.16
+    },
+    "arsenal_2025": {
+      "path": "/api/research/teams/7?competition=EPL&season=2025",
+      "first_ms": 21.92,
+      "n": 20,
+      "median_ms": 8.34,
+      "p95_ms": 8.68,
+      "max_ms": 9.0
+    },
+    "taylor_2025": {
+      "path": "/api/research/referees/a-taylor-68af826d?season=2025",
+      "first_ms": 28.3,
+      "n": 20,
+      "median_ms": 6.6,
+      "p95_ms": 8.82,
+      "max_ms": 27.46
+    },
+    "haaland_search": {
+      "path": "/api/research/search?type=players&q=Haaland",
+      "first_ms": 8.64,
+      "n": 20,
+      "median_ms": 7.28,
+      "p95_ms": 8.08,
+      "max_ms": 8.32
+    },
+    "arsenal_search": {
+      "path": "/api/research/search?type=teams&q=Arsenal",
+      "first_ms": 28.59,
+      "n": 20,
+      "median_ms": 25.41,
+      "p95_ms": 26.56,
+      "max_ms": 26.59
+    },
+    "taylor_search": {
+      "path": "/api/research/search?type=referees&q=Taylor",
+      "first_ms": 2.43,
+      "n": 20,
+      "median_ms": 1.45,
+      "p95_ms": 1.62,
+      "max_ms": 1.78
+    }
+  },
+  "haaland_2025": {
+    "subject": {
+      "type": "player",
+      "id": 52,
+      "name": "Erling Haaland",
+      "api_football_id": 1100,
+      "nationality": null,
+      "club": {
+        "id": 13,
+        "name": "Manchester City",
+        "logo_url": "https://media.api-sports.io/football/teams/50.png"
+      },
+      "position": {
+        "code": "F",
+        "label": "Forward"
+      },
+      "photo_url": "https://media.api-sports.io/football/players/1100.png"
+    },
+    "totals": {
+      "appearances": 35,
+      "minutes": 2958,
+      "goals": 27,
+      "assists": 8,
+      "shots": 102,
+      "shots_on_target": 59,
+      "fouls_won": 25,
+      "fouls_committed": 24,
+      "yellow_cards": 2,
+      "red_cards": 0,
+      "cards": 2,
+      "starts": 34
+    },
+    "ranking": {
+      "ranked": true,
+      "reason": null,
+      "peer_group": "F",
+      "sample_minutes": 2958,
+      "sample_matches": 35,
+      "minimum_minutes": 900,
+      "minimum_matches": 1
+    },
+    "headline": {
+      "subject_type": "player",
+      "metric": "goals_per_90",
+      "value": 0.821501014198783,
+      "percentile": 99,
+      "rank": 1,
+      "peer_count": 61,
+      "metric_label": "goals per 90 minutes",
+      "display_value": "0.82",
+      "peer_label": "Premier League forwards",
+      "comparison": "higher",
+      "comparison_share": 99,
+      "rank_phrase": null,
+      "partial_observations": false,
+      "text": "0.82 goals per 90 minutes, more than 99% of Premier League forwards"
+    },
+    "frequencies": {
+      "shots_on_target_1_plus": {
+        "count": 29,
+        "denominator": 35,
+        "unknown": 0
+      },
+      "shots_on_target_2_plus": {
+        "count": 16,
+        "denominator": 35,
+        "unknown": 0
+      },
+      "shots_3_plus": {
+        "count": 18,
+        "denominator": 35,
+        "unknown": 0
+      },
+      "scored": {
+        "count": 20,
+        "denominator": 35,
+        "unknown": 0
+      },
+      "assisted": {
+        "count": 7,
+        "denominator": 35,
+        "unknown": 0
+      },
+      "booked": {
+        "count": 2,
+        "denominator": 35,
+        "unknown": 0
+      }
+    }
+  },
+  "haaland_2026": {
+    "subject": {
+      "type": "player",
+      "id": 52,
+      "name": "Erling Haaland",
+      "api_football_id": 1100,
+      "nationality": null,
+      "club": {
+        "id": 13,
+        "name": "Manchester City",
+        "logo_url": "https://media.api-sports.io/football/teams/50.png"
+      },
+      "position": {
+        "code": "F",
+        "label": "Forward"
+      },
+      "photo_url": "https://media.api-sports.io/football/players/1100.png"
+    },
+    "totals": {
+      "appearances": 5,
+      "minutes": 450,
+      "goals": 5,
+      "assists": 0,
+      "shots": 19,
+      "shots_on_target": 10,
+      "fouls_won": 5,
+      "fouls_committed": 4,
+      "yellow_cards": 0,
+      "red_cards": 0,
+      "cards": 0,
+      "starts": 5
+    },
+    "ranking": {
+      "ranked": false,
+      "reason": "below_minutes_threshold",
+      "peer_group": "F",
+      "sample_minutes": 450,
+      "sample_matches": 5,
+      "minimum_minutes": 900,
+      "minimum_matches": 1
+    },
+    "headline": null,
+    "frequencies": {
+      "shots_on_target_1_plus": {
+        "count": 5,
+        "denominator": 5,
+        "unknown": 0
+      },
+      "shots_on_target_2_plus": {
+        "count": 3,
+        "denominator": 5,
+        "unknown": 0
+      },
+      "shots_3_plus": {
+        "count": 4,
+        "denominator": 5,
+        "unknown": 0
+      },
+      "scored": {
+        "count": 4,
+        "denominator": 5,
+        "unknown": 0
+      },
+      "assisted": {
+        "count": 0,
+        "denominator": 5,
+        "unknown": 0
+      },
+      "booked": {
+        "count": 0,
+        "denominator": 5,
+        "unknown": 0
+      }
+    }
+  },
+  "arsenal_2025": {
+    "subject": {
+      "type": "team",
+      "id": 7,
+      "name": "Arsenal",
+      "api_football_id": 42,
+      "logo_url": "https://media.api-sports.io/football/teams/42.png",
+      "short_code": "ARS",
+      "country": "England"
+    },
+    "totals": {
+      "matches": 38,
+      "wins": 26,
+      "draws": 7,
+      "stats_observed_matches": 37,
+      "excluded_matches": 1,
+      "losses": 5,
+      "unknown_results": 0,
+      "goals_for": 71,
+      "goals_against": 27,
+      "xg_for": 62.8,
+      "xg_against": 27.49,
+      "shots_on_target_for": 179,
+      "shots_on_target_faced": 87,
+      "corners_for": 212,
+      "corners_against": 123,
+      "cards": 50,
+      "clean_sheets": 19
+    },
+    "ranking": {
+      "ranked": true,
+      "reason": null,
+      "peer_group": "all",
+      "sample_minutes": null,
+      "sample_matches": 38,
+      "minimum_minutes": null,
+      "minimum_matches": 1
+    },
+    "headline": {
+      "subject_type": "team",
+      "metric": "goals_against",
+      "value": 0.7105263157894737,
+      "percentile": null,
+      "rank": 1,
+      "peer_count": 20,
+      "metric_label": "goals conceded per match",
+      "display_value": "0.71",
+      "peer_label": "teams",
+      "comparison": null,
+      "comparison_share": null,
+      "rank_phrase": "the fewest of 20 teams",
+      "partial_observations": false,
+      "text": "0.71 goals conceded per match, the fewest of 20 teams"
+    },
+    "frequencies": {
+      "over_2_5_goals": {
+        "count": 20,
+        "denominator": 38,
+        "unknown": 0
+      },
+      "both_teams_scored": {
+        "count": 18,
+        "denominator": 38,
+        "unknown": 0
+      },
+      "clean_sheet": {
+        "count": 19,
+        "denominator": 38,
+        "unknown": 0
+      },
+      "corners_10_plus": {
+        "count": 16,
+        "denominator": 37,
+        "unknown": 1
+      },
+      "cards_4_plus": {
+        "count": 18,
+        "denominator": 37,
+        "unknown": 1
+      }
+    }
+  },
+  "taylor_2025": {
+    "subject": {
+      "type": "referee",
+      "referee_key": "a-taylor-68af826d",
+      "name": "Anthony Taylor",
+      "aliases": [
+        "A. Taylor",
+        "Anthony Taylor, England"
+      ],
+      "country": "England"
+    },
+    "totals": {
+      "matches": 39,
+      "finished_matches": 40,
+      "stats_observed_matches": 39,
+      "excluded_matches": 1,
+      "cards": 166,
+      "yellows": 162,
+      "reds": 4,
+      "fouls": 820
+    },
+    "ranking": {
+      "ranked": true,
+      "reason": null,
+      "peer_group": "all",
+      "sample_minutes": null,
+      "sample_matches": 39,
+      "minimum_minutes": null,
+      "minimum_matches": 15
+    },
+    "headline": {
+      "subject_type": "referee",
+      "metric": "fouls",
+      "value": 21.025641025641026,
+      "percentile": 15,
+      "rank": 103,
+      "peer_count": 120,
+      "metric_label": "fouls per match",
+      "display_value": "21.03",
+      "peer_label": "referees",
+      "comparison": "lower",
+      "comparison_share": 85,
+      "rank_phrase": null,
+      "partial_observations": true,
+      "text": "21.03 fouls per match, fewer than 85% of referees. Some match observations are missing."
+    },
+    "frequencies": {
+      "cards_4_plus": {
+        "count": 25,
+        "denominator": 39,
+        "unknown": 1
+      },
+      "cards_5_plus": {
+        "count": 19,
+        "denominator": 39,
+        "unknown": 1
+      },
+      "red_card_shown": {
+        "count": 4,
+        "denominator": 39,
+        "unknown": 1
+      },
+      "fouls_25_plus": {
+        "count": 9,
+        "denominator": 39,
+        "unknown": 1
+      }
+    },
+    "breakdown": [
+      {
+        "competition": "EPL",
+        "matches": 30,
+        "finished_matches": 31,
+        "excluded_matches": 1,
+        "small_sample": false
+      },
+      {
+        "competition": "UCL",
+        "matches": 5,
+        "finished_matches": 5,
+        "excluded_matches": 0,
+        "small_sample": false
+      },
+      {
+        "competition": "UECL",
+        "matches": 1,
+        "finished_matches": 1,
+        "excluded_matches": 0,
+        "small_sample": true
+      },
+      {
+        "competition": "UEL",
+        "matches": 3,
+        "finished_matches": 3,
+        "excluded_matches": 0,
+        "small_sample": true
+      }
+    ]
+  },
+  "haaland_search": [
+    {
+      "id": 52,
+      "name": "Erling Haaland",
+      "api_football_id": 1100,
+      "last_activity_at": "2026-09-20T13:00:00+00:00",
+      "latest_competition": "EPL",
+      "latest_season": 2026,
+      "position": {
+        "code": "F",
+        "label": "Forward"
+      },
+      "club_name": "Manchester City",
+      "club": {
+        "id": 13,
+        "name": "Manchester City",
+        "logo_url": "https://media.api-sports.io/football/teams/50.png"
+      }
+    },
+    {
+      "id": 24671,
+      "name": "M. Haaland",
+      "api_football_id": 319130,
+      "last_activity_at": "2026-02-26T20:00:00+00:00",
+      "latest_competition": "UEL",
+      "latest_season": 2025,
+      "position": {
+        "code": "M",
+        "label": "Midfielder"
+      },
+      "club_name": "Brann",
+      "club": {
+        "id": 158,
+        "name": "Brann",
+        "logo_url": "https://media.api-sports.io/football/teams/319.png"
+      }
+    }
+  ],
+  "arsenal_search": [
+    {
+      "id": 7,
+      "name": "Arsenal",
+      "api_football_id": 42,
+      "last_activity_at": "2026-09-19T14:00:00+00:00",
+      "latest_competition": "EPL",
+      "latest_season": 2026,
+      "country": "England",
+      "short_code": "ARS",
+      "logo_url": "https://media.api-sports.io/football/teams/42.png"
+    },
+    {
+      "id": 513,
+      "name": "Arsenal Tivat",
+      "api_football_id": 3742,
+      "last_activity_at": "2023-07-20T18:30:00+00:00",
+      "latest_competition": "UECL",
+      "latest_season": 2023,
+      "country": null,
+      "short_code": null,
+      "logo_url": "https://media.api-sports.io/football/teams/3742.png"
+    },
+    {
+      "id": 598,
+      "name": "Arsenal Tula",
+      "api_football_id": 1077,
+      "last_activity_at": "2019-08-01T17:00:00+00:00",
+      "latest_competition": "UEL",
+      "latest_season": 2019,
+      "country": null,
+      "short_code": null,
+      "logo_url": "https://media.api-sports.io/football/teams/1077.png"
+    }
+  ],
+  "taylor_search": [
+    {
+      "referee_key": "a-taylor-68af826d",
+      "name": "Anthony Taylor",
+      "matches": 262,
+      "last_activity_at": "2026-05-24T15:00:00+00:00",
+      "country": "England"
+    }
+  ]
+}

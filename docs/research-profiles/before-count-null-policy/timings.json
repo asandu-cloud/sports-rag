@@ -1,0 +1,75 @@
+{
+  "method": "Isolated FastAPI router TestClient, real Index/platform.db, 1 first request + 20 repeats, no application cache; timings include serialization but not TCP transport",
+  "timings": {
+    "haaland_2025": {
+      "url": "/api/research/players/52?competition=EPL&season=2025",
+      "first_ms": 48.56,
+      "median_ms": 2.91,
+      "p95_ms": 3.46,
+      "max_ms": 48.56
+    },
+    "haaland_2026": {
+      "url": "/api/research/players/52?competition=EPL&season=2026",
+      "first_ms": 5.71,
+      "median_ms": 4.18,
+      "p95_ms": 4.38,
+      "max_ms": 5.71
+    },
+    "arsenal_2025": {
+      "url": "/api/research/teams/7?competition=EPL&season=2025",
+      "first_ms": 9.25,
+      "median_ms": 3.76,
+      "p95_ms": 4.29,
+      "max_ms": 9.25
+    },
+    "taylor_2025": {
+      "url": "/api/research/referees/a-taylor-68af826d?season=2025",
+      "first_ms": 6.3,
+      "median_ms": 2.88,
+      "p95_ms": 3.17,
+      "max_ms": 6.3
+    },
+    "search": {
+      "url": "/api/research/search?type=players&q=Haaland&competition=EPL",
+      "first_ms": 38.99,
+      "median_ms": 6.55,
+      "p95_ms": 6.7,
+      "max_ms": 38.99
+    },
+    "team_search": {
+      "url": "/api/research/search?type=teams&q=Arsenal",
+      "first_ms": 2.95,
+      "median_ms": 0.72,
+      "p95_ms": 0.84,
+      "max_ms": 2.95
+    },
+    "referee_search": {
+      "url": "/api/research/search?type=referees&q=Taylor",
+      "first_ms": 1.33,
+      "median_ms": 1.05,
+      "p95_ms": 1.16,
+      "max_ms": 1.33
+    },
+    "player_default": {
+      "url": "/api/research/players/52",
+      "first_ms": 5.32,
+      "median_ms": 4.17,
+      "p95_ms": 4.65,
+      "max_ms": 5.32
+    },
+    "team_default": {
+      "url": "/api/research/teams/7",
+      "first_ms": 10.17,
+      "median_ms": 3.22,
+      "p95_ms": 3.87,
+      "max_ms": 10.17
+    },
+    "referee_default": {
+      "url": "/api/research/referees/a-taylor-68af826d",
+      "first_ms": 10.96,
+      "median_ms": 4.31,
+      "p95_ms": 6.26,
+      "max_ms": 21.7
+    }
+  }
+}
