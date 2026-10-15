@@ -112,17 +112,23 @@ def flat_stake_roi(rows: Iterable[Mapping[str, Any]]) -> Tuple[float, float, flo
 
 def _clv_summary(rows: Iterable[Mapping[str, Any]]) -> Tuple[Optional[float], Optional[float], int]:
     from .settlement import utc_datetime
-    from .closing_contract import CLV_DEFINITION, MAX_QUOTE_AGE_MINUTES, WINDOW_MINUTES
+    from .closing_contract import CLV_DEFINITION, FINAL_SNAPSHOT, MAX_QUOTE_AGE_MINUTES, WINDOW_MINUTES
     values = []
     for row in rows:
         if row.get("tracking_cohort") == "published":
             capture = row.get("closing_capture") or {}
             quoted, captured, kickoff = (utc_datetime(capture.get(k)) for k in ("quote_time", "captured_at", "kickoff"))
-            if not (capture.get("status") == "final" and capture.get("clv_definition") == CLV_DEFINITION
-                    and bool(row.get("selection_key")) and capture.get("selection_key") == row.get("selection_key")
-                    and quoted and captured and kickoff and quoted <= captured < kickoff
-                    and 0 < (kickoff - quoted).total_seconds() <= MAX_QUOTE_AGE_MINUTES * 60
-                    and 0 < (kickoff - captured).total_seconds() <= WINDOW_MINUTES * 60):
+            identified = (capture.get("status") == "final" and capture.get("clv_definition") == CLV_DEFINITION
+                          and bool(row.get("selection_key")) and capture.get("selection_key") == row.get("selection_key")
+                          and quoted and captured and kickoff)
+            if capture.get("source") == FINAL_SNAPSHOT:
+                # API-Football's final pre-kickoff snapshot, fetched after the match.
+                timely = identified and quoted < kickoff <= captured
+            else:
+                timely = (identified and quoted <= captured < kickoff
+                          and 0 < (kickoff - quoted).total_seconds() <= MAX_QUOTE_AGE_MINUTES * 60
+                          and 0 < (kickoff - captured).total_seconds() <= WINDOW_MINUTES * 60)
+            if not timely:
                 continue
             opening, closing, value = (_number(row.get(k)) for k in ("odds", "closing_odds", "clv"))
             if not (opening and closing and opening > 1 and closing > 1 and value is not None

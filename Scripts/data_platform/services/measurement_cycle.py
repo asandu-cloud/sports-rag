@@ -1,6 +1,7 @@
 """Independent, bounded prospective settlement and closing-price worker."""
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from uuid import uuid4
 
 from ..publication_identity import digest
@@ -8,11 +9,13 @@ from ..repositories.match_read_cycle import MatchReadCycleRepository
 from ..repositories.predictions import PredictionRepository
 from ..settlement import Grade, SETTLEMENT_VERSION, selection_issue, utc_datetime
 from ..settlement_policy import product_policy
-from .closing_prices import ClosingPriceService, WINDOW_MINUTES
+from .closing_prices import DUE_AFTER, SOURCE as CLOSING_SOURCE, ClosingPriceService, SavedOddsClient
 from .measurement_runtime import BoundedFootballClient, BudgetExceeded, CONTROL, MeasurementRuntime, defer, utc
 from .settlement import FixtureResultLoader, SettlementService
 
 LEASE = "prediction-measurement.v1"
+# Post-match odds saved ahead of a closing backfill (Index/closing_backfill/<fixture>.json.gz).
+SAVED_ODDS_DIR = Path(__file__).resolve().parents[3] / "Index/closing_backfill"
 PERMANENT = {"card_definition_unverified", "bookmaker_status_rule_required",
              "missing_or_unsupported_period", "missing_or_unsupported_market",
              "missing_or_conflicting_selection_identity", "conflicting_selection_identity",
@@ -22,7 +25,8 @@ PERMANENT = {"card_definition_unverified", "bookmaker_status_rule_required",
 
 
 class MeasurementCycle:
-    def __init__(self, repo=None, runtime=None, *, client=None, clock=None):
+    def __init__(self, repo=None, runtime=None, *, client=None, clock=None, saved_odds_dir=SAVED_ODDS_DIR):
+        self.saved_odds_dir = Path(saved_odds_dir)
         self.repo = repo or PredictionRepository()
         self.runtime = runtime or MeasurementRuntime(self.repo._factory)
         self.leases = MatchReadCycleRepository(self.repo._factory)
@@ -91,12 +95,14 @@ class MeasurementCycle:
                             continue
                     else:
                         preds = [p for p in preds if (p.get("closing_capture") or {}).get("status") != "final"]
-                        if now < kickoff - timedelta(minutes=WINDOW_MINUTES):
+                        if now < kickoff + DUE_AFTER:  # final pre-kickoff snapshot, fetched after the match
                             continue
                     if not preds:
                         continue
                     revision = digest({"ids": [p["id"] for p in preds], "kickoff": kickoff.isoformat(),
-                                       "rules": [p.get("settlement_policy") for p in preds]})
+                                       "rules": [p.get("settlement_policy") for p in preds],
+                                       # A new closing source re-opens fixtures the old one gave up on.
+                                       **({"closing_source": CLOSING_SOURCE} if kind == "closing" else {})})
                     state = self.runtime.state(f"measurement:{kind}:{fid}")
                     if state.get("revision") == revision and (state.get("permanent") or
                             (utc_datetime(state.get("next_attempt_at")) or now) > now):
@@ -131,15 +137,11 @@ class MeasurementCycle:
                     checked += 1
                     try:
                         if kind == "closing":
-                            result = ClosingPriceService(self.repo, client=client, guard=guard, clock=self.clock).process(eligible)
+                            source = SavedOddsClient(client, self.saved_odds_dir) if self.saved_odds_dir.exists() else client
+                            result = ClosingPriceService(self.repo, client=source, guard=guard, clock=self.clock).process(eligible)
                             reason = result.get("pending_reason") or "captured"
-                            # Opportunities near T-20, T-5 and T-1. A
-                            # one-minute tick need not make an API call each time.
-                            remaining = (kickoff - self.clock()).total_seconds() / 60
-                            delay = max(1, remaining - 5) if remaining > 5 else max(1, remaining - 1) if remaining > 1 else 1
-                            if remaining <= 0 and not result.get("finished"):
-                                delay = None  # Postponed/missing kickoff: exponential retry, not minute polling.
                             permanent = bool(result.get("finished"))
+                            delay = None  # not finished yet: exponential retry
                         else:
                             result = SettlementService(self.repo, result_loader=FixtureResultLoader(client)).resolve(
                                 prediction_ids=[p["id"] for p in eligible], now=self.clock(), write_guard=guard)

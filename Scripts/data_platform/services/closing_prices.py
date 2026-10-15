@@ -1,75 +1,114 @@
-"""Exact, prospective closing prices. Never use a post-kickoff odds request."""
+"""Closing prices from API-Football's final pre-kickoff odds snapshot.
+
+API-Football refreshes pre-match odds periodically and keeps a fixture's last
+refresh for several days after the match (measured 15 Oct 2026: the last
+refresh lands a median ~59 minutes before kickoff). The true kickoff price is
+not available from this provider, so the closing price is that final snapshot,
+fetched once the match is over and stored with its own timestamp:
+
+* accepted only if the snapshot is stamped strictly before kickoff;
+* the same bookmaker's exact selection gives ``closing_odds`` and the CLV;
+* every bookmaker pricing the full market gives a consensus fair probability
+  (proportional margin removal, median across books), kept with the per-book
+  prices so later weighting can recompute it.
+"""
 from datetime import datetime, timedelta, timezone
+import gzip
+import json
 import math
+from pathlib import Path
+import statistics
 
 from sqlalchemy import update
 
 from ..models import OddsSnapshot, Prediction
-from ..settlement import MARKET_KEYS, provider_id, utc_datetime
-from ..closing_contract import WINDOW_MINUTES, MAX_QUOTE_AGE_MINUTES, CLV_DEFINITION
+from ..settlement import MARKET_KEYS, handicap_side, provider_id, utc_datetime
+from ..closing_contract import CLV_DEFINITION, FINAL_SNAPSHOT
+
+SOURCE = FINAL_SNAPSHOT
+CONSENSUS_METHOD = "proportional_devig_median.v1"
+DUE_AFTER = timedelta(hours=2)        # fetch once the match is surely over
+GIVE_UP_AFTER = timedelta(days=7)     # API-Football has dropped the odds by then
+NOT_PLAYED = {"PST", "CANC", "ABD", "AWD", "WO"}
+STARTED = {"1H", "HT", "2H", "ET", "BT", "P", "FT", "AET", "PEN", "LIVE", "INT", "SUSP"}
 
 
-def exact_price(prediction, odds_row, *, kickoff, captured_at):
-    """Retain exact raw-provider quote evidence; no bookmaker/market substitutes."""
-    selection = (prediction.get("tracking") or {}).get("selection") or {}
-    key, group = selection.get("market_key"), prediction.get("market")
-    quote_time = utc_datetime(odds_row.get("update"))
-    if provider_id((odds_row.get("fixture") or {}).get("id")) != provider_id(prediction.get("fixture_id")):
-        return None, "fixture_identity_mismatch"
-    if selection.get("period") != "regulation_time" or selection.get("participant") is not None:
-        return None, "unsupported_period_or_participant"
-    if key not in MARKET_KEYS.get(group, set()):
-        return None, "unsupported_market"
-    if quote_time is None:
-        return None, "quote_time_unavailable"
-    if not quote_time <= captured_at < kickoff:
-        return None, "invalid_quote_chronology"
-    if not 0 < (kickoff - quote_time).total_seconds() <= MAX_QUOTE_AGE_MINUTES * 60:
-        return None, "stale_quote"
-    if not 0 < (kickoff - captured_at).total_seconds() <= WINDOW_MINUTES * 60:
-        return None, "outside_capture_window"
-    if selection.get("fixture_id") != prediction.get("fixture_id") or any(
-        selection.get(field) != prediction.get(field) for field in ("side", "line", "bookmaker")
-    ) or selection.get("market_group") != group:
-        return None, "conflicting_selection_identity"
-    # Reuse precisely the market/value normalization that produced the original
-    # published quote, without its preferred-bookmaker selection/fallback.
+def _transform():
     try:
         from Scripts.rag_ingest.odds_provider import _BET_ID_TO_MARKET_KEY, _transform_apifootball_odds
     except ImportError:
         from rag_ingest.odds_provider import _BET_ID_TO_MARKET_KEY, _transform_apifootball_odds
-    books = [book for book in odds_row.get("bookmakers", [])
-             if str(book.get("name", "")).strip().casefold() == str(selection.get("bookmaker", "")).strip().casefold()]
-    if len(books) != 1:
-        return None, "bookmaker_unavailable_or_ambiguous"
-    matches = []
-    side = str(selection.get("side", "")).lower()
-    for bet in books[0].get("bets", []):
-        if _BET_ID_TO_MARKET_KEY.get(bet.get("id")) != key:
+    return _BET_ID_TO_MARKET_KEY, _transform_apifootball_odds
+
+
+def _norm(value):
+    return str(value or "").strip().casefold().replace(":", "-")
+
+
+def book_outcomes(bookmaker, market_key, home, away):
+    """[(side, point, price)] for one bookmaker and market, normalised like the published quotes."""
+    bet_keys, transform = _transform()
+    out = []
+    for bet in bookmaker.get("bets", []):
+        if bet_keys.get(bet.get("id")) != market_key:
             continue
-        for raw in bet.get("values", []):
-            transformed = _transform_apifootball_odds([
-                {"name": books[0]["name"], "bets": [{"id": bet["id"], "values": [raw]}]}
-            ], "home", "away")
-            if not transformed:
-                continue
-            outcome = transformed[0]["markets"][0]["outcomes"][0]
-            name = str(outcome["name"]).lower().replace(":", "-")
-            expected = side.replace(":", "-")
-            line = selection.get("line")
-            if name != expected or outcome.get("point") != line:
-                continue
-            price = float(outcome["price"])
-            if not math.isfinite(price) or price <= 1:
-                continue
-            matches.append({"odds": price, "bookmaker_id": books[0].get("id"),
-                            "bookmaker": books[0]["name"], "provider_market_id": bet["id"],
-                            "market_key": key, "period": "regulation_time", "side": side, "line": line,
-                            "raw_value": raw.get("value"), "quote_time": quote_time.isoformat(),
-                            "quote_time_source": "api_football_odds_row.update",
-                            "captured_at": captured_at.isoformat(), "kickoff": kickoff.isoformat(),
-                            "selection_key": (prediction.get("tracking") or {}).get("selection_key")})
-    return (matches[0], None) if len(matches) == 1 else (None, "exact_quote_unavailable_or_ambiguous")
+        for market in (transform([{"name": bookmaker.get("name"), "bets": [bet]}], home, away) or [{}])[0].get("markets", []):
+            for outcome in market.get("outcomes", []):
+                price = outcome.get("price")
+                if isinstance(price, (int, float)) and math.isfinite(price) and price > 1:
+                    out.append((_norm(outcome.get("name")), outcome.get("point"), float(price)))
+    return out
+
+
+def _selection(prediction):
+    """(market key, side, line, names to transform with) for a published pick."""
+    selection = (prediction.get("tracking") or {}).get("selection") or {}
+    key, line = selection.get("market_key"), selection.get("line")
+    if prediction.get("market") == "spreads":
+        side = handicap_side(prediction)
+        home, away = prediction.get("home_team"), prediction.get("away_team")
+        return key, _norm(home if side == "home" else away if side == "away" else None), line, (home, away)
+    return key, _norm(selection.get("side")), line, ("home", "away")
+
+
+def _market_group(outcomes, side, line, spreads):
+    """The pick's outcome plus the outcomes it must be de-vigged against."""
+    if spreads:
+        return [o for o in outcomes if (o[0] == side and o[1] == line) or (o[0] != side and o[1] == -line)]
+    return [o for o in outcomes if o[1] == line]
+
+
+def price_selection(prediction, odds_row):
+    """(same-book price or None, consensus dict, issue) for one pick from one snapshot row."""
+    selection = (prediction.get("tracking") or {}).get("selection") or {}
+    if selection.get("period") != "regulation_time" or selection.get("participant") is not None:
+        return None, None, "unsupported_period_or_participant"
+    if selection.get("market_key") not in MARKET_KEYS.get(prediction.get("market"), set()):
+        return None, None, "unsupported_market"
+    key, side, line, (home, away) = _selection(prediction)
+    if not side:
+        return None, None, "invalid_side"
+    spreads = prediction.get("market") == "spreads"
+    wanted_book = _norm(selection.get("bookmaker"))
+    same_book, books = None, []
+    for bookmaker in odds_row.get("bookmakers", []):
+        group = _market_group(book_outcomes(bookmaker, key, home, away), side, line, spreads)
+        picked = [o for o in group if o[0] == side]
+        sides = {o[0] for o in group}
+        if len(picked) != 1 or len(sides) != len(group) or len(group) < 2:
+            continue  # missing, ambiguous or one-sided: cannot price or de-vig this book
+        inverse = sum(1 / o[2] for o in group)
+        fair = (1 / picked[0][2]) / inverse
+        name = bookmaker.get("name")
+        books.append({"bookmaker": name, "odds": {o[0]: o[2] for o in group}, "margin": inverse - 1, "fair": fair})
+        if _norm(name) == wanted_book:
+            same_book = {"odds": picked[0][2], "bookmaker": name, "bookmaker_id": bookmaker.get("id")}
+    consensus = None
+    if books:
+        consensus = {"method": CONSENSUS_METHOD, "fair_probability": statistics.median(b["fair"] for b in books),
+                     "book_count": len(books), "books": books}
+    issue = None if same_book else ("same_bookmaker_unavailable" if books else "selection_unavailable")
+    return same_book, consensus, issue
 
 
 class ClosingPriceService:
@@ -84,111 +123,105 @@ class ClosingPriceService:
         if len(fixtures) != 1 or provider_id(fixtures[0].get("fixture", {}).get("id")) != fid:
             raise ValueError("Closing fixture response mismatch")
         from ..sync.apifootball import COMPETITIONS
-        expected_league = COMPETITIONS.get(predictions[0]["league"])
-        if expected_league is None or provider_id(fixtures[0].get("league", {}).get("id")) != str(expected_league.api_football_id):
+        league = COMPETITIONS.get(predictions[0]["league"])
+        league_id = str(league.api_football_id) if league else None
+        if league_id is None or provider_id(fixtures[0].get("league", {}).get("id")) != league_id:
             raise ValueError("Closing competition response mismatch")
         fixture = fixtures[0]["fixture"]
-        kickoff = utc_datetime(fixture.get("date"))
-        status = (fixture.get("status") or {}).get("short")
-        if kickoff is None:
-            return {"pending_reason": "missing_fixture_kickoff", "captured": 0}
+        kickoff, status = utc_datetime(fixture.get("date")), (fixture.get("status") or {}).get("short")
         now = self.clock()
-        if now >= kickoff:
-            if status in {"NS", "TBD", "PST", "CANC", "ABD", "AWD", "WO"}:
-                return {"pending_reason": "kickoff_or_status_unverified", "captured": 0}
-            if status not in {"1H", "HT", "2H", "ET", "BT", "P", "FT", "AET", "PEN"}:
-                return {"pending_reason": "kickoff_or_status_unverified", "captured": 0}
-            finalized = 0
-            unavailable = 0
-            for pred in predictions:
-                self.guard()
-                candidate = pred.get("closing_capture") or {}
-                if candidate.get("status") == "final":
-                    continue
-                captured, quoted = utc_datetime(candidate.get("captured_at")), utc_datetime(candidate.get("quote_time"))
-                valid = (captured is not None and quoted is not None and quoted <= captured < kickoff
-                         and utc_datetime(candidate.get("kickoff")) == kickoff
-                         and (kickoff - quoted).total_seconds() <= MAX_QUOTE_AGE_MINUTES * 60
-                         and (kickoff - captured).total_seconds() <= WINDOW_MINUTES * 60
-                         and candidate.get("selection_key") == (pred.get("tracking") or {}).get("selection_key"))
-                if not valid:
-                    unavailable += 1
-                    continue
-                if not dry_run:
-                    self._finalize(pred, candidate, self.clock())
-                finalized += 1
-            return {"captured": 0, "finalized": finalized, "unavailable": unavailable,
-                    "finished": True, "pending_reason": "no_eligible_pre_kickoff_quote" if unavailable else None}
-        if status != "NS" or (kickoff - now).total_seconds() > WINDOW_MINUTES * 60:
-            return {"captured": 0, "pending_reason": "outside_capture_window_or_started"}
+        if kickoff is None:
+            return {"captured": 0, "pending_reason": "missing_fixture_kickoff"}
+        if status in NOT_PLAYED:
+            return {"captured": 0, "pending_reason": "fixture_not_played", "finished": True}
+        if status not in STARTED or now < kickoff + DUE_AFTER:
+            return {"captured": 0, "pending_reason": "not_due"}
         payload = self.client._get("/odds", {"fixture": int(fid)})
-        captured_at = self.clock()  # RESPONSE time, never request-start time.
+        captured_at = self.clock()
         self.guard()
-        if captured_at >= kickoff:
-            return {"captured": 0, "pending_reason": "response_after_kickoff"}
-        rows = payload["response"]
+        rows = payload.get("response") or []
         if len(rows) != 1:
-            return {"captured": 0, "pending_reason": "missing_or_ambiguous_odds_row"}
-        # The odds row also carries the fixture date. Reject reschedule mismatch.
-        if utc_datetime((rows[0].get("fixture") or {}).get("date")) != kickoff:
-            return {"captured": 0, "pending_reason": "odds_kickoff_mismatch"}
-        if provider_id((rows[0].get("league") or {}).get("id")) != str(expected_league.api_football_id):
-            return {"captured": 0, "pending_reason": "odds_competition_mismatch"}
-        if provider_id((rows[0].get("fixture") or {}).get("id")) != fid:
-            return {"captured": 0, "pending_reason": "fixture_identity_mismatch"}
-        quotes, reasons = [], {}
-        for pred in predictions:
-            quote, reason = exact_price(pred, rows[0], kickoff=kickoff, captured_at=captured_at)
-            if quote is not None:
-                quotes.append((pred, quote))
-            else:
-                reasons[reason] = reasons.get(reason, 0) + 1
-        saved = 0
-        snapshot_id = None
-        if not dry_run:
-            self.guard()
-            with self.repo._factory() as session:
-                snapshot = OddsSnapshot(event_id=fid, league=predictions[0]["league"], kind="closing",
-                                        kickoff_utc=kickoff, kickoff_date=kickoff.date().isoformat(),
-                                        captured_at=captured_at, odds_json=payload)
-                session.add(snapshot)
-                session.flush()
-                snapshot_id = snapshot.id
-                for pred, quote in quotes:
-                    row = session.get(Prediction, pred["id"])
-                    extras = dict(row.extras or {})
-                    previous = extras.get("closing_capture") or {}
-                    if previous.get("status") == "final":
-                        continue
-                    previous_time = utc_datetime(previous.get("quote_time"))
-                    if previous_time and previous_time > utc_datetime(quote["quote_time"]):
-                        continue
-                    extras["closing_capture"] = {**quote, "status": "provisional", "snapshot_id": snapshot.id,
-                                                 "clv_definition": CLV_DEFINITION}
-                    changed = session.execute(update(Prediction).where(Prediction.id == row.id,
-                        Prediction.updated_at == row.updated_at).values(extras=extras).execution_options(synchronize_session=False))
-                    if changed.rowcount != 1:
-                        raise RuntimeError("Closing write conflicted; retry next tick")
-                    saved += 1
-                self.guard()
-        return {"captured": len(quotes) if dry_run else saved, "snapshot_id": snapshot_id, "pending_reasons": reasons,
-                "pending_reason": next(iter(reasons), None), "kickoff": kickoff.isoformat()}
+            reason = "odds_unavailable" if not rows else "ambiguous_odds_rows"
+            return {"captured": 0, "pending_reason": reason, "finished": now > kickoff + GIVE_UP_AFTER}
+        row = rows[0]
+        if provider_id((row.get("fixture") or {}).get("id")) != fid:
+            return {"captured": 0, "pending_reason": "fixture_identity_mismatch", "finished": True}
+        if provider_id((row.get("league") or {}).get("id")) != league_id:
+            return {"captured": 0, "pending_reason": "odds_competition_mismatch", "finished": True}
+        if utc_datetime((row.get("fixture") or {}).get("date")) != kickoff:
+            return {"captured": 0, "pending_reason": "odds_kickoff_mismatch", "finished": True}
+        quote_time = utc_datetime(row.get("update"))
+        if quote_time is None:
+            return {"captured": 0, "pending_reason": "quote_time_unavailable", "finished": True}
+        if quote_time >= kickoff:
+            return {"captured": 0, "pending_reason": "snapshot_after_kickoff", "finished": True}
 
-    def _finalize(self, pred, candidate, now):
+        captures, reasons = [], {}
+        for pred in predictions:
+            if (pred.get("closing_capture") or {}).get("status") == "final":
+                continue
+            same_book, consensus, issue = price_selection(pred, row)
+            if issue:
+                reasons[issue] = reasons.get(issue, 0) + 1
+            if same_book or consensus:
+                captures.append((pred, same_book, consensus))
+        if dry_run:
+            return {"captured": len(captures), "finished": True, "pending_reasons": reasons,
+                    "pending_reason": next(iter(reasons), None)}
+        saved = 0
         with self.repo._factory() as session:
-            row = session.get(Prediction, pred["id"])
-            extras = dict(row.extras or {})
-            if extras.get("closing_capture") != candidate:
-                raise RuntimeError("Closing evidence changed during finalization")
-            opening, closing = float(row.odds), float(candidate["odds"])
-            if not all(math.isfinite(value) and value > 1 for value in (opening, closing)):
-                raise ValueError("Invalid recorded decimal odds")
-            extras["closing_capture"] = {**candidate, "status": "final", "finalized_at": now.isoformat()}
-            result = session.execute(update(Prediction).where(Prediction.id == row.id,
-                Prediction.updated_at == row.updated_at).values(
-                    closing_odds=closing, closing_implied_prob=1 / closing,
-                    clv=opening / closing - 1, extras=extras,
-                ).execution_options(synchronize_session=False))
-            if result.rowcount != 1:
-                raise RuntimeError("Closing finalization conflicted; retry next tick")
+            snapshot = OddsSnapshot(event_id=fid, league=predictions[0]["league"], kind="final_prematch",
+                                    kickoff_utc=kickoff, kickoff_date=kickoff.date().isoformat(),
+                                    captured_at=captured_at, odds_json=payload)
+            session.add(snapshot)
+            session.flush()
+            for pred, same_book, consensus in captures:
+                self.guard()
+                record = session.get(Prediction, pred["id"])
+                extras = dict(record.extras or {})
+                if (extras.get("closing_capture") or {}).get("status") == "final":
+                    continue
+                extras["closing_capture"] = {
+                    "status": "final", "source": SOURCE, "clv_definition": CLV_DEFINITION,
+                    "quote_time": quote_time.isoformat(), "quote_time_source": "api_football_odds_row.update",
+                    "minutes_before_kickoff": round((kickoff - quote_time).total_seconds() / 60, 2),
+                    "captured_at": captured_at.isoformat(), "finalized_at": captured_at.isoformat(),
+                    "kickoff": kickoff.isoformat(), "snapshot_id": snapshot.id,
+                    "selection_key": (pred.get("tracking") or {}).get("selection_key"),
+                    **(same_book or {"odds": None}), "consensus": consensus,
+                }
+                values = {"extras": extras}
+                opening = float(record.odds) if record.odds is not None else None
+                if same_book and opening and math.isfinite(opening) and opening > 1:
+                    closing_odds = same_book["odds"]
+                    values.update(closing_odds=closing_odds, closing_implied_prob=1 / closing_odds,
+                                  clv=opening / closing_odds - 1)
+                changed = session.execute(update(Prediction).where(
+                    Prediction.id == record.id, Prediction.updated_at == record.updated_at,
+                ).values(**values).execution_options(synchronize_session=False))
+                if changed.rowcount != 1:
+                    raise RuntimeError("Closing write conflicted; retry next tick")
+                saved += 1
             self.guard()
+            session.commit()
+        return {"captured": saved, "finished": True, "snapshot_id": snapshot.id, "kickoff": kickoff.isoformat(),
+                "minutes_before_kickoff": round((kickoff - quote_time).total_seconds() / 60, 2),
+                "pending_reasons": reasons, "pending_reason": next(iter(reasons), None)}
+
+
+class SavedOddsClient:
+    """Serve ``/odds?fixture=`` from post-match odds saved to disk; everything else goes to ``client``."""
+
+    def __init__(self, client, directory):
+        self.client, self.directory = client, Path(directory)
+
+    def _get(self, path, params):
+        fixture = (params or {}).get("fixture")
+        saved = self.directory / f"{fixture}.json.gz"
+        if path == "/odds" and fixture is not None and saved.exists():
+            with gzip.open(saved, "rt", encoding="utf-8") as handle:
+                return json.load(handle)["body"]
+        return self.client._get(path, params)
+
+    def __getattr__(self, name):
+        return getattr(self.client, name)

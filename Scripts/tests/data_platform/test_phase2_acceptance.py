@@ -128,23 +128,21 @@ def test_publish_capture_settle_restart_and_both_surface_reports_agree(services,
         visible(delivery, first, surface=surface, time=(KICKOFF - timedelta(days=1)).isoformat())
     assert len(repo.settlement_candidates()) == 2
     client = Client("NS")
-    client.odds["bookmakers"][0]["bets"] = [
-        {"id": 5, "values": [{"value": "Over 3.25", "odd": "1.80"}]},
-        {"id": 45, "values": [{"value": "Under 10.25", "odd": "1.90"}]},
+    client.odds["bookmakers"][0]["bets"] = [  # both sides of each market, so the margin can be removed
+        {"id": 5, "values": [{"value": "Over 3.25", "odd": "1.80"}, {"value": "Under 3.25", "odd": "2.05"}]},
+        {"id": 45, "values": [{"value": "Over 10.25", "odd": "1.95"}, {"value": "Under 10.25", "odd": "1.90"}]},
     ]
     clock = [KICKOFF - timedelta(minutes=4)]
     cycle = MeasurementCycle(repo, runtime, client=client, clock=lambda: clock[0])
     assert cycle.run_once()["errors"] == 0
-    assert all(p["closing_capture"]["status"] == "provisional" for p in repo.settlement_candidates())
-    assert all(p["closing_odds"] is None for p in repo.settlement_candidates())
-    cycle.run_once()  # Same tick, no duplicate snapshot/request.
-    assert len(client.calls) == 2
-    clock[0] = KICKOFF + timedelta(minutes=1)
-    client.fx["fixture"]["status"]["short"] = "1H"
-    assert cycle.run_once()["errors"] == 0
-    assert all(p["closing_capture"]["status"] == "final" for p in repo.settlement_candidates())
+    # Closing prices come from the final pre-kickoff snapshot, fetched after the match.
+    assert all(p["closing_capture"] is None for p in repo.settlement_candidates())
+    assert client.calls == []
     clock[0] = KICKOFF + timedelta(hours=3)
     client.fx["fixture"]["status"]["short"] = "FT"
+    assert cycle.run_once()["errors"] == 0
+    assert all(p["closing_capture"]["status"] == "final" for p in repo.get_recent(days=3650))
+    assert len([c for c in client.calls if c[0] == "/odds"]) == 1
     # Simulate a process restart before grading.
     cycle = MeasurementCycle(repo, runtime, client=client, clock=lambda: clock[0])
     assert cycle.run_once()["errors"] == 0

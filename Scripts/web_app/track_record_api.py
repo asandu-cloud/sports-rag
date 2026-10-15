@@ -263,6 +263,7 @@ async def recent_predictions(
                 }} or None,
                 closing_capture={k: v for k, v in (p.get("closing_capture") or {}).items() if k in {
                     "status", "odds", "quote_time", "quote_time_source", "captured_at", "finalized_at", "clv_definition",
+                    "source", "minutes_before_kickoff",
                 }} or None,
                 **{key: p[key] for key in (
                     "tracking_cohort", "publication_role", "recommendation_id", "fixture_date",
