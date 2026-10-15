@@ -64,6 +64,7 @@ def _row_to_dict(row: Optional[Prediction]) -> Optional[Dict[str, Any]]:
         "settlement": extras.get("settlement"),
         "settlement_policy": extras.get("settlement_policy"),
         "closing_capture": extras.get("closing_capture"),
+        "publication_reference": extras.get("publication_reference"),
     }
 
 

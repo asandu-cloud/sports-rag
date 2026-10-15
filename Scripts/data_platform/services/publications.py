@@ -12,6 +12,7 @@ from typing import Any, Dict, Mapping, Optional
 from ..repositories.publications import PublicationRepository
 from ..publication_identity import decision_identity, tracking_identity
 from ..settlement_policy import new_publication_policy
+from ..reference_price import publication_reference
 
 
 PUBLISHED_PREDICTION_SOURCE = "canonical_published"
@@ -190,6 +191,7 @@ class PublicationService:
                 "market_result_schema": result.get("schema_version"),
                 "tracking": tracking,
                 "settlement_policy": new_publication_policy(),
+                "publication_reference": publication_reference(result),
             },
         }
         return self._repo.record(
@@ -207,3 +209,33 @@ class PublicationService:
             delivered_at=release_time,
             delivery_metadata=delivery_metadata,
         )
+
+
+def backfill_publication_references(session_factory=None):
+    """Fill ``publication_reference`` for published picks made before it was recorded at publication."""
+    from sqlalchemy import select
+    from ..db import get_sessionmaker
+    from ..models import Prediction, PublishedRecommendation
+    factory = session_factory or get_sessionmaker()
+    from sqlalchemy import update
+    counts = {"filled": 0, "already": 0}
+    with factory() as session:
+        rows = session.execute(select(Prediction.id, Prediction.extras, Prediction.updated_at,
+                                      PublishedRecommendation.decision_json).join(
+            PublishedRecommendation, PublishedRecommendation.prediction_id == Prediction.id)).all()
+    for prediction_id, extras, updated_at, decision_json in rows:
+        if (extras or {}).get("publication_reference"):
+            counts["already"] += 1
+            continue
+        extras = {**(extras or {}), "publication_reference": publication_reference(decision_json or {})}
+        with factory() as session:
+            # Only if unchanged since read: the measurement worker writes these rows concurrently.
+            changed = session.execute(update(Prediction).where(
+                Prediction.id == prediction_id, Prediction.updated_at == updated_at,
+            ).values(extras=extras).execution_options(synchronize_session=False)).rowcount
+            session.commit()
+        if changed == 1:
+            counts["filled"] += 1
+        else:
+            counts["conflicted"] = counts.get("conflicted", 0) + 1
+    return counts

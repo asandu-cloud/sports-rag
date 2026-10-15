@@ -17,16 +17,15 @@ import gzip
 import json
 import math
 from pathlib import Path
-import statistics
 
 from sqlalchemy import update
 
 from ..models import OddsSnapshot, Prediction
 from ..settlement import MARKET_KEYS, handicap_side, provider_id, utc_datetime
 from ..closing_contract import CLV_DEFINITION, FINAL_SNAPSHOT
+from ..reference_price import devig_consensus, norm
 
 SOURCE = FINAL_SNAPSHOT
-CONSENSUS_METHOD = "proportional_devig_median.v1"
 DUE_AFTER = timedelta(hours=2)        # fetch once the match is surely over
 GIVE_UP_AFTER = timedelta(days=7)     # API-Football has dropped the odds by then
 NOT_PLAYED = {"PST", "CANC", "ABD", "AWD", "WO"}
@@ -41,10 +40,6 @@ def _transform():
     return _BET_ID_TO_MARKET_KEY, _transform_apifootball_odds
 
 
-def _norm(value):
-    return str(value or "").strip().casefold().replace(":", "-")
-
-
 def book_outcomes(bookmaker, market_key, home, away):
     """[(side, point, price)] for one bookmaker and market, normalised like the published quotes."""
     bet_keys, transform = _transform()
@@ -56,26 +51,8 @@ def book_outcomes(bookmaker, market_key, home, away):
             for outcome in market.get("outcomes", []):
                 price = outcome.get("price")
                 if isinstance(price, (int, float)) and math.isfinite(price) and price > 1:
-                    out.append((_norm(outcome.get("name")), outcome.get("point"), float(price)))
+                    out.append((norm(outcome.get("name")), outcome.get("point"), float(price)))
     return out
-
-
-def _selection(prediction):
-    """(market key, side, line, names to transform with) for a published pick."""
-    selection = (prediction.get("tracking") or {}).get("selection") or {}
-    key, line = selection.get("market_key"), selection.get("line")
-    if prediction.get("market") == "spreads":
-        side = handicap_side(prediction)
-        home, away = prediction.get("home_team"), prediction.get("away_team")
-        return key, _norm(home if side == "home" else away if side == "away" else None), line, (home, away)
-    return key, _norm(selection.get("side")), line, ("home", "away")
-
-
-def _market_group(outcomes, side, line, spreads):
-    """The pick's outcome plus the outcomes it must be de-vigged against."""
-    if spreads:
-        return [o for o in outcomes if (o[0] == side and o[1] == line) or (o[0] != side and o[1] == -line)]
-    return [o for o in outcomes if o[1] == line]
 
 
 def price_selection(prediction, odds_row):
@@ -83,32 +60,24 @@ def price_selection(prediction, odds_row):
     selection = (prediction.get("tracking") or {}).get("selection") or {}
     if selection.get("period") != "regulation_time" or selection.get("participant") is not None:
         return None, None, "unsupported_period_or_participant"
-    if selection.get("market_key") not in MARKET_KEYS.get(prediction.get("market"), set()):
+    key = selection.get("market_key")
+    if key not in MARKET_KEYS.get(prediction.get("market"), set()):
         return None, None, "unsupported_market"
-    key, side, line, (home, away) = _selection(prediction)
-    if not side:
-        return None, None, "invalid_side"
     spreads = prediction.get("market") == "spreads"
-    wanted_book = _norm(selection.get("bookmaker"))
-    same_book, books = None, []
-    for bookmaker in odds_row.get("bookmakers", []):
-        group = _market_group(book_outcomes(bookmaker, key, home, away), side, line, spreads)
-        picked = [o for o in group if o[0] == side]
-        sides = {o[0] for o in group}
-        if len(picked) != 1 or len(sides) != len(group) or len(group) < 2:
-            continue  # missing, ambiguous or one-sided: cannot price or de-vig this book
-        inverse = sum(1 / o[2] for o in group)
-        fair = (1 / picked[0][2]) / inverse
-        name = bookmaker.get("name")
-        books.append({"bookmaker": name, "odds": {o[0]: o[2] for o in group}, "margin": inverse - 1, "fair": fair})
-        if _norm(name) == wanted_book:
-            same_book = {"odds": picked[0][2], "bookmaker": name, "bookmaker_id": bookmaker.get("id")}
-    consensus = None
-    if books:
-        consensus = {"method": CONSENSUS_METHOD, "fair_probability": statistics.median(b["fair"] for b in books),
-                     "book_count": len(books), "books": books}
-    issue = None if same_book else ("same_bookmaker_unavailable" if books else "selection_unavailable")
-    return same_book, consensus, issue
+    if spreads:  # handicap sides are team names; transform with our own names to match them
+        home, away = prediction.get("home_team"), prediction.get("away_team")
+        side = {"home": home, "away": away}.get(handicap_side(prediction))
+    else:
+        home, away, side = "home", "away", selection.get("side")
+    if not norm(side):
+        return None, None, "invalid_side"
+    books = {b.get("name"): book_outcomes(b, key, home, away) for b in odds_row.get("bookmakers", [])}
+    same, consensus, issue = devig_consensus(books, side, selection.get("line"), spreads=spreads,
+                                             wanted_book=selection.get("bookmaker"))
+    if same:
+        bookmaker = next(b for b in odds_row["bookmakers"] if b.get("name") == same["bookmaker"])
+        same = {"odds": same["odds"], "bookmaker": same["bookmaker"], "bookmaker_id": bookmaker.get("id")}
+    return same, consensus, issue
 
 
 class ClosingPriceService:
