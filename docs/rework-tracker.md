@@ -1,0 +1,109 @@
+# Engine rework tracker
+
+The single source of truth for the rework's **current** plan, status, decisions and
+deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe) is the
+original design; where this file differs, **this file wins**. Update it in the same
+commit as the work it describes; the report is refreshed from it at milestones.
+
+Last updated: 2026-10-15
+
+## Status
+
+| Step | Status | Commits |
+|---|---|---|
+| A0 Safety net | Done 15 Oct | 02fa536, f7459f0, c1e9b42 |
+| A1 Measurement | In progress (steps 1, 2, 3, 5 done) | see below |
+| A2–A8, Part B | Not started | |
+
+### A1 (order changed 15 Oct, see D6)
+
+| # | Task | Status | Commit |
+|---|---|---|---|
+| 1 | Handicap grading fix | Done | dfb7f93 |
+| 2 | Closing prices from API-Football's final pre-kickoff snapshot | Done | aa2f2ee |
+| 3 | Market reference price at publication | Done | 1854f23 |
+| 4 | Bookmaker weights for the reference price | **Next**: spot checks Sat/Sun 17–18 Oct, rest Mon 19 Oct | |
+| 5 | Weekly scorecard | Done (Mondays 08:00) | d1ae597 |
+| 6 | Market baseline in the research protocol | Open | |
+
+A1 gate (report): >90% of finished picks settled and with a closing price ✓ (95.9% closing,
+handicap regrade finishing 15 Oct night); first scorecard ✓; first reference weights with
+Pinnacle's freshness measured ✗ (step 4).
+
+## Open items with a destination
+
+Things found along the way that must not be lost. Each names where it gets done.
+
+| Item | Goes to | Why deferred |
+|---|---|---|
+| Settlement for player picks (participant) and period backfill | Part B | No current pick needs it (0 affected) |
+| Unit-bet slip link to the legacy `predictions.db` | A7 | Lives in the Discord legacy tracker A7 replaces |
+| Move Phase 6 shadow controller from `Research/` into `Scripts/` | After 20 Oct 2026 | Its diagnostic window runs to 20 Oct |
+| Push tag `pre-rework` (cf00af8) | Owner | Local only |
+| Reference weights replace the median in `reference_price.py` | A1 step 4 | Method is versioned (`proportional_devig_median.v1`) |
+| Shin/power de-vig instead of proportional | A3 | Report A3 |
+| Scorecard switches to the weighted reference when step 4 lands | A1 step 4 | |
+| Refresh the report artifact from this tracker | At end of A1 | |
+
+## Decisions and deviations from the report
+
+Newest last. Each: what changed, why (evidence), and what it affects later.
+
+**D1 — No bookmaker trusted by default (14 Oct).** Pinnacle's collected prices are unreliable
+since 23 Jul 2025 (football-data.co.uk); the anchor is a measured consensus, weights earned by
+freshness and accuracy. Affects A1.4, A3.
+
+**D2 — Historical odds from football-data.co.uk, downloaded by hand (15 Oct).** 140 CSVs, 10
+leagues, 2012/13–2025/26, in `Research/football-data/raw/` (git-ignored). Importer
+`Scripts/ops/football_data_import.py` builds `Index/football_data.sqlite3` (cf00af8). Betfair
+history dropped; no email sent. Pinnacle closing 1X2 every season, full closing set from
+2019/20; Pinnacle columns flagged `suspect` from 2025/26. No European cups on the site.
+Affects A1.4 (accuracy per book), A1.6 and A3 (backtests).
+
+**D3 — Closing price = API-Football's final pre-kickoff snapshot (15 Oct).** A true kickoff
+price is not available from this provider: its last pre-match refresh lands a median 59 min
+before kickoff (IQR 28–78, max 3.7 h; 2 h 32 min for the 15 Oct UEL games). The odds stay
+available a few days after the match (gone by ~24 days), so they are fetched from kickoff + 2 h.
+League/date and per-fixture queries return identical data; the limit is the provider's refresh
+cadence, not our query. Every closing record stores `minutes_before_kickoff`. Affects every
+CLV figure and A1.4. Raw post-match odds for the backfill: `Index/closing_backfill/` (local).
+
+**D4 — Model version = deployed system version (15 Oct).** `match_reads.model_version` and
+`published_recommendations.model_version` were always empty; now filled from
+`prediction_system_manifest()` unless a model version is given. Changes on every code edit.
+
+**D5 — Engine determinism fix changed live outputs (15 Oct).** Team-name variants were tried in
+hash order; the same fixture could get different probabilities per process (one fixture: 4,857
+values). Now a fixed priority order. Golden snapshots replay in a fresh process; bundle in
+`Index/golden/` is local only.
+
+**D6 — A1 re-ordered (15 Oct).** The report's "settlement for any selection" fixed nothing
+(0 player picks, 0 picks without a period); the real blocker was handicap picks storing the team
+name as the side (644 ungraded). New order: grading fix, closing prices (time-critical: odds
+expire), publication reference, weights, scorecard, research baseline.
+
+**D7 — Count selections, not publications (15 Oct).** Re-reads republish the same pick:
+2,688 publications = 986 distinct selections in the measured period. Figures quoted before the
+scorecard (e.g. "2,071 finished picks", "+1.6% CLV", "11.3 pts above market") counted
+repeats. The scorecard counts each selection once at its first publication, plus the official
+first-match-read cohort.
+
+**D8 — Step 4 split around the weekend (15 Oct).** OddsPapi free tier (250 requests, key
+`ODDSPAPI_API_KEY` in `.env`) for ~20 Pinnacle spot checks, which must run before kickoff on
+17–18 Oct; freshness report rerun and weights on Mon 19 Oct.
+
+## Findings that shape later steps
+
+- **First scorecard (15 Oct, each selection once, 571 settled):** won 61.2% vs Spix said 74.0%
+  (−12.8 pts, 95% −19.6 to −6.5); market said 62.8%. Log-loss gap +0.052 (Spix worse than the
+  market, interval excludes 0). Calibration slope 0.42 (strongly overconfident). Fair CLV
+  +0.9% (+0.1 to +1.8): the market moves toward Spix's picks after publication, a small signal
+  A3's blend can use. Goals most overconfident (said 81.5%, won 62.9%).
+- Pinnacle on API-Football moves with the market (1X2 100%, AH 93%, O/U 84% of moves) and
+  changes price most often; accuracy not yet measurable (14 Oct freshness study).
+
+## How to resume in a new session
+
+1. Read this file, then `git log --oneline` since the last commit listed above.
+2. Check the open-items table before starting any step it names.
+3. When a finding changes the plan: add a D-entry, move items in the tables, commit with the work.
