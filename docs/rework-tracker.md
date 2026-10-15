@@ -5,14 +5,14 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-15
+Last updated: 2026-10-15 (D9)
 
 ## Status
 
 | Step | Status | Commits |
 |---|---|---|
 | A0 Safety net | Done 15 Oct | 02fa536, f7459f0, c1e9b42 |
-| A1 Measurement | In progress (steps 1, 2, 3, 5 done) | see below |
+| A1 Measurement | In progress (steps 1, 2, 3, 5, 6 done; step 4 left) | see below |
 | A2–A8, Part B | Not started | |
 
 ### A1 (order changed 15 Oct, see D6)
@@ -24,7 +24,7 @@ Last updated: 2026-10-15
 | 3 | Market reference price at publication | Done | 1854f23 |
 | 4 | Bookmaker weights for the reference price | **Next**: spot checks Sat/Sun 17–18 Oct, rest Mon 19 Oct | |
 | 5 | Weekly scorecard | Done (Mondays 08:00) | d1ae597 |
-| 6 | Market baseline in the research protocol | Open | |
+| 6 | Market baseline in the research protocol | Done | see D9 |
 
 A1 gate (report): >90% of finished picks settled and with a closing price ✓ (95.9% closing,
 handicap regrade finishing 15 Oct night); first scorecard ✓; first reference weights with
@@ -94,6 +94,10 @@ first-match-read cohort.
 
 ## Findings that shape later steps
 
+- **The engine has never beaten the market (D9, 15 Oct).** On 2023 (2,783 fixtures, 41 weeks) the
+  frozen control is 4.4% worse than the closing market on 1X2 log loss and 2.1% worse on over/under
+  2.5; the Phase 4 finalists that "qualified" against the control are still 1.4–3.7% worse.
+
 - **First scorecard (15 Oct, each selection once, 571 settled):** won 61.2% vs Spix said 74.0%
   (−12.8 pts, 95% −19.6 to −6.5); market said 62.8%. Log-loss gap +0.052 (Spix worse than the
   market, interval excludes 0). Calibration slope 0.42 (strongly overconfident). Fair CLV
@@ -101,6 +105,14 @@ first-match-read cohort.
   A3's blend can use. Goals most overconfident (said 81.5%, won 62.9%).
 - Pinnacle on API-Football moves with the market (1X2 100%, AH 93%, O/U 84% of moves) and
   changes price most often; accuracy not yet measurable (14 Oct freshness study).
+
+**D9 — Market baseline added to the research protocol (15 Oct).** Amendment
+`docs/phase4-market-baseline-amendment-2026-10-15.md` (`market-baseline.v1`): every research
+comparison also scores the candidate against the closing market (football-data history, 1X2 and
+over/under 2.5, same reference-price method, paired week bootstrap). Corners/SoT/BTTS have no market
+price in the history; handicap compared in a later version. A3 must beat the market alone; A6 keeps
+only components that improve the gap to the market. Code: `features/market_baseline.py`,
+`ops/market_baseline_report.py`.
 
 ## How to resume in a new session
 
