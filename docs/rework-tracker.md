@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D29)
+Last updated: 2026-10-16 (D30)
 
 ## Status
 
@@ -16,7 +16,8 @@ Last updated: 2026-10-16 (D29)
 | A2 Canonical features | A2a built 16 Oct, switch after the 17 Oct refresh check (D11); A2b after A6 (D13) | 7af457b |
 | A3 Market anchor and honest uncertainty | Started 16 Oct under D16 (research and shadow only) | see A3 table |
 | A4 Calibration | A4.1 dataset done 16 Oct (25,527 graded candidates, 160 fixtures; grading matches settlement on all 1,918 overlapping picks). A4.2 method study done 16 Oct: no calibrator adopted yet (D28), rerun weekly; live as A3.7 stage 5, not before Tue 10 Nov (D29) | 197dc73; see D28 |
-| A5–A8, Part B | Not started | |
+| A5 Selection policy | Research started 16 Oct (D30): A5.1 done (Spix's disagreement with the market is almost all error); A5.2 policy simulation next; live as A3.7 stage 6, earliest Tue 17 Nov | see D30 |
+| A6–A8, Part B | Not started | |
 | Market expansion (D25) | Planned after A5 | see D25 |
 
 ### A1 (order changed 15 Oct, see D6)
@@ -67,7 +68,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | **Temporary (D21):** 1X2 and O/U 2.5 publish the market's probability (power) with c = 0 **only until A6**; rerun the blend study on A6's forecasts and refit c if Spix earns it | A3.7 go-live, then A6 gate | Not permanent: revisit at A6 |
 | Build OddsPapi true-close capture (Pinnacle ± 2 books), API-Football snapshot as fallback (D18) | A1 step 4, Mon 19 Oct | Goes live after the A2a switch (D16 rule 3) |
 | Check whether OddsPapi's request count resets monthly (vendor says 250/month; unconfirmed) | ~14 Nov 2026 | 14 used by 16 Oct; ~50/month planned |
-| Quote age near kickoff in selection (API-Football prices ~2 h old in the last 3 h, D15) | A5 | Apparent edge may be a price no longer offered |
+| Quote age near kickoff in selection (API-Football prices ~2 h old in the last 3 h, D15) | A5.3 (D30) | Apparent edge may be a price no longer offered |
 | Retire `ml_edge.py` and `Index/elo_ratings.json` | A7 | Replaced by A6 |
 | Evidence-aware variance (`uncertainty.py`, D22) for fitted ratings' uncertainty | A6 | Not needed with today's means |
 | Go-live of 3.5: set `SPIX_COUNT_DISPERSION=fixed`; review the 59 corner pick changes in the golden preview, then re-record (D16 rule 4) | A3.7 stage 1, Tue 20 Oct | Confirm on the live scorecard (development-period evidence) |
@@ -75,6 +76,9 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Wire power margin removal into pick selection (`line_selection`) behind a switch | A3.7 package; live at stage 2, Fri 23 Oct | `reference_price` already has it as an option (D17) |
 | Market anchor for 1X2 and O/U 2.5 only (strict scope, D26), Spix's own probability kept for the disagreement view | A3.7 package; live at stage 3, Tue 27 Oct | Other goal lines and Asian handicap unchanged until a scorecard check |
 | Extend the market anchor to all goal markets via M1's score matrix (other O/U lines, Asian handicap, BTTS), behind its own switch; add BTTS from the score matrix to `market_goals` | A3.7 package (built switched off); live at stage 4, earliest Tue 3 Nov (D29) | Beyond what history tested: must pass the gate on audited lines first (D29) |
+| A5.2: simulate selection policies on the audited candidates (current selector; expected value at the best price against the market consensus with large disagreements flagged, not picked; a small tilt toward Spix up to the fitted c and k; three per fixture) | A5, next | D30 |
+| A5.4: build the chosen policy behind a switch (`line_selection`, `match_read_compiler`, `confidence_from_edge`), golden preview | A5; live at A3.7 stage 6, earliest Tue 17 Nov | Gate (report): published picks' calibration error ≤ 3 pts and closing line value at least neutral over 4+ live matchweeks |
+| Rerun the A5.1 study (`python -m Scripts.ops.disagreement_study --out Research/disagreement-<date>`) as weeks accrue | A5, with each A5 step | One audited week so far (D30) |
 | Rerun the A4.2 study weekly (`python -m Scripts.ops.calibration_study --out Research/calibration-<date>`); calibrator decision with ≥3 weeks of audited fixtures | A4, decision at A3.7 stage 5 (not before Tue 10 Nov, D29) | Not adopted 16 Oct: one audited week, no market passes the gate (D28) |
 | Qualify the card settlement definition (yellow + red vs bookmakers' bookings rules, second yellows) before calibrating or scoring cards | A4, before stage 5 | Cards are graded yellow + red (indicative); the market's own card slope is 1.40 on that grading (D28) |
 | Cards and goals variance floors (no qualified dispersion yet) | A6 | Cards outside research qualification; goals use the score matrix |
@@ -86,7 +90,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | First-round variables (D12): M1 | A3, A8 | Selected 16 Oct |
 | First-round variables (D12): S1–S4, C1, D1–D3 | A2b builder, A6 models | Selected 16 Oct; each must pass the ablation gate |
 | Second-round variables: M2 line movement | A3 blend | Needs 6–8 weeks of odds archive (from ~mid-Nov 2026) |
-| Second-round variables: M3 bookmaker disagreement | A5 confidence labels | With A5 |
+| Second-round variables: M3 bookmaker disagreement | A5.3 confidence labels (D30) | With A5 |
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
 | Correct `CLAUDE.md`: Elo "signal active at 0.15" (never called) and ML R² 0.43/0.47 (saved R² ≈ 0) | Next docs pass | Stale claims mislead new sessions |
 | Verify the store after the first refresh with the new stages (17 Oct 07:15), then switch | Claude, then owner adds `DOCUMENT_STORE=sqlite` | Parity on the 881 engine queries + counts |
@@ -357,6 +361,45 @@ and Spix's own probability kept for the disagreement view.
   lines, Asian handicap and BTTS publish market-anchored probabilities and leave A4's scope, as 1X2 and
   O/U 2.5 did (D27 rule 1). A4 then covers corners and cards, plus SoT once it is priced. If stage 4 fails
   its gate, those markets return to A4's scope; the weekly A4.2 reruns keep them until then.
+
+**D30 — A5 research plan, and A5.1: Spix's disagreement is almost all error (16 Oct).** Owner asked to
+start A5 research while A3.7 rolls out. Plan:
+- A5.1 (done): is Spix's disagreement with the market information or error?
+- A5.2: simulate selection policies on the audited candidates.
+- A5.3: evidence-based confidence labels (sample size, uncertainty width, bookmaker disagreement M3, quote
+  age D15), checked against closing line value and calibration.
+- A5.4: build behind a switch, live as A3.7 stage 6 (earliest Tue 17 Nov, after stage 5's scorecard).
+
+A5.1 method (`data_platform/disagreement.py`, `ops/disagreement_study.py`, output
+`Research/disagreement-2026-10-16/`): every line the engine evaluated in the latest pre-kickoff read
+per fixture and stage, 16,009 lines across 160 fixtures (9–15 Oct). Each line is taken on the side Spix
+prefers, and 1X2 keeps all three outcomes, with Spix's probabilities from the projection, since its
+candidates store none. The market is the power-de-vigged median across bookmakers at the read; the close
+is API-Football's final pre-kickoff snapshot (114 fixtures). Two side-symmetric tests, with intervals
+that resample fixtures:
+- *Outcomes:* the weight results give Spix's deviation from the market is c = +0.03 (95% −0.17 to
+  +0.22). No market is above 0: corners +0.20, AH +0.15, 1X2 +0.05, goals −0.18, cards −0.45,
+  BTTS −0.46; every interval includes 0.
+- *Closing:* from pre-match reads (median 10.7 h before kickoff) the market closes k = +0.029 (+0.014 to
+  +0.044) of Spix's deviation, i.e. about 3%: real but small. Lineup reads come ~20 min before kickoff
+  and show no movement (k ≈ 0).
+
+At every size of disagreement, results followed the market:
+
+| Spix above the market by | Lines | Spix said | Market said | Happened |
+|---|---|---|---|---|
+| 0–2.5 pts | 3,173 | 50.0% | 48.8% | 48.7% |
+| 2.5–5 pts | 2,646 | 44.5% | 40.7% | 39.3% |
+| 5–10 pts | 4,020 | 47.1% | 39.8% | 36.5% |
+| 10–15 pts | 2,423 | 50.4% | 38.2% | 38.1% |
+| 15+ pts | 3,484 | 59.5% | 35.4% | 36.2% |
+
+The selector's own choices (846 lines) show the same thing: above 15 pts, Spix said 75.0%, the market
+49.5%, and 52.5% happened. So ranking by edge ranks the engine's error, which is the report's A5
+premise, now measured live. For A5.2 this means pricing against the market consensus, showing large
+disagreements as "disagreements to check" rather than picks, and allowing Spix's view at most a small
+tilt (c and k ≈ 0.03) until A6. Limits: one week; returns at the best price are saved but are too
+noisy to read (every line of a fixture settles on the same score).
 
 ## Findings that shape later steps
 
