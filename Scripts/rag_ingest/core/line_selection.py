@@ -39,6 +39,42 @@ except ImportError:
     )
 
 try:
+    from core import engine_switches
+except ImportError:
+    from Scripts.rag_ingest.core import engine_switches  # type: ignore[import]
+
+
+def _power_devig_enabled() -> bool:
+    return engine_switches.value("SPIX_DEVIG_METHOD") == "power"
+
+
+def _power_fair(odds: List[float]) -> List[float]:
+    try:
+        from data_platform import devig
+    except ImportError:
+        from Scripts.data_platform import devig  # type: ignore[import]
+    return devig.power(odds)
+
+
+def _two_way_fair(odds_a: float, odds_b: float) -> Tuple[float, float]:
+    """One bookmaker's two prices without its margin: proportional today; the power method
+    (A3.1, D17) once ``SPIX_DEVIG_METHOD=power`` (A3.7 stage 2)."""
+    if _power_devig_enabled() and odds_a > 1.0 and odds_b > 1.0:
+        fair_a, fair_b = _power_fair([odds_a, odds_b])
+        return fair_a, fair_b
+    return remove_vig_two_way(odds_a, odds_b)
+
+
+def _three_way_fair(odds: List[float]) -> Optional[List[float]]:
+    """1X2 version of ``_two_way_fair`` for one bookmaker's home, draw and away prices."""
+    if _power_devig_enabled():
+        return _power_fair(odds)
+    raw = [1.0 / o for o in odds]
+    total = sum(raw)
+    return [p / total for p in raw] if total > 0 else None
+
+
+try:
     from core.projections import compute_margin_std, projected_correct_score_probs
 except ImportError:
     try:
@@ -126,7 +162,7 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
         _ov = _sides.get("over")
         _un = _sides.get("under")
         if _ov is not None and _un is not None:
-            _f_ov, _f_un = remove_vig_two_way(_ov, _un)
+            _f_ov, _f_un = _two_way_fair(_ov, _un)
             _fair_implied[(_bm, _pt, "over")] = _f_ov
             _fair_implied[(_bm, _pt, "under")] = _f_un
 
@@ -520,7 +556,7 @@ def select_best_spread_recommendation(
 
         if opp_entry:
             _tm2, _pt2, _od2 = opp_entry
-            _fa, _fb = remove_vig_two_way(_od, _od2)
+            _fa, _fb = _two_way_fair(_od, _od2)
             _sp_fair_signed[key_self] = _fa
             _sp_fair_signed[(_bm, _pt2, _tm2)] = _fb
             _sp_done.add(key_self)
@@ -682,7 +718,7 @@ def select_best_btts_recommendation(options: List[Dict], p_btts_yes: float) -> D
         yes_odds = sides.get("yes")
         no_odds = sides.get("no")
         if yes_odds is not None and no_odds is not None:
-            f_yes, f_no = remove_vig_two_way(yes_odds, no_odds)
+            f_yes, f_no = _two_way_fair(yes_odds, no_odds)
             _fair_implied[(bm, "yes")] = f_yes
             _fair_implied[(bm, "no")] = f_no
 
@@ -856,14 +892,10 @@ def choose_best_moneyline_side(
     for bookmaker, sides in by_bookmaker.items():
         if not all(side in sides for side in ("home", "draw", "away")):
             continue
-        raw_probs = {
-            side: 1.0 / sides[side]["odds"]
-            for side in ("home", "draw", "away")
-        }
-        total_raw_prob = sum(raw_probs.values())
-        if total_raw_prob > 0:
-            for side, raw_prob in raw_probs.items():
-                fair_by_bookmaker[(bookmaker, side)] = raw_prob / total_raw_prob
+        fair = _three_way_fair([sides[side]["odds"] for side in ("home", "draw", "away")])
+        if fair is not None:
+            for side, probability in zip(("home", "draw", "away"), fair):
+                fair_by_bookmaker[(bookmaker, side)] = probability
 
     # Preserve the best raw quote as a diagnostic fallback when the feed is
     # incomplete. A recommendation must use one of the complete books above.

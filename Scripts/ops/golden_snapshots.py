@@ -47,6 +47,7 @@ VOLATILE = {
     ("provenance", "generated_at"), ("provenance", "model_version"), ("provenance", "system_version"),
     ("context", "prediction_system"), ("context", "engine_switches"), ("decision_audit", "prediction_version"),
     ("decision_audit", "release_identity"),  # fingerprint of the communication files (communication_release.py)
+    ("decision_audit", "policy_version"),    # fingerprint of the selection files (decision_audit.policy_identity)
 }
 REL_TOLERANCE = 1e-9
 
