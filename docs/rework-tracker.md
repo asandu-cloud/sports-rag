@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D21)
+Last updated: 2026-10-16 (D22)
 
 ## Status
 
@@ -39,8 +39,8 @@ Pinnacle's freshness measured ✗ (step 4).
 | 3.1 | Margin-removal method: proportional vs additive vs power vs Shin on football-data closing history | Done: power (D17) | No: option `method="power"`, default unchanged until A1's gate |
 | 3.2 | M1 market goal expectations per team (handicap + totals) | Done: research (D19) | No: `market_goals.solve`; used by 3.3 and A8 |
 | 3.3 | Fitted blend `logit p = a + b·logit p_market + c·logit p_spix` per market | Done: research; gate not passed with the 2023 engine (D20) | No: at go-live, c = 0 for 1X2/O/U 2.5 **until A6** (D21) |
-| 3.4 | Gamma-distributed team rates replacing n/(n+8) and the variance floors | In progress 16 Oct | No |
-| 3.5 | Phase 4 dispersions (corners 0.025, SoT 0.01) behind a switch | Open | No |
+| 3.4 | Gamma-distributed team rates replacing n/(n+8) and the variance floors | Done: research; not adopted (D22) | No: the simpler 3.5 wins |
+| 3.5 | Phase 4 dispersions (corners 0.025, SoT 0.01) replace the variance floors, behind a switch | **Next** (D22: ~1.0% / 1.4% better than the floors) | No: switch default off until go-live |
 | 3.6 | Dixon–Coles rho per league | Open | No |
 | 3.7 | Shadow run, then go-live after A1's gate is closed and A2a is switched | Open | – |
 
@@ -67,6 +67,9 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Check whether OddsPapi's request count resets monthly (vendor says 250/month; unconfirmed) | ~14 Nov 2026 | 14 used by 16 Oct; ~50/month planned |
 | Quote age near kickoff in selection (API-Football prices ~2 h old in the last 3 h, D15) | A5 | Apparent edge may be a price no longer offered |
 | Retire `ml_edge.py` and `Index/elo_ratings.json` | A7 | Replaced by A6 |
+| Evidence-aware variance (`uncertainty.py`, D22) for fitted ratings' uncertainty | A6 | Not needed with today's means |
+| Cards and goals variance floors (no qualified dispersion yet) | A6 | Cards outside research qualification; goals use the score matrix |
+| The n/(n+8) early-season prior on means | A6 | 3.4 changed widths only, not means |
 | First-round variables (D12): M1 | A3, A8 | Selected 16 Oct |
 | First-round variables (D12): S1–S4, C1, D1–D3 | A2b builder, A6 models | Selected 16 Oct; each must pass the ablation gate |
 | Second-round variables: M2 line movement | A3 blend | Needs 6–8 weeks of odds archive (from ~mid-Nov 2026) |
@@ -223,6 +226,16 @@ consensus) with Spix's weight c = 0; Spix's own probability is still computed, s
 disagreement where it differs (A5). At A6's gate the blend study is rerun on A6's forecasts: if Spix earns a
 weight (blend beats the market alone and the c = 0 recalibration on unseen weeks), c is refitted and this rule
 ends; if not, it is reviewed again with the owner. Other markets are unaffected by this rule.
+
+**D22 — Variance: the floors are too wide; the fixed dispersion is enough (16 Oct, A3.4).**
+`Scripts/data_platform/uncertainty.py` (Var = μ + μ²(α + (1+α)/(κk)), k = the engine's effective matches),
+`Scripts/ops/uncertainty_study.py`, `Research/uncertainty-2026-10-16/`. Frozen control corners/SoT forecasts
+joined to their snapshots; fitted on 2022 (≈3,600), evaluated on 2023 (≈3,030). Against today's floors:
+fixed Phase 4 dispersion −1.03% corners, −1.41% SoT (intervals below zero, every season stage);
+evidence-aware variance −0.96% / −1.38%; evidence vs fixed +0.07% / +0.04% (no difference, even at 0–7
+matches; the fit sets α ≈ 0 and κ ≈ 4.6–6.7, reproducing the fixed dispersion). Decision: 3.4's evidence
+term is not adopted (simplest model wins, variables-report rules); 3.5 replaces the floors with the fixed
+dispersions. Means, including the n/(n+8) prior, are unchanged.
 
 ## Findings that shape later steps
 
