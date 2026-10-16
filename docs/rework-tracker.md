@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D26)
+Last updated: 2026-10-16 (D27)
 
 ## Status
 
@@ -15,7 +15,8 @@ Last updated: 2026-10-16 (D26)
 | A1 Measurement | In progress (steps 1, 2, 3, 5, 6 done; step 4 left) | see below |
 | A2 Canonical features | A2a built 16 Oct, switch after the 17 Oct refresh check (D11); A2b after A6 (D13) | 7af457b |
 | A3 Market anchor and honest uncertainty | Started 16 Oct under D16 (research and shadow only) | see A3 table |
-| A4–A8, Part B | Not started | |
+| A4 Calibration | Started 16 Oct, research only (D27); live as A3.7 stage 4, not before the Mon 2 Nov scorecard | see D27 |
+| A5–A8, Part B | Not started | |
 | Market expansion (D25) | Planned after A5 | see D25 |
 
 ### A1 (order changed 15 Oct, see D6)
@@ -293,6 +294,21 @@ windows, first/last scorer team, offsides and fouls (7–13 of 165 fixtures, 1�
   matrix is a separate, later decision. Spix's own probability is still stored for the disagreement view.
 - *Prerequisite:* every pick records which engine switches were active, because the model version fingerprints
   code files only.
+
+**D27 — A4 calibration: scope and timing (16 Oct).** Owner asked to start A4. Conditions so it does not
+collide with A3.7:
+1. *Scope:* only markets where Spix's own probability is published: corners, cards, BTTS, goal totals other
+   than 2.5, Asian handicap. Not 1X2 or O/U 2.5 (market-anchored, D21; recalibrating the market hurt, D20).
+   SoT has almost no priced candidates yet.
+2. *Fit on the probabilities that will be live:* corners (and SoT) calibrators use probabilities recomputed
+   with the fixed dispersion of stage 1 (from each result's stored mean), not today's floors.
+3. *Go-live as A3.7 stage 4,* after stage 3, not before the Mon 2 Nov scorecard (one change at a time).
+Data: decision audits since the 6 Oct release hold every evaluated candidate (model probability and exact
+settlement profile) for 241 fixtures; lines within a fixture are correlated, so Platt scaling per market
+first; isotonic only once a market has ~1,000 settled forecasts. Expectation: the published picks'
+calibration slope of 0.42 is mostly selection (winner's curse, A5's job); calibrating all candidates fixes
+the model's own miscalibration, so A4 alone will not move that slope much. Phase 4's history also found
+small calibration gains.
 
 ## Findings that shape later steps
 
