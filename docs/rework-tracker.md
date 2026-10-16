@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D17)
+Last updated: 2026-10-16 (D18)
 
 ## Status
 
@@ -61,7 +61,8 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Switch production to the document store: add `DOCUMENT_STORE=sqlite` to `.env` | Owner, after A2a review | Chroma remains the fallback (remove the line) |
 | Stop embedding into Chroma entirely | A7 | Whale chat and `rag_cli_v2` still search Chroma by meaning |
 | A6c LightGBM market-error challenger (D14) | After A6's base model passes | Must beat fitted A6 vs the market baseline |
-| Decide: closing source → OddsPapi true close (Pinnacle ± 2 books) instead of API-Football's snapshot (D15) | Owner, then A1 step 4 | ~50 billable requests/month for weekly fixture lists |
+| Build OddsPapi true-close capture (Pinnacle ± 2 books), API-Football snapshot as fallback (D18) | A1 step 4, Mon 19 Oct | Goes live after the A2a switch (D16 rule 3) |
+| Check whether OddsPapi's request count resets monthly (vendor says 250/month; unconfirmed) | ~14 Nov 2026 | 14 used by 16 Oct; ~50/month planned |
 | Quote age near kickoff in selection (API-Football prices ~2 h old in the last 3 h, D15) | A5 | Apparent edge may be a price no longer offered |
 | Retire `ml_edge.py` and `Index/elo_ratings.json` | A7 | Replaced by A6 |
 | First-round variables (D12): M1 | A3, A8 | Selected 16 Oct |
@@ -184,6 +185,14 @@ across books: 1X2 log loss vs proportional — power −0.075% (interval below z
 −0.064%; calibration error 0.0083 → 0.0036 with power (proportional overstates longshots). O/U 2.5: all
 within −0.02% (power's interval touches zero). Power chosen for all markets. `reference_price` gains
 `method=` with versions (`power_devig_median.v2`); default stays proportional v1 until go-live (D16).
+
+**D18 — Closing source: OddsPapi true close (16 Oct).** Owner approved. Closing prices come from
+Pinnacle's last pre-kickoff price in OddsPapi's free history (optionally two more books, ≤3 per call),
+with API-Football's final snapshot as fallback when a fixture can't be matched. Budget: one fixture list per
+league per week (~50 billable requests/month); historical calls confirmed free (count stayed at 14 after
+~141 history calls). Monthly reset of the 250 limit is a vendor claim, unconfirmed; even without it the
+remaining 236 last over four months. Built with step 4 on Monday; live after the A2a switch; CLV and
+scorecard record which source each closing price came from.
 
 ## Findings that shape later steps
 
