@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D15)
+Last updated: 2026-10-16 (D16)
 
 ## Status
 
@@ -14,7 +14,8 @@ Last updated: 2026-10-16 (D15)
 | A0 Safety net | Done 15 Oct | 02fa536, f7459f0, c1e9b42 |
 | A1 Measurement | In progress (steps 1, 2, 3, 5, 6 done; step 4 left) | see below |
 | A2 Canonical features | A2a built 16 Oct, switch after the 17 Oct refresh check (D11); A2b after A6 (D13) | 7af457b |
-| A3–A8, Part B | Not started | |
+| A3 Market anchor and honest uncertainty | Started 16 Oct under D16 (research and shadow only) | see A3 table |
+| A4–A8, Part B | Not started | |
 
 ### A1 (order changed 15 Oct, see D6)
 
@@ -30,6 +31,18 @@ Last updated: 2026-10-16 (D15)
 A1 gate (report): >90% of finished picks settled and with a closing price ✓ (95.9% closing,
 handicap regrade finishing 15 Oct night); first scorecard ✓; first reference weights with
 Pinnacle's freshness measured ✗ (step 4).
+
+### A3 (started 16 Oct, ahead of A1 step 4 and the A2a switch; rules in D16)
+
+| # | Task | Status | Live? |
+|---|---|---|---|
+| 3.1 | Margin-removal method: proportional vs additive vs power vs Shin on football-data closing history | In progress | No: decides `reference_price` method v2 |
+| 3.2 | M1 market goal expectations per team (handicap + totals) | Open | No |
+| 3.3 | Fitted blend `logit p = a + b·logit p_market + c·logit p_spix` per market | Open | No |
+| 3.4 | Gamma-distributed team rates replacing n/(n+8) and the variance floors | Open | No |
+| 3.5 | Phase 4 dispersions (corners 0.025, SoT 0.01) behind a switch | Open | No |
+| 3.6 | Dixon–Coles rho per league | Open | No |
+| 3.7 | Shadow run, then go-live after A1's gate is closed and A2a is switched | Open | – |
 
 ## Open items with a destination
 
@@ -152,6 +165,17 @@ boosting as challenger). `ml_edge.py` and `Index/elo_ratings.json` retire at A7.
 - *OddsPapi free plan*: 250 requests; historical odds free (since Jan 2026, ≤3 books per call, 5 s
   cooldown); fixture lists 1 request each; Pinnacle and all ten of our live books available.
   Key `ODDSPAPI_API_KEY`; cache `Index/oddspapi/`.
+
+**D16 — Rules for starting A3 out of order (16 Oct).** A3 starts before A1 step 4 (weights, Monday) and the
+A2a production switch (17 Oct). To keep the order break harmless:
+1. *Frozen gate:* A3 is judged against `market-baseline.v1` (football-data closing history), which neither
+   the bookmaker weights nor a change of closing source can move.
+2. *Versioned reference:* every A3 fit records the `reference_price` method version it used and is refitted
+   when that version changes (weights, OddsPapi close, a new margin-removal method).
+3. *One production change at a time:* A2a switches first; A3 stays research and shadow, behind switches that
+   default off, until A1's gate is closed. With the switches off, the golden snapshots must stay identical.
+4. *Golden re-records:* only after a market-by-market review of the change summary, each logged here with its
+   reason.
 
 ## Findings that shape later steps
 
