@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D23)
+Last updated: 2026-10-16 (D24)
 
 ## Status
 
@@ -41,7 +41,7 @@ Pinnacle's freshness measured ✗ (step 4).
 | 3.3 | Fitted blend `logit p = a + b·logit p_market + c·logit p_spix` per market | Done: research; gate not passed with the 2023 engine (D20) | No: at go-live, c = 0 for 1X2/O/U 2.5 **until A6** (D21) |
 | 3.4 | Gamma-distributed team rates replacing n/(n+8) and the variance floors | Done: research; not adopted (D22) | No: the simpler 3.5 wins |
 | 3.5 | Phase 4 dispersions (corners 0.025, SoT 0.01) replace the variance floors, behind a switch | Done: built (D23), all competitions and stages | No: `SPIX_COUNT_DISPERSION=fixed` at go-live |
-| 3.6 | Dixon–Coles rho per league | Open | No |
+| 3.6 | Dixon–Coles rho per league | Done: research; not adopted, rho stays −0.10 (D24) | No change |
 | 3.7 | Shadow run, then go-live after A1's gate is closed and A2a is switched | Open | – |
 
 ## Open items with a destination
@@ -248,6 +248,14 @@ against the floors (corners −0.4 to −1.8%; SoT −0.01 to −2.9%), none wor
 evidence, so the live scorecard confirms it after go-live. Golden preview with the switch on: only corners
 (52,131 values, 59 pick-level changes) and SoT (444 values, no pick changes) differ; switched off, the
 bundle is identical.
+
+**D24 — Rho stays at −0.10 (16 Oct, A3.6).** `Scripts/data_platform/dixon_coles_rho.py` (maximum
+likelihood within the valid range, same formula as `prob_models`), `Scripts/ops/rho_study.py`,
+`Research/rho-2026-10-16/`. Frozen control goal means, actual scorelines; fit 2022 (3,645), test 2023
+(3,095). Pooled fitted rho ≈ −0.006; per-league values −0.14 to +0.19 (noise). Against −0.10: pooled
+−0.066% (interval −0.0038 to +0.00003), per league −0.009%, per league shrunk −0.052%: all below the
+protocol's 0.5% bar and not reliably better; some slices slightly worse (Bundesliga +0.26%). Inconclusive,
+so the control value stays. Rho can be refitted jointly with A6's ratings, where it belongs.
 
 ## Findings that shape later steps
 
