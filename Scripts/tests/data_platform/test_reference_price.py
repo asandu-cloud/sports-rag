@@ -106,3 +106,14 @@ def test_backfill_fills_missing_references_once(store):
     assert backfill_publication_references(store[0]._factory) == {"filled": 1, "already": 0}
     assert backfill_publication_references(store[0]._factory) == {"filled": 0, "already": 1}
     assert store[0].get_recent(days=3650)[0]["publication_reference"]["status"] == "available"
+
+
+def test_power_method_is_an_option_and_the_default_is_unchanged():
+    from data_platform import devig
+    books = {"A": [("home", None, 1.4), ("draw", None, 4.6), ("away", None, 8.0)]}
+    _, default, _ = ref.devig_consensus(books, "away", None, spreads=False)
+    _, power, _ = ref.devig_consensus(books, "away", None, spreads=False, method="power")
+    assert default["method"] == "proportional_devig_median.v1"
+    assert power["method"] == "power_devig_median.v2"
+    assert power["fair_probability"] == pytest.approx(devig.power([1.4, 4.6, 8.0])[2])
+    assert power["fair_probability"] < default["fair_probability"]  # less weight on the longshot

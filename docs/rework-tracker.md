@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D16)
+Last updated: 2026-10-16 (D17)
 
 ## Status
 
@@ -36,7 +36,7 @@ Pinnacle's freshness measured ✗ (step 4).
 
 | # | Task | Status | Live? |
 |---|---|---|---|
-| 3.1 | Margin-removal method: proportional vs additive vs power vs Shin on football-data closing history | In progress | No: decides `reference_price` method v2 |
+| 3.1 | Margin-removal method: proportional vs additive vs power vs Shin on football-data closing history | Done: power (D17) | No: option `method="power"`, default unchanged until A1's gate |
 | 3.2 | M1 market goal expectations per team (handicap + totals) | Open | No |
 | 3.3 | Fitted blend `logit p = a + b·logit p_market + c·logit p_spix` per market | Open | No |
 | 3.4 | Gamma-distributed team rates replacing n/(n+8) and the variance floors | Open | No |
@@ -55,7 +55,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Move Phase 6 shadow controller from `Research/` into `Scripts/` | After 20 Oct 2026 | Its diagnostic window runs to 20 Oct |
 | Push tag `pre-rework` (cf00af8) | Owner | Local only |
 | Reference weights replace the median in `reference_price.py` | A1 step 4 | Method is versioned (`proportional_devig_median.v1`) |
-| Shin/power de-vig instead of proportional | A3 | Report A3 |
+| Make power the default margin-removal method (`reference_price`, closing consensus, publication reference, scorecard) | A3.7 go-live, after A1's gate (D16, D17) | Refit anything fitted on v1 |
 | Scorecard switches to the weighted reference when step 4 lands | A1 step 4 | |
 | Refresh the report artifact from this tracker | At end of A1 | |
 | Switch production to the document store: add `DOCUMENT_STORE=sqlite` to `.env` | Owner, after A2a review | Chroma remains the fallback (remove the line) |
@@ -176,6 +176,14 @@ A2a production switch (17 Oct). To keep the order break harmless:
    default off, until A1's gate is closed. With the switches off, the golden snapshots must stay identical.
 4. *Golden re-records:* only after a market-by-market review of the change summary, each logged here with its
    reason.
+
+**D17 — Power margin removal (16 Oct, A3.1).** `Scripts/data_platform/devig.py` (proportional, additive,
+power, Shin; written in-house, no penaltyblog dependency); `Scripts/ops/devig_comparison.py`; results in
+`Research/devig-comparison-2026-10-16/`. Football-data closing history, 25,057 fixtures, 291 weeks, median
+across books: 1X2 log loss vs proportional — power −0.075% (interval below zero), additive −0.074%, Shin
+−0.064%; calibration error 0.0083 → 0.0036 with power (proportional overstates longshots). O/U 2.5: all
+within −0.02% (power's interval touches zero). Power chosen for all markets. `reference_price` gains
+`method=` with versions (`power_devig_median.v2`); default stays proportional v1 until go-live (D16).
 
 ## Findings that shape later steps
 

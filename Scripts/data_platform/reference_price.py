@@ -16,6 +16,10 @@ import statistics
 from typing import Dict, List, Optional, Tuple
 
 METHOD = "proportional_devig_median.v1"
+# A3.1 (D17): power margin removal halves the 1X2 calibration error on closing history. It is an option
+# until A1's gate is closed (D16); the default stays proportional so live results do not change.
+METHOD_VERSIONS = {"proportional": METHOD, "power": "power_devig_median.v2",
+                   "shin": "shin_devig_median.v2", "additive": "additive_devig_median.v2"}
 Outcome = Tuple[str, Optional[float], float]
 
 
@@ -31,8 +35,12 @@ def market_group(outcomes: List[Outcome], side: str, line, spreads: bool) -> Lis
     return [o for o in outcomes if o[1] == line]
 
 
-def devig_consensus(books: Dict[str, List[Outcome]], side: str, line, *, spreads: bool, wanted_book=None):
+def devig_consensus(books: Dict[str, List[Outcome]], side: str, line, *, spreads: bool, wanted_book=None,
+                    method="proportional"):
     """(same-book price or None, consensus or None, issue or None)."""
+    from . import devig
+    if method not in METHOD_VERSIONS:
+        raise ValueError(f"unknown margin-removal method {method!r}")
     side, wanted = norm(side), norm(wanted_book)
     same, priced = None, []
     for name, outcomes in books.items():
@@ -41,14 +49,17 @@ def devig_consensus(books: Dict[str, List[Outcome]], side: str, line, *, spreads
         if len(picked) != 1 or len(group) < 2 or len({o[0] for o in group}) != len(group):
             continue  # missing, ambiguous or one-sided: cannot remove this book's margin
         inverse = sum(1 / o[2] for o in group)
-        book_fair = (1 / picked[0][2]) / inverse
+        fair = devig.fair([o[2] for o in group], method)
+        if fair is None:
+            continue  # e.g. additive would make an outcome negative
+        book_fair = fair[group.index(picked[0])]
         priced.append({"bookmaker": name, "odds": {o[0]: o[2] for o in group}, "margin": inverse - 1,
                        "fair": book_fair})
         if wanted and norm(name) == wanted:
             same = {"bookmaker": name, "odds": picked[0][2], "fair": book_fair}
     if not priced:
         return None, None, "selection_unavailable"
-    consensus = {"method": METHOD, "fair_probability": statistics.median(b["fair"] for b in priced),
+    consensus = {"method": METHOD_VERSIONS[method], "fair_probability": statistics.median(b["fair"] for b in priced),
                  "book_count": len(priced), "books": priced}
     return same, consensus, None if same or not wanted else "same_bookmaker_unavailable"
 
