@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D22)
+Last updated: 2026-10-16 (D23)
 
 ## Status
 
@@ -40,7 +40,7 @@ Pinnacle's freshness measured ✗ (step 4).
 | 3.2 | M1 market goal expectations per team (handicap + totals) | Done: research (D19) | No: `market_goals.solve`; used by 3.3 and A8 |
 | 3.3 | Fitted blend `logit p = a + b·logit p_market + c·logit p_spix` per market | Done: research; gate not passed with the 2023 engine (D20) | No: at go-live, c = 0 for 1X2/O/U 2.5 **until A6** (D21) |
 | 3.4 | Gamma-distributed team rates replacing n/(n+8) and the variance floors | Done: research; not adopted (D22) | No: the simpler 3.5 wins |
-| 3.5 | Phase 4 dispersions (corners 0.025, SoT 0.01) replace the variance floors, behind a switch | **Next** (D22: ~1.0% / 1.4% better than the floors) | No: switch default off until go-live |
+| 3.5 | Phase 4 dispersions (corners 0.025, SoT 0.01) replace the variance floors, behind a switch | Done: built (D23), all competitions and stages | No: `SPIX_COUNT_DISPERSION=fixed` at go-live |
 | 3.6 | Dixon–Coles rho per league | Open | No |
 | 3.7 | Shadow run, then go-live after A1's gate is closed and A2a is switched | Open | – |
 
@@ -68,6 +68,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Quote age near kickoff in selection (API-Football prices ~2 h old in the last 3 h, D15) | A5 | Apparent edge may be a price no longer offered |
 | Retire `ml_edge.py` and `Index/elo_ratings.json` | A7 | Replaced by A6 |
 | Evidence-aware variance (`uncertainty.py`, D22) for fitted ratings' uncertainty | A6 | Not needed with today's means |
+| Go-live of 3.5: set `SPIX_COUNT_DISPERSION=fixed`; review the 59 corner pick changes in the golden preview, then re-record (D16 rule 4) | A3.7 | Confirm on the live scorecard (development-period evidence) |
 | Cards and goals variance floors (no qualified dispersion yet) | A6 | Cards outside research qualification; goals use the score matrix |
 | The n/(n+8) early-season prior on means | A6 | 3.4 changed widths only, not means |
 | First-round variables (D12): M1 | A3, A8 | Selected 16 Oct |
@@ -236,6 +237,16 @@ evidence-aware variance −0.96% / −1.38%; evidence vs fixed +0.07% / +0.04% (
 matches; the fit sets α ≈ 0 and κ ≈ 4.6–6.7, reproducing the fixed dispersion). Decision: 3.4's evidence
 term is not adopted (simplest model wins, variables-report rules); 3.5 replaces the floors with the fixed
 dispersions. Means, including the n/(n+8) prior, are unchanged.
+
+**D23 — Fixed dispersions for corners and SoT in every competition and stage (16 Oct, A3.5).**
+`core/prediction_guardrails.py`: with `SPIX_COUNT_DISPERSION=fixed`, corners and SoT totals use
+Var = μ + αμ² (α 0.025 / 0.01, `count-dispersion.v1`) instead of the floors; cards and goals unchanged; the
+floor confidence cap no longer applies to them. Default off (D16). Scope widened beyond Phase 4's qualified
+scope (five leagues, ≥8 matches) because on 2023 every competition and season stage improved or was flat
+against the floors (corners −0.4 to −1.8%; SoT −0.01 to −2.9%), none worse; this is development-period
+evidence, so the live scorecard confirms it after go-live. Golden preview with the switch on: only corners
+(52,131 values, 59 pick-level changes) and SoT (444 values, no pick changes) differ; switched off, the
+bundle is identical.
 
 ## Findings that shape later steps
 

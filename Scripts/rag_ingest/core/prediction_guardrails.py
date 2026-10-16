@@ -7,6 +7,7 @@ back, and make every threshold available for later walk-forward calibration.
 
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, Mapping, Optional, Tuple
 
 
@@ -21,6 +22,17 @@ TOTAL_VARIANCE_FLOORS = {
     "cards": {"multiplier": 1.60, "absolute": 4.0},
     "sot": {"multiplier": 1.60, "absolute": 7.0},
 }
+
+# Rework A3.5 (tracker D22, D23): fitted negative-binomial dispersions that replace the floors for
+# corners and SoT when SPIX_COUNT_DISPERSION=fixed (off by default until A3 go-live, D16).
+# Variance = mean + alpha * mean^2. Cards and goals keep their floors.
+COUNT_DISPERSION_VERSION = "count-dispersion.v1"
+FIXED_DISPERSIONS = {"corners": 0.025, "sot": 0.01}
+
+
+def fixed_dispersion_enabled() -> bool:
+    return os.environ.get("SPIX_COUNT_DISPERSION", "floors").strip().lower() == "fixed"
+
 
 # Conservative launch rules.  They should be calibrated against chronological
 # results before loosening; they are intentionally not optimised on a single
@@ -73,6 +85,18 @@ def resolve_total_variance(
     else:
         observed = None
         observed_source = "missing_profile_variance"
+
+    if market in FIXED_DISPERSIONS and fixed_dispersion_enabled():
+        alpha = FIXED_DISPERSIONS[market]
+        variance = float(projection_total) + alpha * float(projection_total) ** 2
+        return variance, {
+            "status": "available",
+            "source": "fixed_dispersion",
+            "dispersion": alpha,
+            "version": COUNT_DISPERSION_VERSION,
+            "profile_variance": observed,
+            "variance": variance,
+        }
 
     floor = max(float(config["absolute"]), float(projection_total) * float(config["multiplier"]))
     variance = max(observed or 0.0, floor)
