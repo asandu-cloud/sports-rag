@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D31)
+Last updated: 2026-10-17 (D32)
 
 ## Status
 
@@ -77,6 +77,10 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Market anchor for 1X2 and O/U 2.5 only (strict scope, D26), Spix's own probability kept for the disagreement view | A3.7 package; live at stage 3, Tue 27 Oct | Other goal lines and Asian handicap unchanged until a scorecard check |
 | Extend the market anchor to all goal markets via M1's score matrix (other O/U lines, Asian handicap, BTTS), behind its own switch; add BTTS from the score matrix to `market_goals` | A3.7 package (built switched off); live at stage 4, earliest Tue 3 Nov (D29) | Beyond what history tested: must pass the gate on audited lines first (D29) |
 | A5.3 first: are the best prices real? Quote age at the read (odds archive `source_age_seconds`), OddsPapi spot checks of the best-price book, exchange commission; then evidence-based labels | A5.3, next (D31) | Half the best-price books' quotes were unchanged or missing at the close (D31) |
+| Bookmaker sets per country: the best price only from books a member can legally use, and the first country (owner) | A5.4 requirement (D32) | A third of A5.2's best prices came from books most European bettors cannot use |
+| Red cards: the selector also outputs the bets to skip (prices below fair, boosts that are not, high-margin bet builders) | A5.4 (D32) | Part of the Daily Card |
+| Bet builder and combination pricing from the score model (correlated legs), anchored to the market | After A5, with the D25 expansion (D32) | Price Check and red cards need it |
+| Price Check for any single and the Ledger (member bet tracking, settlement, overpayment vs best price) | Product backlog after A5 (D32) | Web app work; reuses settlement and reference prices |
 | How to show Spix's own view when it disagrees with the market (≥10 pts on 3.4 markets per read; ≥25 pts on half the reads), given A5.1 found it mostly error | Owner, before A5.4 | Product decision (D31) |
 | If A5.4 prices corners and cards against the market too, A4's calibrators (stage 5) lose their purpose except where no two-sided price exists | Decide with A5.4 (D31) | Calibrators fit Spix's own probability |
 | A5.4: build the chosen policy behind a switch (`line_selection`, `match_read_compiler`, `confidence_from_edge`), golden preview; proposal in D31 | A5; live at A3.7 stage 6, earliest Tue 17 Nov | Gate (report): published picks' calibration error ≤ 3 pts and closing line value at least neutral over 4+ live matchweeks |
@@ -440,6 +444,19 @@ a tilt of at most c = 0.03 until A6 earns more). Pick where the best available p
 extends stages 3–4's c = 0 to every market. Spix is ≥10 pts above the market on 3.4 markets per pre-match
 read, ≥20 pts on 1.4 (114 of 160 reads), ≥25 pts on 0.86 (82 reads) and ≥30 pts on 0.51 (53 reads), so how
 to show it is a product decision.
+
+**D32 — Product direction for the engine (17 Oct).** Owner and Claude agreed the offer, pinned as "What Spix
+Sells" (https://claude.ai/artifact/FwVJYpWojqaGL8t7nDXG9X). The promise is "Know the real odds. Never
+overpay." Members get the Daily Card (green to take, red to skip), the Match Read with Ask Spix, and Price
+Check with the Ledger. The year-one goal is €5,000 a month. What it means for the engine:
+- *Keep building and keep trying ML* (A6, A6c, Part B). The rule is unchanged: a model sets the published
+  probability only in markets where it beats the market on the scorecard; otherwise it shows as "Spix's
+  take". The likeliest edge is in thin markets: player props, corners, cards and bet builders.
+- *A5 gains requirements:* best prices only from books available in the member's country; prices fresh
+  enough to bet (D15); and red cards, the bets to skip, as a second output of selection.
+- *New engine work after A5:* pricing bet builders and other combinations from the score model, anchored to
+  the market, for Price Check and red cards. Price Check for singles and the Ledger are web-app work that
+  reuses settlement and the reference prices.
 
 ## Findings that shape later steps
 
