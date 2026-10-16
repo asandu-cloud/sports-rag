@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D12)
+Last updated: 2026-10-16 (D13)
 
 ## Status
 
@@ -13,7 +13,7 @@ Last updated: 2026-10-16 (D12)
 |---|---|---|
 | A0 Safety net | Done 15 Oct | 02fa536, f7459f0, c1e9b42 |
 | A1 Measurement | In progress (steps 1, 2, 3, 5, 6 done; step 4 left) | see below |
-| A2 Canonical features | A2a built 16 Oct, awaiting the production switch (D11); A2b later (D10) | |
+| A2 Canonical features | A2a built 16 Oct, switch after the 17 Oct refresh check (D11); A2b after A6 (D13) | 7af457b |
 | A3–A8, Part B | Not started | |
 
 ### A1 (order changed 15 Oct, see D6)
@@ -53,7 +53,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Second-round variables: M3 bookmaker disagreement | A5 confidence labels | With A5 |
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
 | Correct `CLAUDE.md`: Elo "signal active at 0.15" (never called) and ML R² 0.43/0.47 (saved R² ≈ 0) | Next docs pass | Stale claims mislead new sessions |
-| Order A6 before A2b's legacy retirement? (A2b then needn't recompute hand-made indices) | Owner | Raised in the variables report |
+| Verify the store after the first refresh with the new stages (17 Oct 07:15), then switch | Claude, then owner adds `DOCUMENT_STORE=sqlite` | Parity on the 881 engine queries + counts |
 
 ## Decisions and deviations from the report
 
@@ -117,6 +117,12 @@ strength-and-form and discipline-and-set-pieces families, plus C1:
 - Second round: M2 (needs archive history), M3 (with A5). Every variable passes the gate in the
   report: ablation against the market baseline, ≥0.5% log-loss gain, interval below zero, no slice
   worse by >2%; a failure is removed and recorded here.
+
+**D13 — A6 before A2b's legacy retirement (16 Oct).** Owner agreed. A6's fitted models use raw
+stats (D12: S2, S3, D2, D3), so A2b only has to build those raw inputs with an as-of cutoff; it no longer
+recomputes the legacy control, aggression and form indices. The legacy pipeline (per-league scripts,
+`Output/`, normalise) keeps feeding the document store until A6 replaces the hand-set projections, then
+A2b retires it. Order: A1 step 4 → A3 → A4/A5 → A6 (with the D12 variables) → A2b → A7.
 
 ## Findings that shape later steps
 
