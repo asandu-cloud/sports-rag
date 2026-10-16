@@ -15,7 +15,7 @@ Last updated: 2026-10-16 (D27)
 | A1 Measurement | In progress (steps 1, 2, 3, 5, 6 done; step 4 left) | see below |
 | A2 Canonical features | A2a built 16 Oct, switch after the 17 Oct refresh check (D11); A2b after A6 (D13) | 7af457b |
 | A3 Market anchor and honest uncertainty | Started 16 Oct under D16 (research and shadow only) | see A3 table |
-| A4 Calibration | Started 16 Oct, research only (D27); live as A3.7 stage 4, not before the Mon 2 Nov scorecard | see D27 |
+| A4 Calibration | A4.1 dataset done 16 Oct (25,527 graded candidates, 160 fixtures; grading matches settlement on all 1,918 overlapping picks); A4.2 method study next; live as A3.7 stage 4, not before Mon 2 Nov (D27) | see D27 |
 | A5–A8, Part B | Not started | |
 | Market expansion (D25) | Planned after A5 | see D25 |
 
