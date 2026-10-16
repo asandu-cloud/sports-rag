@@ -70,3 +70,17 @@ def test_database_timestamps_without_a_timezone_are_read_as_utc():
     stored = read(evaluated="2026-10-10 14:00:00.000000", kickoff="2026-10-10T15:00:00Z",
                   results=[result("btts", [option("btts", "Yes", p=0.6)])])
     assert len(cd.latest_reads([stored])) == 1
+
+
+def test_a_selection_carries_the_pick_flag_variance_and_a_vig_free_market_price():
+    picked = option("totals", "over", 2.5, 0.55)
+    picked["selector_selected"] = True
+    picked["option"].update({"_implied_prob": 0.5, "_vig_adjusted_pair": True})
+    one_sided = option("totals", "over", 3.5, 0.3)
+    one_sided["option"].update({"_implied_prob": 0.35, "_vig_adjusted_pair": False})
+    r = read(results=[result("goals", [option("totals", "over", 2.5, 0.55), picked, one_sided], mean=2.7)])
+    r["read_json"] = r["read_json"].replace('"value": 2.7', '"value": 2.7, "variance": 3.4')
+    by_line = {s["point"]: s for s in cd.selections(r)}
+    assert by_line[2.5]["selected"] and by_line[2.5]["variance"] == 3.4
+    assert by_line[2.5]["market_prob"] == 0.5  # from the later bookmaker with a two-sided price
+    assert by_line[3.5]["market_prob"] is None and not by_line[3.5]["selected"]

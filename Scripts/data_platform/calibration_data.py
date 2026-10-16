@@ -2,7 +2,8 @@
 
 Every evaluated candidate (not only published picks) is taken from the latest match
 read made before kickoff, per fixture and stage, de-duplicated per market, side and
-line (bookmakers quoting the same line share one model probability). Each selection
+line (bookmakers quoting the same line share one model probability; the first bookmaker
+with a two-sided price supplies the de-vigged market probability). Each selection
 is graded with the settlement's own Asian rules: half results count half, pushes and
 voids carry no weight (as in the scorecard).
 
@@ -51,11 +52,11 @@ def latest_reads(rows):
 
 def selections(row):
     data = json.loads(row["read_json"]) if isinstance(row["read_json"], str) else row["read_json"]
-    out, seen = [], set()
+    out, seen = [], {}
     for res in data.get("canonical_results", []):
         group = (res.get("market") or {}).get("group")
         fixture = res.get("fixture") or {}
-        mean = (res.get("projection") or {}).get("value")
+        projection = res.get("projection") or {}
         for candidate in ((res.get("context") or {}).get("decision_audit") or {}).get("candidates") or []:
             option = candidate.get("option") or {}
             side = option.get("side") if option.get("side") is not None else option.get("team")
@@ -63,14 +64,20 @@ def selections(row):
             if side is None or probability is None:
                 continue
             key = (group, option.get("market_key"), str(side).casefold(), option.get("point"))
+            market_prob = option.get("_implied_prob") if option.get("_vig_adjusted_pair") else None
             if key in seen:
+                seen[key]["selected"] = seen[key]["selected"] or bool(candidate.get("selector_selected"))
+                if seen[key]["market_prob"] is None:
+                    seen[key]["market_prob"] = market_prob
                 continue
-            seen.add(key)
-            out.append({"fixture_id": str(row["fixture_api_id"]), "stage": row["stage"], "kickoff": row["kickoff"],
-                        "market": group, "market_key": option.get("market_key"), "side": side,
-                        "point": option.get("point"), "model_prob": float(probability), "mean": mean,
-                        "basis": option.get("_probability_basis"), "home": fixture.get("home_team"),
-                        "away": fixture.get("away_team")})
+            seen[key] = {"fixture_id": str(row["fixture_api_id"]), "stage": row["stage"], "kickoff": row["kickoff"],
+                         "market": group, "market_key": option.get("market_key"), "side": side,
+                         "point": option.get("point"), "model_prob": float(probability),
+                         "mean": projection.get("value"), "variance": projection.get("variance"),
+                         "basis": option.get("_probability_basis"), "home": fixture.get("home_team"),
+                         "away": fixture.get("away_team"), "selected": bool(candidate.get("selector_selected")),
+                         "market_prob": market_prob}
+            out.append(seen[key])
     return out
 
 

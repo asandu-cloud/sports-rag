@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D27)
+Last updated: 2026-10-16 (D28)
 
 ## Status
 
@@ -15,7 +15,7 @@ Last updated: 2026-10-16 (D27)
 | A1 Measurement | In progress (steps 1, 2, 3, 5, 6 done; step 4 left) | see below |
 | A2 Canonical features | A2a built 16 Oct, switch after the 17 Oct refresh check (D11); A2b after A6 (D13) | 7af457b |
 | A3 Market anchor and honest uncertainty | Started 16 Oct under D16 (research and shadow only) | see A3 table |
-| A4 Calibration | A4.1 dataset done 16 Oct (25,527 graded candidates, 160 fixtures; grading matches settlement on all 1,918 overlapping picks); A4.2 method study next; live as A3.7 stage 4, not before Mon 2 Nov (D27) | see D27 |
+| A4 Calibration | A4.1 dataset done 16 Oct (25,527 graded candidates, 160 fixtures; grading matches settlement on all 1,918 overlapping picks). A4.2 method study done 16 Oct: no calibrator adopted yet (D28), rerun weekly; live as A3.7 stage 4, not before Mon 2 Nov (D27) | 197dc73; see D28 |
 | A5–A8, Part B | Not started | |
 | Market expansion (D25) | Planned after A5 | see D25 |
 
@@ -74,7 +74,9 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Record active engine switches (`DOCUMENT_STORE`, `SPIX_COUNT_DISPERSION`, A3.7 switches) on every pick, so the scorecard can split picks by stage | A3.7 package, before stage 1 | Model version fingerprints code only, not environment switches |
 | Wire power margin removal into pick selection (`line_selection`) behind a switch | A3.7 package; live at stage 2, Fri 23 Oct | `reference_price` already has it as an option (D17) |
 | Market anchor for 1X2 and O/U 2.5 only (strict scope, D26), Spix's own probability kept for the disagreement view | A3.7 package; live at stage 3, Tue 27 Oct | Other goal lines and Asian handicap unchanged until a scorecard check |
-| Extend the market anchor to all goal markets via M1's score matrix (other O/U lines, Asian handicap, BTTS) | After stage 3's scorecard check (D26) | Coherent but beyond what history tested |
+| Extend the market anchor to all goal markets via M1's score matrix (other O/U lines, Asian handicap, BTTS) | After stage 3's scorecard check (D26) | Coherent but beyond what history tested. D28: Spix is 18% worse than the market on the other goal lines and its goal means run low; owner may bring this forward |
+| Rerun the A4.2 study weekly (`python -m Scripts.ops.calibration_study --out Research/calibration-<date>`); calibrator decision with ≥3 weeks of audited fixtures | A4, decision at A3.7 stage 4 (not before Mon 2 Nov) | Not adopted 16 Oct: one audited week, no market passes the gate (D28) |
+| Qualify the card settlement definition (yellow + red vs bookmakers' bookings rules, second yellows) before calibrating or scoring cards | A4, before stage 4 | Cards are graded yellow + red (indicative); the market's own card slope is 1.40 on that grading (D28) |
 | Cards and goals variance floors (no qualified dispersion yet) | A6 | Cards outside research qualification; goals use the score matrix |
 | Market expansion wave 1: team goal totals, double chance, draw no bet (D25) | After A5 | No new modelling; anchored by M1 |
 | Market expansion wave 2: team corners totals, corners handicap (D25) | After wave 1 | Team corner projections exist; priced on ~half of fixtures |
@@ -310,7 +312,46 @@ calibration slope of 0.42 is mostly selection (winner's curse, A5's job); calibr
 the model's own miscalibration, so A4 alone will not move that slope much. Phase 4's history also found
 small calibration gains.
 
+**D28 — A4.2: no calibrator adopted yet (16 Oct).** Method: Platt scaling per market on one reference
+side per line (over, home team, yes; a fit on both complementary sides forces the intercept to zero and
+cannot see a directional bias), corners priced with the stage 1 fixed dispersion, each kickoff day
+predicted by a fit on the days before it (5 test days, ~100 fixtures), intervals resample fixtures;
+isotonic as a challenger. Code `data_platform/calibration.py`, `ops/calibration_study.py`; output
+`Research/calibration-2026-10-16/`. Out of sample, no market passes the D27 gate (error ≤ 3 pts, slope
+0.8–1.2) after Platt:
+
+| Market | Tested rows (fixtures) | No calibration: error / slope | Platt: error / slope | Platt log loss, 95% |
+|---|---|---|---|---|
+| Goals (not 2.5) | 3,128 (103) | 15.8 / 0.77 | 8.8 / 0.83 | −10.3% (−0.102 to −0.021) |
+| Asian handicap | 2,939 (103) | 7.4 / 0.65 | 3.4 / 0.79 | −4.3% (−0.050 to +0.002) |
+| Corners | 4,390 (99) | 5.7 / 0.65 | 5.1 / 0.68 | +0.6% (−0.013 to +0.020) |
+| Cards | 1,209 (101) | 4.6 / 1.12 | 4.4 / 0.94 | +1.0% (−0.021 to +0.031) |
+| BTTS | 156 (103) | 15.8 / −0.65 | 7.1 / 0.39 | −14.6% (−0.232 to +0.007) |
+
+Isotonic is worse than Platt in every market. Decision: nothing goes live; rerun weekly and decide at
+stage 4 (not before Mon 2 Nov) with at least three audited weeks. The same data show why calibration
+alone cannot close the gap. On lines priced two-sided, Spix is worse than the bookmaker's de-vigged
+price in every in-scope market: log loss +8.7% corners, +10.2% BTTS, +10.3% AH, +10.8% cards,
++18.2% goals. The intervals exclude 0 except AH (−0.0003 to +0.128). Spix's slopes are 0.42–0.68
+against the market's 1.02–1.13 (cards 1.40, possibly because yellow + red grading differs from the
+books' card rules; not verified). The selector's own picks stay badly calibrated after Platt (slopes
+0.16–0.48), as D27 expected: that is selection, which is A5's job.
+
 ## Findings that shape later steps
+
+- **Goal means run low (16 Oct).** Spix projected 2.82 goals per match against 3.16 scored over 321
+  finished fixtures since 5 Sep, and 2.68 against 3.28 in the audited week of 9–15 Oct. That week was
+  high-scoring and the market under-read it too (O/U 2.5 overs: market 0.581, Spix 0.489, scored
+  0.662), but Spix sits about 10 pts below the market on overs on average (other goal lines 0.384 vs
+  0.481). This strengthens the case for extending the market anchor to all goal lines (D26 open item)
+  and for A6's fitted goal model; a Platt intercept corrects it only in part (D28).
+
+- **Fixed corner dispersion holds on live data (16 Oct).** On the full corner-count distribution, the
+  stage 1 fixed dispersion beats the floors on the live engine's means: 317 finished fixtures (5 Sep
+  to 15 Oct), −0.020 nats per fixture (95% −0.045 to +0.008), consistent with A3.4. On the audited
+  lines alone (156 fixtures, 9–15 Oct), the floors score better (line log loss 0.564 vs 0.573,
+  interval −0.003 to +0.024, includes 0); cause not established. Not a reason to move stage 1.
+  The corner mean barely tracks the actual count (correlation 0.09–0.12).
 
 - **Unused signals (16 Oct).** `get_elo_edge` is imported by `core/projections.py` but never called; the
   58-feature ML regressions have saved validation R² ≈ 0 (goals 0.018, corners −0.010, cards 0.006,
