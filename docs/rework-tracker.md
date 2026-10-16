@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D28)
+Last updated: 2026-10-16 (D29)
 
 ## Status
 
@@ -15,7 +15,7 @@ Last updated: 2026-10-16 (D28)
 | A1 Measurement | In progress (steps 1, 2, 3, 5, 6 done; step 4 left) | see below |
 | A2 Canonical features | A2a built 16 Oct, switch after the 17 Oct refresh check (D11); A2b after A6 (D13) | 7af457b |
 | A3 Market anchor and honest uncertainty | Started 16 Oct under D16 (research and shadow only) | see A3 table |
-| A4 Calibration | A4.1 dataset done 16 Oct (25,527 graded candidates, 160 fixtures; grading matches settlement on all 1,918 overlapping picks). A4.2 method study done 16 Oct: no calibrator adopted yet (D28), rerun weekly; live as A3.7 stage 4, not before Mon 2 Nov (D27) | 197dc73; see D28 |
+| A4 Calibration | A4.1 dataset done 16 Oct (25,527 graded candidates, 160 fixtures; grading matches settlement on all 1,918 overlapping picks). A4.2 method study done 16 Oct: no calibrator adopted yet (D28), rerun weekly; live as A3.7 stage 5, not before Tue 10 Nov (D29) | 197dc73; see D28 |
 | A5–A8, Part B | Not started | |
 | Market expansion (D25) | Planned after A5 | see D25 |
 
@@ -44,7 +44,7 @@ Pinnacle's freshness measured ✗ (step 4).
 | 3.4 | Gamma-distributed team rates replacing n/(n+8) and the variance floors | Done: research; not adopted (D22) | No: the simpler 3.5 wins |
 | 3.5 | Phase 4 dispersions (corners 0.025, SoT 0.01) replace the variance floors, behind a switch | Done: built (D23), all competitions and stages | No: `SPIX_COUNT_DISPERSION=fixed` at go-live |
 | 3.6 | Dixon–Coles rho per league | Done: research; not adopted, rho stays −0.10 (D24) | No change |
-| 3.7 | Go-live package, staged (D26): build by Mon 19 Oct; stage 1 dispersions Tue 20; stage 2 power margin removal in selection Fri 23; stage 3 market anchor (strict scope) Tue 27; confirm at the Mon 2 Nov scorecard | Package build starts Fri 17 Oct | Staged, one change at a time |
+| 3.7 | Go-live package, staged (D26): build by Mon 19 Oct; stage 1 dispersions Tue 20; stage 2 power margin removal in selection Fri 23; stage 3 market anchor (strict scope) Tue 27; confirm at the Mon 2 Nov scorecard; stage 4 market anchor for all goal markets via M1, earliest Tue 3 Nov (D29); stage 5 A4 calibrators, earliest Tue 10 Nov | Package build starts Fri 17 Oct | Staged, one change at a time |
 
 ## Open items with a destination
 
@@ -74,9 +74,9 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Record active engine switches (`DOCUMENT_STORE`, `SPIX_COUNT_DISPERSION`, A3.7 switches) on every pick, so the scorecard can split picks by stage | A3.7 package, before stage 1 | Model version fingerprints code only, not environment switches |
 | Wire power margin removal into pick selection (`line_selection`) behind a switch | A3.7 package; live at stage 2, Fri 23 Oct | `reference_price` already has it as an option (D17) |
 | Market anchor for 1X2 and O/U 2.5 only (strict scope, D26), Spix's own probability kept for the disagreement view | A3.7 package; live at stage 3, Tue 27 Oct | Other goal lines and Asian handicap unchanged until a scorecard check |
-| Extend the market anchor to all goal markets via M1's score matrix (other O/U lines, Asian handicap, BTTS) | After stage 3's scorecard check (D26) | Coherent but beyond what history tested. D28: Spix is 18% worse than the market on the other goal lines and its goal means run low; owner may bring this forward |
-| Rerun the A4.2 study weekly (`python -m Scripts.ops.calibration_study --out Research/calibration-<date>`); calibrator decision with ≥3 weeks of audited fixtures | A4, decision at A3.7 stage 4 (not before Mon 2 Nov) | Not adopted 16 Oct: one audited week, no market passes the gate (D28) |
-| Qualify the card settlement definition (yellow + red vs bookmakers' bookings rules, second yellows) before calibrating or scoring cards | A4, before stage 4 | Cards are graded yellow + red (indicative); the market's own card slope is 1.40 on that grading (D28) |
+| Extend the market anchor to all goal markets via M1's score matrix (other O/U lines, Asian handicap, BTTS), behind its own switch; add BTTS from the score matrix to `market_goals` | A3.7 package (built switched off); live at stage 4, earliest Tue 3 Nov (D29) | Beyond what history tested: must pass the gate on audited lines first (D29) |
+| Rerun the A4.2 study weekly (`python -m Scripts.ops.calibration_study --out Research/calibration-<date>`); calibrator decision with ≥3 weeks of audited fixtures | A4, decision at A3.7 stage 5 (not before Tue 10 Nov, D29) | Not adopted 16 Oct: one audited week, no market passes the gate (D28) |
+| Qualify the card settlement definition (yellow + red vs bookmakers' bookings rules, second yellows) before calibrating or scoring cards | A4, before stage 5 | Cards are graded yellow + red (indicative); the market's own card slope is 1.40 on that grading (D28) |
 | Cards and goals variance floors (no qualified dispersion yet) | A6 | Cards outside research qualification; goals use the score matrix |
 | Market expansion wave 1: team goal totals, double chance, draw no bet (D25) | After A5 | No new modelling; anchored by M1 |
 | Market expansion wave 2: team corners totals, corners handicap (D25) | After wave 1 | Team corner projections exist; priced on ~half of fixtures |
@@ -305,6 +305,7 @@ collide with A3.7:
 2. *Fit on the probabilities that will be live:* corners (and SoT) calibrators use probabilities recomputed
    with the fixed dispersion of stage 1 (from each result's stored mean), not today's floors.
 3. *Go-live as A3.7 stage 4,* after stage 3, not before the Mon 2 Nov scorecard (one change at a time).
+   (Moved to stage 5 by D29.)
 Data: decision audits since the 6 Oct release hold every evaluated candidate (model probability and exact
 settlement profile) for 241 fixtures; lines within a fixture are correlated, so Platt scaling per market
 first; isotonic only once a market has ~1,000 settled forecasts. Expectation: the published picks'
@@ -336,6 +337,26 @@ price in every in-scope market: log loss +8.7% corners, +10.2% BTTS, +10.3% AH, 
 against the market's 1.02–1.13 (cards 1.40, possibly because yellow + red grading differs from the
 books' card rules; not verified). The selector's own picks stay badly calibrated after Platt (slopes
 0.16–0.48), as D27 expected: that is selection, which is A5's job.
+
+**D29 — Goals market anchor brought forward to stage 4 (16 Oct).** Owner decision after D28 (Spix is
+18.2% worse than the market on goal lines other than 2.5, and its goal means run low). The D26
+extension becomes **stage 4**, after stage 3 and ahead of any A4 calibrator. It is the market anchor for
+all goal markets through M1's score matrix: O/U lines other than 2.5, Asian handicap and BTTS, with c = 0,
+and Spix's own probability kept for the disagreement view.
+- *Build* in the A3.7 package behind its own switch, off by default, and previewed on the golden fixtures.
+  `market_goals` has 1X2, handicap and totals today; BTTS from the score matrix is added.
+- *Gate before go-live.* History cannot test these markets: football-data holds only 1X2, Asian handicap
+  and O/U 2.5, and M1 already takes the main handicap and O/U 2.5 prices as inputs. So the check runs
+  on the audited lines (A4.1 dataset). In each market, M1's probabilities must beat Spix's on log loss,
+  with the fixture-resampled interval below zero. They are also reported against the bookmaker's own
+  de-vigged price on the same lines.
+- *Schedule.* Stage 4 goes live earliest Tue 3 Nov, after the Mon 2 Nov scorecard confirms stages 1–3,
+  and is checked at the Mon 9 Nov scorecard. If an earlier stage fails its check, stage 4 moves back with
+  it (D26).
+- *Effect on A4.* The calibrators become **stage 5**, earliest Tue 10 Nov. Once stage 4 is live, goal
+  lines, Asian handicap and BTTS publish market-anchored probabilities and leave A4's scope, as 1X2 and
+  O/U 2.5 did (D27 rule 1). A4 then covers corners and cards, plus SoT once it is priced. If stage 4 fails
+  its gate, those markets return to A4's scope; the weekly A4.2 reruns keep them until then.
 
 ## Findings that shape later steps
 
