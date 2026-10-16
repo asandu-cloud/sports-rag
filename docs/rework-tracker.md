@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D19)
+Last updated: 2026-10-16 (D20)
 
 ## Status
 
@@ -38,7 +38,7 @@ Pinnacle's freshness measured ✗ (step 4).
 |---|---|---|---|
 | 3.1 | Margin-removal method: proportional vs additive vs power vs Shin on football-data closing history | Done: power (D17) | No: option `method="power"`, default unchanged until A1's gate |
 | 3.2 | M1 market goal expectations per team (handicap + totals) | Done: research (D19) | No: `market_goals.solve`; used by 3.3 and A8 |
-| 3.3 | Fitted blend `logit p = a + b·logit p_market + c·logit p_spix` per market | Open | No |
+| 3.3 | Fitted blend `logit p = a + b·logit p_market + c·logit p_spix` per market | Done: research; gate not passed for 1X2/O/U 2.5 with the 2023 engine (D20) | No: decision pending |
 | 3.4 | Gamma-distributed team rates replacing n/(n+8) and the variance floors | Open | No |
 | 3.5 | Phase 4 dispersions (corners 0.025, SoT 0.01) behind a switch | Open | No |
 | 3.6 | Dixon–Coles rho per league | Open | No |
@@ -61,6 +61,8 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Switch production to the document store: add `DOCUMENT_STORE=sqlite` to `.env` | Owner, after A2a review | Chroma remains the fallback (remove the line) |
 | Stop embedding into Chroma entirely | A7 | Whale chat and `rag_cli_v2` still search Chroma by meaning |
 | A6c LightGBM market-error challenger (D14) | After A6's base model passes | Must beat fitted A6 vs the market baseline |
+| Rerun the blend study (`Scripts/ops/blend_study.py`) on A6's forecasts: does Spix earn c > 0? | A6 gate | D20 |
+| Decide A3 go-live for 1X2/O/U: market probability (power) with c = 0 | Owner | D20 |
 | Build OddsPapi true-close capture (Pinnacle ± 2 books), API-Football snapshot as fallback (D18) | A1 step 4, Mon 19 Oct | Goes live after the A2a switch (D16 rule 3) |
 | Check whether OddsPapi's request count resets monthly (vendor says 250/month; unconfirmed) | ~14 Nov 2026 | 14 used by 16 Oct; ~50/month planned |
 | Quote age near kickoff in selection (API-Football prices ~2 h old in the last 3 h, D15) | A5 | Apparent edge may be a price no longer offered |
@@ -201,6 +203,18 @@ and Asian handicap probabilities (exact zero-profit fair price for quarter lines
 cups), M1 from closing prices (power, median across books) scores actual home and away goals **2.27% better**
 (Poisson log loss) than the frozen control's means (95% −0.078 to −0.056); median fit error 0.0004. Closing
 prices are the best case: publication-time prices (A3.3) will be weaker. Dixon–Coles rho not applied (A3.6).
+
+**D20 — The blend gate is not passed: Spix adds nothing to the market for 1X2/O/U (16 Oct, A3.3).**
+`Scripts/data_platform/blend.py` (logarithmic pool, exact gradient), `Scripts/ops/blend_study.py`,
+`Research/blend-2026-10-16/`. Frozen 2023 control forecasts; market at publication = football-data
+pre-closing prices (power, median); time-ordered folds (fit on earlier quarters), 1,677 out-of-sample
+fixtures, 29 weeks. Blend vs market alone: 1X2 +0.05% (interval includes 0), O/U 2.5 **+0.41% worse**
+(interval above 0). Blend vs market with c = 0: +0.02% / +0.04% (no gain). Fitted c unstable across
+folds (1X2 −0.02 → 0.19; O/U −0.09 → 0.07). Recalibrating the market alone also hurts O/U (+0.37%).
+Spix alone is 4.3% / 1.8% worse than the market; closing beats the blend by 0.6–0.8%. Consequence: for
+these markets the honest A3 output is the market's probability (power, c = 0); Spix's model must earn a
+weight in A6, checked by rerunning this study. Corners, cards, SoT and BTTS have no historical prices;
+their blends wait for our own archive.
 
 ## Findings that shape later steps
 

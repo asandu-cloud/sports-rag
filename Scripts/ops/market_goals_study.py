@@ -37,11 +37,11 @@ def _median_fair(per_book):
     return [m / total for m in medians]
 
 
-def market_targets(db_path=DEFAULT_DB, fixture_ids=None, *, method="power"):
-    """{fixture_api_id: {"1x2", "totals", "handicaps", "week", "goals"}} from closing prices."""
-    query = """SELECT m.fixture_api_id, m.match_date, m.fthg, m.ftag, o.market, o.bookmaker, o.selection, o.line, o.price
+def market_targets(db_path=DEFAULT_DB, fixture_ids=None, *, method="power", closing_prices=True):
+    """{fixture_api_id: {"1x2", "totals", "handicaps", "week", "goals"}} from closing (or pre-closing) prices."""
+    query = f"""SELECT m.fixture_api_id, m.match_date, m.fthg, m.ftag, o.market, o.bookmaker, o.selection, o.line, o.price
                FROM odds o JOIN matches m ON m.id = o.match_id
-               WHERE m.link_status = 'matched' AND o.closing = 1 AND o.suspect = 0
+               WHERE m.link_status = 'matched' AND o.closing = {1 if closing_prices else 0} AND o.suspect = 0
                  AND o.market IN ('1x2', 'ou25', 'ah')"""
     raw = defaultdict(lambda: {"books": defaultdict(lambda: defaultdict(dict))})
     wanted = None if fixture_ids is None else {int(f) for f in fixture_ids}
