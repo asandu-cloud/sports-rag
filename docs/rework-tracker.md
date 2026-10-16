@@ -45,7 +45,7 @@ Pinnacle's freshness measured ✗ (step 4).
 | 3.4 | Gamma-distributed team rates replacing n/(n+8) and the variance floors | Done: research; not adopted (D22) | No: the simpler 3.5 wins |
 | 3.5 | Phase 4 dispersions (corners 0.025, SoT 0.01) replace the variance floors, behind a switch | Done: built (D23), all competitions and stages | No: `SPIX_COUNT_DISPERSION=fixed` at go-live |
 | 3.6 | Dixon–Coles rho per league | Done: research; not adopted, rho stays −0.10 (D24) | No change |
-| 3.7 | Go-live package, staged (D26): build by Mon 19 Oct; stage 1 dispersions Tue 20; stage 2 power margin removal in selection Fri 23; stage 3 market anchor (strict scope) Tue 27; confirm at the Mon 2 Nov scorecard; stage 4 market anchor for all goal markets via M1, earliest Tue 3 Nov (D29); stage 5 A4 calibrators, earliest Tue 10 Nov | Package build starts Fri 17 Oct | Staged, one change at a time |
+| 3.7 | Go-live package, staged (D26): build by Mon 19 Oct; stage 1 dispersions Tue 20; stage 2 power margin removal in selection Fri 23; stage 3 market anchor (strict scope) Tue 27; confirm at the Mon 2 Nov scorecard; stage 4 market anchor for all goal markets via M1, earliest Tue 3 Nov (D29); stage 5 A4 calibrators, earliest Tue 10 Nov | Package build started 17 Oct: switch record done (`core/engine_switches.py`) | Staged, one change at a time |
 
 ## Open items with a destination
 
@@ -72,7 +72,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Retire `ml_edge.py` and `Index/elo_ratings.json` | A7 | Replaced by A6 |
 | Evidence-aware variance (`uncertainty.py`, D22) for fitted ratings' uncertainty | A6 | Not needed with today's means |
 | Go-live of 3.5: set `SPIX_COUNT_DISPERSION=fixed`; review the 59 corner pick changes in the golden preview, then re-record (D16 rule 4) | A3.7 stage 1, Tue 20 Oct | Confirm on the live scorecard (development-period evidence) |
-| Record active engine switches (`DOCUMENT_STORE`, `SPIX_COUNT_DISPERSION`, A3.7 switches) on every pick, so the scorecard can split picks by stage | A3.7 package, before stage 1 | Model version fingerprints code only, not environment switches |
+| Scorecard splits picks by the engine switches recorded on them (`tracking.engine_switches`, from 17 Oct; earlier picks ran on the defaults) | Before the Mon 2 Nov scorecard | The record exists since 17 Oct (A3.7 package); new A3.7 switches register in `core/engine_switches.py` |
 | Wire power margin removal into pick selection (`line_selection`) behind a switch | A3.7 package; live at stage 2, Fri 23 Oct | `reference_price` already has it as an option (D17) |
 | Market anchor for 1X2 and O/U 2.5 only (strict scope, D26), Spix's own probability kept for the disagreement view | A3.7 package; live at stage 3, Tue 27 Oct | Other goal lines and Asian handicap unchanged until a scorecard check |
 | Extend the market anchor to all goal markets via M1's score matrix (other O/U lines, Asian handicap, BTTS), behind its own switch; add BTTS from the score matrix to `market_goals` | A3.7 package (built switched off); live at stage 4, earliest Tue 3 Nov (D29) | Beyond what history tested: must pass the gate on audited lines first (D29) |

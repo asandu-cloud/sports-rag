@@ -103,6 +103,16 @@ class MarketServiceTests(unittest.TestCase):
         self.assertEqual(default.provenance.system_version, system)
         self.assertEqual(explicit.provenance.model_version, "ml-goals.v3")
 
+    def test_result_records_the_engine_switches_in_effect(self):
+        env = {"SPIX_COUNT_DISPERSION": "Fixed", "DOCUMENT_STORE": "postgres"}
+        with mock.patch.dict(os.environ, env), \
+                mock.patch.object(market_service, "projected_total_goals", return_value=(3.2, 3.0, 3.4)):
+            result = market_service.evaluate_market(_event(), "EPL", "goals")
+
+        self.assertEqual(result.context["engine_switches"], {
+            "version": "engine-switches.v1", "DOCUMENT_STORE": "chroma", "SPIX_COUNT_DISPERSION": "fixed",
+            "ignored": {"DOCUMENT_STORE": "postgres"}})
+
     def test_missing_profile_data_is_unavailable_without_running_selection(self):
         with mock.patch.object(market_service, "projected_total_corners", return_value=(None, None, None)):
             result = market_service.evaluate_market(

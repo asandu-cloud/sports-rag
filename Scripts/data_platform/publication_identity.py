@@ -36,6 +36,8 @@ def tracking_identity(result):
             "pipeline_version": provenance.get("pipeline_version"),
             "model_version": provenance.get("model_version"),
             "input_snapshot_id": provenance.get("input_snapshot_id"),
+            # Environment switches in effect (A3.7): the versions above fingerprint code only.
+            "engine_switches": (result.get("context") or {}).get("engine_switches"),
             # Do not label evaluation/publication time as bookmaker quote time.
             "quote_time": quote.get("quote_time"), "quote_captured_at": quote.get("captured_at"),
             "missing_identity_fields": missing,

@@ -114,6 +114,8 @@ def test_market_service_matches_unmodified_baseline(monkeypatch, market, availab
     expected = baseline.evaluate_market(deepcopy(event), 'EPL', market, **kwargs).to_dict()
     actual = candidate.evaluate_market(deepcopy(event), 'EPL', market, **kwargs).to_dict()
     audit = actual['context'].pop('decision_audit')
+    # Rework A3.7: each result records the engine switches in effect.
+    assert actual['context'].pop('engine_switches')['version'] == 'engine-switches.v1'
     # Rework A0: model_version now defaults to the deployed system version; nothing else may differ.
     assert actual['provenance']['model_version'] == actual['provenance']['system_version']
     assert expected['provenance']['model_version'] is None

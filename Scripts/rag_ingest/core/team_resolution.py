@@ -533,7 +533,8 @@ def _linear_slope(values: List[Optional[float]]) -> Optional[float]:
 
 def document_store_handle():
     """The SQLite document store when ``DOCUMENT_STORE=sqlite`` (rework A2a), else None."""
-    if os.environ.get("DOCUMENT_STORE", "chroma").strip().lower() != "sqlite":
+    from .engine_switches import value
+    if value("DOCUMENT_STORE") != "sqlite":
         return None
     try:
         from Scripts.data_platform.vectors.document_store import DEFAULT_PATH, DocumentStore

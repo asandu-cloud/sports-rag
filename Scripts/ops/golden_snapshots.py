@@ -5,8 +5,8 @@ saves, per fixture, the event (odds) payload, every market result, and every
 outside read the engine made on the way: Chroma ``get``/``query`` calls and
 HTTP requests (API-Football). ``check`` re-runs the current code with those
 reads served from the bundle and lists every changed probability, line, pick
-or other result field. Fields that change on every code edit (timestamps and
-the code fingerprint) are ignored.
+or other result field. Fields that change on every code edit (timestamps, the
+code fingerprints and the engine-switch record) are ignored.
 
 A read that was not recorded fails the replay loudly (``GoldenMiss``), so a new
 data dependency shows up instead of silently reading live data. Model files
@@ -24,9 +24,14 @@ import functools
 import gzip
 import json
 import math
+import os
 from pathlib import Path
 import sys
 from unittest import mock
+
+# Chroma's anonymous usage telemetry posts over HTTP at random moments; replayed, each post is an
+# unrecorded read. Switched off before any Chroma client exists so record and check stay deterministic.
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
 
 import requests
 from requests.models import Response
@@ -40,7 +45,8 @@ LEAGUES = ("EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1", "Championship", "E
 # Paths whose values change with every code edit or run, not with predictions.
 VOLATILE = {
     ("provenance", "generated_at"), ("provenance", "model_version"), ("provenance", "system_version"),
-    ("context", "prediction_system"), ("decision_audit", "prediction_version"),
+    ("context", "prediction_system"), ("context", "engine_switches"), ("decision_audit", "prediction_version"),
+    ("decision_audit", "release_identity"),  # fingerprint of the communication files (communication_release.py)
 }
 REL_TOLERANCE = 1e-9
 

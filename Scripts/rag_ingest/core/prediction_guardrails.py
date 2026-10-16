@@ -7,8 +7,9 @@ back, and make every threshold available for later walk-forward calibration.
 
 from __future__ import annotations
 
-import os
 from typing import Any, Dict, Mapping, Optional, Tuple
+
+from . import engine_switches
 
 
 GUARDRAIL_VERSION = "prediction-guardrails.v1"
@@ -31,7 +32,7 @@ FIXED_DISPERSIONS = {"corners": 0.025, "sot": 0.01}
 
 
 def fixed_dispersion_enabled() -> bool:
-    return os.environ.get("SPIX_COUNT_DISPERSION", "floors").strip().lower() == "fixed"
+    return engine_switches.value("SPIX_COUNT_DISPERSION") == "fixed"
 
 
 # Conservative launch rules.  They should be calibrated against chronological

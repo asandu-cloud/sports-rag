@@ -14,6 +14,7 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 from .projection_cache import statistic, statistical_reuse, invalidate as invalidate_statistical_cache
+from . import engine_switches
 from .system_identity import prediction_system_manifest
 
 try:
@@ -431,6 +432,7 @@ def _evaluate_market(
     result_context.update(dict(context or {}))
     result_context["market_contract_version"] = "canonical-market-contract.v1"
     result_context["prediction_system"] = deepcopy(prediction_system_manifest())
+    result_context["engine_switches"] = engine_switches.snapshot()
     result_context["probability_engine"] = {
         "version": "probability-engine.v2",
         "calibration": "unfitted",
