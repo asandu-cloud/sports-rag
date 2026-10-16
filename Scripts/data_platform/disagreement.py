@@ -52,11 +52,15 @@ def _other_side(market, side, point, home, away):
     return None
 
 
+def _same_outcome(outcome, side, point):
+    return outcome[0] == side and (outcome[1] == point or (outcome[1] is not None and point is not None
+                                                          and abs(float(outcome[1]) - float(point)) < 1e-9))
+
+
 def _best_price(books, market, side, point):
-    prices = [o[2] for outcomes in books.values() for o in outcomes
-              if o[0] == side and (o[1] == point or (o[1] is not None and point is not None
-                                                       and abs(float(o[1]) - float(point)) < 1e-9))]
-    return max(prices) if prices else None
+    """(best price, bookmaker offering it) for one side, or (None, None)."""
+    prices = [(o[2], name) for name, outcomes in sorted(books.items()) for o in outcomes if _same_outcome(o, side, point)]
+    return max(prices, key=lambda x: x[0]) if prices else (None, None)
 
 
 def _consensus(books, market, side, point):
@@ -66,8 +70,8 @@ def _consensus(books, market, side, point):
     return None if consensus is None else consensus
 
 
-def read_lines(row):
-    """Every evaluated line in one read, on the side Spix prefers to the market."""
+def read_lines(row, *, all_sides=False):
+    """Every evaluated line in one read, on the side Spix prefers to the market (or every side)."""
     data = json.loads(row["read_json"]) if isinstance(row["read_json"], str) else row["read_json"]
     out = []
     for res in data.get("canonical_results", []):
@@ -112,14 +116,15 @@ def read_lines(row):
                 partner = sides.get(other) or {}
                 options.append((other[0], other[1], 1.0 - entry["p"], 1.0 - p_ref, bool(partner.get("selected"))))
             for s, pt, p_spix, p_mkt, selected in options:
-                if market == "moneyline" or p_spix >= p_mkt:
+                if all_sides or market == "moneyline" or p_spix >= p_mkt:
+                    best_odds, best_book = _best_price(books, market, s, pt)
                     out.append({"fixture_id": str(row["fixture_api_id"]), "stage": row["stage"],
                                 "kickoff": str(row["kickoff"]), "evaluated_at": str(row["evaluated_at"]),
                                 "market": market, "market_key": key, "side": s, "point": pt,
                                 "home": fixture.get("home_team"), "away": fixture.get("away_team"),
                                 "p_spix": p_spix, "p_ref": p_mkt, "book_count": consensus["book_count"],
-                                "best_odds": _best_price(books, market, s, pt), "selected": selected})
-                    if market != "moneyline":
+                                "best_odds": best_odds, "best_book": best_book, "selected": selected})
+                    if not all_sides and market != "moneyline":
                         break
     return out
 
@@ -135,9 +140,16 @@ def _snapshot_books(payload, market_key, home, away):
 
 def closing_probability(payload, line):
     """Closing consensus fair probability of one line's side, or None."""
+    return closing_prices(payload, line)[0]
+
+
+def closing_prices(payload, line):
+    """(closing consensus fair probability, closing price of the read's best-price bookmaker), each or None."""
     books = _snapshot_books(payload, line["market_key"], line["home"], line["away"])
     consensus = _consensus({k: v for k, v in books.items() if v}, line["market"], line["side"], line["point"])
-    return None if consensus is None else consensus["fair_probability"]
+    same_book = next((o[2] for o in books.get(line.get("best_book"), []) if _same_outcome(o, line["side"], line["point"])),
+                     None)
+    return (None if consensus is None else consensus["fair_probability"]), same_book
 
 
 def closing_snapshots(db_path, backfill_dir=None):
@@ -153,7 +165,7 @@ def closing_snapshots(db_path, backfill_dir=None):
     return snaps
 
 
-def build(db_path, *, backfill_dir=None):
+def build(db_path, *, backfill_dir=None, all_sides=False):
     from .calibration_data import fixture_outcomes
     with closing(sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=60)) as db:
         reads = [dict(zip(("fixture_api_id", "stage", "evaluated_at", "kickoff", "read_json"), r)) for r in db.execute(
@@ -165,7 +177,7 @@ def build(db_path, *, backfill_dir=None):
         outcome = outcomes.get(str(row["fixture_api_id"]))
         if not outcome:
             continue
-        for line in read_lines(row):
+        for line in read_lines(row, all_sides=all_sides):
             label = _label({"market": line["market"], "side": line["side"], "point": line["point"],
                             "home": line["home"], "away": line["away"]}, outcome)
             if label is None:
@@ -174,8 +186,8 @@ def build(db_path, *, backfill_dir=None):
             if w <= 0:
                 continue
             payload = snapshots.get(line["fixture_id"])
-            dataset.append({**line, "y": y, "w": w,
-                            "p_close": closing_probability(payload, line) if payload else None})
+            p_close, best_book_close = closing_prices(payload, line) if payload else (None, None)
+            dataset.append({**line, "y": y, "w": w, "p_close": p_close, "best_book_close_odds": best_book_close})
     return dataset
 
 

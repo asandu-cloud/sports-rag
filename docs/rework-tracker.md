@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D30)
+Last updated: 2026-10-16 (D31)
 
 ## Status
 
@@ -16,7 +16,7 @@ Last updated: 2026-10-16 (D30)
 | A2 Canonical features | A2a built 16 Oct, switch after the 17 Oct refresh check (D11); A2b after A6 (D13) | 7af457b |
 | A3 Market anchor and honest uncertainty | Started 16 Oct under D16 (research and shadow only) | see A3 table |
 | A4 Calibration | A4.1 dataset done 16 Oct (25,527 graded candidates, 160 fixtures; grading matches settlement on all 1,918 overlapping picks). A4.2 method study done 16 Oct: no calibrator adopted yet (D28), rerun weekly; live as A3.7 stage 5, not before Tue 10 Nov (D29) | 197dc73; see D28 |
-| A5 Selection policy | Research started 16 Oct (D30): A5.1 done (Spix's disagreement with the market is almost all error); A5.2 policy simulation next; live as A3.7 stage 6, earliest Tue 17 Nov | see D30 |
+| A5 Selection policy | Research started 16 Oct (D30): A5.1 done (Spix's disagreement with the market is almost all error); A5.2 done (pricing against the market wins, D31); A5.3 next (are the best prices real?); live as A3.7 stage 6, earliest Tue 17 Nov | see D30, D31 |
 | A6–A8, Part B | Not started | |
 | Market expansion (D25) | Planned after A5 | see D25 |
 
@@ -76,8 +76,10 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Wire power margin removal into pick selection (`line_selection`) behind a switch | A3.7 package; live at stage 2, Fri 23 Oct | `reference_price` already has it as an option (D17) |
 | Market anchor for 1X2 and O/U 2.5 only (strict scope, D26), Spix's own probability kept for the disagreement view | A3.7 package; live at stage 3, Tue 27 Oct | Other goal lines and Asian handicap unchanged until a scorecard check |
 | Extend the market anchor to all goal markets via M1's score matrix (other O/U lines, Asian handicap, BTTS), behind its own switch; add BTTS from the score matrix to `market_goals` | A3.7 package (built switched off); live at stage 4, earliest Tue 3 Nov (D29) | Beyond what history tested: must pass the gate on audited lines first (D29) |
-| A5.2: simulate selection policies on the audited candidates (current selector; expected value at the best price against the market consensus with large disagreements flagged, not picked; a small tilt toward Spix up to the fitted c and k; three per fixture) | A5, next | D30 |
-| A5.4: build the chosen policy behind a switch (`line_selection`, `match_read_compiler`, `confidence_from_edge`), golden preview | A5; live at A3.7 stage 6, earliest Tue 17 Nov | Gate (report): published picks' calibration error ≤ 3 pts and closing line value at least neutral over 4+ live matchweeks |
+| A5.3 first: are the best prices real? Quote age at the read (odds archive `source_age_seconds`), OddsPapi spot checks of the best-price book, exchange commission; then evidence-based labels | A5.3, next (D31) | Half the best-price books' quotes were unchanged or missing at the close (D31) |
+| How to show Spix's own view when it disagrees with the market (≥10 pts on 3.4 markets per read; ≥25 pts on half the reads), given A5.1 found it mostly error | Owner, before A5.4 | Product decision (D31) |
+| If A5.4 prices corners and cards against the market too, A4's calibrators (stage 5) lose their purpose except where no two-sided price exists | Decide with A5.4 (D31) | Calibrators fit Spix's own probability |
+| A5.4: build the chosen policy behind a switch (`line_selection`, `match_read_compiler`, `confidence_from_edge`), golden preview; proposal in D31 | A5; live at A3.7 stage 6, earliest Tue 17 Nov | Gate (report): published picks' calibration error ≤ 3 pts and closing line value at least neutral over 4+ live matchweeks |
 | Rerun the A5.1 study (`python -m Scripts.ops.disagreement_study --out Research/disagreement-<date>`) as weeks accrue | A5, with each A5 step | One audited week so far (D30) |
 | Rerun the A4.2 study weekly (`python -m Scripts.ops.calibration_study --out Research/calibration-<date>`); calibrator decision with ≥3 weeks of audited fixtures | A4, decision at A3.7 stage 5 (not before Tue 10 Nov, D29) | Not adopted 16 Oct: one audited week, no market passes the gate (D28) |
 | Qualify the card settlement definition (yellow + red vs bookmakers' bookings rules, second yellows) before calibrating or scoring cards | A4, before stage 5 | Cards are graded yellow + red (indicative); the market's own card slope is 1.40 on that grading (D28) |
@@ -400,6 +402,44 @@ premise, now measured live. For A5.2 this means pricing against the market conse
 disagreements as "disagreements to check" rather than picks, and allowing Spix's view at most a small
 tilt (c and k ≈ 0.03) until A6. Limits: one week; returns at the best price are saved but are too
 noisy to read (every line of a fixture settles on the same score).
+
+**D31 — A5.2: price against the market, not against Spix (16 Oct).** Method
+(`data_platform/selection_policies.py`, `ops/selection_study.py`, output `Research/selection-2026-10-16/`):
+every policy is replayed on every side of every evaluated line in the latest pre-kickoff read per fixture
+and stage (160 fixtures, 9–15 Oct). Each side gets the policy's probability; a side is a candidate when
+its expected value at the best price on offer is at least 2%; one pick per market, three per fixture.
+`current` replays the engine's own selector choices, ranked by Spix's expected value (the compiler's exact
+order is not replayed). Pre-match reads (median 10.7 h before kickoff):
+
+| Policy | Picks (fixtures) | Stated | Happened | Happened − stated, 95% | Value at the close, 95% |
+|---|---|---|---|---|---|
+| Current selector | 459 (158) | 73.3% | 59.6% | −13.6 (−18.5 to −8.8) | −1.4% (−1.9 to −0.9) |
+| Spix's expected value | 478 (160) | 31.5% | 14.3% | −17.2 (−20.4 to −13.7) | −25.2% (−27.1 to −23.3) |
+| Same, disagreement capped at 10 pts | 473 (160) | 33.0% | 23.7% | −9.2 (−12.6 to −5.9) | −24.1% (−26.4 to −21.6) |
+| Market price (c = 0) | 300 (150) | 72.2% | 69.1% | −3.1 (−8.6 to +1.7) | **+3.5% (+2.8 to +4.3)** |
+| Tilt c = 0.03 (A5.1's fit) | 303 (150) | 70.6% | 68.3% | −2.3 (−7.0 to +2.7) | +3.4% (+2.6 to +4.3) |
+| Tilt c = 0.10 | 354 (154) | 57.3% | 54.6% | −2.8 (−7.8 to +2.4) | +2.1% (+1.1 to +3.1) |
+| Tilt c = 0.25 | 436 (158) | 44.3% | 37.4% | −6.9 (−11.4 to −2.5) | −1.1% (−2.4 to −0.0) |
+
+"Value at the close" is the closing consensus probability times the price taken, minus one, so it does not
+depend on results. The current selector's overstatement matches the scorecard (−12.8 pts, A1). Market
+pricing at a 4% minimum: 96 picks, +5.8% (+3.8 to +7.8); at 0%: 468 picks, +2.5%. On lineup reads
+(~20 min before kickoff; no closing value possible) market pricing overstated by 8.4 pts (−16.1 to −1.2,
+115 picks, 51 fixtures), which is noisy and must be watched.
+
+**The value is price shopping, so A5.3 must first check that the prices were real.** For the market-price
+policy, the best price came from two-sided quotes in 296 of 300 picks, mostly Betano (156) and Pinnacle
+(63; our Pinnacle copy is a median 130 min stale, A1.4). At the close, the best-price book's own price was
+shorter in 71 picks, the same in 77, longer in 32 and not quoted in 29. Picking the highest price
+regresses under every policy (the current selector: 115 shorter, 70 longer), so "shorter" proves little,
+and unchanged quotes may be stale (D15).
+
+**Proposal for A5.4 (owner decides after A5.3).** Publish the market's consensus probability (power, median;
+a tilt of at most c = 0.03 until A6 earns more). Pick where the best available price beats it by at least
+2%, one per market and three per fixture. Show Spix's own view as a disagreement, not use it to pick. This
+extends stages 3–4's c = 0 to every market. Spix is ≥10 pts above the market on 3.4 markets per pre-match
+read, ≥20 pts on 1.4 (114 of 160 reads), ≥25 pts on 0.86 (82 reads) and ≥30 pts on 0.51 (53 reads), so how
+to show it is a product decision.
 
 ## Findings that shape later steps
 
