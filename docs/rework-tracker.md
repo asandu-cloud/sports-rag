@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D18)
+Last updated: 2026-10-16 (D19)
 
 ## Status
 
@@ -37,7 +37,7 @@ Pinnacle's freshness measured ✗ (step 4).
 | # | Task | Status | Live? |
 |---|---|---|---|
 | 3.1 | Margin-removal method: proportional vs additive vs power vs Shin on football-data closing history | Done: power (D17) | No: option `method="power"`, default unchanged until A1's gate |
-| 3.2 | M1 market goal expectations per team (handicap + totals) | Open | No |
+| 3.2 | M1 market goal expectations per team (handicap + totals) | Done: research (D19) | No: `market_goals.solve`; used by 3.3 and A8 |
 | 3.3 | Fitted blend `logit p = a + b·logit p_market + c·logit p_spix` per market | Open | No |
 | 3.4 | Gamma-distributed team rates replacing n/(n+8) and the variance floors | Open | No |
 | 3.5 | Phase 4 dispersions (corners 0.025, SoT 0.01) behind a switch | Open | No |
@@ -193,6 +193,14 @@ league per week (~50 billable requests/month); historical calls confirmed free (
 ~141 history calls). Monthly reset of the 250 limit is a vendor claim, unconfirmed; even without it the
 remaining 236 last over four months. Built with step 4 on Monday; live after the A2a switch; CLV and
 scorecard record which source each closing price came from.
+
+**D19 — M1 beats the engine's goal means (16 Oct, A3.2).** `Scripts/data_platform/market_goals.py` solves
+each team's goal mean (independent Poisson, ≤12 goals) so the model reproduces the market's fair 1X2, total
+and Asian handicap probabilities (exact zero-profit fair price for quarter lines). `Scripts/ops/market_goals_study.py`,
+`Research/market-goals-2026-10-16/`: on 2023 (2,783 fixtures, 41 weeks; 312 without prices, mostly European
+cups), M1 from closing prices (power, median across books) scores actual home and away goals **2.27% better**
+(Poisson log loss) than the frozen control's means (95% −0.078 to −0.056); median fit error 0.0004. Closing
+prices are the best case: publication-time prices (A3.3) will be weaker. Dixon–Coles rho not applied (A3.6).
 
 ## Findings that shape later steps
 
