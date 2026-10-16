@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D25)
+Last updated: 2026-10-16 (D26)
 
 ## Status
 
@@ -43,7 +43,7 @@ Pinnacle's freshness measured ✗ (step 4).
 | 3.4 | Gamma-distributed team rates replacing n/(n+8) and the variance floors | Done: research; not adopted (D22) | No: the simpler 3.5 wins |
 | 3.5 | Phase 4 dispersions (corners 0.025, SoT 0.01) replace the variance floors, behind a switch | Done: built (D23), all competitions and stages | No: `SPIX_COUNT_DISPERSION=fixed` at go-live |
 | 3.6 | Dixon–Coles rho per league | Done: research; not adopted, rho stays −0.10 (D24) | No change |
-| 3.7 | Shadow run, then go-live after A1's gate is closed and A2a is switched | Open | – |
+| 3.7 | Go-live package, staged (D26): build by Mon 19 Oct; stage 1 dispersions Tue 20; stage 2 power margin removal in selection Fri 23; stage 3 market anchor (strict scope) Tue 27; confirm at the Mon 2 Nov scorecard | Package build starts Fri 17 Oct | Staged, one change at a time |
 
 ## Open items with a destination
 
@@ -69,7 +69,11 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Quote age near kickoff in selection (API-Football prices ~2 h old in the last 3 h, D15) | A5 | Apparent edge may be a price no longer offered |
 | Retire `ml_edge.py` and `Index/elo_ratings.json` | A7 | Replaced by A6 |
 | Evidence-aware variance (`uncertainty.py`, D22) for fitted ratings' uncertainty | A6 | Not needed with today's means |
-| Go-live of 3.5: set `SPIX_COUNT_DISPERSION=fixed`; review the 59 corner pick changes in the golden preview, then re-record (D16 rule 4) | A3.7 | Confirm on the live scorecard (development-period evidence) |
+| Go-live of 3.5: set `SPIX_COUNT_DISPERSION=fixed`; review the 59 corner pick changes in the golden preview, then re-record (D16 rule 4) | A3.7 stage 1, Tue 20 Oct | Confirm on the live scorecard (development-period evidence) |
+| Record active engine switches (`DOCUMENT_STORE`, `SPIX_COUNT_DISPERSION`, A3.7 switches) on every pick, so the scorecard can split picks by stage | A3.7 package, before stage 1 | Model version fingerprints code only, not environment switches |
+| Wire power margin removal into pick selection (`line_selection`) behind a switch | A3.7 package; live at stage 2, Fri 23 Oct | `reference_price` already has it as an option (D17) |
+| Market anchor for 1X2 and O/U 2.5 only (strict scope, D26), Spix's own probability kept for the disagreement view | A3.7 package; live at stage 3, Tue 27 Oct | Other goal lines and Asian handicap unchanged until a scorecard check |
+| Extend the market anchor to all goal markets via M1's score matrix (other O/U lines, Asian handicap, BTTS) | After stage 3's scorecard check (D26) | Coherent but beyond what history tested |
 | Cards and goals variance floors (no qualified dispersion yet) | A6 | Cards outside research qualification; goals use the score matrix |
 | Market expansion wave 1: team goal totals, double chance, draw no bet (D25) | After A5 | No new modelling; anchored by M1 |
 | Market expansion wave 2: team corners totals, corners handicap (D25) | After wave 1 | Team corner projections exist; priced on ~half of fixtures |
@@ -275,6 +279,20 @@ scorecard shows it holds up (CLV, calibration). Waves, in order:
 The angle: use the sharp main-market information (M1, power margin removal) to judge how soft books price
 these side markets, rather than Spix's own model (D20). Not planned: exact/correct score, odd/even, minute
 windows, first/last scorer team, offsides and fouls (7–13 of 165 fixtures, 1–2 books).
+
+**D26 — A3.7 go-live: staged schedule and strict scope (16 Oct).** Owner approved.
+- *Schedule* (one production change at a time, D16): Fri 17 Oct A2a switch after the 07:15 refresh check,
+  package build starts; Mon 19 Oct A1 closed and package ready (each stage previewed on the golden fixtures,
+  changes reviewed); **stage 1** Tue 20 Oct fixed dispersions (corners, SoT); **stage 2** Fri 23 Oct power
+  margin removal in pick selection; **stage 3** Tue 27 Oct market anchor; Mon 2 Nov weekly scorecard confirms
+  all three. A few days per stage is a safety check: the gains were proven on history, and a week of live picks
+  (~300) can catch a fault, not prove a 1% gain. If a check fails, the following stages move back.
+- *Strict scope for stage 3:* the market's fair probability with Spix's weight c = 0 (D21) replaces Spix's
+  probability **only for 1X2 and over/under 2.5**, the markets history tested. Other goal lines, Asian handicap
+  and BTTS keep today's behaviour until a scorecard check after stage 3; extending them through M1's score
+  matrix is a separate, later decision. Spix's own probability is still stored for the disagreement view.
+- *Prerequisite:* every pick records which engine switches were active, because the model version fingerprints
+  code files only.
 
 ## Findings that shape later steps
 
