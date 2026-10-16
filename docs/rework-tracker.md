@@ -71,6 +71,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Go-live of 3.5: set `SPIX_COUNT_DISPERSION=fixed`; review the 59 corner pick changes in the golden preview, then re-record (D16 rule 4) | A3.7 | Confirm on the live scorecard (development-period evidence) |
 | Cards and goals variance floors (no qualified dispersion yet) | A6 | Cards outside research qualification; goals use the score matrix |
 | The n/(n+8) early-season prior on means | A6 | 3.4 changed widths only, not means |
+| penaltyblog (MIT licence, Cython) for A6's Dixon–Coles ratings: check time-decay weights, per-league home advantage, promoted-team offset and clean install; use pinned if it covers them, else in-house fit validated against it | A6 start | Not used in A3: margin removal in-house (D17); 3.6 fits rho only, with the engine's own Dixon–Coles code |
 | First-round variables (D12): M1 | A3, A8 | Selected 16 Oct |
 | First-round variables (D12): S1–S4, C1, D1–D3 | A2b builder, A6 models | Selected 16 Oct; each must pass the ablation gate |
 | Second-round variables: M2 line movement | A3 blend | Needs 6–8 weeks of odds archive (from ~mid-Nov 2026) |
