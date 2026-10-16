@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D14)
+Last updated: 2026-10-16 (D15)
 
 ## Status
 
@@ -48,6 +48,8 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Switch production to the document store: add `DOCUMENT_STORE=sqlite` to `.env` | Owner, after A2a review | Chroma remains the fallback (remove the line) |
 | Stop embedding into Chroma entirely | A7 | Whale chat and `rag_cli_v2` still search Chroma by meaning |
 | A6c LightGBM market-error challenger (D14) | After A6's base model passes | Must beat fitted A6 vs the market baseline |
+| Decide: closing source → OddsPapi true close (Pinnacle ± 2 books) instead of API-Football's snapshot (D15) | Owner, then A1 step 4 | ~50 billable requests/month for weekly fixture lists |
+| Quote age near kickoff in selection (API-Football prices ~2 h old in the last 3 h, D15) | A5 | Apparent edge may be a price no longer offered |
 | Retire `ml_edge.py` and `Index/elo_ratings.json` | A7 | Replaced by A6 |
 | First-round variables (D12): M1 | A3, A8 | Selected 16 Oct |
 | First-round variables (D12): S1–S4, C1, D1–D3 | A2b builder, A6 models | Selected 16 Oct; each must pass the ablation gate |
@@ -134,6 +136,22 @@ NumPyro hierarchical counts); **A6c (new): a LightGBM challenger predicting the 
 total) from the D12 variables only, time-ordered cross-validation, kept only if it beats the fitted A6
 model against the market baseline; built after A6's base model passes**; Part B player models (GLMs first,
 boosting as challenger). `ml_edge.py` and `Index/elo_ratings.json` retire at A7.
+
+**D15 — Step 4 evidence: accuracy is flat, freshness is the issue (16 Oct).**
+- *Accuracy* (football-data closing 1X2, 2019–2025, `Research/bookmaker-accuracy-2026-10-16/`): against
+  the other books' consensus, Betfair Exchange −0.10% and Pinnacle −0.08% log loss (both intervals below
+  zero); Bet365, William Hill, Bet&Win, Interwetten, Coral, Ladbrokes +0.06 to +0.14% (worse). Total spread
+  ≈ 0.25%, so accuracy weighting barely moves the reference price.
+- *Freshness* (`Scripts/ops/pinnacle_check.py`, OddsPapi free history, 3,417 archived Pinnacle captures,
+  141 fixtures, 12 billable requests): within 1 pt of Pinnacle's real price 90% when >24 h out, 72% at
+  3–24 h, **43% in the last 3 h**; median age of our price in the last 3 h **130 min**. The plan's rule
+  (≥90% within 1 pt) fails near kickoff: API-Football is a delayed copy (its refresh cadence), and this
+  applies to every book we get from it.
+- *Closing*: our API-Football "closing" vs Pinnacle's true close (OddsPapi, 95 fixtures): median gap
+  0.95 pts (p90 2.7), 52% within 1 pt; ours a median 60 min before kickoff, the true close 1.6 min.
+- *OddsPapi free plan*: 250 requests; historical odds free (since Jan 2026, ≤3 books per call, 5 s
+  cooldown); fixture lists 1 request each; Pinnacle and all ten of our live books available.
+  Key `ODDSPAPI_API_KEY`; cache `Index/oddspapi/`.
 
 ## Findings that shape later steps
 
