@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D24)
+Last updated: 2026-10-16 (D25)
 
 ## Status
 
@@ -16,6 +16,7 @@ Last updated: 2026-10-16 (D24)
 | A2 Canonical features | A2a built 16 Oct, switch after the 17 Oct refresh check (D11); A2b after A6 (D13) | 7af457b |
 | A3 Market anchor and honest uncertainty | Started 16 Oct under D16 (research and shadow only) | see A3 table |
 | A4–A8, Part B | Not started | |
+| Market expansion (D25) | Planned after A5 | see D25 |
 
 ### A1 (order changed 15 Oct, see D6)
 
@@ -70,6 +71,9 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Evidence-aware variance (`uncertainty.py`, D22) for fitted ratings' uncertainty | A6 | Not needed with today's means |
 | Go-live of 3.5: set `SPIX_COUNT_DISPERSION=fixed`; review the 59 corner pick changes in the golden preview, then re-record (D16 rule 4) | A3.7 | Confirm on the live scorecard (development-period evidence) |
 | Cards and goals variance floors (no qualified dispersion yet) | A6 | Cards outside research qualification; goals use the score matrix |
+| Market expansion wave 1: team goal totals, double chance, draw no bet (D25) | After A5 | No new modelling; anchored by M1 |
+| Market expansion wave 2: team corners totals, corners handicap (D25) | After wave 1 | Team corner projections exist; priced on ~half of fixtures |
+| Market expansion wave 3: first-half goals O/U and handicap (D25) | After wave 2 | Needs a half-split model (football-data half-time scores) and storing half-time scores in `fixtures` |
 | The n/(n+8) early-season prior on means | A6 | 3.4 changed widths only, not means |
 | penaltyblog (MIT licence, Cython) for A6's Dixon–Coles ratings: check time-decay weights, per-league home advantage, promoted-team offset and clean install; use pinned if it covers them, else in-house fit validated against it | A6 start | Not used in A3: margin removal in-house (D17); 3.6 fits rho only, with the engine's own Dixon–Coles code |
 | First-round variables (D12): M1 | A3, A8 | Selected 16 Oct |
@@ -256,6 +260,21 @@ likelihood within the valid range, same formula as `prob_models`), `Scripts/ops/
 −0.066% (interval −0.0038 to +0.00003), per league −0.009%, per league shrunk −0.052%: all below the
 protocol's 0.5% bar and not reliably better; some slices slightly worse (Bundesliga +0.26%). Inconclusive,
 so the control value stays. Rho can be refitted jointly with A6's ratings, where it belongs.
+
+**D25 — Market expansion, planned after A5 (16 Oct).** Owner asked to add it. Spix publishes 7 of the
+114 market types our feeds price (odds archive, last 165 fixtures). Each new market needs settlement rules
+(`settlement.MARKET_KEYS`), closing capture and its own scorecard slice, and is published only after the
+scorecard shows it holds up (CLV, calibration). Waves, in order:
+1. **Team goal totals** (home/away; 7 books, all fixtures), **double chance** (8), **draw no bet** (6):
+   from the score matrix and M1, no new modelling; settle from the final score.
+2. **Team corners totals** (4 books), **corners Asian handicap** (4), corners 1X2 (3): priced on 78 of 165
+   fixtures; engine already projects team corners; settle from `fixture_team_stats`.
+3. **First-half goals O/U** (9 books), **first-half handicap** (7), HT/FT (5): needs a half-split model fitted
+   on football-data half-time scores (25,055 linked matches); API-Football fixture payloads include the
+   half-time score (verified in `raw_payload_archive`) but `fixtures` does not store it yet.
+The angle: use the sharp main-market information (M1, power margin removal) to judge how soft books price
+these side markets, rather than Spix's own model (D20). Not planned: exact/correct score, odd/even, minute
+windows, first/last scorer team, offsides and fouls (7–13 of 165 fixtures, 1–2 books).
 
 ## Findings that shape later steps
 
