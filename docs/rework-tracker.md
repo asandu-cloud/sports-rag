@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D11)
+Last updated: 2026-10-16 (D12)
 
 ## Status
 
@@ -47,7 +47,11 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Refresh the report artifact from this tracker | At end of A1 | |
 | Switch production to the document store: add `DOCUMENT_STORE=sqlite` to `.env` | Owner, after A2a review | Chroma remains the fallback (remove the line) |
 | Stop embedding into Chroma entirely | A7 | Whale chat and `rag_cli_v2` still search Chroma by meaning |
-| Decide which candidate variables to add ([variables report](https://claude.ai/artifact/KUTZD7evrLbcBM7BrHdwYV)) | Owner + A2b/A6 | Report published 16 Oct; shortlist M1, S1–S4, C1, D1 |
+| First-round variables (D12): M1 | A3, A8 | Selected 16 Oct |
+| First-round variables (D12): S1–S4, C1, D1–D3 | A2b builder, A6 models | Selected 16 Oct; each must pass the ablation gate |
+| Second-round variables: M2 line movement | A3 blend | Needs 6–8 weeks of odds archive (from ~mid-Nov 2026) |
+| Second-round variables: M3 bookmaker disagreement | A5 confidence labels | With A5 |
+| Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
 | Correct `CLAUDE.md`: Elo "signal active at 0.15" (never called) and ML R² 0.43/0.47 (saved R² ≈ 0) | Next docs pass | Stale claims mislead new sessions |
 | Order A6 before A2b's legacy retirement? (A2b then needn't recompute hand-made indices) | Owner | Raised in the variables report |
 
@@ -97,6 +101,22 @@ first-match-read cohort.
 **D8 — Step 4 split around the weekend (15 Oct).** OddsPapi free tier (250 requests, key
 `ODDSPAPI_API_KEY` in `.env`) for ~20 Pinnacle spot checks, which must run before kickoff on
 17–18 Oct; freshness report rerun and weights on Mon 19 Oct.
+
+**D12 — First-round engine variables selected (16 Oct).** From the
+[variables report](https://claude.ai/artifact/KUTZD7evrLbcBM7BrHdwYV), the owner chose the market,
+strength-and-form and discipline-and-set-pieces families, plus C1:
+- **M1** market goal expectations per team (handicap, total, team-total prices) → A3 anchor, A8.
+- **S1** opponent-adjusted, time-decayed goal ratings with per-league home advantage; **S4** promoted-team
+  offset (model structure of A6).
+- **S2** xG ratings (xG ~90% from 2023, so tested on 2024 onward); **S3** shots-in-box ratings (2019 onward).
+- **C1** rest days and congestion, fitted (replaces the 0.85–1.15 multipliers).
+- **D1** referee effect fitted and shrunk to the league; **D2** foul matchup (fouls drawn from 2021);
+  **D3** corner pressure (blocked shots + shots in box) replacing the control/dominance indices.
+- New inputs per model (budget ≤3): goals S2+S3+C1; SoT S2+S3+C1; cards D1+D2+C1; corners D3.
+  M1 enters through A3's anchor, not as a model input.
+- Second round: M2 (needs archive history), M3 (with A5). Every variable passes the gate in the
+  report: ablation against the market baseline, ≥0.5% log-loss gain, interval below zero, no slice
+  worse by >2%; a failure is removed and recorded here.
 
 ## Findings that shape later steps
 
