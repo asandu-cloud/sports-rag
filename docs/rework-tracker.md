@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-16 (D13)
+Last updated: 2026-10-16 (D14)
 
 ## Status
 
@@ -23,7 +23,7 @@ Last updated: 2026-10-16 (D13)
 | 1 | Handicap grading fix | Done | dfb7f93 |
 | 2 | Closing prices from API-Football's final pre-kickoff snapshot | Done | aa2f2ee |
 | 3 | Market reference price at publication | Done | 1854f23 |
-| 4 | Bookmaker weights for the reference price | **Next**: spot checks Sat/Sun 17–18 Oct, rest Mon 19 Oct | |
+| 4 | Bookmaker weights for the reference price | **In progress** 16 Oct: historical accuracy + spot-check script now; spot checks Sat/Sun 17–18 Oct; freshness rerun and weights Mon 19 Oct | |
 | 5 | Weekly scorecard | Done (Mondays 08:00) | d1ae597 |
 | 6 | Market baseline in the research protocol | Done | see D9 |
 
@@ -47,6 +47,8 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Refresh the report artifact from this tracker | At end of A1 | |
 | Switch production to the document store: add `DOCUMENT_STORE=sqlite` to `.env` | Owner, after A2a review | Chroma remains the fallback (remove the line) |
 | Stop embedding into Chroma entirely | A7 | Whale chat and `rag_cli_v2` still search Chroma by meaning |
+| A6c LightGBM market-error challenger (D14) | After A6's base model passes | Must beat fitted A6 vs the market baseline |
+| Retire `ml_edge.py` and `Index/elo_ratings.json` | A7 | Replaced by A6 |
 | First-round variables (D12): M1 | A3, A8 | Selected 16 Oct |
 | First-round variables (D12): S1–S4, C1, D1–D3 | A2b builder, A6 models | Selected 16 Oct; each must pass the ablation gate |
 | Second-round variables: M2 line movement | A3 blend | Needs 6–8 weeks of odds archive (from ~mid-Nov 2026) |
@@ -123,6 +125,15 @@ stats (D12: S2, S3, D2, D3), so A2b only has to build those raw inputs with an a
 recomputes the legacy control, aggression and form indices. The legacy pipeline (per-league scripts,
 `Output/`, normalise) keeps feeding the document store until A6 replaces the hand-set projections, then
 A2b retires it. Order: A1 step 4 → A3 → A4/A5 → A6 (with the D12 variables) → A2b → A7.
+
+**D14 — Where ML returns (16 Oct).** The old layer (58 hand-made features → LightGBM/Ridge predicting
+raw totals, saved R² ≈ 0) is not revived. ML comes back as fitted models that must beat the market
+baseline: A3 logistic blend of market and Spix (scikit-learn); A4 calibration (Platt, isotonic from ~1,000
+settled); A6 fitted ratings with the D12 variables (penaltyblog Dixon–Coles MLE with time decay; PyMC or
+NumPyro hierarchical counts); **A6c (new): a LightGBM challenger predicting the market's error (not the
+total) from the D12 variables only, time-ordered cross-validation, kept only if it beats the fitted A6
+model against the market baseline; built after A6's base model passes**; Part B player models (GLMs first,
+boosting as challenger). `ml_edge.py` and `Index/elo_ratings.json` retire at A7.
 
 ## Findings that shape later steps
 
