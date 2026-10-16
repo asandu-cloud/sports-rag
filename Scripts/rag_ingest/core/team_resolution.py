@@ -9,6 +9,7 @@ updating the original file (until the migration is complete).
 from __future__ import annotations
 
 import difflib
+import os
 import re
 import sys
 from contextvars import ContextVar
@@ -530,8 +531,22 @@ def _linear_slope(values: List[Optional[float]]) -> Optional[float]:
 # Chroma helpers
 # ---------------------------------------------------------------------------
 
+def document_store_handle():
+    """The SQLite document store when ``DOCUMENT_STORE=sqlite`` (rework A2a), else None."""
+    if os.environ.get("DOCUMENT_STORE", "chroma").strip().lower() != "sqlite":
+        return None
+    try:
+        from Scripts.data_platform.vectors.document_store import DEFAULT_PATH, DocumentStore
+    except ImportError:
+        from data_platform.vectors.document_store import DEFAULT_PATH, DocumentStore
+    return DocumentStore(os.environ.get("DOCUMENT_STORE_PATH") or DEFAULT_PATH)
+
+
 def get_collection_handle(create_if_missing: bool = True):
     global _chroma_client, _chroma_collection
+    store = document_store_handle()
+    if store is not None:
+        return store
     if _chroma_client is None:
         _chroma_client = get_chroma_client(CHROMA_DIR)
     if _chroma_collection is not None:

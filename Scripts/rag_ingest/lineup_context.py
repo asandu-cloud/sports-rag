@@ -365,7 +365,14 @@ def fetch_match_lineups(
 # ---------------------------------------------------------------------------
 
 def _get_chroma_collection():
-    """Lazy import and return the Chroma collection handle."""
+    """Lazy import and return the Chroma collection handle (or the SQLite document store, rework A2a)."""
+    try:
+        from core.team_resolution import document_store_handle
+    except ImportError:
+        from Scripts.rag_ingest.core.team_resolution import document_store_handle
+    store = document_store_handle()
+    if store is not None:
+        return store
     try:
         from chroma_backend import get_chroma_client
     except ImportError:

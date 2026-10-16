@@ -494,7 +494,12 @@ def cmd_kb_refresh(args) -> int:
     upserter = None
     if args.dry_run:
         upserter = lambda _docs: 0  # noqa: E731
-    stats = refresh_kb(batch_size=args.batch_size, chroma_upserter=upserter, dry_run=args.dry_run)
+    backend = None
+    if getattr(args, "vector_backend", None) and not args.dry_run:
+        from .vectors.factory import build_backend
+        backend = build_backend(args.vector_backend)
+    stats = refresh_kb(batch_size=args.batch_size, chroma_upserter=upserter, vector_backend=backend,
+                       dry_run=args.dry_run)
     print(json.dumps(stats, indent=2))
     return 1 if stats.get("error_count") or (not args.dry_run and stats.get("pending_embed")) else 0
 
@@ -850,6 +855,8 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common_args(p)
     p.add_argument("--batch-size", type=int, default=50)
     p.add_argument("--dry-run", action="store_true", help="Skip the Chroma embed call; still updates kb_documents")
+    p.add_argument("--vector-backend", choices=("chroma", "sqlite", "sqlite+chroma", "inmemory"),
+                   help="Where documents are written (default: VECTOR_BACKEND env, else chroma)")
     p.set_defaults(func=cmd_kb_refresh)
 
     p = sub.add_parser("kb-enqueue-all", help="Enqueue every known team/player/fixture for KB refresh")

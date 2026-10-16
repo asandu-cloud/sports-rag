@@ -182,17 +182,16 @@ def build_refresh_plan(
             "--season", str(season),
             "--league", *legacy_codes,
             "--normalize",
+            "--load-documents",
         ]
         if build_referees:
             legacy_command.append("--build-referees")
-        if embed:
-            legacy_command.append("--embed")
         plan.append(RefreshStage(
             name="legacy_model_refresh",
             description=(
-                "Refresh Output data, rebuild features and domestic player profiles, "
-                "then normalize the current season" + (", update Chroma" if embed else "") +
-                ". Saved ML models are preserved; candidate training is a separate operation."
+                "Refresh Output data, rebuild features and domestic player profiles, normalize the "
+                "current season and load it into the prediction document store (no embeddings). "
+                "Saved ML models are preserved; candidate training is a separate operation."
             ),
             command=tuple(legacy_command),
         ))
@@ -221,20 +220,33 @@ def build_refresh_plan(
                 "--season", str(season),
             ),
         ))
-        if embed:
-            plan.append(RefreshStage(
-                name="canonical_kb_enqueue",
-                description="Queue changed canonical team, player, and fixture documents for embedding.",
-                command=(
-                    py, "-m", "Scripts.data_platform", "kb-enqueue-all",
-                    "--competition", *generic_codes,
-                ),
-            ))
-            plan.append(RefreshStage(
-                name="canonical_kb_refresh",
-                description="Delta-embed the queued new-league documents into the shared prediction KB.",
-                command=(py, "-m", "Scripts.data_platform", "kb-refresh"),
-            ))
+        plan.append(RefreshStage(
+            name="canonical_kb_enqueue",
+            description="Queue changed canonical team, player, and fixture documents.",
+            command=(
+                py, "-m", "Scripts.data_platform", "kb-enqueue-all",
+                "--competition", *generic_codes,
+            ),
+        ))
+        plan.append(RefreshStage(
+            name="canonical_kb_refresh",
+            description=("Write the queued new-league documents to the prediction document store"
+                         + (" and, best effort, to Chroma." if embed else ".")),
+            command=(py, "-m", "Scripts.data_platform", "kb-refresh",
+                     "--vector-backend", "sqlite+chroma" if embed else "sqlite"),
+        ))
+
+    if embed and legacy_codes:
+        # Predictions read the SQLite document store; Chroma only serves semantic search
+        # (Whale chat, rag_cli_v2) until A7. An OpenAI/Chroma failure is a warning, not a
+        # failed refresh (the cause of the 10-13 Oct outages).
+        plan.append(RefreshStage(
+            name="chroma_embed",
+            description="Best effort: embed the normalized season into Chroma for semantic search.",
+            command=(py, str(ROOT / "Scripts" / "rag_ingest" / "01_embed_and_upsert.py"),
+                     "--all-leagues", "--season", str(season)),
+            accepted_exit_codes=(0, 1),
+        ))
 
     # A health warning (exit 1) is significant and recorded, but an old
     # watermark outside the selected competition must not disguise a successful

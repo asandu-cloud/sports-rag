@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-15 (D9)
+Last updated: 2026-10-16 (D11)
 
 ## Status
 
@@ -13,7 +13,8 @@ Last updated: 2026-10-15 (D9)
 |---|---|---|
 | A0 Safety net | Done 15 Oct | 02fa536, f7459f0, c1e9b42 |
 | A1 Measurement | In progress (steps 1, 2, 3, 5, 6 done; step 4 left) | see below |
-| A2–A8, Part B | Not started | |
+| A2 Canonical features | A2a built 16 Oct, awaiting the production switch (D11); A2b later (D10) | |
+| A3–A8, Part B | Not started | |
 
 ### A1 (order changed 15 Oct, see D6)
 
@@ -44,6 +45,11 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Shin/power de-vig instead of proportional | A3 | Report A3 |
 | Scorecard switches to the weighted reference when step 4 lands | A1 step 4 | |
 | Refresh the report artifact from this tracker | At end of A1 | |
+| Switch production to the document store: add `DOCUMENT_STORE=sqlite` to `.env` | Owner, after A2a review | Chroma remains the fallback (remove the line) |
+| Stop embedding into Chroma entirely | A7 | Whale chat and `rag_cli_v2` still search Chroma by meaning |
+| Decide which candidate variables to add ([variables report](https://claude.ai/artifact/KUTZD7evrLbcBM7BrHdwYV)) | Owner + A2b/A6 | Report published 16 Oct; shortlist M1, S1–S4, C1, D1 |
+| Correct `CLAUDE.md`: Elo "signal active at 0.15" (never called) and ML R² 0.43/0.47 (saved R² ≈ 0) | Next docs pass | Stale claims mislead new sessions |
+| Order A6 before A2b's legacy retirement? (A2b then needn't recompute hand-made indices) | Owner | Raised in the variables report |
 
 ## Decisions and deviations from the report
 
@@ -94,6 +100,11 @@ first-match-read cohort.
 
 ## Findings that shape later steps
 
+- **Unused signals (16 Oct).** `get_elo_edge` is imported by `core/projections.py` but never called; the
+  58-feature ML regressions have saved validation R² ≈ 0 (goals 0.018, corners −0.010, cards 0.006,
+  SoT 0.027) and blend weight 0. More features alone did not help; new variables follow the gate in the
+  variables report (fitted, ablated against the market, ≤3 per model per round).
+
 - **The engine has never beaten the market (D9, 15 Oct).** On 2023 (2,783 fixtures, 41 weeks) the
   frozen control is 4.4% worse than the closing market on 1X2 log loss and 2.1% worse on over/under
   2.5; the Phase 4 finalists that "qualified" against the control are still 1.4–3.7% worse.
@@ -113,6 +124,33 @@ over/under 2.5, same reference-price method, paired week bootstrap). Corners/SoT
 price in the history; handicap compared in a later version. A3 must beat the market alone; A6 keeps
 only components that improve the gap to the market. Code: `features/market_baseline.py`,
 `ops/market_baseline_report.py`.
+
+**D10 — A2 in two stages (16 Oct).** The report assumed one database source; the engine actually
+reads a mix: of 18,878 team-match documents in the golden reads, 9,595 come from the legacy
+pipeline (per-league scripts → `Output/` CSVs → `Index/normalized_*.json`, most of the 2025/26 and
+2026/27 seasons) and 9,283 from the platform's `kb_documents`. Legacy rows carry fields the
+platform docs lack (control/aggression/form indices; corners, shots, SoT conceded). No match is
+counted twice. Replaying the 881 recorded queries on `kb_documents` alone: 210 team-match and 72
+profile queries return fewer documents than Chroma. Hence:
+- **A2a:** serve the engine's exact documents from SQLite (`kb_documents` + `normalized_*.json`),
+  switch by flag, golden snapshots must be identical; then drop the embedding step from the daily
+  refresh (removes OpenAI from the prediction path). Chroma stays only for semantic-search features
+  (Whale chat, `rag_cli_v2`) until A7.
+- **A2b:** database-only feature builder recomputing the legacy-only fields; every golden difference
+  explained; then retire the per-league scripts, `Output/` and the normalise step.
+Owner also asked (16 Oct) for a report on candidate new variables; selection happens before A2b/A6.
+
+**D11 — A2a: SQLite document store (16 Oct).** `Scripts/data_platform/vectors/document_store.py`,
+`Index/documents.sqlite3` (186 MB; Chroma is 18 GB): Chroma's 129,677 documents exported without
+embeddings, in Chroma's order. Parity: all 881 recorded engine queries return identical results
+from the store and live Chroma; on the same data the engine's outputs for all 54 golden fixtures are
+identical on both. `DOCUMENT_STORE=sqlite` switches the engine's two lookups
+(`team_resolution.get_collection_handle`, `lineup_context._get_chroma_collection`). The daily refresh
+now writes the store as a required step (legacy `pull_season --load-documents` with the embed's skip
+rules; `kb-refresh --vector-backend sqlite+chroma`, store first, Chroma best effort) and embeds into
+Chroma as a separate stage whose failure is a warning. Finding: Chroma's result order is not
+guaranteed (20–22 of 881 queries came back in a different order in two runs with no writes, 0 in
+three later runs; cause not established); the store's order is fixed.
 
 ## How to resume in a new session
 

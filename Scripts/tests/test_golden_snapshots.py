@@ -159,3 +159,22 @@ def test_summary_lists_pick_changes_before_audit_detail():
     lines = golden.summarize(report).splitlines()
     assert [line.strip().split(":")[0] for line in lines[1:]] == [
         "[0].decision.status", "[0].projection.value", "[0].context.decision_audit.candidates[0].option._ev"]
+
+
+def test_document_store_reads_are_recorded_like_chroma_reads():
+    from Scripts.data_platform.vectors.document_store import DocumentStore
+    assert (DocumentStore, "get") in golden._chroma_targets()
+
+
+def test_live_documents_mode_replays_http_but_reads_documents_from_the_source(tmp_path):
+    path = tmp_path / "golden.json.gz"
+    golden.record(EVENTS, evaluator(), path, generated_at="2026-10-15T00:00:00Z", **TARGETS)
+    reads = FakeCollection.reads
+    assert golden.check(path, evaluator(), chroma_targets=[]) == []
+    assert FakeCollection.reads == reads + 2  # documents read live; HTTP still served from the bundle
+
+
+def test_the_audits_code_fingerprint_is_volatile():
+    old = [{"context": {"decision_audit": {"prediction_version": "code:1", "selector_ran": True}}}]
+    new = [{"context": {"decision_audit": {"prediction_version": "code:2", "selector_ran": True}}}]
+    assert golden.compare(old, new) == []

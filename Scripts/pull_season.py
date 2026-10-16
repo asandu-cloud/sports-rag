@@ -170,6 +170,10 @@ def main(argv: Iterable[str] | None = None) -> int:
         help="Run 00_normalize_to_docs.py --all after data pull."
     )
     parser.add_argument(
+        "--load-documents", action="store_true",
+        help="Load the normalized documents into the SQLite prediction document store (no embeddings)."
+    )
+    parser.add_argument(
         "--embed", action="store_true",
         help="Run 01_embed_and_upsert.py --all-leagues --skip-existing after normalization."
     )
@@ -255,6 +259,13 @@ def main(argv: Iterable[str] | None = None) -> int:
             cmd = [sys.executable, str(norm_script), "--all"]
             if not run_command(cmd, "normalize all seasons"):
                 return 1
+
+    # Stage 3b: load the normalized documents into the prediction document store (rework A2a)
+    if args.load_documents:
+        from Scripts.data_platform.vectors.document_store import DocumentStore, load_normalized_documents
+        season = args.season[0] if len(args.season) == 1 else None
+        counts = load_normalized_documents(DocumentStore(), ROOT / "Index", season=season)
+        print(f"Loaded normalized documents into the document store: {counts}")
 
     # Stage 4: Embed (incremental by default — skip-existing is the default behavior)
     if args.embed:

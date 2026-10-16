@@ -40,7 +40,7 @@ LEAGUES = ("EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1", "Championship", "E
 # Paths whose values change with every code edit or run, not with predictions.
 VOLATILE = {
     ("provenance", "generated_at"), ("provenance", "model_version"), ("provenance", "system_version"),
-    ("context", "prediction_system"),
+    ("context", "prediction_system"), ("decision_audit", "prediction_version"),
 }
 REL_TOLERANCE = 1e-9
 
@@ -51,7 +51,8 @@ class GoldenMiss(LookupError):
 
 def _chroma_targets():
     from chromadb.api.models.Collection import Collection
-    return [(Collection, "get"), (Collection, "query")]
+    from Scripts.data_platform.vectors.document_store import DocumentStore
+    return [(Collection, "get"), (Collection, "query"), (DocumentStore, "get")]
 
 
 def _key(**parts):
@@ -283,6 +284,8 @@ def main(argv=None):
     parser.add_argument("--date", action="append", type=date.fromisoformat, default=[],
                         help="fixture date to record (repeatable)")
     parser.add_argument("--per-league", type=int, default=4)
+    parser.add_argument("--live-documents", action="store_true",
+                        help="check: read documents from the configured store (DOCUMENT_STORE), replay only HTTP")
     args = parser.parse_args(argv)
     if args.command == "record":
         if not args.date:
@@ -294,7 +297,8 @@ def main(argv=None):
         print(f"recorded {len(bundle['fixtures'])} fixtures, {len(bundle['reads']['chroma'])} Chroma reads, "
               f"{len(bundle['reads']['http'])} HTTP reads -> {args.bundle}")
         return 0
-    report = check(args.bundle, engine_evaluate, reset=engine_reset)
+    report = check(args.bundle, engine_evaluate, reset=engine_reset,
+                   chroma_targets=[] if args.live_documents else None)
     fixtures = len(load(args.bundle)["fixtures"])
     print(summarize(report) or f"no changes across {fixtures} fixtures")
     return 1 if report else 0

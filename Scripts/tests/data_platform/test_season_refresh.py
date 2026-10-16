@@ -33,6 +33,7 @@ def test_default_plan_refreshes_every_public_domestic_league_in_both_active_path
         "canonical_feature_snapshots",
         "canonical_kb_enqueue",
         "canonical_kb_refresh",
+        "chroma_embed",
         "platform_health",
     ]
 
@@ -46,7 +47,14 @@ def test_default_plan_refreshes_every_public_domestic_league_in_both_active_path
     legacy_leagues = legacy[legacy.index("--league") + 1:legacy.index("--normalize")]
     assert legacy_leagues == DOMESTIC_COMPETITIONS
     assert "--normalize" in legacy
-    assert "--embed" in legacy
+    # Rework A2a: predictions read the SQLite document store; embedding is a separate, non-fatal stage.
+    assert "--load-documents" in legacy and "--embed" not in legacy
+    kb_refresh = plan[5].command
+    assert kb_refresh[kb_refresh.index("--vector-backend") + 1] == "sqlite+chroma"
+    embed = plan[6]
+    assert "01_embed_and_upsert.py" in embed.command[1] and "--all-leagues" in embed.command
+    assert embed.command[embed.command.index("--season") + 1] == "2026"
+    assert embed.accepted_exit_codes == (0, 1)
     assert "--retrain-ml" not in legacy
     assert "--build-referees" in legacy
 
@@ -178,3 +186,14 @@ def test_timeout_fails_stage_without_running_any_later_stage(monkeypatch):
     assert not report.succeeded and report.failed_stage == "download"
     assert len(calls) == 1
     assert report.stages[0].status == "failed"
+
+
+def test_without_embedding_the_store_is_still_written_and_chroma_is_skipped():
+    from data_platform.season_refresh import build_refresh_plan, resolve_competitions
+
+    plan = build_refresh_plan(season=2026, competitions=resolve_competitions(None), embed=False)
+    names = [stage.name for stage in plan]
+    assert "chroma_embed" not in names and "canonical_kb_refresh" in names
+    kb_refresh = next(stage for stage in plan if stage.name == "canonical_kb_refresh").command
+    assert kb_refresh[kb_refresh.index("--vector-backend") + 1] == "sqlite"
+    assert "--load-documents" in next(stage for stage in plan if stage.name == "legacy_model_refresh").command
