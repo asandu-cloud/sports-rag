@@ -57,11 +57,11 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Unit-bet slip link to the legacy `predictions.db` | A7 | Lives in the Discord legacy tracker A7 replaces |
 | Move Phase 6 shadow controller from `Research/` into `Scripts/` | After 20 Oct 2026 | Its diagnostic window runs to 20 Oct |
 | Push tag `pre-rework` (cf00af8) | Owner | Local only |
+| Keep the Mac awake for scheduled jobs (e.g. a daily scheduled wake before 07:15, mains power, or a server). On 17 Oct the Mac slept on battery until ~11:48, waking for 2–3 s every ~17 min: the 07:15 refresh ran only in those slices and finished at 12:25 (stage times normal). While asleep the Match Read worker, measurement worker and odds archive do not run either, which matters for this weekend's near-kickoff captures (A1 step 4 freshness rerun, Mon 19 Oct) | Owner | Operational risk to every scheduled job |
 | Reference weights replace the median in `reference_price.py` | A1 step 4 | Method is versioned (`proportional_devig_median.v1`) |
 | Make power the default margin-removal method (`reference_price`, closing consensus, publication reference, scorecard) | A3.7 go-live, after A1's gate (D16, D17) | Refit anything fitted on v1 |
 | Scorecard switches to the weighted reference when step 4 lands | A1 step 4 | |
 | Refresh the report artifact from this tracker | At end of A1 | |
-| Switch production to the document store: add `DOCUMENT_STORE=sqlite` to `.env` | Owner, after A2a review | Chroma remains the fallback (remove the line) |
 | Stop embedding into Chroma entirely | A7 | Whale chat and `rag_cli_v2` still search Chroma by meaning |
 | A6c LightGBM market-error challenger (D14) | After A6's base model passes | Must beat fitted A6 vs the market baseline |
 | Rerun the blend study (`Scripts/ops/blend_study.py`) on A6's forecasts: does Spix earn c > 0? | A6 gate | D20 |
@@ -99,7 +99,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Second-round variables: M3 bookmaker disagreement | A5.3 confidence labels (D30) | With A5 |
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
 | Correct `CLAUDE.md`: Elo "signal active at 0.15" (never called) and ML R² 0.43/0.47 (saved R² ≈ 0) | Next docs pass | Stale claims mislead new sessions |
-| Verify the store after the first refresh with the new stages (17 Oct 07:15), then switch | Claude, then owner adds `DOCUMENT_STORE=sqlite` | Parity on the 881 engine queries + counts |
+| Switch production to the store: owner adds `DOCUMENT_STORE=sqlite` to `.env` (the worker's entry point loads `.env`; next 10-minute cycle picks it up) | Owner, now | Verified 17 Oct after the first refresh with the new stages: every stage completed, including the store load, `kb-refresh` to store + Chroma, and `chroma_embed` (77 s). Store and Chroma hold the same 129,801 documents; all 881 recorded engine queries return the same documents in the same order; 341 documents (mostly player profiles) differ only in the last digit of some numbers (floating-point rounding, document text identical); the engine's outputs on the 54 golden fixtures from today's live documents are identical from both |
 
 ## Decisions and deviations from the report
 
