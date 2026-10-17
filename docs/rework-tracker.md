@@ -13,7 +13,7 @@ Last updated: 2026-10-17 (D32)
 |---|---|---|
 | A0 Safety net | Done 15 Oct | 02fa536, f7459f0, c1e9b42 |
 | A1 Measurement | In progress (steps 1, 2, 3, 5, 6 done; step 4 left) | see below |
-| A2 Canonical features | A2a built 16 Oct, switch after the 17 Oct refresh check (D11); A2b after A6 (D13) | 7af457b |
+| A2 Canonical features | A2a live since 17 Oct 16:28 (`DOCUMENT_STORE=sqlite`; D11); A2b after A6 (D13) | 7af457b |
 | A3 Market anchor and honest uncertainty | Started 16 Oct under D16 (research and shadow only) | see A3 table |
 | A4 Calibration | A4.1 dataset done 16 Oct (25,527 graded candidates, 160 fixtures; grading matches settlement on all 1,918 overlapping picks). A4.2 method study done 16 Oct: no calibrator adopted yet (D28), rerun weekly; live as A3.7 stage 5, not before Tue 10 Nov (D29) | 197dc73; see D28 |
 | A5 Selection policy | Research started 16 Oct (D30): A5.1 done (Spix's disagreement with the market is almost all error); A5.2 done (pricing against the market wins, D31); A5.3 next (are the best prices real?); live as A3.7 stage 6, earliest Tue 17 Nov | see D30, D31 |
@@ -99,7 +99,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Second-round variables: M3 bookmaker disagreement | A5.3 confidence labels (D30) | With A5 |
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
 | Correct `CLAUDE.md`: Elo "signal active at 0.15" (never called) and ML R² 0.43/0.47 (saved R² ≈ 0) | Next docs pass | Stale claims mislead new sessions |
-| Switch production to the store: owner adds `DOCUMENT_STORE=sqlite` to `.env` (the worker's entry point loads `.env`; next 10-minute cycle picks it up) | Owner, now | Verified 17 Oct after the first refresh with the new stages: every stage completed, including the store load, `kb-refresh` to store + Chroma, and `chroma_embed` (77 s). Store and Chroma hold the same 129,801 documents; all 881 recorded engine queries return the same documents in the same order; 341 documents (mostly player profiles) differ only in the last digit of some numbers (floating-point rounding, document text identical); the engine's outputs on the 54 golden fixtures from today's live documents are identical from both |
+| Done 17 Oct 16:28: production reads from the document store (`DOCUMENT_STORE=sqlite` in `.env`). The first 6 reads record `DOCUMENT_STORE: sqlite` and their projections equal the previous Chroma read of the same fixture and stage (7 of 7 markets each). Verification before the switch: every refresh stage completed; same 129,801 documents; all 881 recorded engine queries return the same documents in the same order; 341 documents differ only in a last floating-point digit; engine outputs on the 54 golden fixtures identical from both. Fallback: remove the line | Done | Unblocks the OddsPapi true-close capture (D16 rule 3, A1 step 4) |
 
 ## Decisions and deviations from the report
 
