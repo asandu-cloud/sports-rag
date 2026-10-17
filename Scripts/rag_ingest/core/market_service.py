@@ -23,6 +23,7 @@ try:
     from core.line_selection import (
         choose_best_moneyline_side,
         confidence_from_edge,
+        market_anchor_scope,
         select_best_btts_recommendation,
         select_best_spread_recommendation,
         select_best_total_recommendation,
@@ -67,6 +68,7 @@ except ImportError:
     from .line_selection import (  # type: ignore[no-redef]
         choose_best_moneyline_side,
         confidence_from_edge,
+        market_anchor_scope,
         select_best_btts_recommendation,
         select_best_spread_recommendation,
         select_best_total_recommendation,
@@ -512,10 +514,14 @@ def _evaluate_market(
         )
         decision = _unavailable("Insufficient profile data to project this market.")
         if value is not None:
+            anchored = market_name == "goals" and market_anchor_scope() == "strict"
             selector_result = run_selector(result_context, select_best_total_recommendation, 
                 extract_total_line_options(dict(event), market_name), value, combined_variance,
                 count_probabilities=count_probabilities,
+                **({"anchor_points": (2.5,)} if anchored else {}),
             )
+            if selector_result.get("market_anchor"):
+                result_context["market_anchor"] = selector_result["market_anchor"]
             decision = _with_confidence(_quote_decision(selector_result, _requested_quote), market_name)
         decision = _apply_quality_guardrails(
             decision,
@@ -583,7 +589,11 @@ def _evaluate_market(
             if not options:
                 decision = _unavailable("No market prices are available for this moneyline fixture.")
             else:
-                selector_result = run_selector(result_context, choose_best_moneyline_side, p_home, p_draw, p_away, options, home, away)
+                anchored = market_anchor_scope() == "strict"
+                selector_result = run_selector(result_context, choose_best_moneyline_side, p_home, p_draw, p_away, options, home, away,
+                                               **({"anchor": True} if anchored else {}))
+                if selector_result.get("market_anchor"):
+                    result_context["market_anchor"] = selector_result["market_anchor"]
                 decision = _with_confidence(_quote_decision(selector_result, _requested_quote), "goals")
         decision = _apply_quality_guardrails(decision, result_context, "moneyline")
         decision = apply_release_policy(decision, result_context)

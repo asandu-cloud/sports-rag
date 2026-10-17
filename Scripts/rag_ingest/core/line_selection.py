@@ -12,7 +12,8 @@ Dependencies:
 from __future__ import annotations
 
 from math import ceil, erf, floor, isfinite, sqrt
-from typing import Dict, List, Optional, Tuple
+import statistics
+from typing import Dict, Iterable, List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
 # Internal imports — try core.* first, fall back to flat for backward compat
@@ -63,6 +64,24 @@ def _two_way_fair(odds_a: float, odds_b: float) -> Tuple[float, float]:
         fair_a, fair_b = _power_fair([odds_a, odds_b])
         return fair_a, fair_b
     return remove_vig_two_way(odds_a, odds_b)
+
+
+MARKET_ANCHOR_VERSION = "market-anchor.v1"
+
+
+def market_anchor_scope() -> str:
+    """``strict`` once ``SPIX_MARKET_ANCHOR=strict`` (A3.7 stage 3): 1X2 and goals O/U 2.5 publish the
+    market's probability with Spix's weight at zero (D21, D26); Spix's own probability is kept."""
+    return engine_switches.value("SPIX_MARKET_ANCHOR")
+
+
+def _anchor_record(scope: str) -> Dict:
+    return {"version": MARKET_ANCHOR_VERSION, "scope": scope,
+            "method": f"{engine_switches.value('SPIX_DEVIG_METHOD')}_devig_median"}
+
+
+def _binary_profile(probability: float) -> Dict[str, float]:
+    return {"full_win": probability, "half_win": 0.0, "push": 0.0, "half_loss": 0.0, "full_loss": 1.0 - probability}
 
 
 def _three_way_fair(odds: List[float]) -> Optional[List[float]]:
@@ -118,7 +137,11 @@ def choose_best_total_line(options: List[Dict], projection_total: float,
 
 def select_best_total_recommendation(options: List[Dict], projection_total: float,
                                      combined_var: Optional[float] = None, *,
-                                     count_probabilities: Optional[Dict[int, float]] = None) -> Dict[str, Optional[Dict]]:
+                                     count_probabilities: Optional[Dict[int, float]] = None,
+                                     anchor_points: Optional[Iterable[float]] = None) -> Dict[str, Optional[Dict]]:
+    """Pick the best totals line. ``anchor_points`` (half lines only) are priced at the market's
+    consensus fair probability instead of Spix's (A3.7 stage 3), marked ``_probability_source``;
+    Spix's stays in ``_spix_prob``."""
     if not options:
         return {
             "best_value": None,
@@ -166,6 +189,18 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
             _fair_implied[(_bm, _pt, "over")] = _f_ov
             _fair_implied[(_bm, _pt, "under")] = _f_un
 
+    # Market anchor: median across bookmakers of each book's fair over probability, half lines only.
+    anchor_over: Dict[float, float] = {}
+    anchor_record = None
+    if anchor_points:
+        anchor_record = {**_anchor_record("strict"), "lines": {}}
+        for point in anchor_points:
+            point = float(point)
+            values = [p for (_bm, _pt, _sd), p in _fair_implied.items() if _sd == "over" and _pt == point]
+            if values and (point * 2) % 2 == 1:
+                anchor_over[point] = statistics.median(values)
+                anchor_record["lines"][str(point)] = {"market_over": anchor_over[point], "books": len(values)}
+
     best = None
     best_score = None
     best_value = None
@@ -200,6 +235,13 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
             asian_total_settlement_profile(projection_total, point, side, combined_var)
         )
         model_p = asian_total_equivalent_probability(settlement_profile)
+        spix_p = None
+        if point in anchor_over and side in ("over", "under"):
+            spix_p = model_p
+            model_p = anchor_over[point] if side == "over" else 1.0 - anchor_over[point]
+            settlement_profile = _binary_profile(model_p)
+            if side == "over":
+                anchor_record["lines"][str(point)]["spix_over"] = spix_p
         fair_key = (_quote_identity(opt), point, side.lower())
         implied_p = _fair_implied.get(fair_key) or implied_prob(odds)
         val_edge = value_edge(model_p, implied_p)
@@ -236,6 +278,9 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
         opt["_ev"] = ev
         opt["_settlement_profile"] = settlement_profile
         opt["_probability_basis"] = "asian_equivalent_non_push"
+        if spix_p is not None:  # same basis (a half line has no push); the source is the market
+            opt["_probability_source"] = "market_consensus"
+            opt["_spix_prob"] = spix_p
         opt["_vig_adjusted_pair"] = has_vig_free_pair
         opt["_eligible"] = eligible
         opt["_score"] = score
@@ -262,13 +307,16 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
         else:
             no_bet_reason = "No totals line clears the betting thresholds."
 
-    return {
+    result = {
         "best_value": best_value,
         "bet_recommendation": best,
         "recommended": best,
         "no_bet_reason": no_bet_reason if best is None else None,
         "all_lines": options_use,
     }
+    if anchor_record is not None:
+        result["market_anchor"] = anchor_record
+    return result
 
 
 # ===================================================================
@@ -866,8 +914,13 @@ def choose_best_moneyline_side(
     p_home: float, p_draw: float, p_away: float,
     market_odds: List[Dict],
     home: str, away: str,
+    *, anchor: bool = False,
 ) -> Dict:
-    """Separate winner prediction from value identification and bet verdict."""
+    """Separate winner prediction from value identification and bet verdict.
+
+    With ``anchor`` (A3.7 stage 3) each outcome is priced at the market's consensus: the median across
+    complete bookmakers of each book's fair probability, rescaled to sum to one. Spix's own
+    probabilities stay in ``spix_prob``."""
     model_probs = {"home": p_home, "draw": p_draw, "away": p_away}
     team_labels = {"home": home, "draw": "Draw", "away": away}
     mw = SCORING_WEIGHTS.get("moneyline_selection", {})
@@ -897,6 +950,17 @@ def choose_best_moneyline_side(
             for side, probability in zip(("home", "draw", "away"), fair):
                 fair_by_bookmaker[(bookmaker, side)] = probability
 
+    spix_probs = None
+    anchor_record = None
+    if anchor and fair_by_bookmaker:
+        medians = {side: statistics.median(p for (_bm, s), p in fair_by_bookmaker.items() if s == side)
+                   for side in ("home", "draw", "away")}
+        total = sum(medians.values())
+        spix_probs = model_probs
+        model_probs = {side: p / total for side, p in medians.items()}
+        anchor_record = {**_anchor_record("strict"), "books": len({bm for (bm, _s) in fair_by_bookmaker}),
+                         "market": dict(model_probs), "spix": dict(spix_probs)}
+
     # Preserve the best raw quote as a diagnostic fallback when the feed is
     # incomplete. A recommendation must use one of the complete books above.
     best_per_side: Dict[str, Dict] = {}
@@ -921,6 +985,9 @@ def choose_best_moneyline_side(
             "value_edge": None,
             "ev": None,
         }
+        if spix_probs is not None:
+            entry["spix_prob"] = spix_probs[side]
+            entry["probability_source"] = "market_consensus"
         paired_quotes = [
             quote
             for bookmaker, sides in by_bookmaker.items()
@@ -1031,7 +1098,7 @@ def choose_best_moneyline_side(
         else:
             no_bet_reason = "No side clears the moneyline betting thresholds."
 
-    return {
+    result = {
         "most_likely": most_likely,
         "best_value": best_value,
         "bet_recommendation": best,
@@ -1039,6 +1106,9 @@ def choose_best_moneyline_side(
         "no_bet_reason": no_bet_reason if best is None else None,
         "all_sides": candidates,
     }
+    if anchor_record is not None:
+        result["market_anchor"] = anchor_record
+    return result
 
 
 # ===================================================================

@@ -12,7 +12,8 @@ def test_defaults_are_todays_behaviour(monkeypatch):
     for name in engine_switches.SWITCHES:
         monkeypatch.delenv(name, raising=False)
     assert engine_switches.snapshot() == {"version": "engine-switches.v1", "DOCUMENT_STORE": "chroma",
-                                          "SPIX_COUNT_DISPERSION": "floors", "SPIX_DEVIG_METHOD": "proportional"}
+                                          "SPIX_COUNT_DISPERSION": "floors", "SPIX_DEVIG_METHOD": "proportional",
+                                          "SPIX_MARKET_ANCHOR": "off"}
     assert prediction_guardrails.fixed_dispersion_enabled() is False
     assert team_resolution.document_store_handle() is None
 
