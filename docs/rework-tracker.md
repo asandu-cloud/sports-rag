@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-17 (D33)
+Last updated: 2026-10-17 (D34)
 
 ## Status
 
@@ -16,7 +16,7 @@ Last updated: 2026-10-17 (D33)
 | A2 Canonical features | A2a live since 17 Oct 16:28 (`DOCUMENT_STORE=sqlite`; D11); A2b after A6 (D13) | 7af457b |
 | A3 Market anchor and honest uncertainty | Started 16 Oct under D16 (research and shadow only) | see A3 table |
 | A4 Calibration | A4.1 dataset done 16 Oct (25,527 graded candidates, 160 fixtures; grading matches settlement on all 1,918 overlapping picks). A4.2 method study done 16 Oct: no calibrator adopted yet (D28), rerun weekly; live as A3.7 stage 5, not before Tue 10 Nov (D29) | 197dc73; see D28 |
-| A5 Selection policy | Research started 16 Oct (D30): A5.1 done (Spix's disagreement with the market is almost all error); A5.2 done (pricing against the market wins, D31); A5.3 next (are the best prices real?); live as A3.7 stage 6, earliest Tue 17 Nov | see D30, D31 |
+| A5 Selection policy | Research started 16 Oct (D30): A5.1 done (Spix's disagreement with the market is almost all error); A5.2 done (pricing against the market wins, D31); A5.3 next (are the best prices real?); the goal-market selection rule ships with stage 4 (D33), the rest at stage 6, earliest Tue 17 Nov | see D30, D31, D33 |
 | A6–A8, Part B | Not started | |
 | Market expansion (D25) | Planned after A5 | see D25 |
 
@@ -75,8 +75,9 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Scorecard splits picks by the engine switches recorded on them (`tracking.engine_switches`, from 17 Oct; earlier picks ran on the defaults) | Before the Mon 2 Nov scorecard | The record exists since 17 Oct (A3.7 package); new A3.7 switches register in `core/engine_switches.py` |
 | Go-live of stage 2: set `SPIX_DEVIG_METHOD=power` (built 17 Oct, off). Golden preview with stage 1 off: no pick added or removed; 4 of 54 fixtures move a pick to a better-priced quote (3 corners, 1 goals; one corners line 9.25 → 9.5), one Asian handicap label medium → low; the fair probability shown changes on 293 results. Preview again on top of stage 1, then re-record (D16 rule 4) | A3.7 stage 2, Fri 23 Oct | Selection's four margin-removal sites (totals, handicap, BTTS, 1X2) use `data_platform/devig.power` when on |
 | Go-live of stage 3: set `SPIX_MARKET_ANCHOR=strict` (built 17 Oct, off). 1X2 and goals O/U 2.5 take the market's consensus (median across books of each book's fair price, with selection's margin removal, so it assumes stage 2 is live; 1X2 rescaled to sum to one); Spix's own probability kept as `_spix_prob` / `spix_prob` and a `market_anchor` record in the result context. Golden preview, stage 3 alone: all 7 1X2 picks in the 54 fixtures become no-bets (at the market's number no price clears the 1X2 thresholds); the only O/U 2.5 pick of 38 goals picks moves to over 2.75, still priced on Spix's numbers (strict scope; stage 4 closes that). Preview again on top of stages 1–2, then re-record (D16 rule 4) | A3.7 stage 3, Tue 27 Oct | Other goal lines, Asian handicap and BTTS stay on Spix's probability until stage 4 (D29) |
-| Go-live of stage 4: set `SPIX_MARKET_ANCHOR=goals` (built 17 Oct, off; `core/market_goal_model.py`). M1 is solved per read from the read's own prices (A3.2 targets: 1X2, O/U 2.5, the main Asian handicap; median of each book's fair price) and prices every goal line, the Asian handicap and BTTS; 1X2 and O/U 2.5 keep stage 3's direct consensus; line scoring and the handicap goal-edge rule use M1's means; Spix's probabilities kept (`_spix_prob`) and the fit recorded in `market_anchor.goal_model`. Golden preview (stages 1–2 off), recommended picks before → after: goals 38 → 5 (34 removed, 4 moved, 1 added), Asian handicap 47 → 3, BTTS 12 → 0, 1X2 7 → 0, corners 33 unchanged. Needs the D29 gate on audited lines first; see D33 for the pick-volume question | A3.7 stage 4, earliest Tue 3 Nov | Gate (D29): M1 beats Spix's log loss per market on the audited lines |
-| D29 gate study for stage 4: replay `market_goal_model.solve` on each audited read's stored option lists, then compare M1, Spix and the bookmaker's own price on the other goal lines, Asian handicap and BTTS (fixture-resampled log loss) | Next, before stage 4 goes live | Built engine side 17 Oct; the study reuses the exact engine code |
+| Go-live of stage 4: set `SPIX_MARKET_ANCHOR=goals` (built 17 Oct, off; `core/market_goal_model.py`). M1 is solved per read from the read's own prices (A3.2 targets: 1X2, O/U 2.5, the main Asian handicap; median of each book's fair price) and prices every goal line, the Asian handicap and BTTS; 1X2 and O/U 2.5 keep stage 3's direct consensus; line scoring and the handicap goal-edge rule use M1's means; Spix's probabilities kept (`_spix_prob`) and the fit recorded in `market_anchor.goal_model`. Golden preview (stages 1–2 off), recommended picks before → after: goals 38 → 5 (34 removed, 4 moved, 1 added), Asian handicap 47 → 3, BTTS 12 → 0, 1X2 7 → 0, corners 33 unchanged. D29 gate passed 17 Oct (D34); ships together with A5.2's selection rule for these markets (D33 (b)) | A3.7 stage 4, earliest Tue 3 Nov | Gate (D29): M1 beats Spix's log loss per market on the audited lines |
+| Rerun the D29 gate (`python -m Scripts.ops.m1_gate_study --out Research/m1-gate-<date>`) with the weeks since 17 Oct | Before stage 4 goes live | Passed 17 Oct on one audited week (D34) |
+| Build the A5.2 rule for the anchored goal markets (price against the consensus at the best available price, one pick per market, three per fixture) to ship with stage 4 | Before stage 4, earliest Tue 3 Nov (D33 (b)) | Needs A5.3 to confirm the best prices were real |
 | A5.3 first: are the best prices real? Quote age at the read (odds archive `source_age_seconds`), OddsPapi spot checks of the best-price book, exchange commission; then evidence-based labels | A5.3, next (D31) | Half the best-price books' quotes were unchanged or missing at the close (D31) |
 | Bookmaker sets per country: the best price only from books a member can legally use, and the first country (owner) | A5.4 requirement (D32) | A third of A5.2's best prices came from books most European bettors cannot use |
 | Red cards: the selector also outputs the bets to skip (prices below fair, boosts that are not, high-margin bet builders) | A5.4 (D32) | Part of the Daily Card |
@@ -468,6 +469,28 @@ lines Spix rated far above the market (median stated probability: goals 0.79, ha
 the market where Spix is least calibrated (D28). Options for the owner: (a) accept two thin weeks; (b) bring the A5.2
 rule (price against the consensus at the best available price) forward to go live with stage 4, as one change; (c)
 hold stage 4 until A5.4. Decide after the D29 gate and A5.3 (are the best prices real?).
+**Owner decision (17 Oct): (b),** subject to A5.3 confirming the best prices were real. The A5.2 rule for the
+anchored goal markets is therefore built before stage 4 and ships with it as one change; A5's other parts (labels,
+bookmaker sets per country, red cards) stay at stage 6.
+
+**D34 — D29 gate passed: M1 beats Spix in every goal market stage 4 would price (17 Oct).** Method
+(`data_platform/m1_gate.py`, `ops/m1_gate_study.py`, output `Research/m1-gate-2026-10-17/`): for every audited
+read (latest before kickoff, per fixture and stage; 167 fixtures, 7,927 lines), M1 is solved again from the
+price lists the decision audit stored, with the engine's own `market_goal_model.solve` (solved for every read,
+median fit error 4.6e-4). Each evaluated line is taken once; Spix's probability is the one the engine computed,
+the market is the power-de-vigged median across books. Intervals resample fixtures.
+
+| Market | Lines (fixtures) | Log loss Spix / M1 / market | M1 vs Spix, 95% | M1 vs market, 95% | Calibration error / slope, Spix → M1 |
+|---|---|---|---|---|---|
+| Goal lines other than 2.5 | 4,342 (167) | 0.547 / 0.470 / 0.475 | −14.0% (−0.117 to −0.040) | −1.1% (−0.013 to +0.002) | 13.1 / 0.75 → 5.2 / 0.93 |
+| Asian handicap | 3,358 (167) | 0.610 / 0.540 / 0.541 | −11.6% (−0.128 to −0.017) | −0.2% (−0.006 to +0.003) | 13.8 / 0.82 → 1.9 / 1.06 |
+| Same, without the line M1 is fitted to | 3,139 (167) | 0.597 / 0.530 / 0.531 | −11.2% (−0.123 to −0.014) | −0.3% | 13.3 / 0.83 → 1.6 / 1.06 |
+| BTTS | 227 (167) | 0.755 / 0.691 / 0.691 | −8.5% (−0.110 to −0.021) | +0.0% (−0.009 to +0.008) | 13.9 / −0.17 → 6.6 / 0.22 |
+
+Pre-match reads alone pass in every market (−12.3%, −10.6%, −7.7%); lineup reads (60 fixtures) point the same way
+with wider intervals. M1 prices lines it was not fitted to as well as the bookmakers' own consensus on those
+lines, so the matrix extrapolates coherently. One audited week (9–15 Oct plus fixtures finished since); rerun
+before stage 4 goes live.
 
 ## Findings that shape later steps
 
