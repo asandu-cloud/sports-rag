@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-17 (D35)
+Last updated: 2026-10-17 (D36)
 
 ## Status
 
@@ -79,13 +79,16 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Rerun the D29 gate (`python -m Scripts.ops.m1_gate_study --out Research/m1-gate-<date>`) with the weeks since 17 Oct | Before stage 4 goes live | Passed 17 Oct on one audited week (D34) |
 | Stage 4 bundle: A5.3 must confirm Betano's (and later Superbet's) best prices were really available; rerun the bundle preview on the weeks since 17 Oct; owner sets the published value threshold (2% tested; Romania volume in D35) | Before stage 4, earliest Tue 3 Nov | Built 17 Oct (D35) |
 | A5.3 first: are the best prices real? Quote age at the read (odds archive `source_age_seconds`), OddsPapi spot checks of the best-price book, exchange commission; then evidence-based labels | A5.3, next (D31) | Half the best-price books' quotes were unchanged or missing at the close (D31) |
-| Bookmaker sets per country: Romania first (D35); today's feed covers only Betano and Betfair for Romania | Stage 4 bundle (D35) | A third of A5.2's best prices came from books most European bettors cannot use |
+| Bookmaker sets per country: Romania first (D35); built, off. Used once Romanian prices are available (D36) | After Romanian prices exist | Since 16 Oct the feed has no Romanian-licensed bookmaker |
+| Fair-price card output: per fixture the main lines with fair probability, fair odds and minimum odds worth taking (fair × 1.02), Spix's take beside it | Next build (D36) | Romania launch format |
+| Headline rule for the fair-price card (market decisiveness, line movement since opening, or other) | Owner, with the card build (D36) | Value cannot rank angles without bookmaker prices |
 | Odds source for Romanian bookmakers (Superbet, Fortuna, Casa Pariurilor, Unibet, NetBet, MaxBet, WinBet, Mozzart, Betano): OddsPapi carries them; free plan too small for live picks | After launch (owner, 17 Oct: a paid source is too expensive before launch) | Since 16 Oct API-Football sends no Romanian-licensed bookmaker (Betano and Betfair dropped) |
 | Ask API-Football support why Betano, Betfair, SBO and Dafabet stopped on 16 Oct and Superbet and Unibet after 8 Sep, and whether they return | Owner, now | Ultra plan customer; provider-side change |
 | Monitor bookmaker coverage: a daily count per bookmaker from the odds archive, with an alert when one falls by more than half against the previous week | Next ops pass | The 16 Oct drop went unnoticed for a day |
 | Red cards: the selector also outputs the bets to skip (prices below fair, boosts that are not, high-margin bet builders) | A5.4 (D32) | Part of the Daily Card |
 | Bet builder and combination pricing from the score model (correlated legs), anchored to the market | After A5, with the D25 expansion (D32) | Price Check and red cards need it |
-| Price Check for any single and the Ledger (member bet tracking, settlement, overpayment vs best price) | Product backlog after A5 (D32) | Web app work; reuses settlement and reference prices |
+| Price Check for singles: the member's odds against the fair price (good price / fair / overpaying) | Next build, after the card (D36) | Needs only the fair probabilities |
+| The Ledger (member bet tracking, settlement, overpayment against the fair price) | Product backlog (D32) | Web app work; reuses settlement and reference prices |
 | How to show Spix's own view when it disagrees with the market (≥10 pts on 3.4 markets per read; ≥25 pts on half the reads), given A5.1 found it mostly error | Owner, before A5.4 | Product decision (D31) |
 | If A5.4 prices corners and cards against the market too, A4's calibrators (stage 5) lose their purpose except where no two-sided price exists. Stage 1 replay (17 Oct): Spix's corner picks lose ~2% at the close under either variance; A5.2's market rule kept +4.2% on corners. Candidate to join the stage 4 bundle (owner) | Decide with A5.4 (D31) | Calibrators fit Spix's own probability |
 | A5.4: build the chosen policy behind a switch (`line_selection`, `match_read_compiler`, `confidence_from_edge`), golden preview; proposal in D31 | A5; live at A3.7 stage 6, earliest Tue 17 Nov | Gate (report): published picks' calibration error ≤ 3 pts and closing line value at least neutral over 4+ live matchweeks |
@@ -558,6 +561,23 @@ rarely beats the sharp consensus by 2% after its own margin. With Betano alone, 
 6 picks on 5 fixtures at 2%, 17 on 14 at 1%, 31 on 23 at 0% ("at least a fair price"). Only the 2% rule was tested
 (A5.2, all books: 0% kept +2.5% at the close on 468 picks). Owner decisions before go-live: the Romanian odds
 source (more books, more value found) and the published threshold.
+
+**D36 — Romania launches on a fair-odds card; no bookmaker prices needed (17 Oct, owner).** No paid odds source
+before launch (too expensive pre-launch), and since 16 Oct API-Football sends no Romanian-licensed bookmaker
+(D35). So Spix publishes the fair price instead of naming a bookmaker: for each angle the market's fair
+probability, fair odds and the minimum odds worth taking (fair odds × 1.02, the 2% value threshold A5.2
+tested), for example "fair 1.85; worth it at 1.89 or better". Members check their own Superbet or Betano app.
+The same numbers power Price Check (a member enters the odds their app shows: good price, fair, or overpaying)
+and red cards ("don't take this below 1.70"). Spix's own take is shown beside the fair price, labelled as such.
+- *Engine:* the fair probabilities come from the market anchors already built (stage 3 consensus, stage 4 M1 for
+  goal markets, corners at the line consensus), from every bookmaker in the feed. The bookmaker-set rule
+  (`SPIX_BOOKMAKER_SET=romania`) and value-at-a-named-book picks stay built but switched off until Romanian prices
+  are available (API-Football restored, or a paid source after launch); the card then adds "Superbet has it at X".
+- *Build next:* the fair-price card output (per fixture, the main lines: 1X2, O/U goals, BTTS, main handicap, main
+  corners line); the rule for which angles to headline, decided with the owner (without bookmaker prices value
+  cannot rank them; candidates are how decisive the market is, or how far it moved since opening); Price Check
+  for singles.
+- *Trade-off accepted:* the card says what a bet is worth, not where to place it.
 
 ## Findings that shape later steps
 
