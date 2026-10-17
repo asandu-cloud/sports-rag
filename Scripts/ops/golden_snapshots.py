@@ -12,8 +12,12 @@ A read that was not recorded fails the replay loudly (``GoldenMiss``), so a new
 data dependency shows up instead of silently reading live data. Model files
 under ``Index/ml_models`` are treated as code, not as recorded inputs.
 
+``preview`` replays the same fixtures and summarises what a switched-on stage does to the
+published picks (added, removed, moved to another side or line, price only), per market.
+
     python -m Scripts.ops.golden_snapshots record --date 2026-10-17 --date 2026-10-18
     python -m Scripts.ops.golden_snapshots check
+    SPIX_MARKET_ANCHOR=goals python -m Scripts.ops.golden_snapshots preview
 """
 from __future__ import annotations
 
@@ -221,6 +225,66 @@ def check(path, evaluate, *, reset=None, chroma_targets=None):
     return report
 
 
+def pick(result):
+    """The published-pick facts of one result."""
+    decision = result.get("decision") or {}
+    quote = decision.get("quote") or {}
+    return {"status": decision.get("status"), "side": quote.get("side"), "line": quote.get("line"),
+            "odds": quote.get("odds"), "bookmaker": quote.get("bookmaker"),
+            "probability": decision.get("model_probability")}
+
+
+def classify(old, new):
+    was, now = old["status"] == "recommended", new["status"] == "recommended"
+    if was and not now:
+        return "removed"
+    if now and not was:
+        return "added"
+    if not was:
+        return None
+    if (old["side"], old["line"]) != (new["side"], new["line"]):
+        return "moved"
+    if (old["odds"], old["bookmaker"]) != (new["odds"], new["bookmaker"]):
+        return "price_only"
+    return "kept"
+
+
+def preview(path, evaluate, *, reset=None):
+    """Old and new pick for every result of every fixture, replayed from the bundle."""
+    bundle = load(path)
+    rows = []
+    with Capture("replay", bundle["reads"]) as capture:
+        for fixture in bundle["fixtures"]:
+            if reset:
+                reset()
+            capture.misses.clear()
+            outputs = _as_dicts(evaluate(fixture["event"], fixture["league"], **fixture["kwargs"]))
+            for old, new in zip(fixture["outputs"], outputs):
+                rows.append({"fixture": _label(fixture), "market": old["market"]["group"],
+                             "old": pick(old), "new": pick(new), "change": classify(pick(old), pick(new))})
+    return rows
+
+
+def summarize_preview(rows, limit=40):
+    from collections import Counter
+    markets = sorted({r["market"] for r in rows})
+    lines = ["| Market | Picks before | After | Added | Removed | Moved | Price only |", "|---|---|---|---|---|---|---|"]
+    for market in markets:
+        sub = [r for r in rows if r["market"] == market]
+        count = Counter(r["change"] for r in sub)
+        before = sum(r["old"]["status"] == "recommended" for r in sub)
+        after = sum(r["new"]["status"] == "recommended" for r in sub)
+        lines.append(f"| {market} | {before} | {after} | {count['added']} | {count['removed']} | {count['moved']} | {count['price_only']} |")
+    changed = [r for r in rows if r["change"] in ("added", "removed", "moved")]
+    for r in changed[:limit]:
+        o, n = r["old"], r["new"]
+        lines.append(f"{r['fixture']} {r['market']}: {r['change']} | {o['status']} {o['side']} {o['line']} @ {o['odds']} "
+                     f"(p {o['probability']}) -> {n['status']} {n['side']} {n['line']} @ {n['odds']} (p {n['probability']})")
+    if len(changed) > limit:
+        lines.append(f"... {len(changed) - limit} more")
+    return "\n".join(lines)
+
+
 # --- the real engine -------------------------------------------------------------------------
 
 def _engine():
@@ -286,7 +350,7 @@ def summarize(report, limit=12):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("command", choices=["record", "check"])
+    parser.add_argument("command", choices=["record", "check", "preview"])
     parser.add_argument("--bundle", type=Path, default=BUNDLE)
     parser.add_argument("--date", action="append", type=date.fromisoformat, default=[],
                         help="fixture date to record (repeatable)")
@@ -303,6 +367,9 @@ def main(argv=None):
                         reset=engine_reset, system_version=market_service.prediction_system_manifest()["version"])
         print(f"recorded {len(bundle['fixtures'])} fixtures, {len(bundle['reads']['chroma'])} Chroma reads, "
               f"{len(bundle['reads']['http'])} HTTP reads -> {args.bundle}")
+        return 0
+    if args.command == "preview":
+        print(summarize_preview(preview(args.bundle, engine_evaluate, reset=engine_reset)))
         return 0
     report = check(args.bundle, engine_evaluate, reset=engine_reset,
                    chroma_targets=[] if args.live_documents else None)

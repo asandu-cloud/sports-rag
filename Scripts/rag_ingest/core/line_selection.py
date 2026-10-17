@@ -70,12 +70,13 @@ MARKET_ANCHOR_VERSION = "market-anchor.v1"
 
 
 def market_anchor_scope() -> str:
-    """``strict`` once ``SPIX_MARKET_ANCHOR=strict`` (A3.7 stage 3): 1X2 and goals O/U 2.5 publish the
-    market's probability with Spix's weight at zero (D21, D26); Spix's own probability is kept."""
+    """``SPIX_MARKET_ANCHOR``: ``strict`` (A3.7 stage 3) makes 1X2 and goals O/U 2.5 publish the market's
+    probability with Spix's weight at zero (D21, D26); ``goals`` (stage 4, D29) also prices every other
+    goal line, the Asian handicap and BTTS from the market's goal model. Spix's own probability is kept."""
     return engine_switches.value("SPIX_MARKET_ANCHOR")
 
 
-def _anchor_record(scope: str) -> Dict:
+def market_anchor_record(scope: str) -> Dict:
     return {"version": MARKET_ANCHOR_VERSION, "scope": scope,
             "method": f"{engine_switches.value('SPIX_DEVIG_METHOD')}_devig_median"}
 
@@ -138,10 +139,12 @@ def choose_best_total_line(options: List[Dict], projection_total: float,
 def select_best_total_recommendation(options: List[Dict], projection_total: float,
                                      combined_var: Optional[float] = None, *,
                                      count_probabilities: Optional[Dict[int, float]] = None,
-                                     anchor_points: Optional[Iterable[float]] = None) -> Dict[str, Optional[Dict]]:
-    """Pick the best totals line. ``anchor_points`` (half lines only) are priced at the market's
-    consensus fair probability instead of Spix's (A3.7 stage 3), marked ``_probability_source``;
-    Spix's stays in ``_spix_prob``."""
+                                     anchor_points: Optional[Iterable[float]] = None,
+                                     market_count_probabilities: Optional[Dict[int, float]] = None) -> Dict[str, Optional[Dict]]:
+    """Pick the best totals line. ``market_count_probabilities`` (stage 4) price every line from the
+    market's goal model, and line scoring centres on its mean; ``anchor_points`` (half lines only) take
+    the market's consensus fair probability (stage 3). Either is marked ``_probability_source``;
+    Spix's own probability stays in ``_spix_prob``."""
     if not options:
         return {
             "best_value": None,
@@ -189,11 +192,15 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
             _fair_implied[(_bm, _pt, "over")] = _f_ov
             _fair_implied[(_bm, _pt, "under")] = _f_un
 
+    centre = projection_total
+    if market_count_probabilities is not None:
+        centre = sum(total * p for total, p in market_count_probabilities.items())
+
     # Market anchor: median across bookmakers of each book's fair over probability, half lines only.
     anchor_over: Dict[float, float] = {}
     anchor_record = None
     if anchor_points:
-        anchor_record = {**_anchor_record("strict"), "lines": {}}
+        anchor_record = {**market_anchor_record("strict"), "lines": {}}
         for point in anchor_points:
             point = float(point)
             values = [p for (_bm, _pt, _sd), p in _fair_implied.items() if _sd == "over" and _pt == point]
@@ -211,9 +218,9 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
         odds = safe_float(opt.get("odds"))
         if side not in {"over", "under"} or point is None or odds is None:
             continue
-        edge = projection_total - point if side == "over" else point - projection_total
+        edge = centre - point if side == "over" else point - centre
 
-        dist = abs(projection_total - point)
+        dist = abs(centre - point)
         proximity_penalty = dist * tw["proximity_penalty"]
         edge_term = edge * tw["edge_weight"]
 
@@ -235,9 +242,14 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
             asian_total_settlement_profile(projection_total, point, side, combined_var)
         )
         model_p = asian_total_equivalent_probability(settlement_profile)
-        spix_p = None
+        spix_p = source = None
+        if market_count_probabilities is not None and side in ("over", "under") and point is not None:
+            spix_p, source = model_p, "market_goal_model"
+            settlement_profile = asian_total_profile_from_counts(market_count_probabilities, point, side)
+            model_p = asian_total_equivalent_probability(settlement_profile)
         if point in anchor_over and side in ("over", "under"):
-            spix_p = model_p
+            spix_p = model_p if spix_p is None else spix_p
+            source = "market_consensus"
             model_p = anchor_over[point] if side == "over" else 1.0 - anchor_over[point]
             settlement_profile = _binary_profile(model_p)
             if side == "over":
@@ -278,8 +290,8 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
         opt["_ev"] = ev
         opt["_settlement_profile"] = settlement_profile
         opt["_probability_basis"] = "asian_equivalent_non_push"
-        if spix_p is not None:  # same basis (a half line has no push); the source is the market
-            opt["_probability_source"] = "market_consensus"
+        if spix_p is not None:  # same basis (no-push equivalent); the source is the market
+            opt["_probability_source"] = source
             opt["_spix_prob"] = spix_p
         opt["_vig_adjusted_pair"] = has_vig_free_pair
         opt["_eligible"] = eligible
@@ -529,8 +541,13 @@ def select_best_spread_recommendation(
     away_team: str = "",
     league: str = "",
     *, fixture_date=None, league_ctx=None, knockout_ctx=None, score_probs=None,
+    market_score_probs=None, market_diff: Optional[float] = None,
 ) -> Dict[str, Optional[Dict]]:
-    """Score handicap lines and decide whether any spread is actually bettable."""
+    """Score handicap lines and decide whether any spread is actually bettable.
+
+    ``market_score_probs`` and ``market_diff`` (A3.7 stage 4) price every line from the market's goal
+    model and measure the goal edge from its expected margin; Spix's own probability stays in
+    ``_spix_prob``."""
     if not options:
         return {
             "best_value": None,
@@ -628,12 +645,18 @@ def select_best_spread_recommendation(
 
         is_home = team.lower().strip() == home_team.lower().strip()
         sign = 1.0 if is_home else -1.0
-        goal_edge = sign * projected_diff + point
+        goal_edge = sign * (market_diff if market_score_probs else projected_diff) + point
 
         matrix_profile = _score_matrix_spread_profile(
             home_team, away_team, league, is_home, point, score_probs=score_probs,
         )
         profile = matrix_profile or _normal_spread_profile(sign * projected_diff, margin_std, point)
+        spix_p = None
+        if market_score_probs:
+            spix_p = asian_total_equivalent_probability(profile)
+            profile = _score_matrix_spread_profile(
+                home_team, away_team, league, is_home, point, score_probs=market_score_probs,
+            )
         ev = _spread_expected_value(profile, odds)
         model_p = asian_total_equivalent_probability(profile)
         fair_implied = _get_sp_fair(_quote_identity(opt), point, team)
@@ -689,6 +712,9 @@ def select_best_spread_recommendation(
         opt["_positive_return_prob"] = profile["full_win"] + profile["half_win"]
         opt["_settlement_profile"] = profile
         opt["_probability_basis"] = "asian_equivalent_non_push"
+        if spix_p is not None:
+            opt["_probability_source"] = "market_goal_model"
+            opt["_spix_prob"] = spix_p
         opt["_vig_adjusted_pair"] = has_vig_free_pair
         opt["_eligible"] = eligible
         opt["_score"] = score
@@ -734,7 +760,8 @@ def choose_best_btts_side(options: List[Dict], p_btts_yes: float) -> Optional[Di
     return result.get("bet_recommendation")
 
 
-def select_best_btts_recommendation(options: List[Dict], p_btts_yes: float) -> Dict[str, Optional[Dict]]:
+def select_best_btts_recommendation(options: List[Dict], p_btts_yes: float, *,
+                                    spix_p_yes: Optional[float] = None) -> Dict[str, Optional[Dict]]:
     """Score BTTS Yes/No options and return the best one with probability data attached.
 
     BTTS is a directional bet — the model's conviction (probability) must drive the
@@ -821,6 +848,9 @@ def select_best_btts_recommendation(options: List[Dict], p_btts_yes: float) -> D
         )
 
         opt["_model_prob"] = model_p
+        if spix_p_yes is not None:  # A3.7 stage 4: p_btts_yes is the market goal model's; Spix's is kept
+            opt["_probability_source"] = "market_goal_model"
+            opt["_spix_prob"] = spix_p_yes if side == "yes" else 1.0 - spix_p_yes
         opt["_implied_prob"] = implied_p
         opt["_value_edge"] = val_edge
         opt["_ev"] = ev
@@ -958,7 +988,7 @@ def choose_best_moneyline_side(
         total = sum(medians.values())
         spix_probs = model_probs
         model_probs = {side: p / total for side, p in medians.items()}
-        anchor_record = {**_anchor_record("strict"), "books": len({bm for (bm, _s) in fair_by_bookmaker}),
+        anchor_record = {**market_anchor_record("strict"), "books": len({bm for (bm, _s) in fair_by_bookmaker}),
                          "market": dict(model_probs), "spix": dict(spix_probs)}
 
     # Preserve the best raw quote as a diagnostic fallback when the feed is

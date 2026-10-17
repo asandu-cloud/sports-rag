@@ -17,7 +17,7 @@ SWITCHES: Dict[str, tuple] = {
     "DOCUMENT_STORE": ("chroma", frozenset({"chroma", "sqlite"})),          # A2a
     "SPIX_COUNT_DISPERSION": ("floors", frozenset({"floors", "fixed"})),    # A3.5, stage 1
     "SPIX_DEVIG_METHOD": ("proportional", frozenset({"proportional", "power"})),  # A3.1 (D17), stage 2
-    "SPIX_MARKET_ANCHOR": ("off", frozenset({"off", "strict"})),            # D21/D26, stage 3
+    "SPIX_MARKET_ANCHOR": ("off", frozenset({"off", "strict", "goals"})),   # D21/D26 stage 3; D29 stage 4
 }
 
 

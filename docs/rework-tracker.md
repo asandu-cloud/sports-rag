@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-17 (D32)
+Last updated: 2026-10-17 (D33)
 
 ## Status
 
@@ -45,7 +45,7 @@ Pinnacle's freshness measured ✗ (step 4).
 | 3.4 | Gamma-distributed team rates replacing n/(n+8) and the variance floors | Done: research; not adopted (D22) | No: the simpler 3.5 wins |
 | 3.5 | Phase 4 dispersions (corners 0.025, SoT 0.01) replace the variance floors, behind a switch | Done: built (D23), all competitions and stages | No: `SPIX_COUNT_DISPERSION=fixed` at go-live |
 | 3.6 | Dixon–Coles rho per league | Done: research; not adopted, rho stays −0.10 (D24) | No change |
-| 3.7 | Go-live package, staged (D26): build by Mon 19 Oct; stage 1 dispersions Tue 20; stage 2 power margin removal in selection Fri 23; stage 3 market anchor (strict scope) Tue 27; confirm at the Mon 2 Nov scorecard; stage 4 market anchor for all goal markets via M1, earliest Tue 3 Nov (D29); stage 5 A4 calibrators, earliest Tue 10 Nov | Package build started 17 Oct: switch record done (`core/engine_switches.py`); stage 2 switch built (`SPIX_DEVIG_METHOD=power`); stage 3 switch built (`SPIX_MARKET_ANCHOR=strict`) | Staged, one change at a time |
+| 3.7 | Go-live package, staged (D26): build by Mon 19 Oct; stage 1 dispersions Tue 20; stage 2 power margin removal in selection Fri 23; stage 3 market anchor (strict scope) Tue 27; confirm at the Mon 2 Nov scorecard; stage 4 market anchor for all goal markets via M1, earliest Tue 3 Nov (D29); stage 5 A4 calibrators, earliest Tue 10 Nov | Package build started 17 Oct: switch record done (`core/engine_switches.py`); stage 2 switch built (`SPIX_DEVIG_METHOD=power`); stage 3 switch built (`SPIX_MARKET_ANCHOR=strict`); stage 4 built (`SPIX_MARKET_ANCHOR=goals`); `golden_snapshots preview` summarises a stage's pick changes | Staged, one change at a time |
 
 ## Open items with a destination
 
@@ -75,7 +75,8 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Scorecard splits picks by the engine switches recorded on them (`tracking.engine_switches`, from 17 Oct; earlier picks ran on the defaults) | Before the Mon 2 Nov scorecard | The record exists since 17 Oct (A3.7 package); new A3.7 switches register in `core/engine_switches.py` |
 | Go-live of stage 2: set `SPIX_DEVIG_METHOD=power` (built 17 Oct, off). Golden preview with stage 1 off: no pick added or removed; 4 of 54 fixtures move a pick to a better-priced quote (3 corners, 1 goals; one corners line 9.25 → 9.5), one Asian handicap label medium → low; the fair probability shown changes on 293 results. Preview again on top of stage 1, then re-record (D16 rule 4) | A3.7 stage 2, Fri 23 Oct | Selection's four margin-removal sites (totals, handicap, BTTS, 1X2) use `data_platform/devig.power` when on |
 | Go-live of stage 3: set `SPIX_MARKET_ANCHOR=strict` (built 17 Oct, off). 1X2 and goals O/U 2.5 take the market's consensus (median across books of each book's fair price, with selection's margin removal, so it assumes stage 2 is live; 1X2 rescaled to sum to one); Spix's own probability kept as `_spix_prob` / `spix_prob` and a `market_anchor` record in the result context. Golden preview, stage 3 alone: all 7 1X2 picks in the 54 fixtures become no-bets (at the market's number no price clears the 1X2 thresholds); the only O/U 2.5 pick of 38 goals picks moves to over 2.75, still priced on Spix's numbers (strict scope; stage 4 closes that). Preview again on top of stages 1–2, then re-record (D16 rule 4) | A3.7 stage 3, Tue 27 Oct | Other goal lines, Asian handicap and BTTS stay on Spix's probability until stage 4 (D29) |
-| Extend the market anchor to all goal markets via M1's score matrix (other O/U lines, Asian handicap, BTTS), behind its own switch; add BTTS from the score matrix to `market_goals` | A3.7 package (built switched off); live at stage 4, earliest Tue 3 Nov (D29) | Beyond what history tested: must pass the gate on audited lines first (D29) |
+| Go-live of stage 4: set `SPIX_MARKET_ANCHOR=goals` (built 17 Oct, off; `core/market_goal_model.py`). M1 is solved per read from the read's own prices (A3.2 targets: 1X2, O/U 2.5, the main Asian handicap; median of each book's fair price) and prices every goal line, the Asian handicap and BTTS; 1X2 and O/U 2.5 keep stage 3's direct consensus; line scoring and the handicap goal-edge rule use M1's means; Spix's probabilities kept (`_spix_prob`) and the fit recorded in `market_anchor.goal_model`. Golden preview (stages 1–2 off), recommended picks before → after: goals 38 → 5 (34 removed, 4 moved, 1 added), Asian handicap 47 → 3, BTTS 12 → 0, 1X2 7 → 0, corners 33 unchanged. Needs the D29 gate on audited lines first; see D33 for the pick-volume question | A3.7 stage 4, earliest Tue 3 Nov | Gate (D29): M1 beats Spix's log loss per market on the audited lines |
+| D29 gate study for stage 4: replay `market_goal_model.solve` on each audited read's stored option lists, then compare M1, Spix and the bookmaker's own price on the other goal lines, Asian handicap and BTTS (fixture-resampled log loss) | Next, before stage 4 goes live | Built engine side 17 Oct; the study reuses the exact engine code |
 | A5.3 first: are the best prices real? Quote age at the read (odds archive `source_age_seconds`), OddsPapi spot checks of the best-price book, exchange commission; then evidence-based labels | A5.3, next (D31) | Half the best-price books' quotes were unchanged or missing at the close (D31) |
 | Bookmaker sets per country: the best price only from books a member can legally use, and the first country (owner) | A5.4 requirement (D32) | A third of A5.2's best prices came from books most European bettors cannot use |
 | Red cards: the selector also outputs the bets to skip (prices below fair, boosts that are not, high-margin bet builders) | A5.4 (D32) | Part of the Daily Card |
@@ -457,6 +458,16 @@ Check with the Ledger. The year-one goal is €5,000 a month. What it means for 
 - *New engine work after A5:* pricing bet builders and other combinations from the score model, anchored to
   the market, for Price Check and red cards. Price Check for singles and the Ledger are web-app work that
   reuses settlement and the reference prices.
+
+**D33 — Stage 4 leaves almost no goal-market picks until A5 (17 Oct, owner to decide).** With the market's
+probability in every goal market but today's selection thresholds (edge against the quoting book's own fair price of
+at least 2 points, minimum probability, a minimum goal edge for handicaps), the golden preview publishes 8 goal-market
+picks across 54 fixtures instead of 104; corners (33) stay on Spix's numbers. Most removed picks were short-priced
+lines Spix rated far above the market (median stated probability: goals 0.79, handicap 0.81). Between stage 4
+(earliest 3 Nov) and A5's selection rule (stage 6, earliest 17 Nov) the Daily Card would therefore lean on corners,
+the market where Spix is least calibrated (D28). Options for the owner: (a) accept two thin weeks; (b) bring the A5.2
+rule (price against the consensus at the best available price) forward to go live with stage 4, as one change; (c)
+hold stage 4 until A5.4. Decide after the D29 gate and A5.3 (are the best prices real?).
 
 ## Findings that shape later steps
 
