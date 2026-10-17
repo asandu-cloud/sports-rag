@@ -80,7 +80,9 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Stage 4 bundle: A5.3 must confirm Betano's (and later Superbet's) best prices were really available; rerun the bundle preview on the weeks since 17 Oct; owner sets the published value threshold (2% tested; Romania volume in D35) | Before stage 4, earliest Tue 3 Nov | Built 17 Oct (D35) |
 | A5.3 first: are the best prices real? Quote age at the read (odds archive `source_age_seconds`), OddsPapi spot checks of the best-price book, exchange commission; then evidence-based labels | A5.3, next (D31) | Half the best-price books' quotes were unchanged or missing at the close (D31) |
 | Bookmaker sets per country: Romania first (D35); today's feed covers only Betano and Betfair for Romania | Stage 4 bundle (D35) | A third of A5.2's best prices came from books most European bettors cannot use |
-| Odds source for Romanian bookmakers (Superbet, Fortuna, Casa Pariurilor, Unibet, NetBet, MaxBet, WinBet, Mozzart): OddsPapi carries them; free plan too small for live picks | Owner (D35) | Without it, Romanian picks use Betano and Betfair only |
+| Odds source for Romanian bookmakers (Superbet, Fortuna, Casa Pariurilor, Unibet, NetBet, MaxBet, WinBet, Mozzart, Betano): OddsPapi carries them; free plan too small for live picks | Owner (D35) | Since 16 Oct API-Football sends no Romanian-licensed bookmaker (Betano and Betfair dropped) |
+| Ask API-Football support why Betano, Betfair, SBO and Dafabet stopped on 16 Oct and Superbet and Unibet after 8 Sep, and whether they return | Owner, now | Ultra plan customer; provider-side change |
+| Monitor bookmaker coverage: a daily count per bookmaker from the odds archive, with an alert when one falls by more than half against the previous week | Next ops pass | The 16 Oct drop went unnoticed for a day |
 | Red cards: the selector also outputs the bets to skip (prices below fair, boosts that are not, high-margin bet builders) | A5.4 (D32) | Part of the Daily Card |
 | Bet builder and combination pricing from the score model (correlated legs), anchored to the market | After A5, with the D25 expansion (D32) | Price Check and red cards need it |
 | Price Check for any single and the Ledger (member bet tracking, settlement, overpayment vs best price) | Product backlog after A5 (D32) | Web app work; reuses settlement and reference prices |
@@ -521,6 +523,19 @@ fixtures and Betfair for 306; the "about half" above came from a partial sample.
 to **Betano and Superbet**. Superbet has no prices in our feed: none in any archived API-Football response since
 6 Oct or any closing snapshot; asking API-Football explicitly for bookmaker 34 on 10 upcoming fixtures returned
 none; the last Superbet prices were in a few UCL reads on 8–9 Sep. It counts as soon as a source provides it.
+
+*Update, evening.* **API-Football stopped sending four bookmakers on 16 Oct around 09:00–15:00 UTC.** Across all
+fixtures captured from 14 Oct to 16 Oct 15:00 UTC (213 fixtures) versus since (194 fixtures), appearances fell:
+Betano 3,042 → 92, Betfair 2,889 → 97, SBO 2,670 → 54, Dafabet 2,582 → 60; Bet365, Pinnacle, 1xBet, William Hill,
+Marathonbet and BetVictor are unchanged. For the 54 golden fixtures Betano went 54 → 43 → 4 → 0 within six hours
+and has not returned. Published picks priced at Betano fell from 62–240 a day (6–15 Oct) to 17 on 16 Oct and
+fewer than 10 on 17 Oct. Superbet and Unibet also came from API-Football earlier (the April picks priced there were
+mostly corners, SoT and cards, markets only API-Football supplies; the 8 Sep Superbet quote was a corners line),
+not from the Odds API (added 8 Feb, removed 9 Sep 2026), and stopped appearing after 8 Sep. Consequences: today
+the feed carries no Romanian-licensed bookmaker; the bundle preview above uses 15 Oct prices, when Betano was
+present; A5.2's best prices (Betano in 156 of 300 picks) are no longer flowing. Owner actions: ask API-Football
+support whether Betano, Betfair, Superbet and Unibet coverage is coming back; the second odds source (OddsPapi)
+becomes a dependency for Romania, not an option.
 
 **Stage 4 bundle built (17 Oct, all off).** `SPIX_MARKET_ANCHOR=full` adds corners at each line's consensus to
 stage 4; `SPIX_SELECTION_POLICY=market_value` applies the A5.2 rule to market-priced lines (eligible when the line
