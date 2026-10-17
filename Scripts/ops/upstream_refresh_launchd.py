@@ -2,7 +2,9 @@
 """Install the two local upstream schedules without changing card publication.
 
 Schedule check: hourly, provider data only when the six-hour coverage expires.
-Joined refresh: daily at 07:15 local time, using the existing additive workflow.
+Joined refresh: daily at 07:15 local time, using the existing additive workflow. It runs
+under ``caffeinate`` so the Mac cannot idle-sleep until the refresh exits; caffeinate
+cannot wake a Mac that is already asleep (a scheduled ``pmset`` wake does that).
 """
 from __future__ import annotations
 
@@ -26,13 +28,18 @@ class Job:
     label: str
     arguments: tuple[str, ...]
     interval_seconds: int | None = None
+    stay_awake: bool = False
+
+
+# Hold idle sleep (-i) and, on mains power, system sleep (-s) while the job runs; exit codes pass through.
+CAFFEINATE = ("/usr/bin/caffeinate", "-i", "-s")
 
 
 JOBS = {
     "schedule": Job("fixture-schedule", "com.bettingrag.fixture-schedule",
                     ("sync-schedule", "--days-ahead", "35", "--if-stale-hours", "6"), 3600),
     "data": Job("daily-data-refresh", "com.bettingrag.daily-data-refresh",
-                ("refresh-season", "--include-europe")),
+                ("refresh-season", "--include-europe"), stay_awake=True),
 }
 
 
@@ -43,7 +50,8 @@ def paths_for(job, root=None):
 def render(job, paths):
     payload = {
         "Label": job.label,
-        "ProgramArguments": [str(paths.python_executable), "-m", "Scripts.data_platform", *job.arguments],
+        "ProgramArguments": [*(CAFFEINATE if job.stay_awake else ()), str(paths.python_executable),
+                             "-m", "Scripts.data_platform", *job.arguments],
         "WorkingDirectory": str(paths.project_root),
         "RunAtLoad": job.interval_seconds is not None,
         "ProcessType": "Background",

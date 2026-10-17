@@ -323,7 +323,11 @@ To stop/remove only these two upstream jobs (data and logs are retained):
 Logs live in `Index/logs/fixture-schedule.*.log` and
 `Index/logs/daily-data-refresh.*.log`. The daily job does not run immediately
 on installation; its first scheduled time is 07:15. It still depends on this
-Mac being available and online; this is not cloud hosting. Failed full refreshes
+Mac being available and online; this is not cloud hosting. The refresh runs under
+`caffeinate -i -s`, so the Mac cannot idle-sleep until it finishes (system sleep is
+also held on mains power). A Mac that is already asleep at 07:15 runs the job at its
+next wake; a scheduled wake (`sudo pmset repeat wakeorpoweron MTWRFSU 07:05:00`)
+avoids that. Failed full refreshes
 retain the incomplete marker and need a successful rerun before cards resume.
 
 **Calendar gaps are valid:** the live provider check on September 21 returned

@@ -19,7 +19,9 @@ def test_upstream_jobs_are_separate_and_do_not_publish_or_retrain(tmp_path):
         assert "EnvironmentVariables" not in payload
         assert "match-read-cycle" not in payload["ProgramArguments"]
         assert "--retrain-ml" not in payload["ProgramArguments"]
-        assert payload["ProgramArguments"][0] == str(paths.python_executable)
+    assert schedule["ProgramArguments"][0] == str(paths.python_executable)
+    # The daily refresh holds the Mac awake until it exits.
+    assert data["ProgramArguments"][:4] == ["/usr/bin/caffeinate", "-i", "-s", str(paths.python_executable)]
 
 
 def test_upstream_dry_run_does_not_install_files(tmp_path):
