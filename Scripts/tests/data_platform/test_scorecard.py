@@ -127,3 +127,14 @@ def test_scorecard_runs_every_monday_morning_as_its_own_job(tmp_path):
     assert config["ProgramArguments"][-2:] == ["-m", "Scripts.ops.scorecard"]
     assert schedule.operate("install", paths, dry_run=True)["configuration"]["Label"] == schedule.LABEL
     assert not paths.plist_path.exists()
+
+
+def test_picks_are_split_by_the_prediction_changing_switches():
+    from data_platform.scorecard import engine_stage
+    assert engine_stage(None) == "defaults"  # before 17 Oct: no record, defaults
+    base = {"version": "engine-switches.v1", "DOCUMENT_STORE": "sqlite", "SPIX_COUNT_DISPERSION": "floors",
+            "SPIX_DEVIG_METHOD": "proportional"}
+    assert engine_stage({"engine_switches": base}) == "defaults"  # the store does not change predictions
+    staged = {**base, "SPIX_COUNT_DISPERSION": "fixed", "SPIX_DEVIG_METHOD": "power", "SPIX_MARKET_ANCHOR": "strict"}
+    assert engine_stage({"engine_switches": staged}) == (
+        "SPIX_COUNT_DISPERSION=fixed + SPIX_DEVIG_METHOD=power + SPIX_MARKET_ANCHOR=strict")

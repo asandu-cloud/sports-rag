@@ -62,6 +62,23 @@ def _week(kickoff):
     return f"{year}-W{week:02d}"
 
 
+# Switches that change predictions (A3.7 stages); DOCUMENT_STORE changes where documents are read, not
+# what is predicted (parity proven, D11), so it does not split the scorecard.
+STAGE_SWITCHES = {"SPIX_COUNT_DISPERSION": "floors", "SPIX_DEVIG_METHOD": "proportional", "SPIX_MARKET_ANCHOR": "off"}
+
+
+def engine_stage(tracking) -> str:
+    """The prediction-changing switches a pick was made with: "defaults", or e.g. "SPIX_DEVIG_METHOD=power".
+
+    Picks published before 17 Oct 2026 carry no record; no switch existed or was set then, so they ran
+    on the defaults.
+    """
+    switches = (tracking or {}).get("engine_switches") or {}
+    active = [f"{name}={switches[name]}" for name, default in STAGE_SWITCHES.items()
+              if switches.get(name) not in (None, default)]
+    return " + ".join(active) or "defaults"
+
+
 def record(row) -> dict:
     """The fields the scorecard needs from one published prediction row."""
     y, w = outcome_weight(row.get("outcome"))
@@ -73,6 +90,7 @@ def record(row) -> dict:
     return {
         "fixture": row.get("fixture_id"), "week": _week(row.get("kickoff")),
         "market": row.get("market"), "confidence": row.get("confidence") or "none",
+        "engine": engine_stage(row.get("tracking")),
         "y": y, "w": w, "p": _number(row.get("model_prob")), "market_p": market_p,
         "stake": accounting.stake_units if accounting and row.get("odds") else 0.0,
         "returned": accounting.returned_units if accounting and row.get("odds") else 0.0,
@@ -234,8 +252,10 @@ def build(rows, *, as_of=None, resamples=2000, seed=0, after_recommendation_id=N
     for kind in ("selections", "initial"):
         records = [record(r) for r in cohort(rows, kind)]
         groups = {"by_market": defaultdict(list), "by_confidence": defaultdict(list),
-                  "by_market_confidence": defaultdict(list), "by_week": defaultdict(list)}
+                  "by_market_confidence": defaultdict(list), "by_week": defaultdict(list),
+                  "by_engine": defaultdict(list)}
         for r in records:
+            groups["by_engine"][r["engine"]].append(r)
             groups["by_market"][r["market"]].append(r)
             groups["by_confidence"][r["confidence"]].append(r)
             groups["by_market_confidence"][f"{r['market']} · {r['confidence']}"].append(r)
@@ -321,4 +341,5 @@ def markdown(card) -> str:
         lines += ["### By confidence label", ""] + _table(c["by_confidence"]) + [""]
         lines += ["### By market and confidence", ""] + _table(c["by_market_confidence"]) + [""]
         lines += ["### By matchweek", ""] + _table(c["by_week"]) + [""]
+        lines += ["### By engine switches (rollout stage)", ""] + _table(c.get("by_engine") or {}) + [""]
     return "\n".join(lines)
