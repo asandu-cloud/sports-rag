@@ -91,6 +91,7 @@ class _Candidate:
     expected_value: float
     model_probability: float
     tags: frozenset[str]
+    market_priced: bool = False
 
 
 def compile_match_read(
@@ -128,7 +129,7 @@ def compile_match_read(
         for index, result in enumerate(snapshots)
         if _decision_status(result) == "recommended"
     ]
-    ranked = sorted(recommended, key=_ranking_key)
+    ranked = sorted(recommended, key=_market_value_key if _selection_policy(snapshots) == "market_value" else _ranking_key)
 
     if not ranked:
         status = _non_recommended_status(snapshots)
@@ -304,7 +305,32 @@ def _candidate_from_result(result_index: int, result: Mapping[str, Any]) -> _Can
         expected_value=expected_value,
         model_probability=probability,
         tags=frozenset(_candidate_tags(result, market_group, market_key, side)),
+        market_priced=_market_priced(result),
     )
+
+
+MARKET_SOURCES = {"market_consensus", "market_goal_model"}
+
+
+def _selection_policy(results: Sequence[Mapping[str, Any]]) -> str:
+    """The selection policy the results were made with (A3.7 stage 4, D33/D35), from their switch record."""
+    for result in results:
+        context = result.get("context") if isinstance(result.get("context"), Mapping) else {}
+        switches = context.get("engine_switches") if isinstance(context.get("engine_switches"), Mapping) else {}
+        if switches.get("SPIX_SELECTION_POLICY"):
+            return str(switches["SPIX_SELECTION_POLICY"])
+    return "legacy"
+
+
+def _market_priced(result: Mapping[str, Any]) -> bool:
+    """True when the recommended option's probability came from the market, not Spix."""
+    context = result.get("context") if isinstance(result.get("context"), Mapping) else {}
+    audit = context.get("decision_audit") if isinstance(context.get("decision_audit"), Mapping) else {}
+    for candidate in audit.get("candidates") or []:
+        if candidate.get("selector_selected") or candidate.get("reason") == "selector_selected":
+            option = candidate.get("option") or {}
+            return (option.get("_probability_source") or option.get("probability_source")) in MARKET_SOURCES
+    return False
 
 
 def _candidate_tags(
@@ -349,6 +375,17 @@ def _ranking_key(candidate: _Candidate) -> tuple[float, float, float, float, int
     return (
         -_CONFIDENCE_RANK.get(candidate.confidence, 0),
         -candidate.value_edge,
+        -candidate.expected_value,
+        -candidate.model_probability,
+        _MARKET_TIEBREAK_ORDER.get(candidate.market_group, 99),
+        candidate.result_index,
+    )
+
+
+def _market_value_key(candidate: _Candidate) -> tuple[int, float, float, int, int]:
+    """Market-priced picks first, by value against the market; Spix-priced picks after them (D35)."""
+    return (
+        0 if candidate.market_priced else 1,
         -candidate.expected_value,
         -candidate.model_probability,
         _MARKET_TIEBREAK_ORDER.get(candidate.market_group, 99),

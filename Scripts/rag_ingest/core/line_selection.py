@@ -40,9 +40,19 @@ except ImportError:
     )
 
 try:
-    from core import engine_switches
+    from core import bookmaker_sets, engine_switches
 except ImportError:
-    from Scripts.rag_ingest.core import engine_switches  # type: ignore[import]
+    from Scripts.rag_ingest.core import bookmaker_sets, engine_switches  # type: ignore[import]
+
+# A5.2 rule for market-priced lines (D33 (b), D35): value against the market at the quoted price.
+MARKET_VALUE_MIN_EV = 0.02
+
+
+def selection_policy() -> str:
+    """``market_value`` (A3.7 stage 4 bundle): market-priced lines are eligible when the line has a
+    two-sided market price, the bookmaker is in the active set and the value against the market is
+    at least 2%; no probability floor, no Spix-based filters; the best line is the highest value."""
+    return engine_switches.value("SPIX_SELECTION_POLICY")
 
 
 def _power_devig_enabled() -> bool:
@@ -201,13 +211,17 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
     anchor_record = None
     if anchor_points:
         anchor_record = {**market_anchor_record("strict"), "lines": {}}
-        for point in anchor_points:
+        every_line = anchor_points == "all"  # D35: corners at each line's consensus (no-push equivalent)
+        points = sorted({_pt for (_bm, _pt, _sd) in _fair_implied}) if every_line else anchor_points
+        for point in points:
             point = float(point)
             values = [p for (_bm, _pt, _sd), p in _fair_implied.items() if _sd == "over" and _pt == point]
-            if values and (point * 2) % 2 == 1:
+            if values and (every_line or (point * 2) % 2 == 1):
                 anchor_over[point] = statistics.median(values)
                 anchor_record["lines"][str(point)] = {"market_over": anchor_over[point], "books": len(values)}
 
+    market_value = selection_policy() == "market_value"
+    priced_points = {_pt for (_bm, _pt, _sd) in _fair_implied}
     best = None
     best_score = None
     best_value = None
@@ -282,6 +296,10 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
 
         score = (edge_term - proximity_penalty + odds_term - far_penalty
                  + prob_term - ev_penalty + model_prob_bonus)
+        if market_value and spix_p is not None:
+            eligible, score = bool(point in priced_points and ev >= MARKET_VALUE_MIN_EV), ev
+        if not bookmaker_sets.allowed(opt.get("bookmaker")):
+            eligible = False
 
         # Attach probability data for rendering
         opt["_model_prob"] = model_p
@@ -630,6 +648,8 @@ def select_best_spread_recommendation(
     def _get_sp_fair(bookmaker: str, point: float, team: str) -> Optional[float]:
         return _sp_fair_signed.get((bookmaker, point, team.lower().strip()))
 
+    market_value = selection_policy() == "market_value"
+    priced_lines = {(_pt, _tm) for (_bm, _pt, _tm) in _sp_fair_signed}
     best = None
     best_score = None
     best_value = None
@@ -702,6 +722,11 @@ def select_best_spread_recommendation(
             - proximity_term * 0.30
             - ev_penalty
         )
+        if market_value and spix_p is not None:
+            eligible = bool((point, team.lower().strip()) in priced_lines and ev >= MARKET_VALUE_MIN_EV)
+            score = ev
+        if not bookmaker_sets.allowed(opt.get("bookmaker")):
+            eligible = False
 
         opt["_model_prob"] = model_p
         opt["_implied_prob"] = implied_p
@@ -847,6 +872,10 @@ def select_best_btts_recommendation(options: List[Dict], p_btts_yes: float, *,
             and side == model_preferred_side
         )
 
+        if spix_p_yes is not None and selection_policy() == "market_value":
+            eligible, score = bool(_fair_implied and ev >= MARKET_VALUE_MIN_EV), ev
+        if not bookmaker_sets.allowed(opt.get("bookmaker")):
+            eligible = False
         opt["_model_prob"] = model_p
         if spix_p_yes is not None:  # A3.7 stage 4: p_btts_yes is the market goal model's; Spix's is kept
             opt["_probability_source"] = "market_goal_model"
@@ -1002,6 +1031,7 @@ def choose_best_moneyline_side(
         if s not in best_per_side or odds > safe_float(best_per_side[s].get("odds")):
             best_per_side[s] = {**entry, "side": s, "odds": odds}
 
+    market_value = spix_probs is not None and selection_policy() == "market_value"
     candidates: List[Dict] = []
     for side in ("home", "draw", "away"):
         entry: Dict = {
@@ -1018,21 +1048,29 @@ def choose_best_moneyline_side(
         if spix_probs is not None:
             entry["spix_prob"] = spix_probs[side]
             entry["probability_source"] = "market_consensus"
-        paired_quotes = [
-            quote
-            for bookmaker, sides in by_bookmaker.items()
-            for quote_side, quote in sides.items()
-            if quote_side == side and (bookmaker, side) in fair_by_bookmaker
-        ]
-        if paired_quotes:
-            bps = max(paired_quotes, key=lambda quote: quote["odds"])
-            fair_implied = fair_by_bookmaker[(_quote_identity(bps), side)]
-        elif side in best_per_side:
-            bps = best_per_side[side]
-            fair_implied = None
+        if market_value:
+            # The best price at an allowed bookmaker, valued against the market consensus.
+            quotes = [quote for sides in by_bookmaker.values() for quote_side, quote in sides.items()
+                      if quote_side == side and bookmaker_sets.allowed(quote.get("bookmaker"))]
+            bps = max(quotes, key=lambda quote: quote["odds"]) if quotes else None
+            fair_implied = fair_by_bookmaker.get((_quote_identity(bps), side)) if bps is not None else None
         else:
-            bps = None
-            fair_implied = None
+            paired_quotes = [
+                quote
+                for bookmaker, sides in by_bookmaker.items()
+                for quote_side, quote in sides.items()
+                if quote_side == side and (bookmaker, side) in fair_by_bookmaker
+                and bookmaker_sets.allowed(quote.get("bookmaker"))
+            ]
+            if paired_quotes:
+                bps = max(paired_quotes, key=lambda quote: quote["odds"])
+                fair_implied = fair_by_bookmaker[(_quote_identity(bps), side)]
+            elif side in best_per_side and bookmaker_sets.allowed(best_per_side[side].get("bookmaker")):
+                bps = best_per_side[side]
+                fair_implied = None
+            else:
+                bps = None
+                fair_implied = None
         if bps is not None:
             for key in ("market_key", "fixture_id", "period", "settlement_definition"):
                 entry[key] = bps.get(key)
@@ -1070,6 +1108,15 @@ def choose_best_moneyline_side(
         ve = c["value_edge"]
         ev_val = c["ev"]
         odds = c["best_odds"]
+
+        if market_value:
+            priced = odds is not None and ev_val is not None
+            c["_vig_adjusted_pair"] = c["fair_implied"] is not None
+            c["_eligible"] = bool(priced and ev_val >= MARKET_VALUE_MIN_EV)
+            c["_score"] = ev_val if priced else None
+            if c["_eligible"] and ev_val > best_score:
+                best_score, best = ev_val, c
+            continue
 
         if odds is None or ve is None or ev_val is None or c["fair_implied"] is None:
             c["_eligible"] = False

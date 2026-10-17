@@ -393,9 +393,14 @@ def _market_goal_model(event: Mapping[str, Any], home: str, away: str) -> Option
                                    extract_spread_line_options(payload), home, away)
 
 
-def _goal_model_record(fit: Optional[Dict[str, Any]], record: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    base = dict(record or market_anchor_record("goals"))
-    base["scope"] = "goals"
+GOAL_MODEL_SCOPES = ("goals", "full")       # stage 4: every goal market from M1 (D29); full adds corners (D35)
+ANCHORED_SCOPES = ("strict", "goals", "full")
+
+
+def _goal_model_record(fit: Optional[Dict[str, Any]], record: Optional[Dict[str, Any]] = None,
+                       scope: str = "goals") -> Dict[str, Any]:
+    base = dict(record or market_anchor_record(scope))
+    base["scope"] = scope
     base["goal_model"] = fit
     if fit is None:
         base["goal_model_status"] = "unidentified: the prices cannot identify both teams, Spix's probabilities kept"
@@ -532,19 +537,24 @@ def _evaluate_market(
         )
         decision = _unavailable("Insufficient profile data to project this market.")
         if value is not None:
-            scope = market_anchor_scope() if market_name == "goals" else "off"
-            anchor_kwargs: Dict[str, Any] = {"anchor_points": (2.5,)} if scope in ("strict", "goals") else {}
-            fit = _market_goal_model(event, home, away) if scope == "goals" else None
+            scope = market_anchor_scope()
+            goal_model = market_name == "goals" and scope in GOAL_MODEL_SCOPES
+            anchor_kwargs: Dict[str, Any] = {}
+            if market_name == "goals" and scope in ANCHORED_SCOPES:
+                anchor_kwargs["anchor_points"] = (2.5,)
+            if market_name == "corners" and scope == "full":
+                anchor_kwargs["anchor_points"] = "all"  # each corner line at its own market consensus (D35)
+            fit = _market_goal_model(event, home, away) if goal_model else None
             if fit is not None:
                 anchor_kwargs["market_count_probabilities"] = market_goal_model.total_probabilities(fit)
             selector_result = run_selector(result_context, select_best_total_recommendation, 
                 extract_total_line_options(dict(event), market_name), value, combined_variance,
                 count_probabilities=count_probabilities, **anchor_kwargs,
             )
-            if scope == "goals":
-                result_context["market_anchor"] = _goal_model_record(fit, selector_result.get("market_anchor"))
+            if goal_model:
+                result_context["market_anchor"] = _goal_model_record(fit, selector_result.get("market_anchor"), scope)
             elif selector_result.get("market_anchor"):
-                result_context["market_anchor"] = selector_result["market_anchor"]
+                result_context["market_anchor"] = {**selector_result["market_anchor"], "scope": scope}
             decision = _with_confidence(_quote_decision(selector_result, _requested_quote), market_name)
         decision = _apply_quality_guardrails(
             decision,
@@ -574,14 +584,15 @@ def _evaluate_market(
         )
         decision = _unavailable("Insufficient profile data to project BTTS.")
         if p_yes is not None:
-            fit = _market_goal_model(event, home, away) if market_anchor_scope() == "goals" else None
+            scope = market_anchor_scope()
+            fit = _market_goal_model(event, home, away) if scope in GOAL_MODEL_SCOPES else None
             if fit is not None:
                 selector_result = run_selector(result_context, select_best_btts_recommendation, extract_btts_odds(dict(event)),
                                                market_goal_model.btts_probability(fit), spix_p_yes=p_yes)
             else:
                 selector_result = run_selector(result_context, select_best_btts_recommendation, extract_btts_odds(dict(event)), p_yes)
-            if market_anchor_scope() == "goals":
-                result_context["market_anchor"] = _goal_model_record(fit)
+            if scope in GOAL_MODEL_SCOPES:
+                result_context["market_anchor"] = _goal_model_record(fit, scope=scope)
             decision = _with_confidence(_quote_decision(selector_result, _requested_quote), "goals")
             if decision.quote is not None:
                 decision = replace(decision, quote=replace(
@@ -619,11 +630,11 @@ def _evaluate_market(
             if not options:
                 decision = _unavailable("No market prices are available for this moneyline fixture.")
             else:
-                anchored = market_anchor_scope() in ("strict", "goals")
+                anchored = market_anchor_scope() in ANCHORED_SCOPES
                 selector_result = run_selector(result_context, choose_best_moneyline_side, p_home, p_draw, p_away, options, home, away,
                                                **({"anchor": True} if anchored else {}))
                 if selector_result.get("market_anchor"):
-                    result_context["market_anchor"] = selector_result["market_anchor"]
+                    result_context["market_anchor"] = {**selector_result["market_anchor"], "scope": market_anchor_scope()}
                 decision = _with_confidence(_quote_decision(selector_result, _requested_quote), "goals")
         decision = _apply_quality_guardrails(decision, result_context, "moneyline")
         decision = apply_release_policy(decision, result_context)
@@ -646,7 +657,8 @@ def _evaluate_market(
     )
     decision = _unavailable("Insufficient profile data to project the goal difference.")
     if projected_diff is not None:
-        fit = _market_goal_model(event, home, away) if market_anchor_scope() == "goals" else None
+        scope = market_anchor_scope()
+        fit = _market_goal_model(event, home, away) if scope in GOAL_MODEL_SCOPES else None
         market_kwargs = ({"market_score_probs": market_goal_model.score_probabilities(fit),
                           "market_diff": fit["home"] - fit["away"]} if fit is not None else {})
         selector_result = run_selector(result_context, select_best_spread_recommendation, 
@@ -654,8 +666,8 @@ def _evaluate_market(
             away_team=away, league=league, fixture_date=source_date,
             league_ctx=league_ctx, knockout_ctx=knockout_ctx, **market_kwargs,
         )
-        if market_anchor_scope() == "goals":
-            result_context["market_anchor"] = _goal_model_record(fit)
+        if scope in GOAL_MODEL_SCOPES:
+            result_context["market_anchor"] = _goal_model_record(fit, scope=scope)
         decision = _with_confidence(_quote_decision(selector_result, _requested_quote), "goals")
     decision = _apply_quality_guardrails(decision, result_context, "spreads")
     decision = apply_release_policy(decision, result_context)

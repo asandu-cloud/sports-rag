@@ -75,9 +75,9 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Scorecard splits picks by rollout stage: done 17 Oct (`scorecard.engine_stage`, section "By engine switches"; groups by the prediction-changing switches, so `DOCUMENT_STORE` does not split; picks before 17 Oct count as defaults) | Done | Read it at each stage's scorecard check |
 | Go-live of stage 2: set `SPIX_DEVIG_METHOD=power` (built 17 Oct, off). Golden preview with stage 1 off: no pick added or removed; 4 of 54 fixtures move a pick to a better-priced quote (3 corners, 1 goals; one corners line 9.25 → 9.5), one Asian handicap label medium → low; the fair probability shown changes on 293 results. Preview again on top of stage 1, then re-record (D16 rule 4) | A3.7 stage 2, Fri 23 Oct | Selection's four margin-removal sites (totals, handicap, BTTS, 1X2) use `data_platform/devig.power` when on |
 | Go-live of stage 3: set `SPIX_MARKET_ANCHOR=strict` (built 17 Oct, off). 1X2 and goals O/U 2.5 take the market's consensus (median across books of each book's fair price, with selection's margin removal, so it assumes stage 2 is live; 1X2 rescaled to sum to one); Spix's own probability kept as `_spix_prob` / `spix_prob` and a `market_anchor` record in the result context. Golden preview, stage 3 alone: all 7 1X2 picks in the 54 fixtures become no-bets (at the market's number no price clears the 1X2 thresholds); the only O/U 2.5 pick of 38 goals picks moves to over 2.75, still priced on Spix's numbers (strict scope; stage 4 closes that). Preview again on top of stages 1–2, then re-record (D16 rule 4) | A3.7 stage 3, Tue 27 Oct | Other goal lines, Asian handicap and BTTS stay on Spix's probability until stage 4 (D29) |
-| Go-live of stage 4: set `SPIX_MARKET_ANCHOR=goals` (built 17 Oct, off; `core/market_goal_model.py`). M1 is solved per read from the read's own prices (A3.2 targets: 1X2, O/U 2.5, the main Asian handicap; median of each book's fair price) and prices every goal line, the Asian handicap and BTTS; 1X2 and O/U 2.5 keep stage 3's direct consensus; line scoring and the handicap goal-edge rule use M1's means; Spix's probabilities kept (`_spix_prob`) and the fit recorded in `market_anchor.goal_model`. Golden preview (stages 1–2 off), recommended picks before → after: goals 38 → 5 (34 removed, 4 moved, 1 added), Asian handicap 47 → 3, BTTS 12 → 0, 1X2 7 → 0, corners 33 unchanged. D29 gate passed 17 Oct (D34); ships together with A5.2's selection rule for these markets (D33 (b)) | A3.7 stage 4, earliest Tue 3 Nov | Gate (D29): M1 beats Spix's log loss per market on the audited lines |
+| Go-live of stage 4 as a bundle (D33 (b), D35): `SPIX_MARKET_ANCHOR=full`, `SPIX_SELECTION_POLICY=market_value`, `SPIX_BOOKMAKER_SET=romania`, all built 17 Oct and off. The goal-market part (`SPIX_MARKET_ANCHOR=goals`, built 17 Oct, off; `core/market_goal_model.py`). M1 is solved per read from the read's own prices (A3.2 targets: 1X2, O/U 2.5, the main Asian handicap; median of each book's fair price) and prices every goal line, the Asian handicap and BTTS; 1X2 and O/U 2.5 keep stage 3's direct consensus; line scoring and the handicap goal-edge rule use M1's means; Spix's probabilities kept (`_spix_prob`) and the fit recorded in `market_anchor.goal_model`. Golden preview (stages 1–2 off), recommended picks before → after: goals 38 → 5 (34 removed, 4 moved, 1 added), Asian handicap 47 → 3, BTTS 12 → 0, 1X2 7 → 0, corners 33 unchanged. D29 gate passed 17 Oct (D34); ships together with A5.2's selection rule for these markets (D33 (b)) | A3.7 stage 4, earliest Tue 3 Nov | Gate (D29): M1 beats Spix's log loss per market on the audited lines |
 | Rerun the D29 gate (`python -m Scripts.ops.m1_gate_study --out Research/m1-gate-<date>`) with the weeks since 17 Oct | Before stage 4 goes live | Passed 17 Oct on one audited week (D34) |
-| Build the A5.2 rule for the anchored goal markets (price against the consensus at the best available price, one pick per market, three per fixture) to ship with stage 4 | Before stage 4, earliest Tue 3 Nov (D33 (b)) | Needs A5.3 to confirm the best prices were real |
+| Stage 4 bundle: A5.3 must confirm Betano's (and later Superbet's) best prices were really available; rerun the bundle preview on the weeks since 17 Oct; owner sets the published value threshold (2% tested; Romania volume in D35) | Before stage 4, earliest Tue 3 Nov | Built 17 Oct (D35) |
 | A5.3 first: are the best prices real? Quote age at the read (odds archive `source_age_seconds`), OddsPapi spot checks of the best-price book, exchange commission; then evidence-based labels | A5.3, next (D31) | Half the best-price books' quotes were unchanged or missing at the close (D31) |
 | Bookmaker sets per country: Romania first (D35); today's feed covers only Betano and Betfair for Romania | Stage 4 bundle (D35) | A third of A5.2's best prices came from books most European bettors cannot use |
 | Odds source for Romanian bookmakers (Superbet, Fortuna, Casa Pariurilor, Unibet, NetBet, MaxBet, WinBet, Mozzart): OddsPapi carries them; free plan too small for live picks | Owner (D35) | Without it, Romanian picks use Betano and Betfair only |
@@ -514,7 +514,35 @@ RO, WinBet RO, Mozzart, NetBet, Unibet, 888Sport and the Betfair Exchange. Its f
 cannot feed live picks.
 
 Consequence: until a source for Romanian bookmakers is added, Romanian members' picks can only use Betano and
-Betfair, on about half the fixtures. Owner decision needed: the odds source for Romanian bookmakers.
+Betfair. Owner decision needed: the odds source for Romanian bookmakers.
+
+*Update, same day.* Correction: across the whole odds archive (356 fixtures since 6 Oct) Betano is present for 324
+fixtures and Betfair for 306; the "about half" above came from a partial sample. The owner set the Romanian book list
+to **Betano and Superbet**. Superbet has no prices in our feed: none in any archived API-Football response since
+6 Oct or any closing snapshot; asking API-Football explicitly for bookmaker 34 on 10 upcoming fixtures returned
+none; the last Superbet prices were in a few UCL reads on 8–9 Sep. It counts as soon as a source provides it.
+
+**Stage 4 bundle built (17 Oct, all off).** `SPIX_MARKET_ANCHOR=full` adds corners at each line's consensus to
+stage 4; `SPIX_SELECTION_POLICY=market_value` applies the A5.2 rule to market-priced lines (eligible when the line
+has a two-sided market price, the bookmaker is in the active set and the value against the market is at least 2%;
+best line per market by value; the compiler ranks market-priced picks first by value, Spix-priced picks after);
+`SPIX_BOOKMAKER_SET=romania` (`core/bookmaker_sets.py`) publishes picks only at Betano and Superbet, while the
+consensus keeps every book. Golden preview with stages 1–4 on, recommended picks across 54 fixtures:
+
+| Market | Today | Bundle, all books | Bundle, Romania set |
+|---|---|---|---|
+| Goals | 38 | 9 | 2 |
+| Asian handicap | 47 | 20 | 0 |
+| Corners | 33 | 7 | 3 |
+| BTTS | 12 | 4 | 1 |
+| 1X2 | 7 | 3 | 0 |
+| Total | 137 | 43 | 6 |
+
+Betano prices every market in all 54 fixtures, so the thin Romanian card is not missing data: one soft bookmaker
+rarely beats the sharp consensus by 2% after its own margin. With Betano alone, the threshold sets the volume:
+6 picks on 5 fixtures at 2%, 17 on 14 at 1%, 31 on 23 at 0% ("at least a fair price"). Only the 2% rule was tested
+(A5.2, all books: 0% kept +2.5% at the close on 468 picks). Owner decisions before go-live: the Romanian odds
+source (more books, more value found) and the published threshold.
 
 ## Findings that shape later steps
 

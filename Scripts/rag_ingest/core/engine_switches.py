@@ -17,7 +17,10 @@ SWITCHES: Dict[str, tuple] = {
     "DOCUMENT_STORE": ("chroma", frozenset({"chroma", "sqlite"})),          # A2a
     "SPIX_COUNT_DISPERSION": ("floors", frozenset({"floors", "fixed"})),    # A3.5, stage 1
     "SPIX_DEVIG_METHOD": ("proportional", frozenset({"proportional", "power"})),  # A3.1 (D17), stage 2
-    "SPIX_MARKET_ANCHOR": ("off", frozenset({"off", "strict", "goals"})),   # D21/D26 stage 3; D29 stage 4
+    # D21/D26 stage 3 (strict); D29 stage 4 (goals); D35: full = goals plus corners at the line consensus.
+    "SPIX_MARKET_ANCHOR": ("off", frozenset({"off", "strict", "goals", "full"})),
+    "SPIX_SELECTION_POLICY": ("legacy", frozenset({"legacy", "market_value"})),  # D33 (b), D35: stage 4 bundle
+    "SPIX_BOOKMAKER_SET": ("all", frozenset({"all", "romania"})),              # D32, D35: picks only at these books
 }
 
 
