@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-17 (D34)
+Last updated: 2026-10-17 (D35)
 
 ## Status
 
@@ -79,7 +79,8 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Rerun the D29 gate (`python -m Scripts.ops.m1_gate_study --out Research/m1-gate-<date>`) with the weeks since 17 Oct | Before stage 4 goes live | Passed 17 Oct on one audited week (D34) |
 | Build the A5.2 rule for the anchored goal markets (price against the consensus at the best available price, one pick per market, three per fixture) to ship with stage 4 | Before stage 4, earliest Tue 3 Nov (D33 (b)) | Needs A5.3 to confirm the best prices were real |
 | A5.3 first: are the best prices real? Quote age at the read (odds archive `source_age_seconds`), OddsPapi spot checks of the best-price book, exchange commission; then evidence-based labels | A5.3, next (D31) | Half the best-price books' quotes were unchanged or missing at the close (D31) |
-| Bookmaker sets per country: the best price only from books a member can legally use, and the first country (owner) | A5.4 requirement (D32) | A third of A5.2's best prices came from books most European bettors cannot use |
+| Bookmaker sets per country: Romania first (D35); today's feed covers only Betano and Betfair for Romania | Stage 4 bundle (D35) | A third of A5.2's best prices came from books most European bettors cannot use |
+| Odds source for Romanian bookmakers (Superbet, Fortuna, Casa Pariurilor, Unibet, NetBet, MaxBet, WinBet, Mozzart): OddsPapi carries them; free plan too small for live picks | Owner (D35) | Without it, Romanian picks use Betano and Betfair only |
 | Red cards: the selector also outputs the bets to skip (prices below fair, boosts that are not, high-margin bet builders) | A5.4 (D32) | Part of the Daily Card |
 | Bet builder and combination pricing from the score model (correlated legs), anchored to the market | After A5, with the D25 expansion (D32) | Price Check and red cards need it |
 | Price Check for any single and the Ledger (member bet tracking, settlement, overpayment vs best price) | Product backlog after A5 (D32) | Web app work; reuses settlement and reference prices |
@@ -491,6 +492,29 @@ Pre-match reads alone pass in every market (−12.3%, −10.6%, −7.7%); lineup
 with wider intervals. M1 prices lines it was not fitted to as well as the bookmakers' own consensus on those
 lines, so the matrix extrapolates coherently. One audited week (9–15 Oct plus fixtures finished since); rerun
 before stage 4 goes live.
+
+**D35 — Stage 4 selection rule choices, and Romania's bookmaker gap (17 Oct).** Owner chose, for the
+market-priced markets in the stage 4 bundle:
+1. No minimum probability, as A5.2 tested.
+2. Drop the Spix-based filters: the edge against the quoting book's own fair price, and the handicap minimum goal edge.
+3. Rank picks within a fixture by value against the market, and price corners against the market in the same bundle.
+4. First country: **Romania**. Picks only at bookmakers a Romanian bettor can legally use; the consensus keeps
+   every book (more books, sharper consensus).
+
+Finding (ONJN register of Class I licensees, onjn.gov.ro/licentiati-clasa-i, fetched 17 Oct). Of the 10 bookmakers
+in our API-Football feed, only **Betano** (ro.betano.com) and **Betfair** (betfair.ro, sportsbook and exchange) are
+licensed in Romania. Bet365's rights were annulled in 2015. Pinnacle, William Hill, BetVictor, Marathonbet, 1xBet,
+Dafabet and SBO are not on the register.
+
+API-Football's catalogue includes Superbet, Unibet, NetBet and 888Sport, but none of them appeared in its odds for
+our fixtures since 16 Oct (raw archive). Betano appeared for 176 and Betfair for 159 of about 335 fixtures.
+
+OddsPapi lists Superbet RO, Fortuna RO, Casa Pariurilor RO, Betano RO (marked as a clone of Betano's feed), MaxBet
+RO, WinBet RO, Mozzart, NetBet, Unibet, 888Sport and the Betfair Exchange. Its free plan (250 requests a month)
+cannot feed live picks.
+
+Consequence: until a source for Romanian bookmakers is added, Romanian members' picks can only use Betano and
+Betfair, on about half the fixtures. Owner decision needed: the odds source for Romanian bookmakers.
 
 ## Findings that shape later steps
 
