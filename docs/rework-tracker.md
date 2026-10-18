@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-17 (D36)
+Last updated: 2026-10-18 (D36)
 
 ## Status
 
@@ -83,7 +83,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Fair-price card output: per fixture the main lines with fair probability, fair odds and minimum odds worth taking (fair × 1.02), Spix's take beside it | Next build (D36) | Romania launch format |
 | Headline rule for the fair-price card (market decisiveness, line movement since opening, or other) | Owner, with the card build (D36) | Value cannot rank angles without bookmaker prices |
 | Odds source for Romanian bookmakers (Superbet, Fortuna, Casa Pariurilor, Unibet, NetBet, MaxBet, WinBet, Mozzart, Betano): OddsPapi carries them; free plan too small for live picks | After launch (owner, 17 Oct: a paid source is too expensive before launch) | Since 16 Oct API-Football sends no Romanian-licensed bookmaker (Betano and Betfair dropped) |
-| Ask API-Football support why Betano, Betfair, SBO and Dafabet stopped on 16 Oct and Superbet and Unibet after 8 Sep, and whether they return | Owner, now | Ultra plan customer; provider-side change |
+| API-Football support: Superbet and Unibet answered 18 Oct (discontinued for /odds since ~Sep 2026); still open: why Betano, Betfair, SBO and Dafabet stopped on 16 Oct and whether they return | Owner | Still absent on 18 Oct |
 | Monitor bookmaker coverage: a daily count per bookmaker from the odds archive, with an alert when one falls by more than half against the previous week | Next ops pass | The 16 Oct drop went unnoticed for a day |
 | Red cards: the selector also outputs the bets to skip (prices below fair, boosts that are not, high-margin bet builders) | A5.4 (D32) | Part of the Daily Card |
 | Bet builder and combination pricing from the score model (correlated legs), anchored to the market | After A5, with the D25 expansion (D32) | Price Check and red cards need it |
@@ -539,6 +539,14 @@ the feed carries no Romanian-licensed bookmaker; the bundle preview above uses 1
 present; A5.2's best prices (Betano in 156 of 300 picks) are no longer flowing. Owner actions: ask API-Football
 support whether Betano, Betfair, Superbet and Unibet coverage is coming back; the second odds source (OddsPapi)
 becomes a dependency for Romania, not an option.
+
+*Update, 18 Oct.* **API-Football support confirmed** that Superbet (34) and Unibet (16) coverage was discontinued
+for the /odds endpoint across all our competitions (EPL, La Liga, Serie A, Bundesliga, Ligue 1, Championship,
+Eredivisie, Primeira Liga, Belgian Pro League, Süper Lig, UCL, UEL, UECL) from about September 2026; both stay listed
+in /odds/bookmakers without returning fixture data. So the catalogue does not show what is actually covered, and
+Superbet prices for Romania need another source (after launch, D36). Betano, Betfair, SBO and Dafabet: still absent
+at 10:26 UTC on 18 Oct (Betano 0, Betfair 0 in that day's captures; 16 and 20 on 17 Oct); support's answer on
+these four is pending.
 
 **Stage 4 bundle built (17 Oct, all off).** `SPIX_MARKET_ANCHOR=full` adds corners at each line's consensus to
 stage 4; `SPIX_SELECTION_POLICY=market_value` applies the A5.2 rule to market-priced lines (eligible when the line
