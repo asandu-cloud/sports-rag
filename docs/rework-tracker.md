@@ -80,7 +80,8 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Stage 4 bundle: A5.3 must confirm Betano's (and later Superbet's) best prices were really available; rerun the bundle preview on the weeks since 17 Oct; owner sets the published value threshold (2% tested; Romania volume in D35) | Before stage 4, earliest Tue 3 Nov | Built 17 Oct (D35) |
 | A5.3 first: are the best prices real? Quote age at the read (odds archive `source_age_seconds`), OddsPapi spot checks of the best-price book, exchange commission; then evidence-based labels | A5.3, next (D31) | Half the best-price books' quotes were unchanged or missing at the close (D31) |
 | Bookmaker sets per country: Romania first (D35); built, off. Used once Romanian prices are available (D36) | After Romanian prices exist | Since 16 Oct the feed has no Romanian-licensed bookmaker |
-| Ask OddsPapi in writing whether free-plan prices may be shown inside Spix (pre-launch, not resold) | Owner | Free Romanian prices found 19 Oct (D36) |
+| Ask ONJN in writing whether a subscription analysis service that names no bookmaker and takes no commission needs a Class II licence; and whether analysis content counts as gambling promotion under the pending 06:00–24:00 bill | Owner, before launch | Applies to every launch option in Romania |
+| OddsPapi (parked until paying users, owner 19 Oct): free-plan check of showing prices inside Spix | After paying users | Free Romanian prices found 19 Oct (D36) |
 | Romanian prices on the card from OddsPapi's free endpoint (fixture mapping exists in `pinnacle_check`; market-id mapping for O/U, handicap, BTTS, corners to build) | After the card, if OddsPapi agrees | Within the free allowance (~50 billable a month) |
 | Fair-price card output: per fixture the main lines with fair probability, fair odds and minimum odds worth taking (fair × 1.02), Spix's take beside it | Next build (D36) | Romania launch format |
 | Headline rule for the fair-price card (market decisiveness, line movement since opening, or other) | Owner, with the card build (D36) | Value cannot rank angles without bookmaker prices |
@@ -534,9 +535,9 @@ fixtures captured from 14 Oct to 16 Oct 15:00 UTC (213 fixtures) versus since (1
 Betano 3,042 → 92, Betfair 2,889 → 97, SBO 2,670 → 54, Dafabet 2,582 → 60; Bet365, Pinnacle, 1xBet, William Hill,
 Marathonbet and BetVictor are unchanged. For the 54 golden fixtures Betano went 54 → 43 → 4 → 0 within six hours
 and has not returned. Published picks priced at Betano fell from 62–240 a day (6–15 Oct) to 17 on 16 Oct and
-fewer than 10 on 17 Oct. Superbet and Unibet also came from API-Football earlier (the April picks priced there were
-mostly corners, SoT and cards, markets only API-Football supplies; the 8 Sep Superbet quote was a corners line),
-not from the Odds API (added 8 Feb, removed 9 Sep 2026), and stopped appearing after 8 Sep. Consequences: today
+fewer than 10 on 17 Oct. Superbet and Unibet also came from API-Football earlier, which its support confirmed on 18 Oct
+(coverage discontinued from about September 2026); the 8 Sep Superbet quote carries our API-Football corners key
+(`totals_corners_over_under`). The Odds API (added 8 Feb, removed 9 Sep 2026) is not needed to explain them. Consequences: today
 the feed carries no Romanian-licensed bookmaker; the bundle preview above uses 15 Oct prices, when Betano was
 present; A5.2's best prices (Betano in 156 of 300 picks) are no longer flowing. Owner actions: ask API-Football
 support whether Betano, Betfair, Superbet and Unibet coverage is coming back; the second odds source (OddsPapi)
@@ -598,6 +599,17 @@ and red cards ("don't take this below 1.70"). Spix's own take is shown beside th
   the card ("Superbet has it at X"), after OddsPapi confirms in writing that showing prices in Spix is allowed.
 
 ## Findings that shape later steps
+
+- **Switching launch country does not fix the bookmaker gap (19 Oct).** Stage 4 bundle on the 54 golden fixtures
+  (15 Oct prices), value picks with only each country's licensed bookmakers from our feed: Romania today 0, Romania
+  if Betano returns 6, UK (Bet365, William Hill, BetVictor; all active on the UKGC register, accounts 55148, 39225,
+  39576) 5, Spain or Italy (Bet365, William Hill; third-party lists) 5, Germany (Bet365; third-party) 5, every book
+  43. All five UK picks are at Bet365. The 43 come from 1xBet 17, Pinnacle 13, Betano 6, Betfair 3, SBO 2,
+  Bet365 2. Since the 16 Oct drop all 204 fixtures have at least two bookmakers (median six, Pinnacle in 177), so a
+  fair price is always available. Italy's Dignity Decree bans nearly all gambling advertising. Romania: affiliates
+  need an ONJN Class II licence (ONJN filed a criminal complaint against one in March 2026), and a Senate-passed bill
+  would ban online gambling-promoting content from 06:00 to 24:00 (Chamber status unknown). Report:
+  https://claude.ai/artifact/PjF3wM3TvL1G4nPoe3tjRy. It confirms D36.
 
 - **Goal means run low (16 Oct).** Spix projected 2.82 goals per match against 3.16 scored over 321
   finished fixtures since 5 Sep, and 2.68 against 3.28 in the audited week of 9–15 Oct. That week was
