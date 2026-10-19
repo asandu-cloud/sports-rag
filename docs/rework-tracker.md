@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-19 (D36)
+Last updated: 2026-10-19 (D37)
 
 ## Status
 
@@ -83,7 +83,8 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Ask ONJN in writing whether a subscription analysis service that names no bookmaker and takes no commission needs a Class II licence; and whether analysis content counts as gambling promotion under the pending 06:00–24:00 bill | Owner, before launch | Applies to every launch option in Romania |
 | OddsPapi (parked until paying users, owner 19 Oct): free-plan check of showing prices inside Spix | After paying users | Free Romanian prices found 19 Oct (D36) |
 | Romanian prices on the card from OddsPapi's free endpoint (fixture mapping exists in `pinnacle_check`; market-id mapping for O/U, handicap, BTTS, corners to build) | After the card, if OddsPapi agrees | Within the free allowance (~50 billable a month) |
-| Fair-price card output: per fixture the main lines with fair probability, fair odds and minimum odds worth taking (fair × 1.02), Spix's take beside it | Next build (D36) | Romania launch format |
+| Fair-price card output: per fixture the main lines with fair probability, fair odds and minimum odds worth taking (fair × 1.02), Spix's take beside it; member-facing text in English with a Romanian translation ready to switch on | Next build (D36, D37) | EU-wide launch format |
+| EU VAT on subscriptions (One-Stop-Shop, per-country rates) and euro pricing in Stripe; entry-tier price | Owner, before launch (D37) | Selling across the EU |
 | Headline rule for the fair-price card (market decisiveness, line movement since opening, or other) | Owner, with the card build (D36) | Value cannot rank angles without bookmaker prices |
 | Odds source for Romanian bookmakers (Superbet, Fortuna, Casa Pariurilor, Unibet, NetBet, MaxBet, WinBet, Mozzart, Betano): OddsPapi carries them; free plan too small for live picks | After launch (owner, 17 Oct: a paid source is too expensive before launch) | Since 16 Oct API-Football sends no Romanian-licensed bookmaker (Betano and Betfair dropped) |
 | API-Football support: Superbet and Unibet answered 18 Oct (discontinued for /odds since ~Sep 2026); still open: why Betano, Betfair, SBO and Dafabet stopped on 16 Oct and whether they return | Owner | Still absent on 18 Oct |
@@ -597,6 +598,20 @@ and red cards ("don't take this below 1.70"). Spix's own take is shown beside th
   or redistribution as a standalone product; access can be ended at any time without notice; nothing on free-plan
   or commercial use. The Odds API has no Romanian bookmakers in any region (checked 19 Oct). Candidate add-on to
   the card ("Superbet has it at X"), after OddsPapi confirms in writing that showing prices in Spix is allowed.
+
+**D37 — Launch EU-wide in English; build the Romanian version alongside (19 Oct, owner).** The fair-odds card (D36)
+needs no country's bookmaker prices, so Spix launches across Europe rather than in Romania alone, in the manner of
+Numbers Game (English, Europe-wide, Discord, tiers), but selling the real chance and fair price with a public
+calibration record instead of a hit rate.
+- *Language:* English only in production. The Romanian version is built as we go (all member-facing text and card
+  output written so a second language can be switched on) and released later.
+- *Coverage:* our 13 competitions (top 5, Championship, Eredivisie, Primeira Liga, Belgian Pro League, Süper Lig,
+  UCL, UEL, UECL); every fixture has a fair price.
+- *Rules from day one, every country:* name or link no bookmaker; no affiliate deals; no hit-rate or profit claims;
+  18+ and "you can lose your stake" messaging; no paid advertising aimed at Italy (Dignity Decree); UK marketing
+  follows the ASA's tipster guidance; the ONJN questions stay open for the Romanian release.
+- *Business:* prices in euros; EU VAT charged at each customer's country rate through the One-Stop-Shop (Stripe can
+  calculate it); a lower-priced entry tier is the owner's call (Numbers Game's starts at £3.99 a month).
 
 ## Findings that shape later steps
 
