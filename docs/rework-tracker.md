@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-18 (D36)
+Last updated: 2026-10-19 (D36)
 
 ## Status
 
@@ -80,6 +80,8 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Stage 4 bundle: A5.3 must confirm Betano's (and later Superbet's) best prices were really available; rerun the bundle preview on the weeks since 17 Oct; owner sets the published value threshold (2% tested; Romania volume in D35) | Before stage 4, earliest Tue 3 Nov | Built 17 Oct (D35) |
 | A5.3 first: are the best prices real? Quote age at the read (odds archive `source_age_seconds`), OddsPapi spot checks of the best-price book, exchange commission; then evidence-based labels | A5.3, next (D31) | Half the best-price books' quotes were unchanged or missing at the close (D31) |
 | Bookmaker sets per country: Romania first (D35); built, off. Used once Romanian prices are available (D36) | After Romanian prices exist | Since 16 Oct the feed has no Romanian-licensed bookmaker |
+| Ask OddsPapi in writing whether free-plan prices may be shown inside Spix (pre-launch, not resold) | Owner | Free Romanian prices found 19 Oct (D36) |
+| Romanian prices on the card from OddsPapi's free endpoint (fixture mapping exists in `pinnacle_check`; market-id mapping for O/U, handicap, BTTS, corners to build) | After the card, if OddsPapi agrees | Within the free allowance (~50 billable a month) |
 | Fair-price card output: per fixture the main lines with fair probability, fair odds and minimum odds worth taking (fair × 1.02), Spix's take beside it | Next build (D36) | Romania launch format |
 | Headline rule for the fair-price card (market decisiveness, line movement since opening, or other) | Owner, with the card build (D36) | Value cannot rank angles without bookmaker prices |
 | Odds source for Romanian bookmakers (Superbet, Fortuna, Casa Pariurilor, Unibet, NetBet, MaxBet, WinBet, Mozzart, Betano): OddsPapi carries them; free plan too small for live picks | After launch (owner, 17 Oct: a paid source is too expensive before launch) | Since 16 Oct API-Football sends no Romanian-licensed bookmaker (Betano and Betfair dropped) |
@@ -586,6 +588,14 @@ and red cards ("don't take this below 1.70"). Spix's own take is shown beside th
   cannot rank them; candidates are how decisive the market is, or how far it moved since opening); Price Check
   for singles.
 - *Trade-off accepted:* the card says what a bet is worth, not where to place it.
+- *Free source for Romanian prices found (19 Oct).* OddsPapi's free `/v4/historical-odds` (not billed; up to 3
+  bookmakers per call, 5 s cooldown) returned live Romanian prices for UCL Fenerbahçe v Slavia Prague (20 Oct):
+  Superbet RO 299 markets, last change 2 min before the call; Casa Pariurilor 122 markets, 10 min; Betano RO 215
+  markets, 3 h. Finding OddsPapi's fixture ids costs 1 billable request per competition and date window (14 of 250
+  used), so a weekly fixture list for 12 competitions is about 50 a month. Terms (oddspapi.io/legal/terms): no resale
+  or redistribution as a standalone product; access can be ended at any time without notice; nothing on free-plan
+  or commercial use. The Odds API has no Romanian bookmakers in any region (checked 19 Oct). Candidate add-on to
+  the card ("Superbet has it at X"), after OddsPapi confirms in writing that showing prices in Spix is allowed.
 
 ## Findings that shape later steps
 
