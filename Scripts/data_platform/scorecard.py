@@ -34,7 +34,7 @@ from .outcomes import outcome_accounting
 MIN_SETTLED = 30      # below this a slice shows counts only
 MIN_WEEKS = 8         # matchweek bootstrap needs at least this many weeks
 EPS = 1e-6
-INTERVAL_METRICS = ("win_rate_minus_stated", "log_loss_gap", "price_clv", "fair_clv", "roi")
+INTERVAL_METRICS = ("win_rate_minus_stated", "log_loss_gap", "price_clv", "fair_clv", "true_close_value", "roi")
 
 
 def outcome_weight(outcome):
@@ -87,6 +87,10 @@ def record(row) -> dict:
     market_p = _number(reference.get("fair_probability")) if reference.get("status") == "available" else None
     capture = row.get("closing_capture") or {}
     close_p = _number((capture.get("consensus") or {}).get("fair_probability")) if capture.get("status") == "final" else None
+    true = row.get("true_close") or {}
+    true = true if true.get("status") == "final" else {}
+    true_p = _number((true.get("consensus") or {}).get("fair_probability_power"))
+    own_close, odds = _number((true.get("same_book") or {}).get("odds")), _number(row.get("odds"))
     return {
         "fixture": row.get("fixture_id"), "week": _week(row.get("kickoff")),
         "market": row.get("market"), "confidence": row.get("confidence") or "none",
@@ -97,6 +101,10 @@ def record(row) -> dict:
         "price_clv": _number(row.get("clv")),
         "fair_clv": close_p / market_p - 1 if close_p and market_p else None,
         "closing_minutes": _number(capture.get("minutes_before_kickoff")),
+        # D18: OddsPapi's true close. Value = odds taken x Pinnacle's last pre-kickoff probability (power) - 1;
+        # true price CLV = odds taken over the same bookmaker's own last pre-kickoff price - 1.
+        "true_close_value": odds * true_p - 1 if odds and true_p else None,
+        "true_price_clv": odds / own_close - 1 if odds and own_close else None,
     }
 
 
@@ -175,6 +183,7 @@ def _core(records):
         "log_loss_gap": gap,
         "price_clv": _mean(r["price_clv"] for r in records),
         "fair_clv": _mean(r["fair_clv"] for r in records),
+        "true_close_value": _mean(r["true_close_value"] for r in records),
         "roi": (sum(r["returned"] for r in records) - stake) / stake if stake else None,
     }
 
@@ -208,6 +217,9 @@ def metrics(records) -> dict:
         "price_clv": core["price_clv"], "price_clv_positive": sum(v > 0 for v in price) / len(price) if price else None,
         "fair_clv": core["fair_clv"], "fair_clv_positive": sum(v > 0 for v in fair) / len(fair) if fair else None,
         "closing_minutes_median": statistics.median(minutes) if minutes else None,
+        "true_close_value": core["true_close_value"],
+        "true_close_count": sum(r["true_close_value"] is not None for r in records),
+        "true_price_clv": _mean(r["true_price_clv"] for r in records),
         "roi": core["roi"], "stake_units": sum(r["stake"] for r in records),
     }
 
@@ -275,7 +287,9 @@ COHORT_TITLES = {"selections": "Each selection once (first publication)",
 COLUMNS = [("Published", "published", "n"), ("Settled", "settled", "n"), ("Win rate", "win_rate", "pct"),
            ("Spix said", "stated", "pct"), ("Market said", "market", "pct"),
            ("Log-loss gap", "log_loss_gap", "num"), ("Calib. slope", "calibration_slope", "num"),
-           ("Price CLV", "price_clv", "pct"), ("Fair CLV", "fair_clv", "pct"), ("Return", "roi", "pct")]
+           ("Price CLV", "price_clv", "pct"), ("Fair CLV", "fair_clv", "pct"),
+           ("Value at true close", "true_close_value", "pct"), ("True price CLV", "true_price_clv", "pct"),
+           ("Return", "roi", "pct")]
 
 
 def _fmt(value, kind):
@@ -323,6 +337,9 @@ def markdown(card) -> str:
              "**Fair CLV**: market fair probability at close over at publication, minus 1 (positive means the market moved toward the pick).",
              f"- Closing = API-Football's final pre-kickoff snapshot (median "
              f"{_minutes(card['cohorts']['selections']['overall'].get('closing_minutes_median'))} before kickoff).",
+             "- **Value at true close**: odds taken times Pinnacle's last pre-kickoff probability (OddsPapi history, "
+             "margin removed by the power method), minus 1. **True price CLV**: odds taken over the same bookmaker's own "
+             "last pre-kickoff price, minus 1 (where OddsPapi carries it).",
              ""]
     for kind, title in COHORT_TITLES.items():
         c = card["cohorts"][kind]
@@ -336,6 +353,9 @@ def markdown(card) -> str:
                       f"- Log-loss gap {_fmt(o['log_loss_gap'], 'num')}{_interval(iv['log_loss_gap'], 'num')}",
                       f"- Fair CLV {_fmt(o['fair_clv'], 'pct')}{_interval(iv['fair_clv'], 'pct')}; "
                       f"price CLV {_fmt(o['price_clv'], 'pct')}{_interval(iv['price_clv'], 'pct')}",
+                      f"- Value at true close {_fmt(o.get('true_close_value'), 'pct')}"
+                      f"{_interval(iv.get('true_close_value'), 'pct')} on {o.get('true_close_count', 0)} picks; "
+                      f"true price CLV {_fmt(o.get('true_price_clv'), 'pct')}",
                       f"- Return {_fmt(o['roi'], 'pct')}{_interval(iv['roi'], 'pct')} on {o['stake_units']:.0f} units", ""]
         lines += ["### Overall and by market", ""] + _table({"All": o, **c["by_market"]}) + [""]
         lines += ["### By confidence label", ""] + _table(c["by_confidence"]) + [""]

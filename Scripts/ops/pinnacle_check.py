@@ -22,74 +22,20 @@ from __future__ import annotations
 import argparse
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-import difflib
 import gzip
-import hashlib
 import json
 import os
 from pathlib import Path
-import re
 import sqlite3
 import statistics
-import time
 
-import requests
-
+from Scripts.data_platform import oddspapi
+from Scripts.data_platform.oddspapi import (  # noqa: F401  (re-exported)
+    BudgetExceeded, OddsPapiClient, match_fixtures, utc as _utc)
 from Scripts.ops.odds_archive import ROOT
 
-BASE = "https://api.oddspapi.io"
-CACHE = ROOT / "Index/oddspapi"
-FREE = {"/v4/historical-odds", "/v4/account"}
-COOLDOWN = {"/v4/fixtures": 2.1, "/v4/historical-odds": 5.1}
 MARKETS = {"winner": ("101", ("101", "102", "103"))}
-TOURNAMENTS = {"EPL": 17, "LaLiga": 8, "SerieA": 23, "Bundesliga": 35, "Ligue1": 34, "Championship": 18,
-               "Eredivisie": 37, "PrimeiraLiga": 238, "BelgianProLeague": 38, "UCL": 7, "UEL": 679, "UECL": 34480}
-NOISE = {"fc", "afc", "cf", "sc", "ac", "ssc", "as", "cd", "ud", "rc", "sv", "vfb", "vfl", "tsg", "fsv", "bc",
-         "sk", "fk", "the", "club", "de", "calcio", "1"}
-
-
-class BudgetExceeded(RuntimeError):
-    pass
-
-
-def _utc(text):
-    return datetime.fromisoformat(str(text).replace("Z", "+00:00"))
-
-
-class OddsPapiClient:
-    """Cached, cooldown-respecting, budget-capped OddsPapi client."""
-
-    def __init__(self, key, cache_dir=CACHE, *, budget=40, session=None, sleep=time.sleep, clock=time.monotonic):
-        self.key, self.cache = key, Path(cache_dir)
-        self.cache.mkdir(parents=True, exist_ok=True)
-        self.budget, self.session, self.sleep, self.clock = budget, session or requests.Session(), sleep, clock
-        self._last = {}
-
-    def _usage(self):
-        path = self.cache / "usage.json"
-        return json.loads(path.read_text()) if path.exists() else {"billable": 0}
-
-    def get(self, path, **params):
-        name = hashlib.sha1(json.dumps([path, params], sort_keys=True).encode()).hexdigest()[:20]
-        cached = self.cache / f"{name}.json"
-        if cached.exists():
-            return json.loads(cached.read_text())["body"]
-        billable = path not in FREE
-        usage = self._usage()
-        if billable and usage["billable"] >= self.budget:
-            raise BudgetExceeded(f"OddsPapi budget of {self.budget} billable requests reached")
-        wait = COOLDOWN.get(path, 1.1) - (self.clock() - self._last.get(path, -1e9))
-        if wait > 0:
-            self.sleep(wait)
-        response = self.session.get(BASE + path, params={**params, "apiKey": self.key}, timeout=60)
-        self._last[path] = self.clock()
-        if billable:
-            usage["billable"] += 1
-            (self.cache / "usage.json").write_text(json.dumps(usage))
-        body = response.json()
-        if response.status_code == 200:
-            cached.write_text(json.dumps({"path": path, "params": params, "body": body}))
-        return body
+TOURNAMENTS = oddspapi.TOURNAMENTS
 
 
 def timeline(body, bookmaker, market, *, kickoff):
@@ -150,27 +96,6 @@ def compare(our_prices, states, moment):
             lag = 0.0 if i == index else (moment - states[i + 1][0]).total_seconds() / 60
             break
     return {"gap_pts": gap, "lag_minutes": lag, "pinnacle": current[1]}
-
-
-def _tokens(name):
-    words = re.sub(r"[^a-z0-9 ]", " ", str(name).lower().replace("ü", "u").replace("ö", "o").replace("é", "e")).split()
-    return {w for w in words if w not in NOISE}
-
-
-def _names_match(a, b):
-    ta, tb = _tokens(a), _tokens(b)
-    return bool(ta & tb) or difflib.SequenceMatcher(None, " ".join(sorted(ta)), " ".join(sorted(tb))).ratio() >= 0.75
-
-
-def match_fixtures(ours, theirs, *, window=timedelta(minutes=20)):
-    """{our fixture id: OddsPapi fixtureId} by kickoff time and both team names."""
-    mapping = {}
-    for fixture in ours:
-        hits = [t for t in theirs if abs(_utc(t["startTime"]) - fixture["kickoff"]) <= window
-                and _names_match(fixture["home"], t["participant1Name"]) and _names_match(fixture["away"], t["participant2Name"])]
-        if len(hits) == 1:
-            mapping[fixture["fixture_id"]] = hits[0]["fixtureId"]
-    return mapping
 
 
 # --- the study ----------------------------------------------------------------------------------

@@ -138,3 +138,17 @@ def test_picks_are_split_by_the_prediction_changing_switches():
     staged = {**base, "SPIX_COUNT_DISPERSION": "fixed", "SPIX_DEVIG_METHOD": "power", "SPIX_MARKET_ANCHOR": "strict"}
     assert engine_stage({"engine_switches": staged}) == (
         "SPIX_COUNT_DISPERSION=fixed + SPIX_DEVIG_METHOD=power + SPIX_MARKET_ANCHOR=strict")
+
+
+def test_true_close_value_and_price_clv_come_from_oddspapis_history():
+    final = row(1, odds=2.1)
+    final["true_close"] = {"status": "final", "consensus": {"fair_probability_power": 0.5},
+                           "same_book": {"odds": 2.0}}
+    missing = row(2, odds=2.1)
+    missing["true_close"] = {"status": "unavailable", "reason": "line_not_in_history"}
+    records = [sc.record(final), sc.record(missing), sc.record(row(3))]
+    assert records[0]["true_close_value"] == pytest.approx(2.1 * 0.5 - 1)
+    assert records[0]["true_price_clv"] == pytest.approx(2.1 / 2.0 - 1)
+    assert records[1]["true_close_value"] is None and records[2]["true_price_clv"] is None
+    m = sc.metrics(records)
+    assert m["true_close_value"] == pytest.approx(0.05) and m["true_close_count"] == 1
