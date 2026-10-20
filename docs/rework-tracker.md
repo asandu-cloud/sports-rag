@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-19 (D37)
+Last updated: 2026-10-20 (D38)
 
 ## Status
 
@@ -85,6 +85,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Romanian prices on the card from OddsPapi's free endpoint (fixture mapping exists in `pinnacle_check`; market-id mapping for O/U, handicap, BTTS, corners to build) | After the card, if OddsPapi agrees | Within the free allowance (~50 billable a month) |
 | Fair-price card output: per fixture the main lines with fair probability, fair odds and minimum odds worth taking (fair × 1.02), Spix's take beside it; member-facing text in English with a Romanian translation ready to switch on | Next build (D36, D37) | EU-wide launch format |
 | EU VAT on subscriptions (One-Stop-Shop, per-country rates) and euro pricing in Stripe; entry-tier price | Owner, before launch (D37) | Selling across the EU |
+| Price list on the card from bookmakers licensed in the reader's country: reader country at sign-up or as a Discord role; per-country bookmaker lists confirmed on each regulator's register (UK done); a "checked at" time on every price | Card build, after A5.3 (D38) | Replaces the single engine-wide `SPIX_BOOKMAKER_SET` for display |
 | Headline rule for the fair-price card (market decisiveness, line movement since opening, or other) | Owner, with the card build (D36) | Value cannot rank angles without bookmaker prices |
 | Odds source for Romanian bookmakers (Superbet, Fortuna, Casa Pariurilor, Unibet, NetBet, MaxBet, WinBet, Mozzart, Betano): OddsPapi carries them; free plan too small for live picks | After launch (owner, 17 Oct: a paid source is too expensive before launch) | Since 16 Oct API-Football sends no Romanian-licensed bookmaker (Betano and Betfair dropped) |
 | API-Football support: Superbet and Unibet answered 18 Oct (discontinued for /odds since ~Sep 2026); still open: why Betano, Betfair, SBO and Dafabet stopped on 16 Oct and whether they return | Owner | Still absent on 18 Oct |
@@ -607,11 +608,26 @@ calibration record instead of a hit rate.
   output written so a second language can be switched on) and released later.
 - *Coverage:* our 13 competitions (top 5, Championship, Eredivisie, Primeira Liga, Belgian Pro League, Süper Lig,
   UCL, UEL, UECL); every fixture has a fair price.
-- *Rules from day one, every country:* name or link no bookmaker; no affiliate deals; no hit-rate or profit claims;
+- *Rules from day one, every country:* name or link no bookmaker (changed by D38: only bookmakers licensed in the
+  reader's country); no affiliate deals; no hit-rate or profit claims;
   18+ and "you can lose your stake" messaging; no paid advertising aimed at Italy (Dignity Decree); UK marketing
   follows the ASA's tipster guidance; the ONJN questions stay open for the Romanian release.
 - *Business:* prices in euros; EU VAT charged at each customer's country rate through the One-Stop-Shop (Stripe can
   calculate it); a lower-priced entry tier is the owner's call (Numbers Game's starts at £3.99 a month).
+
+**D38 — Bookmaker prices shown, only from books licensed in the reader's country (20 Oct, owner).**
+- *Data:* the owner confirms that API-Football's bookmaker prices may be shown to paying members. (Their terms page
+  could not be read here: HTTP 403 on 20 Oct.)
+- *Rule (replaces D37's "name or link no bookmaker"):* the card may show and name bookmakers' prices for a bet, but
+  only bookmakers licensed in the reader's country, and only where that country's rules allow it. Never an
+  unlicensed bookmaker (1xBet, Pinnacle, SBO, Dafabet are unlicensed in most of Europe). Still no affiliate links
+  or deals, and no hit-rate or profit claims.
+- *Per-country lists from our feed today:* UK: Bet365, William Hill, BetVictor (UKGC register, active). Spain and
+  Italy: Bet365, William Hill; Germany: Bet365 (third-party lists, to confirm on each regulator's register before
+  use). Romania: none (Betano and Betfair are licensed but dropped by the feed on 16 Oct). Italy: no bookmaker
+  names until the Dignity Decree's reach is checked. Romania: names only after the ONJN Class II answer.
+- *Conditions before prices go live:* the reader's country is known (asked at sign-up, or a Discord role); A5.3
+  confirms the prices shown are current; every price carries the time it was checked.
 
 ## Findings that shape later steps
 
