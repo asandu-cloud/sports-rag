@@ -178,3 +178,23 @@ def test_the_audits_code_fingerprint_is_volatile():
     old = [{"context": {"decision_audit": {"prediction_version": "code:1", "selector_ran": True}}}]
     new = [{"context": {"decision_audit": {"prediction_version": "code:2", "selector_ran": True}}}]
     assert golden.compare(old, new) == []
+
+
+def test_preview_against_a_baseline_replays_both_settings(tmp_path, monkeypatch):
+    import os
+
+    def switched(event, league, **kwargs):  # a stage switch that withdraws the pick
+        result = evaluator()(event, league, **kwargs)[0]
+        result["market"] = {"key": "totals", "group": "goals"}
+        if os.environ.get("STAGE_X") == "on":
+            result["decision"] = {"status": "no_bet", "model_probability": 0.1}
+        return [result]
+
+    path = tmp_path / "golden.json.gz"
+    monkeypatch.setenv("STAGE_X", "off")
+    golden.record(EVENTS[:1], switched, path, generated_at="2026-10-15T00:00:00Z", **TARGETS)
+    monkeypatch.setenv("STAGE_X", "on")
+    assert [r["change"] for r in golden.preview(path, switched)] == ["removed"]
+    assert [r["change"] for r in golden.preview(path, switched, baseline={"STAGE_X": "on"})] == [None]  # same settings
+    assert [r["change"] for r in golden.preview(path, switched, baseline={"STAGE_X": "off"})] == ["removed"]
+    assert os.environ["STAGE_X"] == "on"  # restored after each baseline replay

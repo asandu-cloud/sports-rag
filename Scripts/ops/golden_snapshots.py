@@ -18,11 +18,12 @@ published picks (added, removed, moved to another side or line, price only), per
     python -m Scripts.ops.golden_snapshots record --date 2026-10-17 --date 2026-10-18
     python -m Scripts.ops.golden_snapshots check
     SPIX_MARKET_ANCHOR=goals python -m Scripts.ops.golden_snapshots preview
+    SPIX_DEVIG_METHOD=power python -m Scripts.ops.golden_snapshots preview --baseline SPIX_DEVIG_METHOD=proportional
 """
 from __future__ import annotations
 
 import argparse
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 from datetime import date, datetime, timezone
 import functools
 import gzip
@@ -249,17 +250,41 @@ def classify(old, new):
     return "kept"
 
 
-def preview(path, evaluate, *, reset=None):
-    """Old and new pick for every result of every fixture, replayed from the bundle."""
+@contextmanager
+def environment(overrides):
+    """Set environment variables for the duration of the block, then restore them exactly."""
+    saved = {name: os.environ.get(name) for name in overrides}
+    os.environ.update(overrides)
+    try:
+        yield
+    finally:
+        for name, value in saved.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+
+
+def preview(path, evaluate, *, reset=None, baseline=None):
+    """Old and new pick for every result of every fixture, replayed from the bundle.
+
+    "Old" is the recorded output, or with ``baseline`` ({switch: value}) the same replay under those
+    settings, so a stage is previewed on top of the stages already live (e.g. stage 2 against stage 1)."""
     bundle = load(path)
     rows = []
     with Capture("replay", bundle["reads"]) as capture:
         for fixture in bundle["fixtures"]:
+            before = fixture["outputs"]
+            if baseline is not None:
+                with environment(baseline):
+                    if reset:
+                        reset()
+                    before = _as_dicts(evaluate(fixture["event"], fixture["league"], **fixture["kwargs"]))
             if reset:
                 reset()
             capture.misses.clear()
             outputs = _as_dicts(evaluate(fixture["event"], fixture["league"], **fixture["kwargs"]))
-            for old, new in zip(fixture["outputs"], outputs):
+            for old, new in zip(before, outputs):
                 rows.append({"fixture": _label(fixture), "market": old["market"]["group"],
                              "old": pick(old), "new": pick(new), "change": classify(pick(old), pick(new))})
     return rows
@@ -357,6 +382,8 @@ def main(argv=None):
     parser.add_argument("--per-league", type=int, default=4)
     parser.add_argument("--live-documents", action="store_true",
                         help="check: read documents from the configured store (DOCUMENT_STORE), replay only HTTP")
+    parser.add_argument("--baseline", action="append", default=[], metavar="SWITCH=VALUE",
+                        help="preview: compare against a replay with these settings instead of the recording (repeatable)")
     args = parser.parse_args(argv)
     if args.command == "record":
         if not args.date:
@@ -369,7 +396,10 @@ def main(argv=None):
               f"{len(bundle['reads']['http'])} HTTP reads -> {args.bundle}")
         return 0
     if args.command == "preview":
-        print(summarize_preview(preview(args.bundle, engine_evaluate, reset=engine_reset)))
+        if any("=" not in item for item in args.baseline):
+            parser.error("--baseline takes SWITCH=VALUE")
+        baseline = dict(item.split("=", 1) for item in args.baseline) or None
+        print(summarize_preview(preview(args.bundle, engine_evaluate, reset=engine_reset, baseline=baseline)))
         return 0
     report = check(args.bundle, engine_evaluate, reset=engine_reset,
                    chroma_targets=[] if args.live_documents else None)
