@@ -639,7 +639,9 @@ calibration record instead of a hit rate.
   Unibet, William Hill $20; Casa Pariurilor RO, Bet365, Betfair exchange $30. BetVictor is not carried; Pinnacle is
   not sold separately (price −1 in their list). Quotes for football, pre-match, Normal tier, in USD: Superbet RO 15;
   plus Fortuna RO 25; plus Betano RO 45; plus Casa Pariurilor 75; Superbet RO with live odds 25; Bet365 + William
-  Hill 55. Still open: whether about 5,000 requests a month cover our refreshes (untested on a paid plan),
+  Hill 55. All nine Romanian bookmakers on our list 135 (no volume discount below 10 books); three of them (Unibet,
+  NetBet, Mozzart) are international feeds, not Romanian sites. Romanian-site feeds: Superbet, Fortuna, MaxBet,
+  WinBet $10; Betano, 888sport, Mr Bit, PokerStars $20; Casa Pariurilor $30. Still open: whether about 5,000 requests a month cover our refreshes (untested on a paid plan),
   OddsPapi's written OK to show prices in Spix (their terms bar resale or redistribution as a standalone product),
   and the ONJN answer before naming Romanian bookmakers (D38).
 - **Switching launch country does not fix the bookmaker gap (19 Oct).** Stage 4 bundle on the 54 golden fixtures
