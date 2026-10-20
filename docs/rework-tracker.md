@@ -631,6 +631,16 @@ calibration record instead of a hit rate.
 
 ## Findings that shape later steps
 
+- **Alternatives to OddsPapi for Romanian bookmakers (20 Oct; vendor pages, not tested).** Odds-API.io lists
+  Superbet RO, Betano RO, Fortuna RO, Mr Bit RO and Casa Pariurilor (no country given); plans £49 a month for 2
+  bookmakers, £99 for 5, £179 for 10, no free tier; Superbet page names match result, handicap, totals and BTTS,
+  not corners. Sportmonks' premium odds feed: only Betano.de found, no Romanian bookmaker confirmed (EUR 129–199 a
+  month, second-hand figure). OpticOdds: Betano listed, no published prices (sales call). The Odds API and
+  API-Football: none (19 Oct, 16 Oct). Apify scrapers: Superbet (RO, PL, RS, HR; match result only; 1 user; from
+  $1 per 1,000 results) and Betano (13 countries incl. Romania, all markets; $0.0015 a call or $3 a day); both
+  scrape the bookmakers' sites and leave compliance with the bookmakers' terms to the user; none found for Fortuna
+  or Casa Pariurilor. Superbet and Betano publish no odds API of their own. OddsPapi stays the cheapest for the
+  same bookmakers.
 - **OddsPapi's paid plans are priced per bookmaker; the smallest Romanian plan is $15 a month (20 Oct).** Their plan
   calculator (oddspapi.io/en/pricing; quotes from `api.oddspapi.io/checkout/calculate-price` with our key, nothing
   bought): monthly price = (chosen bookmakers + sports) × request tier. Football $5. Tiers: Normal ×1 (about 5,000
