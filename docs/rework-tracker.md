@@ -87,7 +87,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | EU VAT on subscriptions (One-Stop-Shop, per-country rates) and euro pricing in Stripe; entry-tier price | Owner, before launch (D37) | Selling across the EU |
 | Price list on the card from bookmakers licensed in the reader's country: reader country at sign-up or as a Discord role; per-country bookmaker lists confirmed on each regulator's register (UK done); a "checked at" time on every price | Card build, after A5.3 (D38) | Replaces the single engine-wide `SPIX_BOOKMAKER_SET` for display |
 | Headline rule for the fair-price card (market decisiveness, line movement since opening, or other) | Owner, with the card build (D36) | Value cannot rank angles without bookmaker prices |
-| Odds source for Romanian bookmakers (Superbet, Fortuna, Casa Pariurilor, Unibet, NetBet, MaxBet, WinBet, Mozzart, Betano): OddsPapi carries them; free plan too small for live picks | After launch (owner, 17 Oct: a paid source is too expensive before launch) | Since 16 Oct API-Football sends no Romanian-licensed bookmaker (Betano and Betfair dropped) |
+| Odds source for Romanian bookmakers (Superbet, Fortuna, Casa Pariurilor, Unibet, NetBet, MaxBet, WinBet, Mozzart, Betano): OddsPapi carries them; free plan too small for live picks; paid from $15 a month for Superbet RO, $25 with Fortuna RO (football, pre-match, 20 Oct finding) | After launch (owner, 17 Oct: a paid source is too expensive before launch); owner to reconsider at the 20 Oct prices | Since 16 Oct API-Football sends no Romanian-licensed bookmaker (Betano and Betfair dropped) |
 | API-Football support: Superbet and Unibet answered 18 Oct (discontinued for /odds since ~Sep 2026); still open: why Betano, Betfair, SBO and Dafabet stopped on 16 Oct and whether they return | Owner | Still absent on 18 Oct |
 | Monitor bookmaker coverage: a daily count per bookmaker from the odds archive, with an alert when one falls by more than half against the previous week | Next ops pass | The 16 Oct drop went unnoticed for a day |
 | Red cards: the selector also outputs the bets to skip (prices below fair, boosts that are not, high-margin bet builders) | A5.4 (D32) | Part of the Daily Card |
@@ -631,6 +631,17 @@ calibration record instead of a hit rate.
 
 ## Findings that shape later steps
 
+- **OddsPapi's paid plans are priced per bookmaker; the smallest Romanian plan is $15 a month (20 Oct).** Their plan
+  calculator (oddspapi.io/en/pricing; quotes from `api.oddspapi.io/checkout/calculate-price` with our key, nothing
+  bought): monthly price = (chosen bookmakers + sports) × request tier. Football $5. Tiers: Normal ×1 (about 5,000
+  requests a month), Dev ×2 (100,000), Pro ×5 (500,000), Ultra ×10 (1,500,000); 10% off from 10 bookmakers.
+  Bookmakers a month: Superbet RO, Fortuna RO (efortuna.ro), MaxBet RO, WinBet RO, NetBet $10 each; Betano RO,
+  Unibet, William Hill $20; Casa Pariurilor RO, Bet365, Betfair exchange $30. BetVictor is not carried; Pinnacle is
+  not sold separately (price −1 in their list). Quotes for football, pre-match, Normal tier, in USD: Superbet RO 15;
+  plus Fortuna RO 25; plus Betano RO 45; plus Casa Pariurilor 75; Superbet RO with live odds 25; Bet365 + William
+  Hill 55. Still open: whether about 5,000 requests a month cover our refreshes (untested on a paid plan),
+  OddsPapi's written OK to show prices in Spix (their terms bar resale or redistribution as a standalone product),
+  and the ONJN answer before naming Romanian bookmakers (D38).
 - **Switching launch country does not fix the bookmaker gap (19 Oct).** Stage 4 bundle on the 54 golden fixtures
   (15 Oct prices), value picks with only each country's licensed bookmakers from our feed: Romania today 0, Romania
   if Betano returns 6, UK (Bet365, William Hill, BetVictor; all active on the UKGC register, accounts 55148, 39225,
