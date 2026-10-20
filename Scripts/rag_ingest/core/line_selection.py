@@ -297,7 +297,8 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
         score = (edge_term - proximity_penalty + odds_term - far_penalty
                  + prob_term - ev_penalty + model_prob_bonus)
         if market_value and spix_p is not None:
-            eligible, score = bool(point in priced_points and ev >= MARKET_VALUE_MIN_EV), ev
+            eligible, score = bool(point in priced_points and ev >= MARKET_VALUE_MIN_EV
+                                   and bookmaker_sets.quotable(opt.get("bookmaker"))), ev
         if not bookmaker_sets.allowed(opt.get("bookmaker")):
             eligible = False
 
@@ -552,6 +553,22 @@ def _equivalent_binary_prob(ev: float, odds: float) -> float:
     return max(0.0, min(1.0, (ev + 1.0) / odds))
 
 
+def _main_handicap_line(fair_by_quote: Dict[Tuple, float], home_team: str) -> Optional[float]:
+    """The home team's Asian handicap whose median fair probability across bookmakers is closest to even.
+
+    A5.3 (D39, owner 20 Oct): the market-value policy prices handicaps only on this main line, because
+    the best prices on alternate lines were mostly withdrawn by the bookmaker when we read them
+    (18% of handicap best prices were on offer, 45 of 87 suspended)."""
+    home = home_team.lower().strip()
+    by_point: Dict[float, List[float]] = {}
+    for (_bm, point, team), fair in fair_by_quote.items():
+        if team == home and safe_float(point) is not None:
+            by_point.setdefault(float(point), []).append(fair)
+    if not by_point:
+        return None
+    return min(by_point, key=lambda point: (abs(statistics.median(by_point[point]) - 0.5), abs(point)))
+
+
 def select_best_spread_recommendation(
     options: List[Dict],
     projected_diff: float,
@@ -650,6 +667,7 @@ def select_best_spread_recommendation(
 
     market_value = selection_policy() == "market_value"
     priced_lines = {(_pt, _tm) for (_bm, _pt, _tm) in _sp_fair_signed}
+    main_home_line = _main_handicap_line(_sp_fair_signed, home_team) if market_value else None
     best = None
     best_score = None
     best_value = None
@@ -723,8 +741,11 @@ def select_best_spread_recommendation(
             - ev_penalty
         )
         if market_value and spix_p is not None:
-            eligible = bool((point, team.lower().strip()) in priced_lines and ev >= MARKET_VALUE_MIN_EV)
+            on_main = main_home_line is not None and abs(sign * point - main_home_line) < 1e-9
+            eligible = bool((point, team.lower().strip()) in priced_lines and ev >= MARKET_VALUE_MIN_EV
+                            and on_main and bookmaker_sets.quotable(opt.get("bookmaker")))
             score = ev
+            opt["_main_line"] = on_main
         if not bookmaker_sets.allowed(opt.get("bookmaker")):
             eligible = False
 
@@ -873,7 +894,8 @@ def select_best_btts_recommendation(options: List[Dict], p_btts_yes: float, *,
         )
 
         if spix_p_yes is not None and selection_policy() == "market_value":
-            eligible, score = bool(_fair_implied and ev >= MARKET_VALUE_MIN_EV), ev
+            eligible, score = bool(_fair_implied and ev >= MARKET_VALUE_MIN_EV
+                                   and bookmaker_sets.quotable(opt.get("bookmaker"))), ev
         if not bookmaker_sets.allowed(opt.get("bookmaker")):
             eligible = False
         opt["_model_prob"] = model_p
@@ -1051,7 +1073,7 @@ def choose_best_moneyline_side(
         if market_value:
             # The best price at an allowed bookmaker, valued against the market consensus.
             quotes = [quote for sides in by_bookmaker.values() for quote_side, quote in sides.items()
-                      if quote_side == side and bookmaker_sets.allowed(quote.get("bookmaker"))]
+                      if quote_side == side and bookmaker_sets.quotable(quote.get("bookmaker"))]
             bps = max(quotes, key=lambda quote: quote["odds"]) if quotes else None
             fair_implied = fair_by_bookmaker.get((_quote_identity(bps), side)) if bps is not None else None
         else:

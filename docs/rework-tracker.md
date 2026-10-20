@@ -5,14 +5,14 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-20 (D39)
+Last updated: 2026-10-20 (D40)
 
 ## Status
 
 | Step | Status | Commits |
 |---|---|---|
 | A0 Safety net | Done 15 Oct | 02fa536, f7459f0, c1e9b42 |
-| A1 Measurement | In progress (steps 1, 2, 3, 5, 6 done; step 4: true close built and captured 20 Oct, weights decision with the owner, D39) | see below |
+| A1 Measurement | **Done 20 Oct** (step 4 closed: equal weights kept, true close live, D39, D40) | see below |
 | A2 Canonical features | A2a live since 17 Oct 16:28 (`DOCUMENT_STORE=sqlite`; D11); A2b after A6 (D13) | 7af457b |
 | A3 Market anchor and honest uncertainty | Started 16 Oct under D16 (research and shadow only) | see A3 table |
 | A4 Calibration | A4.1 dataset done 16 Oct (25,527 graded candidates, 160 fixtures; grading matches settlement on all 1,918 overlapping picks). A4.2 method study done 16 Oct: no calibrator adopted yet (D28), rerun weekly; live as A3.7 stage 5, not before Tue 10 Nov (D29) | 197dc73; see D28 |
@@ -27,13 +27,13 @@ Last updated: 2026-10-20 (D39)
 | 1 | Handicap grading fix | Done | dfb7f93 |
 | 2 | Closing prices from API-Football's final pre-kickoff snapshot | Done | aa2f2ee |
 | 3 | Market reference price at publication | Done | 1854f23 |
-| 4 | Bookmaker weights for the reference price | **In progress**: accuracy is flat (D15); the weekend spot checks did not run; 20 Oct: true close from OddsPapi built and captured (D18, D39), price reality checked per bookmaker (A5.3, D39); proposal to keep equal weights (median) with the owner | |
+| 4 | Bookmaker weights for the reference price | Done 20 Oct: no weights, the median stays (owner, D40; accuracy is flat, D15); freshness handled by the true close (D18, D39) and price confirmation (D40) | 405e9c9 |
 | 5 | Weekly scorecard | Done (Mondays 08:00) | d1ae597 |
 | 6 | Market baseline in the research protocol | Done | see D9 |
 
 A1 gate (report): >90% of finished picks settled and with a closing price ✓ (95.9% closing,
 handicap regrade finishing 15 Oct night); first scorecard ✓; first reference weights with
-Pinnacle's freshness measured ✗ (step 4).
+Pinnacle's freshness measured ✓ (20 Oct: freshness D15 and D39, true close live; the owner kept equal weights, D40).
 
 ### A3 (started 16 Oct, ahead of A1 step 4 and the A2a switch; rules in D16)
 
@@ -58,15 +58,15 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Move Phase 6 shadow controller from `Research/` into `Scripts/` | After 20 Oct 2026 | Its diagnostic window runs to 20 Oct |
 | Push tag `pre-rework` (cf00af8) | Owner | Local only |
 | Keep the Mac awake for scheduled jobs: the daily refresh runs under `caffeinate -i -s` since 17 Oct (it cannot idle-sleep mid-run); still open, a daily scheduled wake before 07:15 (`sudo pmset repeat wakeorpoweron MTWRFSU 07:05:00`), mains power, or a server. On 17 Oct the Mac slept on battery until ~11:48, waking for 2–3 s every ~17 min: the 07:15 refresh ran only in those slices and finished at 12:25 (stage times normal). While asleep the Match Read worker, measurement worker and odds archive do not run either, which matters for this weekend's near-kickoff captures (A1 step 4 freshness rerun, Mon 19 Oct). Again on 20 Oct: on battery, no daily wake scheduled (`pmset -g sched`), the Mac slept 07:00–11:00 with brief wakes and the refresh took 4 h 35 min (04:21–08:56 UTC; 19 Oct: 1 h 3 min) | Owner | Operational risk to every scheduled job |
-| Reference weights replace the median in `reference_price.py` | A1 step 4 | Method is versioned (`proportional_devig_median.v1`) |
+| Closed 20 Oct: no bookmaker weights; the median stays (owner, D40) | Done | Power margin removal still becomes the default at stage 2 (D17) |
 | Make power the default margin-removal method (`reference_price`, closing consensus, publication reference, scorecard) | A3.7 go-live, after A1's gate (D16, D17) | Refit anything fitted on v1 |
-| Scorecard switches to the weighted reference when step 4 lands | A1 step 4 | |
-| Refresh the report artifact from this tracker | At end of A1 | |
+| Closed 20 Oct: no weighted reference (D40); the scorecard adds the true close instead (D39) | Done | |
+| Refresh the report artifact from this tracker | Now due (A1 done 20 Oct) | |
 | Stop embedding into Chroma entirely | A7 | Whale chat and `rag_cli_v2` still search Chroma by meaning |
 | A6c LightGBM market-error challenger (D14) | After A6's base model passes | Must beat fitted A6 vs the market baseline |
 | Rerun the blend study (`Scripts/ops/blend_study.py`) on A6's forecasts: does Spix earn c > 0? | A6 gate | D20 |
 | **Temporary (D21):** 1X2 and O/U 2.5 publish the market's probability (power) with c = 0 **only until A6**; rerun the blend study on A6's forecasts and refit c if Spix earns it | A3.7 go-live, then A6 gate | Not permanent: revisit at A6 |
-| OddsPapi true close: built 20 Oct (`services/true_close.py`, `ops/true_close.py`; Pinnacle plus the pick's own bookmaker; API-Football's snapshot kept as fallback, D18, D39); first capture run 20 Oct. Daily job `ops/true_close_launchd.py` (10:30) written, install with the owner; the scorecard shows value at the true close and true price CLV | Install the daily job | About 13 billable requests a week (one fixture list per competition and week) |
+| OddsPapi true close: built 20 Oct (`services/true_close.py`, `ops/true_close.py`; Pinnacle plus the pick's own bookmaker; API-Football's snapshot kept as fallback, D18, D39); first capture run 20 Oct. Daily job `com.bettingrag.true-close` installed 20 Oct (10:30, owner); the scorecard shows value at the true close and true price CLV | Live | About 13 billable requests a week (one fixture list per competition and week) |
 | Done 20 Oct: OddsPapi's quota resets on the 1st of each month (docs, Requests & Quota); `/v4/account` reports the count (52 of 250 used by 20 Oct) | Done | |
 | Quote age near kickoff in selection (API-Football prices ~2 h old in the last 3 h, D15) | A5.3 (D30) | Apparent edge may be a price no longer offered |
 | Retire `ml_edge.py` and `Index/elo_ratings.json` | A7 | Replaced by A6 |
@@ -74,12 +74,13 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Go-live of stage 1: set `SPIX_COUNT_DISPERSION=fixed`. Review pack ready (17 Oct). Golden preview (`Research/stage1-preview-2026-10-17/`): corner picks 33 → 38 (5 added, 10 moved, none removed; the earlier '59' counted probability changes, not picks); picks move to safer lines at shorter prices. Live replay of the corners selector on the audited reads (`ops/stage1_replay.py`, `Research/stage1-replay-2026-10-17/`): floors 162 picks, said 72.2%, won 62.8%, market 64.4%, value at the close −2.5% (−3.3 to −1.6); fixed 177 picks, said 76.8%, won 67.3%, market 67.9%, value at the close −2.1% (−2.9 to −1.2). Same overstatement (~9.5 pts) and no worse at the close, so no reason to hold; both versions lose value on corners (selection, A5) | Live 20 Oct 11:44 UTC (first read with it 12:09 UTC) | Confirm on the live scorecard (split by engine switches) |
 | Scorecard splits picks by rollout stage: done 17 Oct (`scorecard.engine_stage`, section "By engine switches"; groups by the prediction-changing switches, so `DOCUMENT_STORE` does not split; picks before 17 Oct count as defaults) | Done | Read it at each stage's scorecard check |
 | Stage 2's preview on top of stage 1: the golden bundle's expected results are the defaults, and the engine now reads `SPIX_COUNT_DISPERSION=fixed` from `.env` (golden `check` shows stage 1's changes unless it is forced to `floors`; forced, no changes across 54 fixtures on 20 Oct). Compare stage 1 + 2 against stage 1 alone, or rebase the bundle with a logged reason (D16 rule 4) | Thu 22 Oct, before stage 2 | Regression checks run with the switches forced off |
-| Restart the website process (`com.bettingrag.website`, running since 8 Oct on 8 Oct code and settings) | Owner | Its on-demand predictions differ from the published ones |
+| Done 20 Oct 15:39 local: website restarted (owner); `/api/health`, `/`, `/app`, `/api/leagues`, `/api/track-record` answer 200, no errors in its log | Done | |
 | Go-live of stage 2: set `SPIX_DEVIG_METHOD=power` (built 17 Oct, off). Golden preview with stage 1 off: no pick added or removed; 4 of 54 fixtures move a pick to a better-priced quote (3 corners, 1 goals; one corners line 9.25 → 9.5), one Asian handicap label medium → low; the fair probability shown changes on 293 results. Preview again on top of stage 1, then re-record (D16 rule 4) | A3.7 stage 2, Fri 23 Oct | Selection's four margin-removal sites (totals, handicap, BTTS, 1X2) use `data_platform/devig.power` when on |
 | Go-live of stage 3: set `SPIX_MARKET_ANCHOR=strict` (built 17 Oct, off). 1X2 and goals O/U 2.5 take the market's consensus (median across books of each book's fair price, with selection's margin removal, so it assumes stage 2 is live; 1X2 rescaled to sum to one); Spix's own probability kept as `_spix_prob` / `spix_prob` and a `market_anchor` record in the result context. Golden preview, stage 3 alone: all 7 1X2 picks in the 54 fixtures become no-bets (at the market's number no price clears the 1X2 thresholds); the only O/U 2.5 pick of 38 goals picks moves to over 2.75, still priced on Spix's numbers (strict scope; stage 4 closes that). Preview again on top of stages 1–2, then re-record (D16 rule 4) | A3.7 stage 3, Tue 27 Oct | Other goal lines, Asian handicap and BTTS stay on Spix's probability until stage 4 (D29) |
 | Go-live of stage 4 as a bundle (D33 (b), D35): `SPIX_MARKET_ANCHOR=full`, `SPIX_SELECTION_POLICY=market_value`, `SPIX_BOOKMAKER_SET=romania`, all built 17 Oct and off. The goal-market part (`SPIX_MARKET_ANCHOR=goals`, built 17 Oct, off; `core/market_goal_model.py`). M1 is solved per read from the read's own prices (A3.2 targets: 1X2, O/U 2.5, the main Asian handicap; median of each book's fair price) and prices every goal line, the Asian handicap and BTTS; 1X2 and O/U 2.5 keep stage 3's direct consensus; line scoring and the handicap goal-edge rule use M1's means; Spix's probabilities kept (`_spix_prob`) and the fit recorded in `market_anchor.goal_model`. Golden preview (stages 1–2 off), recommended picks before → after: goals 38 → 5 (34 removed, 4 moved, 1 added), Asian handicap 47 → 3, BTTS 12 → 0, 1X2 7 → 0, corners 33 unchanged. D29 gate passed 17 Oct (D34); ships together with A5.2's selection rule for these markets (D33 (b)) | A3.7 stage 4, earliest Tue 3 Nov | Gate (D29): M1 beats Spix's log loss per market on the audited lines |
 | Rerun the D29 gate (`python -m Scripts.ops.m1_gate_study --out Research/m1-gate-<date>`) with the weeks since 17 Oct | Before stage 4 goes live | Passed 17 Oct on one audited week (D34) |
-| Stage 4 bundle: A5.3 part 1 (D39): Betano's best prices were real at the read in 58% of checked picks, Pinnacle's 52%; the owner decides the price-confirmation rule (D39 (a)–(b)) before stage 4; rerun the bundle preview on the weeks since 17 Oct; owner sets the published value threshold (2% tested; Romania volume in D35) | Before stage 4, earliest Tue 3 Nov | Built 17 Oct (D35) |
+| Price confirmation before publishing (D40 (a)): for each market-value pick, the quoting bookmaker's own price from OddsPapi's free history at publication; publish only if it is at least the quoted price, with the time checked (also D38); fixture ids from the same cached weekly lists as the true close | Before stage 4, earliest Tue 3 Nov | 1X2 best prices were a median 10 h stale (D39); the main-line rule does not touch them |
+| Stage 4 bundle: A5.3 part 1 (D39): Betano's best prices were real at the read in 58% of checked picks, Pinnacle's 52%; price rules decided (D40): (b) built behind the stage 4 switch, (a) price confirmation before publishing must be built before stage 4; bundle preview with (b), 54 golden fixtures of 17–18 Oct (Betano absent those days), all books: goals 38 → 8, corners 33 → 7, BTTS 12 → 4, 1X2 7 → 3, Asian handicap 47 → 0; Romanian books only: 2, 3, 1, 0, 0; rerun the bundle preview on the weeks since 17 Oct; owner sets the published value threshold (2% tested; Romania volume in D35) | Before stage 4, earliest Tue 3 Nov | Built 17 Oct (D35) |
 | A5.3: part 1 done 20 Oct (D39, `ops/price_check.py`). Next: exchange commission (Betfair, not in OddsPapi's matched lines here), then evidence-based labels | A5.3 (D31) | Half the best-price books' quotes were unchanged or missing at the close (D31) |
 | Bookmaker sets per country: Romania first (D35); built, off. Used once Romanian prices are available (D36) | After Romanian prices exist | Since 16 Oct the feed has no Romanian-licensed bookmaker |
 | Ask ONJN in writing whether a subscription analysis service that names no bookmaker and takes no commission needs a Class II licence; and whether analysis content counts as gambling promotion under the pending 06:00–24:00 bill | Owner, before launch | Applies to every launch option in Romania |
@@ -683,6 +684,17 @@ calibration record instead of a hit rate.
 - *Bookmaker weights (the step's original task):* D15's accuracy spread is 0.25%, so weighting barely moves the
   reference price; the problem is freshness, handled by the true close (closing) and proposal (a) (publication).
   Proposal: keep the median (equal weights) and close the weights task; owner to confirm.
+
+**D40 — Owner's decisions on D39 (20 Oct).** All four approved:
+1. *Daily true close:* `com.bettingrag.true-close` installed (10:30 local; about 13 billable OddsPapi requests a week).
+2. *Bookmaker weights:* none; the reference stays the median across bookmakers. A1 step 4 is closed and **A1 is done**.
+3. *Price rules for stage 4 and A5.4:* (a) confirm each market-value pick's price on the bookmaker's own history before
+   it is published, with the time checked; this must exist before stage 4 goes live, because the main-line rule does not
+   touch 1X2, whose best prices were stale rather than withdrawn. (b) Built behind `SPIX_SELECTION_POLICY=market_value`
+   (`bookmaker_sets.UNCONFIRMED`, `line_selection._main_handicap_line`): no price from SBO or Dafabet, and Asian
+   handicap value only on the main line (the home line whose median fair probability is closest to even); with the
+   switches off the 54 golden fixtures are unchanged. (c) D38: API-Football's Bet365 prices are not shown to UK readers.
+4. *Website restarted* on today's code and `.env` (15:39 local).
 
 ## Findings that shape later steps
 

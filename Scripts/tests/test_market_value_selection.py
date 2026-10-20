@@ -94,3 +94,54 @@ def test_market_priced_picks_rank_first_by_value_against_the_market():
     corners = candidate("corners", 0.05, True, index=2)
     assert [c.market_group for c in sorted([corners_spix, goals, corners], key=_market_value_key)] == ["corners", "goals", "cards"]
     assert sorted([corners_spix, goals, corners], key=_ranking_key)[0].market_group == "cards"  # legacy order unchanged
+
+
+def score_matrix(home_rate=1.6, away_rate=1.0, top=10):
+    from math import exp, factorial
+    raw = {(h, a): exp(-home_rate) * home_rate ** h / factorial(h) * exp(-away_rate) * away_rate ** a / factorial(a)
+           for h in range(top + 1) for a in range(top + 1)}
+    total = sum(raw.values())
+    return {k: v / total for k, v in raw.items()}
+
+
+def handicap_options(extra=()):
+    rows = [("Pinnacle", -0.5, 1.95, 1.95), ("Bet365", -0.5, 1.93, 1.97), ("Betano", -0.5, 2.10, 1.80),
+            ("Betano", -1.5, 4.50, 1.22), *extra]
+    out = []
+    for book, home_line, home_odds, away_odds in rows:
+        out += [{"team": "Lyon", "point": home_line, "odds": home_odds, "bookmaker": book, "market_key": "spreads"},
+                {"team": "Lens", "point": -home_line, "odds": away_odds, "bookmaker": book, "market_key": "spreads"}]
+    return out
+
+
+@pytest.fixture
+def market_value_all_books(monkeypatch):
+    monkeypatch.setenv("SPIX_SELECTION_POLICY", "market_value")
+    monkeypatch.delenv("SPIX_BOOKMAKER_SET", raising=False)
+    monkeypatch.delenv("SPIX_DEVIG_METHOD", raising=False)
+
+
+def spread_pick(options):
+    matrix = score_matrix()
+    result = line_selection.select_best_spread_recommendation(
+        options, 0.6, "Lyon", "Lens", "Ligue1", score_probs=matrix, market_score_probs=matrix, market_diff=0.6)
+    return result["bet_recommendation"], result["all_lines"]
+
+
+def test_handicap_value_is_taken_only_on_the_main_line(market_value_all_books):
+    pick, lines = spread_pick(handicap_options())
+    alternate = next(o for o in lines if o["bookmaker"] == "Betano" and o["point"] == -1.5)
+    assert alternate["_ev"] > pick["_ev"] and not alternate["_eligible"] and alternate["_main_line"] is False
+    assert (pick["bookmaker"], pick["team"], pick["point"]) == ("Betano", "Lyon", -0.5)
+
+
+def test_sbo_and_dafabet_prices_are_never_taken(market_value_all_books):
+    pick, _ = spread_pick(handicap_options(extra=[("SBO", -0.5, 2.25, 1.70), ("Dafabet", -0.5, 2.20, 1.72)]))
+    assert pick["bookmaker"] == "Betano"
+    assert not bookmaker_sets.quotable("SBO") and bookmaker_sets.allowed("SBO")  # still in the consensus
+
+
+def test_main_line_rule_needs_the_market_value_policy(monkeypatch):
+    monkeypatch.delenv("SPIX_SELECTION_POLICY", raising=False)
+    _, lines = spread_pick(handicap_options())
+    assert all("_main_line" not in o for o in lines)

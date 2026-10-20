@@ -14,6 +14,10 @@ from . import engine_switches
 
 VERSION = "bookmaker-sets.v1"
 SETS = {"romania": frozenset({"betano", "superbet"})}
+# A5.3 (D39, owner 20 Oct): none of these bookmakers' best prices were on offer at the read (0 of 23
+# checked against their own price history), so the market-value policy takes no price from them. The
+# consensus still uses them.
+UNCONFIRMED = frozenset({"sbo", "dafabet"})
 
 
 def active() -> str:
@@ -24,3 +28,8 @@ def allowed(bookmaker) -> bool:
     """True when a pick may be published at this bookmaker under the active set."""
     name = active()
     return name == "all" or str(bookmaker or "").strip().casefold() in SETS[name]
+
+
+def quotable(bookmaker) -> bool:
+    """True when a market-value pick may take this bookmaker's price: allowed, and its prices are real."""
+    return allowed(bookmaker) and str(bookmaker or "").strip().casefold() not in UNCONFIRMED
