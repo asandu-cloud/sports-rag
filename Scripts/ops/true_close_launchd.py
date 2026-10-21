@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Capture OddsPapi true closes every day at 10:30 local time (rework A1 step 4, D18).
+"""Capture OddsPapi true closes every hour at half past (rework A1 step 4, D18).
 
-After the 07:15 data refresh; yesterday's matches are over by then. A refresh still running defers the
-run to the next day (the capture only writes ``extras["true_close"]``, so a skipped day is caught up).
+Hourly, so a slow data refresh only delays the capture (21 Oct: the 10:30 run met a refresh still
+running and deferred). A run with nothing due exits after one unmetered account call; fixture lists are
+cached per competition and week, so hourly runs cost no more requests than a daily one.
 """
 import argparse
 import json
@@ -17,7 +18,7 @@ except ImportError:
     from match_read_launchd import build_paths, _assert_installable, _run_launchctl, _write_atomically
 
 LABEL = "com.bettingrag.true-close"
-SCHEDULE = {"Hour": 10, "Minute": 30}  # daily, after the 07:15 refresh
+SCHEDULE = {"Minute": 30}  # every hour at half past
 
 
 def render(paths):

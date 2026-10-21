@@ -118,7 +118,7 @@ def test_true_close_runs_daily_as_its_own_job(tmp_path):
     paths = build_paths(root=tmp_path, plist_path=tmp_path / "job.plist")
     config = plistlib.loads(schedule.render(paths).encode())
     assert config["Label"] == "com.bettingrag.true-close"
-    assert config["StartCalendarInterval"] == {"Hour": 10, "Minute": 30}
+    assert config["StartCalendarInterval"] == {"Minute": 30}
     assert config["ProgramArguments"][-2:] == ["-m", "Scripts.ops.true_close"]
     assert schedule.operate("install", paths, dry_run=True)["configuration"]["Label"] == schedule.LABEL
     assert not paths.plist_path.exists()
