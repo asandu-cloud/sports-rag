@@ -62,7 +62,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Make power the default margin-removal method in measurement (`reference_price`, closing consensus, publication reference, scorecard). Owner, 20 Oct: keep proportional through stages 1–3 so every stage is judged on the same yardstick; switch at the Mon 2 Nov scorecard and recompute the history from the stored per-book prices | Mon 2 Nov scorecard | Refit anything fitted on v1 |
 | Closed 20 Oct: no weighted reference (D40); the scorecard adds the true close instead (D39) | Done | |
 | Refresh the report artifact from this tracker | Now due (A1 done 20 Oct) | |
-| Done 23 Oct (D42): the 22 Oct probe met no error up to 22:12 UTC (5.5 h after Juventus v Rennes's kickoff, 3.2 h after Bournemouth v Milan's); OddsPapi rewrites a match's history about 2 h after kickoff (adding in-play markets); `DUE_AFTER` 2 h and `SETTLED` 6 h stay; the 21 Oct evening cause is not reproduced (errors are retried since D41) | Done | |
+| Done 23 Oct (D42): the 22 Oct probe met no error up to its end at 23:11 UTC (6.4 h after Juventus v Rennes's kickoff, 4.2 h after Bournemouth v Milan's); OddsPapi rewrites a match's history about 2 h after kickoff (adding in-play markets); `DUE_AFTER` 2 h and `SETTLED` 6 h stay; the 21 Oct evening cause is not reproduced (errors are retried since D41) | Done | |
 | Do OddsPapi's "No historical odds found" answers ever become prices? A second probe re-asks two of 22 Oct's (William Hill on Celtic v Celta, one Betfair outcome on Juventus v Rennes) every 30 minutes to 04:00 UTC 23 Oct (D42) | Fri 23 Oct | If one turns into prices after 6 h, lengthen `SETTLED` |
 | Does OddsPapi's post-match rewrite drop soft bookmakers' pre-kickoff lines? 27 minutes before Juventus v Rennes kicked off (22 Oct), Betano's history had 227 markets; after the rewrite 214 have pre-kickoff prices (1xBet 366 → 347, Bet365 230 → 227; Pinnacle unchanged, 106). Save a weekend match's history at kickoff and compare it with the rewritten one (D42) | Next true-close check | Own-bookmaker closes (`same_book`) come from the rewritten history |
 | Stop embedding into Chroma entirely | A7 | Whale chat and `rag_cli_v2` still search Chroma by meaning |
@@ -755,9 +755,9 @@ calibration record instead of a hit rate.
   6–3 h / 24–6 h before kickoff: Pinnacle 98% / 93% / 57%, Betano 73% / 66% / 34%, Bet365 (ES) 77% / 69% / 44%, 1xBet
   84% / 78% / 76%. Far from kickoff every bookmaker's records are hours apart (Pinnacle too), where prices move less,
   so a gap there does not prove a missed check (`Research/price-confirmation-2026-10-23/`).
-- *Post-match probe (D41 open item).* Every 10 minutes from 16:17 UTC on two 22 Oct matches (running to 23:15): no
-  error up to 22:12, 5.5 h after Juventus v Rennes's kickoff and 3.2 h after Bournemouth v Milan's (the only failures
-  were "rate limited" during our own recapture). About 2 h after kickoff OddsPapi rewrites the history (2 h 05 and
+- *Post-match probe (D41 open item).* Every 10 minutes from 16:17 UTC to 23:11 on two 22 Oct matches: no error up to
+  the end, 6.4 h after Juventus v Rennes's kickoff and 4.2 h after Bournemouth v Milan's (the only failures were "rate
+  limited" during our own recapture; the market counts did not change after the rewrite). About 2 h after kickoff OddsPapi rewrites the history (2 h 05 and
   2 h 01): the added markets are in-play only; Pinnacle's markets with pre-kickoff prices are unchanged (106 before,
   106 after; Bournemouth v Milan 103). The 21 Oct evening failures
   (2.5–2.75 h after kickoff) did not recur at the same point; their answers were not kept, so their cause stays
