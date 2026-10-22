@@ -32,10 +32,12 @@ from core.prediction_metrics import count, measure_generation, select_fixture, t
 
 try:
     from core.events import fetch_events, filter_events_by_exact_date
+    from core.line_selection import MARKET_VALUE_MIN_EV
     from core.market_service import SUPPORTED_MARKETS, evaluate_event
     from core.parlay import enrich_events_for_groups
 except ImportError:
     from Scripts.rag_ingest.core.events import fetch_events, filter_events_by_exact_date  # type: ignore[import]
+    from Scripts.rag_ingest.core.line_selection import MARKET_VALUE_MIN_EV  # type: ignore[import]
     from Scripts.rag_ingest.core.market_service import SUPPORTED_MARKETS, evaluate_event  # type: ignore[import]
     from Scripts.rag_ingest.core.parlay import enrich_events_for_groups  # type: ignore[import]
 
@@ -50,6 +52,7 @@ try:
         find_cached_briefing,
         match_read_fact_key,
     )
+    from data_platform.services.price_confirmation import confirm_prices
 except ImportError:
     from Scripts.data_platform.services.match_read_compiler import (  # type: ignore[import]
         MatchReadDraft,
@@ -61,6 +64,7 @@ except ImportError:
         find_cached_briefing,
         match_read_fact_key,
     )
+    from Scripts.data_platform.services.price_confirmation import confirm_prices  # type: ignore[import]
 
 
 # ``goals`` is the canonical evaluator name but its provider odds group is
@@ -142,6 +146,7 @@ def generate_match_reads_sync(
     slate_cache: Optional[MutableMapping[Tuple[str, date, bool], Tuple[Sequence[Mapping[str, Any]], Sequence[str]]]] = None,
     briefing_enricher: Optional[Callable[..., Tuple[MatchReadDraft, Optional[str]]]] = None,
     preliminary_fixture_ids: Optional[Set[str]] = None,
+    price_confirmer: Optional[Callable[[Sequence[Any]], Sequence[Any]]] = None,
 ) -> MatchReadGenerationRun:
     """Generate one Match Read draft per exact-date fixture in a league.
 
@@ -161,6 +166,12 @@ def generate_match_reads_sync(
     cycle*: pre-match and confirmed-lineup evaluations of the same fresh
     league/date slate can reuse one provider response while their independent
     model/lineup stages still receive defensive copies.
+
+    A stored read's recommended prices are confirmed against the quoting
+    bookmaker's own price before compilation (``price_confirmation``, D42;
+    a no-op unless the read was made under ``SPIX_SELECTION_POLICY=market_value``).
+    ``price_confirmer`` replaces that step; previews (``persist=False``) skip it
+    unless one is given, so they make no OddsPapi request.
     """
     normalised_league = str(league or "").strip()
     if not normalised_league:
@@ -192,6 +203,7 @@ def generate_match_reads_sync(
     compile_read = compiler or compile_match_read
     persist_read = persister or persist_match_read
     enrich_briefing = briefing_enricher or enrich_match_read_draft
+    confirm = price_confirmer or (_confirm_prices if persist else None)
     preliminary_ids = {str(value).strip() for value in preliminary_fixture_ids or () if str(value).strip()}
 
     # The standard persistence path needs the same service instance for the
@@ -384,6 +396,21 @@ def generate_match_reads_sync(
             ))
             continue
 
+        if confirm is not None:
+            try:
+                canonical_results = tuple(timed_call("price_confirmation", confirm, canonical_results))
+            except Exception as exc:
+                message = f"{fixture_label}: price confirmation failed ({type(exc).__name__}: {exc})."
+                notes.append(message)
+                fixture_rows.append(FixtureMatchReadGeneration(
+                    event_id=event_id,
+                    fixture_label=fixture_label,
+                    canonical_results=canonical_results,
+                    draft=None,
+                    error=message,
+                ))
+                continue
+
         try:
             draft = timed_call("compilation", compile_read, canonical_results, stage=normalised_stage)
         except Exception as exc:
@@ -463,6 +490,11 @@ def generate_match_reads_sync(
         fixtures=tuple(fixture_rows),
         notes=tuple(notes),
     )
+
+
+def _confirm_prices(results: Sequence[Any]) -> Sequence[Any]:
+    """The worker's price confirmation, at the market-value selection's own threshold."""
+    return confirm_prices(results, min_ev=MARKET_VALUE_MIN_EV)
 
 
 def _normalise_notes(values: Optional[Iterable[Any]]) -> List[str]:

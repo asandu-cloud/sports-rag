@@ -98,6 +98,23 @@ class OddsPapiClient:
             return json.loads(cached.read_text())["body"]
         if packed.exists():
             return json.loads(gzip.decompress(packed.read_bytes()))["body"]
+        body = self._request(path, params)
+        text = json.dumps({"path": path, "params": params, "body": body})
+        if self.compress:
+            packed.write_bytes(gzip.compress(text.encode()))
+        else:
+            cached.write_text(text)
+        return body
+
+    def fresh(self, path, **params):
+        """The answer as it is now, never read from or written to the cache.
+
+        For prices before kickoff (price confirmation, D42): a pre-kickoff history stored under the true
+        close's cache key would later be read as the close.
+        """
+        return self._request(path, params)
+
+    def _request(self, path, params):
         billable = path not in FREE
         for attempt in range(ATTEMPTS):
             usage = self._usage()
@@ -119,11 +136,6 @@ class OddsPapiClient:
             except ValueError:
                 body = None
             if response.status_code == 200:
-                text = json.dumps({"path": path, "params": params, "body": body})
-                if self.compress:
-                    packed.write_bytes(gzip.compress(text.encode()))
-                else:
-                    cached.write_text(text)
                 return body
             if response.status_code != 429 or attempt == ATTEMPTS - 1:
                 raise OddsPapiError(path, response.status_code, body)
@@ -246,6 +258,19 @@ def series(body, slug, market_id, outcome_id):
     points = [(utc(e["createdAt"]), float(e["price"]) if e.get("price") else None, e.get("active", True) is not False)
               for e in entries if e.get("createdAt")]
     return sorted(points, key=lambda p: p[0])
+
+
+def last_seen(body, slug):
+    """Time of a bookmaker's newest record on any line of the fixture, or None.
+
+    OddsPapi records changes only, and checks each bookmaker on its own schedule (22 Oct: Pinnacle every few
+    seconds near kickoff, 1xBet ~3 minutes, Bet365 ~6, Betano ~10, each check changing 100-200 of Betano's
+    ~500 prices). A line unchanged since an old entry is current only if the bookmaker was seen recently.
+    """
+    markets = (((body or {}).get("bookmakers") or {}).get(slug) or {}).get("markets") or {}
+    times = [e["createdAt"] for m in markets.values() for o in (m.get("outcomes") or {}).values()
+             for e in ((o.get("players") or {}).get("0") or []) if e.get("createdAt")]
+    return max(map(utc, times)) if times else None
 
 
 def last_before(points, moment):

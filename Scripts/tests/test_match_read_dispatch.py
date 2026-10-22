@@ -293,3 +293,58 @@ def test_dispatch_can_limit_a_confirmed_lineup_refresh_to_eligible_fixtures():
 
     assert evaluated == ["later"]
     assert [item.event_id for item in run.fixtures] == ["later"]
+
+
+def _confirmation_run(*, persist, **kwargs):
+    event = _event("fixture-1")
+    compiled = []
+
+    def compiler(results, *, stage):
+        compiled.append(tuple(results))
+        return _draft("fixture-1")
+
+    run = match_read_dispatch.generate_match_reads_sync(
+        "EPL",
+        date(2026, 9, 6),
+        persist=persist,
+        service=object(),
+        fetcher=lambda _league, *, target_date: ([event], []),
+        date_filter=lambda events, _target: events,
+        enricher=lambda events, _league, _groups: (events, []),
+        evaluator=lambda *_args, **_kwargs: [{"event_id": "fixture-1", "market": "goals"}],
+        compiler=compiler,
+        persister=lambda draft, *, service: {"id": 1},
+        **kwargs,
+    )
+    return run, compiled
+
+
+def test_stored_reads_have_their_prices_confirmed_between_evaluation_and_compilation():
+    seen = []
+
+    def confirm(results):
+        seen.append(tuple(results))
+        return [{"event_id": "fixture-1", "market": "goals", "confirmed": True}]
+
+    run, compiled = _confirmation_run(persist=True, price_confirmer=confirm)
+    assert seen == [({"event_id": "fixture-1", "market": "goals"},)]
+    assert compiled == [({"event_id": "fixture-1", "market": "goals", "confirmed": True},)]
+    assert run.fixtures[0].canonical_results == compiled[0]
+
+
+def test_stored_reads_use_the_worker_confirmation_and_previews_none():
+    with mock.patch.object(match_read_dispatch, "confirm_prices", side_effect=lambda results, **_: list(results)) as default:
+        _confirmation_run(persist=True)
+        assert default.call_count == 1
+        assert default.call_args.kwargs == {"min_ev": match_read_dispatch.MARKET_VALUE_MIN_EV}
+        _confirmation_run(persist=False)
+        assert default.call_count == 1  # a preview or shadow run makes no OddsPapi request
+
+
+def test_a_failed_price_confirmation_stores_no_read_for_that_fixture():
+    def confirm(results):
+        raise RuntimeError("boom")
+
+    run, compiled = _confirmation_run(persist=True, price_confirmer=confirm)
+    assert compiled == [] and run.fixtures[0].draft is None and run.records == ()
+    assert "price confirmation failed" in run.fixtures[0].error
