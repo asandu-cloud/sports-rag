@@ -14,6 +14,8 @@ moment of the read each pick is one of:
 * ``suspended``: the selection was suspended at that moment;
 * ``not_listed``: the bookmaker had not priced the line yet;
 * ``no_history``: OddsPapi has no prices for this bookmaker and line (or the fixture is unmatched).
+* ``history_error``: OddsPapi answered the history request with an error (22 Oct: Betfair requested with
+  other bookmakers failed the whole request; such picks were counted as ``no_history`` before).
 
 Value is recomputed at the bookmaker's own price (published probability times that price, minus one), and
 the bookmaker's own last price before kickoff gives its true close for the quoted price.
@@ -36,14 +38,15 @@ import statistics
 from Scripts.data_platform import disagreement as dis
 from Scripts.data_platform import selection_policies as sp
 from Scripts.data_platform.calibration_data import _time
-from Scripts.data_platform.oddspapi import BOOKS, last_before, locate, market_index, series  # noqa: F401
+from Scripts.data_platform.oddspapi import (  # noqa: F401
+    BOOKS, EXCHANGES, OddsPapiError, histories, last_before, locate, market_index, series)
 from Scripts.ops import pinnacle_check as pc
 from Scripts.ops.odds_archive import ROOT
 
 # The quotes are also checked at the bookmaker's other country sites (Bet365's differ, see oddspapi.BOOKS).
 ALSO = {"Bet365": {"Bet365 UK site": "bet365", "Bet365 German site": "bet365.de"}}
 TOLERANCE = 0.005
-PER_CALL = 3  # OddsPapi's limit of bookmakers per historical call
+ERROR = {"status": "history_error", "own_price": None, "lag_minutes": None, "own_close": None}
 POLICIES = ("market", "current")
 
 
@@ -96,33 +99,26 @@ def fixture_ids(client, fixtures):
     return mapping
 
 
-def _histories(client, odds_id, slugs):
-    """{slug: historical-odds body} for one fixture; Pinnacle alone (its earlier calls are cached that way)."""
-    slugs = sorted(set(slugs))
-    groups = ([["pinnacle"]] if "pinnacle" in slugs else []) + [
-        g for g in ([s for s in slugs if s != "pinnacle"][i:i + PER_CALL] for i in range(0, len(slugs), PER_CALL)) if g]
-    out = {}
-    for group in groups:
-        body = client.get("/v4/historical-odds", fixtureId=odds_id, bookmakers=",".join(group))
-        for slug in group:
-            out[slug] = body if isinstance(body, dict) else {}
-    return out
-
-
 def run(client, rows, fixtures, index, *, policies=POLICIES, min_ev=0.02):
     picks = picks_by_policy(rows, policies, min_ev=min_ev)
     mapping = fixture_ids(client, fixtures)
     kickoffs = {str(f["fixture_id"]): f["kickoff"] for f in fixtures}
-    needed = defaultdict(set)
+    needed, outcomes = defaultdict(set), defaultdict(lambda: defaultdict(set))
     for chosen in picks.values():
         for r, _, _ in chosen:
             slug = BOOKS.get(r["best_book"])
             if slug and r["fixture_id"] in mapping:
                 needed[r["fixture_id"]].update({slug, *ALSO.get(r["best_book"], {}).values()})
+                place = locate(index, r) if slug in EXCHANGES else None
+                if place:
+                    outcomes[r["fixture_id"]][slug].add(place[1])
     results = {name: [] for name in picks}
     also = {name: [] for name in picks}  # the same quotes checked at other country sites of the bookmaker
     for fixture in sorted(needed):
-        bodies = _histories(client, mapping[fixture], needed[fixture])
+        try:
+            bodies = histories(client, mapping[fixture], needed[fixture], outcomes[fixture], missing_ok=True)
+        except OddsPapiError:
+            bodies = None
         for name, chosen in picks.items():
             for r, p, ev in chosen:
                 if r["fixture_id"] != fixture or not BOOKS.get(r["best_book"]):
@@ -131,8 +127,9 @@ def run(client, rows, fixtures, index, *, policies=POLICIES, min_ev=0.02):
                 at, kickoff = _time(r["evaluated_at"]), kickoffs.get(fixture) or _time(r["kickoff"])
                 for label, slug, out in [(r["best_book"], BOOKS.get(r["best_book"]), results[name])] + [
                         (label, slug, also[name]) for label, slug in ALSO.get(r["best_book"], {}).items()]:
-                    points = series(bodies.get(slug), slug, *place) if slug and place else []
-                    out.append({**_record(r, p, ev, check(r["best_odds"], points, at, kickoff)), "book": label})
+                    points = series(bodies.get(slug), slug, *place) if bodies and slug and place else []
+                    found = check(r["best_odds"], points, at, kickoff) if bodies is not None else ERROR
+                    out.append({**_record(r, p, ev, found), "book": label})
     for name, chosen in picks.items():  # picks whose bookmaker or fixture OddsPapi cannot check
         for r, p, ev in chosen:
             if not (BOOKS.get(r["best_book"]) and r["fixture_id"] in mapping):

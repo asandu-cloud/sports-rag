@@ -120,3 +120,55 @@ def test_each_pick_is_recorded_once_even_when_its_bookmaker_is_not_carried():
     report = prc.run(Client(), rows, fixtures, index, policies=("market",))
     statuses = sorted((p["book"], p["status"]) for p in report["picks"]["market"])
     assert statuses == [("BetVictor", "bookmaker_not_carried"), ("Pinnacle", "real")]
+
+
+def _picks(*books):
+    return [{"fixture_id": "1", "stage": "pre_match", "kickoff": KO.isoformat(), "evaluated_at": at(60).isoformat(),
+             "market": "goals", "market_key": "totals", "side": "over", "point": 2.5, "home": "Arsenal", "away": "Leeds",
+             "p_spix": 0.6, "p_ref": 0.55, "book_count": 3, "best_odds": 2.0, "best_book": book, "selected": True}
+            for book in books]
+
+
+FIXTURES = [{"fixture_id": 1, "kickoff": KO, "league": "EPL", "home": "Arsenal", "away": "Leeds"}]
+LISTED = [{"fixtureId": "op1", "startTime": KO.isoformat().replace("+00:00", "Z"),
+           "participant1Name": "Arsenal", "participant2Name": "Leeds"}]
+
+
+def test_betfair_exchange_prices_are_read_alone_one_outcome_at_a_time():
+    calls = []
+
+    class Client:  # OddsPapi: 'betfair-ex' only alone and with one outcomeId, else 400 INVALID_PARAMETER
+        def get(self, path, **params):
+            if path == "/v4/fixtures":
+                return LISTED
+            calls.append(params)
+            if "betfair-ex" in params["bookmakers"] and (params["bookmakers"] != "betfair-ex" or "outcomeId" not in params):
+                raise prc.OddsPapiError(path, 400, {"error": {"code": "INVALID_PARAMETER"}})
+            slug = params["bookmakers"].split(",")[0]
+            return {"bookmakers": {slug: {"markets": {"1010": {"outcomes": {"1011": {"players": {"0": [entry(300, 2.0)]}}}}}}}}
+
+    report = prc.run(Client(), _picks("Betfair"), FIXTURES, prc.market_index(MARKETS), policies=("market",))
+    assert [p["status"] for p in report["picks"]["market"]] == ["real"]
+    assert {"fixtureId": "op1", "bookmakers": "betfair-ex", "outcomeId": "1011"} in calls
+
+
+def _answering(status, code):
+    class Client:
+        def get(self, path, **params):
+            if path == "/v4/fixtures":
+                return LISTED
+            raise prc.OddsPapiError(path, status, {"error": {"code": code}})
+    return Client()
+
+
+def test_an_oddspapi_error_is_its_own_status_not_a_missing_history():
+    report = prc.run(_answering(503, "UNAVAILABLE"), _picks("Bet365"), FIXTURES, prc.market_index(MARKETS),
+                     policies=("market",))
+    assert [p["status"] for p in report["picks"]["market"]] == ["history_error"]
+    assert report["summary"]["market"]["all"]["checked"] == 0
+
+
+def test_no_historical_odds_found_is_a_missing_history():
+    report = prc.run(_answering(404, "NOT_FOUND"), _picks("Bet365"), FIXTURES, prc.market_index(MARKETS),
+                     policies=("market",))
+    assert [p["status"] for p in report["picks"]["market"]] == ["no_history"]

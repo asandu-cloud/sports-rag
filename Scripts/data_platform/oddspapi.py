@@ -16,6 +16,7 @@ import json
 from pathlib import Path
 import re
 import time
+import unicodedata
 
 import requests
 
@@ -25,6 +26,7 @@ BASE = "https://api.oddspapi.io"
 CACHE = Path(__file__).resolve().parents[2] / "Index/oddspapi"
 FREE = {"/v4/historical-odds", "/v4/account"}
 COOLDOWN = {"/v4/fixtures": 2.1, "/v4/historical-odds": 5.1}
+ATTEMPTS = 3  # a "rate limited" answer (429) is retried after the wait it names
 TOURNAMENTS = {"EPL": 17, "LaLiga": 8, "SerieA": 23, "Bundesliga": 35, "Ligue1": 34, "Championship": 18,
                "Eredivisie": 37, "PrimeiraLiga": 238, "BelgianProLeague": 38, "UCL": 7, "UEL": 679, "UECL": 34480,
                "SuperLig": 52}
@@ -34,23 +36,48 @@ TOURNAMENTS = {"EPL": 17, "LaLiga": 8, "SerieA": 23, "Bundesliga": 35, "Ligue1":
 BOOKS = {"Pinnacle": "pinnacle", "Bet365": "bet365.es", "1xBet": "1xbet", "William Hill": "williamhill",
          "Marathonbet": "marathonbet", "SBO": "sbobet", "Dafabet": "dafabet", "Betfair": "betfair-ex",
          "Betano": "betano"}
+# An exchange's history comes only on its own and for one outcome per request (else 400 INVALID_PARAMETER,
+# which also failed the bookmakers asked for with it: 37 fixtures' true closes, 20-22 Oct).
+EXCHANGES = {"betfair-ex"}
 MARKET_TYPES = {"goals": "totals", "corners": "totals-corners", "cards": "totals-bookings",
                 "btts": "bothteamsscore", "moneyline": "1x2", "spreads": "spreads"}
 OUTCOME_NAMES = {"over": "Over", "under": "Under", "yes": "Yes", "no": "No", "home": "1", "draw": "X", "away": "2"}
 NOISE = {"fc", "afc", "cf", "sc", "ac", "ssc", "as", "cd", "ud", "rc", "sv", "vfb", "vfl", "tsg", "fsv", "bc",
          "sk", "fk", "the", "club", "de", "calcio", "1"}
+PLAIN = str.maketrans({"ı": "i", "ß": "ss", "ø": "o", "ł": "l", "đ": "d", "æ": "ae"})  # letters NFKD keeps
 
 
 class BudgetExceeded(RuntimeError):
     pass
 
 
+class OddsPapiError(RuntimeError):
+    """An answer other than 200, or no answer at all: never cached, never to be read as "no prices".
+
+    21 Oct: the history of 8 fixtures failed 2.5 hours after kickoff and the error bodies were read as
+    empty histories, so 129 picks were recorded with no close. The message carries the HTTP status and
+    OddsPapi's error code only, never the request URL (it holds the API key).
+    """
+
+    def __init__(self, path, status, body, *, code=None):
+        error = body.get("error") if isinstance(body, dict) else None
+        self.path, self.status = path, status
+        self.code = code or (error.get("code") if isinstance(error, dict) else None)
+        super().__init__(f"OddsPapi {path} answered {status}" + (f" ({self.code})" if self.code else ""))
+
+
 def utc(text):
     return datetime.fromisoformat(str(text).replace("Z", "+00:00"))
 
 
+def _retry_seconds(body, default):
+    error = body.get("error") if isinstance(body, dict) else None
+    retry_ms = error.get("retryMs") if isinstance(error, dict) else None
+    return retry_ms / 1000 + 0.25 if isinstance(retry_ms, (int, float)) else default
+
+
 class OddsPapiClient:
-    """Cached, cooldown-respecting, budget-capped OddsPapi client."""
+    """Cached, cooldown-respecting, budget-capped OddsPapi client. Error answers raise ``OddsPapiError``."""
 
     def __init__(self, key, cache_dir=CACHE, *, budget=40, session=None, sleep=time.sleep, clock=time.monotonic,
                  compress=False):
@@ -72,29 +99,41 @@ class OddsPapiClient:
         if packed.exists():
             return json.loads(gzip.decompress(packed.read_bytes()))["body"]
         billable = path not in FREE
-        usage = self._usage()
-        if billable and usage["billable"] >= self.budget:
-            raise BudgetExceeded(f"OddsPapi budget of {self.budget} billable requests reached")
-        wait = COOLDOWN.get(path, 1.1) - (self.clock() - self._last.get(path, -1e9))
-        if wait > 0:
-            self.sleep(wait)
-        response = self.session.get(BASE + path, params={**params, "apiKey": self.key}, timeout=60)
-        self._last[path] = self.clock()
-        if billable:
-            usage["billable"] += 1
-            (self.cache / "usage.json").write_text(json.dumps(usage))
-        body = response.json()
-        if response.status_code == 200:
-            text = json.dumps({"path": path, "params": params, "body": body})
-            if self.compress:
-                packed.write_bytes(gzip.compress(text.encode()))
-            else:
-                cached.write_text(text)
-        return body
+        for attempt in range(ATTEMPTS):
+            usage = self._usage()
+            if billable and usage["billable"] >= self.budget:
+                raise BudgetExceeded(f"OddsPapi budget of {self.budget} billable requests reached")
+            wait = COOLDOWN.get(path, 1.1) - (self.clock() - self._last.get(path, -1e9))
+            if wait > 0:
+                self.sleep(wait)
+            try:
+                response = self.session.get(BASE + path, params={**params, "apiKey": self.key}, timeout=60)
+            except requests.RequestException as exc:  # its message holds the URL, and so the key
+                raise OddsPapiError(path, None, None, code=type(exc).__name__) from None
+            self._last[path] = self.clock()
+            if billable:
+                usage["billable"] += 1
+                (self.cache / "usage.json").write_text(json.dumps(usage))
+            try:
+                body = response.json()
+            except ValueError:
+                body = None
+            if response.status_code == 200:
+                text = json.dumps({"path": path, "params": params, "body": body})
+                if self.compress:
+                    packed.write_bytes(gzip.compress(text.encode()))
+                else:
+                    cached.write_text(text)
+                return body
+            if response.status_code != 429 or attempt == ATTEMPTS - 1:
+                raise OddsPapiError(path, response.status_code, body)
+            self.sleep(_retry_seconds(body, COOLDOWN.get(path, 1.1)))
 
 
 def _tokens(name):
-    words = re.sub(r"[^a-z0-9 ]", " ", str(name).lower().replace("ü", "u").replace("ö", "o").replace("é", "e")).split()
+    """Words of a team name in plain letters ("Kasımpaşa" -> kasimpasa), without "FC"-like noise."""
+    text = unicodedata.normalize("NFKD", str(name).lower().translate(PLAIN))
+    words = re.sub(r"[^a-z0-9 ]", " ", "".join(c for c in text if not unicodedata.combining(c))).split()
     return {w for w in words if w not in NOISE}
 
 
@@ -103,12 +142,26 @@ def _names_match(a, b):
     return bool(ta & tb) or difflib.SequenceMatcher(None, " ".join(sorted(ta)), " ".join(sorted(tb))).ratio() >= 0.75
 
 
+def _same_team(a, b):
+    """Every word of one name is in the other ("Bolton" / "Bolton Wanderers"); a shared "City" is not enough."""
+    ta, tb = _tokens(a), _tokens(b)
+    return bool(ta and tb) and (ta <= tb or tb <= ta)
+
+
 def match_fixtures(ours, theirs, *, window=timedelta(minutes=20)):
-    """{our fixture id: OddsPapi fixtureId} by kickoff time and both team names."""
+    """{our fixture id: OddsPapi fixtureId} by kickoff time and team names.
+
+    Both names must match; failing that (short names such as "Wolves", "QPR" or "Köln" / "Cologne"), one
+    team must match word for word and be in no other fixture at that kickoff.
+    """
     mapping = {}
     for fixture in ours:
-        hits = [t for t in theirs if abs(utc(t["startTime"]) - fixture["kickoff"]) <= window
-                and _names_match(fixture["home"], t["participant1Name"]) and _names_match(fixture["away"], t["participant2Name"])]
+        near = [t for t in theirs if abs(utc(t["startTime"]) - fixture["kickoff"]) <= window]
+        hits = [t for t in near if _names_match(fixture["home"], t["participant1Name"])
+                and _names_match(fixture["away"], t["participant2Name"])]
+        if not hits:
+            hits = [t for t in near if _same_team(fixture["home"], t["participant1Name"])
+                    or _same_team(fixture["away"], t["participant2Name"])]
         if len(hits) == 1:
             mapping[fixture["fixture_id"]] = hits[0]["fixtureId"]
     return mapping
@@ -153,6 +206,37 @@ def locate(index, line):
     if not entry or name not in entry[1]:
         return None
     return entry[0], entry[1][name]
+
+
+def histories(client, fixture_id, slugs, outcomes=None, *, missing_ok=False):
+    """{slug: price history} of one fixture's bookmakers, requested as OddsPapi allows.
+
+    Pinnacle alone (its earlier histories are cached that way), the others three per request, and an
+    exchange alone once per outcome id in ``outcomes[slug]`` (an exchange without outcomes is skipped).
+    With ``missing_ok``, "No historical odds found" (404 NOT_FOUND) is read as no prices from the
+    bookmakers asked for; otherwise it raises like any other error.
+    """
+    def get(**params):
+        try:
+            return client.get("/v4/historical-odds", fixtureId=fixture_id, **params)
+        except OddsPapiError as exc:
+            if missing_ok and exc.code == "NOT_FOUND":
+                return {}
+            raise
+
+    slugs = set(slugs)
+    others = sorted(slugs - {"pinnacle"} - EXCHANGES)
+    bodies = {}
+    for group in ([["pinnacle"]] if "pinnacle" in slugs else []) + [others[i:i + 3] for i in range(0, len(others), 3)]:
+        body = get(bookmakers=",".join(group))
+        bodies.update({slug: body if isinstance(body, dict) else {} for slug in group})
+    for slug in sorted(slugs & EXCHANGES):
+        for outcome_id in sorted((outcomes or {}).get(slug) or ()):
+            body = get(bookmakers=slug, outcomeId=outcome_id)
+            markets = bodies.setdefault(slug, {"bookmakers": {slug: {"markets": {}}}})["bookmakers"][slug]["markets"]
+            for market_id, market in ((((body or {}).get("bookmakers") or {}).get(slug) or {}).get("markets") or {}).items():
+                markets.setdefault(market_id, {"outcomes": {}})["outcomes"].update(market.get("outcomes") or {})
+    return bodies
 
 
 def series(body, slug, market_id, outcome_id):

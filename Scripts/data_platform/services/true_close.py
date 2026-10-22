@@ -14,6 +14,11 @@ last active price before kickoff. For each published pick, once the match is ove
 Both go to ``extras["true_close"]``. API-Football's ``closing_capture`` is untouched and stays the fallback
 where a fixture cannot be matched (D18). Fixture ids cost one billable request per competition and week
 (cached); price histories are free.
+
+An OddsPapi error records nothing: the fixture's picks stay due and the next run retries them. Only after
+``GIVE_UP`` is a fixture that still errors, or was never found in OddsPapi's lists, recorded as unavailable
+with its reason. ``run(recapture=...)`` replaces the records of named fixtures (22 Oct: 129 picks recorded
+from error answers on 21 Oct).
 """
 from datetime import datetime, timedelta, timezone
 import time
@@ -29,6 +34,10 @@ from ..settlement import utc_datetime
 # v2 (20 Oct): a line withdrawn before kickoff has no close (v1 fell back to its last active price).
 SOURCE = "oddspapi_true_close.v2"
 DUE_AFTER = timedelta(hours=2)
+GIVE_UP = timedelta(days=3)  # after this, an erroring or unmatched fixture is recorded as unavailable
+# OddsPapi's "No historical odds found" means a bookmaker has no prices for the fixture only once its
+# history has settled; sooner it is retried (21 Oct: 8 fixtures failed 2.5 h after kickoff).
+SETTLED = timedelta(hours=6)
 SIDES = {"goals": ("over", "under"), "corners": ("over", "under"), "cards": ("over", "under"),
          "btts": ("yes", "no"), "moneyline": ("home", "draw", "away")}
 METHODS = ("proportional", "power")
@@ -39,6 +48,12 @@ def week_window(kickoff):
     monday = datetime(kickoff.year, kickoff.month, kickoff.day, tzinfo=timezone.utc) - timedelta(days=kickoff.weekday())
     return ((monday - timedelta(days=1)).strftime("%Y-%m-%dT00:00:00Z"),
             (monday + timedelta(days=8)).strftime("%Y-%m-%dT00:00:00Z"))
+
+
+def kickoff_of(prediction):
+    """The match's kickoff: the settled result's where there is one (a match can be moved after publication)."""
+    result = (prediction.get("settlement") or {}).get("result") or {}
+    return utc_datetime(result.get("kickoff") or prediction.get("kickoff"))
 
 
 def pick_line(prediction):
@@ -111,79 +126,112 @@ class TrueCloseService:
         self.repo, self.client, self.index = repo, client, index
         self.clock = clock or (lambda: datetime.now(timezone.utc))
 
-    def due(self, predictions):
+    def due(self, predictions, recapture=()):
         now = self.clock()
         out = []
         for p in predictions:
-            kickoff = utc_datetime(p.get("kickoff"))
-            done = (p.get("true_close") or {}).get("source") == SOURCE
+            kickoff = kickoff_of(p)
+            done = (p.get("true_close") or {}).get("source") == SOURCE and str(p.get("fixture_id")) not in recapture
             if kickoff and not done and now >= kickoff + DUE_AFTER and p.get("market") in (*SIDES, "spreads"):
                 out.append(p)
         return out
 
     def fixture_ids(self, predictions):
-        """{fixture id: OddsPapi fixtureId}: one fixture list per competition and week."""
+        """({fixture id: OddsPapi fixtureId}, {fixture ids whose list failed}): one list per competition and week."""
         groups = {}
         for p in predictions:
             if p.get("league") not in oddspapi.TOURNAMENTS:
                 continue
-            kickoff = utc_datetime(p["kickoff"])
+            kickoff = kickoff_of(p)
             groups.setdefault((p["league"], week_window(kickoff)), {})[str(p["fixture_id"])] = {
                 "fixture_id": str(p["fixture_id"]), "kickoff": kickoff, "home": p["home_team"], "away": p["away_team"]}
-        mapping = {}
+        mapping, failed = {}, set()
         for (league, (start, end)), fixtures in sorted(groups.items()):
-            theirs = self.client.get("/v4/fixtures", tournamentId=oddspapi.TOURNAMENTS[league], **{"from": start, "to": end})
+            try:
+                theirs = self.client.get("/v4/fixtures", tournamentId=oddspapi.TOURNAMENTS[league], **{"from": start, "to": end})
+            except oddspapi.OddsPapiError:
+                failed.update(fixtures)
+                continue
             mapping.update(oddspapi.match_fixtures(list(fixtures.values()), theirs if isinstance(theirs, list) else []))
-        return mapping
+        return mapping, failed
 
-    def run(self, predictions, *, limit=None):
-        """Capture every due pick (at most ``limit`` fixtures); returns counts by status."""
-        due = self.due(predictions)
-        mapping = self.fixture_ids(due)
+    def histories(self, odds_id, picks, kickoff):
+        """{slug: price history} for Pinnacle and the picks' own bookmakers (an exchange per picked outcome)."""
+        slugs, outcomes = {"pinnacle"}, {}
+        for p in picks:
+            line = pick_line(p)
+            slug = oddspapi.BOOKS.get(line["bookmaker"])
+            place = oddspapi.locate(self.index, line) if slug in oddspapi.EXCHANGES else None
+            if place:
+                outcomes.setdefault(slug, set()).add(place[1])
+            if slug:
+                slugs.add(slug)
+        return oddspapi.histories(self.client, odds_id, slugs, outcomes, missing_ok=self.clock() >= kickoff + SETTLED)
+
+    def run(self, predictions, *, limit=None, recapture=()):
+        """Capture every due pick (at most ``limit`` fixtures); returns counts by status.
+
+        ``recapture`` names fixtures (our ids) whose existing records are replaced.
+        """
+        due = self.due(predictions, recapture)
+        mapping, failed = self.fixture_ids(due)
         by_fixture = {}
         for p in due:
             by_fixture.setdefault(str(p["fixture_id"]), []).append(p)
         counts = {"due": len(due), "fixtures": len(by_fixture), "matched": 0, "final": 0, "unavailable": 0,
-                  "unmatched": 0, "conflicts": 0}
+                  "unmatched": 0, "errors": 0, "conflicts": 0}
         for n, (fixture, picks) in enumerate(sorted(by_fixture.items())):
             if limit is not None and n >= limit:
                 break
+            kickoff = kickoff_of(picks[0])
+            missing = {"source": SOURCE, "kickoff": kickoff.isoformat(), "status": "unavailable"}
+            given_up, replace = self.clock() >= kickoff + GIVE_UP, fixture in recapture
             odds_id = mapping.get(fixture)
+            if fixture in failed:
+                counts["errors"] += len(picks)
+                continue
             if odds_id is None:
-                counts["unmatched"] += len(picks)
+                if not given_up:
+                    counts["unmatched"] += len(picks)
+                    continue
+                for p in picks:
+                    self._save(p, {**missing, "reason": "fixture_not_matched"}, counts, replace)
                 continue
             counts["matched"] += 1
-            kickoff = utc_datetime(picks[0]["kickoff"])
-            slugs = {"pinnacle"} | {oddspapi.BOOKS[b] for b in (pick_line(p)["bookmaker"] for p in picks) if b in oddspapi.BOOKS}
-            bodies = {}
-            others = sorted(slugs - {"pinnacle"})
-            for group in [["pinnacle"]] + [others[i:i + 3] for i in range(0, len(others), 3)]:
-                body = self.client.get("/v4/historical-odds", fixtureId=odds_id, bookmakers=",".join(group))
-                bodies.update({slug: body if isinstance(body, dict) else {} for slug in group})
+            failure = None
+            try:
+                bodies = self.histories(odds_id, picks, kickoff)
+            except oddspapi.OddsPapiError as exc:
+                if not given_up:
+                    counts["errors"] += len(picks)
+                    continue
+                failure = {**missing, "reason": "oddspapi_error", "error": exc.code or exc.status}
             for p in picks:
-                record = {**true_close(p, bodies, self.index, kickoff), "captured_at": self.clock().isoformat(),
-                          "oddspapi_fixture_id": odds_id}
-                result = self._write(p["id"], record)
-                counts["conflicts" if result == "conflict" else record["status"]] += 1
+                record = failure or true_close(p, bodies, self.index, kickoff)
+                self._save(p, {**record, "oddspapi_fixture_id": odds_id}, counts, replace)
         return counts
 
-    def _write(self, prediction_id, record, *, attempts=5):
+    def _save(self, prediction, record, counts, replace):
+        result = self._write(prediction["id"], {**record, "captured_at": self.clock().isoformat()}, replace=replace)
+        counts["conflicts" if result == "conflict" else record["status"]] += 1
+
+    def _write(self, prediction_id, record, *, replace=False, attempts=5):
         """Write one record; SQLite's "database is locked" (the measurement worker writes every minute) is retried."""
         for attempt in range(attempts):
             try:
-                return self._write_once(prediction_id, record)
+                return self._write_once(prediction_id, record, replace)
             except OperationalError as exc:
                 if "locked" not in str(exc) or attempt == attempts - 1:
                     raise
                 time.sleep(1 + attempt)
 
-    def _write_once(self, prediction_id, record):
+    def _write_once(self, prediction_id, record, replace):
         with self.repo._factory() as session:
             row = session.get(Prediction, prediction_id)
             if row is None:
                 return "conflict"
             extras = dict(row.extras or {})
-            if (extras.get("true_close") or {}).get("source") == SOURCE:
+            if not replace and (extras.get("true_close") or {}).get("source") == SOURCE:
                 return "unchanged"
             extras["true_close"] = record
             changed = session.execute(update(Prediction).where(

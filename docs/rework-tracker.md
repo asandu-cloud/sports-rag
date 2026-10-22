@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-21 (D40)
+Last updated: 2026-10-22 (D41)
 
 ## Status
 
@@ -62,11 +62,12 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Make power the default margin-removal method in measurement (`reference_price`, closing consensus, publication reference, scorecard). Owner, 20 Oct: keep proportional through stages 1–3 so every stage is judged on the same yardstick; switch at the Mon 2 Nov scorecard and recompute the history from the stored per-book prices | Mon 2 Nov scorecard | Refit anything fitted on v1 |
 | Closed 20 Oct: no weighted reference (D40); the scorecard adds the true close instead (D39) | Done | |
 | Refresh the report artifact from this tracker | Now due (A1 done 20 Oct) | |
+| OddsPapi's answers in the hours after a match: a probe of the 22 Oct Europa League matches (Juventus v Rennes 16:45 UTC, Bournemouth v Milan 19:00) logs status and error every 10 minutes to 23:15 UTC; it tells whether "No historical odds found" or another error is what the 21 Oct evening captures met, and so whether the 6 h `SETTLED` wait and the 2 h `DUE_AFTER` are right (D41) | Fri 23 Oct, before the stage 2 check | Provisional values until then |
 | Stop embedding into Chroma entirely | A7 | Whale chat and `rag_cli_v2` still search Chroma by meaning |
 | A6c LightGBM market-error challenger (D14) | After A6's base model passes | Must beat fitted A6 vs the market baseline |
 | Rerun the blend study (`Scripts/ops/blend_study.py`) on A6's forecasts: does Spix earn c > 0? | A6 gate | D20 |
 | **Temporary (D21):** 1X2 and O/U 2.5 publish the market's probability (power) with c = 0 **only until A6**; rerun the blend study on A6's forecasts and refit c if Spix earns it | A3.7 go-live, then A6 gate | Not permanent: revisit at A6 |
-| OddsPapi true close: built 20 Oct (`services/true_close.py`, `ops/true_close.py`; Pinnacle plus the pick's own bookmaker; API-Football's snapshot kept as fallback, D18, D39); first capture run 20 Oct. Job `com.bettingrag.true-close` installed 20 Oct (owner); hourly at half past since 21 Oct (the 10:30 run met the 6 h 43 min refresh and deferred); the scorecard shows value at the true close and true price CLV | Live | About 13 billable requests a week (one fixture list per competition and week) |
+| OddsPapi true close: built 20 Oct (`services/true_close.py`, `ops/true_close.py`; Pinnacle plus the pick's own bookmaker; API-Football's snapshot kept as fallback, D18, D39); first capture run 20 Oct. Job `com.bettingrag.true-close` installed 20 Oct (owner); hourly at half past since 21 Oct (the 10:30 run met the 6 h 43 min refresh and deferred); the scorecard shows value at the true close and true price CLV; repaired 22 Oct (D41): an OddsPapi error is retried next hour instead of being recorded as "no price", Betfair is requested alone per outcome, names with Turkish letters or short forms match, the settled kickoff is used, `--recapture` replaces named fixtures' records | Live | About 13 billable requests a week (one fixture list per competition and week) |
 | Done 20 Oct: OddsPapi's quota resets on the 1st of each month (docs, Requests & Quota); `/v4/account` reports the count (52 of 250 used by 20 Oct) | Done | |
 | Quote age near kickoff in selection (API-Football prices ~2 h old in the last 3 h, D15) | A5.3 (D30) | Apparent edge may be a price no longer offered |
 | Retire `ml_edge.py` and `Index/elo_ratings.json` | A7 | Replaced by A6 |
@@ -80,8 +81,8 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Go-live of stage 3: set `SPIX_MARKET_ANCHOR=strict` (built 17 Oct, off). 1X2 and goals O/U 2.5 take the market's consensus (median across books of each book's fair price, with selection's margin removal, so it assumes stage 2 is live; 1X2 rescaled to sum to one); Spix's own probability kept as `_spix_prob` / `spix_prob` and a `market_anchor` record in the result context. Golden preview, stage 3 alone: all 7 1X2 picks in the 54 fixtures become no-bets (at the market's number no price clears the 1X2 thresholds); the only O/U 2.5 pick of 38 goals picks moves to over 2.75, still priced on Spix's numbers (strict scope; stage 4 closes that). Preview again on top of stages 1–2, then re-record (D16 rule 4) | A3.7 stage 3, Tue 27 Oct | Other goal lines, Asian handicap and BTTS stay on Spix's probability until stage 4 (D29) |
 | Go-live of stage 4 as a bundle (D33 (b), D35): `SPIX_MARKET_ANCHOR=full`, `SPIX_SELECTION_POLICY=market_value`, `SPIX_BOOKMAKER_SET=romania`, all built 17 Oct and off. The goal-market part (`SPIX_MARKET_ANCHOR=goals`, built 17 Oct, off; `core/market_goal_model.py`). M1 is solved per read from the read's own prices (A3.2 targets: 1X2, O/U 2.5, the main Asian handicap; median of each book's fair price) and prices every goal line, the Asian handicap and BTTS; 1X2 and O/U 2.5 keep stage 3's direct consensus; line scoring and the handicap goal-edge rule use M1's means; Spix's probabilities kept (`_spix_prob`) and the fit recorded in `market_anchor.goal_model`. Golden preview (stages 1–2 off), recommended picks before → after: goals 38 → 5 (34 removed, 4 moved, 1 added), Asian handicap 47 → 3, BTTS 12 → 0, 1X2 7 → 0, corners 33 unchanged. D29 gate passed 17 Oct (D34); ships together with A5.2's selection rule for these markets (D33 (b)) | A3.7 stage 4, earliest Tue 3 Nov | Gate (D29): M1 beats Spix's log loss per market on the audited lines |
 | Rerun the D29 gate (`python -m Scripts.ops.m1_gate_study --out Research/m1-gate-<date>`) with the weeks since 17 Oct | Before stage 4 goes live | Passed 17 Oct on one audited week (D34) |
-| Price confirmation before publishing (D40 (a)): for each market-value pick, the quoting bookmaker's own price from OddsPapi's free history at publication; publish only if it is at least the quoted price, with the time checked (also D38); fixture ids from the same cached weekly lists as the true close | Before stage 4, earliest Tue 3 Nov | 1X2 best prices were a median 10 h stale (D39); the main-line rule does not touch them |
-| Stage 4 bundle: A5.3 part 1 (D39): Betano's best prices were real at the read in 58% of checked picks, Pinnacle's 52%; price rules decided (D40): (b) built behind the stage 4 switch, (a) price confirmation before publishing must be built before stage 4; bundle preview with (b), 54 golden fixtures of 17–18 Oct (Betano absent those days), all books: goals 38 → 8, corners 33 → 7, BTTS 12 → 4, 1X2 7 → 3, Asian handicap 47 → 0; Romanian books only: 2, 3, 1, 0, 0; rerun the bundle preview on the weeks since 17 Oct; owner sets the published value threshold (2% tested; Romania volume in D35) | Before stage 4, earliest Tue 3 Nov | Built 17 Oct (D35) |
+| Price confirmation before publishing (D40 (a)): for each market-value pick, the quoting bookmaker's own price from OddsPapi's free history at publication; publish only if it is at least the quoted price, with the time checked (also D38); fixture ids from the same cached weekly lists as the true close; 22 Oct (D41): request one outcome for up to three bookmakers (7 kB, not 3–7 MB), never through the client's permanent cache (a pre-kickoff history stored under the true close's key would become its close), and settle first whether an old latest entry at Betano, 1xBet or Bet365 means an unchanged price or slow polling | Before stage 4, earliest Tue 3 Nov | 1X2 best prices were a median 10 h stale (D39); the main-line rule does not touch them |
+| Stage 4 bundle: A5.3 part 1 (D39, corrected in D41): Betano's best prices were real at the read in 56% of checked picks, Pinnacle's 53%; price rules decided (D40): (b) built behind the stage 4 switch, (a) price confirmation before publishing must be built before stage 4; bundle preview with (b), 54 golden fixtures of 17–18 Oct (Betano absent those days), all books: goals 38 → 8, corners 33 → 7, BTTS 12 → 4, 1X2 7 → 3, Asian handicap 47 → 0; Romanian books only: 2, 3, 1, 0, 0; rerun the bundle preview on the weeks since 17 Oct; owner sets the published value threshold (2% tested; Romania volume in D35) | Before stage 4, earliest Tue 3 Nov | Built 17 Oct (D35) |
 | A5.3: part 1 done 20 Oct (D39, `ops/price_check.py`). Next: exchange commission (Betfair, not in OddsPapi's matched lines here), then evidence-based labels | A5.3 (D31) | Half the best-price books' quotes were unchanged or missing at the close (D31) |
 | Bookmaker sets per country: Romania first (D35); built, off. Used once Romanian prices are available (D36) | After Romanian prices exist | Since 16 Oct the feed has no Romanian-licensed bookmaker |
 | Ask ONJN in writing whether a subscription analysis service that names no bookmaker and takes no commission needs a Class II licence; and whether analysis content counts as gambling promotion under the pending 06:00–24:00 bill | Owner, before launch | Applies to every launch option in Romania |
@@ -640,7 +641,8 @@ calibration record instead of a hit rate.
   bookmaker's own timestamped prices (OddsPapi's free history): at the moment of the read, was its own price at least
   the quoted one (0.5% tolerance)? Market-price policy: 632 picks, 435 checkable (BetVictor is not in OddsPapi, 142
   lines are not in the bookmaker's history there, 51 fixtures unmatched). "Value at own price" counts a withdrawn or
-  suspended quote as no bet; the consensus is still the read's own (partly stale) quotes, so it is indicative.
+  suspended quote as no bet; the consensus is still the read's own (partly stale) quotes, so it is indicative. (Sample
+  corrected 22 Oct, D41: 538 checkable, 53% real; the readings below stand.)
 
 | Slice | Checked | Real | Stale (median minutes since it moved) | Suspended | Value claimed | Value at own price | Still ≥ 2% |
 |---|---:|---:|---|---:|---:|---:|---:|
@@ -696,6 +698,51 @@ calibration record instead of a hit rate.
    handicap value only on the main line (the home line whose median fair probability is closest to even); with the
    switches off the 54 golden fixtures are unchanged. (c) D38: API-Football's Bet365 prices are not shown to UK readers.
 4. *Website restarted* on today's code and `.env` (15:39 local).
+
+**D41 — True close repaired: OddsPapi errors had been recorded as missing prices (22 Oct).**
+- *What went wrong.* The OddsPapi client handed back error answers as if they were price histories, and the true close
+  read them as "no price". Of the 57 fixtures affected since 20 Oct (1,188 picks; found because a successful answer is
+  always cached, so a request with no cached answer had failed):
+  - *Betfair, 37 fixtures.* OddsPapi gives the exchange's (`betfair-ex`) history only on its own and for one outcome per
+    request; asked together with other bookmakers it answered 400, and the bookmakers in the same request were lost too.
+  - *"No historical odds found" (404), 8 fixtures.* William Hill has no OddsPapi history for some fixtures (QPR v Derby
+    and 5 others; a 6th likely), nor did one Betfair outcome (Hoffenheim v Beşiktaş); the 404 failed the whole fixture.
+  - *21 Oct evening, 8 fixtures (UCL, LaLiga; 141 picks).* Every request failed 2.5–2.75 h after kickoff except one;
+    the same requests succeed now. The answer was not kept, so the cause is open (probe, see open items).
+  - *4 Serie A fixtures, 20 Oct.* Failed for a reason not kept; the same requests succeeded on 22 Oct.
+  Separately, 24 fixtures (450 picks) never matched an OddsPapi fixture and were retried every hour: Turkish letters were
+  dropped instead of converted (Kasımpaşa against Kasimpasa; Beşiktaş, Fenerbahçe, Başakşehir, Gençlerbirliği), short
+  names share no word with the full ones (Wolves, QPR, Köln against Cologne, Rennes against Stade Rennais), and Casa Pia
+  v Santa Clara was published for 14:30 UTC and played at 19:30 (the only moved match among 4,087 settled picks).
+- *Fixes* (`oddspapi.py`, `services/true_close.py`, `ops/true_close.py`, `ops/price_check.py`). Any answer other than 200
+  raises `OddsPapiError` (never cached; its message has the status and code, never the URL, which holds the key);
+  "rate limited" waits as told and retries; an error leaves the fixture's picks due for the next hourly run, and only
+  3 days after kickoff is it recorded as unavailable with the error (`--recapture` redoes such records once a cause is
+  fixed). A 404 counts as "no prices from that bookmaker" once the match is 6 h past kickoff, sooner it is retried
+  (provisional until the probe). Betfair is requested alone per picked outcome (`oddspapi.histories`, now shared by the
+  true close and the price check, and by price confirmation later). Names are compared in plain letters, and one team
+  matching word for word is enough when no other fixture at that kickoff has it (on the cached lists: 23 of the 24 now
+  match, the 24th through its settled kickoff; all 177 fixtures already captured map to the same OddsPapi fixture).
+  The settled kickoff replaces the published one. An unreachable account check is reported without a traceback.
+- *Repair.* The 16:30 UTC run matched all 24 fixtures: 353 closes. The 57 fixtures were recaptured: of their 1,188
+  picks, 990 now have a close (829 before), 834 Pinnacle's (731), 798 the own bookmaker's (418); no Pinnacle close
+  already recorded changed; 198 have none (the line is priced neither by Pinnacle nor by the pick's bookmaker). All
+  measured picks: 4,087 records, 3,357 with a close (Pinnacle 2,692, own bookmaker 2,802), 730 without. Scorecard of
+  22 Oct: **value at the true close −2.0% (−2.8 to −1.1) on 939 picks** (774 on 20 Oct), true price CLV +1.4%; the
+  conclusion of D39 stands.
+- *Price check (A5.3 part 1) corrected.* The same Betfair failure and the name matching had shrunk D39's sample: rerun on
+  the same 632 market-policy picks (`Research/price-check-2026-10-22/same-picks-as-20-oct/`), all 239 fixtures match
+  (214) and 538 picks are checkable (435). **Real at the read 53% (54%)**; value claimed +4.8%, at the bookmakers' own
+  prices +3.0% (+3.3%); 60% still clear 2% (61%). By market: Asian handicap 17% real (18%), 1X2 26% (20%), goals 61%
+  (65%), cards 73% (72%), corners 64% (59%). By bookmaker: Pinnacle 53% (52%), Betano 56% (58%), Bet365's Spanish site
+  61% (68%; 2% at its UK and German sites, as before), SBO and Dafabet 0%. The current selector: 60% real of 802 (639).
+  D39's readings and D40's decisions stand. A rerun over everything audited to 21 Oct (259 fixtures, 713 picks,
+  `Research/price-check-2026-10-22/`) gives 52% real of 572.
+- *For price confirmation (D40 (a)).* OddsPapi's pre-match history is close to live for Pinnacle (latest entry 72 s old,
+  2 h before Bournemouth v Milan); Betano's latest was 21 minutes old, 1xBet's 11, Bet365's 33. The history records
+  changes only, so that is either an unchanged price or slower polling: to settle before confirmation relies on it.
+  A request narrowed to one outcome works for up to three bookmakers (7 kB instead of 3–7 MB per request).
+  Confirmation must bypass the client's permanent cache, or the true close would later read a pre-kickoff copy.
 
 ## Findings that shape later steps
 
