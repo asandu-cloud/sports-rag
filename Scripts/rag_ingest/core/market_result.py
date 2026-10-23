@@ -544,3 +544,48 @@ def decision_from_selector(selector_result: Mapping[str, Any]) -> Decision:
         settlement_profile=option.get("_settlement_profile") if option else None,
         probability_version="market-probability.v2" if option else None,
     )
+
+
+RESULT_SIDES = ("home", "draw", "away")
+
+
+def _finite_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def published_result_probabilities(result: MarketResult) -> Tuple[Optional[Dict[str, float]], str]:
+    """The home/draw/away probabilities a 1X2 result publishes, and whose they are: "market" or "model".
+
+    Under the market anchor (A3.7 stage 3, D21) the decision prices on the market's consensus, recorded in
+    ``context.market_anchor``; the projection keeps Spix's own, which research reads, so surfaces ask here.
+    """
+    if result.market.group != "moneyline":
+        return None, "model"
+    anchor = result.context.get("market_anchor")
+    market = anchor.get("market") if isinstance(anchor, Mapping) else None
+    if isinstance(market, Mapping) and all(_finite_number(market.get(side)) for side in RESULT_SIDES):
+        return {side: float(market[side]) for side in RESULT_SIDES}, "market"
+    components = result.projection.components
+    own = {side: components.get(f"{side}_probability") for side in RESULT_SIDES}
+    return (own if all(_finite_number(value) for value in own.values()) else None), "model"
+
+
+def probability_source(result: MarketResult) -> str:
+    """Whose probability the decision prices on: "market" under the market anchor, else "model".
+
+    Stage 3 anchors 1X2 and goals O/U 2.5 at the market's consensus; stage 4 prices every goal line, the Asian
+    handicap and BTTS from M1, the market's goal model, when it could be fitted, and ``full`` each corner line.
+    """
+    anchor = result.context.get("market_anchor")
+    if not isinstance(anchor, Mapping):
+        return "model"
+    group, quote = result.market.group, result.decision.quote
+    if group == "moneyline":
+        return published_result_probabilities(result)[1]
+    if group in ("goals", "btts", "spreads") and anchor.get("goal_model"):
+        return "market"
+    lines = anchor.get("lines")
+    if group in ("goals", "corners") and quote is not None and _finite_number(quote.line) and isinstance(lines, Mapping) \
+            and {str(quote.line), str(float(quote.line)), f"{float(quote.line):g}"} & set(lines):  # keys are str(point)
+        return "market"
+    return "model"

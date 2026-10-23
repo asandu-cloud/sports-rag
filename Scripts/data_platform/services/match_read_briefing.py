@@ -48,8 +48,10 @@ The paragraph must be 30-72 words. Each bullet must be 5-16 words and under
 108 characters. Explain the likely character of the match from the projected
 goals, result balance, and event-volume figures. You may say "the model
 projects" and cite supplied figures, but do not mention bets, picks,
-selections, odds, lines, bookmakers, value, edge, staking, or parlays. Do not
-give an instruction to the reader. Keep the language direct and specific."""
+selections, odds, lines, bookmakers, value, edge, staking, or parlays. When
+the result balance has "source": "market", it is the betting market's
+consensus, not the model's: attribute it to the market. Do not give an
+instruction to the reader. Keep the language direct and specific."""
 
 
 def enrich_match_read_draft(
@@ -257,8 +259,9 @@ def _deterministic_briefing(facts: Mapping[str, Any], *, fact_key: str) -> Dict[
     draw_probability = _finite(result.get("draw"))
     away_probability = _finite(result.get("away"))
     if home_probability is not None and draw_probability is not None and away_probability is not None:
+        source = "The market's consensus gives" if result.get("source") == "market" else "The result model gives"
         summary_bits.append(
-            f"The result model gives {home} a {home_probability * 100:.0f}% win chance, "
+            f"{source} {home} a {home_probability * 100:.0f}% win chance, "
             f"with the draw at {draw_probability * 100:.0f}% and {away} at {away_probability * 100:.0f}%"
         )
     projected_corners = _finite(corners.get("projected"))

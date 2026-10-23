@@ -17,6 +17,10 @@ try:  # Package import: tests and ``python -m Scripts.discord_bot...``.
     from .config import COLOR_GREEN, COLOR_YELLOW, COLOR_RED, COLOR_BLUE, COLOR_PURPLE
 except ImportError:  # Direct-script compatibility: ``cd Scripts/discord_bot && python ...``.
     from config import COLOR_GREEN, COLOR_YELLOW, COLOR_RED, COLOR_BLUE, COLOR_PURPLE
+try:  # bot.py puts Scripts/rag_ingest on the path; tests import from the repository root.
+    from core.market_result import probability_source, published_result_probabilities
+except ImportError:
+    from Scripts.rag_ingest.core.market_result import probability_source, published_result_probabilities  # type: ignore[import]
 
 _embed_log = logging.getLogger("embeds")
 
@@ -458,6 +462,7 @@ def _bet_card_embed(
     league: str = "",
     market_emoji: str = "\u26bd",
     extra_fields: Optional[List[Tuple[str, str, bool]]] = None,
+    probability_label: str = "Model",
 ) -> Tuple[discord.Embed, Optional[discord.File]]:
     """Build a single bet-card embed for one fixture with logo support.
 
@@ -491,7 +496,7 @@ def _bet_card_embed(
         em.add_field(name="\u2b50 Rating", value=f"{bar} {conf_desc}", inline=True)
 
     if model_p:
-        em.add_field(name="\U0001f4ca Model", value=model_p, inline=True)
+        em.add_field(name=f"\U0001f4ca {probability_label}", value=model_p, inline=True)
     if implied_p:
         em.add_field(name="\U0001f4d6 Books", value=implied_p, inline=True)
     if edge:
@@ -555,14 +560,11 @@ def market_results_to_embeds(
         if result.projection.value is None:
             projection = "Unavailable"
         elif result.projection.unit == "probability" and group == "moneyline":
-            components = result.projection.components
-            home_p = components.get("home_probability")
-            draw_p = components.get("draw_probability")
-            away_p = components.get("away_probability")
+            probabilities, source = published_result_probabilities(result)
             projection = (
-                f"1X2: {home_p:.1%} / {draw_p:.1%} / {away_p:.1%}"
-                if all(isinstance(item, (int, float)) for item in (home_p, draw_p, away_p))
-                else "Unavailable"
+                f"{'1X2 (market)' if source == 'market' else '1X2'}: {probabilities['home']:.1%} / "
+                f"{probabilities['draw']:.1%} / {probabilities['away']:.1%}"
+                if probabilities else "Unavailable"
             )
         elif result.projection.unit == "probability":
             projection = f"{result.projection.value:.1%}"
@@ -604,6 +606,7 @@ def market_results_to_embeds(
         embed, attached_file = _bet_card_embed(
             fixture, pick, odds, model_p, implied_p, edge, confidence, None,
             league=league, market_emoji=emoji_by_group.get(group, "⚽"), extra_fields=extra,
+            probability_label="Market" if probability_source(result) == "market" else "Model",
         )
         if footer:
             embed.set_footer(text=footer, icon_url=league_logo)

@@ -121,3 +121,40 @@ def test_briefing_falls_back_without_an_api_response():
     assert note is not None
     assert enriched.game_script["briefing"]["source"] == "deterministic_fallback"
     assert len(enriched.game_script["briefing"]["bullets"]) == 3
+
+
+def _anchored_moneyline():
+    """A 1X2 result under the market anchor (A3.7 stage 3): the decision prices on the market's numbers."""
+    result = _result("moneyline", {"value": 0.42, "components": {
+        "home_probability": 0.42, "draw_probability": 0.29, "away_probability": 0.29}})
+    result["context"]["market_anchor"] = {"version": "market-anchor.v1", "scope": "strict",
+                                          "market": {"home": 0.30, "draw": 0.26, "away": 0.44},
+                                          "spix": {"home": 0.42, "draw": 0.29, "away": 0.29}}
+    return result
+
+
+def test_an_anchored_result_balance_is_the_markets_and_says_so():
+    from data_platform.services.match_read_cards import _metrics_card
+    from data_platform.services.match_read_metrics import match_metrics
+
+    assert match_metrics([_anchored_moneyline()])["result_probabilities"] == {
+        "home": 0.3, "draw": 0.26, "away": 0.44, "source": "market"}
+    assert _metrics_card([_anchored_moneyline()])["result_probabilities"] == {"home": 0.3, "draw": 0.26, "away": 0.44}
+    # Without the anchor the facts are unchanged, so cached briefings stay valid
+    own = _result("moneyline", {"value": 0.42, "components": {
+        "home_probability": 0.42, "draw_probability": 0.29, "away_probability": 0.29}})
+    assert match_metrics([own])["result_probabilities"] == {"home": 0.42, "draw": 0.29, "away": 0.29}
+
+
+def test_the_fallback_briefing_attributes_an_anchored_result_balance_to_the_market():
+    from data_platform.services.match_read_briefing import enrich_match_read_draft
+    from data_platform.services.match_read_compiler import compile_match_read
+
+    draft = compile_match_read([
+        _result("goals", {"value": 2.42, "season_component": 2.61, "recent_component": 2.17}),
+        _anchored_moneyline(),
+    ])
+    enriched, _ = enrich_match_read_draft(draft, {}, generator=lambda _facts: {"summary": "too short", "bullets": []})
+    summary = enriched.game_script["briefing"]["summary"]
+    assert "The market's consensus gives Leeds United a 30% win chance" in summary
+    assert "result model" not in summary

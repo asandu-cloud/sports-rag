@@ -57,6 +57,14 @@ def match_metrics(canonical_results: Sequence[Mapping[str, Any]]) -> Dict[str, A
                     if value is not None
                 }
         else:
+            # Under the market anchor (A3.7 stage 3, D21) the decision prices on the market's consensus, so that is
+            # the balance published; the projection keeps Spix's own (research reads it there).
+            anchored = _mapping(_mapping(_mapping(markets.get(group, {}).get("context")).get("market_anchor")).get("market"))
+            market = [_finite(anchored.get(key)) for key in ("home", "draw", "away")]
+            if None not in market:
+                metrics["result_probabilities"] = {
+                    **{key: _round(value) for key, value in zip(("home", "draw", "away"), market)}, "source": "market"}
+                continue
             home = _finite(components.get("home_probability"))
             draw = _finite(components.get("draw_probability"))
             away = _finite(components.get("away_probability"))

@@ -10,9 +10,11 @@ from __future__ import annotations
 from typing import Iterable, List
 
 try:
-    from core.market_result import DecisionStatus, MarketResult
+    from core.market_result import DecisionStatus, MarketResult, probability_source, published_result_probabilities
 except ImportError:
-    from Scripts.rag_ingest.core.market_result import DecisionStatus, MarketResult  # type: ignore[import]
+    from Scripts.rag_ingest.core.market_result import (  # type: ignore[import]
+        DecisionStatus, MarketResult, probability_source, published_result_probabilities,
+    )
 
 
 _MARKET_LABELS = {
@@ -54,12 +56,10 @@ def projection_label(result: MarketResult) -> str:
     group = result.market.group
     if result.projection.unit == "probability":
         if group == "moneyline":
-            components = result.projection.components
-            home = components.get("home_probability")
-            draw = components.get("draw_probability")
-            away = components.get("away_probability")
-            if all(isinstance(item, (int, float)) for item in (home, draw, away)):
-                return f"1X2: {home:.1%} / {draw:.1%} / {away:.1%}"
+            probabilities, source = published_result_probabilities(result)
+            if probabilities:
+                label = "1X2 (market)" if source == "market" else "1X2"
+                return f"{label}: {probabilities['home']:.1%} / {probabilities['draw']:.1%} / {probabilities['away']:.1%}"
         if group == "btts":
             return f"BTTS Yes: {value:.1%}"
         return f"{value:.1%}"
@@ -93,7 +93,7 @@ def render_market_results_text(results: Iterable[MarketResult], *, notes: Iterab
             lines.append(f"  Recommended: {result_pick_label(result)} @ {quote.odds:.2f}{source_suffix}.")
             if decision.model_probability is not None:
                 label = ("Asian price-comparison probability" if decision.probability_basis == "asian_equivalent_non_push"
-                         else "Model probability")
+                         else "Market probability" if probability_source(result) == "market" else "Model probability")
                 lines.append(f"  {label}: {decision.model_probability:.1%}")
             if decision.implied_probability is not None:
                 lines.append(f"  Book implied probability: {decision.implied_probability:.1%}")

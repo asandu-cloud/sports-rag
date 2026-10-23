@@ -50,6 +50,7 @@ from core.line_selection import (
     choose_best_moneyline_side, confidence_from_edge,
     _best_model_only_line, _best_model_only_spread,
 )
+from core.market_result import published_result_probabilities
 from core.market_service import SUPPORTED_MARKETS, evaluate_event
 from Scripts.data_platform.services.communication_release import communication_release_manifest
 from core.parlay import build_candidates, kb_leg_quality, CandidateLeg, enrich_events_for_groups
@@ -226,6 +227,7 @@ class MoneylinePrediction(BaseModel):
     home_prob: Optional[float] = None
     draw_prob: Optional[float] = None
     away_prob: Optional[float] = None
+    probability_source: Optional[str] = None  # "market" under the market anchor (stage 3), else "model"
     recommended: Optional[str] = None
     odds: Optional[float] = None
     bookmaker: Optional[str] = None
@@ -720,11 +722,13 @@ def _btts_from_result(result) -> BttsPrediction:
 def _moneyline_from_result(result) -> MoneylinePrediction:
     fields = _decision_fields(result)
     quote = fields["quote"]
-    components = result.projection.components
+    probabilities, source = published_result_probabilities(result)
+    probabilities = probabilities or {}
     return MoneylinePrediction(
-        home_prob=_safe(components.get("home_probability")),
-        draw_prob=_safe(components.get("draw_probability")),
-        away_prob=_safe(components.get("away_probability")),
+        home_prob=_safe(probabilities.get("home")),
+        draw_prob=_safe(probabilities.get("draw")),
+        away_prob=_safe(probabilities.get("away")),
+        probability_source=source,
         recommended=quote.side if quote else None,
         odds=fields["odds"], bookmaker=fields["bookmaker"], value_edge=fields["value_edge"],
         confidence=fields["confidence"], status=fields["status"], reason=fields["reason"],

@@ -22,9 +22,11 @@ from core.market_result import (  # noqa: E402
     PriceQuote,
     Projection,
     Provenance,
+    probability_source,
+    published_result_probabilities,
 )
 from rendering import market_dispatch  # noqa: E402
-from rendering.market_results import render_market_results_text  # noqa: E402
+from rendering.market_results import projection_label, render_market_results_text  # noqa: E402
 
 
 def _result(group: str = "goals", *, status: DecisionStatus = DecisionStatus.RECOMMENDED) -> MarketResult:
@@ -49,6 +51,94 @@ def _result(group: str = "goals", *, status: DecisionStatus = DecisionStatus.REC
         decision=decision,
         provenance=Provenance("test", "snapshot-1", "2026-08-21T12:00:00Z"),
     )
+
+
+SPIX_1X2 = {"home": 0.42, "draw": 0.29, "away": 0.29}
+MARKET_1X2 = {"home": 0.30, "draw": 0.26, "away": 0.44}
+
+
+def _moneyline(*, anchored: bool, recommended: bool = False) -> MarketResult:
+    """A 1X2 result; anchored as A3.7 stage 3 records it: the market's numbers beside Spix's own."""
+    if recommended:
+        decision = Decision(status=DecisionStatus.RECOMMENDED, quote=PriceQuote(side="away", odds=2.40, bookmaker="Book"),
+                            model_probability=0.44 if anchored else 0.29, implied_probability=1 / 2.40,
+                            value_edge=0.023, expected_value=0.056, confidence="low")
+    else:
+        decision = Decision(status=DecisionStatus.NO_BET, reason="No side clears the moneyline betting thresholds.")
+    context = ({"market_anchor": {"version": "market-anchor.v1", "scope": "strict", "method": "power_devig_median",
+                                  "books": 10, "market": MARKET_1X2, "spix": SPIX_1X2}} if anchored else {})
+    return MarketResult(
+        fixture=FixtureRef("fixture-1", "EPL", "Arsenal", "Chelsea", "2026-09-01T15:00:00Z"),
+        market=MarketRef("moneyline", "moneyline", "probability"),
+        projection=Projection(0.42, "probability", components={f"{k}_probability": v for k, v in SPIX_1X2.items()}),
+        decision=decision,
+        provenance=Provenance("test", "snapshot-1", "2026-08-21T12:00:00Z"),
+        context=context,
+    )
+
+
+def _with_anchor(result: MarketResult, anchor: dict) -> MarketResult:
+    return MarketResult.from_dict({**result.to_dict(), "context": {"market_anchor": anchor}})
+
+
+class MarketAnchorPublicationTests(unittest.TestCase):
+    """Under the market anchor (D21) a decision prices on the market's numbers; the projection keeps Spix's own."""
+
+    def test_an_anchored_1x2_publishes_the_markets_probabilities(self):
+        self.assertEqual(published_result_probabilities(_moneyline(anchored=True)), (MARKET_1X2, "market"))
+        self.assertEqual(published_result_probabilities(_moneyline(anchored=False)), (SPIX_1X2, "model"))
+        self.assertEqual(published_result_probabilities(_result("goals")), (None, "model"))
+
+    def test_the_probability_source_follows_each_scope_of_the_anchor(self):
+        self.assertEqual(probability_source(_moneyline(anchored=True)), "market")
+        self.assertEqual(probability_source(_moneyline(anchored=False)), "model")
+        strict = {"scope": "strict", "lines": {"2.5": {"market_over": 0.57, "books": 8, "spix_over": 0.50}}}
+        self.assertEqual(probability_source(_with_anchor(_result("goals"), strict)), "market")  # over 2.5
+        other_line = MarketResult.from_dict({**_result("goals").to_dict(), "context": {"market_anchor": strict},
+                                             "decision": {**_result("goals").decision.to_dict(),
+                                                          "quote": {"side": "over", "line": 3.5, "odds": 2.1}}})
+        self.assertEqual(probability_source(other_line), "model")  # strict scope anchors 2.5 only
+        fitted = {"scope": "goals", "goal_model": {"home": 1.5, "away": 1.1, "error": 0.0}}
+        self.assertEqual(probability_source(_with_anchor(_result("btts"), fitted)), "market")  # stage 4: M1
+        unfitted = {"scope": "goals", "goal_model": None}
+        self.assertEqual(probability_source(_with_anchor(_result("btts"), unfitted)), "model")
+
+    def test_text_and_discord_cards_show_the_anchored_1x2_as_the_markets(self):
+        self.assertEqual(projection_label(_moneyline(anchored=True)), "1X2 (market): 30.0% / 26.0% / 44.0%")
+        self.assertEqual(projection_label(_moneyline(anchored=False)), "1X2: 42.0% / 29.0% / 29.0%")
+        text = render_market_results_text([_moneyline(anchored=True, recommended=True)])
+        self.assertIn("Market probability: 44.0%", text)
+        from Scripts.discord_bot import embeds
+
+        class _Embed:
+            def __init__(self, **kwargs):
+                self.fields = []
+
+            def set_author(self, **_kwargs):
+                pass
+
+            set_thumbnail = set_footer = set_author
+
+            def add_field(self, **kwargs):
+                self.fields.append(SimpleNamespace(**kwargs))
+
+        with mock.patch.object(embeds, "get_matchup_file", return_value=None), \
+             mock.patch.object(embeds, "_get_league_logo", return_value=None), \
+             mock.patch.object(embeds.discord, "Embed", _Embed):
+            cards, _ = embeds.market_results_to_embeds("1X2", [_moneyline(anchored=True, recommended=True)], league="EPL")
+        fields = {field.name: field.value for field in cards[1].fields}
+        self.assertEqual(fields["📊 Projection"], "1X2 (market): 30.0% / 26.0% / 44.0%")
+        self.assertEqual(fields["📊 Market"], "44.0%")
+        self.assertNotIn("📊 Model", fields)
+
+    def test_the_web_moneyline_carries_the_anchored_probabilities_and_their_source(self):
+        from web_app import api
+
+        anchored = api._moneyline_from_result(_moneyline(anchored=True))
+        self.assertEqual((anchored.home_prob, anchored.draw_prob, anchored.away_prob), (0.30, 0.26, 0.44))
+        self.assertEqual(anchored.probability_source, "market")
+        own = api._moneyline_from_result(_moneyline(anchored=False))
+        self.assertEqual((own.home_prob, own.probability_source), (0.42, "model"))
 
 
 class MarketDeliveryTests(unittest.TestCase):
