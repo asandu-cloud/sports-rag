@@ -98,7 +98,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Headline rule for the fair-price card (market decisiveness, line movement since opening, or other) | Owner, with the card build (D36) | Value cannot rank angles without bookmaker prices |
 | Odds source for Romanian bookmakers (Superbet, Fortuna, Casa Pariurilor, Unibet, NetBet, MaxBet, WinBet, Mozzart, Betano): OddsPapi carries them; free plan too small for live picks; paid from $15 a month for Superbet RO, $25 with Fortuna RO (football, pre-match, 20 Oct finding) | Owner, 20 Oct: Superbet RO + Betano RO with player props ($50 a month quoted; $35 without props, $95 with live odds), not yet; subscribe when the owner is ready | Since 16 Oct API-Football sends no Romanian-licensed bookmaker (Betano and Betfair dropped) |
 | API-Football support: Superbet and Unibet answered 18 Oct (discontinued for /odds since ~Sep 2026); Betano, Betfair, SBO and Dafabet were missing 17–18 Oct and are back (19 Oct partly, 20 Oct: Betano 187 of 193 fixtures); the follow-up email is no longer needed unless they drop again | Owner | Back 19–20 Oct |
-| Monitor bookmaker coverage: a daily count per bookmaker from the odds archive, with an alert when one falls by more than half against the previous week | Next ops pass | The 16 Oct drop went unnoticed for a day |
+| Done 23 Oct: bookmaker coverage watch (`ops/bookmaker_coverage.py`, job `com.bettingrag.bookmaker-coverage` at 09:45, 13:45, 17:45, 21:45 local, installed 23 Oct). Per UTC day, each bookmaker's share of the fixtures kicking off within 48 h in the odds archive's raw responses; alert when today's share is under half its median over the previous 7 days (median at least 20%; at least 20 fixtures today and 3 earlier days). Replay on 7–22 Oct: alerts on 16, 17 and 18 Oct for Betano, Betfair, SBO and Dafabet only. Alerts go to `REFRESH_ALERT_WEBHOOK_URL` (a private Discord webhook), the job log and `Index/bookmaker_coverage/latest.json`. **Owner: the webhook is not set in `.env`, so neither this nor the refresh-blocked alert reaches Discord** (the 23 Oct refresh alert was not delivered) | Done (owner: webhook) | |
 | Red cards: the selector also outputs the bets to skip (prices below fair, boosts that are not, high-margin bet builders) | A5.4 (D32) | Part of the Daily Card |
 | Bet builder and combination pricing from the score model (correlated legs), anchored to the market | After A5, with the D25 expansion (D32) | Price Check and red cards need it |
 | Price Check for singles: the member's odds against the fair price (good price / fair / overpaying) | Next build, after the card (D36) | Needs only the fair probabilities |
@@ -814,6 +814,10 @@ calibration record instead of a hit rate.
 
 ## Findings that shape later steps
 
+- **The odds archive pauses while the Mac sleeps (23 Oct).** Its 3-hourly job (`StartInterval` 10800) last captured
+  at 23:16 UTC on 22 Oct; launchd's interval timer does not count sleep (asleep 23:51–07:10 UTC), so the next run
+  came about 3 awake hours later. Line movement (M2) and the coverage watch both read this archive: one more reason
+  for the scheduled wake or a server.
 - **The 23 Oct daily refresh failed because of an ungated read (23 Oct).** `canonical_kb_refresh` failed at 07:43 UTC
   with "database is locked" while a working session read all 5,681 published picks from `Index/platform.db` outside
   the refresh gate (4.0 s; the database is in rollback-journal mode with a 2 s busy timeout, so a reader blocks a

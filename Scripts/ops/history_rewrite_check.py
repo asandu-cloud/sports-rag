@@ -60,7 +60,8 @@ def capture(client, fixture, phase, out, *, now):
             groups[key] = "ok"
         except oddspapi.OddsPapiError as exc:
             if exc.code != "NOT_FOUND":
-                return {"fixture": fixture["fixtureId"], "phase": phase, "status": "error", "error": exc.code or exc.status}
+                return {"fixture": fixture["fixtureId"], "phase": phase, "status": "error",
+                        "error": exc.code or exc.status}
             bodies[key], groups[key] = None, "NOT_FOUND"
     folder = Path(out) / str(fixture["fixtureId"])
     folder.mkdir(parents=True, exist_ok=True)
@@ -122,7 +123,8 @@ def weekend_fixtures(client, start, until):
     out = []
     for league in LEAGUES:
         for first, last in sorted(windows):
-            listed = client.get("/v4/fixtures", tournamentId=oddspapi.TOURNAMENTS[league], **{"from": first, "to": last})
+            listed = client.get("/v4/fixtures", tournamentId=oddspapi.TOURNAMENTS[league],
+                                **{"from": first, "to": last})
             for f in listed if isinstance(listed, list) else []:
                 if start <= oddspapi.utc(f["startTime"]) < until:
                     out.append({k: f.get(k) for k in ("fixtureId", "startTime", "participant1Name", "participant2Name")}
@@ -209,7 +211,8 @@ def main(argv=None):
             parser.error("--until is required for capture")
         fixtures = weekend_fixtures(client, clock() - timedelta(hours=12), oddspapi.utc(args.until))
         (args.out / "fixtures.json").write_text(json.dumps(fixtures, indent=1))
-        print(json.dumps({"fixtures": len(fixtures), "by_league": Counter(f["tournament"] for f in fixtures)}), flush=True)
+        leagues = Counter(f["tournament"] for f in fixtures)
+        print(json.dumps({"fixtures": len(fixtures), "by_league": leagues}), flush=True)
 
         def log(line):
             print(line, flush=True)
