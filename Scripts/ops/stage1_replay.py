@@ -12,19 +12,18 @@ at the close (API-Football's final pre-kickoff snapshot).
 from __future__ import annotations
 
 import argparse
-from contextlib import closing
 from copy import deepcopy
 import json
 from pathlib import Path
-import sqlite3
 import sys
 
 import numpy as np
 
 from Scripts.data_platform import disagreement as dis
-from Scripts.data_platform.calibration_data import _label, fixture_outcomes, latest_reads
+from Scripts.data_platform.calibration_data import _label, fixture_outcomes, latest_read_rows
 from Scripts.data_platform.reference_price import audit_books, devig_consensus, norm
 from Scripts.data_platform.scorecard import outcome_weight
+from Scripts.data_platform.services.refresh_coordination import data_access
 from Scripts.ops.odds_archive import ROOT
 
 MARKET_KEY = "totals_corners_over_under"
@@ -62,13 +61,10 @@ def _consensus(books, side, point):
 
 
 def build(db_path, backfill_dir):
-    with closing(sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=60)) as db:
-        reads = [dict(zip(("fixture_api_id", "stage", "evaluated_at", "kickoff", "read_json"), r)) for r in db.execute(
-            "SELECT fixture_api_id, stage, evaluated_at, kickoff, read_json FROM match_reads")]
     outcomes = fixture_outcomes(db_path)
     snapshots = dis.closing_snapshots(db_path, backfill_dir)
     rows = []
-    for read in latest_reads(reads):
+    for read in latest_read_rows(db_path):
         fid = str(read["fixture_api_id"])
         outcome = outcomes.get(fid)
         if not outcome or outcome.get("corners") is None:
@@ -130,7 +126,8 @@ def main(argv=None):
     parser.add_argument("--db", type=Path, default=ROOT / "Index/platform.db")
     parser.add_argument("--backfill", type=Path, default=ROOT / "Index/closing_backfill")
     args = parser.parse_args(argv)
-    rows = build(args.db, args.backfill)
+    with data_access():  # never read while refresh-season writes
+        rows = build(args.db, args.backfill)
     result = {"by_stage": {stage: evaluate([r for r in rows if r["stage"] == stage]) for stage in sorted({r["stage"] for r in rows})},
               "pooled": evaluate(rows)}
     if args.out:
