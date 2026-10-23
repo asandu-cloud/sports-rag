@@ -64,7 +64,8 @@ def _week(kickoff):
 
 # Switches that change predictions (A3.7 stages); DOCUMENT_STORE changes where documents are read, not
 # what is predicted (parity proven, D11), so it does not split the scorecard.
-STAGE_SWITCHES = {"SPIX_COUNT_DISPERSION": "floors", "SPIX_DEVIG_METHOD": "proportional", "SPIX_MARKET_ANCHOR": "off"}
+STAGE_SWITCHES = {"SPIX_COUNT_DISPERSION": "floors", "SPIX_DEVIG_METHOD": "proportional", "SPIX_MARKET_ANCHOR": "off",
+                  "SPIX_CONFIDENCE_LABELS": "edge"}
 
 
 def engine_stage(tracking) -> str:

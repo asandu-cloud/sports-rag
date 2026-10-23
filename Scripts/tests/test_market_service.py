@@ -112,7 +112,7 @@ class MarketServiceTests(unittest.TestCase):
         self.assertEqual(result.context["engine_switches"], {
             "version": "engine-switches.v1", "DOCUMENT_STORE": "chroma", "SPIX_COUNT_DISPERSION": "fixed",
             "SPIX_DEVIG_METHOD": "proportional", "SPIX_MARKET_ANCHOR": "off", "SPIX_SELECTION_POLICY": "legacy",
-            "SPIX_BOOKMAKER_SET": "all", "ignored": {"DOCUMENT_STORE": "postgres"}})
+            "SPIX_BOOKMAKER_SET": "all", "SPIX_CONFIDENCE_LABELS": "edge", "ignored": {"DOCUMENT_STORE": "postgres"}})
 
     def test_missing_profile_data_is_unavailable_without_running_selection(self):
         with mock.patch.object(market_service, "projected_total_corners", return_value=(None, None, None)):

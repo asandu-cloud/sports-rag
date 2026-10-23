@@ -14,7 +14,7 @@ def test_defaults_are_todays_behaviour(monkeypatch):
     assert engine_switches.snapshot() == {"version": "engine-switches.v1", "DOCUMENT_STORE": "chroma",
                                           "SPIX_COUNT_DISPERSION": "floors", "SPIX_DEVIG_METHOD": "proportional",
                                           "SPIX_MARKET_ANCHOR": "off", "SPIX_SELECTION_POLICY": "legacy",
-                                          "SPIX_BOOKMAKER_SET": "all"}
+                                          "SPIX_BOOKMAKER_SET": "all", "SPIX_CONFIDENCE_LABELS": "edge"}
     assert prediction_guardrails.fixed_dispersion_enabled() is False
     assert team_resolution.document_store_handle() is None
 

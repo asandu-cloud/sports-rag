@@ -138,6 +138,8 @@ def test_picks_are_split_by_the_prediction_changing_switches():
     staged = {**base, "SPIX_COUNT_DISPERSION": "fixed", "SPIX_DEVIG_METHOD": "power", "SPIX_MARKET_ANCHOR": "strict"}
     assert engine_stage({"engine_switches": staged}) == (
         "SPIX_COUNT_DISPERSION=fixed + SPIX_DEVIG_METHOD=power + SPIX_MARKET_ANCHOR=strict")
+    labels = {**base, "SPIX_CONFIDENCE_LABELS": "evidence"}
+    assert engine_stage({"engine_switches": labels}) == "SPIX_CONFIDENCE_LABELS=evidence"  # A5.3 (D44)
 
 
 def test_true_close_value_and_price_clv_come_from_oddspapis_history():
