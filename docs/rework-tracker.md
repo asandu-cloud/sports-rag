@@ -114,7 +114,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Market expansion wave 2: team corners totals, corners handicap (D25) | After wave 1 | Team corner projections exist; priced on ~half of fixtures |
 | Market expansion wave 3: first-half goals O/U and handicap (D25) | After wave 2 | Needs a half-split model (football-data half-time scores) and storing half-time scores in `fixtures` |
 | The n/(n+8) early-season prior on means | A6 | 3.4 changed widths only, not means |
-| penaltyblog (MIT licence, Cython) for A6's Dixon–Coles ratings: check time-decay weights, per-league home advantage, promoted-team offset and clean install; use pinned if it covers them, else in-house fit validated against it | A6 start | Not used in A3: margin removal in-house (D17); 3.6 fits rho only, with the engine's own Dixon–Coles code |
+| penaltyblog (MIT licence, Cython) for A6's Dixon–Coles ratings: check time-decay weights, per-league home advantage, promoted-team offset and clean install; use pinned if it covers them, else in-house fit validated against it. **Checked 24 Oct (see Findings): it does not cover them; A6 fits in-house, validated against penaltyblog's Poisson fit and its Dixon–Coles fit with numerical gradients** | A6 start | Not used in A3: margin removal in-house (D17); 3.6 fits rho only, with the engine's own Dixon–Coles code |
 | First-round variables (D12): M1 | A3, A8 | Selected 16 Oct |
 | First-round variables (D12): S1–S4, C1, D1–D3 | A2b builder, A6 models | Selected 16 Oct; each must pass the ablation gate |
 | Second-round variables: M2 line movement | A3 blend | Needs 6–8 weeks of odds archive (from ~mid-Nov 2026) |
@@ -838,6 +838,30 @@ calibration record instead of a hit rate.
   so labels never change which three picks a read publishes (the legacy ranking puts confidence first).
 
 ## Findings that shape later steps
+
+- **penaltyblog checked for A6 (24 Oct).** Version 1.13.1 (5 Oct), MIT licence, wheels for Python 3.13 on macOS
+  arm64 and Linux; checked in a throwaway environment (`Research/penaltyblog-check-2026-10-24/`), the project's
+  untouched. Against the tracker's four needs:
+  - *Time decay:* yes. Every model takes `weights`; `dixon_coles_weights(dates, xi, base_date)` gives exp(−xi · days).
+  - *Per-league home advantage:* only as one fit per league; a model has a single home-advantage parameter, so a
+    joint fit across leagues (needed for the European cups: 149–286 teams with few matches each per competition, and
+    for connecting leagues) cannot give each league its own. Fitted per competition (since 1 Jul 2024, xi 0.0018),
+    home advantage ranges from 0.10 (Serie A) to 0.29 (LaLiga), so per-league values matter.
+  - *Promoted-team offset:* none (no mention anywhere in the package); the hierarchical Bayesian model only pulls
+    thin-data teams to the league average.
+  - *Clean install:* the full install is 83 packages, 535 MB (plotly, kaleido, matplotlib, scrapers, statsbombpy,
+    pulp), and `import penaltyblog` fails without them; the models alone run on numpy, scipy and pandas only by
+    bypassing the package's `__init__`.
+  - *Correctness:* its Poisson fit matches an in-house weighted maximum-likelihood fit to 0.0008 goals and 0.0002
+    in 1X2 probability (EPL, 830 matches). Its Dixon–Coles fit does not: the analytic gradient is wrong (at the
+    optimum it reads −1.22 for home advantage where the true slope is −0.003; the same without weights), so the
+    default `fit()` stops early (log-likelihood 1184.92 against 1184.90; expected goals off by up to 0.034, 1X2 by
+    up to 0.7 points). With `fit(use_gradient=False)` it reaches the in-house optimum exactly. Worth reporting
+    upstream (owner's call: an issue on github.com/martineastwood/penaltyblog).
+  - *Decision under the open item's rule:* it does not cover them, so A6 fits in-house (scipy, ~0.1–0.2 s per
+    league with numerical gradients), with per-league home advantage, a promoted-team offset and a joint fit
+    across leagues, and is validated against penaltyblog's Poisson fit and its Dixon–Coles fit with
+    `use_gradient=False`, in a separate test environment rather than as a project dependency.
 
 - **Stage 4 replay on two weeks: price confirmation leaves few picks (24 Oct).** `ops/stage4_replay.py`
   (`Research/stage4-replay-2026-10-24/`) re-runs the engine's own selectors on the prices stored by each fixture's final
