@@ -232,7 +232,7 @@ def pick(result):
     quote = decision.get("quote") or {}
     return {"status": decision.get("status"), "side": quote.get("side"), "line": quote.get("line"),
             "odds": quote.get("odds"), "bookmaker": quote.get("bookmaker"),
-            "probability": decision.get("model_probability")}
+            "probability": decision.get("model_probability"), "confidence": decision.get("confidence")}
 
 
 def classify(old, new):
@@ -307,6 +307,10 @@ def summarize_preview(rows, limit=40):
                      f"(p {o['probability']}) -> {n['status']} {n['side']} {n['line']} @ {n['odds']} (p {n['probability']})")
     if len(changed) > limit:
         lines.append(f"... {len(changed) - limit} more")
+    labels = Counter(f"{r['old'].get('confidence')}→{r['new'].get('confidence')}" for r in rows
+                     if r["change"] in ("kept", "price_only") and r["old"].get("confidence") != r["new"].get("confidence"))
+    lines.append("labels on kept picks: " + ", ".join(f"{k} {n}" for k, n in sorted(labels.items()))
+                 if labels else "labels unchanged")
     return "\n".join(lines)
 
 

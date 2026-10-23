@@ -348,3 +348,54 @@ def test_a_failed_price_confirmation_stores_no_read_for_that_fixture():
     run, compiled = _confirmation_run(persist=True, price_confirmer=confirm)
     assert compiled == [] and run.fixtures[0].draft is None and run.records == ()
     assert "price confirmation failed" in run.fixtures[0].error
+
+
+def _labelled_run(confirmed):
+    """One fixture whose goals pick is confirmed (or repriced) and then labelled under SPIX_CONFIDENCE_LABELS."""
+    books = {"A": (1.90, 1.95), "B": (2.05, 1.80), "C": (2.00, 1.85), "Betano": (2.20, 1.72)}
+    options = [{"market_key": "totals", "side": side, "point": 2.5, "odds": odds, "bookmaker": book,
+                "period": "regulation_time"} for book, (over, under) in books.items()
+               for side, odds in (("over", over), ("under", under))]
+    pick = {"market": {"group": "goals", "key": "totals"}, "fixture": {"event_id": "fixture-1"},
+            "decision": {"status": "recommended", "confidence": "medium", "model_probability": 0.55,
+                         "quote": {"side": "over", "line": 2.5, "odds": 2.20, "bookmaker": "Betano",
+                                   "market_key": "totals", "period": "regulation_time"}},
+            "context": {"engine_switches": {"SPIX_DEVIG_METHOD": "power", "SPIX_CONFIDENCE_LABELS": "evidence"},
+                        "decision_audit": {"input_options": options, "candidates": []}}}
+    compiled = []
+
+    def compiler(results, *, stage):
+        compiled.append(tuple(results))
+        return _draft("fixture-1")
+
+    match_read_dispatch.generate_match_reads_sync(
+        "EPL", date(2026, 9, 6), persist=True, service=object(),
+        fetcher=lambda _league, *, target_date: ([{"id": "fixture-1", "home_team": "Arsenal", "away_team": "Chelsea",
+                                                   "commence_time": "2026-09-06T15:00:00Z"}], []),
+        date_filter=lambda events, _target: events,
+        enricher=lambda events, _league, _groups: (events, []),
+        evaluator=lambda *_args, **_kwargs: [pick],
+        price_confirmer=lambda results: [confirmed(r) for r in results],
+        compiler=compiler,
+        persister=lambda draft, *, service: {"id": 1},
+    )
+    return compiled[0][0]
+
+
+def _confirmation(status, odds=None):
+    def confirm(result):
+        out = {**result, "context": {**result["context"], "price_confirmation": {
+            "status": status, "checked_at": "2026-09-06T13:00:00+00:00", "bookmaker_seen_at": "2026-09-06T12:50:00Z"}}}
+        if odds is not None:
+            out["decision"] = {**result["decision"], "quote": {**result["decision"]["quote"], "odds": odds}}
+        return out
+    return confirm
+
+
+def test_the_dispatcher_labels_after_confirmation_with_the_published_price(monkeypatch):
+    from data_platform import confidence_labels as cl
+    monkeypatch.setattr(cl, "CUTOFFS", cl.Cutoffs(0.05))
+    fresh = _labelled_run(_confirmation("confirmed"))
+    assert fresh["decision"]["confidence"] == "high" and fresh["context"]["confidence_evidence"]["price_age_minutes"] == 10.0
+    repriced = _labelled_run(_confirmation("repriced", odds=2.05))  # at the shorter price the market sees no value
+    assert repriced["decision"]["confidence"] == "low" and repriced["decision"]["quote"]["odds"] == 2.05

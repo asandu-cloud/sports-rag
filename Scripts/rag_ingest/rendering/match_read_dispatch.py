@@ -53,6 +53,7 @@ try:
         match_read_fact_key,
     )
     from data_platform.services.price_confirmation import confirm_prices
+    from data_platform.confidence_labels import apply_labels
 except ImportError:
     from Scripts.data_platform.services.match_read_compiler import (  # type: ignore[import]
         MatchReadDraft,
@@ -65,6 +66,7 @@ except ImportError:
         match_read_fact_key,
     )
     from Scripts.data_platform.services.price_confirmation import confirm_prices  # type: ignore[import]
+    from Scripts.data_platform.confidence_labels import apply_labels  # type: ignore[import]
 
 
 # ``goals`` is the canonical evaluator name but its provider odds group is
@@ -410,6 +412,8 @@ def generate_match_reads_sync(
                     error=message,
                 ))
                 continue
+        # A5.3 (D44): labels again once the price age is known; unchanged unless read under SPIX_CONFIDENCE_LABELS=evidence
+        canonical_results = tuple(apply_labels(canonical_results))
 
         try:
             draft = timed_call("compilation", compile_read, canonical_results, stage=normalised_stage)

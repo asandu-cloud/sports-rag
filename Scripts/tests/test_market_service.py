@@ -114,6 +114,18 @@ class MarketServiceTests(unittest.TestCase):
             "SPIX_DEVIG_METHOD": "proportional", "SPIX_MARKET_ANCHOR": "off", "SPIX_SELECTION_POLICY": "legacy",
             "SPIX_BOOKMAKER_SET": "all", "SPIX_CONFIDENCE_LABELS": "edge", "ignored": {"DOCUMENT_STORE": "postgres"}})
 
+    def test_the_engine_labels_a_result_as_it_is_built(self):
+        with mock.patch.dict(os.environ, {"SPIX_CONFIDENCE_LABELS": "evidence"}), \
+                mock.patch.object(market_service, "projected_total_goals", return_value=(3.2, 3.0, 3.4)):
+            result = market_service.evaluate_market(_event(), "EPL", "goals")
+        self.assertEqual(result.decision.status, DecisionStatus.RECOMMENDED)
+        self.assertEqual(result.decision.confidence, "low")  # no price confirmation yet: the age is unknown
+        self.assertEqual(result.context["confidence_evidence"]["label"], "low")
+        self.assertEqual(result.context["confidence_evidence"]["book_count"], 1)
+        with mock.patch.object(market_service, "projected_total_goals", return_value=(3.2, 3.0, 3.4)):
+            edge = market_service.evaluate_market(_event(), "EPL", "goals")
+        self.assertNotIn("confidence_evidence", edge.context)  # the switch off: today's label
+
     def test_missing_profile_data_is_unavailable_without_running_selection(self):
         with mock.patch.object(market_service, "projected_total_corners", return_value=(None, None, None)):
             result = market_service.evaluate_market(

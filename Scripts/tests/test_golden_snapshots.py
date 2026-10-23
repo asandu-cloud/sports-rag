@@ -198,3 +198,12 @@ def test_preview_against_a_baseline_replays_both_settings(tmp_path, monkeypatch)
     assert [r["change"] for r in golden.preview(path, switched, baseline={"STAGE_X": "on"})] == [None]  # same settings
     assert [r["change"] for r in golden.preview(path, switched, baseline={"STAGE_X": "off"})] == ["removed"]
     assert os.environ["STAGE_X"] == "on"  # restored after each baseline replay
+
+
+def test_preview_reports_label_changes_on_kept_picks():
+    old = {"status": "recommended", "side": "over", "line": 2.5, "odds": 1.9, "bookmaker": "A", "probability": 0.6,
+           "confidence": "low"}
+    rows = [{"fixture": "F", "market": "goals", "old": old, "new": {**old, "confidence": "high"}, "change": "kept"}]
+    assert "labels on kept picks: low→high 1" in golden.summarize_preview(rows)
+    assert "labels unchanged" in golden.summarize_preview([{**rows[0], "new": old}])
+    assert golden.pick({"decision": {"status": "recommended", "confidence": "high"}})["confidence"] == "high"

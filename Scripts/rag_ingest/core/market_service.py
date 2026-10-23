@@ -346,14 +346,18 @@ def _build_result(
     context: Optional[Mapping[str, Any]] = None,
 ) -> MarketResult:
     try:
+        from data_platform.confidence_labels import apply_label
         from data_platform.services.decision_audit import complete_market_audit
     except ImportError:
+        from Scripts.data_platform.confidence_labels import apply_label
         from Scripts.data_platform.services.decision_audit import complete_market_audit
     # Supported selectors above are full-game pre-match markets. Retain their
     # period explicitly; never retroactively assign it to old stored quotes.
     if decision.quote is not None and decision.quote.period is None:
         decision = replace(decision, quote=replace(decision.quote, period="regulation_time"))
-    return MarketResult(
+    # A5.3 (D44): under SPIX_CONFIDENCE_LABELS=evidence the label comes from the evidence, with the price age
+    # unknown until the Match Read worker confirms the price; otherwise the result is returned as built.
+    return apply_label(MarketResult(
         fixture=fixture,
         market=market,
         projection=projection,
@@ -361,7 +365,7 @@ def _build_result(
         provenance=provenance,
         evidence=tuple(evidence),
         context=complete_market_audit(context, decision, provenance),
-    )
+    ))
 
 
 def _quote_decision(selector, requested):
