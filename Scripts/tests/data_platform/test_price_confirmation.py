@@ -156,8 +156,10 @@ def test_how_recent_the_bookmaker_must_have_been_seen_is_set_by_max_age():
     assert record(out)["bookmaker_seen_at"] == (NOW - timedelta(minutes=500)).isoformat()
 
 
-@pytest.mark.parametrize("bookmaker, reason", [("BetVictor", "bookmaker_not_carried"), ("Betfair", "exchange")])
-def test_bookmakers_oddspapi_cannot_check_fail_closed(bookmaker, reason):
+@pytest.mark.parametrize("bookmaker, reason", [("BetVictor", "bookmaker_not_carried"), ("Betfair", "bookmaker_not_carried"),
+                                             ("Betfair Exchange", "exchange")])
+def test_bookmakers_oddspapi_cannot_check_fail_closed(bookmaker, reason, monkeypatch):
+    monkeypatch.setitem(oddspapi.BOOKS, "Betfair Exchange", "betfair-ex")  # no feed quotes the exchange now (D43)
     client = Client({})
     [out] = confirm([result(bookmaker=bookmaker)], client)
     assert out["decision"]["status"] == "no_bet" and record(out)["reason"] == reason

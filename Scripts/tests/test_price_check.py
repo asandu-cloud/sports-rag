@@ -134,7 +134,8 @@ LISTED = [{"fixtureId": "op1", "startTime": KO.isoformat().replace("+00:00", "Z"
            "participant1Name": "Arsenal", "participant2Name": "Leeds"}]
 
 
-def test_betfair_exchange_prices_are_read_alone_one_outcome_at_a_time():
+def test_betfair_exchange_prices_are_read_alone_one_outcome_at_a_time(monkeypatch):
+    monkeypatch.setitem(prc.BOOKS, "Betfair Exchange", "betfair-ex")  # no feed quotes the exchange now (D43)
     calls = []
 
     class Client:  # OddsPapi: 'betfair-ex' only alone and with one outcomeId, else 400 INVALID_PARAMETER
@@ -147,9 +148,15 @@ def test_betfair_exchange_prices_are_read_alone_one_outcome_at_a_time():
             slug = params["bookmakers"].split(",")[0]
             return {"bookmakers": {slug: {"markets": {"1010": {"outcomes": {"1011": {"players": {"0": [entry(300, 2.0)]}}}}}}}}
 
-    report = prc.run(Client(), _picks("Betfair"), FIXTURES, prc.market_index(MARKETS), policies=("market",))
+    report = prc.run(Client(), _picks("Betfair Exchange"), FIXTURES, prc.market_index(MARKETS), policies=("market",))
     assert [p["status"] for p in report["picks"]["market"]] == ["real"]
     assert {"fixtureId": "op1", "bookmakers": "betfair-ex", "outcomeId": "1011"} in calls
+
+
+def test_betfair_quotes_are_the_sportsbooks_and_not_checked_against_the_exchange():
+    report = prc.run(_answering(500, "UNEXPECTED"), _picks("Betfair"), FIXTURES, prc.market_index(MARKETS),
+                     policies=("market",))
+    assert [p["status"] for p in report["picks"]["market"]] == ["bookmaker_not_carried"]  # D43
 
 
 def _answering(status, code):

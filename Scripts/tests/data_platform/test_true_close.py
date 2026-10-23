@@ -199,9 +199,10 @@ class Exchange(Client):
         return super().get(path, **params)
 
 
-def test_betfair_exchange_prices_are_requested_alone_one_outcome_at_a_time(store):
+def test_betfair_exchange_prices_are_requested_alone_one_outcome_at_a_time(store, monkeypatch):
+    monkeypatch.setitem(oddspapi.BOOKS, "Betfair Exchange", "betfair-ex")  # no feed quotes the exchange now (D43)
     betfair = payload()
-    betfair["decision"]["quote"]["bookmaker"] = "Betfair"
+    betfair["decision"]["quote"]["bookmaker"] = "Betfair Exchange"
     publish(store, betfair)
     exchange = history("betfair-ex", {("1010", "1011"): [entry(5, 2.02)], ("1010", "1010"): [entry(5, 1.98)]})
     client = Exchange({"pinnacle": PINNACLE, "betfair-ex": exchange}, FIXTURES)
@@ -209,6 +210,18 @@ def test_betfair_exchange_prices_are_requested_alone_one_outcome_at_a_time(store
     saved = rows(store)[0]["true_close"]
     assert (saved["same_book"]["site"], saved["same_book"]["odds"]) == ("betfair-ex", 2.02)
     assert ("/v4/historical-odds", {"fixtureId": "op1", "bookmakers": "betfair-ex", "outcomeId": "1011"}) in client.calls
+
+
+def test_betfair_sportsbook_picks_get_pinnacles_close_but_no_own_close(store):
+    """API-Football's Betfair is the sportsbook (D43): OddsPapi has no history for it on our plan."""
+    betfair = payload()
+    betfair["decision"]["quote"]["bookmaker"] = "Betfair"
+    publish(store, betfair)
+    client = Client({"pinnacle": PINNACLE}, FIXTURES)
+    assert tc.TrueCloseService(store[0], client, INDEX, clock=lambda: NOW).run(rows(store))["final"] == 1
+    saved = rows(store)[0]["true_close"]
+    assert "consensus" in saved and "same_book" not in saved
+    assert [c[1]["bookmakers"] for c in client.calls if c[0] == "/v4/historical-odds"] == ["pinnacle"]
 
 
 def test_a_match_moved_after_publication_uses_its_settled_kickoff(store):

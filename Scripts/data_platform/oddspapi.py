@@ -32,12 +32,14 @@ TOURNAMENTS = {"EPL": 17, "LaLiga": 8, "SerieA": 23, "Bundesliga": 35, "Ligue1":
                "SuperLig": 52}
 # API-Football bookmaker name -> OddsPapi slug. OddsPapi does not carry BetVictor; its Betano RO is a
 # clone of "betano". Bet365 prices differ by country site: API-Football's match the Spanish, Italian, Greek
-# and Dutch sites (20 Oct pilot), not the UK ("bet365") or German ones.
+# and Dutch sites (20 Oct pilot), not the UK ("bet365") or German ones. API-Football's Betfair is Betfair's
+# sportsbook, not the exchange (margin ~6.9%, D43); OddsPapi's sportsbook feed ("betfair-spb") is closed to
+# our plan (403) and its ES and IT sites have no history (404), so Betfair is not carried.
 BOOKS = {"Pinnacle": "pinnacle", "Bet365": "bet365.es", "1xBet": "1xbet", "William Hill": "williamhill",
-         "Marathonbet": "marathonbet", "SBO": "sbobet", "Dafabet": "dafabet", "Betfair": "betfair-ex",
-         "Betano": "betano"}
+         "Marathonbet": "marathonbet", "SBO": "sbobet", "Dafabet": "dafabet", "Betano": "betano"}
 # An exchange's history comes only on its own and for one outcome per request (else 400 INVALID_PARAMETER,
-# which also failed the bookmakers asked for with it: 37 fixtures' true closes, 20-22 Oct).
+# which also failed the bookmakers asked for with it: 37 fixtures' true closes, 20-22 Oct). No feed we use
+# quotes an exchange now (D43).
 EXCHANGES = {"betfair-ex"}
 MARKET_TYPES = {"goals": "totals", "corners": "totals-corners", "cards": "totals-bookings",
                 "btts": "bothteamsscore", "moneyline": "1x2", "spreads": "spreads"}
