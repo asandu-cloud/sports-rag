@@ -850,7 +850,10 @@ calibration record instead of a hit rate.
   - *Price age: supported* (`ops/confidence_age_study.py`, 297 picks whose quoted price was on offer at the read,
     8–21 Oct, cached OddsPapi histories, no billable request). Prices whose bookmaker OddsPapi had seen within 30
     minutes were still there at its next check 95% of the time, older ones 85%: +9.5 pts (+1.0 to +18.5). Value at
-    the close: +4.9% against +2.9%. `fresh_minutes` stays 30.
+    the close: +4.9% against +2.9%. `fresh_minutes` stays 30. Rerun the same evening to 23 Oct from downloaded data
+    only (fixture lists from the true close's weekly ones; billable count and cache unchanged): 308 picks, 177
+    fixtures, 95% against 85%, +9.8 pts (+1.8 to +18.7). Most later histories were downloaded several bookmakers to a
+    request, so `--fetch-histories` (free requests) would add them; run it when the weekend capture is idle.
   - *Spix check:* the handicap passes (Spix agreeing +2.2% at the close, +0.2 to +4.8; calibration not worse).
     Goals (+0.1%), corners (+1.1%) and cards (−0.8%) do not; 1X2 and BTTS have too few picks. It is one pass in four
     tested markets, so a candidate for the owner after a confirming week, not a vote yet (`SPIX_VOTE_MARKETS` stays
@@ -858,6 +861,10 @@ calibration record instead of a hit rate.
   - *For the owner:* the age part of the label only matters if price confirmation's `MAX_AGE` is no limit (Claude's
     recommendation). At 30 minutes every published pick is fresh by definition.
   - Output: `Research/confidence-2026-10-23/`, `Research/confidence-age-2026-10-23/`.
+- **Fixed 23 Oct: the fixture lookup used by the price check, the Pinnacle check and the age check**
+  (`pinnacle_check.our_fixtures`) read `platform.db` outside the refresh gate and never closed its connection. It
+  now takes the gate itself, and its callers read their audited lines first through `price_check.load_inputs`, so
+  the gate is never taken twice. A nested gate fails when the refresh is waiting.
 - **`golden_snapshots check` reads the live `.env` (23 Oct).** A plain `check` inherits the switches saved in `.env`
   (stages 1–2 since 20 and 23 Oct), so it reports thousands of changed values with no code change (2,530 on the first
   fixture). Run it with every switch at its default, e.g. `SPIX_COUNT_DISPERSION=floors SPIX_DEVIG_METHOD=proportional

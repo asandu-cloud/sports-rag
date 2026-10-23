@@ -76,3 +76,42 @@ def test_client_caches_and_stops_before_the_request_budget(tmp_path):
         client.get("/v4/fixtures", tournamentId=23)
     assert json.loads((tmp_path / "usage.json").read_text())["billable"] == 2
     assert all("KEY" not in p.read_text() for p in tmp_path.glob("*.json"))
+
+
+def platform(path):
+    """A platform database with one finished and one unplayed EPL fixture."""
+    import sqlite3
+    with sqlite3.connect(path) as db:
+        db.executescript("""
+            CREATE TABLE competitions (id INTEGER, code TEXT);
+            CREATE TABLE teams (id INTEGER, name TEXT);
+            CREATE TABLE fixtures (api_football_id INTEGER, kickoff_utc TEXT, competition_id INTEGER,
+                                   home_team_id INTEGER, away_team_id INTEGER, status TEXT);
+            INSERT INTO competitions VALUES (1, 'EPL');
+            INSERT INTO teams VALUES (1, 'Arsenal'), (2, 'Leeds');
+            INSERT INTO fixtures VALUES (7, '2026-10-10 14:00:00', 1, 1, 2, 'FT'), (8, '2026-10-11 14:00:00', 1, 2, 1, 'NS');
+        """)
+    return path
+
+
+def test_our_fixtures_reads_the_platform_inside_the_refresh_gate(tmp_path, monkeypatch):
+    from contextlib import contextmanager
+    entered = []
+
+    @contextmanager
+    def gate():
+        entered.append(True)
+        yield
+    monkeypatch.setattr(pc, "data_access", gate)
+    [only] = pc.our_fixtures("2026-10-01", "2026-10-21", db=platform(tmp_path / "platform.db"))
+    assert entered == [True]
+    assert (only["fixture_id"], only["league"], only["home"], only["away"]) == (7, "EPL", "Arsenal", "Leeds")
+    assert only["kickoff"] == KO
+
+
+def test_the_client_says_which_answers_it_has_cached(tmp_path):
+    client = pc.OddsPapiClient("KEY", tmp_path, budget=0)
+    client._request = lambda path, params: {"ok": True}
+    client.get("/v4/historical-odds", fixtureId="x", bookmakers="betano")
+    assert client.cached("/v4/historical-odds", fixtureId="x", bookmakers="betano")
+    assert not client.cached("/v4/historical-odds", fixtureId="x", bookmakers="pinnacle")

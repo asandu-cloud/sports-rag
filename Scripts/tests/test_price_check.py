@@ -179,3 +179,21 @@ def test_no_historical_odds_found_is_a_missing_history():
     report = prc.run(_answering(404, "NOT_FOUND"), _picks("Bet365"), FIXTURES, prc.market_index(MARKETS),
                      policies=("market",))
     assert [p["status"] for p in report["picks"]["market"]] == ["no_history"]
+
+
+def test_inputs_read_the_lines_inside_the_gate_and_the_fixtures_after_it(monkeypatch):
+    from contextlib import contextmanager
+    events = []
+
+    @contextmanager
+    def gate():
+        events.append("enter")
+        yield
+        events.append("leave")
+    monkeypatch.setattr(prc, "data_access", gate)
+    monkeypatch.setattr(prc.dis, "build", lambda db, **kw: events.append("lines") or [{"fixture_id": "7"}])
+    monkeypatch.setattr(prc.pc, "our_fixtures", lambda since, until: events.append("fixtures") or
+                        [{"fixture_id": 7}, {"fixture_id": 9}])
+    rows, fixtures = prc.load_inputs("db", "backfill", "2026-10-08", "2026-10-21")
+    assert events == ["enter", "lines", "leave", "fixtures"]  # our_fixtures takes its own gate: never nested
+    assert rows == [{"fixture_id": "7"}] and fixtures == [{"fixture_id": 7}]

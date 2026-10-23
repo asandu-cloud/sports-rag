@@ -50,3 +50,62 @@ def test_fresh_prices_still_there_more_often_show_a_positive_difference():
     assert result["fresh"]["still_there_share"] == pytest.approx(0.9) and result["older"]["still_there_share"] == 0.5
     assert result["fresh"]["no_check"] == 1 and result["diff"] == pytest.approx(0.4)
     assert result["diff_interval95"][0] > 0
+
+
+class Lists:
+    """A client whose cached fixture lists are ``cached`` [(tournament, from, to)]; anything else is billable."""
+    def __init__(self, cached, listing):
+        self.cached_lists, self.listing, self.asked = cached, listing, []
+
+    def get(self, path, **params):
+        key = (params["tournamentId"], params["from"], params["to"])
+        self.asked.append(key)
+        if key not in self.cached_lists:
+            from Scripts.data_platform.oddspapi import BudgetExceeded
+            raise BudgetExceeded("not cached")
+        return self.listing
+
+
+def ours(fid, league, kickoff):
+    return {"fixture_id": fid, "kickoff": kickoff, "league": league, "home": "Arsenal", "away": "Leeds"}
+
+
+def theirs(odds_id, kickoff):
+    return {"fixtureId": odds_id, "startTime": kickoff.isoformat().replace("+00:00", "Z"),
+            "participant1Name": "Arsenal", "participant2Name": "Leeds"}
+
+
+def test_fixture_lists_come_from_the_true_closes_weekly_windows_first():
+    from Scripts.data_platform import oddspapi
+    from Scripts.data_platform.services.true_close import week_window
+    kickoff = datetime(2026, 10, 24, 14, tzinfo=timezone.utc)
+    weekly = (oddspapi.TOURNAMENTS["EPL"], *week_window(kickoff))
+    client = Lists({weekly}, [theirs("op-1", kickoff)])
+    mapping, skipped = age._fixture_map(client, [ours(7, "EPL", kickoff)])
+    assert mapping == {"7": "op-1"} and skipped == [] and client.asked == [weekly]
+
+
+def test_a_week_without_any_cached_list_is_reported_not_bought():
+    kickoff = datetime(2026, 10, 24, 14, tzinfo=timezone.utc)
+    client = Lists(set(), [])
+    mapping, skipped = age._fixture_map(client, [ours(7, "EPL", kickoff)])
+    assert mapping == {} and len(skipped) == 1 and skipped[0].startswith("EPL")
+
+
+def test_by_default_only_downloaded_histories_are_read():
+    class Client:
+        def __init__(self):
+            self.requests = []
+
+        def cached(self, path, **params):
+            return params["bookmakers"] == "pinnacle"
+
+        def get(self, path, **params):
+            self.requests.append(params["bookmakers"])
+            return {"bookmakers": {params["bookmakers"]: {"markets": {}}}}
+    client = Client()
+    assert age._history(client, "op-1", "betano", cached_only=True) is None
+    assert age._history(client, "op-1", "pinnacle", cached_only=True) == {"bookmakers": {"pinnacle": {"markets": {}}}}
+    assert client.requests == ["pinnacle"]
+    age._history(client, "op-1", "betano", cached_only=False)
+    assert client.requests == ["pinnacle", "betano"]

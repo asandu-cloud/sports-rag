@@ -40,6 +40,7 @@ from Scripts.data_platform import selection_policies as sp
 from Scripts.data_platform.calibration_data import _time
 from Scripts.data_platform.oddspapi import (  # noqa: F401
     BOOKS, EXCHANGES, OddsPapiError, histories, last_before, locate, market_index, series)
+from Scripts.data_platform.services.refresh_coordination import data_access
 from Scripts.ops import pinnacle_check as pc
 from Scripts.ops.odds_archive import ROOT
 
@@ -212,6 +213,17 @@ def markdown(report):
     return "\n".join(lines)
 
 
+
+def load_inputs(db, backfill, since, until):
+    """(audited lines, our finished fixtures among them in [since, until)), each read behind the refresh gate.
+
+    The lines are read inside the gate; ``our_fixtures`` takes its own afterwards, never nested (a nested gate fails
+    when the refresh is waiting for it)."""
+    with data_access():
+        rows = dis.build(db, backfill_dir=backfill, all_sides=True)
+    ids = {r["fixture_id"] for r in rows}
+    return rows, [f for f in pc.our_fixtures(since, until) if str(f["fixture_id"]) in ids]
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--db", type=Path, default=ROOT / "Index/platform.db")
@@ -228,9 +240,7 @@ def main(argv=None):
     if not key:
         parser.error("ODDSPAPI_API_KEY is not set")
     client = pc.OddsPapiClient(key, budget=args.budget, compress=True)
-    rows = dis.build(args.db, backfill_dir=args.backfill, all_sides=True)
-    ids = {r["fixture_id"] for r in rows}
-    fixtures = [f for f in pc.our_fixtures(args.since, args.until) if str(f["fixture_id"]) in ids]
+    rows, fixtures = load_inputs(args.db, args.backfill, args.since, args.until)
     report = run(client, rows, fixtures, market_index(client.get("/v4/markets")), min_ev=args.min_ev)
     text = markdown(report)
     if args.out:

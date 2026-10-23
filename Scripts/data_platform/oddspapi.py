@@ -93,9 +93,16 @@ class OddsPapiClient:
         path = self.cache / "usage.json"
         return json.loads(path.read_text()) if path.exists() else {"billable": 0}
 
-    def get(self, path, **params):
+    def _cache_files(self, path, params):
         name = hashlib.sha1(json.dumps([path, params], sort_keys=True).encode()).hexdigest()[:20]
-        cached, packed = self.cache / f"{name}.json", self.cache / f"{name}.json.gz"
+        return self.cache / f"{name}.json", self.cache / f"{name}.json.gz"
+
+    def cached(self, path, **params):
+        """Whether ``get`` would answer from the cache, without a request."""
+        return any(f.exists() for f in self._cache_files(path, params))
+
+    def get(self, path, **params):
+        cached, packed = self._cache_files(path, params)
         if cached.exists():
             return json.loads(cached.read_text())["body"]
         if packed.exists():

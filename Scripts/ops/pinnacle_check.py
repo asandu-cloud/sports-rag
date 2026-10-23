@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 from collections import defaultdict
+import contextlib
 from datetime import datetime, timedelta, timezone
 import gzip
 import json
@@ -32,6 +33,7 @@ import statistics
 from Scripts.data_platform import oddspapi
 from Scripts.data_platform.oddspapi import (  # noqa: F401  (re-exported)
     BudgetExceeded, OddsPapiClient, match_fixtures, utc as _utc)
+from Scripts.data_platform.services.refresh_coordination import data_access
 from Scripts.ops.odds_archive import ROOT
 
 MARKETS = {"winner": ("101", ("101", "102", "103"))}
@@ -111,12 +113,14 @@ def _pinnacle_1x2(row):
     return None
 
 
-def our_fixtures(since, until):
-    platform = sqlite3.connect(f"file:{ROOT / 'Index/platform.db'}?mode=ro", uri=True, timeout=60)
-    rows = platform.execute("""SELECT f.api_football_id, f.kickoff_utc, c.code, h.name, a.name FROM fixtures f
-        JOIN competitions c ON c.id = f.competition_id JOIN teams h ON h.id = f.home_team_id
-        JOIN teams a ON a.id = f.away_team_id WHERE f.kickoff_utc >= ? AND f.kickoff_utc < ? AND f.status = 'FT'""",
-                            (since, until)).fetchall()
+def our_fixtures(since, until, *, db=None):
+    """Finished fixtures kicking off in [since, until), read behind the refresh gate (one short statement)."""
+    with data_access(), contextlib.closing(sqlite3.connect(f"file:{db or ROOT / 'Index/platform.db'}?mode=ro",
+                                                           uri=True, timeout=60)) as platform:
+        rows = platform.execute("""SELECT f.api_football_id, f.kickoff_utc, c.code, h.name, a.name FROM fixtures f
+            JOIN competitions c ON c.id = f.competition_id JOIN teams h ON h.id = f.home_team_id
+            JOIN teams a ON a.id = f.away_team_id WHERE f.kickoff_utc >= ? AND f.kickoff_utc < ? AND f.status = 'FT'""",
+                                (since, until)).fetchall()
     return [{"fixture_id": fid, "kickoff": _utc(str(ko)[:19] + "+00:00"), "league": code, "home": home, "away": away}
             for fid, ko, code, home, away in rows]
 
