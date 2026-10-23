@@ -64,6 +64,15 @@ def devig_consensus(books: Dict[str, List[Outcome]], side: str, line, *, spreads
     return same, consensus, None if same or not wanted else "same_bookmaker_unavailable"
 
 
+
+def consensus_spread(consensus) -> Optional[float]:
+    """How far apart the bookmakers' fair probabilities are (M3): their interquartile range, or None under two books."""
+    fairs = [b["fair"] for b in (consensus or {}).get("books") or []]
+    if len(fairs) < 2:
+        return None
+    q1, _, q3 = statistics.quantiles(fairs, n=4, method="inclusive")
+    return q3 - q1
+
 def audit_books(options, market_key: str) -> Dict[str, List[Outcome]]:
     """Group decision-audit options for one market by bookmaker."""
     books: Dict[str, List[Outcome]] = {}

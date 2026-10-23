@@ -26,7 +26,7 @@ import sqlite3
 import numpy as np
 
 from .calibration_data import _label, latest_read_rows
-from .reference_price import audit_books, devig_consensus, norm
+from .reference_price import audit_books, consensus_spread, devig_consensus, norm
 from .scorecard import outcome_weight
 
 MARKET_KEYS = {"goals": "totals", "corners": "totals_corners_over_under", "cards": "totals_cards_over_under",
@@ -123,6 +123,7 @@ def read_lines(row, *, all_sides=False):
                                 "market": market, "market_key": key, "side": s, "point": pt,
                                 "home": fixture.get("home_team"), "away": fixture.get("away_team"),
                                 "p_spix": p_spix, "p_ref": p_mkt, "book_count": consensus["book_count"],
+                                "book_spread": consensus_spread(consensus),
                                 "best_odds": best_odds, "best_book": best_book, "selected": selected})
                     if not all_sides and market != "moneyline":
                         break

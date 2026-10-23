@@ -117,3 +117,9 @@ def test_power_method_is_an_option_and_the_default_is_unchanged():
     assert power["method"] == "power_devig_median.v2"
     assert power["fair_probability"] == pytest.approx(devig.power([1.4, 4.6, 8.0])[2])
     assert power["fair_probability"] < default["fair_probability"]  # less weight on the longshot
+
+
+def test_the_spread_is_the_interquartile_range_of_the_books_fair_probabilities():
+    consensus = {"books": [{"fair": f} for f in (0.50, 0.52, 0.53, 0.60)]}
+    assert ref.consensus_spread(consensus) == pytest.approx(0.0325)  # q1 0.515, q3 0.5475
+    assert ref.consensus_spread({"books": [{"fair": 0.5}]}) is None and ref.consensus_spread(None) is None

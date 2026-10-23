@@ -1,5 +1,6 @@
 """A5.1: Spix's disagreement with the market, against outcomes and the closing price."""
 import json
+import statistics
 
 import numpy as np
 import pytest
@@ -125,3 +126,11 @@ def test_the_last_captured_closing_snapshot_is_used_and_read_alone(traced_table)
     assert dis.closing_snapshots(path) == {"7": {"n": 2}}
     json_reads = [s for s in statements if "odds_json" in s]
     assert len(json_reads) == 1 and "rowid = " in json_reads[0]
+
+
+def test_both_sides_of_a_line_carry_the_same_book_spread():
+    rows = dis.read_lines(read([result("goals", TOTALS, [candidate("totals", "over", 2.5, 0.6)])]), all_sides=True)
+    over, under = (next(r for r in rows if r["side"] == s) for s in ("over", "under"))
+    fairs = [power([o, u])[0] for o, u in ((1.90, 1.95), (2.10, 1.75), (2.00, 1.85))]
+    q = statistics.quantiles(fairs, n=4, method="inclusive")
+    assert over["book_spread"] == pytest.approx(q[2] - q[0]) == pytest.approx(under["book_spread"])
