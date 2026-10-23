@@ -59,6 +59,8 @@ def build_match_read_card(read: Mapping[str, Any]) -> Dict[str, Any]:
         # The model's own figures, read from the persisted canonical results,
         # so surfaces can chart them without parsing the briefing prose.
         "metrics": _metrics_card(_mapping_or_empty(source.get("data")).get("canonical_results")),
+        # The market's fair price per main line and Spix's own take (D36): what each bet is worth, no bookmaker named.
+        "fair_prices": _fair_prices_card(_mapping_or_empty(source.get("data")).get("canonical_results")),
         "visuals": _visuals_card(script.get("visuals")),
         "timing": {
             "is_preliminary": _optional_text(timing.get("state")) == "preliminary",
@@ -176,6 +178,13 @@ def _metrics_card(canonical_results: Any) -> Dict[str, Any]:
         # delivered only when all three probabilities exist.
         "result_probabilities": probabilities if all(value is not None for value in probabilities.values()) else None,
     }
+
+
+def _fair_prices_card(canonical_results: Any) -> Dict[str, Any]:
+    from ..fair_prices import fair_card
+
+    results = canonical_results if isinstance(canonical_results, Sequence) and not isinstance(canonical_results, (str, bytes)) else []
+    return fair_card([item for item in results if isinstance(item, Mapping)])
 
 
 def _visuals_card(value: Any) -> Dict[str, str | None]:

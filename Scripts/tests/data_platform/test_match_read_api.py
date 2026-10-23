@@ -399,3 +399,53 @@ def test_card_metrics_are_empty_without_canonical_results():
         'team_goals': {'home': None, 'away': None},
         'result_probabilities': None,
     }
+
+
+def _priced_goals_result(fixture_id: str) -> dict:
+    """A goals result whose decision audit kept three bookmakers' over/under 2.5 prices."""
+    result = _market_result(fixture_id=fixture_id)
+    prices = {"A": (1.90, 1.95), "B": (2.05, 1.80), "C": (2.00, 1.85)}
+    result["context"] = {"decision_audit": {"input_options": [
+        {"market_key": "totals", "side": side, "point": 2.5, "odds": odds, "bookmaker": book}
+        for book, pair in prices.items() for side, odds in zip(("over", "under"), pair)]}}
+    return result
+
+
+def test_price_check_rates_a_members_odds_against_the_effective_reads_fair_price(
+    settings, engine, session_factory, monkeypatch,
+):
+    from data_platform.fair_prices import fair_outcome
+
+    service = _service(session_factory)
+    result = _priced_goals_result("fixture-price")
+    _release(service, _save(service, result, thesis="Priced read.", evaluated_at="2026-09-06T12:00:00Z"))
+    client = _client(monkeypatch, service)
+    fair = fair_outcome([result], "goals", "over", 2.5)["fair_probability"]
+
+    response = client.get("/api/match-reads/fixtures/fixture-price/price-check",
+                          params={"market": "goals", "side": "over", "line": 2.5, "odds": 2.20})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["schema_version"] == "price-check.v1" and body["verdict"] == "good_price"
+    assert abs(body["fair_probability"] - fair) < 1e-9 and abs(body["value"] - (fair * 2.20 - 1)) < 1e-9
+    assert body["book_count"] == 3 and "bookmaker" not in str(body).lower()
+
+    low = client.get("/api/match-reads/fixtures/fixture-price/price-check",
+                     params={"market": "goals", "side": "over", "line": 2.5, "odds": 1.80}).json()
+    assert low["verdict"] == "overpaying"
+    card = client.get("/api/match-reads/fixtures/fixture-price").json()["effective"]
+    assert card["fair_prices"]["lines"][0]["market"] == "goals"
+
+
+def test_price_check_refuses_unpriced_lines_unknown_markets_and_impossible_odds(
+    settings, engine, session_factory, monkeypatch,
+):
+    service = _service(session_factory)
+    _release(service, _save(service, _priced_goals_result("fixture-refuse"), thesis="Priced read.", evaluated_at="2026-09-06T12:00:00Z"))
+    client = _client(monkeypatch, service)
+    path = "/api/match-reads/fixtures/fixture-refuse/price-check"
+    assert client.get(path, params={"market": "goals", "side": "over", "line": 3.5, "odds": 2.0}).status_code == 404
+    assert client.get(path, params={"market": "darts", "side": "over", "odds": 2.0}).status_code == 400
+    assert client.get(path, params={"market": "goals", "side": "over", "line": 2.5, "odds": 1.0}).status_code == 422
+    assert client.get("/api/match-reads/fixtures/nothing-here/price-check",
+                      params={"market": "goals", "side": "over", "line": 2.5, "odds": 2.0}).status_code == 404

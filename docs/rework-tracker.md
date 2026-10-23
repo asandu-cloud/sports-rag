@@ -839,6 +839,18 @@ calibration record instead of a hit rate.
 
 ## Findings that shape later steps
 
+- **Fair-price card numbers and Price Check built as data and an API (24 Oct; D36).** `data_platform/fair_prices.py`:
+  per read, the main line of 1X2, goals, BTTS, the handicap and corners (the line most bookmakers price on every
+  side, then the most balanced; at least two bookmakers), each outcome's fair probability (median across bookmakers of
+  each one's power-devigged price, 1X2 rescaled to one), fair odds, minimum odds worth taking (fair odds × 1.02,
+  rounded up to the cent: D36's "fair 1.85; worth it at 1.89 or better") and Spix's own probability beside it. The
+  Match Read card carries it as `fair_prices` (no bookmaker named); `GET /api/match-reads/fixtures/{id}/price-check
+  ?market=&side=&line=&odds=` rates a member's odds against the effective read's fair price for any priced outcome:
+  good price from +2% value, overpaying from −2%, fair between (`FAIR_BAND`, **owner to confirm the band**), 410
+  once the read is no longer actionable, as the card. On the 249 reads since 18 Oct every card has all five lines
+  (about 9 ms per card). Not built: the card's design, the headline rule (owner, D36), a Discord command, the
+  Romanian text.
+
 - **Card settlement: the bookmakers count a straight red as two (24 Oct; before stage 5).** The four bookmakers that
   price cards in our reads are Betano (422 of 556 reads since 9 Oct), Bet365 (385), 1xBet (379) and Pinnacle (366).
   Their rules: yellow 1, red 2, a second yellow ignored (at most 3 per player), regulation time only, cards to

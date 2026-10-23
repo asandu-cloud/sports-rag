@@ -395,9 +395,8 @@ def get_best_match_reads(
     }
 
 
-@router.get("/fixtures/{fixture_id}")
-def get_match_read_fixture(fixture_id: str) -> Dict[str, Any]:
-    """Return the effective public card plus its immutable amendment history."""
+def _actionable_reads(fixture_id: str) -> tuple[str, Mapping[str, Any], List[Mapping[str, Any]]]:
+    """(fixture id, effective read, every delivered read) for a fixture whose effective read is still actionable."""
     normalised_id = str(fixture_id or "").strip()
     if not normalised_id:
         raise HTTPException(status_code=400, detail="fixture_id is required.")
@@ -433,6 +432,13 @@ def get_match_read_fixture(fixture_id: str) -> Dict[str, Any]:
             status_code=410,
             detail=f"This Match Read is no longer actionable: {assessment.reason}",
         )
+    return normalised_id, effective, reads
+
+
+@router.get("/fixtures/{fixture_id}")
+def get_match_read_fixture(fixture_id: str) -> Dict[str, Any]:
+    """Return the effective public card plus its immutable amendment history."""
+    normalised_id, effective, reads = _actionable_reads(fixture_id)
     try:
         effective_card = _card_from_read(effective)
         history = [_card_from_read(read) for read in sorted(reads, key=_history_key, reverse=True)]
@@ -447,6 +453,37 @@ def get_match_read_fixture(fixture_id: str) -> Dict[str, Any]:
         "history": history,
         "history_count": len(history),
     }
+
+
+PRICE_CHECK_SCHEMA_VERSION = "price-check.v1"
+
+
+@router.get("/fixtures/{fixture_id}/price-check")
+def price_check_fixture(
+    fixture_id: str,
+    market: str,
+    side: str,
+    odds: float = Query(..., gt=1.0, description="The decimal odds the member's bookmaker shows."),
+    line: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Rate a member's odds for one outcome against the fair price of the fixture's effective Match Read (D36).
+
+    The fair price is the market's, from the prices the read stored; no bookmaker is named.
+    """
+    from data_platform.fair_prices import MARKETS, fair_outcome, price_check
+
+    if market not in MARKETS:
+        raise HTTPException(status_code=400, detail=f"market must be one of: {', '.join(MARKETS)}.")
+    normalised_id, effective, _ = _actionable_reads(fixture_id)
+    results = (effective.get("data") or {}).get("canonical_results") or []
+    outcome = fair_outcome(results, market, side, line)
+    if outcome is None:
+        raise HTTPException(status_code=404, detail="No fair price exists for this outcome in the Match Read.")
+    checked = price_check(outcome["fair_probability"], odds)
+    return {"schema_version": PRICE_CHECK_SCHEMA_VERSION, "fixture_id": normalised_id,
+            "match_read_id": effective.get("id"), "market": market, "side": outcome["side"], "line": outcome["line"],
+            "odds": odds, "fair_probability": outcome["fair_probability"], "book_count": outcome["book_count"],
+            "spix_probability": outcome["spix_probability"], **checked}
 
 
 @router.get("/{league}/{target_date}")
