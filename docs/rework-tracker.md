@@ -87,7 +87,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Done 23 Oct (D43): Betfair is not carried. OddsPapi has no Betfair sportsbook history open to our plan (`betfair-spb` 403 RESTRICTED_ACCESS; `betfair.es` / `betfair.it` 404 on Serie A, LaLiga and UEL matches, while a clone can have one: Betano RO 264 markets), so `oddspapi.BOOKS` no longer maps Betfair. Its picks keep Pinnacle's true close without an own close; price confirmation turns them down as not carried. 82 published picks in 43 fixtures had an own close from the exchange: recaptured 23 Oct 08:33 UTC from the cache (no billable request; `Research/betfair-recapture-2026-10-23/`): the 814 other picks of those fixtures unchanged; of 88 Betfair picks, Pinnacle's close unchanged on all, the exchange close gone on 82, and 12 now unavailable (Pinnacle has no price on their line); 70 final, 18 unavailable | Done | True close, price check and price confirmation of Betfair picks rely on it |
 | Price confirmation before publishing (D40 (a)): **built 23 Oct (D42)**, `services/price_confirmation.py`, run by the Match Read dispatcher on stored reads between evaluation and compilation; acts only on reads made under `SPIX_SELECTION_POLICY=market_value`, so nothing changes before stage 4. **Owner: choose the freshness limit** (`MAX_AGE`, 30 minutes now): on 670 replayed picks of 8–21 Oct it publishes 224 at 30 minutes, 264 at 60, 339 with no limit; a price confirmed from an older record was still there at the bookmaker's next check 83–86% of the time (fresh: 91%) | Owner, before stage 4 (earliest Tue 3 Nov) | No limit publishes half again as many picks |
 | Stage 4 bundle: A5.3 part 1 (D39, corrected in D41): Betano's best prices were real at the read in 56% of checked picks, Pinnacle's 53%; price rules decided (D40): (b) built behind the stage 4 switch, (a) price confirmation before publishing must be built before stage 4 (built 23 Oct, D42; freshness limit to choose); bundle preview with (b), 54 golden fixtures of 17–18 Oct (Betano absent those days), all books: goals 38 → 8, corners 33 → 7, BTTS 12 → 4, 1X2 7 → 3, Asian handicap 47 → 0; Romanian books only: 2, 3, 1, 0, 0; rerun the bundle preview on the weeks since 17 Oct; owner sets the published value threshold (2% tested; Romania volume in D35) | Before stage 4, earliest Tue 3 Nov | Built 17 Oct (D35) |
-| A5.3: part 1 done 20 Oct (D39, `ops/price_check.py`). Exchange commission dropped 23 Oct: the feed's Betfair is the sportsbook (D43). Labels designed 23 Oct with the owner (D44): high when the market and Spix agree, market firmness until Spix earns its vote per market; next the firmness and Spix checks, then the build behind `SPIX_CONFIDENCE_LABELS` | A5.3 (D31, D44) | Half the best-price books' quotes were unchanged or missing at the close (D31) |
+| A5.3: part 1 done 20 Oct (D39, `ops/price_check.py`). Exchange commission dropped 23 Oct: the feed's Betfair is the sportsbook (D43). Labels designed 23 Oct with the owner (D44): high when the market and Spix agree, market firmness until Spix earns its vote per market. **Built 23 Oct behind `SPIX_CONFIDENCE_LABELS` (off)**; checks run the same day (finding of 23 Oct): price age supported, bookmaker spread not yet (no cut-off, so every label would be low), Spix check passes for the handicap only (a candidate). Rerun both checks weekly (`ops/confidence_study.py`, `ops/confidence_age_study.py`); owner: whether labels may go on price freshness alone until the spread passes, and whether to approve the handicap's Spix vote after a confirming week | A5.3 (D31, D44) | Half the best-price books' quotes were unchanged or missing at the close (D31) |
 | Bookmaker sets per country: Romania first (D35); built, off. Used once Romanian prices are available (D36) | After Romanian prices exist | Since 16 Oct the feed has no Romanian-licensed bookmaker |
 | Ask ONJN in writing whether a subscription analysis service that names no bookmaker and takes no commission needs a Class II licence; and whether analysis content counts as gambling promotion under the pending 06:00–24:00 bill | Owner, before launch | Applies to every launch option in Romania |
 | OddsPapi (parked until paying users, owner 19 Oct): free-plan check of showing prices inside Spix; written permission request drafted 20 Oct (display to paying members, pre-revenue, B2B later) | Owner sends; then after paying users | Free Romanian prices found 19 Oct (D36) |
@@ -833,9 +833,34 @@ calibration record instead of a hit rate.
   uncertainty width are left out until a market earns Spix's vote.
 - *Build:* behind `SPIX_CONFIDENCE_LABELS` (`edge` default, `evidence`), its own rollout stage after stage 4.
 - Design: `docs/superpowers/specs/2026-10-23-a5-3-confidence-labels-design.md`.
+- *Built and checked 23 Oct* (plan `docs/superpowers/plans/2026-10-23-a5-3-confidence-labels.md`): see the finding of 23 Oct.
 
 ## Findings that shape later steps
 
+- **A5.3 checks, first run (23 Oct; D44).** On the market-price policy's picks of 9–22 Oct (824 picks, 274
+  fixtures; the earlier week chooses, the last week confirms):
+  - *Bookmaker spread: not yet.* The best cut-off on the first week (interquartile range 0.0157, 25% of picks high)
+    kept +2.2% more value at the close there (+0.7 to +3.7), but only +0.4% on the held-out week (−1.5 to +2.1). So
+    `CUTOFFS.max_spread` stays unset and every label would be low. By market it points the right way for the handicap
+    (+3.3%, +0.9 to +5.2 over both weeks), 1X2 and goals, and the wrong way for cards (−3.3%, −6.0 to −0.4).
+    Per-market cut-offs chosen and checked the same way (`per_market_exploratory.json`, exploratory only): only 1X2
+    passes, on 24 held-out picks.
+  - *Price age: supported* (`ops/confidence_age_study.py`, 297 picks whose quoted price was on offer at the read,
+    8–21 Oct, cached OddsPapi histories, no billable request). Prices whose bookmaker OddsPapi had seen within 30
+    minutes were still there at its next check 95% of the time, older ones 85%: +9.5 pts (+1.0 to +18.5). Value at
+    the close: +4.9% against +2.9%. `fresh_minutes` stays 30.
+  - *Spix check:* the handicap passes (Spix agreeing +2.2% at the close, +0.2 to +4.8; calibration not worse).
+    Goals (+0.1%), corners (+1.1%) and cards (−0.8%) do not; 1X2 and BTTS have too few picks. It is one pass in four
+    tested markets, so a candidate for the owner after a confirming week, not a vote yet (`SPIX_VOTE_MARKETS` stays
+    empty).
+  - *For the owner:* the age part of the label only matters if price confirmation's `MAX_AGE` is no limit (Claude's
+    recommendation). At 30 minutes every published pick is fresh by definition.
+  - Output: `Research/confidence-2026-10-23/`, `Research/confidence-age-2026-10-23/`.
+- **`golden_snapshots check` reads the live `.env` (23 Oct).** A plain `check` inherits the switches saved in `.env`
+  (stages 1–2 since 20 and 23 Oct), so it reports thousands of changed values with no code change (2,530 on the first
+  fixture). Run it with every switch at its default, e.g. `SPIX_COUNT_DISPERSION=floors SPIX_DEVIG_METHOD=proportional
+  SPIX_MARKET_ANCHOR=off SPIX_CONFIDENCE_LABELS=edge python -m Scripts.ops.golden_snapshots check`. On 23 Oct that
+  gives no changes across 54 fixtures. (Earlier notes saying the check forces the switches off were wrong.)
 - **Spix's corner disagreements now carry information, but tilting toward them adds no value at the close (23 Oct).**
   A5.1 rerun on two weeks (295 fixtures, 9–22 Oct; stage 1's fixed dispersions live since 20 Oct): the weight results
   give Spix's deviation from the market is c = +0.14 overall (−0.01 to +0.31), and **corners +0.49 (+0.18 to +0.80)**,
