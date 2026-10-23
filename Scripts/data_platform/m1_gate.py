@@ -13,14 +13,12 @@ construction.
 """
 from __future__ import annotations
 
-from contextlib import closing
 import json
 import math
 from pathlib import Path
-import sqlite3
 import sys
 
-from .calibration_data import _label, fixture_outcomes, latest_reads
+from .calibration_data import _label, fixture_outcomes, latest_read_rows
 from .disagreement import read_lines
 from .reference_price import norm
 from .scorecard import outcome_weight
@@ -87,12 +85,9 @@ def _fitted_handicap(fit, line):
 
 
 def build(db_path):
-    with closing(sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=60)) as db:
-        reads = [dict(zip(("fixture_api_id", "stage", "evaluated_at", "kickoff", "read_json"), r)) for r in db.execute(
-            "SELECT fixture_api_id, stage, evaluated_at, kickoff, read_json FROM match_reads")]
     outcomes = fixture_outcomes(db_path)
     rows, unsolved = [], 0
-    for read in latest_reads(reads):
+    for read in latest_read_rows(db_path):
         outcome = outcomes.get(str(read["fixture_api_id"]))
         if not outcome:
             continue

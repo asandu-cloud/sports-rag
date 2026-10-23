@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 import sys
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from pathlib import Path
 
 import pytest
@@ -72,3 +72,25 @@ def session_factory(settings, engine):
             session.close()
 
     return _scope
+
+
+@pytest.fixture()
+def traced_table(tmp_path, monkeypatch):
+    """make(table, rows) -> (a database holding ``rows`` in ``table``, the list every statement run on it joins)."""
+    import sqlite3
+    statements, connect = [], sqlite3.connect
+
+    def tracing(*args, **kwargs):
+        db = connect(*args, **kwargs)
+        db.set_trace_callback(statements.append)
+        return db
+
+    def make(table, rows):
+        path = tmp_path / "platform.db"
+        with closing(connect(path)) as db, db:
+            db.execute(f"CREATE TABLE {table} ({', '.join(rows[0])})")
+            db.executemany(f"INSERT INTO {table} VALUES ({', '.join('?' * len(rows[0]))})",
+                           [tuple(r.values()) for r in rows])
+        monkeypatch.setattr(sqlite3, "connect", tracing)
+        return path, statements
+    return make

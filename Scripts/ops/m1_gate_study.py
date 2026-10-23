@@ -19,6 +19,7 @@ import numpy as np
 
 from Scripts.data_platform import calibration as cal
 from Scripts.data_platform import m1_gate
+from Scripts.data_platform.services.refresh_coordination import data_access
 from Scripts.ops.odds_archive import ROOT
 
 
@@ -82,7 +83,8 @@ def main(argv=None):
     parser.add_argument("--db", type=Path, default=ROOT / "Index/platform.db")
     parser.add_argument("--resamples", type=int, default=2000)
     args = parser.parse_args(argv)
-    rows, unsolved = m1_gate.build(args.db)
+    with data_access():  # never read while refresh-season writes
+        rows, unsolved = m1_gate.build(args.db)
     result = run(rows, unsolved, resamples=args.resamples)
     if args.out:
         args.out.mkdir(parents=True, exist_ok=True)

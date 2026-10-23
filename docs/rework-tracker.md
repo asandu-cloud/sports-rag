@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-23 (D42)
+Last updated: 2026-10-23 (D43)
 
 ## Status
 
@@ -814,6 +814,12 @@ calibration record instead of a hit rate.
 
 ## Findings that shape later steps
 
+- **The research studies read `platform.db` in short statements behind the refresh gate (23 Oct).** The A4.2, A5.1
+  and D29 studies (`calibration_study`, `disagreement_study`, `m1_gate_study`) each selected every match read's JSON
+  in one statement: 3,335 reads of about 0.75 MB each (about 2.5 GB), which would hold the database's read lock far
+  past the jobs' 2 s busy timeout. They now page through the reads' other columns 500 rows at a time, pick the latest
+  read per fixture and stage, and fetch each chosen read's JSON alone (`calibration_data.latest_read_rows`); the
+  closing snapshots likewise (`disagreement.closing_snapshots`). Each study's reads run inside `data_access()`.
 - **The odds archive pauses while the Mac sleeps (23 Oct).** Its 3-hourly job (`StartInterval` 10800) last captured
   at 23:16 UTC on 22 Oct; launchd's interval timer does not count sleep (asleep 23:51–07:10 UTC), so the next run
   came about 3 awake hours later. Line movement (M2) and the coverage watch both read this archive: one more reason

@@ -25,7 +25,7 @@ import sqlite3
 
 import numpy as np
 
-from .calibration_data import _label, latest_reads
+from .calibration_data import _label, latest_read_rows
 from .reference_price import audit_books, devig_consensus, norm
 from .scorecard import outcome_weight
 
@@ -155,8 +155,12 @@ def closing_prices(payload, line):
 def closing_snapshots(db_path, backfill_dir=None):
     """fixture id -> API-Football final pre-kickoff /odds payload (database first, then saved files)."""
     with closing(sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=60)) as db:
-        snaps = {str(e): (json.loads(p) if isinstance(p, str) else p) for e, p in db.execute(
-            "SELECT event_id, odds_json FROM odds_snapshots WHERE kind = 'final_prematch' ORDER BY captured_at")}
+        last = {str(e): rowid for rowid, e in db.execute(  # one short statement per payload (latest_read_rows)
+            "SELECT rowid, event_id FROM odds_snapshots WHERE kind = 'final_prematch' ORDER BY captured_at").fetchall()}
+        snaps = {}
+        for event, rowid in last.items():
+            [(p,)] = db.execute("SELECT odds_json FROM odds_snapshots WHERE rowid = ?", (rowid,)).fetchall()
+            snaps[event] = json.loads(p) if isinstance(p, str) else p
     for path in sorted(Path(backfill_dir).glob("*.json.gz")) if backfill_dir else []:
         fid = path.name.split(".")[0]
         if fid not in snaps:
@@ -167,13 +171,10 @@ def closing_snapshots(db_path, backfill_dir=None):
 
 def build(db_path, *, backfill_dir=None, all_sides=False):
     from .calibration_data import fixture_outcomes
-    with closing(sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=60)) as db:
-        reads = [dict(zip(("fixture_api_id", "stage", "evaluated_at", "kickoff", "read_json"), r)) for r in db.execute(
-            "SELECT fixture_api_id, stage, evaluated_at, kickoff, read_json FROM match_reads")]
     outcomes = fixture_outcomes(db_path)
     snapshots = closing_snapshots(db_path, backfill_dir)
     dataset = []
-    for row in latest_reads(reads):
+    for row in latest_read_rows(db_path):
         outcome = outcomes.get(str(row["fixture_api_id"]))
         if not outcome:
             continue

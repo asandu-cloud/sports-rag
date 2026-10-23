@@ -25,6 +25,7 @@ from pathlib import Path
 import numpy as np
 
 from Scripts.data_platform import disagreement as dis
+from Scripts.data_platform.services.refresh_coordination import data_access
 from Scripts.ops.odds_archive import ROOT
 
 BUCKETS = ((0.0, 0.025), (0.025, 0.05), (0.05, 0.10), (0.10, 0.15), (0.15, 1.01))
@@ -108,7 +109,8 @@ def main(argv=None):
     parser.add_argument("--backfill", type=Path, default=ROOT / "Index/closing_backfill")
     parser.add_argument("--resamples", type=int, default=1000)
     args = parser.parse_args(argv)
-    rows = dis.build(args.db, backfill_dir=args.backfill)
+    with data_access():  # never read while refresh-season writes
+        rows = dis.build(args.db, backfill_dir=args.backfill)
     result = run(rows, resamples=args.resamples)
     if args.out:
         args.out.mkdir(parents=True, exist_ok=True)

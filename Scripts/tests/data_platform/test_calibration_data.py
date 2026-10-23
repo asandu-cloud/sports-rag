@@ -84,3 +84,15 @@ def test_a_selection_carries_the_pick_flag_variance_and_a_vig_free_market_price(
     assert by_line[2.5]["selected"] and by_line[2.5]["variance"] == 3.4
     assert by_line[2.5]["market_prob"] == 0.5  # from the later bookmaker with a two-sided price
     assert by_line[3.5]["market_prob"] is None and not by_line[3.5]["selected"]
+
+
+def test_only_the_latest_reads_json_is_fetched_one_read_per_statement(traced_table):
+    # A read's JSON is ~0.75 MB: one scan of every read holds the database's lock for seconds and fails the jobs' commits
+    early, after = read(evaluated="2026-10-10T09:00:00Z"), read(evaluated="2026-10-10T15:30:00Z")
+    late = read(evaluated="2026-10-10T14:00:00Z", results=[result("btts", [option("btts", "Yes", p=0.6)])])
+    other = read(fid="8", evaluated="2026-10-10T10:00:00Z")
+    path, statements = traced_table("match_reads", [early, late, after, other])
+    assert list(cd.latest_read_rows(path, batch=2)) == [late, other]
+    json_reads = [s for s in statements if "read_json" in s]
+    assert len(json_reads) == 2 and all("rowid = " in s for s in json_reads)
+    assert sum("LIMIT" in s for s in statements) == 3  # the other columns in pages of 2

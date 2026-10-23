@@ -50,6 +50,27 @@ def latest_reads(rows):
     return list(best.values())
 
 
+
+READ_COLUMNS = ("fixture_api_id", "stage", "evaluated_at", "kickoff")
+
+
+def latest_read_rows(db_path, *, batch=500):
+    """latest_reads() of the database's match reads, each read's JSON fetched on its own as it is used.
+
+    Short statements only: the database is in rollback-journal mode and its writers wait 2 s for a lock, and
+    a read's JSON is ~0.75 MB, so one scan of every read holds the lock long enough to fail the jobs' commits.
+    """
+    with closing(sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=60)) as db:
+        rows, last = [], 0
+        while chunk := db.execute(f"SELECT rowid, {', '.join(READ_COLUMNS)} FROM match_reads WHERE rowid > ? "
+                                  "ORDER BY rowid LIMIT ?", (last, batch)).fetchall():
+            rows += [{"rowid": r[0], **dict(zip(READ_COLUMNS, r[1:]))} for r in chunk]
+            last = chunk[-1][0]
+        for row in latest_reads(rows):
+            found = db.execute("SELECT read_json FROM match_reads WHERE rowid = ?", (row.pop("rowid"),)).fetchall()
+            if found:
+                yield {**row, "read_json": found[0][0]}
+
 def selections(row):
     data = json.loads(row["read_json"]) if isinstance(row["read_json"], str) else row["read_json"]
     out, seen = [], {}
@@ -126,12 +147,9 @@ def fixture_outcomes(db_path):
 
 
 def build(db_path):
-    with closing(sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=60)) as db:
-        rows = [dict(zip(("fixture_api_id", "stage", "evaluated_at", "kickoff", "read_json"), r)) for r in db.execute(
-            "SELECT fixture_api_id, stage, evaluated_at, kickoff, read_json FROM match_reads")]
     outcomes = fixture_outcomes(db_path)
     dataset = []
-    for row in latest_reads(rows):
+    for row in latest_read_rows(db_path):
         outcome = outcomes.get(str(row["fixture_api_id"]))
         if not outcome:
             continue

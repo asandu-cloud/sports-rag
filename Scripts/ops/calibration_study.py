@@ -19,16 +19,15 @@ finished fixture's latest read scored under the floors and the fixed dispersion.
 from __future__ import annotations
 
 import argparse
-from contextlib import closing
 import json
 from pathlib import Path
-import sqlite3
 
 import numpy as np
 from scipy.special import gammaln
 
 from Scripts.data_platform import calibration as cal
 from Scripts.data_platform import calibration_data
+from Scripts.data_platform.services.refresh_coordination import data_access
 from Scripts.ops.odds_archive import ROOT
 
 GATE_ERROR, GATE_SLOPE = 0.03, (0.8, 1.2)
@@ -98,12 +97,9 @@ def corner_count_scores(db_path, *, resamples=2000, seed=20260928):
     """Per stage: mean log loss of the actual corner count under the stored (floor) variance and the fixed one."""
     from Scripts.rag_ingest.core.prediction_guardrails import FIXED_DISPERSIONS
     alpha = FIXED_DISPERSIONS["corners"]
-    with closing(sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=60)) as db:
-        reads = [dict(zip(("fixture_api_id", "stage", "evaluated_at", "kickoff", "read_json"), r)) for r in db.execute(
-            "SELECT fixture_api_id, stage, evaluated_at, kickoff, read_json FROM match_reads")]
     outcomes = calibration_data.fixture_outcomes(db_path)
     by_stage = {}
-    for read in calibration_data.latest_reads(reads):
+    for read in calibration_data.latest_read_rows(db_path):
         corners = (outcomes.get(str(read["fixture_api_id"])) or {}).get("corners")
         if corners is None:
             continue
@@ -176,7 +172,8 @@ def main(argv=None):
     parser.add_argument("--db", type=Path, default=ROOT / "Index/platform.db")
     parser.add_argument("--min-train-fixtures", type=int, default=40)
     args = parser.parse_args(argv)
-    result = run(calibration_data.build(args.db), min_train_fixtures=args.min_train_fixtures, db_path=args.db)
+    with data_access():  # never read while refresh-season writes
+        result = run(calibration_data.build(args.db), min_train_fixtures=args.min_train_fixtures, db_path=args.db)
     if args.out:
         args.out.mkdir(parents=True, exist_ok=True)
         (args.out / "calibration.json").write_text(json.dumps(result, indent=2))

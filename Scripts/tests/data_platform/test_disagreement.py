@@ -114,3 +114,14 @@ def test_both_fits_do_not_depend_on_which_side_is_kept():
 def test_bootstrap_resamples_whole_fixtures():
     rows = [{"fixture_id": "a", "v": 1.0}, {"fixture_id": "a", "v": 1.0}, {"fixture_id": "b", "v": 1.0}]
     assert dis.fixture_bootstrap(rows, lambda s: sum(r["v"] for r in s) / len(s), resamples=50) == [1.0, 1.0]
+
+
+def test_the_last_captured_closing_snapshot_is_used_and_read_alone(traced_table):
+    snapshot = lambda event, kind, at, n: {"event_id": event, "kind": kind, "captured_at": at,
+                                           "odds_json": json.dumps({"n": n})}
+    path, statements = traced_table("odds_snapshots", [
+        snapshot("7", "final_prematch", "2026-10-10T14:50:00Z", 2), snapshot("7", "final_prematch", "2026-10-10T14:40:00Z", 1),
+        snapshot("8", "prematch", "2026-10-10T14:00:00Z", 3)])
+    assert dis.closing_snapshots(path) == {"7": {"n": 2}}
+    json_reads = [s for s in statements if "odds_json" in s]
+    assert len(json_reads) == 1 and "rowid = " in json_reads[0]
