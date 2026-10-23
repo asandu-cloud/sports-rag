@@ -158,3 +158,60 @@ def test_the_fallback_briefing_attributes_an_anchored_result_balance_to_the_mark
     summary = enriched.game_script["briefing"]["summary"]
     assert "The market's consensus gives Leeds United a 30% win chance" in summary
     assert "result model" not in summary
+
+
+M1_FIGURES = {"home_goals": 1.49, "away_goals": 1.04, "total_goals": 2.53, "goal_difference": 0.45, "btts_yes": 0.523}
+
+
+def _stage_4(result):
+    """A goal-market result under stage 4 (D29): the decision prices on M1, whose figures the service records."""
+    result["context"]["market_anchor"] = {"scope": "goals", "goal_model": {"home": 1.49, "away": 1.04, "error": 0.0},
+                                          "goal_figures": M1_FIGURES}
+    return result
+
+
+def _goal_results(anchored):
+    goals = _result("goals", {"value": 2.42, "season_component": 2.61, "recent_component": 2.17})
+    btts = _result("btts", {"value": 0.49, "components": {"home_goals": 1.31, "away_goals": 1.11, "yes_probability": 0.49}})
+    return [_stage_4(goals), _stage_4(btts)] if anchored else [goals, btts]
+
+
+def test_under_stage_4_the_goal_figures_are_m1s_and_say_so():
+    from data_platform.services.match_read_cards import _metrics_card
+    from data_platform.services.match_read_metrics import match_metrics
+
+    metrics = match_metrics(_goal_results(anchored=True))
+    assert metrics["goals"] == {"projected": 2.53, "source": "market"}  # Spix's season and recent blends left out
+    assert metrics["team_goals"] == {"home": 1.49, "away": 1.04, "both_teams_score_probability": 0.523,
+                                     "source": "market"}
+    card = _metrics_card(_goal_results(anchored=True))
+    assert card["projected_total_goals"] == 2.53 and card["team_goals"] == {"home": 1.49, "away": 1.04}
+    # Without M1's figures the facts are unchanged, so cached briefings stay valid
+    own = match_metrics(_goal_results(anchored=False))
+    assert own["goals"] == {"projected": 2.42, "season_baseline": 2.61, "recent_baseline": 2.17}
+    assert own["team_goals"] == {"home": 1.31, "away": 1.11, "both_teams_score_probability": 0.49}
+
+
+def test_the_fallback_briefing_attributes_m1s_goals_to_the_market():
+    from data_platform.services.match_read_briefing import enrich_match_read_draft
+    from data_platform.services.match_read_compiler import compile_match_read
+
+    draft = compile_match_read(_goal_results(anchored=True))
+    enriched, _ = enrich_match_read_draft(draft, {}, generator=lambda _facts: {"summary": "too short", "bullets": []})
+    summary = enriched.game_script["briefing"]["summary"]
+    assert "The market's consensus projects 2.53 total goals, split 1.49 for Leeds United and 1.04 for " \
+           "Newcastle United" in summary
+    assert "The model projects" not in summary
+
+
+def test_a_split_from_another_source_is_not_joined_to_the_total():
+    from data_platform.services.match_read_briefing import enrich_match_read_draft
+    from data_platform.services.match_read_compiler import compile_match_read
+
+    goals, btts = _goal_results(anchored=False)
+    draft = compile_match_read([_stage_4(goals), btts])
+    enriched, _ = enrich_match_read_draft(draft, {}, generator=lambda _facts: {"summary": "too short", "bullets": []})
+    summary = enriched.game_script["briefing"]["summary"]
+    assert "The market's consensus projects 2.53 total goals" in summary and "split" not in summary
+    bullets = enriched.game_script["briefing"]["bullets"]
+    assert "Goals: 2.53 total goals projected." in bullets and not any("1.31" in bullet for bullet in bullets)

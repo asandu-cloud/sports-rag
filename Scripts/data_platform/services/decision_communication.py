@@ -11,6 +11,11 @@ from datetime import datetime, timezone
 from ..publication_identity import digest
 from ..recommendation_identity import recommendation_identity
 
+try:
+    from Scripts.rag_ingest.core.market_result import stored_probability_source
+except ImportError:  # the engine directory on the path, as the bots run it
+    from core.market_result import stored_probability_source  # type: ignore[import]
+
 VERSION = 'decision-communication.production.v1'
 
 
@@ -38,13 +43,15 @@ def build_decision_explanation(result):
     market_label = {'sot': 'Shots on target', 'moneyline': 'Match winner', 'spreads': 'Handicap', 'btts': 'BTTS'}.get(market, market.title())
     side, line = str(quote.get('side') or ''), quote.get('line')
     pick = side.title() + (f' {float(line):g}' if line is not None else '')
+    # Under the market anchor (stages 3-4) the decision priced on the market's numbers, so the probability is theirs.
+    label = ('Asian price-comparison probability' if decision.get('probability_basis') == 'asian_equivalent_non_push'
+             else 'market probability' if stored_probability_source(result) == 'market' else 'model probability')
     if market == 'moneyline':
         pick = (result.get('fixture') or {}).get(side.lower() + '_team') or pick
     facts = []
     if decision.get('status') == 'recommended' and odds is not None:
         facts.append(f'{market_label}: {pick} @ {odds} ({quote.get("bookmaker") or "bookmaker unavailable"}).')
         if probability is not None:
-            label = 'Asian price-comparison probability' if decision.get('probability_basis') == 'asian_equivalent_non_push' else 'model probability'
             facts.append(f'{probability:.1%} {label}.')
         if ev is not None:
             facts.append(f'Estimated return {ev:+.1%} per unit staked.')
@@ -74,7 +81,7 @@ def build_decision_explanation(result):
         timing.append(f'Valid before {price["expires_at"]}, subject to continued availability.')
     compact = f'{market.upper() if market == "btts" else market.title()}: {pick} @ {odds} ({quote.get("bookmaker") or "bookmaker unavailable"}).'
     if probability is not None:
-        compact += f' {probability:.1%} ' + ('Asian price-comparison probability.' if decision.get('probability_basis') == 'asian_equivalent_non_push' else 'model probability.')
+        compact += f' {probability:.1%} {label}.'
     if ev is not None:
         compact += f' EV {ev:+.1%}.'
     if conservative is not None:

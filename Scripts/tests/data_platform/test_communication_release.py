@@ -52,6 +52,28 @@ def test_identity_is_stable_across_copy_and_changes_with_quote_or_stage():
     assert recommendation_identity(result) != original
 
 
+def _market_priced(result):
+    """Stage 3's market anchor on the result's O/U 2.5: the decision priced on the market's consensus."""
+    result['context']['market_anchor'] = {'scope': 'strict', 'lines': {'2.5': {'market_over': 0.6, 'books': 8}}}
+    return result
+
+
+def test_a_market_priced_pick_says_whose_probability_it_is():
+    from Scripts.discord_bot.match_read_hubs import _selection_line
+    from data_platform.services.match_read_cards import _selection_card
+    market, own = build_decision_explanation(_market_priced(_market_result())), build_decision_explanation(_market_result())
+    assert '60.0% market probability.' in market['reasoning'] and '60.0% market probability.' in market['compact']
+    assert 'model probability' not in market['reasoning'] + market['compact']
+    assert '60.0% model probability.' in own['reasoning'] and '60.0% model probability.' in own['compact']
+    selection = {'position': 0, 'role': 'core', 'market': {'group': 'goals'}, 'pick': 'Over 2.5', 'quote_odds': 2.0,
+                 'model_probability': 0.6, 'data': _market_priced(_market_result())}
+    card = _selection_card(selection)
+    assert card['probability_source'] == 'market'
+    assert _selection_card({**selection, 'data': _market_result()})['probability_source'] == 'model'
+    assert '60% market' in _selection_line({**card, 'explanation': None})
+    assert '60% model' in _selection_line({**card, 'explanation': None, 'probability_source': 'model'})
+
+
 def test_missing_metrics_do_not_become_zero_or_verified():
     result = _market_result()
     result['decision'].update(expected_value=None, model_probability=None)

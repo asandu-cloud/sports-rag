@@ -49,9 +49,10 @@ The paragraph must be 30-72 words. Each bullet must be 5-16 words and under
 goals, result balance, and event-volume figures. You may say "the model
 projects" and cite supplied figures, but do not mention bets, picks,
 selections, odds, lines, bookmakers, value, edge, staking, or parlays. When
-the result balance has "source": "market", it is the betting market's
-consensus, not the model's: attribute it to the market. Do not give an
-instruction to the reader. Keep the language direct and specific."""
+a figure has "source": "market" (the result balance, projected goals or the
+team-goal split), it is the betting market's consensus, not the model's:
+attribute it to the market. Do not give an instruction to the reader. Keep
+the language direct and specific."""
 
 
 def enrich_match_read_draft(
@@ -252,8 +253,9 @@ def _deterministic_briefing(facts: Mapping[str, Any], *, fact_key: str) -> Dict[
     home_goals = _finite(team_goals.get("home"))
     away_goals = _finite(team_goals.get("away"))
     if total_goals is not None:
-        summary_bits.append(f"The model projects {total_goals:.2f} total goals")
-        if home_goals is not None and away_goals is not None:
+        projects = "The market's consensus projects" if goals.get("source") == "market" else "The model projects"
+        summary_bits.append(f"{projects} {total_goals:.2f} total goals")
+        if home_goals is not None and away_goals is not None and goals.get("source") == team_goals.get("source"):
             summary_bits[-1] += f", split {home_goals:.2f} for {home} and {away_goals:.2f} for {away}"
     home_probability = _finite(result.get("home"))
     draw_probability = _finite(result.get("draw"))
@@ -294,7 +296,7 @@ def _fallback_bullets(facts: Mapping[str, Any]) -> list[str]:
     home_goals = _finite(team_goals.get("home"))
     away_goals = _finite(team_goals.get("away"))
     if total is not None:
-        if home_goals is not None and away_goals is not None:
+        if home_goals is not None and away_goals is not None and goals.get("source") == team_goals.get("source"):
             candidates.append(f"Goals: {total:.2f} projected — {home} {home_goals:.2f}, {away} {away_goals:.2f}.")
         else:
             candidates.append(f"Goals: {total:.2f} total goals projected.")

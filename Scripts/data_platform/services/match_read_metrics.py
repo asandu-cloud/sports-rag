@@ -27,6 +27,10 @@ def match_metrics(canonical_results: Sequence[Mapping[str, Any]]) -> Dict[str, A
     metrics: Dict[str, Any] = {}
 
     for group, label in (("goals", "goals"), ("corners", "corners"), ("cards", "cards"), ("sot", "shots_on_target")):
+        market_total = _finite(_goal_figures(markets.get(group, {})).get("total_goals")) if group == "goals" else None
+        if market_total is not None:
+            metrics[label] = {"projected": _round(market_total), "source": "market"}
+            continue
         projection = _mapping(markets.get(group, {}).get("projection"))
         value = _finite(projection.get("value"))
         if value is None:
@@ -43,6 +47,12 @@ def match_metrics(canonical_results: Sequence[Mapping[str, Any]]) -> Dict[str, A
     for group in ("btts", "moneyline"):
         components = _mapping(_mapping(markets.get(group, {}).get("projection")).get("components"))
         if group == "btts":
+            figures = _goal_figures(markets.get(group, {}))
+            market = [_finite(figures.get(key)) for key in ("home_goals", "away_goals", "btts_yes")]
+            if None not in market:
+                metrics["team_goals"] = {**{key: _round(value) for key, value in zip(
+                    ("home", "away", "both_teams_score_probability"), market)}, "source": "market"}
+                continue
             home_goals = _finite(components.get("home_goals"))
             away_goals = _finite(components.get("away_goals"))
             both_score = _finite(components.get("yes_probability"))
@@ -75,6 +85,14 @@ def match_metrics(canonical_results: Sequence[Mapping[str, Any]]) -> Dict[str, A
                     if value is not None
                 }
     return metrics
+
+
+def _goal_figures(result: Mapping[str, Any]) -> Dict[str, Any]:
+    """M1's figures, recorded when the goal markets price from it (A3.7 stage 4, D29); empty otherwise.
+
+    The projection keeps Spix's own (research reads it there), so under stage 4 these are the numbers published.
+    """
+    return _mapping(_mapping(_mapping(result.get("context")).get("market_anchor")).get("goal_figures"))
 
 
 def _mapping(value: Any) -> Dict[str, Any]:

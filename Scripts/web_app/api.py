@@ -50,7 +50,7 @@ from core.line_selection import (
     choose_best_moneyline_side, confidence_from_edge,
     _best_model_only_line, _best_model_only_spread,
 )
-from core.market_result import published_result_probabilities
+from core.market_result import probability_source, published_projection, published_result_probabilities
 from core.market_service import SUPPORTED_MARKETS, evaluate_event
 from Scripts.data_platform.services.communication_release import communication_release_manifest
 from core.parlay import build_candidates, kb_leg_quality, CandidateLeg, enrich_events_for_groups
@@ -201,9 +201,11 @@ def _cached_fetch_events(league: str, target_date: date) -> Tuple[List[Dict], Li
 # ---------------------------------------------------------------------------
 class TotalsPrediction(BaseModel):
     projected_total: Optional[float] = None
+    projection_source: Optional[str] = None  # "market" for M1's expected goals (stage 4), else "model"
     recommended_side: Optional[str] = None
     recommended_line: Optional[float] = None
     model_prob: Optional[float] = None
+    probability_source: Optional[str] = None  # "market" when the decision priced on the market's numbers
     odds: Optional[float] = None
     bookmaker: Optional[str] = None
     value_edge: Optional[float] = None
@@ -214,6 +216,7 @@ class TotalsPrediction(BaseModel):
 
 class BttsPrediction(BaseModel):
     probability: Optional[float] = None
+    probability_source: Optional[str] = None  # "market" for M1's BTTS yes (stage 4), else "model"
     recommended_side: Optional[str] = None
     odds: Optional[float] = None
     bookmaker: Optional[str] = None
@@ -239,9 +242,11 @@ class MoneylinePrediction(BaseModel):
 
 class SpreadPrediction(BaseModel):
     projected_diff: Optional[float] = None
+    projection_source: Optional[str] = None  # "market" for M1's goal difference (stage 4), else "model"
     recommended_team: Optional[str] = None
     recommended_line: Optional[float] = None
     model_prob: Optional[float] = None
+    probability_source: Optional[str] = None  # "market" when the decision priced on the market's numbers
     odds: Optional[float] = None
     bookmaker: Optional[str] = None
     value_edge: Optional[float] = None
@@ -698,11 +703,13 @@ def _decision_fields(result) -> Dict[str, Any]:
 def _totals_from_result(result) -> TotalsPrediction:
     fields = _decision_fields(result)
     quote = fields["quote"]
+    projected, source = published_projection(result)
     return TotalsPrediction(
-        projected_total=_safe(result.projection.value),
+        projected_total=_safe(projected), projection_source=source,
         recommended_side=quote.side.title() if quote else None,
         recommended_line=_safe(quote.line) if quote else None,
-        model_prob=fields["model_prob"], odds=fields["odds"], bookmaker=fields["bookmaker"],
+        model_prob=fields["model_prob"], probability_source=probability_source(result),
+        odds=fields["odds"], bookmaker=fields["bookmaker"],
         value_edge=fields["value_edge"], confidence=fields["confidence"],
         status=fields["status"], reason=fields["reason"],
     )
@@ -711,8 +718,9 @@ def _totals_from_result(result) -> TotalsPrediction:
 def _btts_from_result(result) -> BttsPrediction:
     fields = _decision_fields(result)
     quote = fields["quote"]
+    probability, source = published_projection(result)
     return BttsPrediction(
-        probability=_safe(result.projection.value),
+        probability=_safe(probability), probability_source=source,
         recommended_side=quote.side.title() if quote else None,
         odds=fields["odds"], bookmaker=fields["bookmaker"], value_edge=fields["value_edge"],
         confidence=fields["confidence"], status=fields["status"], reason=fields["reason"],
@@ -738,11 +746,13 @@ def _moneyline_from_result(result) -> MoneylinePrediction:
 def _spread_from_result(result) -> SpreadPrediction:
     fields = _decision_fields(result)
     quote = fields["quote"]
+    projected, source = published_projection(result)
     return SpreadPrediction(
-        projected_diff=_safe(result.projection.value),
+        projected_diff=_safe(projected), projection_source=source,
         recommended_team=quote.side if quote else None,
         recommended_line=_safe(quote.line) if quote else None,
-        model_prob=fields["model_prob"], odds=fields["odds"], bookmaker=fields["bookmaker"],
+        model_prob=fields["model_prob"], probability_source=probability_source(result),
+        odds=fields["odds"], bookmaker=fields["bookmaker"],
         value_edge=fields["value_edge"], confidence=fields["confidence"],
         status=fields["status"], reason=fields["reason"],
     )

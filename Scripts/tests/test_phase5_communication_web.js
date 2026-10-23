@@ -82,3 +82,17 @@ obj._renderMatchReadSummary(bare);
 assert.doesNotMatch(container.innerHTML,/figure-mark|balance-track/);
 assert.match(container.innerHTML,/Goals: 3.03 projected/);
 console.log('Figures render from structured metrics; repeated lines are dropped only when the figures are shown.');
+
+// A Match Read selection names whose probability it shows: the market's under the market anchor, else the model's.
+{
+  const from = source.indexOf('  _formatMatchReadSelection(selection) {');
+  const to = source.indexOf('\n  _normaliseMatchReadCard(card, leagueId)', from);
+  assert.ok(from >= 0 && to > from);
+  const format = Function('return ({' + source.slice(from, to) + '})')();
+  assert.equal(format._formatMatchReadSelection({ model_probability: 0.6, probability_source: 'market' }), '60.0% market probability');
+  assert.equal(format._formatMatchReadSelection({ model_probability: 0.6, probability_source: 'model' }), '60.0% model probability');
+  assert.equal(format._formatMatchReadSelection({ model_probability: 0.6 }), '60.0% model probability');
+  assert.equal(format._formatMatchReadSelection({ model_probability: 0.6, probability_source: 'market',
+    probability_basis: 'asian_equivalent_non_push' }), '60.0% Asian price-comparison probability');
+  console.log('Match Read selection probability labels passed.');
+}

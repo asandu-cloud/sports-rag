@@ -82,7 +82,7 @@ def _selection_card(value: Any) -> Dict[str, Any]:
     data = _mapping_or_empty(selection.get("data"))
     decision = _mapping_or_empty(data.get("decision"))
     evidence = data.get("evidence")
-    from .decision_communication import build_decision_explanation
+    from .decision_communication import build_decision_explanation, stored_probability_source
     explanation = build_decision_explanation(data) if decision.get("quote") and decision.get("status") == "recommended" else None
     return {
         "recommendation_id": explanation["recommendation_id"] if explanation else None,
@@ -94,6 +94,7 @@ def _selection_card(value: Any) -> Dict[str, Any]:
         "odds": _number(selection.get("quote_odds")),
         "bookmaker": _optional_text(selection.get("bookmaker")),
         "model_probability": _number(selection.get("model_probability")),
+        "probability_source": stored_probability_source(data),  # "market" under the market anchor
         "probability_basis": _optional_text(decision.get("probability_basis")),
         "probability_version": _optional_text(decision.get("probability_version")),
         "settlement_profile": decision.get("settlement_profile"),

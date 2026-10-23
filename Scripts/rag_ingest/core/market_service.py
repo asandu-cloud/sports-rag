@@ -408,6 +408,8 @@ def _goal_model_record(fit: Optional[Dict[str, Any]], record: Optional[Dict[str,
     base["goal_model"] = fit
     if fit is None:
         base["goal_model_status"] = "unidentified: the prices cannot identify both teams, Spix's probabilities kept"
+    else:
+        base["goal_figures"] = market_goal_model.figures(fit)  # the numbers the surfaces publish beside the pick
     return base
 
 

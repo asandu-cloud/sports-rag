@@ -347,7 +347,7 @@ def _selection_line(selection: Mapping[str, Any]) -> str:
     probability = _number(selection.get("model_probability"))
     if probability is not None:
         label = ("Asian price-comparison" if selection.get("probability_basis") == "asian_equivalent_non_push"
-                 else "model")
+                 else "market" if selection.get("probability_source") == "market" else "model")
         details.append(f"{probability:.0%} {label}")
     edge = _number(selection.get("value_edge"))
     if edge is not None:

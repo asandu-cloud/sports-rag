@@ -44,6 +44,14 @@ def test_m1_recovers_the_goal_means_behind_the_prices():
         sum(p for (h, a), p in mgm.score_probabilities(fit).items() if h and a))
 
 
+def test_the_published_figures_are_m1s_goals_difference_and_btts():
+    fit = mgm.solve(*market_options(), "Lyon", "Lens")
+    assert mgm.figures(fit) == {"home_goals": fit["home"], "away_goals": fit["away"],
+                                "total_goals": pytest.approx(fit["home"] + fit["away"]),
+                                "goal_difference": pytest.approx(fit["home"] - fit["away"]),
+                                "btts_yes": pytest.approx(mgm.btts_probability(fit))}
+
+
 def test_the_main_handicap_is_the_line_most_books_price_on_both_sides():
     _, _, spreads = market_options()
     target = mgm.targets([], [], spreads, "Lyon", "Lens")
@@ -125,3 +133,16 @@ def test_the_service_records_the_goal_model_only_at_stage_4(monkeypatch, market)
     assert record["scope"] == "goals" and "goal_model" in record
     if record["goal_model"] is not None:
         assert record["goal_model"]["version"] == "market-goal-model.v1"
+
+
+@pytest.mark.parametrize("market", ["goals", "btts", "spreads"])
+def test_the_service_records_m1s_figures_beside_the_fit(monkeypatch, market):
+    record = evaluate(monkeypatch, market, "goals").context["market_anchor"]
+    assert record["goal_model"] is not None and record["goal_figures"] == mgm.figures(record["goal_model"])
+    strict = evaluate(monkeypatch, market, "strict").context.get("market_anchor")
+    assert strict is None or "goal_figures" not in strict
+
+
+def test_no_fit_records_no_figures():
+    record = market_service._goal_model_record(None, scope="goals")
+    assert record["goal_model"] is None and "goal_figures" not in record

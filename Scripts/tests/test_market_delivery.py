@@ -23,7 +23,9 @@ from core.market_result import (  # noqa: E402
     Projection,
     Provenance,
     probability_source,
+    published_projection,
     published_result_probabilities,
+    stored_probability_source,
 )
 from rendering import market_dispatch  # noqa: E402
 from rendering.market_results import projection_label, render_market_results_text  # noqa: E402
@@ -79,6 +81,17 @@ def _moneyline(*, anchored: bool, recommended: bool = False) -> MarketResult:
 
 def _with_anchor(result: MarketResult, anchor: dict) -> MarketResult:
     return MarketResult.from_dict({**result.to_dict(), "context": {"market_anchor": anchor}})
+
+
+M1_FIGURES = {"home_goals": 1.49, "away_goals": 1.04, "total_goals": 2.53, "goal_difference": 0.45, "btts_yes": 0.523}
+STAGE_4 = {"scope": "goals", "goal_model": {"home": 1.49, "away": 1.04, "error": 0.0}, "goal_figures": M1_FIGURES}
+
+
+def _spread() -> MarketResult:
+    result = _result("spreads")
+    return MarketResult.from_dict({**result.to_dict(), "projection": {"value": 0.3, "unit": "goals"},
+                                   "decision": {**result.decision.to_dict(),
+                                                "quote": {"side": "Arsenal", "line": -0.5, "odds": 1.9}}})
 
 
 class MarketAnchorPublicationTests(unittest.TestCase):
@@ -139,6 +152,74 @@ class MarketAnchorPublicationTests(unittest.TestCase):
         self.assertEqual(anchored.probability_source, "market")
         own = api._moneyline_from_result(_moneyline(anchored=False))
         self.assertEqual((own.home_prob, own.probability_source), (0.42, "model"))
+
+
+class GoalModelPublicationTests(unittest.TestCase):
+    """Under stage 4 (D29) the goal markets price from M1; surfaces show M1's figures, Spix's stay in the projection."""
+
+    def test_the_goal_markets_publish_m1s_figures(self):
+        self.assertEqual(published_projection(_with_anchor(_result("goals"), STAGE_4)), (2.53, "market"))
+        self.assertEqual(published_projection(_with_anchor(_result("btts"), STAGE_4)), (0.523, "market"))
+        self.assertEqual(published_projection(_with_anchor(_spread(), STAGE_4)), (0.45, "market"))
+
+    def test_without_m1s_figures_the_projection_is_spixs(self):
+        self.assertEqual(published_projection(_result("goals")), (2.9, "model"))
+        strict = {"scope": "strict", "lines": {"2.5": {"market_over": 0.57, "books": 8, "spix_over": 0.50}}}
+        self.assertEqual(published_projection(_with_anchor(_result("goals"), strict)), (2.9, "model"))
+        unfitted = {"scope": "goals", "goal_model": None}
+        self.assertEqual(published_projection(_with_anchor(_result("btts"), unfitted)), (0.62, "model"))
+        self.assertEqual(published_projection(_with_anchor(_moneyline(anchored=False), STAGE_4)), (0.42, "model"))
+
+    def test_a_stored_result_reports_the_same_probability_source(self):
+        strict = {"scope": "strict", "lines": {"2.5": {"market_over": 0.57, "books": 8, "spix_over": 0.50}}}
+        for result in (_moneyline(anchored=True), _moneyline(anchored=False), _result("goals"),
+                       _with_anchor(_result("goals"), strict), _with_anchor(_result("btts"), STAGE_4),
+                       _with_anchor(_spread(), STAGE_4), _with_anchor(_result("btts"), {"goal_model": None})):
+            self.assertEqual(stored_probability_source(result.to_dict()), probability_source(result))
+        self.assertEqual(stored_probability_source({}), "model")
+
+    def test_text_and_discord_cards_show_m1s_figures_as_the_markets(self):
+        goals, btts, spread = (_with_anchor(r, STAGE_4) for r in (_result("goals"), _result("btts"), _spread()))
+        self.assertEqual(projection_label(goals), "Projected total (market): 2.53 goals")
+        self.assertEqual(projection_label(btts), "BTTS Yes (market): 52.3%")
+        self.assertEqual(projection_label(spread), "Goal difference (market): +0.45")
+        self.assertEqual(projection_label(_result("goals")), "Projected total: 2.90 goals")
+        self.assertIn("Market probability: 62.0%", render_market_results_text([goals]))
+        from Scripts.discord_bot import embeds
+
+        class _Embed:
+            def __init__(self, **kwargs):
+                self.fields = []
+
+            def set_author(self, **_kwargs):
+                pass
+
+            set_thumbnail = set_footer = set_author
+
+            def add_field(self, **kwargs):
+                self.fields.append(SimpleNamespace(**kwargs))
+
+        with mock.patch.object(embeds, "get_matchup_file", return_value=None), \
+             mock.patch.object(embeds, "_get_league_logo", return_value=None), \
+             mock.patch.object(embeds.discord, "Embed", _Embed):
+            cards, _ = embeds.market_results_to_embeds("Goals", [goals, btts, spread, _result("btts")], league="EPL")
+        shown = [{field.name: field.value for field in card.fields}["📊 Projection"] for card in cards[1:]]
+        self.assertEqual(shown, ["Projected total (market): 2.53 goals", "BTTS Yes (market): 52.3%",
+                                 "Goal difference (market): +0.45", "62.0%"])
+
+    def test_the_web_goal_markets_carry_m1s_figures_and_their_source(self):
+        from web_app import api
+
+        totals = api._totals_from_result(_with_anchor(_result("goals"), STAGE_4))
+        self.assertEqual((totals.projected_total, totals.projection_source, totals.probability_source),
+                         (2.53, "market", "market"))
+        btts = api._btts_from_result(_with_anchor(_result("btts"), STAGE_4))
+        self.assertEqual((btts.probability, btts.probability_source), (0.523, "market"))
+        spread = api._spread_from_result(_with_anchor(_spread(), STAGE_4))
+        self.assertEqual((spread.projected_diff, spread.projection_source, spread.probability_source),
+                         (0.45, "market", "market"))
+        own = api._totals_from_result(_result("goals"))
+        self.assertEqual((own.projected_total, own.projection_source, own.probability_source), (2.9, "model", "model"))
 
 
 class MarketDeliveryTests(unittest.TestCase):

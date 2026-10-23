@@ -104,3 +104,9 @@ def total_probabilities(fit: Dict) -> Dict[int, float]:
 
 def btts_probability(fit: Dict) -> float:
     return sum(p for (h, a), p in score_probabilities(fit).items() if h > 0 and a > 0)
+
+
+def figures(fit: Dict) -> Dict[str, float]:
+    """What the surfaces publish under stage 4: M1's expected goals per team and in total, goal difference, BTTS yes."""
+    return {"home_goals": fit["home"], "away_goals": fit["away"], "total_goals": fit["home"] + fit["away"],
+            "goal_difference": fit["home"] - fit["away"], "btts_yes": btts_probability(fit)}

@@ -18,9 +18,11 @@ try:  # Package import: tests and ``python -m Scripts.discord_bot...``.
 except ImportError:  # Direct-script compatibility: ``cd Scripts/discord_bot && python ...``.
     from config import COLOR_GREEN, COLOR_YELLOW, COLOR_RED, COLOR_BLUE, COLOR_PURPLE
 try:  # bot.py puts Scripts/rag_ingest on the path; tests import from the repository root.
-    from core.market_result import probability_source, published_result_probabilities
+    from core.market_result import probability_source, published_projection, published_result_probabilities
 except ImportError:
-    from Scripts.rag_ingest.core.market_result import probability_source, published_result_probabilities  # type: ignore[import]
+    from Scripts.rag_ingest.core.market_result import (  # type: ignore[import]
+        probability_source, published_projection, published_result_probabilities,
+    )
 
 _embed_log = logging.getLogger("embeds")
 
@@ -557,7 +559,9 @@ def market_results_to_embeds(
         quote = decision.quote
         group = result.market.group
 
-        if result.projection.value is None:
+        value, source = published_projection(result)
+        market = " (market)" if source == "market" else ""
+        if value is None:
             projection = "Unavailable"
         elif result.projection.unit == "probability" and group == "moneyline":
             probabilities, source = published_result_probabilities(result)
@@ -567,11 +571,11 @@ def market_results_to_embeds(
                 if probabilities else "Unavailable"
             )
         elif result.projection.unit == "probability":
-            projection = f"{result.projection.value:.1%}"
+            projection = f"BTTS Yes (market): {value:.1%}" if market else f"{value:.1%}"
         elif group == "spreads":
-            projection = f"Goal difference: {result.projection.value:+.2f}"
+            projection = f"Goal difference{market}: {value:+.2f}"
         else:
-            projection = f"Projected total: {result.projection.value:.2f} {result.projection.unit}"
+            projection = f"Projected total{market}: {value:.2f} {result.projection.unit}"
 
         extra: List[Tuple[str, str, bool]] = [("📊 Projection", projection, False)]
         if decision.status.value == "recommended" and quote is not None:

@@ -998,7 +998,8 @@ const appModule = {
     const raw = selection?.model_probability;
     const probability = raw === null || raw === undefined ? NaN : Number(raw);
     const label = selection?.probability_basis === 'asian_equivalent_non_push'
-      ? 'Asian price-comparison probability' : 'model probability';
+      ? 'Asian price-comparison probability'
+      : selection?.probability_source === 'market' ? 'market probability' : 'model probability';
     if (Number.isFinite(probability)) return `${(probability * 100).toFixed(1)}% ${label}`;
     return 'Model probability unavailable';
   },

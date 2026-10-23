@@ -10,10 +10,12 @@ from __future__ import annotations
 from typing import Iterable, List
 
 try:
-    from core.market_result import DecisionStatus, MarketResult, probability_source, published_result_probabilities
+    from core.market_result import (
+        DecisionStatus, MarketResult, probability_source, published_projection, published_result_probabilities,
+    )
 except ImportError:
     from Scripts.rag_ingest.core.market_result import (  # type: ignore[import]
-        DecisionStatus, MarketResult, probability_source, published_result_probabilities,
+        DecisionStatus, MarketResult, probability_source, published_projection, published_result_probabilities,
     )
 
 
@@ -50,10 +52,11 @@ def result_pick_label(result: MarketResult) -> str:
 
 def projection_label(result: MarketResult) -> str:
     """Format the model output while retaining the measurement it represents."""
-    value = result.projection.value
+    value, source = published_projection(result)
     if value is None:
         return "Unavailable"
     group = result.market.group
+    market = " (market)" if source == "market" else ""
     if result.projection.unit == "probability":
         if group == "moneyline":
             probabilities, source = published_result_probabilities(result)
@@ -61,11 +64,11 @@ def projection_label(result: MarketResult) -> str:
                 label = "1X2 (market)" if source == "market" else "1X2"
                 return f"{label}: {probabilities['home']:.1%} / {probabilities['draw']:.1%} / {probabilities['away']:.1%}"
         if group == "btts":
-            return f"BTTS Yes: {value:.1%}"
+            return f"BTTS Yes{market}: {value:.1%}"
         return f"{value:.1%}"
     if group == "spreads":
-        return f"Goal difference: {value:+.2f}"
-    return f"Projected total: {value:.2f} {result.projection.unit}"
+        return f"Goal difference{market}: {value:+.2f}"
+    return f"Projected total{market}: {value:.2f} {result.projection.unit}"
 
 
 def render_market_results_text(results: Iterable[MarketResult], *, notes: Iterable[str] = ()) -> str:

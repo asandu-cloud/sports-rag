@@ -576,16 +576,46 @@ def probability_source(result: MarketResult) -> str:
     Stage 3 anchors 1X2 and goals O/U 2.5 at the market's consensus; stage 4 prices every goal line, the Asian
     handicap and BTTS from M1, the market's goal model, when it could be fitted, and ``full`` each corner line.
     """
-    anchor = result.context.get("market_anchor")
+    quote = result.decision.quote
+    return _probability_source(result.market.group, quote.line if quote is not None else None, result.context)
+
+
+def stored_probability_source(result: Mapping[str, Any]) -> str:
+    """``probability_source`` for a result held as its dictionary (``MarketResult.to_dict``), as Match Reads store it."""
+    market, decision = result.get("market") or {}, result.get("decision") or {}
+    return _probability_source(market.get("group"), (decision.get("quote") or {}).get("line"), result.get("context") or {})
+
+
+def _probability_source(group: Any, line: Any, context: Mapping[str, Any]) -> str:
+    anchor = context.get("market_anchor")
     if not isinstance(anchor, Mapping):
         return "model"
-    group, quote = result.market.group, result.decision.quote
     if group == "moneyline":
-        return published_result_probabilities(result)[1]
+        market = anchor.get("market")
+        return "market" if isinstance(market, Mapping) and all(
+            _finite_number(market.get(side)) for side in RESULT_SIDES) else "model"
     if group in ("goals", "btts", "spreads") and anchor.get("goal_model"):
         return "market"
     lines = anchor.get("lines")
-    if group in ("goals", "corners") and quote is not None and _finite_number(quote.line) and isinstance(lines, Mapping) \
-            and {str(quote.line), str(float(quote.line)), f"{float(quote.line):g}"} & set(lines):  # keys are str(point)
+    if group in ("goals", "corners") and _finite_number(line) and isinstance(lines, Mapping) \
+            and {str(line), str(float(line)), f"{float(line):g}"} & set(lines):  # keys are str(point)
         return "market"
     return "model"
+
+
+_PUBLISHED_FIGURES = {"goals": "total_goals", "btts": "btts_yes", "spreads": "goal_difference"}
+
+
+def published_projection(result: MarketResult) -> Tuple[Optional[float], str]:
+    """The projection a result publishes, and whose it is: "market" or "model".
+
+    Under stage 4 (D29) the goal markets price from M1, whose figures the service records in
+    ``context.market_anchor.goal_figures``: expected total goals, BTTS yes, goal difference. The projection keeps
+    Spix's own, which research reads, so surfaces ask here.
+    """
+    anchor = result.context.get("market_anchor")
+    figures = anchor.get("goal_figures") if isinstance(anchor, Mapping) else None
+    key = _PUBLISHED_FIGURES.get(result.market.group)
+    if key and isinstance(figures, Mapping) and _finite_number(figures.get(key)):
+        return float(figures[key]), "market"
+    return result.projection.value, "model"
