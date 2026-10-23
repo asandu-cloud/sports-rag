@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-23 (D43)
+Last updated: 2026-10-23 (D44)
 
 ## Status
 
@@ -87,7 +87,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Done 23 Oct (D43): Betfair is not carried. OddsPapi has no Betfair sportsbook history open to our plan (`betfair-spb` 403 RESTRICTED_ACCESS; `betfair.es` / `betfair.it` 404 on Serie A, LaLiga and UEL matches, while a clone can have one: Betano RO 264 markets), so `oddspapi.BOOKS` no longer maps Betfair. Its picks keep Pinnacle's true close without an own close; price confirmation turns them down as not carried. 82 published picks in 43 fixtures had an own close from the exchange: recaptured 23 Oct 08:33 UTC from the cache (no billable request; `Research/betfair-recapture-2026-10-23/`): the 814 other picks of those fixtures unchanged; of 88 Betfair picks, Pinnacle's close unchanged on all, the exchange close gone on 82, and 12 now unavailable (Pinnacle has no price on their line); 70 final, 18 unavailable | Done | True close, price check and price confirmation of Betfair picks rely on it |
 | Price confirmation before publishing (D40 (a)): **built 23 Oct (D42)**, `services/price_confirmation.py`, run by the Match Read dispatcher on stored reads between evaluation and compilation; acts only on reads made under `SPIX_SELECTION_POLICY=market_value`, so nothing changes before stage 4. **Owner: choose the freshness limit** (`MAX_AGE`, 30 minutes now): on 670 replayed picks of 8–21 Oct it publishes 224 at 30 minutes, 264 at 60, 339 with no limit; a price confirmed from an older record was still there at the bookmaker's next check 83–86% of the time (fresh: 91%) | Owner, before stage 4 (earliest Tue 3 Nov) | No limit publishes half again as many picks |
 | Stage 4 bundle: A5.3 part 1 (D39, corrected in D41): Betano's best prices were real at the read in 56% of checked picks, Pinnacle's 53%; price rules decided (D40): (b) built behind the stage 4 switch, (a) price confirmation before publishing must be built before stage 4 (built 23 Oct, D42; freshness limit to choose); bundle preview with (b), 54 golden fixtures of 17–18 Oct (Betano absent those days), all books: goals 38 → 8, corners 33 → 7, BTTS 12 → 4, 1X2 7 → 3, Asian handicap 47 → 0; Romanian books only: 2, 3, 1, 0, 0; rerun the bundle preview on the weeks since 17 Oct; owner sets the published value threshold (2% tested; Romania volume in D35) | Before stage 4, earliest Tue 3 Nov | Built 17 Oct (D35) |
-| A5.3: part 1 done 20 Oct (D39, `ops/price_check.py`). Exchange commission dropped 23 Oct: the feed's Betfair is the sportsbook (D43). Next: evidence-based labels | A5.3 (D31) | Half the best-price books' quotes were unchanged or missing at the close (D31) |
+| A5.3: part 1 done 20 Oct (D39, `ops/price_check.py`). Exchange commission dropped 23 Oct: the feed's Betfair is the sportsbook (D43). Labels designed 23 Oct with the owner (D44): high when the market and Spix agree, market firmness until Spix earns its vote per market; next the firmness and Spix checks, then the build behind `SPIX_CONFIDENCE_LABELS` | A5.3 (D31, D44) | Half the best-price books' quotes were unchanged or missing at the close (D31) |
 | Bookmaker sets per country: Romania first (D35); built, off. Used once Romanian prices are available (D36) | After Romanian prices exist | Since 16 Oct the feed has no Romanian-licensed bookmaker |
 | Ask ONJN in writing whether a subscription analysis service that names no bookmaker and takes no commission needs a Class II licence; and whether analysis content counts as gambling promotion under the pending 06:00–24:00 bill | Owner, before launch | Applies to every launch option in Romania |
 | OddsPapi (parked until paying users, owner 19 Oct): free-plan check of showing prices inside Spix; written permission request drafted 20 Oct (display to paying members, pre-revenue, B2B later) | Owner sends; then after paying users | Free Romanian prices found 19 Oct (D36) |
@@ -811,6 +811,28 @@ calibration record instead of a hit rate.
   Lecce, Osasuna v Racing Santander and Juventus v Rennes; a clone site can have its own history (Betano RO: 264
   markets, as Betano). Nothing to compare with, so Betfair is not carried (`oddspapi.BOOKS`); the exchange code path
   stays for a future source. The scorecard's true price CLV leaves Betfair picks out (no own close).
+
+**D44 — A5.3 confidence labels: high means the market and Spix agree; until Spix earns it, how firm the market is
+(23 Oct, owner).**
+- *The percentage* a member sees is the chance this bet wins in this match. It is the published fair probability,
+  unchanged by this step. Calibration is the check behind it, not what it says.
+- *The label* is high or low:
+  - **High:** the market and Spix agree it is a good bet.
+  - **Low:** still a good bet against the market's price, but less sure.
+  - The label never changes which bets are published.
+- *Spix's vote counts market by market,* once that market passes a check: picks where Spix agrees keep more value at
+  the close and are no worse calibrated. The list of such markets starts empty and changes only by an owner-approved
+  decision here. Corners (c = +0.49, 23 Oct) is the first candidate.
+- *Until then, the owner chose "market firmness" labels* over no labels:
+  - **High:** the bookmakers agree closely on the line (M3) and the price is fresh (price confirmation's
+    `bookmaker_seen_at`, from stage 4).
+  - **Low:** scattered bookmakers, or an old or unknown price.
+  - Firmness cut-offs ship only if high beats low at the close on the audited picks, confirmed on a held-out week.
+    If not, the result comes back to the owner.
+- *Replaces* `confidence_from_edge`, whose inputs are Spix's own numbers (D30: mostly error). D30's sample size and
+  uncertainty width are left out until a market earns Spix's vote.
+- *Build:* behind `SPIX_CONFIDENCE_LABELS` (`edge` default, `evidence`), its own rollout stage after stage 4.
+- Design: `docs/superpowers/specs/2026-10-23-a5-3-confidence-labels-design.md`.
 
 ## Findings that shape later steps
 
