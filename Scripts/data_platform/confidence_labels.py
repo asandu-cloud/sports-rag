@@ -134,9 +134,13 @@ def apply_label(result):
         return result
     evidence, age = line_evidence(snapshot), price_age_minutes(snapshot)
     verdict = label(evidence, age)
+    # The label it replaces ranks picks in the Match Read compiler, so a label never changes which are published;
+    # the worker's second pass keeps the engine's first record of it.
+    replaced = (snapshot["context"].get("confidence_evidence") or {}).get("edge_label",
+                                                                        snapshot["decision"].get("confidence"))
     snapshot["decision"] = {**snapshot["decision"], "confidence": verdict}
     snapshot["context"] = {**snapshot["context"], "confidence_evidence": {
-        **(evidence or {}), "price_age_minutes": age, "label": verdict, "version": VERSION,
+        **(evidence or {}), "price_age_minutes": age, "label": verdict, "edge_label": replaced, "version": VERSION,
         "cutoffs": asdict(CUTOFFS), "spix_vote": sorted(SPIX_VOTE_MARKETS)}}
     return _rebuild(result, snapshot)
 

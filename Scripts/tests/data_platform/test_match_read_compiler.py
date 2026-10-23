@@ -257,3 +257,22 @@ def test_shared_card_projection_keeps_individual_angles_separate_from_packages(
     }
     assert card["timing"] == {"is_preliminary": False}
     assert "not a combined-bet recommendation" in card["game_script"]["selection_relationship"]
+
+
+def test_confidence_labels_from_evidence_never_change_which_picks_are_published():
+    """A5.3 (D44): the compiler ranks on the edge label the evidence label replaced, so labels never move a pick."""
+    from data_platform.services.match_read_compiler import compile_match_read
+
+    def evidence(result, label, edge_label):
+        labelled = deepcopy(result)
+        labelled["decision"]["confidence"] = label
+        labelled["context"]["confidence_evidence"] = {"label": label, "edge_label": edge_label}
+        return labelled
+
+    picks = [_result(group="goals", confidence="high", edge=0.03),
+             _result(group="corners", side="under", line=10.5, confidence="high", edge=0.04),
+             _result(group="cards", line=4.5, confidence="medium", edge=0.05),
+             _result(group="sot", line=8.5, confidence="low", edge=0.09)]
+    flipped = [evidence(picks[0], "low", "high"), evidence(picks[1], "low", "high"),
+               evidence(picks[2], "low", "medium"), evidence(picks[3], "high", "low")]
+    assert compile_match_read(flipped).selections == compile_match_read(picks).selections

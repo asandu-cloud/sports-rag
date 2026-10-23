@@ -141,3 +141,10 @@ def test_min_value_matches_the_selection_threshold():
         sys.path.insert(0, engine)
     from Scripts.rag_ingest.core.line_selection import MARKET_VALUE_MIN_EV
     assert cl.MIN_VALUE == MARKET_VALUE_MIN_EV
+
+
+def test_the_label_it_replaced_is_kept_for_ranking_across_both_labelling_passes():
+    once = cl.apply_label(picked())  # the engine's pass; the decision carried today's "medium"
+    assert once["context"]["confidence_evidence"]["edge_label"] == "medium"
+    twice = cl.apply_label(once)  # the Match Read worker's pass after price confirmation
+    assert twice["context"]["confidence_evidence"]["edge_label"] == "medium"

@@ -92,6 +92,7 @@ class _Candidate:
     model_probability: float
     tags: frozenset[str]
     market_priced: bool = False
+    rank_confidence: str = ""  # the edge label an A5.3 evidence label replaced (D44); ranking only
 
 
 def compile_match_read(
@@ -292,7 +293,9 @@ def _candidate_from_result(result_index: int, result: Mapping[str, Any]) -> _Can
     value_edge = _number(decision.get("value_edge"), "decision.value_edge") or 0.0
     expected_value = _number(decision.get("expected_value"), "decision.expected_value") or 0.0
     confidence = _text(decision.get("confidence"), "decision.confidence").lower() or "low"
+    replaced = ((result.get("context") or {}).get("confidence_evidence") or {}).get("edge_label")
     return _Candidate(
+        rank_confidence=str(replaced or confidence).lower(),
         result_index=result_index,
         result=result,
         market_group=market_group,
@@ -373,7 +376,7 @@ def _candidate_tags(
 def _ranking_key(candidate: _Candidate) -> tuple[float, float, float, float, int, int]:
     """Strongest confidence/edge first with a deterministic final tie-break."""
     return (
-        -_CONFIDENCE_RANK.get(candidate.confidence, 0),
+        -_CONFIDENCE_RANK.get(candidate.rank_confidence or candidate.confidence, 0),
         -candidate.value_edge,
         -candidate.expected_value,
         -candidate.model_probability,

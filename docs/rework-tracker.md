@@ -834,6 +834,8 @@ calibration record instead of a hit rate.
 - *Build:* behind `SPIX_CONFIDENCE_LABELS` (`edge` default, `evidence`), its own rollout stage after stage 4.
 - Design: `docs/superpowers/specs/2026-10-23-a5-3-confidence-labels-design.md`.
 - *Built and checked 23 Oct* (plan `docs/superpowers/plans/2026-10-23-a5-3-confidence-labels.md`): see the finding of 23 Oct.
+  The Match Read compiler ranks a fixture's picks on the label an evidence label replaced (`confidence_evidence.edge_label`),
+  so labels never change which three picks a read publishes (the legacy ranking puts confidence first).
 
 ## Findings that shape later steps
 
