@@ -839,6 +839,30 @@ calibration record instead of a hit rate.
 
 ## Findings that shape later steps
 
+- **Card settlement: the bookmakers count a straight red as two (24 Oct; before stage 5).** The four bookmakers that
+  price cards in our reads are Betano (422 of 556 reads since 9 Oct), Bet365 (385), 1xBet (379) and Pinnacle (366).
+  Their rules: yellow 1, red 2, a second yellow ignored (at most 3 per player), regulation time only, cards to
+  non-players not counted. Bet365 (help centre, card markets) and Pinnacle (betting rules) from their own pages as
+  quoted by search; Betano from Romanian guides quoting its regulation (2022–24); 1xBet not confirmed (one
+  third-party page says it counts cards to players and coaches). The pages could not be opened here (a self-signed
+  certificate intercepts HTTPS on this machine).
+  - *Our count* is the team statistics' yellows + reds, which count both yellows of a two-yellow sending-off (1,752
+    of 1,811 cases agree with the events), so it equals the bookmakers' rule except that a straight red counts 1, not
+    2. On the 2021–2026 card events (20,030 fixtures, `Research/card-settlement-2026-10-24/measure.py`): +0.113 cards
+    per match, totals differ in 10.4% of matches, the chance of an over rises by 0.4 (2.5) to 2.0 points (5.5).
+  - *It does not explain the cards miscalibration.* On the 133 market-price cards picks of 9–22 Oct (104 overs,
+    mostly over 4.5 and 3.5; consensus stated 45.3%, won 32.3%) the bookmakers' rule would add under a point to
+    "won". On the same picks every bookmaker's own fair price overstated them: Pinnacle 39.4% (won 31.8%), Betano
+    44.8%, Bet365 46.1%, 1xBet 46.0%. 113 of the 133 picks took Pinnacle's price: the rule picks overs where Pinnacle
+    is longest against a median that the three softer books pull towards overs. For A5.4 and stage 5, the cards
+    reference price should not be the four-book median (Pinnacle alone, or no cards picks); decide with A5.4.
+  - *To settle and model cards by the bookmakers' rule* the engine needs to know straight reds, which only the
+    events feed gives: card events stop at 20 Sep (the 30 Sep history download), and the daily refresh fetches
+    `/fixtures/players` and `/fixtures/statistics` but not `/fixtures/events`. **Owner:** add `/fixtures/events` to
+    the daily refresh (one API-Football request per finished match, as the player statistics) and backfill from 20
+    Sep; then the cards outcome becomes yellows + reds + straight reds, and A4's cards calibrator and A6's cards
+    model use it.
+
 - **penaltyblog checked for A6 (24 Oct).** Version 1.13.1 (5 Oct), MIT licence, wheels for Python 3.13 on macOS
   arm64 and Linux; checked in a throwaway environment (`Research/penaltyblog-check-2026-10-24/`), the project's
   untouched. Against the tracker's four needs:
