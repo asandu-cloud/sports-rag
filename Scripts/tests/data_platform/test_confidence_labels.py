@@ -134,5 +134,10 @@ def test_a_no_bet_is_never_labelled():
 
 
 def test_min_value_matches_the_selection_threshold():
+    import sys
+    from pathlib import Path
+    engine = str(Path(__file__).resolve().parents[2] / "rag_ingest")  # line_selection imports the engine's modules
+    if engine not in sys.path:
+        sys.path.insert(0, engine)
     from Scripts.rag_ingest.core.line_selection import MARKET_VALUE_MIN_EV
     assert cl.MIN_VALUE == MARKET_VALUE_MIN_EV
