@@ -16,8 +16,8 @@ Last updated: 2026-10-23 (D44)
 | A2 Canonical features | A2a live since 17 Oct 16:28 (`DOCUMENT_STORE=sqlite`; D11); A2b after A6 (D13) | 7af457b |
 | A3 Market anchor and honest uncertainty | Started 16 Oct under D16 (research and shadow only) | see A3 table |
 | A4 Calibration | A4.1 dataset done 16 Oct (25,527 graded candidates, 160 fixtures; grading matches settlement on all 1,918 overlapping picks). A4.2 method study done 16 Oct: no calibrator adopted yet (D28), rerun weekly; live as A3.7 stage 5, not before Tue 10 Nov (D29) | 197dc73; see D28 |
-| A5 Selection policy | Research started 16 Oct (D30): A5.1 done (Spix's disagreement with the market is almost all error); A5.2 done (pricing against the market wins, D31); A5.3 part 1 done 20 Oct (half the best prices were not on offer at the read, D39); price confirmation built 23 Oct, off until stage 4 (D42); exchange commission dropped, the feed has no exchange prices (D43); labels next; the goal-market selection rule ships with stage 4 (D33), the rest at stage 6, earliest Tue 17 Nov | see D30, D31, D33 |
-| A6–A8, Part B | Not started | |
+| A5 Selection policy | Research started 16 Oct (D30): A5.1 done (Spix's disagreement with the market is almost all error); A5.2 done (pricing against the market wins, D31); A5.3 part 1 done 20 Oct (half the best prices were not on offer at the read, D39); price confirmation built 23 Oct, off until stage 4 (D42); exchange commission dropped, the feed has no exchange prices (D43); confidence labels built 23 Oct behind `SPIX_CONFIDENCE_LABELS`, all low until a spread cut-off passes (D44); stage 4 replay with confirmation 24 Oct (Findings); the goal-market selection rule ships with stage 4 (D33), the rest at stage 6, earliest Tue 17 Nov | see D30, D31, D33 |
+| A6–A8, Part B | Not started; A6 prep done 24 Oct (penaltyblog checked, not used: ratings fitted in-house, Findings) | 43b4431 |
 | Market expansion (D25) | Planned after A5 | see D25 |
 
 ### A1 (order changed 15 Oct, see D6)
