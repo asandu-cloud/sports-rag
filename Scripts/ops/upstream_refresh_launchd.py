@@ -2,7 +2,9 @@
 """Install the two local upstream schedules without changing card publication.
 
 Schedule check: hourly, provider data only when the six-hour coverage expires.
-Joined refresh: daily at 07:15 local time, using the existing additive workflow. It runs
+Joined refresh: daily from 07:15 local time, using the existing additive workflow. The job
+fires at a quarter past every hour with ``--if-due``, which runs it only when today's refresh
+has not run or the last one did not complete (``services/refresh_retry.py``). It runs
 under ``caffeinate`` so the Mac cannot idle-sleep until the refresh exits; caffeinate
 cannot wake a Mac that is already asleep (a scheduled ``pmset`` wake does that).
 """
@@ -39,7 +41,7 @@ JOBS = {
     "schedule": Job("fixture-schedule", "com.bettingrag.fixture-schedule",
                     ("sync-schedule", "--days-ahead", "35", "--if-stale-hours", "6"), 3600),
     "data": Job("daily-data-refresh", "com.bettingrag.daily-data-refresh",
-                ("refresh-season", "--include-europe"), stay_awake=True),
+                ("refresh-season", "--include-europe", "--if-due"), stay_awake=True),
 }
 
 
@@ -61,7 +63,7 @@ def render(job, paths):
     if job.interval_seconds is not None:
         payload["StartInterval"] = job.interval_seconds
     else:
-        payload["StartCalendarInterval"] = {"Hour": 7, "Minute": 15}
+        payload["StartCalendarInterval"] = {"Minute": 15}
     return plistlib.dumps(payload, sort_keys=False).decode()
 
 

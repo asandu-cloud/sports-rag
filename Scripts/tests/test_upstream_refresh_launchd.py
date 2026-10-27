@@ -11,9 +11,10 @@ def test_upstream_jobs_are_separate_and_do_not_publish_or_retrain(tmp_path):
     assert schedule["StartInterval"] == 3600
     assert schedule["RunAtLoad"] is True
     assert schedule["ProgramArguments"][-5:] == ["sync-schedule", "--days-ahead", "35", "--if-stale-hours", "6"]
-    assert data["StartCalendarInterval"] == {"Hour": 7, "Minute": 15}
+    # A quarter past every hour; --if-due runs it from 07:15 until the day's refresh completes.
+    assert data["StartCalendarInterval"] == {"Minute": 15}
     assert data["RunAtLoad"] is False
-    assert data["ProgramArguments"][-2:] == ["refresh-season", "--include-europe"]
+    assert data["ProgramArguments"][-3:] == ["refresh-season", "--include-europe", "--if-due"]
     assert "--season" not in data["ProgramArguments"]
     for payload in (schedule, data):
         assert "EnvironmentVariables" not in payload

@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-23 (D44)
+Last updated: 2026-10-28 (refresh retry; history rewrite compared)
 
 ## Status
 
@@ -57,14 +57,14 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Unit-bet slip link to the legacy `predictions.db` | A7 | Lives in the Discord legacy tracker A7 replaces |
 | Phase 6 shadow controller (`com.bettingrag.phase6-shadow`, hourly, runs `Research/phase6-shadow-logo-2026-10-07/controller.py`): fails on every run since A0 changed a file it fingerprints (`alembic/env.py`, 02fa536, 15 Oct): "Operational prediction input changed; review a new release"; the last 148 runs failed, so its diagnostic window (to 20 Oct) lost its last days. Owner: retire it, or move it into `Scripts/` and re-release | Owner, now | Its window ended 20 Oct |
 | Done: tag `pre-rework` is on GitHub at cf00af8 (checked 21 Oct with `git ls-remote`) | Done | |
-| Keep the Mac awake for scheduled jobs: the daily refresh runs under `caffeinate -i -s` since 17 Oct (it cannot idle-sleep mid-run); still open, a daily scheduled wake before 07:15 (`sudo pmset repeat wakeorpoweron MTWRFSU 07:05:00`), mains power, or a server. On 17 Oct the Mac slept on battery until ~11:48, waking for 2–3 s every ~17 min: the 07:15 refresh ran only in those slices and finished at 12:25 (stage times normal). While asleep the Match Read worker, measurement worker and odds archive do not run either, which matters for this weekend's near-kickoff captures (A1 step 4 freshness rerun, Mon 19 Oct). Again on 20 Oct: on battery, no daily wake scheduled (`pmset -g sched`), the Mac slept 07:00–11:00 with brief wakes and the refresh took 4 h 35 min (04:21–08:56 UTC; 19 Oct: 1 h 3 min). 21 Oct: 6 h 43 min (04:17–11:00 UTC), still no daily wake scheduled | Owner | Operational risk to every scheduled job |
+| Keep the Mac awake for scheduled jobs: the daily refresh runs under `caffeinate -i -s` since 17 Oct (it cannot idle-sleep mid-run); still open, a daily scheduled wake before 07:15 (`sudo pmset repeat wakeorpoweron MTWRFSU 07:05:00`), mains power, or a server. On 17 Oct the Mac slept on battery until ~11:48, waking for 2–3 s every ~17 min: the 07:15 refresh ran only in those slices and finished at 12:25 (stage times normal). While asleep the Match Read worker, measurement worker and odds archive do not run either, which matters for this weekend's near-kickoff captures (A1 step 4 freshness rerun, Mon 19 Oct). Again on 20 Oct: on battery, no daily wake scheduled (`pmset -g sched`), the Mac slept 07:00–11:00 with brief wakes and the refresh took 4 h 35 min (04:21–08:56 UTC; 19 Oct: 1 h 3 min). 21 Oct: 6 h 43 min (04:17–11:00 UTC), still no daily wake scheduled. 26 and 27 Oct: the refresh failed on a sleeping Mac both mornings and nothing reran it, so the gate stayed shut 8 h 22 min and 18 h 27 min (no Match Reads, no measurement) until rerun by hand; since 28 Oct the job retries hourly (`--if-due`, see Findings) | Owner (wake, mains, webhook) | Operational risk to every scheduled job |
 | Closed 20 Oct: no bookmaker weights; the median stays (owner, D40) | Done | Power margin removal still becomes the default at stage 2 (D17) |
 | Make power the default margin-removal method in measurement (`reference_price`, closing consensus, publication reference, scorecard). Owner, 20 Oct: keep proportional through stages 1–3 so every stage is judged on the same yardstick; switch at the Mon 2 Nov scorecard and recompute the history from the stored per-book prices | Mon 2 Nov scorecard | Refit anything fitted on v1 |
 | Closed 20 Oct: no weighted reference (D40); the scorecard adds the true close instead (D39) | Done | |
 | Refresh the report artifact from this tracker | Now due (A1 done 20 Oct) | |
 | Done 23 Oct (D42): the 22 Oct probe met no error up to its end at 23:11 UTC (6.4 h after Juventus v Rennes's kickoff, 4.2 h after Bournemouth v Milan's); OddsPapi rewrites a match's history about 2 h after kickoff (adding in-play markets); `DUE_AFTER` 2 h and `SETTLED` 6 h stay; the 21 Oct evening cause is not reproduced (errors are retried since D41) | Done | |
 | Done 23 Oct (D42): OddsPapi's "No historical odds found" answers stayed so. Two of 22 Oct's (William Hill on Celtic v Celta, one Betfair outcome on Juventus v Rennes) were re-asked every 30 minutes until the Mac slept at 23:51 UTC, then once at 07:19 UTC 23 Oct: still 404 at 12.3 h and 14.6 h after kickoff. `SETTLED` (6 h) stays | Done | |
-| Does OddsPapi's post-match rewrite drop soft bookmakers' pre-kickoff lines? 27 minutes before Juventus v Rennes kicked off (22 Oct), Betano's history had 227 markets; after the rewrite 214 have pre-kickoff prices (1xBet 366 → 347, Bet365 230 → 227; Pinnacle unchanged, 106). Save a weekend match's history at kickoff and compare it with the rewritten one (D42). **Capture running since 23 Oct 07:39 UTC** (`ops/history_rewrite_check.py capture`, `Research/history-rewrite-2026-10-24/`): 73 fixtures of 23–25 Oct (top five, Championship, Primeira Liga, Süper Lig), each saved 2–100 min after kickoff and 3–12 h after; Pinnacle, Betano, 1xBet, Bet365 (ES), Marathonbet, William Hill; free histories, 3 fixture lists bought (the true close reuses them); the Mac must be awake (mains, lid open). Then `compare` | Mon 26 Oct | Own-bookmaker closes (`same_book`) come from the rewritten history |
+| Done 28 Oct: no, the rewrite keeps every pre-kickoff price (56 fixtures compared, see Findings). Was: Does OddsPapi's post-match rewrite drop soft bookmakers' pre-kickoff lines? 27 minutes before Juventus v Rennes kicked off (22 Oct), Betano's history had 227 markets; after the rewrite 214 have pre-kickoff prices (1xBet 366 → 347, Bet365 230 → 227; Pinnacle unchanged, 106). Save a weekend match's history at kickoff and compare it with the rewritten one (D42). **Capture running since 23 Oct 07:39 UTC** (`ops/history_rewrite_check.py capture`, `Research/history-rewrite-2026-10-24/`): 73 fixtures of 23–25 Oct (top five, Championship, Primeira Liga, Süper Lig), each saved 2–100 min after kickoff and 3–12 h after; Pinnacle, Betano, 1xBet, Bet365 (ES), Marathonbet, William Hill; free histories, 3 fixture lists bought (the true close reuses them); the Mac must be awake (mains, lid open). Then `compare` | Mon 26 Oct | Own-bookmaker closes (`same_book`) come from the rewritten history |
 | Stop embedding into Chroma entirely | A7 | Whale chat and `rag_cli_v2` still search Chroma by meaning |
 | A6c LightGBM market-error challenger (D14) | After A6's base model passes | Must beat fitted A6 vs the market baseline |
 | Rerun the blend study (`Scripts/ops/blend_study.py`) on A6's forecasts: does Spix earn c > 0? | A6 gate | D20 |
@@ -838,6 +838,31 @@ calibration record instead of a hit rate.
   so labels never change which three picks a read publishes (the legacy ranking puts confidence first).
 
 ## Findings that shape later steps
+
+- **The daily refresh failed on a sleeping Mac two mornings running; it now retries hourly (28 Oct).** On 26 Oct the
+  07:15 run started at 08:52 local when the Mac woke and failed at 09:10 in `platform_incremental_sync` with "database
+  is locked" (the stage's own clock counted 11.7 s of those 18 minutes: the Mac slept in between). On 27 Oct it started
+  at 07:17 on battery and failed at 08:16 in the same stage, after API-Football connection errors every ~15 minutes
+  (the Mac's brief dark wakes) and seven "database is locked" fixture updates (43 s of process time in 59 minutes).
+  Nothing reran it, so the gate stayed shut (no Match Reads, no measurement) for 8 h 22 min on 26 Oct (rerun 16:26,
+  done 17:15) and 18 h 27 min on 27–28 Oct (rerun 01:02, done 01:44). Neither alert reached Discord
+  (`notification_delivered: False`, no webhook). What held the lock is not established; both failures ran while the
+  Mac slept. Built (`services/refresh_retry.py`, `refresh-season --if-due`): the job fires at a quarter past every
+  hour; from 07:15 local it runs when no run has started since 07:15 that day or the last full refresh did not
+  complete; an hour is skipped, and not counted, when the Mac is on battery with its lid shut or API-Football's host
+  does not resolve; at most 6 started runs a day; nothing before 07:15; the gate is unchanged. Installed 28 Oct 01:45
+  (`ops/upstream_refresh_launchd.py install --job data`); a manual start at 01:45 skipped ("before the daily refresh
+  time"), exit 0, gate untouched. A kickstart of the job now follows the same rule; to force a run, use
+  `caffeinate -i -s .venv/bin/python -m Scripts.data_platform refresh-season --include-europe` (no `--if-due`).
+- **OddsPapi's post-match rewrite keeps the pre-kickoff prices (28 Oct).** The weekend capture
+  (`ops/history_rewrite_check.py`, `Research/history-rewrite-2026-10-24/report.json`) saved 56 of its 73 fixtures of
+  23–25 Oct twice, 2–100 minutes after kickoff and 3–12 h after (13 missed the first save and 2 the second, while the
+  Mac slept or was offline). For Pinnacle, Betano, 1xBet, Bet365 (ES) and Marathonbet every last pre-kickoff price was
+  the same in both saves (1xBet 33,323 lines, Betano 24,941, Pinnacle 14,551; none changed, dropped or added; the same
+  markets had a close); William Hill had no history. Every pick's true close was the same wherever either save had one
+  (Pinnacle 745, own bookmaker 858; 510 and 397 had none in either). So own-bookmaker closes (`same_book`) taken from
+  the rewritten history stand. The 22 Oct difference (Betano 227 → 214 markets) compared a save 27 minutes before
+  kickoff, not at kickoff; its cause is not established.
 
 - **Fair-price card numbers and Price Check built as data and an API (24 Oct; D36).** `data_platform/fair_prices.py`:
   per read, the main line of 1X2, goals, BTTS, the handicap and corners (the line most bookmakers price on every

@@ -724,6 +724,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--dry-run", action="store_true",
         help="Print the exact staged plan without making API calls or changing files.",
     )
+    p.add_argument(
+        "--if-due", action="store_true",
+        help="Scheduled hourly: run only when today's refresh has not run or the last one did not complete.",
+    )
     p.set_defaults(func=cmd_refresh_season)
 
     p = sub.add_parser(
@@ -941,6 +945,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     # Match Read worker. The full refresh retains it across child commands.
     writes = {"refresh-season", "refresh", "sync-schedule", "bootstrap", "build-features",
               "build-canonical-features", "kb-refresh", "kb-enqueue-all"}
+    if args.command == "refresh-season" and getattr(args, "if_due", False) and not getattr(args, "dry_run", False):
+        from .services import refresh_retry
+        due, reason = refresh_retry.check_due()
+        logger.info("refresh-season --if-due: %s", reason if due else f"skipped, {reason}")
+        if not due:
+            return 0
     if args.command in writes and not getattr(args, "dry_run", False):
         from .services.refresh_coordination import data_access, RefreshBusy
         from .services.worker_runtime import prevent_idle_sleep
