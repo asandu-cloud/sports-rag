@@ -58,6 +58,7 @@ from dataclasses import replace
 import json
 import logging
 import sys
+import time
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, List, Mapping, Optional
@@ -286,6 +287,9 @@ def cmd_match_read_cycle(args) -> int:
             dry_run=args.dry_run,
         )
     print(json.dumps(report.as_dict(), indent=2, default=str))
+    if not args.dry_run:
+        from .services import ops_alerts
+        ops_alerts.match_read_cycle(report.as_dict())
     # A concurrent scheduled invocation is expected operational behaviour,
     # not a failed health check. Actual planner/dispatcher/release errors use
     # a non-zero exit so cron/PaaS can alert on them.
@@ -351,6 +355,9 @@ def cmd_measurement(args) -> int:
         from .services.measurement_cycle import run_measurement_cycle
         kinds = ("settlement",) if args.settlement_only else ("closing",) if args.closing_only else ("closing", "settlement")
         result = run_measurement_cycle(dry_run=args.dry_run, kinds=kinds)
+        if not args.dry_run:
+            from .services import ops_alerts
+            ops_alerts.measurement_cycle(result)
     print(json.dumps(result, indent=2, default=str))
     return int(bool(result.get("errors")) or result.get("status") == "error")
 
@@ -950,12 +957,24 @@ def main(argv: Optional[List[str]] = None) -> int:
         due, reason = refresh_retry.check_due()
         logger.info("refresh-season --if-due: %s", reason if due else f"skipped, {reason}")
         if not due:
+            from .services import ops_alerts
+            ops_alerts.refresh_skipped(reason)
             return 0
     if args.command in writes and not getattr(args, "dry_run", False):
+        from .services import ops_alerts
         from .services.refresh_coordination import data_access, RefreshBusy
         from .services.worker_runtime import prevent_idle_sleep
+        # The owner's chat hears when the full refresh starts and how it ended (ops_alerts).
+        started = attempt = None
+        ok = False
         try:
             with data_access(writer=True, full_refresh=args.command == "refresh-season", wait_seconds=180), prevent_idle_sleep():
+                if args.command == "refresh-season":
+                    if getattr(args, "if_due", False):
+                        from .services import refresh_retry
+                        attempt = refresh_retry.attempts_today() or None
+                    started = time.monotonic()
+                    ops_alerts.refresh_started(attempt)
                 result = args.func(args)
                 if result:
                     raise RefreshBusy(f"{args.command} exited with code {result}; check the refresh report before retrying.")
@@ -969,10 +988,14 @@ def main(argv: Optional[List[str]] = None) -> int:
                             logger.warning("Result ingestion succeeded; measurement needs review: %s", measurement)
                     except Exception:
                         logger.exception("Result ingestion succeeded; measurement hook failed")
+                ok = True
                 return result
         except RefreshBusy as exc:
             logger.error("%s", exc)
             return 1
+        finally:
+            if started is not None:  # after the gate is released, so "done" means cards can resume
+                ops_alerts.refresh_finished(ok=ok, seconds=time.monotonic() - started, attempt=attempt)
     if args.command in {"match-reads", "publish-match-reads"} and not getattr(args, "dry_run", False):
         from .services.refresh_coordination import data_access, RefreshBusy
         try:

@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-28 (stage 3 live; refresh retry; history rewrite compared; stage 4 prep done)
+Last updated: 2026-10-28 (stage 3 live; refresh retry; history rewrite compared; stage 4 prep done; operations messages)
 
 ## Status
 
@@ -858,6 +858,29 @@ the recommendations made from the 28 Oct stage 4 replay (9–27 Oct, histories d
 
 ## Findings that shape later steps
 
+- **Operations messages to the owner's Telegram (28 Oct; owner).** `services/ops_alerts.py`, through
+  `refresh_alerts._send` (now with `silent=`: Telegram's `disable_notification`, Discord's flag 4096). Problems make
+  a sound; the rest arrives quietly. Messages carry counts, match names and times only, never error text (an OddsPapi
+  error can hold its key); a send that fails or a hook that breaks never fails the job. State per topic in
+  `Index/ops-alerts` (`SPIX_OPS_ALERT_DIR`).
+  - *With a sound:* the Match Read worker failing 2 runs in a row (14–27 Oct: 3 double failures, none longer);
+    measurement failing 10 runs in a row (it runs every minute; runs of up to 9 errors are routine); the true close
+    failing 3 runs in a row (unreachable, crashed, or nothing recorded on 3+ matches with errors; one match erroring
+    until it is given up is normal); a failed daily refresh with the time of the next try, and once a day "stopped
+    trying" after the 6th; OddsPapi at 50 requests left and at the true close's reserve (40), read from the account;
+    stage 4 price confirmation unable to check most of a day's picks (at least 5; a pick the market moved away from
+    is not a fault). Each failure streak sends one quiet message on recovery.
+  - *Quiet:* the refresh starting (with its try number) and finishing (with its duration; it doubles as the sign
+    that the Mac is awake); Match Reads published, grouped by day and league with picks and the first kickoff, at
+    most one message an hour (17 Oct had 44 worker runs that published); the Monday scorecard headline (value at the
+    true close overall and by stage, said against won, the market), from the scheduled job only (`--notify`).
+  - Live from the first run after the files were saved (the jobs run from the working copy): the first message, a
+    published Bundesliga card, went out at 16:34 local. The scorecard's schedule needs reinstalling for `--notify`
+    (`python -m Scripts.ops.scorecard_launchd install`; the owner runs it).
+  - Tests can never reach the chat: `Scripts/tests/conftest.py` blanks the destinations that `.env` sets and sends
+    alert state to a temporary folder. Found while running the suite: a confidence-age study test stalled whenever
+    the suite ran between :25 and :40 past the hour (the study waits out the true close's window); the wait is now
+    replaced in that test.
 - **Power yardstick built; it replaces proportional at the Mon 2 Nov scorecard (28 Oct).**
   `reference_price.MEASUREMENT_METHOD` (`"proportional"` until 2 Nov) sets the margin-removal method for new
   publication references and closing consensuses. `reference_price.refair(consensus, method)` recomputes a stored
@@ -893,7 +916,10 @@ the recommendations made from the 28 Oct stage 4 replay (9–27 Oct, histories d
   - *OddsPapi allowance.* Fixture lists are the only billable requests: one per competition and week, cached for good,
     the true close and price confirmation each keeping their own (13 competitions). The true close bought 64 lists in
     October, some for earlier weeks; in a steady month each needs about 56 (13 × 4.3 weeks), so about 110–115 of the
-    250 a month with stage 4 live, plus the market list once. Studies never buy. A kickoff moved after a week's list was
+    250 a month with stage 4 live, plus the market list once. *Corrected the same day:* OddsPapi's own account counter
+    shows 101 of 250 used, not the 66 of the local counter, which covers only the true close's cache (the other
+    requests came from probes and studies with their own caches). The account is on the free plan, opened 14 Oct,
+    and shows no renewal date, so whether the 250 renews monthly is to be confirmed with OddsPapi (the launch email). Studies never buy. A kickoff moved after a week's list was
     cached is not matched (20-minute window): that pick fails closed as `fixture_not_matched`.
 - **Alerts go to Telegram (28 Oct; owner).** The owner prefers Telegram to a Discord webhook. `refresh_alerts._send`
   (the refresh watchdog and the bookmaker coverage watch both use it) now posts to a private Telegram chat through

@@ -8,9 +8,17 @@ with ``monkeypatch.setenv``. ``DOCUMENT_STORE`` is left alone: it changes where 
 not what is predicted (parity proven, tracker D11).
 """
 import os
+import tempfile
 
 from Scripts.rag_ingest.core.engine_switches import SWITCHES
 
 for _name, (_default, _accepted) in SWITCHES.items():
     if _name != "DOCUMENT_STORE":
         os.environ[_name] = _default
+
+# ``.env`` also holds the owner's private alert chat (Telegram since 28 Oct). Blank, these stay unset when the
+# engine loads ``.env``, so no test reaches the chat; a test that sends sets its own. Alert state goes to a
+# temporary folder, never ``Index/ops-alerts``.
+for _name in ("REFRESH_ALERT_TELEGRAM_TOKEN", "REFRESH_ALERT_TELEGRAM_CHAT_ID", "REFRESH_ALERT_WEBHOOK_URL"):
+    os.environ[_name] = ""
+os.environ["SPIX_OPS_ALERT_DIR"] = tempfile.mkdtemp(prefix="spix-ops-alerts-")

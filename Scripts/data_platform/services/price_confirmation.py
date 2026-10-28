@@ -181,13 +181,23 @@ def confirm_prices(results, *, min_ev, clock=None):
     now = (clock or (lambda: datetime.now(timezone.utc)))()
     key = os.environ.get("ODDSPAPI_API_KEY")
     if not key:
-        return _fail(results, snapshots, now, "no_oddspapi_key")
+        return _report(_fail(results, snapshots, now, "no_oddspapi_key"))
     try:
         client, index = _client(key)
     except (oddspapi.OddsPapiError, oddspapi.BudgetExceeded):
-        return _fail(results, snapshots, now, "market_list_error")
+        return _report(_fail(results, snapshots, now, "market_list_error"))
     client.budget = client._usage()["billable"] + 2  # at most the market list and one fixture list per call
-    return PriceConfirmation(client, index, min_ev=min_ev, clock=lambda: now)(results)
+    return _report(PriceConfirmation(client, index, min_ev=min_ev, clock=lambda: now)(results))
+
+
+def _report(results):
+    """Counts the checked picks for the owner's chat (``ops_alerts``: most of a day unchecked is a fault)."""
+    from . import ops_alerts
+    records = [s["context"]["price_confirmation"] for s in map(_as_dict, results)
+               if "price_confirmation" in (s.get("context") or {})]
+    if records:
+        ops_alerts.price_confirmations(records)
+    return results
 
 
 _shared = {}  # key -> (client, market index): one client per process, so OddsPapi's cooldown holds across fixtures

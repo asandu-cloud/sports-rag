@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the Spix scorecard every Monday at 08:00 local time (read-only report)."""
+"""Run the Spix scorecard every Monday at 08:00 local time (read-only report; its headline goes to the owner's chat)."""
 import argparse
 import json
 import os
@@ -18,7 +18,8 @@ SCHEDULE = {"Weekday": 1, "Hour": 8, "Minute": 0}  # Monday 08:00, after the wee
 
 def render(paths):
     return plistlib.dumps({
-        "Label": LABEL, "ProgramArguments": [str(paths.python_executable), "-B", "-m", "Scripts.ops.scorecard"],
+        "Label": LABEL, "ProgramArguments": [str(paths.python_executable), "-B", "-m", "Scripts.ops.scorecard",
+                                              "--notify"],
         "WorkingDirectory": str(paths.project_root), "StartCalendarInterval": SCHEDULE,
         "ProcessType": "Background",
         "StandardOutPath": str(paths.log_directory / "scorecard.stdout.log"),

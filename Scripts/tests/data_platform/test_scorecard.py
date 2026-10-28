@@ -124,9 +124,27 @@ def test_scorecard_runs_every_monday_morning_as_its_own_job(tmp_path):
     config = plistlib.loads(schedule.render(paths).encode())
     assert config["Label"] == "com.bettingrag.scorecard"
     assert config["StartCalendarInterval"] == {"Weekday": 1, "Hour": 8, "Minute": 0}
-    assert config["ProgramArguments"][-2:] == ["-m", "Scripts.ops.scorecard"]
+    assert config["ProgramArguments"][-3:] == ["-m", "Scripts.ops.scorecard", "--notify"]
     assert schedule.operate("install", paths, dry_run=True)["configuration"]["Label"] == schedule.LABEL
     assert not paths.plist_path.exists()
+
+
+def test_the_scheduled_scorecard_sends_its_headline_quietly(tmp_path, monkeypatch):
+    from Scripts.ops import scorecard as job
+    from Scripts.data_platform import scorecard as card_module
+    from Scripts.data_platform.services import ops_alerts
+    numbers = {"published": 10, "settled": 8, "win_rate": 0.5, "stated": 0.6, "market": 0.55,
+               "true_close_value": 0.01, "true_close_count": 8, "intervals": {}}
+    card = {"as_of": "2026-11-02", "cohorts": {"selections": {"overall": numbers, "by_engine": {}}}}
+    sent = []
+    monkeypatch.setattr(job, "load_rows", lambda: ([], 0))
+    monkeypatch.setattr(card_module, "build", lambda rows, **_: card)
+    monkeypatch.setattr(card_module, "markdown", lambda c: "card")
+    monkeypatch.setattr(ops_alerts, "notify", lambda text, silent=False: sent.append((text, silent)) or True)
+    job.main(["--as-of", "2026-11-02", "--out", str(tmp_path)])
+    assert sent == []  # a scorecard run by hand stays out of the chat
+    job.main(["--as-of", "2026-11-02", "--out", str(tmp_path), "--notify"])
+    assert sent == [(ops_alerts.scorecard_message(card), True)]
 
 
 def test_picks_are_split_by_the_prediction_changing_switches():

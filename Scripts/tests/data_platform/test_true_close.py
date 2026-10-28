@@ -367,3 +367,51 @@ def test_true_close_runs_daily_as_its_own_job(tmp_path):
     assert config["ProgramArguments"][-2:] == ["-m", "Scripts.ops.true_close"]
     assert schedule.operate("install", paths, dry_run=True)["configuration"]["Label"] == schedule.LABEL
     assert not paths.plist_path.exists()
+
+
+def true_close_job(monkeypatch, *, budget=None, run=None):
+    """``ops.true_close.main`` with OddsPapi, the database and the chat replaced; returns the chat hooks' calls."""
+    from contextlib import nullcontext
+    from types import SimpleNamespace
+    from Scripts.ops import true_close as job
+    from Scripts.data_platform import oddspapi as client_module
+    from Scripts.data_platform.repositories import predictions
+    from Scripts.data_platform.services import measurement_runtime, ops_alerts, refresh_coordination
+    from Scripts.data_platform.services import true_close as service
+    calls = []
+    monkeypatch.setenv("ODDSPAPI_API_KEY", "test-key")
+    monkeypatch.setattr(client_module, "OddsPapiClient", lambda key, compress: SimpleNamespace(get=lambda path: {}))
+    monkeypatch.setattr(client_module, "market_index", lambda body: {})
+    monkeypatch.setattr(job, "quota_budget", budget or (lambda client, key, reserve: (66, 45)))
+    monkeypatch.setattr(predictions, "PredictionRepository",
+                        lambda: SimpleNamespace(_factory=None, get_recent=lambda **_: []))
+    monkeypatch.setattr(measurement_runtime, "MeasurementRuntime", lambda factory: SimpleNamespace(state=lambda c: {}))
+    monkeypatch.setattr(refresh_coordination, "data_access", nullcontext)
+    monkeypatch.setattr(service, "TrueCloseService", lambda repo, client, index: SimpleNamespace(
+        run=run or (lambda rows, **_: {"fixtures": 0, "errors": 0})))
+    monkeypatch.setattr(ops_alerts, "oddspapi_left", lambda left, *, reserve: calls.append(("left", left, reserve)))
+    monkeypatch.setattr(ops_alerts, "true_close_run",
+                        lambda counts=None, *, problem=None: calls.append(("run", counts, problem)))
+    return job, calls
+
+
+def test_the_true_close_job_reports_the_allowance_and_each_run(monkeypatch):
+    job, calls = true_close_job(monkeypatch)
+    assert job.main([]) == 0
+    assert calls == [("left", 45, 40), ("run", {"fixtures": 0, "errors": 0}, None)]
+
+
+def test_the_true_close_job_reports_when_it_cannot_run(monkeypatch):
+    from Scripts.ops import true_close as job_module
+
+    def unreachable(client, key, reserve):
+        raise job_module.AccountUnavailable("ConnectionError")
+    job, calls = true_close_job(monkeypatch, budget=unreachable)
+    assert job.main([]) == 0 and calls == [("run", None, "unreachable")]
+
+    def broken(rows, **_):
+        raise KeyError("odds")
+    job, calls = true_close_job(monkeypatch, run=broken)
+    with pytest.raises(KeyError):
+        job.main([])
+    assert calls == [("left", 45, 40), ("run", None, "crashed")]

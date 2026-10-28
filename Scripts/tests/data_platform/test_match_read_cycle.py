@@ -53,7 +53,7 @@ def test_default_worker_horizon_covers_four_days_with_a_slow_early_refresh(monke
     assert settings.early_refresh_minutes == 360
 
 
-def _fixture(*, fixture_id: str = "9001", kickoff: datetime) -> object:
+def _fixture(*, fixture_id: str = "9001", kickoff: datetime, home_team: str = "", away_team: str = "") -> object:
     from data_platform.services.match_read_cycle import ScheduledMatchReadFixture
 
     return ScheduledMatchReadFixture(
@@ -61,6 +61,8 @@ def _fixture(*, fixture_id: str = "9001", kickoff: datetime) -> object:
         league="EPL",
         kickoff_utc=kickoff,
         target_date=kickoff.date(),
+        home_team=home_team,
+        away_team=away_team,
     )
 
 
@@ -286,7 +288,7 @@ def test_website_cycle_releases_a_worker_rechecked_unchanged_card_with_tracking(
     worker = MatchReadCycleService(
         settings=_settings(),
         session_factory=session_factory,
-        fixture_loader=lambda **_kwargs: [_fixture(kickoff=kickoff)],
+        fixture_loader=lambda **_kwargs: [_fixture(kickoff=kickoff, home_team="Arsenal", away_team="Leeds")],
         dispatcher=dispatcher,
     )
 
@@ -295,6 +297,9 @@ def test_website_cycle_releases_a_worker_rechecked_unchanged_card_with_tracking(
     assert report.errors == []
     assert len(report.releases) == 1
     assert len(report.releases[0]["released"]) == 1
+    # What the owner's chat is told about the card (ops_alerts.release_items).
+    assert {k: report.releases[0][k] for k in ("stage", "kickoff", "fixture")} == {
+        "stage": "pre_match", "kickoff": kickoff.isoformat(), "fixture": "Arsenal vs Leeds"}
     # The public read path uses the same verified observation rather than
     # hiding an unchanged card solely because its immutable provenance clock
     # predates the most recent worker check.

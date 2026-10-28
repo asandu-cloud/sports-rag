@@ -45,6 +45,7 @@ def main(argv=None):
         parser.error("ODDSPAPI_API_KEY is not set")
     from Scripts.data_platform import oddspapi
     from Scripts.data_platform.repositories.predictions import PredictionRepository
+    from Scripts.data_platform.services import ops_alerts
     from Scripts.data_platform.services.measurement_runtime import CONTROL, MeasurementRuntime
     from Scripts.data_platform.services.refresh_coordination import RefreshBusy, data_access
     from Scripts.data_platform.services.true_close import TrueCloseService
@@ -53,10 +54,12 @@ def main(argv=None):
         client.budget, left = quota_budget(client, key, args.reserve)
     except AccountUnavailable as exc:  # OddsPapi unreachable; the next run catches up
         print(json.dumps({"status": "oddspapi_unreachable", "reason": str(exc)}))
+        ops_alerts.true_close_run(problem="unreachable")
         return 0
-    repo = PredictionRepository()
-    boundary = int(MeasurementRuntime(repo._factory).state(CONTROL).get("after_recommendation_id") or 0)
+    ops_alerts.oddspapi_left(left, reserve=args.reserve)
     try:
+        repo = PredictionRepository()
+        boundary = int(MeasurementRuntime(repo._factory).state(CONTROL).get("after_recommendation_id") or 0)
         with data_access():
             rows = [r for r in repo.get_recent(days=3650, published_only=True, publication_scope="all", limit=10 ** 7)
                     if (r.get("recommendation_id") or 0) > boundary]
@@ -65,6 +68,10 @@ def main(argv=None):
     except RefreshBusy as exc:  # the data refresh is running; the next run catches up
         print(json.dumps({"status": "refresh_deferred", "reason": str(exc)}))
         return 0
+    except Exception:
+        ops_alerts.true_close_run(problem="crashed")
+        raise
+    ops_alerts.true_close_run(counts)
     print(json.dumps({**counts, "oddspapi_requests_left_before_run": left}, indent=2))
     return 0
 

@@ -85,3 +85,10 @@ def test_the_refresh_command_takes_if_due():
     from data_platform import cli
     args = cli.build_parser().parse_args(["refresh-season", "--include-europe", "--if-due"])
     assert args.if_due is True
+
+
+def test_the_attempts_today_number_the_running_try(tmp_path):
+    path = tmp_path / "attempts.json"
+    path.write_text(json.dumps({"attempts": [at(23, day=27).isoformat(), at(7).isoformat(), at(8).isoformat()]}))
+    assert rr.attempts_today(at(8, 20), attempts_path=path) == 2
+    assert rr.attempts_today(at(6), attempts_path=path) == 0  # before today's refresh time

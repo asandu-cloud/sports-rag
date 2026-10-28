@@ -535,6 +535,12 @@ class MatchReadCycleService:
                             max_age_minutes=self._settings.max_age_minutes,
                             fixture_ids=[fixture_id],
                         )
+                        # For the owner's chat (ops_alerts): which read, when the match starts, which match.
+                        event = job.events_by_fixture.get(fixture_id) or {}
+                        teams = (event.get("home_team"), event.get("away_team"))
+                        release = {**release, "stage": job.stage,
+                                   "kickoff": kickoff.isoformat() if kickoff is not None else None,
+                                   "fixture": " vs ".join(teams) if all(teams) else None}
                         report.releases.append(release)
                         logger.info("Match Read %s %s: released=%s skipped=%s", job.league, fixture_id,
                                     len(release.get("released", ())), len(release.get("skipped", ())))

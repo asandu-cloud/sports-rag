@@ -58,6 +58,21 @@ def test_a_failed_telegram_delivery_is_false_and_never_logs_the_token(monkeypatc
     assert "123:abc" not in caplog.text
 
 
+def test_a_quiet_message_arrives_without_a_sound(monkeypatch):
+    telegram(monkeypatch)
+    monkeypatch.setenv("REFRESH_ALERT_WEBHOOK_URL", "https://discord.example/webhook")
+    posts = []
+    monkeypatch.setattr(requests, "post", lambda url, json, timeout: posts.append(json) or Answer())
+    assert refresh_alerts._send("Spix · daily refresh done in 58 min.", silent=True) is True
+    assert posts[0]["disable_notification"] is True
+    assert posts[1]["flags"] == 4096  # Discord's SUPPRESS_NOTIFICATIONS
+
+
+def test_tests_never_reach_the_owners_chat():
+    # Scripts/tests/conftest.py blanks the destinations that .env sets for the scheduled jobs.
+    assert not refresh_alerts.configured()
+
+
 def test_without_a_destination_nothing_is_sent(monkeypatch):
     for name in DESTINATIONS:
         monkeypatch.delenv(name, raising=False)

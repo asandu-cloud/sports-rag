@@ -86,15 +86,17 @@ def _telegram_ok(response):
         return False
 
 
-def _send(message):
-    """Delivers to every configured destination; True when at least one took it."""
+def _send(message, *, silent=False):
+    """Delivers to every configured destination; True when at least one took it. ``silent``: no sound."""
     delivered = False
     if telegram := _telegram():
         token, chat = telegram
+        payload = {"chat_id": chat, "text": message, "disable_web_page_preview": True}
         delivered |= _post(TELEGRAM.format(token=token),
-                           {"chat_id": chat, "text": message, "disable_web_page_preview": True}, _telegram_ok)
+                           {**payload, "disable_notification": True} if silent else payload, _telegram_ok)
     if destination := os.environ.get("REFRESH_ALERT_WEBHOOK_URL"):
-        delivered |= _post(destination, {"content": message, "allowed_mentions": {"parse": []}}, lambda r: True)
+        payload = {"content": message, "allowed_mentions": {"parse": []}}
+        delivered |= _post(destination, {**payload, "flags": 4096} if silent else payload, lambda r: True)
     return delivered
 
 

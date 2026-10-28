@@ -92,7 +92,12 @@ def test_a_week_without_any_cached_list_is_reported_not_bought():
     assert mapping == {} and len(skipped) == 1 and skipped[0].startswith("EPL")
 
 
-def test_by_default_only_downloaded_histories_are_read():
+def test_by_default_only_downloaded_histories_are_read(monkeypatch):
+    # A download waits out the true close's hourly window (:25-:40); the wait itself is replaced here, or the
+    # suite stalls whenever it runs in that window (28 Oct).
+    waits = []
+    monkeypatch.setattr(age, "_leave_the_true_close_its_window", lambda: waits.append(1))
+
     class Client:
         def __init__(self):
             self.requests = []
@@ -107,5 +112,6 @@ def test_by_default_only_downloaded_histories_are_read():
     assert age._history(client, "op-1", "betano", cached_only=True) is None
     assert age._history(client, "op-1", "pinnacle", cached_only=True) == {"bookmakers": {"pinnacle": {"markets": {}}}}
     assert client.requests == ["pinnacle"]
+    assert waits == []  # a downloaded history never waits
     age._history(client, "op-1", "betano", cached_only=False)
-    assert client.requests == ["pinnacle", "betano"]
+    assert client.requests == ["pinnacle", "betano"] and waits == [1]

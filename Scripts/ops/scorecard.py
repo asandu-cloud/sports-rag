@@ -4,11 +4,12 @@ Reads published picks from the platform database (the measured cohort: picks
 published after the measurement activation boundary) and writes
 ``Research/scorecards/<as-of>/scorecard.json`` and ``scorecard.md``.
 
-    python -m Scripts.ops.scorecard [--as-of 2026-10-19] [--resamples 2000] [--method power]
+    python -m Scripts.ops.scorecard [--as-of 2026-10-19] [--resamples 2000] [--method power] [--notify]
 
 ``--method`` recomputes the market's probabilities at publication and at close from the prices stored with each
 pick (default: ``reference_price.MEASUREMENT_METHOD``); a method other than the default writes
-``scorecard-<method>.json`` and ``.md`` beside the default files.
+``scorecard-<method>.json`` and ``.md`` beside the default files. ``--notify`` (the Monday job) sends the headline
+to the owner's chat, without a sound (``ops_alerts``).
 """
 from __future__ import annotations
 
@@ -38,6 +39,7 @@ def main(argv=None):
     parser.add_argument("--out", type=Path, default=OUT_DIR)
     from Scripts.data_platform.reference_price import MEASUREMENT_METHOD, METHOD_VERSIONS
     parser.add_argument("--method", choices=sorted(METHOD_VERSIONS), default=MEASUREMENT_METHOD)
+    parser.add_argument("--notify", action="store_true", help="send the headline to the owner's chat")
     args = parser.parse_args(argv)
     from Scripts.data_platform.scorecard import build, markdown
     rows, boundary = load_rows()
@@ -50,6 +52,9 @@ def main(argv=None):
     (folder / f"{name}.md").write_text(markdown(card))
     print(markdown(card))
     print(f"\nwritten to {folder}")
+    if args.notify:
+        from Scripts.data_platform.services import ops_alerts
+        ops_alerts.notify(ops_alerts.scorecard_message(card), silent=True)
     return 0
 
 

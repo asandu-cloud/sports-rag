@@ -76,6 +76,14 @@ def _load(path: Path) -> list:
         return []
 
 
+def attempts_today(now: Optional[datetime] = None, *, attempts_path: Optional[Path] = None,
+                   daily_at: time = DAILY_AT) -> int:
+    """Runs started by ``--if-due`` since today's refresh time; during a run, the number of that run."""
+    now = now or datetime.now().astimezone()
+    start = now.replace(hour=daily_at.hour, minute=daily_at.minute, second=0, microsecond=0)
+    return sum(a >= start for a in _load(attempts_path or _attempts_path())) if now >= start else 0
+
+
 def check_due(now: Optional[datetime] = None, *, gate_shut: Optional[bool] = None,
               attempts_path: Optional[Path] = None, stay_awake: Callable[[], bool] = can_stay_awake,
               reachable: Callable[[], bool] = provider_reachable) -> Tuple[bool, str]:

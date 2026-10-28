@@ -226,6 +226,16 @@ def test_without_an_oddspapi_key_market_value_picks_fail_closed(monkeypatch):
     assert pcf.confirm_prices(legacy, min_ev=0.02) == legacy
 
 
+def test_the_owners_chat_hears_about_picks_that_could_not_be_checked(monkeypatch):
+    reported = []
+    monkeypatch.setattr("data_platform.services.ops_alerts.price_confirmations",
+                        lambda records, **_: reported.append([r["reason"] for r in records]))
+    monkeypatch.delenv("ODDSPAPI_API_KEY", raising=False)
+    pcf.confirm_prices([result()], min_ev=0.02)
+    pcf.confirm_prices([result(context={})], min_ev=0.02)  # not a market-value read: nothing is checked
+    assert reported == [["no_oddspapi_key"]]
+
+
 def test_the_worker_keeps_one_client_so_the_request_cooldown_holds_across_fixtures(monkeypatch, tmp_path):
     made = []
 
@@ -244,11 +254,15 @@ def test_the_worker_keeps_one_client_so_the_request_cooldown_holds_across_fixtur
     monkeypatch.setenv("ODDSPAPI_API_KEY", "k")
     monkeypatch.setattr(pcf.oddspapi, "OddsPapiClient", Shared)
     monkeypatch.setattr(pcf, "_shared", {})
+    reported = []
+    monkeypatch.setattr("data_platform.services.ops_alerts.price_confirmations",
+                        lambda records, **_: reported.extend(r["status"] for r in records))
     for _ in range(2):
         [out] = pcf.confirm_prices([result()], min_ev=0.02, clock=lambda: NOW)
         assert record(out)["status"] == "confirmed"
     assert made == [pcf.CACHE]  # one client, apart from the true close's cache
     assert pcf._shared["k"][0].budget == 9  # at most the market list and one fixture list per call
+    assert reported == ["confirmed", "confirmed"]  # the owner's chat counts every checked pick (ops_alerts)
 
 
 def test_a_fresh_request_never_reads_or_writes_the_cache(tmp_path):
