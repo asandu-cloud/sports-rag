@@ -45,6 +45,7 @@ except ImportError:
     from Scripts.rag_ingest.core import bookmaker_sets, engine_switches  # type: ignore[import]
 
 # A5.2 rule for market-priced lines (D33 (b), D35): value against the market at the quoted price.
+# 2% confirmed by the owner for stage 4 on 28 Oct (D45); the card's "worth it at" price uses the same 2% (D36).
 MARKET_VALUE_MIN_EV = 0.02
 
 

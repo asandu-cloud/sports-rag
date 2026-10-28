@@ -53,7 +53,7 @@ BOOK_SETS = ("all", "romania")
 MARKETS = ("goals", "corners", "btts", "moneyline", "spreads")  # priced against the market at stage 4
 KEPT = ("sot",)  # today's rule; cards are blocked by the guardrail in every read
 GOAL_MODEL_MARKETS = ("goals", "btts", "spreads")
-MAX_AGES = (30, 60, None)  # price confirmation's freshness limit in minutes; None: no limit (owner to choose, D42)
+MAX_AGES = (30, 60, None)  # freshness limits compared, in minutes; None: no limit (owner chose 60 on 28 Oct, D45)
 _SOLVE = object()
 
 

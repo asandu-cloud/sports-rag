@@ -41,7 +41,7 @@ except ImportError:  # pragma: no cover - the rag_ingest path layout
 
 VERSION = "price-confirmation.v1"
 TOLERANCE = 0.005  # as the price check (ops/price_check.py)
-MAX_AGE = timedelta(minutes=30)  # owner to choose (D42): None takes the newest price however old, with its time
+MAX_AGE = timedelta(minutes=60)  # owner, 28 Oct (D45); None would take the newest price however old, with its time
 CACHE = oddspapi.CACHE / "confirmation"
 REASONS = {
     "price_gone": "the bookmaker's price is now shorter and no longer has value",

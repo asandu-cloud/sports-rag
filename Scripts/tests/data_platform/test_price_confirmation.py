@@ -136,8 +136,16 @@ def test_a_shorter_price_without_value_is_no_bet():
     assert record(out)["own_odds"] == 1.90
 
 
+def test_the_default_freshness_limit_is_60_minutes():
+    # Owner, 28 Oct: 60 minutes (58 confirmed stage 4 picks in the 9-27 Oct replay against 49 at 30, same value).
+    [out] = confirm([result()], Client({"betano": betano([entry(50, 2.12)], seen=45)}))
+    assert record(out)["status"] == "confirmed"
+    [out] = confirm([result()], Client({"betano": betano([entry(70, 2.12)], seen=65)}))
+    assert record(out)["status"] == "not_confirmed" and record(out)["reason"] == "not_recent"
+
+
 @pytest.mark.parametrize("body, reason", [
-    (betano([entry(50, 2.12)], seen=45), "not_recent"),  # OddsPapi has not checked Betano for 45 minutes
+    (betano([entry(70, 2.12)], seen=65), "not_recent"),  # OddsPapi has not checked Betano for 65 minutes
     (betano([entry(50, 2.12), entry(10, 2.12, active=False)]), "suspended"),
     (history("betano", {("1010", "1010"): [entry(4, 1.80)]}), "line_not_listed"),
     ({"bookmakers": {}}, "no_history"),
