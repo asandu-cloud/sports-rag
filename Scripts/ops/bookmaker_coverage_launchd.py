@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Run the bookmaker coverage watch four times a day (tracker open item, after the 16-18 Oct drop).
 
-``Scripts.ops.bookmaker_coverage`` reads the odds archive only; an alert goes to the private Discord webhook in
-``REFRESH_ALERT_WEBHOOK_URL`` when set, and always to its log and ``Index/bookmaker_coverage/latest.json``. Times
+``Scripts.ops.bookmaker_coverage`` reads the odds archive only; an alert goes to the private alert destination
+(Telegram or Discord, ``refresh_alerts``) when one is set, and always to its log and
+``Index/bookmaker_coverage/latest.json``. Times
 missed while the Mac sleeps run on wake (launchd calendar intervals).
 """
 import argparse

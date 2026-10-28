@@ -83,13 +83,14 @@ def test_subprocess_routes_database_archives_and_gate_to_staging(root, monkeypat
     monkeypatch.setenv("RAW_ARCHIVE_BACKEND", "s3")
     monkeypatch.setenv("BETTING_REFRESH_LOCK_FD", "42")
     monkeypatch.setenv("REFRESH_ALERT_WEBHOOK_URL", "private-destination")
+    monkeypatch.setenv("REFRESH_ALERT_TELEGRAM_TOKEN", "123:abc")
     directory = download.staging_directory(root, download.DEFAULT_DIRECTORY)
     env = download.child_environment(directory)
     assert env["DATABASE_URL"] == f"sqlite:///{directory / 'platform.db'}"
     assert env["RAW_ARCHIVE_ROOT"] == str(directory / "raw_archive")
     assert env["RAW_ARCHIVE_BACKEND"] == "local"
     assert "BETTING_REFRESH_LOCK_FD" not in env
-    assert env["REFRESH_ALERT_WEBHOOK_URL"] == ""
+    assert env["REFRESH_ALERT_WEBHOOK_URL"] == "" and env["REFRESH_ALERT_TELEGRAM_TOKEN"] == ""
 
 
 @pytest.mark.parametrize("directory", [Path("Index"), Path("Index/platform.db"), Path("Output/new"), Path("Index/history_staging")])

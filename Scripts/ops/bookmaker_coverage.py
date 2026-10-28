@@ -4,8 +4,9 @@
 for a day. This counts, per UTC day of capture, the fixtures each bookmaker priced in the odds archive's raw /odds
 responses, among fixtures kicking off within 48 h of the capture (bookmakers price far-off fixtures unevenly), as a
 share of every such fixture captured that day. A bookmaker whose share today is under half its median share over the
-previous 7 days (where that median is at least 20%) raises an alert: to the private Discord webhook in
-``REFRESH_ALERT_WEBHOOK_URL`` when set, and always to the log and ``Index/bookmaker_coverage/latest.json``. Each
+previous 7 days (where that median is at least 20%) raises an alert: to the private alert destination of
+``refresh_alerts`` when one is set (Telegram or Discord), and always to the log and
+``Index/bookmaker_coverage/latest.json``. Each
 bookmaker is alerted once a day; a failed delivery is retried at the next run. Complete days are cached, so a run
 decodes only today's responses. Replayed on 7-22 Oct it alerts on 16, 17 and 18 Oct only, for those four.
 
@@ -18,7 +19,6 @@ from contextlib import closing
 from datetime import datetime, timedelta, timezone
 import gzip
 import json
-import os
 from pathlib import Path
 import sqlite3
 import statistics
@@ -127,9 +127,9 @@ def run(*, now=None, days_back=8, archive=ARCHIVE, out=OUT, send=None):
     sent = _read(out / "alerts_sent.json", {})
     new, delivered = unsent(found, sent, today), None
     if new:
-        configured = send is not None or bool(os.environ.get("REFRESH_ALERT_WEBHOOK_URL"))
-        if send is None:
-            from Scripts.data_platform.services.refresh_alerts import _send as send
+        from Scripts.data_platform.services import refresh_alerts
+        configured = send is not None or refresh_alerts.configured()
+        send = send or refresh_alerts._send
         delivered = bool(send(message(new, today)))
         if delivered or not configured:  # a failed delivery is retried at the next run; with no webhook, logged once
             sent[today] = sorted(set(sent.get(today, [])) | {a["bookmaker"] for a in new})

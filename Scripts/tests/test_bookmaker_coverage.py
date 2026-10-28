@@ -130,3 +130,14 @@ def test_a_failed_delivery_is_retried_at_the_next_run(tmp_path):
                     send=lambda m: tries.append(m) or True)
     assert [a["bookmaker"] for a in second["new_alerts"]] == ["Betano"] and second["webhook_delivered"] is True
     assert len(tries) == 2
+
+
+def test_with_telegram_configured_a_failed_delivery_is_retried(tmp_path, monkeypatch):
+    from Scripts.data_platform.services import refresh_alerts
+    monkeypatch.delenv("REFRESH_ALERT_WEBHOOK_URL", raising=False)
+    monkeypatch.setenv("REFRESH_ALERT_TELEGRAM_TOKEN", "123:abc")
+    monkeypatch.setenv("REFRESH_ALERT_TELEGRAM_CHAT_ID", "4567")
+    monkeypatch.setattr(refresh_alerts, "_send", lambda message: False)
+    archive(tmp_path / "odds.sqlite3", days_with_betano=set(range(1, 8)), today_books=["Pinnacle"])
+    bc.run(now=NOW, archive=tmp_path / "odds.sqlite3", out=tmp_path / "out")
+    assert not (tmp_path / "out" / "alerts_sent.json").exists()  # not marked sent: the next run tries again

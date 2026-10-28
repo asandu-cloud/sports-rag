@@ -95,7 +95,7 @@ def child_environment(directory):
                RAW_ARCHIVE_ROOT=str(directory / "raw_archive"), RAW_ARCHIVE_BACKEND="local")
     env.pop("BETTING_REFRESH_LOCK_FD", None)
     # Collection is isolated and must not send operational messages.
-    env["REFRESH_ALERT_WEBHOOK_URL"] = ""
+    env["REFRESH_ALERT_WEBHOOK_URL"] = env["REFRESH_ALERT_TELEGRAM_TOKEN"] = env["REFRESH_ALERT_TELEGRAM_CHAT_ID"] = ""
     return env
 
 

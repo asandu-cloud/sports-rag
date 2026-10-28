@@ -1,8 +1,75 @@
 import json
+import logging
 import os
 from unittest.mock import Mock
 
+import pytest
+import requests
+
+from data_platform.services import refresh_alerts
 from data_platform.services.refresh_alerts import blockage_status, observe_gate
+
+DESTINATIONS = ("REFRESH_ALERT_WEBHOOK_URL", "REFRESH_ALERT_TELEGRAM_TOKEN", "REFRESH_ALERT_TELEGRAM_CHAT_ID")
+
+
+class Answer:
+    def __init__(self, status=200, body=None):
+        self.status_code, self._body = status, {"ok": True} if body is None else body
+
+    def json(self):
+        return self._body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def telegram(monkeypatch, *, token="123:abc", chat="4567"):
+    for name in DESTINATIONS:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("REFRESH_ALERT_TELEGRAM_TOKEN", token)
+    monkeypatch.setenv("REFRESH_ALERT_TELEGRAM_CHAT_ID", chat)
+
+
+def test_alerts_go_to_the_telegram_chat_when_configured(monkeypatch):
+    telegram(monkeypatch)
+    posts = []
+    monkeypatch.setattr(requests, "post", lambda url, json, timeout: posts.append((url, json)) or Answer())
+    assert refresh_alerts._send("Spix refresh blocked for 61 minutes.") is True
+    assert posts == [("https://api.telegram.org/bot123:abc/sendMessage",
+                      {"chat_id": "4567", "text": "Spix refresh blocked for 61 minutes.",
+                       "disable_web_page_preview": True})]
+
+
+@pytest.mark.parametrize("answer", [Answer(200, {"ok": False}), Answer(401, {"ok": False, "description": "Unauthorized"}),
+                                    requests.ConnectionError("https://api.telegram.org/bot123:abc/sendMessage")])
+def test_a_failed_telegram_delivery_is_false_and_never_logs_the_token(monkeypatch, caplog, answer):
+    telegram(monkeypatch)
+
+    def post(url, json, timeout):
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+    monkeypatch.setattr(requests, "post", post)
+    with caplog.at_level(logging.INFO):
+        assert refresh_alerts._send("Spix refresh blocked for 61 minutes.") is False
+    assert "123:abc" not in caplog.text
+
+
+def test_without_a_destination_nothing_is_sent(monkeypatch):
+    for name in DESTINATIONS:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(requests, "post", lambda *a, **k: 1 / 0)
+    assert refresh_alerts._send("x") is False and not refresh_alerts.configured()
+    telegram(monkeypatch, chat="")  # a bot token alone has nowhere to send
+    assert not refresh_alerts.configured()
+
+
+def test_the_blockage_status_counts_telegram_as_a_destination(tmp_path, monkeypatch):
+    telegram(monkeypatch)
+    assert blockage_status(tmp_path / "marker")["webhook_configured"]
 
 
 def test_prolonged_marker_alert_is_deduplicated_and_recovers(tmp_path, monkeypatch):

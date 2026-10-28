@@ -1,6 +1,8 @@
 """Local refresh watchdog; checked by existing scheduled workers, not the writer.
 
     REFRESH_ALERT_AFTER_SECONDS=3600
+    REFRESH_ALERT_TELEGRAM_TOKEN=<private Telegram bot token, optional>
+    REFRESH_ALERT_TELEGRAM_CHAT_ID=<the chat the bot writes to>
     REFRESH_ALERT_WEBHOOK_URL=<private Discord webhook, optional>
 
 The ledger is beside the database (independent of its writer lock). Alerts
@@ -18,6 +20,7 @@ import time
 from Scripts.refresh_runtime import positive_seconds
 
 logger = logging.getLogger(__name__)
+TELEGRAM = "https://api.telegram.org/bot{token}/sendMessage"
 
 
 def _state_path(marker):
@@ -46,24 +49,53 @@ def blockage_status(marker, *, now=None):
     return {"blocked": since is not None, "blocked_seconds": round(age),
             "prolonged": since is not None and age >= threshold,
             "threshold_seconds": threshold, "incomplete_marker": marker.exists(),
-            "webhook_configured": bool(os.environ.get("REFRESH_ALERT_WEBHOOK_URL")),
+            "webhook_configured": configured(),
             "notification_delivered": state.get("notification_delivered", False),
             "alert_file": str(_state_path(marker))}
 
 
-def _send(message):
-    destination = os.environ.get("REFRESH_ALERT_WEBHOOK_URL")
-    if not destination:
-        return False
+def _telegram():
+    token = os.environ.get("REFRESH_ALERT_TELEGRAM_TOKEN")
+    chat = os.environ.get("REFRESH_ALERT_TELEGRAM_CHAT_ID")
+    return (token, chat) if token and chat else None
+
+
+def configured():
+    """Whether a private alert destination is set: a Telegram bot and chat, or a Discord webhook."""
+    return bool(_telegram() or os.environ.get("REFRESH_ALERT_WEBHOOK_URL"))
+
+
+def _post(url, payload, accepted):
     import requests
     try:
-        with requests.post(destination, json={"content": message, "allowed_mentions": {"parse": []}},
-                           timeout=(3, 5)) as response:
-            return 200 <= response.status_code < 300
+        with requests.post(url, json=payload, timeout=(3, 5)) as response:
+            if 200 <= response.status_code < 300 and accepted(response):
+                return True
+            logger.warning("Private alert delivery refused (status %s); local alert retained", response.status_code)
+            return False
     except requests.RequestException:
-        # Webhook tokens are in URLs; never log the exception/URL.
-        logger.warning("Private refresh alert delivery failed; local alert retained")
+        # Bot and webhook tokens are in URLs; never log the exception/URL.
+        logger.warning("Private alert delivery failed; local alert retained")
         return False
+
+
+def _telegram_ok(response):
+    try:
+        return response.json().get("ok") is True
+    except (ValueError, AttributeError):
+        return False
+
+
+def _send(message):
+    """Delivers to every configured destination; True when at least one took it."""
+    delivered = False
+    if telegram := _telegram():
+        token, chat = telegram
+        delivered |= _post(TELEGRAM.format(token=token),
+                           {"chat_id": chat, "text": message, "disable_web_page_preview": True}, _telegram_ok)
+    if destination := os.environ.get("REFRESH_ALERT_WEBHOOK_URL"):
+        delivered |= _post(destination, {"content": message, "allowed_mentions": {"parse": []}}, lambda r: True)
+    return delivered
 
 
 def observe_gate(marker, *, blocked, now=None, sender=None):
