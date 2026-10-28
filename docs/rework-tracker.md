@@ -858,6 +858,13 @@ the recommendations made from the 28 Oct stage 4 replay (9–27 Oct, histories d
 
 ## Findings that shape later steps
 
+- **Scorecard rerun of 28 Oct, after the weekend and Tuesday settled (28 Oct).** `Research/scorecards/2026-10-28/`
+  (matchweeks W41–W44): 2,424 published, 2,132 settled; win rate 66.2% against 74.9% stated (−8.7 pts, −12.5 to
+  −5.0); log-loss gap +0.037 (+0.012 to +0.061); value at the true close −2.3% (−3.1 to −1.7) on 1,506 picks. By
+  rollout stage, value at the true close: defaults (before 20 Oct, 1,340 settled) −2.2%; stage 1 alone (521 settled)
+  −3.1%; stages 1+2 (271 settled) −1.8%; stages 1–3, 128 published, none settled. The scorecard gives no interval per
+  stage, and a few hundred picks cannot separate a point (D26), so this is no verdict on stage 1; the Mon 2 Nov
+  scorecard is the check of stages 1–3.
 - **Stage 4 replay rerun with the price histories downloaded: confirmed picks keep their value (28 Oct).**
   `ops/stage4_replay.py --from 2026-10-09 --to 2026-10-28 --confirm --fetch-histories`
   (`Research/stage4-replay-2026-10-28/`; final read per fixture, 396 fixtures; 1 pick without a history; histories are
