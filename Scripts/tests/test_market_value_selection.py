@@ -145,3 +145,21 @@ def test_main_line_rule_needs_the_market_value_policy(monkeypatch):
     monkeypatch.delenv("SPIX_SELECTION_POLICY", raising=False)
     _, lines = spread_pick(handicap_options())
     assert all("_main_line" not in o for o in lines)
+
+
+def test_a_lopsided_2_5_line_takes_the_goal_model_and_is_never_picked(monkeypatch):
+    # Stage 3's one gap (28 Oct, PSV v Willem II): the favourite's over 2.5 is under the 1.20 odds floor at every book,
+    # so the line has no two-sided price and the long shot kept Spix's number. Under stage 4 it takes M1's number and
+    # is not pickable, even where M1's number would show value at the long-shot price.
+    monkeypatch.setenv("SPIX_SELECTION_POLICY", "market_value")
+    monkeypatch.delenv("SPIX_BOOKMAKER_SET", raising=False)
+    prices = {(2.5, "Pinnacle"): (1.10, 7.0), (2.5, "Bet365"): (1.12, 6.0), (4.5, "Pinnacle"): (1.80, 2.02)}
+    options = [{"side": side, "point": point, "odds": odds, "bookmaker": book, "market_key": "totals"}
+               for (point, book), pair in prices.items() for side, odds in zip(("over", "under"), pair)]
+    counts = {0: 0.02, 1: 0.06, 2: 0.12, 3: 0.20, 4: 0.22, 5: 0.38}  # M1: under 2.5 is 20%, worth +20% at 6.0
+    result = line_selection.select_best_total_recommendation(options, 2.4, anchor_points=(2.5,),
+                                                             market_count_probabilities=counts)
+    under = next(o for o in result["all_lines"] if (o["point"], o["side"], o["bookmaker"]) == (2.5, "under", "Bet365"))
+    assert under["_probability_source"] == "market_goal_model" and under["_model_prob"] == pytest.approx(0.20)
+    assert under["_ev"] == pytest.approx(0.20 * 6.0 - 1) and under["_eligible"] is False
+    assert (result["bet_recommendation"] or {}).get("point") != 2.5
