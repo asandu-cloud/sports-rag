@@ -184,3 +184,14 @@ def test_card_quotes_do_not_cross_match_other_card_markets(store):
     yellow_only = (153, [("Over 3.5", 1.8), ("Under 3.5", 2.0)])  # not the published cards market
     result = service(store, client_with(book("Book", yellow_only))).process(store[0].settlement_candidates())
     assert result["captured"] == 0 and only(store)["closing_capture"] is None
+
+
+def test_the_closing_consensus_uses_the_measurement_method(monkeypatch):
+    from data_platform import reference_price as ref
+    prediction = {"market": "goals", "tracking": {"selection": {
+        "period": "regulation_time", "participant": None, "market_key": "totals", "side": "over", "line": 2.5,
+        "bookmaker": "A"}}}
+    row = {"bookmakers": [book("A", GOALS(1.8, 2.05)), book("B", GOALS(1.9, 1.95))]}
+    assert closing.price_selection(prediction, row)[1]["method"] == ref.METHOD
+    monkeypatch.setattr(ref, "MEASUREMENT_METHOD", "power")
+    assert closing.price_selection(prediction, row)[1]["method"] == "power_devig_median.v2"

@@ -23,6 +23,7 @@ from sqlalchemy import update
 from ..models import OddsSnapshot, Prediction
 from ..settlement import MARKET_KEYS, handicap_side, provider_id, utc_datetime
 from ..closing_contract import CLV_DEFINITION, FINAL_SNAPSHOT
+from .. import reference_price
 from ..reference_price import devig_consensus, norm
 
 SOURCE = FINAL_SNAPSHOT
@@ -73,7 +74,8 @@ def price_selection(prediction, odds_row):
         return None, None, "invalid_side"
     books = {b.get("name"): book_outcomes(b, key, home, away) for b in odds_row.get("bookmakers", [])}
     same, consensus, issue = devig_consensus(books, side, selection.get("line"), spreads=spreads,
-                                             wanted_book=selection.get("bookmaker"))
+                                             wanted_book=selection.get("bookmaker"),
+                                             method=reference_price.MEASUREMENT_METHOD)
     if same:
         bookmaker = next(b for b in odds_row["bookmakers"] if b.get("name") == same["bookmaker"])
         same = {"odds": same["odds"], "bookmaker": same["bookmaker"], "bookmaker_id": bookmaker.get("id")}

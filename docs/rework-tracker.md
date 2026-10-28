@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-28 (stage 3 live; refresh retry; history rewrite compared)
+Last updated: 2026-10-28 (stage 3 live; refresh retry; history rewrite compared; stage 4 prep done)
 
 ## Status
 
@@ -59,7 +59,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Done: tag `pre-rework` is on GitHub at cf00af8 (checked 21 Oct with `git ls-remote`) | Done | |
 | Keep the Mac awake for scheduled jobs: the daily refresh runs under `caffeinate -i -s` since 17 Oct (it cannot idle-sleep mid-run); still open, a daily scheduled wake before 07:15 (`sudo pmset repeat wakeorpoweron MTWRFSU 07:05:00`), mains power, or a server. On 17 Oct the Mac slept on battery until ~11:48, waking for 2–3 s every ~17 min: the 07:15 refresh ran only in those slices and finished at 12:25 (stage times normal). While asleep the Match Read worker, measurement worker and odds archive do not run either, which matters for this weekend's near-kickoff captures (A1 step 4 freshness rerun, Mon 19 Oct). Again on 20 Oct: on battery, no daily wake scheduled (`pmset -g sched`), the Mac slept 07:00–11:00 with brief wakes and the refresh took 4 h 35 min (04:21–08:56 UTC; 19 Oct: 1 h 3 min). 21 Oct: 6 h 43 min (04:17–11:00 UTC), still no daily wake scheduled. 26 and 27 Oct: the refresh failed on a sleeping Mac both mornings and nothing reran it, so the gate stayed shut 8 h 22 min and 18 h 27 min (no Match Reads, no measurement) until rerun by hand; since 28 Oct the job retries hourly (`--if-due`, see Findings) | Owner (wake, mains); Telegram alerts set up 28 Oct | Operational risk to every scheduled job |
 | Closed 20 Oct: no bookmaker weights; the median stays (owner, D40) | Done | Power margin removal still becomes the default at stage 2 (D17) |
-| Make power the default margin-removal method in measurement (`reference_price`, closing consensus, publication reference, scorecard). Owner, 20 Oct: keep proportional through stages 1–3 so every stage is judged on the same yardstick; switch at the Mon 2 Nov scorecard and recompute the history from the stored per-book prices | Mon 2 Nov scorecard | Refit anything fitted on v1 |
+| Make power the default margin-removal method in measurement (`reference_price`, closing consensus, publication reference, scorecard). Owner, 20 Oct: keep proportional through stages 1–3 so every stage is judged on the same yardstick; switch at the Mon 2 Nov scorecard and recompute the history from the stored per-book prices | Built 28 Oct (`reference_price.MEASUREMENT_METHOD`, `refair`, scorecard `--method`; see Findings); switch Mon 2 Nov after the scorecard | Refit anything fitted on v1 |
 | Closed 20 Oct: no weighted reference (D40); the scorecard adds the true close instead (D39) | Done | |
 | Refresh the report artifact from this tracker | Now due (A1 done 20 Oct) | |
 | Done 23 Oct (D42): the 22 Oct probe met no error up to its end at 23:11 UTC (6.4 h after Juventus v Rennes's kickoff, 4.2 h after Bournemouth v Milan's); OddsPapi rewrites a match's history about 2 h after kickoff (adding in-play markets); `DUE_AFTER` 2 h and `SETTLED` 6 h stay; the 21 Oct evening cause is not reproduced (errors are retried since D41) | Done | |
@@ -858,6 +858,27 @@ the recommendations made from the 28 Oct stage 4 replay (9–27 Oct, histories d
 
 ## Findings that shape later steps
 
+- **Power yardstick built; it replaces proportional at the Mon 2 Nov scorecard (28 Oct).**
+  `reference_price.MEASUREMENT_METHOD` (`"proportional"` until 2 Nov) sets the margin-removal method for new
+  publication references and closing consensuses. `reference_price.refair(consensus, method)` recomputes a stored
+  consensus from each bookmaker's stored prices: it finds the pick's outcome by matching the stored fair probability
+  under the stored method, and returns None when it cannot. The scorecard recomputes every pick with
+  `--method` (default the measurement method), so after the switch the older proportional rows are scored on power
+  too; a run with a method other than the default writes `scorecard-<method>.json`/`.md` beside the normal files.
+  - *Check on the stored picks* (6,976 rows): recomputing with proportional gives the stored figures on all 6,976;
+    power gives a market probability on the same 6,932 and fair CLV on the same 6,395. Every stored reference is
+    proportional v1.
+  - *What power changes, for information* (the 2,132 settled selections of the 28 Oct rerun): the market said 64.3%
+    proportional, 66.3% power, against 66.2% won, so power matches the results and proportional understates the
+    favourites Spix picks (as in D17). Spix's log-loss gap to the market narrows from +0.037 to +0.034; fair CLV from
+    +0.32% to +0.28%. By stage, gap proportional → power: defaults +0.034 → +0.030, stage 1 +0.036 → +0.038, stages
+    1+2 +0.053 → +0.049. Win rate, stated probability and value at the true close (already power) do not move.
+  - *Not affected*: the CLV on the track record and in `tracking_metrics` uses odds only; the studies
+    (`disagreement`, `confidence_labels`, `market_baseline`, the replays) compute their own consensus from the raw
+    prices.
+  - *2 Nov procedure*: run the scorecard as usual (proportional, comparable with earlier weeks) and again with
+    `--method power`; then set `MEASUREMENT_METHOD = "power"` and the test that pins it
+    (`test_new_publication_references_use_the_measurement_method`); weekly reruns after.
 - **Stage 4 prep (28 Oct): preview on top of stages 1–3, the lopsided 2.5 line, OddsPapi's allowance.**
   - *Preview* (`Research/stage4-preview-2026-10-28/`; 54 golden fixtures, D45 settings, before price confirmation):
     picks before (stages 1–3) → after: goals 38 → 8, corners 38 → 7, BTTS 12 → 4, 1X2 0 → 3, Asian handicap 47 → 0.

@@ -154,3 +154,21 @@ def test_true_close_value_and_price_clv_come_from_oddspapis_history():
     assert records[1]["true_close_value"] is None and records[2]["true_price_clv"] is None
     m = sc.metrics(records)
     assert m["true_close_value"] == pytest.approx(0.05) and m["true_close_count"] == 1
+
+
+def test_market_and_closing_probabilities_can_be_recomputed_with_another_method():
+    from data_platform import reference_price as ref
+    books = {"A": [("over", 2.5, 1.62), ("under", 2.5, 2.3)], "B": [("over", 2.5, 1.7), ("under", 2.5, 2.15)]}
+    closed = {"A": [("over", 2.5, 1.55), ("under", 2.5, 2.45)], "B": [("over", 2.5, 1.6), ("under", 2.5, 2.35)]}
+    consensus = lambda b, method="proportional": ref.devig_consensus(b, "over", 2.5, spreads=False, method=method)[1]
+    r = row(1)
+    r["publication_reference"] = {"status": "available", "source": "decision_audit.input_options", **consensus(books)}
+    r["closing_capture"]["consensus"] = consensus(closed)
+    assert sc.record(r)["market_p"] == pytest.approx(consensus(books)["fair_probability"])  # as stored
+    power = sc.record(r, method="power")
+    assert power["market_p"] == pytest.approx(consensus(books, "power")["fair_probability"])
+    assert power["fair_clv"] == pytest.approx(consensus(closed, "power")["fair_probability"]
+                                              / consensus(books, "power")["fair_probability"] - 1)
+    card = sc.build([r], resamples=10, method="power")
+    assert card["method"] == "power" and "power method" in sc.markdown(card)
+    assert sc.build([r], resamples=10)["method"] is None

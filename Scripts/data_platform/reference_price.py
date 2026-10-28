@@ -20,6 +20,11 @@ METHOD = "proportional_devig_median.v1"
 # until A1's gate is closed (D16); the default stays proportional so live results do not change.
 METHOD_VERSIONS = {"proportional": METHOD, "power": "power_devig_median.v2",
                    "shin": "shin_devig_median.v2", "additive": "additive_devig_median.v2"}
+METHOD_NAMES = {version: name for name, version in METHOD_VERSIONS.items()}
+# The measurement yardstick: the publication reference, the closing consensus and the scorecard. Owner, 20 Oct:
+# proportional through stages 1-3, so each is judged the same way; power from the Mon 2 Nov scorecard, with the
+# history recomputed from the stored prices (``refair``).
+MEASUREMENT_METHOD = "proportional"
 Outcome = Tuple[str, Optional[float], float]
 
 
@@ -64,6 +69,40 @@ def devig_consensus(books: Dict[str, List[Outcome]], side: str, line, *, spreads
     return same, consensus, None if same or not wanted else "same_bookmaker_unavailable"
 
 
+def refair(consensus, method) -> Optional[dict]:
+    """A stored consensus with each book's margin removed by ``method`` instead, from the prices it kept.
+
+    Each book's entry keeps its market group's prices and its fair probability for the pick under the stored
+    method, which identifies the pick's outcome among them. None when the consensus kept no usable prices.
+    """
+    from . import devig
+    if not consensus or method not in METHOD_VERSIONS:
+        return None
+    if consensus.get("method") == METHOD_VERSIONS[method]:
+        return consensus
+    stored = METHOD_NAMES.get(consensus.get("method"))
+    books = []
+    for book in consensus.get("books") or []:
+        prices = list((book.get("odds") or {}).values())
+        old = devig.fair(prices, stored) if stored and len(prices) >= 2 else None
+        if not old or not isinstance(book.get("fair"), (int, float)):
+            return None
+        match = [i for i, p in enumerate(old) if p is not None and abs(p - book["fair"]) < 1e-9]
+        if not match:
+            return None
+        new = devig.fair(prices, method)
+        if new is not None:  # as ``devig_consensus``: a book this method cannot price is left out
+            books.append({**book, "fair": new[match[0]]})
+    if not books:
+        return None
+    again = {**consensus, "method": METHOD_VERSIONS[method], "book_count": len(books), "books": books,
+             "fair_probability": statistics.median(b["fair"] for b in books)}
+    same = consensus.get("same_book")
+    if same:
+        fair = next((b["fair"] for b in books if b.get("bookmaker") == same.get("bookmaker")), None)
+        again["same_book"] = {**same, "fair": fair}
+    return again
+
 
 def consensus_spread(consensus) -> Optional[float]:
     """How far apart the bookmakers' fair probabilities are (M3): their interquartile range, or None under two books."""
@@ -94,11 +133,13 @@ def publication_reference(result) -> dict:
     market_key = quote.get("market_key") or (result.get("market") or {}).get("key")
     options = ((result.get("context") or {}).get("decision_audit") or {}).get("input_options") or []
     books = audit_books(options, market_key)
+    method = METHOD_VERSIONS[MEASUREMENT_METHOD]
     if not books:
-        return {"status": "unavailable", "reason": "no_publication_prices", "method": METHOD}
+        return {"status": "unavailable", "reason": "no_publication_prices", "method": method}
     same, consensus, issue = devig_consensus(books, quote.get("side"), quote.get("line"),
-                                             spreads=market_key == "spreads", wanted_book=quote.get("bookmaker"))
+                                             spreads=market_key == "spreads", wanted_book=quote.get("bookmaker"),
+                                             method=MEASUREMENT_METHOD)
     if consensus is None:
-        return {"status": "unavailable", "reason": issue, "method": METHOD}
+        return {"status": "unavailable", "reason": issue, "method": method}
     return {"status": "available", "source": "decision_audit.input_options", **consensus,
             "same_book": same, **({"issue": issue} if issue else {})}

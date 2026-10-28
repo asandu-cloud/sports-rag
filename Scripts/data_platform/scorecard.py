@@ -30,6 +30,7 @@ import statistics
 from typing import Dict, List, Optional
 
 from .outcomes import outcome_accounting
+from .reference_price import refair
 
 MIN_SETTLED = 30      # below this a slice shows counts only
 MIN_WEEKS = 8         # matchweek bootstrap needs at least this many weeks
@@ -80,14 +81,22 @@ def engine_stage(tracking) -> str:
     return " + ".join(active) or "defaults"
 
 
-def record(row) -> dict:
-    """The fields the scorecard needs from one published prediction row."""
+def _fair(consensus, method):
+    """The consensus's fair probability as stored, or recomputed with ``method`` from its books' stored prices."""
+    if not consensus:
+        return None
+    return _number((refair(consensus, method) or {}).get("fair_probability") if method else consensus.get("fair_probability"))
+
+
+def record(row, method=None) -> dict:
+    """The fields the scorecard needs from one published prediction row; ``method`` recomputes the market's
+    probabilities at publication and at close with that margin-removal method."""
     y, w = outcome_weight(row.get("outcome"))
     accounting = outcome_accounting(row.get("outcome"), row.get("odds"))
     reference = row.get("publication_reference") or {}
-    market_p = _number(reference.get("fair_probability")) if reference.get("status") == "available" else None
+    market_p = _fair(reference, method) if reference.get("status") == "available" else None
     capture = row.get("closing_capture") or {}
-    close_p = _number((capture.get("consensus") or {}).get("fair_probability")) if capture.get("status") == "final" else None
+    close_p = _fair(capture.get("consensus"), method) if capture.get("status") == "final" else None
     true = row.get("true_close") or {}
     true = true if true.get("status") == "final" else {}
     true_p = _number((true.get("consensus") or {}).get("fair_probability_power"))
@@ -254,16 +263,17 @@ def _slice(records, cluster_field, resamples, seed):
     return {**metrics(records), "intervals": intervals(records, cluster_field, resamples, seed)}
 
 
-def build(rows, *, as_of=None, resamples=2000, seed=0, after_recommendation_id=None) -> dict:
+def build(rows, *, as_of=None, resamples=2000, seed=0, after_recommendation_id=None, method=None) -> dict:
+    """``method``: the margin-removal method for the market's probabilities (None: as each pick stored them)."""
     as_of = as_of or date.today().isoformat()
     card = {"as_of": as_of, "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "after_recommendation_id": after_recommendation_id, "cohorts": {}}
-    weeks = {record(r)["week"] for r in cohort(rows, "selections")} - {None}
+            "after_recommendation_id": after_recommendation_id, "method": method, "cohorts": {}}
+    weeks = {record(r, method)["week"] for r in cohort(rows, "selections")} - {None}
     cluster_field = "week" if len(weeks) >= MIN_WEEKS else "fixture"
     card["interval_method"] = "matchweek_bootstrap" if cluster_field == "week" else "fixture_bootstrap"
     card["matchweeks"] = sorted(weeks)
     for kind in ("selections", "initial"):
-        records = [record(r) for r in cohort(rows, kind)]
+        records = [record(r, method) for r in cohort(rows, kind)]
         groups = {"by_market": defaultdict(list), "by_confidence": defaultdict(list),
                   "by_market_confidence": defaultdict(list), "by_week": defaultdict(list),
                   "by_engine": defaultdict(list)}
@@ -341,6 +351,8 @@ def markdown(card) -> str:
              "- **Value at true close**: odds taken times Pinnacle's last pre-kickoff probability (OddsPapi history, "
              "margin removed by the power method), minus 1. **True price CLV**: odds taken over the same bookmaker's own "
              "last pre-kickoff price, minus 1 (where OddsPapi carries it).",
+             *([f"- **Market said, log-loss gap and fair CLV** use each bookmaker's margin removed by the {card['method']} "
+                "method, recomputed from the prices stored with each pick."] if card.get("method") else []),
              ""]
     for kind, title in COHORT_TITLES.items():
         c = card["cohorts"][kind]

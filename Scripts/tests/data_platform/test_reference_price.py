@@ -123,3 +123,38 @@ def test_the_spread_is_the_interquartile_range_of_the_books_fair_probabilities()
     consensus = {"books": [{"fair": f} for f in (0.50, 0.52, 0.53, 0.60)]}
     assert ref.consensus_spread(consensus) == pytest.approx(0.0325)  # q1 0.515, q3 0.5475
     assert ref.consensus_spread({"books": [{"fair": 0.5}]}) is None and ref.consensus_spread(None) is None
+
+
+STORED_MARKETS = [  # (books, side, line, spreads): over/under, 1X2 and a handicap
+    ({"A": [("over", 2.5, 1.8), ("under", 2.5, 2.05)], "B": [("over", 2.5, 1.62), ("under", 2.5, 2.3)],
+      "C": [("over", 2.5, 1.9), ("under", 2.5, 1.95)]}, "under", 2.5, False),
+    ({"A": [("home", None, 1.4), ("draw", None, 4.6), ("away", None, 8.0)],
+      "B": [("home", None, 1.45), ("draw", None, 4.4), ("away", None, 7.0)]}, "away", None, False),
+    ({"A": [("lyon", -0.5, 1.9), ("palace", 0.5, 1.95)], "B": [("lyon", -0.5, 1.7), ("palace", 0.5, 2.2)]},
+     "palace", 0.5, True),
+]
+
+
+@pytest.mark.parametrize("books, side, line, spreads", STORED_MARKETS)
+def test_a_stored_consensus_is_recomputed_with_another_method_from_its_books_prices(books, side, line, spreads):
+    _, stored, _ = ref.devig_consensus(books, side, line, spreads=spreads)
+    _, power, _ = ref.devig_consensus(books, side, line, spreads=spreads, method="power")
+    again = ref.refair(stored, "power")
+    assert again["method"] == "power_devig_median.v2" and again["book_count"] == power["book_count"]
+    assert again["fair_probability"] == pytest.approx(power["fair_probability"])
+    assert ref.refair(stored, "proportional") == stored  # already in that method
+
+
+def test_a_consensus_without_usable_prices_cannot_be_recomputed():
+    assert ref.refair(None, "power") is None
+    assert ref.refair({"method": ref.METHOD, "fair_probability": 0.5}, "power") is None
+    assert ref.refair({"method": ref.METHOD, "books": [{"odds": {"over": 1.9}, "fair": 0.3}]}, "power") is None
+
+
+def test_new_publication_references_use_the_measurement_method(monkeypatch):
+    options = [option("Book", "totals", 1.8, "over", 2.5), option("Book", "totals", 2.0, "under", 2.5)]
+    assert ref.MEASUREMENT_METHOD == "proportional"  # until the Mon 2 Nov scorecard (owner, 20 Oct)
+    assert ref.publication_reference(published_result(options))["method"] == ref.METHOD
+    monkeypatch.setattr(ref, "MEASUREMENT_METHOD", "power")
+    assert ref.publication_reference(published_result(options))["method"] == "power_devig_median.v2"
+    assert ref.publication_reference(published_result([]))["method"] == "power_devig_median.v2"
