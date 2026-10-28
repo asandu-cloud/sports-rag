@@ -875,8 +875,9 @@ the recommendations made from the 28 Oct stage 4 replay (9–27 Oct, histories d
     most one message an hour (17 Oct had 44 worker runs that published); the Monday scorecard headline (value at the
     true close overall and by stage, said against won, the market), from the scheduled job only (`--notify`).
   - Live from the first run after the files were saved (the jobs run from the working copy): the first message, a
-    published Bundesliga card, went out at 16:34 local. The scorecard's schedule needs reinstalling for `--notify`
-    (`python -m Scripts.ops.scorecard_launchd install`; the owner runs it).
+    published Bundesliga card, went out at 16:34 local. The scorecard's schedule was reinstalled for `--notify` by
+    the owner the same day (16:48 local; `launchctl print` shows the loaded job running `Scripts.ops.scorecard
+    --notify`), so the Mon 2 Nov scorecard reaches the chat.
   - Tests can never reach the chat: `Scripts/tests/conftest.py` blanks the destinations that `.env` sets and sends
     alert state to a temporary folder. Found while running the suite: a confidence-age study test stalled whenever
     the suite ran between :25 and :40 past the hour (the study waits out the true close's window); the wait is now
