@@ -117,3 +117,37 @@ def test_the_match_read_card_carries_the_fair_prices():
     card = _fair_prices_card([goals_result(), moneyline_result()[0]])
     assert [entry["market"] for entry in card["lines"]] == ["moneyline", "goals"]
     assert _fair_prices_card(None)["lines"] == []
+
+
+def picked(base, side, line, odds=2.0):
+    return {**base, "decision": {"status": "recommended", "quote": {"side": side, "line": line, "odds": odds,
+                                                                    "bookmaker": "A"}}}
+
+
+def test_a_pick_carries_the_fair_price_of_its_own_outcome_even_off_the_main_line():
+    fair = fp.selection_fair_price(picked(goals_result(), "over", 3.5, 3.1))
+    expected = statistics.median(power(list(GOALS[b][3.5]))[0] for b in "AB")
+    assert fair["fair_probability"] == pytest.approx(expected) and fair["book_count"] == 2
+    assert fair["fair_odds"] == pytest.approx(1 / expected) and fair["minimum_odds"] == fp.minimum_odds(expected)
+
+
+def test_a_handicap_pick_is_priced_on_its_own_sides_line():
+    fair = fp.selection_fair_price(picked(spreads_result(), "lens", 0.5))
+    expected = statistics.median(power([home, away])[1] for home, away in ((1.95, 1.90), (2.00, 1.85)))
+    assert fair["fair_probability"] == pytest.approx(expected)
+
+
+def test_a_pick_fewer_than_two_bookmakers_price_or_an_unpriced_market_has_no_fair_price():
+    assert fp.selection_fair_price(picked(goals_result(), "over", 1.5)) is None  # one bookmaker
+    assert fp.selection_fair_price(picked(goals_result(), "over", 4.5)) is None  # none
+    cards = {**goals_result(), "market": {"group": "cards", "key": "totals_cards"}}
+    assert fp.selection_fair_price(picked(cards, "over", 3.5)) is None
+    assert fp.selection_fair_price(goals_result()) is None  # no quote
+
+
+def test_the_card_selection_carries_its_fair_price():
+    from data_platform.services.match_read_cards import _selection_card
+    card = _selection_card({"position": 1, "role": "core", "market": {"group": "goals", "key": "totals"},
+                            "pick": "Over 3.5", "quote_odds": 3.1, "data": picked(goals_result(), "over", 3.5, 3.1)})
+    assert card["fair_price"]["book_count"] == 2
+    assert card["fair_price"] == fp.selection_fair_price(picked(goals_result(), "over", 3.5, 3.1))

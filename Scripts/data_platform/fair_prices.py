@@ -152,3 +152,17 @@ def fair_outcome(canonical_results: Iterable[Mapping[str, Any]], market: str, si
             probability /= sum(c["fair_probability"] for c in others)
     return {"market": market, "side": side, "line": line, "fair_probability": probability,
             "book_count": consensus["book_count"], "spix_probability": _spix_probability(result, market, side, line)}
+
+
+def selection_fair_price(result: Mapping[str, Any]) -> Optional[dict]:
+    """The fair price of a pick's own outcome, often off the main line; None under ``MIN_BOOKS`` or unpriced."""
+    quote = ((result or {}).get("decision") or {}).get("quote") or {}
+    market = str((result.get("market") or {}).get("group"))
+    if not quote.get("side") or market not in MARKETS:
+        return None
+    outcome = fair_outcome([result], market, quote["side"], quote.get("line"))
+    if outcome is None or outcome["book_count"] < MIN_BOOKS:
+        return None
+    p = outcome["fair_probability"]
+    return {"fair_probability": p, "fair_odds": 1 / p, "minimum_odds": minimum_odds(p),
+            "book_count": outcome["book_count"], "spix_probability": outcome["spix_probability"]}

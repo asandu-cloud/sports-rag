@@ -92,7 +92,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Ask ONJN in writing whether a subscription analysis service that names no bookmaker and takes no commission needs a Class II licence; and whether analysis content counts as gambling promotion under the pending 06:00–24:00 bill | Owner, before launch | Applies to every launch option in Romania |
 | OddsPapi (parked until paying users, owner 19 Oct): free-plan check of showing prices inside Spix; written permission request drafted 20 Oct (display to paying members, pre-revenue, B2B later) | Owner sends; then after paying users | Free Romanian prices found 19 Oct (D36) |
 | Romanian prices on the card from OddsPapi's free endpoint (fixture mapping exists in `pinnacle_check`; market-id mapping for O/U, handicap, BTTS, corners to build) | After the card, if OddsPapi agrees | Within the free allowance (~50 billable a month) |
-| Fair-price card output: per fixture the main lines with fair probability, fair odds and minimum odds worth taking (fair × 1.02), Spix's take beside it; member-facing text in English with a Romanian translation ready to switch on | Next build (D36, D37) | EU-wide launch format |
+| Fair-price card output: per fixture the main lines with fair probability, fair odds and minimum odds worth taking (fair × 1.02), Spix's take beside it; member-facing text in English with a Romanian translation ready to switch on. **Website card built 29 Oct (D46)**: the board's match card, with the pick's own "worth it at" and Price Check; left: the Discord card, the Romanian text | Discord and Romanian text next (D36, D37) | EU-wide launch format |
 | EU VAT on subscriptions (One-Stop-Shop, per-country rates) and euro pricing in Stripe; entry-tier price | Owner, before launch (D37) | Selling across the EU |
 | Price list on the card from bookmakers licensed in the reader's country: reader country at sign-up or as a Discord role; per-country bookmaker lists confirmed on each regulator's register (UK done); a "checked at" time on every price. API-Football's Bet365 prices are not the UK site's (D39): UK Bet365 prices need another source | Card build, after A5.3 (D38) | Replaces the single engine-wide `SPIX_BOOKMAKER_SET` for display |
 | Headline rule for the fair-price card (market decisiveness, line movement since opening, or other) | Owner, with the card build (D36) | Value cannot rank angles without bookmaker prices |
@@ -856,7 +856,40 @@ the recommendations made from the 28 Oct stage 4 replay (9–27 Oct, histories d
   age study supports 30). Labels are a later stage (D44), and when they go live a price seen 31–60 minutes before
   publication is published but labelled low.
 
+**D46 — The matchday card shows the pick first and opens the rest in place (29 Oct, owner).** From three mockups
+(open in place, tabs, lean card with a match page), shown again with more room and colour, the owner chose open in
+place and asked for it on the local website, easy to revert, with team names opening Research and the mockup's
+colours. Built in `Scripts/web_app/static/app.js` (`_createHubFixtureCard` and `hub*` helpers) and `style.css`
+(`.hub-*`):
+- *By default:* kickoff, both teams (each name opens the team's Research page, matched by crest file, else exact
+  name; the Match Read page's title names do the same), the Spix pick with its confidence label, "worth it at" (the
+  marked figure) and the best price found, add to slip, the briefing's first sentence, four tinted tiles, the status
+  and "View Match Read". A no-bet card says the match was assessed and no price is worth taking.
+- *Tiles, one open at a time:* Fair prices (the market's home / draw / away bar; every main line's fair odds and
+  "worth it at"; Price Check on the existing endpoint, verdicts good price / fair / overpaying); Stats and form
+  (projected goals, the briefing points, each team's last five at the venue, season figures per match from
+  Research); Spix vs market (per line, Spix's own probability beside the market's, and the widest gap); Head to head
+  (the last five meetings in league and European seasons both teams played since three seasons back, from Research
+  match logs).
+- *The pick's own fair price:* most picks are off the main lines, so the card selection now carries `fair_price`
+  (`fair_prices.selection_fair_price`: the same stored prices, at least two bookmakers, a handicap on its own side's
+  line); none for cards or shots, where the card shows the price found. Website restarted 29 Oct for it (engine
+  switches unchanged: stages 1–3).
+- *Colours* as approved in the mockup: section tints and red for lost form games use washes DESIGN.md reserved for
+  meanings (noted there).
+- *Revert:* checkpoint commit 6558b07 is the board before; `git revert` of the build commit undoes it (restart the
+  website to drop `fair_price`, which the old card ignores). Meanwhile `/app?card=classic` shows the previous card.
+- *Not done:* the Discord card and the Romanian text (D37), the headline rule and the Price Check band (owner, D36).
+
 ## Findings that shape later steps
+
+- **Most published picks are found at a price below their own fair price (29 Oct).** With the pick's own fair
+  price on the card (D46): of 41 recommended cards on the 30 Oct–1 Nov boards (top five leagues), 35 core picks have
+  one and 32 of those were found below "worth it at" (fair × 1.02), mostly handicaps and alternative goal and corner
+  lines (e.g. Villarreal v Espanyol, Espanyol +1 @ 2.34, worth it at 2.39). Under stages 1–3 those markets still pick
+  on Spix's own probability (legacy policy). The card says so in amber ("below what it is worth"). Stage 4's
+  `market_value` policy publishes only at 2% over the market's fair price, so this should end with it: check the
+  board's cards after 3 Nov.
 
 - **Operations messages to the owner's Telegram (28 Oct; owner).** `services/ops_alerts.py`, through
   `refresh_alerts._send` (now with `silent=`: Telegram's `disable_notification`, Discord's flag 4096). Problems make

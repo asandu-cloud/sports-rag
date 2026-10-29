@@ -84,6 +84,7 @@ def _selection_card(value: Any) -> Dict[str, Any]:
     data = _mapping_or_empty(selection.get("data"))
     decision = _mapping_or_empty(data.get("decision"))
     evidence = data.get("evidence")
+    from ..fair_prices import selection_fair_price
     from .decision_communication import build_decision_explanation, stored_probability_source
     explanation = build_decision_explanation(data) if decision.get("quote") and decision.get("status") == "recommended" else None
     return {
@@ -101,6 +102,8 @@ def _selection_card(value: Any) -> Dict[str, Any]:
         "probability_version": _optional_text(decision.get("probability_version")),
         "settlement_profile": decision.get("settlement_profile"),
         "value_edge": _number(selection.get("value_edge")),
+        # The market's fair price of this pick's outcome (D36): the card's "worth it at"; no bookmaker named.
+        "fair_price": selection_fair_price(data),
         "confidence": _optional_text(decision.get("confidence")),
         "published_recommendation_id": selection.get("published_recommendation_id"),
         "evidence": _mapping_list(evidence),
