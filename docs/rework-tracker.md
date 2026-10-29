@@ -893,6 +893,17 @@ in git (6e3de3c) for reuse: the pick's own fair price (`fair_prices.selection_fa
 When the owner's design comes back: build it as a checkpoint commit before and one revertible commit after, with a
 way to compare (D46's `/app?card=classic` pattern).
 
+**D48 — New logo: a text-only "spix" wordmark with a football for the dot on the i (29 Oct, owner).** The owner
+did not like the picture logo and asked for text only: lowercase "spix", letters of slightly mismatched height, the
+dot on the i a football that will animate; playful yet trustworthy (sharp, honest, calm). Explored in
+https://claude.ai/artifact/Nj3bB4vjm9pdEFmThZdVxZ (three designs × eight fonts, three rounds). Chosen for the
+website: the "Landing" design (the last frame of the ball's drop: the i slightly squashed, its neighbours leaning
+away) in Fraunces (144pt SuperSoft Bold, SIL OFL), a classic black-and-white football drawn round, in the Pitch
+colours (white letters and ball on turf green), with the whole header turf green in both themes. The ball drops
+and bobbles onto the i only when the user changes page, never on a loop, and never with reduced motion. Discord
+avatar: the full name on a turf tile. Colours: `docs/brand/color-palette.md`. Built as a checkpoint commit before
+and one revertible commit after, with `?logo=old` to compare.
+
 ## Findings that shape later steps
 
 - **Most published picks are found at a price below their own fair price (29 Oct).** With the pick's own fair
