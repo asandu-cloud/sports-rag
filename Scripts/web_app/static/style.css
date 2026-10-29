@@ -61,6 +61,23 @@
   --chart-track: #DAF1DD;
   --crest-bg: #FFFFFF;
   --header-bg: rgba(243, 247, 243, 0.92);
+  /* Top bar (D48): turf green with white text in both themes; ?logo=old maps these back to the old header. */
+  --tb-bg: #0E6336;
+  --tb-border: #0B5530;
+  --tb-fg: #FAFDFA;
+  --tb-fg2: #D3E9D9;
+  --tb-hover: rgba(250, 253, 250, 0.12);
+  --tb-active-fg: #FAFDFA;
+  --tb-active-bg: rgba(250, 253, 250, 0.18);
+  --tb-btn-bg: #FAFDFA;
+  --tb-btn-fg: #0E6336;
+  --tb-btn-hover: #E3F2E7;
+  --tb-chip-bg: rgba(250, 253, 250, 0.16);
+  --tb-chip-fg: #FAFDFA;
+  --tb-chip-hover: rgba(250, 253, 250, 0.24);
+  --tb-count-bg: #FAFDFA;
+  --tb-count-fg: #0E6336;
+  --tb-focus: #FAFDFA;
   --overlay: rgba(17, 30, 23, 0.42);
   --hover-wash: rgba(17, 30, 23, 0.035);
   --shadow-sm: 0 2px 4px rgba(17, 30, 23, 0.05), 0 8px 20px rgba(17, 30, 23, 0.06);
@@ -178,10 +195,17 @@ button, a, [role="button"], [role="link"] { touch-action: manipulation; }
 .topbar {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
   height: var(--topbar-h);
-  background: var(--header-bg);
+  background: var(--tb-bg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--tb-border);
+}
+html[data-logo="old"] {
+  --tb-bg: var(--header-bg); --tb-border: var(--border); --tb-fg: var(--text); --tb-fg2: var(--text2);
+  --tb-hover: var(--hover-wash); --tb-active-fg: var(--accent-l); --tb-active-bg: var(--accent-dim);
+  --tb-btn-bg: var(--accent); --tb-btn-fg: var(--on-accent); --tb-btn-hover: var(--accent-hover);
+  --tb-chip-bg: var(--accent-dim); --tb-chip-fg: var(--accent-l); --tb-chip-hover: var(--accent-dim2);
+  --tb-count-bg: var(--accent); --tb-count-fg: var(--on-accent); --tb-focus: var(--accent);
 }
 .topbar-inner {
   max-width: var(--max-w);
@@ -200,6 +224,29 @@ button, a, [role="button"], [role="link"] { touch-action: manipulation; }
   color: var(--text);
 }
 .logo:hover { color: var(--text); }
+/* The wordmark (D48): white letters, a classic football for the dot; logo.js drops the ball on page changes. */
+.logo-word { display: block; height: 42px; width: auto; overflow: visible; color: var(--tb-fg); }
+.logo-word .spx-drop, .logo-word .spx-stem { transform-box: fill-box; transform-origin: 50% 100%; }
+.logo-word .spx-spin { transform-box: fill-box; transform-origin: 50% 50%; }
+.logo-old { display: none; align-items: center; gap: 10px; }
+html[data-logo="old"] .logo-old { display: flex; }
+html[data-logo="old"] .logo-word { display: none; }
+.topbar :focus-visible { outline-color: var(--tb-focus); }
+.topbar .nav-link { color: var(--tb-fg2); }
+.topbar .nav-link:hover { color: var(--tb-fg); background: var(--tb-hover); }
+.topbar .nav-link.active { color: var(--tb-active-fg); background: var(--tb-active-bg); }
+.topbar .theme-toggle { color: var(--tb-fg2); }
+.topbar .theme-toggle:hover { color: var(--tb-fg); background: var(--tb-hover); }
+.topbar .btn-primary-sm { background: var(--tb-btn-bg); color: var(--tb-btn-fg); }
+.topbar .btn-primary-sm:hover { background: var(--tb-btn-hover); color: var(--tb-btn-fg); }
+.topbar .slip-toggle { background: var(--tb-chip-bg); color: var(--tb-chip-fg); }
+.topbar .slip-toggle:hover { background: var(--tb-chip-hover); }
+.topbar .slip-toggle-count { background: var(--tb-count-bg); color: var(--tb-count-fg); }
+.topbar .user-badge:hover { background: var(--tb-hover); }
+.topbar .user-name { color: var(--tb-fg); }
+.topbar .menu-toggle { color: var(--tb-fg); }
+.topbar .menu-toggle:hover { background: var(--tb-hover); }
+.topbar .info-home { color: var(--tb-fg); }
 .logo-mark { width: 30px; height: 36px; flex: none; display: block; color: var(--accent); }
 .logo-text {
   font-weight: 800; font-size: 22px;
@@ -1363,7 +1410,7 @@ spix-research { display: block; min-width: 0; }
 }
 
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  .topbar { background: var(--bg); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .topbar { background: var(--tb-bg); backdrop-filter: none; -webkit-backdrop-filter: none; }
   .auth-backdrop,
   .slip-backdrop { backdrop-filter: none; -webkit-backdrop-filter: none; }
 }

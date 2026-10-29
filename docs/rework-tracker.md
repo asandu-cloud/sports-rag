@@ -903,6 +903,17 @@ colours (white letters and ball on turf green), with the whole header turf green
 and bobbles onto the i only when the user changes page, never on a loop, and never with reduced motion. Discord
 avatar: the full name on a turf tile. Colours: `docs/brand/color-palette.md`. Built as a checkpoint commit before
 and one revertible commit after, with `?logo=old` to compare.
+- *Built (29 Oct):* the wordmark is fixed SVG shapes from the real Fraunces outlines (no font load), inlined in all
+  five pages (`index.html`, methodology, privacy, terms, responsible gambling); `docs/brand/logo/build_logo.py`
+  rebuilds it and the other files there (white and ink wordmarks, `spix-discord-avatar.png`). `logo.js` plays the
+  drop on an in-app page change (`router.go` with a previous page) and on a page load that came from another Spix
+  page; not on a first visit, a typed URL, a reload, with reduced motion or with the old logo
+  (`Scripts/tests/test_logo_drop.js`). Header colours are `--tb-*` tokens; browser bar colour turf.
+  Checked on the live site (desktop and phone, light and dark, the drop on and off as intended, no page errors).
+- *Compare / revert:* `/app?logo=old` shows the old header and logo for the browser session (`?logo=new` returns);
+  checkpoint 1d3215c is the site before; `git revert` of the build commit undoes it (no restart needed).
+- *Not done:* the bot's Discord avatar is uploaded by the owner (Developer Portal); the favicon still has no logo
+  icon (the site had none before either).
 
 ## Findings that shape later steps
 

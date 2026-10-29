@@ -16,13 +16,15 @@
   };
   const effective = () => root.dataset.theme || 'light';
 
-  const CHROME = { light: '#F3F7F3', dark: '#0D1511' };
+  // D48: the header is turf green in both themes; ?logo=old brings back the old header colours.
+  const CHROME = { light: '#0E6336', dark: '#0E6336' };
+  const OLD_CHROME = { light: '#F3F7F3', dark: '#0D1511' };
 
   function syncButtons() {
     const current = effective();
     const next = current === 'dark' ? 'light' : 'dark';
     document.querySelectorAll('meta[name="theme-color"]').forEach(meta => {
-      meta.setAttribute('content', CHROME[current]);
+      meta.setAttribute('content', (root.dataset.logo === 'old' ? OLD_CHROME : CHROME)[current]);
     });
     document.querySelectorAll('[data-theme-toggle]').forEach(button => {
       button.setAttribute('aria-label', `Switch to ${next} theme`);

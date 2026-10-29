@@ -288,6 +288,7 @@ const router = {
     if (!restored) history[previous ? 'pushState' : 'replaceState'](next, '', url + (previous ? '' : location.search));
     const view = document.getElementById(page === 'app' ? viewId : 'landingPage');
     ui.enter(view, restored ? -1 : 1);
+    if (previous) window.spixLogo?.drop(); // D48: the ball drops on a page change, never on first load
     const top = restored?.scrollY ?? this.positions.get(this.key(next)) ?? 0;
     window.scrollTo({ top, behavior: 'instant' });
     const focus = this.focusTargets.get(this.key(next));

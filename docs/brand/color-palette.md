@@ -3,7 +3,13 @@
 The colours the website uses today (`Scripts/web_app/static/style.css`, light theme "Chalk" and dark theme "Floodlit"),
 and the roles proposed for the new text-only logo. Logo concepts: https://claude.ai/artifact/Nj3bB4vjm9pdEFmThZdVxZ ("Spix Logo Concepts", private).
 
-Status, 29 Oct 2026: logo round 3. The logo colours are proposals until a design and font are picked; the website
+Status, 29 Oct 2026: logo chosen and on the website (D48). Website: the "Pitch" colours (white letters and a classic
+football on a turf-green header, in both themes), "Landing" design, Fraunces, Classic ball. Discord avatar: the full
+name on a turf tile (`docs/brand/logo/spix-discord-avatar.png`, 512 px). Logo files and the script that builds them:
+`docs/brand/logo/`. The round-3 ball options below stay on record; the website uses Classic.
+
+Website header colours (`--tb-*` in `style.css`, the same in light and dark): bar Turf `#0E6336`, border `#0B5530`,
+logo and active text `#FAFDFA` (7.2:1), other links `#D3E9D9` (5.6:1), button White on Turf text. The logo colours are proposals until a design and font are picked; the website
 colours are the live values. If `style.css` changes, update this file in the same commit.
 
 ## Logo colours (proposed)
