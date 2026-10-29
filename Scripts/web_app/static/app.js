@@ -95,140 +95,6 @@ function marketLabel(group) {
   return MARKET_LABELS[group] || group || '';
 }
 
-// ----- Match hub card helpers (the board's open-in-place card, option A) -----
-// The card's fair prices name sides as fair_prices.py stores them (lower-cased
-// team names for the handicap), so each outcome is reworded with the fixture's
-// own team names before it is shown.
-function hubTeam(side, home, away) {
-  const key = value => String(value || '').trim().toLocaleLowerCase();
-  if (key(side) === key(home)) return home;
-  if (key(side) === key(away)) return away;
-  return String(side || '').replace(/\b\w/g, char => char.toUpperCase());
-}
-
-function hubLine(line) {
-  const value = Number(line);
-  if (line === null || line === undefined || !Number.isFinite(value)) return '';
-  return `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value)}`;
-}
-
-// One outcome in plain words: "Lyon to win", "Under 3.5 goals", "Lens +0.5".
-function hubOutcomeName(market, side, line, home, away) {
-  const s = String(side || '').toLowerCase();
-  if (market === 'moneyline') {
-    if (s === 'draw') return 'Draw';
-    return `${s === 'home' ? home : s === 'away' ? away : hubTeam(side, home, away)} to win`;
-  }
-  if (market === 'btts') return `Both teams score: ${s === 'no' ? 'no' : 'yes'}`;
-  if (market === 'spreads') {
-    return Number(line) === 0 && line !== null ? `${hubTeam(side, home, away)} (draw no bet)` : `${hubTeam(side, home, away)} ${hubLine(line)}`;
-  }
-  const unit = { goals: 'goals', corners: 'corners', cards: 'cards', sot: 'shots on target' }[market] || '';
-  return `${s === 'under' ? 'Under' : 'Over'} ${line} ${unit}`.trim();
-}
-
-// A pick's stored wording ("Vfb Stuttgart 2", "Over 8.5") as the same plain name.
-function hubPickName(selection, home, away) {
-  const group = selection?.market?.group;
-  const pick = String(selection?.pick || '').trim();
-  const trailing = pick.match(/[-+]?\d+(?:\.\d+)?$/);
-  const line = selection?.explanation?.line ?? (trailing ? Number(trailing[0]) : null);
-  if (group === 'spreads') return hubOutcomeName('spreads', pick.replace(/\s*[-+]?\d+(?:\.\d+)?$/, ''), line, home, away);
-  if (['goals', 'corners', 'cards', 'sot'].includes(group) && /^(over|under)\b/i.test(pick)) {
-    return hubOutcomeName(group, pick.split(/\s+/)[0], line, home, away);
-  }
-  if (group === 'btts') return hubOutcomeName('btts', /\bno\b/i.test(pick) ? 'no' : 'yes', null, home, away);
-  if (group === 'moneyline') return hubOutcomeName('moneyline', pick, null, home, away);
-  return `${marketLabel(group)}: ${pick}`;
-}
-
-// Every outcome the market prices, as rows of fair odds and the odds worth taking.
-function hubFairRows(lines, home, away) {
-  return (lines || []).flatMap(entry => (entry.outcomes || [])
-    .filter(o => Number.isFinite(Number(o.fair_odds)) && o.fair_odds !== null && Number.isFinite(Number(o.minimum_odds)))
-    .map((o, index) => ({
-      name: hubOutcomeName(entry.market, o.side, o.line, home, away),
-      fair: Number(o.fair_odds).toFixed(2),
-      worth: Number(o.minimum_odds).toFixed(2),
-      market: entry.market, side: o.side, line: o.line ?? null, first: index === 0,
-    })));
-}
-
-// The market's home / draw / away chances in percent, or null unless all three exist.
-function hubBalance(lines) {
-  const moneyline = (lines || []).find(entry => entry.market === 'moneyline');
-  const by = Object.fromEntries((moneyline?.outcomes || []).map(o => [o.side, Number(o.fair_probability) * 100]));
-  return ['home', 'draw', 'away'].every(side => Number.isFinite(by[side]) && by[side] !== 0)
-    ? { home: by.home, draw: by.draw, away: by.away } : null;
-}
-
-// Spix beside the market: per line, the outcome the market rates likelier, and the
-// widest gap across every outcome. Lines Spix has no number for are left out.
-function hubSpixVsMarket(lines, home, away) {
-  const rows = [];
-  let biggest = null;
-  const known = value => value !== null && value !== undefined && Number.isFinite(Number(value));
-  (lines || []).forEach(entry => {
-    const priced = (entry.outcomes || []).filter(o => known(o.spix_probability) && known(o.fair_probability));
-    if (!priced.length) return;
-    const row = o => ({ name: hubOutcomeName(entry.market, o.side, o.line, home, away),
-      spix: Number(o.spix_probability) * 100, market: Number(o.fair_probability) * 100 });
-    rows.push(row(priced.reduce((a, b) => (Number(b.fair_probability) > Number(a.fair_probability) ? b : a))));
-    priced.forEach(o => {
-      const candidate = row(o);
-      const gap = Math.abs(candidate.spix - candidate.market);
-      if (!biggest || gap > biggest.gap) biggest = { ...candidate, gap };
-    });
-  });
-  return { rows, biggest };
-}
-
-// Recent results as W/D/L squares, oldest first, named in full for screen readers.
-function hubFormMarkup(results) {
-  const words = { W: 'won', D: 'drew', L: 'lost' };
-  const known = (results || []).filter(result => words[result]);
-  if (!known.length) return '';
-  return `<span class="hub-form" role="img" aria-label="${known.map(result => words[result]).join(', ')}">${known
-    .map(result => `<b class="hub-form-${result}" aria-hidden="true">${result}</b>`).join('')}</span>`;
-}
-
-// The research match log's games against one opponent, newest first, scored only.
-function hubMeetings(matchLog, opponentId) {
-  return (matchLog || [])
-    .filter(m => m.opponent?.id === opponentId && Number.isFinite(m.score?.home) && Number.isFinite(m.score?.away))
-    .sort((a, b) => String(b.date).localeCompare(String(a.date)))
-    .slice(0, 5);
-}
-
-// Wins, draws and losses from one team's side, plus how many games had over 2.5 goals and both scoring.
-function hubMeetingsSummary(meetings, subjectId) {
-  const summary = { count: meetings.length, wins: 0, draws: 0, losses: 0, over25: 0, btts: 0 };
-  meetings.forEach(m => {
-    const own = m.home?.id === subjectId ? m.score.home : m.score.away;
-    const other = m.home?.id === subjectId ? m.score.away : m.score.home;
-    summary[own > other ? 'wins' : own === other ? 'draws' : 'losses'] += 1;
-    if (own + other > 2.5) summary.over25 += 1;
-    if (own > 0 && other > 0) summary.btts += 1;
-  });
-  return summary;
-}
-
-// The research profile for a card's team: the one with the card's crest file,
-// else the exact name. A near miss is not a match: it would open the wrong team.
-function hubResearchMatch(results, name, logoUrl) {
-  const key = value => String(value || '').trim().toLocaleLowerCase();
-  const crest = String(logoUrl || '').match(/\/(\d+)\.png$/);
-  return (crest && (results || []).find(r => String(r.logo_url || '').endsWith(`/${crest[1]}.png`)))
-    || (results || []).find(r => key(r.name) === key(name))
-    || null;
-}
-
-function hubFirstSentence(text) {
-  return String(text || '').trim().split(/(?<=[.!?])\s+/)[0] || '';
-}
-
-// ----- End of match hub card helpers -----
-
 // ----- End of pure render helpers -----
 
 function showToast(msg, type = 'info') {
@@ -713,7 +579,7 @@ const slip = {
     this.legs = [];
     this._render();
     this._update();
-    document.querySelectorAll('.fixture-add-btn.added, .market-add-btn.added, .hub-add.added').forEach(b => b.classList.remove('added'));
+    document.querySelectorAll('.fixture-add-btn.added, .market-add-btn.added').forEach(b => b.classList.remove('added'));
   },
 
   setStake(v) {
@@ -884,11 +750,6 @@ const appModule = {
   fixtureIndex: {},
   matchReadSource: 'loading',
   initialized: false,
-  // The board's card: the open-in-place hub (option A), or `/app?card=classic` for the previous card.
-  cardStyle: new URLSearchParams(window.location.search).get('card') === 'classic' ? 'classic' : 'hub',
-  _hubOpen: new Map(),
-  _researchTeams: new Map(),
-  _researchProfiles: new Map(),
   _requestId: 0,
   _matchReadPollTimer: null,
   _lastMatchReadPollAt: 0,
@@ -1210,7 +1071,6 @@ const appModule = {
         bullets: Array.isArray(briefing.bullets) ? briefing.bullets.slice(0, 3) : [],
       },
       metrics: { projectedTotal, teamGoals, resultBalance: balance },
-      fairPrices: Array.isArray(card.fair_prices?.lines) ? card.fair_prices.lines : [],
       visuals: {
         homeTeamLogo: visuals.home_team_logo || '',
         awayTeamLogo: visuals.away_team_logo || '',
@@ -1508,9 +1368,7 @@ const appModule = {
       group.innerHTML = `<div class="league-header"><div class="league-header-left">${crest}<h2 class="league-name">${esc(league.name)}</h2></div><span class="league-count">${esc(pluralise(fxs.length, 'match', 'matches'))}</span></div>`;
       fxs.forEach((f, i) => {
         if (f.isMatchRead || f.isScheduleOnly) {
-          group.appendChild(this.cardStyle === 'classic'
-            ? this._createMatchReadFixtureCard(f, league, i)
-            : this._createHubFixtureCard(f));
+          group.appendChild(this._createMatchReadFixtureCard(f, league, i));
           return;
         }
         const slipKey = `${f.home} vs ${f.away}|${f.pick}`;
@@ -1566,7 +1424,18 @@ const appModule = {
     card.dataset.fixtureId = String(f.id);
     if (f.isScheduleOnly) card.classList.add('schedule-fixture-card');
 
-    const emblem = (url, label, className) => this._cardEmblem(url, label, className);
+    const initials = team => String(team || '?')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(part => part[0])
+      .join('')
+      .toUpperCase() || '?';
+    const emblem = (url, label, className) => {
+      const safeUrl = /^https?:\/\//i.test(String(url || '')) ? esc(url) : '';
+      const fallback = esc(initials(label));
+      return `<span class="match-card-emblem ${className}${safeUrl ? '' : ' is-fallback'}">${safeUrl ? `<img src="${safeUrl}" alt="" loading="lazy">` : ''}<span aria-hidden="true">${fallback}</span></span>`;
+    };
     const bullets = Array.isArray(f.briefing?.bullets) ? f.briefing.bullets.slice(0, 3) : [];
     const figures = figuresMarkup(f.metrics, f.home, f.away, 'match-card-figures');
     const notes = bullets.filter(bullet => !restatesFigures(bullet, f.metrics));
@@ -1622,392 +1491,6 @@ const appModule = {
     return card;
   },
 
-  _cardEmblem(url, label, className) {
-    const initials = String(label || '?')
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map(part => part[0])
-      .join('')
-      .toUpperCase() || '?';
-    const safeUrl = /^https?:\/\//i.test(String(url || '')) ? esc(url) : '';
-    return `<span class="match-card-emblem ${className}${safeUrl ? '' : ' is-fallback'}">${safeUrl ? `<img src="${safeUrl}" alt="" loading="lazy">` : ''}<span aria-hidden="true">${esc(initials)}</span></span>`;
-  },
-
-  // ----- Match hub card (the owner's option A, 29 Oct) -----
-  // The pick comes first; fair prices, stats and form, Spix against the market
-  // and head to head open in place, one at a time. `/app?card=classic` shows
-  // the previous card for comparison.
-  HUB_SECTIONS: [
-    { key: 'prices', label: 'Fair prices', icon: '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="8" cy="8" r="1.5"/>' },
-    { key: 'stats', label: 'Stats and form', icon: '<path d="M4 20h16M7 16v-5M12 16V6M17 16v-8"/>' },
-    { key: 'versus', label: 'Spix vs market', icon: '<path d="M12 4v16M8 20h8M5 8h14M5 8l-2.5 6a2.5 2.5 0 0 0 5 0zM19 8l-2.5 6a2.5 2.5 0 0 0 5 0z"/>' },
-    { key: 'h2h', label: 'Head to head', icon: '<path d="M8 3 4 7l4 4M4 7h12M16 21l4-4-4-4M20 17H8"/>' },
-  ],
-
-  _createHubFixtureCard(f) {
-    const card = document.createElement('article');
-    card.className = 'hub-card' + (f.isScheduleOnly ? ' is-schedule' : '');
-    card.dataset.fixtureId = String(f.id);
-    const panelId = `hub-panel-${String(f.id).replace(/[^\w-]/g, '')}`;
-    const team = (side, name, logo) => `<span class="match-card-team ${side}">${this._cardEmblem(logo, name, side)}<button type="button" class="hub-team-link" data-research-team="${side}" aria-label="${esc(name)}: open in Research">${esc(name)}</button></span>`;
-    const updateLabel = f.update?.is_updated && f.update?.label
-      ? `<span class="match-card-updated">${esc(f.update.label)}</span>`
-      : '';
-    const why = f.isScheduleOnly ? '' : hubFirstSentence(f.briefing?.summary || f.thesis);
-    const statusLabel = f.isScheduleOnly ? f.scheduleLabel : f.isPreliminary
-      ? 'Preliminary Match Read'
-      : f.status === 'recommended' ? 'Match Read ready' : f.status === 'no_bet' ? 'No bet released' : 'Assessment unavailable';
-    const statusClass = f.isScheduleOnly ? 'pending' : f.isPreliminary
-      ? 'preliminary'
-      : f.status === 'recommended' ? 'ready' : f.status === 'no_bet' ? 'no-bet' : 'unavailable';
-    const tiles = f.isScheduleOnly ? '' : `
-      <div class="hub-tiles">${this.HUB_SECTIONS.map(section => `
-        <button type="button" class="hub-tile hub-tile-${section.key}" data-hub-section="${section.key}" aria-expanded="false" aria-controls="${panelId}">
-          <svg viewBox="0 0 24 24" aria-hidden="true">${section.icon}</svg><span>${esc(section.label)}</span>
-        </button>`).join('')}
-      </div>
-      <section class="hub-panel" id="${panelId}" hidden></section>`;
-    card.innerHTML = `
-      <div class="match-card-topline">
-        <span class="match-card-time mono">${esc(f.time)}</span>
-        ${updateLabel}
-      </div>
-      <h3 class="match-card-teams">
-        ${team('home', f.home, f.visuals?.homeTeamLogo)}
-        <span class="sr-only"> versus </span>
-        ${team('away', f.away, f.visuals?.awayTeamLogo)}
-      </h3>
-      ${this._hubPickMarkup(f)}
-      ${why ? `<p class="hub-why">${esc(why)}</p>` : ''}
-      ${tiles}
-      <div class="match-card-footer">
-        <span class="match-card-status ${statusClass}">${esc(statusLabel)}</span>
-        ${f.isScheduleOnly ? '' : `<button class="match-card-open" type="button" data-hub-open-read aria-label="View Match Read: ${esc(f.home)} versus ${esc(f.away)}">View Match Read <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`}
-      </div>
-    `;
-    card.querySelectorAll('img').forEach(image => {
-      image.addEventListener('error', () => {
-        const emblemNode = image.closest('.match-card-emblem');
-        if (emblemNode) emblemNode.classList.add('is-fallback');
-        image.remove();
-      }, { once: true });
-    });
-    card.querySelectorAll('[data-research-team]').forEach(button => {
-      const home = button.dataset.researchTeam === 'home';
-      button.addEventListener('click', () => this._openTeamResearch(
-        home ? f.home : f.away, home ? f.visuals?.homeTeamLogo : f.visuals?.awayTeamLogo));
-    });
-    card.querySelector('[data-hub-open-read]')?.addEventListener('click', () => this._showMatch(f.id));
-    const add = card.querySelector('[data-hub-add]');
-    if (add) add.addEventListener('click', () => {
-      this._toggleSlipFromFixture(f.id);
-      add.classList.toggle('added', slip.legs.some(leg => leg.key === add.dataset.slipKey));
-    });
-    card.querySelectorAll('[data-hub-section]').forEach(tile => {
-      tile.addEventListener('click', () => this._toggleHubSection(card, f, tile.dataset.hubSection));
-    });
-    // A background refresh redraws the board; the section the reader opened stays open.
-    if (this._hubOpen.has(String(f.id))) this._toggleHubSection(card, f, this._hubOpen.get(String(f.id)), true);
-    return card;
-  },
-
-  _hubPickMarkup(f) {
-    if (f.isScheduleOnly) return `<p class="match-card-schedule-note empty-state-hint">${esc(f.scheduleNote)}</p>`;
-    const selections = Array.isArray(f.selections) ? f.selections : [];
-    const core = selections.find(selection => selection.role === 'core') || selections[0];
-    if (f.status !== 'recommended' || !core) {
-      return `<div class="hub-pass">
-        <span class="match-card-status no-bet">${f.status === 'no_bet' ? 'No bet' : 'No pick yet'}</span>
-        <p>${f.status === 'no_bet'
-          ? 'The match was assessed, but no current price is worth taking.'
-          : 'This match cannot be assessed safely yet.'}</p>
-      </div>`;
-    }
-    const odds = core.odds == null ? NaN : Number(core.odds);
-    const worth = core.fair_price?.minimum_odds == null ? NaN : Number(core.fair_price.minimum_odds);
-    const confidence = String(core.confidence || '').toLowerCase();
-    const slipKey = `${f.home} vs ${f.away}|${f.pick}`;
-    const inSlip = slip.legs.some(leg => leg.key === slipKey);
-    const more = selections.length - 1;
-    // The one marked figure: the odds worth taking when the market prices the
-    // pick, else the price Spix found.
-    const price = Number.isFinite(worth)
-      ? `<p class="hub-pick-price">Worth it at <mark class="figure-mark">${worth.toFixed(2)}</mark> or better</p>
-         ${Number.isFinite(odds) ? `<p class="hub-pick-found${odds < worth ? ' is-below' : ''}">Best price found: <span class="mono">${odds.toFixed(2)}</span>${odds < worth ? ', below what it is worth' : ''}</p>` : ''}`
-      : Number.isFinite(odds) ? `<p class="hub-pick-price">Best price found: <mark class="figure-mark">${odds.toFixed(2)}</mark></p>` : '';
-    const canAdd = f.best && this._matchReadQuoteUsable(f, f.pick, f.odds);
-    return `<div class="hub-pick">
-      <div class="hub-pick-head">
-        <span class="hub-label">Spix pick</span>
-        ${['high', 'medium', 'low'].includes(confidence) ? `<span class="hub-conf ${confidence}">${confidence[0].toUpperCase()}${confidence.slice(1)} confidence</span>` : ''}
-      </div>
-      <p class="hub-pick-name">${esc(hubPickName(core, f.home, f.away))}</p>
-      ${price}
-      ${canAdd ? `<button type="button" class="hub-add${inSlip ? ' added' : ''}" data-hub-add data-slip-key="${esc(slipKey)}">
-        <span class="hub-add-idle">${ICONS.plus}Add to slip</span><span class="hub-add-done">${ICONS.check}Added to slip</span>
-      </button>` : ''}
-      ${more > 0 ? `<p class="hub-more">${esc(pluralise(more, 'more pick'))} in the full Match Read</p>` : ''}
-    </div>`;
-  },
-
-  _toggleHubSection(card, f, key, restore = false) {
-    const id = String(f.id);
-    const panel = card.querySelector('.hub-panel');
-    if (!panel) return;
-    const next = this._hubOpen.get(id) === key && !restore ? null : key;
-    card.querySelectorAll('[data-hub-section]').forEach(tile => {
-      const open = tile.dataset.hubSection === next;
-      tile.classList.toggle('is-open', open);
-      tile.setAttribute('aria-expanded', String(open));
-    });
-    panel._token = (panel._token || 0) + 1;
-    if (!next) {
-      this._hubOpen.delete(id);
-      panel.hidden = true;
-      panel.innerHTML = '';
-      return;
-    }
-    this._hubOpen.set(id, next);
-    panel.hidden = false;
-    panel.setAttribute('aria-label', this.HUB_SECTIONS.find(section => section.key === next)?.label || '');
-    const token = panel._token;
-    const show = html => {
-      if (panel._token !== token) return;
-      panel.innerHTML = html;
-      if (next === 'prices') this._wireHubPriceCheck(panel, f);
-    };
-    const builders = {
-      prices: () => this._hubPricesMarkup(f),
-      versus: () => this._hubVersusMarkup(f),
-      stats: () => this._hubStatsMarkup(f),
-      h2h: () => this._hubMeetingsMarkup(f),
-    };
-    const content = builders[next]();
-    if (typeof content === 'string') { show(content); return; }
-    panel.innerHTML = '<p class="hub-note">Loading…</p>';
-    content.then(show, () => show('<p class="hub-note">This section is unavailable right now. Please try again shortly.</p>'));
-  },
-
-  _hubPricesMarkup(f) {
-    const lines = Array.isArray(f.fairPrices) ? f.fairPrices : [];
-    const rows = hubFairRows(lines, f.home, f.away);
-    if (!rows.length) return '<p class="hub-note">No fair prices yet: fewer than two bookmakers price this match.</p>';
-    const balance = hubBalance(lines);
-    const pct = value => Math.round(value);
-    const books = Math.min(...lines.map(line => Number(line.book_count)).filter(Number.isFinite));
-    const balanceMarkup = balance ? `
-      <div class="hub-balance">
-        <span class="hub-label">Who the market favours</span>
-        <span class="sr-only">${esc(f.home)} ${pct(balance.home)}%, draw ${pct(balance.draw)}%, ${esc(f.away)} ${pct(balance.away)}%.</span>
-        <span class="balance-track" aria-hidden="true"><i style="flex:${balance.home}"></i><i style="flex:${balance.draw}"></i><i style="flex:${balance.away}"></i></span>
-        <span class="hub-balance-key" aria-hidden="true">
-          <span><i class="hub-sq home"></i>Home <b>${pct(balance.home)}%</b></span>
-          <span><i class="hub-sq draw"></i>Draw <b>${pct(balance.draw)}%</b></span>
-          <span><i class="hub-sq away"></i>Away <b>${pct(balance.away)}%</b></span>
-        </span>
-      </div>` : '';
-    return `${balanceMarkup}
-      <table class="hub-table hub-prices">
-        <thead><tr><th scope="col">Bet</th><th scope="col">Fair</th><th scope="col">Worth it at</th></tr></thead>
-        <tbody>${rows.map(row => `<tr${row.first ? ' class="hub-group-start"' : ''}>
-          <td>${row.market === 'moneyline' ? `<i class="hub-sq ${esc(row.side)}" aria-hidden="true"></i>` : ''}${esc(row.name)}</td>
-          <td class="mono">${row.fair}</td><td class="mono">${row.worth}+</td>
-        </tr>`).join('')}</tbody>
-      </table>
-      <p class="hub-note">Fair is the market's price with the bookmaker's cut taken out${Number.isFinite(books) ? `, from at least ${esc(pluralise(books, 'bookmaker'))}` : ''}. Worth it at means at least 2% better than fair.</p>
-      <div class="hub-check">
-        <button type="button" class="hub-check-toggle" data-hub-check-toggle aria-expanded="false">Check a price you were offered</button>
-        <form class="hub-check-form" data-hub-check hidden novalidate>
-          <label><span class="hub-label">Bet</span><select name="outcome">${rows.map((row, index) => `<option value="${index}">${esc(row.name)}</option>`).join('')}</select></label>
-          <label><span class="hub-label">Odds you were offered</span><input name="odds" type="number" inputmode="decimal" min="1.01" step="0.01" placeholder="e.g. 2.10"></label>
-          <button type="submit" class="hub-check-submit">Check</button>
-          <p class="hub-check-result" role="status"></p>
-        </form>
-      </div>`;
-  },
-
-  _wireHubPriceCheck(panel, f) {
-    const toggle = panel.querySelector('[data-hub-check-toggle]');
-    const form = panel.querySelector('[data-hub-check]');
-    if (!toggle || !form) return;
-    const rows = hubFairRows(f.fairPrices, f.home, f.away);
-    const result = form.querySelector('.hub-check-result');
-    toggle.addEventListener('click', () => {
-      form.hidden = !form.hidden;
-      toggle.setAttribute('aria-expanded', String(!form.hidden));
-      if (!form.hidden) form.querySelector('input')?.focus();
-    });
-    form.addEventListener('submit', async event => {
-      event.preventDefault();
-      const row = rows[Number(form.elements.outcome.value)];
-      const odds = Number(form.elements.odds.value);
-      if (!row || !(odds > 1)) {
-        result.textContent = 'Enter decimal odds above 1, such as 2.10.';
-        return;
-      }
-      const params = new URLSearchParams({ market: row.market, side: row.side, odds: String(odds) });
-      if (row.line !== null) params.set('line', String(row.line));
-      result.textContent = 'Checking…';
-      try {
-        const response = await fetch(`/api/match-reads/fixtures/${encodeURIComponent(f.id)}/price-check?${params}`);
-        if (response.status === 410) { result.textContent = 'This Match Read is no longer current, so its prices cannot be checked.'; return; }
-        if (response.status === 404) { result.textContent = 'There is no fair price for this bet yet.'; return; }
-        if (!response.ok) throw new Error(`Price Check failed (${response.status})`);
-        const checked = await response.json();
-        const gap = `${Math.abs(Number(checked.value) * 100).toFixed(1)}%`;
-        const worth = Number(checked.minimum_odds).toFixed(2);
-        const verdicts = {
-          good_price: ['good', 'Good price', `About ${gap} better than fair.`],
-          fair: ['fair', 'Fair', `Close to the fair price of ${Number(checked.fair_odds).toFixed(2)}; worth it from ${worth}.`],
-          overpaying: ['over', 'Overpaying', `About ${gap} worse than fair; worth it from ${worth}.`],
-        };
-        const [className, label, text] = verdicts[checked.verdict] || ['fair', 'Checked', ''];
-        result.innerHTML = `<span class="hub-verdict ${className}">${esc(label)}</span> ${esc(text)}`;
-      } catch (error) {
-        console.warn('Price Check unavailable', error);
-        result.textContent = 'Price Check is unavailable right now. Please try again shortly.';
-      }
-    });
-  },
-
-  _hubVersusMarkup(f) {
-    const { rows, biggest } = hubSpixVsMarket(f.fairPrices, f.home, f.away);
-    if (!rows.length) return '<p class="hub-note">Spix has no number of its own for these lines yet.</p>';
-    const pct = value => Math.round(value);
-    const bar = (label, value, className) => `<div class="hub-bar-row"><span>${label}</span><span class="hub-track" aria-hidden="true"><i class="${className}" style="width:${Math.max(2, Math.min(100, value))}%"></i></span><span class="mono">${pct(value)}%</span></div>`;
-    const summary = biggest && biggest.gap >= 5
-      ? `Biggest difference: ${esc(biggest.name)}, Spix ${pct(biggest.spix)}% against the market's ${pct(biggest.market)}%.`
-      : 'Spix and the market are within 5 points of each other on every line.';
-    return `<p class="hub-summary">${summary}</p>
-      ${rows.map(row => `<div class="hub-versus">
-        <p class="hub-versus-name">${esc(row.name)}</p>
-        ${bar('Spix', row.spix, 'spix')}${bar('Market', row.market, 'market')}
-      </div>`).join('')}
-      <p class="hub-note">Spix's own estimate beside the market's. The fair prices and "worth it at" odds use the market's.</p>`;
-  },
-
-  // Research lookups for the card: the team's own profile (crest file or exact
-  // name), cached for the session so reopening a section is instant.
-  _hubTeamMatch(name, logo) {
-    const key = `${name}|${logo || ''}`;
-    if (!this._researchTeams.has(key)) {
-      const lookup = (async () => {
-        const response = await fetch(`/api/research/search?type=teams&q=${encodeURIComponent(name)}&limit=10`);
-        if (!response.ok) throw new Error(`Research search failed (${response.status})`);
-        return hubResearchMatch((await response.json()).results, name, logo);
-      })();
-      lookup.catch(() => this._researchTeams.delete(key));
-      this._researchTeams.set(key, lookup);
-    }
-    return this._researchTeams.get(key);
-  },
-
-  _hubTeamProfile(id, scope = null) {
-    const query = scope ? `?competition=${encodeURIComponent(scope.competition)}&season=${encodeURIComponent(scope.season)}` : '';
-    const key = `${id}${query}`;
-    if (!this._researchProfiles.has(key)) {
-      const profile = fetch(`/api/research/teams/${encodeURIComponent(id)}${query}`).then(response => {
-        if (!response.ok) throw new Error(`Research profile failed (${response.status})`);
-        return response.json();
-      });
-      profile.catch(() => this._researchProfiles.delete(key));
-      this._researchProfiles.set(key, profile);
-    }
-    return this._researchProfiles.get(key);
-  },
-
-  async _hubProfiles(f) {
-    const [home, away] = await Promise.all([
-      this._hubTeamMatch(f.home, f.visuals?.homeTeamLogo),
-      this._hubTeamMatch(f.away, f.visuals?.awayTeamLogo),
-    ]);
-    if (!home || !away) return null;
-    return Promise.all([this._hubTeamProfile(home.id), this._hubTeamProfile(away.id)]);
-  },
-
-  async _openTeamResearch(name, logo) {
-    try {
-      const match = await this._hubTeamMatch(name, logo);
-      if (!match) {
-        showToast(`${name} has no Research page yet.`);
-        return;
-      }
-      router.go('app', 'research', null, `teams/${encodeURIComponent(match.id)}`);
-    } catch (error) {
-      console.warn('Research lookup unavailable', error);
-      showToast('Research is unavailable right now. Please try again shortly.', 'error');
-    }
-  },
-
-  async _hubStatsMarkup(f) {
-    const metrics = f.metrics || {};
-    const goals = Number.isFinite(metrics.projectedTotal)
-      ? `<p class="hub-summary">Projected goals: <b class="mono">${metrics.projectedTotal.toFixed(2)}</b>${Number.isFinite(metrics.teamGoals?.home) && Number.isFinite(metrics.teamGoals?.away)
-        ? ` <span class="hub-split">(${esc(f.home)} ${metrics.teamGoals.home.toFixed(2)}, ${esc(f.away)} ${metrics.teamGoals.away.toFixed(2)})</span>` : ''}</p>`
-      : '';
-    const notes = (f.briefing?.bullets || []).filter(bullet => !restatesFigures(bullet, metrics));
-    const keyPoints = notes.length ? `<ul class="match-card-signals hub-points">${notes.map(note => `<li>${esc(note)}</li>`).join('')}</ul>` : '';
-    let teams;
-    try {
-      const profiles = await this._hubProfiles(f);
-      teams = profiles ? this._hubTeamsMarkup(f, ...profiles) : '<p class="hub-note">Team stats are not in Research yet for these teams.</p>';
-    } catch (error) {
-      console.warn('Team stats unavailable', error);
-      teams = '<p class="hub-note">Team stats are unavailable right now. Please try again shortly.</p>';
-    }
-    return goals + keyPoints + teams;
-  },
-
-  _hubTeamsMarkup(f, home, away) {
-    const code = (profile, name) => profile.subject?.short_code || String(name).slice(0, 3).toUpperCase();
-    const form = (profile, venue, name) => {
-      const atVenue = profile.home_away?.[venue]?.last_5_form || [];
-      const list = atVenue.length ? atVenue : profile.last_5_form || [];
-      const label = atVenue.length ? `${name} ${venue === 'home' ? 'at home' : 'away'}` : `${name}, last ${list.length}`;
-      const squares = hubFormMarkup(list);
-      return squares ? `<div class="hub-form-row"><span>${esc(label)}</span>${squares}</div>` : '';
-    };
-    const forms = form(home, 'home', f.home) + form(away, 'away', f.away);
-    const metrics = [['goals_for', 'Goals scored'], ['goals_against', 'Goals conceded'], ['corners_for', 'Corners won'], ['cards', 'Cards']]
-      .filter(([key]) => home.metrics?.[key]?.display_value || away.metrics?.[key]?.display_value);
-    const scope = profile => `${profile.season?.label || ''} ${profile.competition?.name || ''}`.trim();
-    const scopes = scope(home) === scope(away) ? scope(home) : `${code(home, f.home)} ${scope(home)}, ${code(away, f.away)} ${scope(away)}`;
-    return `${forms ? `<div class="hub-forms"><span class="hub-label">Recent form, latest on the right</span>${forms}</div>` : ''}
-      ${metrics.length ? `<table class="hub-table hub-season">
-        <thead><tr><th scope="col">Per match</th><th scope="col">${esc(code(home, f.home))}</th><th scope="col">${esc(code(away, f.away))}</th></tr></thead>
-        <tbody>${metrics.map(([key, label]) => `<tr><td>${label}</td><td class="mono">${esc(home.metrics?.[key]?.display_value || '—')}</td><td class="mono">${esc(away.metrics?.[key]?.display_value || '—')}</td></tr>`).join('')}</tbody>
-      </table>` : ''}
-      <p class="hub-note">${esc(scopes)}. Tap a team name for its full Research page.</p>`;
-  },
-
-  async _hubMeetingsMarkup(f) {
-    const profiles = await this._hubProfiles(f);
-    if (!profiles) return '<p class="hub-note">These teams are not in Research yet, so their meetings cannot be shown.</p>';
-    const [home, away] = profiles;
-    const latest = Number(home.season?.year);
-    const shared = (home.available_scopes || []).filter(scope => Number(scope.season?.year) >= latest - 3
-      && (away.available_scopes || []).some(other => other.competition?.code === scope.competition?.code
-        && other.season?.year === scope.season?.year));
-    const logs = await Promise.all(shared.map(scope => this._hubTeamProfile(home.subject.id,
-      { competition: scope.competition.code, season: scope.season.year })
-      .then(profile => profile.match_log || [], () => [])));
-    const seen = new Set();
-    const log = logs.flat().filter(match => !seen.has(match.fixture_id) && seen.add(match.fixture_id));
-    const meetings = hubMeetings(log, away.subject.id);
-    const since = shared.reduce((first, scope) => (!first || scope.season.year < first.year ? scope.season : first), null);
-    if (!meetings.length) return `<p class="hub-note">No meetings between these teams${since ? ` since ${esc(since.label)}` : ''} in Spix's data.</p>`;
-    const s = hubMeetingsSummary(meetings, home.subject.id);
-    const date = value => new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    return `<p class="hub-summary">Last ${s.count === 1 ? 'meeting' : `${s.count} meetings`}: ${esc(f.home)} won ${s.wins}, drew ${s.draws}, lost ${s.losses}. ${s.over25} had over 2.5 goals; both teams scored in ${s.btts}.</p>
-      <ul class="hub-meetings">${meetings.map(match => {
-        const homeWon = match.score.home > match.score.away;
-        const awayWon = match.score.away > match.score.home;
-        return `<li><span class="hub-meeting-date">${esc(date(match.date))}</span><span class="hub-meeting-score">${homeWon ? `<b>${esc(match.home?.name)}</b>` : esc(match.home?.name)} <span class="mono">${match.score.home}–${match.score.away}</span> ${awayWon ? `<b>${esc(match.away?.name)}</b>` : esc(match.away?.name)}</span></li>`;
-      }).join('')}</ul>
-      <p class="hub-note">League and European meetings${since ? ` since ${esc(since.label)}` : ''}.</p>`;
-  },
-
   _matchReadQuoteUsable(f, pick, odds) {
     if (f.isScheduleOnly) return false;
     if (!f.isMatchRead) return true;
@@ -2046,16 +1529,10 @@ const appModule = {
       : '';
     document.getElementById('matchHeader').innerHTML = `
       <div class="match-hero">
-        <h1 class="match-teams-title"><button type="button" class="match-team-link" data-research-team="home" aria-label="${esc(f.home)}: open in Research">${esc(f.home)}</button>&nbsp;<span class="match-teams-vs">v</span> <button type="button" class="match-team-link" data-research-team="away" aria-label="${esc(f.away)}: open in Research">${esc(f.away)}</button></h1>
+        <h1 class="match-teams-title">${esc(f.home)}&nbsp;<span class="match-teams-vs">v</span> ${esc(f.away)}</h1>
         <div class="match-meta">${crest}<span>${esc(league.name)}</span><span aria-hidden="true">·</span><span>${esc(f.time)}</span><span aria-hidden="true">·</span><span>${esc(this._selectedDateISO())}</span></div>
       </div>
     `;
-
-    document.querySelectorAll('#matchHeader [data-research-team]').forEach(button => {
-      const home = button.dataset.researchTeam === 'home';
-      button.addEventListener('click', () => this._openTeamResearch(
-        home ? f.home : f.away, home ? f.visuals?.homeTeamLogo : f.visuals?.awayTeamLogo));
-    });
 
     const summary = document.getElementById('matchReadSummary');
     if (f.isMatchRead) {

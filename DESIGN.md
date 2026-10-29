@@ -279,8 +279,6 @@ A near-monochrome green-tinted paper-and-ink palette with one turf accent, one h
 
 **The Pass Is Not Grey Rule.** No-bet states use full ink text inside a 1px control-rule outline on a transparent ground. Never dim, strike or disable them.
 
-**The Match Card Tints (29 Oct, owner).** The board's match card tints its four section tiles: Fair prices turf wash, Stats and form away-blue wash, Spix vs market caution-amber wash, Head to head quiet fill; the open tile is solid turf. Recent form uses turf wash for wins, quiet fill for draws and loss-red wash for losses. Here the washes label sections and results; they do not carry their status meanings.
-
 ## Typography
 
 **Display Font:** Archivo (variable, self-hosted, width 62–125%, weight 100–900) with system-ui fallback

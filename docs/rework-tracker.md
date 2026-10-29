@@ -92,7 +92,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Ask ONJN in writing whether a subscription analysis service that names no bookmaker and takes no commission needs a Class II licence; and whether analysis content counts as gambling promotion under the pending 06:00–24:00 bill | Owner, before launch | Applies to every launch option in Romania |
 | OddsPapi (parked until paying users, owner 19 Oct): free-plan check of showing prices inside Spix; written permission request drafted 20 Oct (display to paying members, pre-revenue, B2B later) | Owner sends; then after paying users | Free Romanian prices found 19 Oct (D36) |
 | Romanian prices on the card from OddsPapi's free endpoint (fixture mapping exists in `pinnacle_check`; market-id mapping for O/U, handicap, BTTS, corners to build) | After the card, if OddsPapi agrees | Within the free allowance (~50 billable a month) |
-| Fair-price card output: per fixture the main lines with fair probability, fair odds and minimum odds worth taking (fair × 1.02), Spix's take beside it; member-facing text in English with a Romanian translation ready to switch on. **Website card built 29 Oct (D46)**: the board's match card, with the pick's own "worth it at" and Price Check; left: the Discord card, the Romanian text | Discord and Romanian text next (D36, D37) | EU-wide launch format |
+| Fair-price card output: per fixture the main lines with fair probability, fair odds and minimum odds worth taking (fair × 1.02), Spix's take beside it; member-facing text in English with a Romanian translation ready to switch on. Website card built 29 Oct (D46) and **reverted the same day (D47)**: the owner is reworking the card in a Claude Design canvas and brings back the version to ship; left after that: the Discord card, the Romanian text | Owner's design, then the build (D36, D37, D47) | EU-wide launch format |
 | EU VAT on subscriptions (One-Stop-Shop, per-country rates) and euro pricing in Stripe; entry-tier price | Owner, before launch (D37) | Selling across the EU |
 | Price list on the card from bookmakers licensed in the reader's country: reader country at sign-up or as a Discord role; per-country bookmaker lists confirmed on each regulator's register (UK done); a "checked at" time on every price. API-Football's Bet365 prices are not the UK site's (D39): UK Bet365 prices need another source | Card build, after A5.3 (D38) | Replaces the single engine-wide `SPIX_BOOKMAKER_SET` for display |
 | Headline rule for the fair-price card (market decisiveness, line movement since opening, or other) | Owner, with the card build (D36) | Value cannot rank angles without bookmaker prices |
@@ -856,7 +856,8 @@ the recommendations made from the 28 Oct stage 4 replay (9–27 Oct, histories d
   age study supports 30). Labels are a later stage (D44), and when they go live a price seen 31–60 minutes before
   publication is published but labelled low.
 
-**D46 — The matchday card shows the pick first and opens the rest in place (29 Oct, owner).** From three mockups
+**D46 — The matchday card shows the pick first and opens the rest in place (29 Oct, owner; reverted the same day,
+D47).** From three mockups
 (open in place, tabs, lean card with a match page), shown again with more room and colour, the owner chose open in
 place and asked for it on the local website, easy to revert, with team names opening Research and the mockup's
 colours. Built in `Scripts/web_app/static/app.js` (`_createHubFixtureCard` and `hub*` helpers) and `style.css`
@@ -881,13 +882,25 @@ colours. Built in `Scripts/web_app/static/app.js` (`_createHubFixtureCard` and `
   website to drop `fair_price`, which the old card ignores). Meanwhile `/app?card=classic` shows the previous card.
 - *Not done:* the Discord card and the Romanian text (D37), the headline rule and the Price Check band (owner, D36).
 
+**D47 — The D46 card is reverted; the owner designs the card to ship (29 Oct, owner).** Seen in the browser, the
+owner did not like how it looked and asked to go back to the previous card and for a Claude Design canvas of the
+D46 card, to rework it themselves and hand back the final version to ship. The website shows the board's card as at
+checkpoint 6558b07 again (website restarted; engine switches unchanged). The canvas,
+https://claude.ai/artifact/42uHr5PkvDH9jxcyrvdDxP, holds the D46 card as built, with the real Saturday 31 Oct
+content (Manchester City v Brighton in every state; a no-bet card): a starting point, not a decision. The build stays
+in git (6e3de3c) for reuse: the pick's own fair price (`fair_prices.selection_fair_price`, a card selection's
+`fair_price`), Price Check wiring, team names opening Research, the head-to-head and form helpers and their tests.
+When the owner's design comes back: build it as a checkpoint commit before and one revertible commit after, with a
+way to compare (D46's `/app?card=classic` pattern).
+
 ## Findings that shape later steps
 
 - **Most published picks are found at a price below their own fair price (29 Oct).** With the pick's own fair
-  price on the card (D46): of 41 recommended cards on the 30 Oct–1 Nov boards (top five leagues), 35 core picks have
+  price (D46's `selection_fair_price`, reverted with the card in D47 and kept in git at 6e3de3c): of 41 recommended cards on the 30 Oct–1 Nov boards (top five leagues), 35 core picks have
   one and 32 of those were found below "worth it at" (fair × 1.02), mostly handicaps and alternative goal and corner
   lines (e.g. Villarreal v Espanyol, Espanyol +1 @ 2.34, worth it at 2.39). Under stages 1–3 those markets still pick
-  on Spix's own probability (legacy policy). The card says so in amber ("below what it is worth"). Stage 4's
+  on Spix's own probability (legacy policy). The D46 card said so in amber ("below what it is worth"); the card the
+  owner designs (D47) needs an answer for it too. Stage 4's
   `market_value` policy publishes only at 2% over the market's fair price, so this should end with it: check the
   board's cards after 3 Nov.
 
