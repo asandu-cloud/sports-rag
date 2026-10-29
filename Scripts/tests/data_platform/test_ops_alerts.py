@@ -175,6 +175,35 @@ def test_measurement_alerts_after_ten_failed_runs_and_ignores_deferred_ones(sent
     assert len(sent) == 1 and "10 runs in a row" in sent[0][0]
 
 
+def test_busy_measurement_runs_are_not_failures_and_alert_only_after_a_long_spell(sent):
+    busy = {"status": "partial", "errors": 1, "busy": True, "provider_attempts": 0}
+    start = datetime(2026, 10, 29, 16, 41, tzinfo=timezone.utc)
+    for _ in range(9):
+        ops_alerts.measurement_cycle({"status": "partial", "errors": 1}, now=start)
+    for minute in range(0, 120, 4):  # 30 slow busy runs in 2 hours: a busy match evening, no alert
+        ops_alerts.measurement_cycle(busy, now=start + timedelta(minutes=minute))
+    ops_alerts.measurement_cycle({"status": "partial", "errors": 1}, now=start + timedelta(hours=2))
+    assert len(sent) == 1 and "failed 10 runs in a row" in sent[0][0]  # busy runs leave the failure streak alone
+    spell = start + timedelta(hours=2, minutes=1)
+    for minute in range(0, 180, 4):
+        ops_alerts.measurement_cycle(busy, now=spell + timedelta(minutes=minute))
+    assert len(sent) == 1  # 45 runs, but not yet 3 hours
+    ops_alerts.measurement_cycle(busy, now=spell + timedelta(hours=3))
+    ops_alerts.measurement_cycle(busy, now=spell + timedelta(hours=3, minutes=4))
+    assert len(sent) == 2 and "46 runs in a row" in sent[1][0] and "busy" in sent[1][0] and not sent[1][1]
+    ops_alerts.measurement_cycle({"status": "completed", "errors": 0}, now=spell + timedelta(hours=4))
+    assert [silent for _, silent in sent[2:]] == [True, True]  # both streaks recover quietly
+
+
+def test_a_few_busy_runs_either_side_of_a_night_pause_do_not_alert(sent):
+    busy = {"status": "partial", "errors": 1, "busy": True, "provider_attempts": 0}
+    night = datetime(2026, 10, 28, 22, 58, tzinfo=timezone.utc)
+    for hours in (0, 1, 9, 10):
+        ops_alerts.measurement_cycle(busy, now=night + timedelta(hours=hours))
+        ops_alerts.measurement_cycle({"status": "refresh_deferred", "errors": 0}, now=night + timedelta(hours=hours))
+    assert sent == []
+
+
 @pytest.mark.parametrize("counts, problem, failed", [
     ({"fixtures": 2, "errors": 45, "final": 0, "unavailable": 0}, None, False),  # one match retrying: normal
     ({"fixtures": 10, "errors": 45, "final": 162, "unavailable": 14}, None, False),

@@ -317,16 +317,21 @@ class PredictionRepository:
     # Outcome resolution / CLV
     # ------------------------------------------------------------------
     def settlement_candidates(self, *, league=None, prediction_ids=None, include_graded=False,
-                              published_after_id=None):
+                              published_after_id=None, open_only=False):
         """Use fixture identity/schedule, never publication-day result slices.
 
         Older publications may supply saved quote identity but missing periods
         stay missing. Neither publication history nor prediction fields change.
+        ``open_only`` leaves out picks with nothing left to do: graded and with
+        a final closing price (the measurement worker's every-minute load).
         """
         with self._factory() as session:
             stmt = select(Prediction)
             if not include_graded:
                 stmt = stmt.where(Prediction.outcome.is_(None))
+            if open_only:
+                capture = func.coalesce(Prediction.extras["closing_capture"]["status"].as_string(), "")
+                stmt = stmt.where(or_(Prediction.outcome.is_(None), capture != "final"))
             if league:
                 stmt = stmt.where(Prediction.league == league)
             if prediction_ids is not None:

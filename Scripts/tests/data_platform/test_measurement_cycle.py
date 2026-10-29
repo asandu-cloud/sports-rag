@@ -276,3 +276,46 @@ def test_refresh_blocker_is_visible_and_never_fetches_or_grades(store, monkeypat
     assert runtime.status()["status"] == "warn"
     assert "refresh-season" in runtime.status()["recent_runs"][0]["report"]["reason"]
     assert store[0].get_unresolved()[0]["settlement"] is None
+
+
+def test_open_only_candidates_skip_graded_picks_with_a_final_closing_price(store):
+    from data_platform.models import Prediction
+    ids = [publish(store, payload(line=line)) for line in (1.5, 2.5, 3.5, 4.5, 5.5)]
+    open_pick, no_capture, null_extras, waiting, done = ids
+    with store[0]._factory() as session:
+        for pid in (no_capture, null_extras, waiting, done):
+            session.get(Prediction, pid).outcome = "win"
+        session.get(Prediction, null_extras).extras = None
+        for pid, status in ((waiting, "pending"), (done, "final")):
+            row = session.get(Prediction, pid)
+            row.extras = {**(row.extras or {}), "closing_capture": {"status": status}}
+        session.commit()
+    everything = store[0].settlement_candidates(include_graded=True, published_after_id=0)
+    still_open = store[0].settlement_candidates(include_graded=True, published_after_id=0, open_only=True)
+    assert {p["id"] for p in everything} == set(ids)
+    assert {p["id"] for p in still_open} == {open_pick, no_capture, null_extras, waiting}
+
+
+def test_a_run_cut_short_by_the_deadline_before_any_request_is_marked_busy(store):
+    cycle = worker(store)
+    cycle.runtime.activate(now=NOW)
+    publish(store)
+    calls = [0]
+    def clock():
+        calls[0] += 1
+        return NOW if calls[0] == 1 else NOW + timedelta(seconds=51)
+    cycle.clock = clock
+    report = cycle.run_once()
+    assert report["busy"] is True and report["provider_attempts"] == 0
+
+
+def test_a_run_stopped_by_the_request_budget_is_not_busy(store):
+    cycle = worker(store)
+    cycle.runtime.activate(now=NOW)
+    publish(store)
+    class Spent(Client):
+        def fixture(self, fid):
+            raise BudgetExceeded("Daily provider request budget exhausted")
+    cycle.client = Spent()
+    report = cycle.run_once(kinds=("settlement",))
+    assert not report.get("busy")

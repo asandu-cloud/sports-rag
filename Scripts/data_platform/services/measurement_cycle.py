@@ -10,7 +10,7 @@ from ..repositories.predictions import PredictionRepository
 from ..settlement import Grade, SETTLEMENT_VERSION, selection_issue, utc_datetime
 from ..settlement_policy import product_policy
 from .closing_prices import DUE_AFTER, SOURCE as CLOSING_SOURCE, ClosingPriceService, SavedOddsClient
-from .measurement_runtime import BoundedFootballClient, BudgetExceeded, CONTROL, MeasurementRuntime, defer, utc
+from .measurement_runtime import BoundedFootballClient, BudgetExceeded, CONTROL, DeadlineExpired, MeasurementRuntime, defer, utc
 from .settlement import FixtureResultLoader, SettlementService
 
 LEASE = "prediction-measurement.v1"
@@ -39,7 +39,7 @@ class MeasurementCycle:
             return {"status": "disabled", "errors": 0, "provider_attempts": 0}
         now, owner = self.clock(), uuid4().hex
         after = int(control["after_recommendation_id"])
-        candidates = self.repo.settlement_candidates(include_graded=True, published_after_id=after)
+        candidates = self.repo.settlement_candidates(include_graded=True, published_after_id=after, open_only=True)
         report = {"status": "completed", "errors": 0, "provider_attempts": 0,
                   "prospective_after_id": after, "candidates": len(candidates), "details": [],
                   "dry_run": dry_run, "held_reasons": {}, "overdue_pending": 0}
@@ -55,7 +55,7 @@ class MeasurementCycle:
         def guard():
             instant = self.clock()
             if instant >= deadline or not self.leases.owns_lease(lease_key=LEASE, owner_id=owner, now=instant):
-                raise BudgetExceeded("Measurement deadline/lease expired; retry next tick")
+                raise DeadlineExpired("Measurement deadline/lease expired; retry next tick")
 
         try:
             if not candidates:
@@ -170,8 +170,11 @@ class MeasurementCycle:
             elif report["held_reasons"] or report["overdue_pending"]:
                 report["status"] = "warning"
         except Exception as exc:
+            busy = isinstance(exc, DeadlineExpired) and not report["errors"]
             report.update(status="partial", errors=report["errors"] + 1, error=type(exc).__name__)
             report["provider_attempts"] = getattr(locals().get("client"), "attempts", 0)
+            # Out of time before asking the provider anything: a slow database, not a failure (ops_alerts).
+            report["busy"] = busy and not report["provider_attempts"]
         finally:
             try:
                 self.runtime.finish_run(run_id, report, self.clock())

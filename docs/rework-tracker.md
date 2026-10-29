@@ -122,6 +122,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
 | Correct `CLAUDE.md`: Elo "signal active at 0.15" (never called) and ML R² 0.43/0.47 (saved R² ≈ 0) | Next docs pass | Stale claims mislead new sessions |
 | Done 17 Oct 16:28: production reads from the document store (`DOCUMENT_STORE=sqlite` in `.env`). The first 6 reads record `DOCUMENT_STORE: sqlite` and their projections equal the previous Chroma read of the same fixture and stage (7 of 7 markets each). Verification before the switch: every refresh stage completed; same 129,801 documents; all 881 recorded engine queries return the same documents in the same order; 341 documents differ only in a last floating-point digit; engine outputs on the 54 golden fixtures identical from both. Fallback: remove the line | Done | Unblocks the OddsPapi true-close capture (D16 rule 3, A1 step 4) |
+| WAL mode for `platform.db` (`PRAGMA journal_mode=WAL`, so readers stop waiting on writers; the cause of the 29 Oct busy evening, see Findings). First check how the daily refresh replaces, copies or backs up the file (WAL keeps recent writes in a `-wal` file beside it), and the 23 Oct refresh failure (rollback journal, 2 s timeout) | After the 2 Nov scorecard (owner, 29 Oct) | Changes how every job writes the 9.5 GB database; not before the scorecard |
 
 ## Decisions and deviations from the report
 
@@ -916,6 +917,23 @@ and one revertible commit after, with `?logo=old` to compare.
   icon (the site had none before either).
 
 ## Findings that shape later steps
+
+- **Measurement "failed" alerts on a busy match evening were a slow database, not a failure (29 Oct).** From
+  16:41 UTC measurement ran out of its 50 s budget before asking API-Football anything: 33 runs in a row over 113
+  minutes, then 15 more (runs took 90–450 s against ~25 s normally; before 29 Oct no such spell was longer than 4
+  runs). `platform.db` (9.5 GB) uses a rollback journal (`journal_mode=delete`), so the evening's writers and readers
+  queue behind each other (the Match Read worker logged "database is locked" at 18:42 UTC), and every run loaded all
+  7,278 prospective picks, a list that only grows. Fixes (owner, 29 Oct):
+  - *Lighter runs:* `settlement_candidates(open_only=True)` leaves out picks with nothing left to do (graded, with a
+    final closing price), in SQL; used by measurement only. On the live database: 748 picks in 0.8 s instead of
+    7,278 in 6.0 s. Its report's "candidates" count is now the open picks. A graded pick whose close was given up
+    (not "final") stays in the list, skipped by its saved state; worth a look if the list grows again.
+  - *Honest alerts:* a run cut short by its deadline or lease (`DeadlineExpired`, a `BudgetExceeded`) before any
+    provider request is marked `busy`. Busy runs neither count towards nor reset the 10-run failure streak; they have
+    their own alert, with a sound, only after 30+ busy runs in a row lasting 3+ hours (`MEASUREMENT_BUSY`,
+    `MEASUREMENT_BUSY_FOR`; tonight's 113-minute spell would not have sounded), and a quiet message when runs finish
+    again. A run stopped by the request budget is not busy. `streak()` takes `lasting=`/`now=` for this.
+  - *Still open:* WAL mode for `platform.db` (open items).
 
 - **Most published picks are found at a price below their own fair price (29 Oct).** With the pick's own fair
   price (D46's `selection_fair_price`, reverted with the card in D47 and kept in git at 6e3de3c): of 41 recommended cards on the 30 Oct–1 Nov boards (top five leagues), 35 core picks have

@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parents[3]
 MATCH_READ_FAILURES = 2      # worker runs every 10 minutes; 14-27 Oct: 3 double failures, none longer
 MEASUREMENT_FAILURES = 10    # runs every minute; short error runs are routine (up to 9 in a row)
+MEASUREMENT_BUSY = 30        # runs in a row out of time before any request (a busy database), and ...
+MEASUREMENT_BUSY_FOR = timedelta(hours=3)  # ... for this long; 29 Oct evening: 33 runs in 113 min, then 15 more
 TRUE_CLOSE_FAILURES = 3      # runs hourly
 RELEASE_EVERY = timedelta(hours=1)
 ODDSPAPI_LOW = 50            # requests left on the account
@@ -80,12 +82,16 @@ def _topic(name):
         temporary.replace(path)
 
 
-def streak(topic, *, failed, after, alert, recovered):
-    """Counts failed runs in a row: one alert with a sound at ``after``, one quiet message when a run succeeds."""
+def streak(topic, *, failed, after, alert, recovered, lasting=None, now=None):
+    """Counts failed runs in a row: one alert with a sound at ``after`` (and, with ``lasting``, once the first of
+    them is that long ago), one quiet message when a run succeeds."""
+    now = now or datetime.now(timezone.utc)
     with _topic(topic) as state:
         if failed:
             state["failures"] = state.get("failures", 0) + 1
-            if state["failures"] >= after and not state.get("alerted"):
+            state.setdefault("since", now.isoformat())
+            long_enough = lasting is None or now - datetime.fromisoformat(state["since"]) >= lasting
+            if state["failures"] >= after and long_enough and not state.get("alerted"):
                 state["alerted"] = notify(alert(state["failures"]))
         else:
             if state.get("alerted"):
@@ -264,9 +270,20 @@ def oddspapi_left(left, *, reserve):
 
 
 @_safe
-def measurement_cycle(result):
-    """After each measurement run (settlement and closing prices); deferred runs neither fail nor recover."""
+def measurement_cycle(result, *, now=None):
+    """After each measurement run (settlement and closing prices); deferred runs neither fail nor recover.
+
+    A busy run (out of time before asking the provider anything, as on a busy match evening) is not a failure:
+    it has its own, longer streak and leaves the failure streak as it was."""
     if result.get("status") in DEFERRED:
+        return
+    busy = bool(result.get("busy"))
+    streak("measurement-busy", failed=busy, after=MEASUREMENT_BUSY, lasting=MEASUREMENT_BUSY_FOR, now=now,
+           alert=lambda n: (f"Spix · measurement ran out of time {n} runs in a row over 3+ hours: the database is "
+                            "busy, so results and closing prices are late. "
+                            "Log: Index/logs/prediction-measurement.stdout.log"),
+           recovered=lambda n: f"Spix · measurement is finishing its runs again after {n} busy runs.")
+    if busy:
         return
     streak("measurement", failed=bool(result.get("errors")) or result.get("status") == "error",
            after=MEASUREMENT_FAILURES,

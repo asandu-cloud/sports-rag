@@ -19,6 +19,10 @@ class BudgetExceeded(RuntimeError):
     pass
 
 
+class DeadlineExpired(BudgetExceeded):
+    """The run's time or lease ran out: the database was slow, nothing is broken."""
+
+
 def utc(value):
     if isinstance(value, str):
         value = datetime.fromisoformat(value.replace("Z", "+00:00"))
