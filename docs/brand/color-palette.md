@@ -3,7 +3,7 @@
 The colours the website uses today (`Scripts/web_app/static/style.css`, light theme "Chalk" and dark theme "Floodlit"),
 and the roles proposed for the new text-only logo. Logo concepts: https://claude.ai/artifact/Nj3bB4vjm9pdEFmThZdVxZ ("Spix Logo Concepts", private).
 
-Status, 29 Oct 2026: logo round 2. The logo colours are proposals until a design and font are picked; the website
+Status, 29 Oct 2026: logo round 3. The logo colours are proposals until a design and font are picked; the website
 colours are the live values. If `style.css` changes, update this file in the same commit.
 
 ## Logo colours (proposed)
@@ -28,7 +28,21 @@ Approved pairings (contrast ratio, WCAG; 3:1 is the minimum for graphics, 4.5:1 
 | Chalk letters, Chalk ball | Dark surface `#151E1A` | 15.0 |
 | White letters and ball | Turf tile `#0E6336` | 7.2 |
 
-On light backgrounds the white football needs its Ink outline. One-colour version: everything in Ink on light, or
+### Ball colour options (round 3, 29 Oct)
+
+The ball is drawn round (a real football shape turned towards the viewer) with a flat shadow on the lower right and a
+small highlight on the upper left. Colour goes in one place only, so it stays a black-and-white football:
+
+| Option | Patches | Front patch | Shadow | Highlight |
+|---|---|---|---|---|
+| Green heart (recommended) | Ink `#111E17` | Turf `#0E6336` | Turf at 20% | White at 85% |
+| Classic | Ink | Ink | Ink at 16% | White at 85% |
+| Turf patches | Turf | Turf | Turf at 22% | White at 85% |
+| Grass shadow | Ink | Ink | Grass `#47AA62` at 50% | White at 85% |
+| Floodlit | Turf | Turf | Turf at 20% | Floodlight `#F0E488` |
+
+`#47AA62` is the site's dark-theme chart green (`--chart-1`). On light backgrounds the white football needs its Ink
+outline. One-colour version: everything in Ink on light, or
 everything in Chalk on dark (the patches knock out to the background).
 
 ## Website, light theme (Chalk)
