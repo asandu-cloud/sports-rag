@@ -931,6 +931,12 @@ and one revertible commit after, with `?logo=old` to compare.
     shut had `overdue_pending` 0. Results can be caught up later, and closes until `GIVE_UP_AFTER` (7 days after
     kickoff). Picks and archive snapshots missed while the plan is down cannot be recreated. Stage 4 cannot go live on
     Free. The count of stage 3 picks settled was not read: the gate is shut.
+  - *How much plan Spix needs (31 Oct):* the old plan was 75,000 a day, 450 a minute. Account-wide use, read from the
+    provider's headers saved in `Index/odds_archive/odds.sqlite3` (`requests.headers_json`), 6–30 Oct: usually 2,600–
+    4,800 a day, highest 5,621 (23 Oct, by 22:15 UTC) and 5,116 (15 Oct, by 19:45 UTC). Each figure stops at that day's
+    last reading, so the real peak is probably 6,000–6,500 (estimate). Busiest minute seen: 136 requests; the jobs pause
+    0.35–0.5 s between requests. The odds archive stops itself at 1,000 left (`reserve`) and 3,600 a day. So 7,500 a day
+    covers normal running; history downloads (75,000-a-day budgets) and the card events backfill would not fit in one day.
   - *To watch:* 2 of the 10 closing fetches that returned on Free ended `snapshot_after_kickoff` (3 of the 300 before),
     which is final for that fixture; few cases, cause not established.
 
