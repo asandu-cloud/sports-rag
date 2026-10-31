@@ -918,6 +918,22 @@ and one revertible commit after, with `?logo=old` to compare.
 
 ## Findings that shape later steps
 
+- **API-Football dropped to the Free plan on Fri 30 Oct (31 Oct).** `/status` says plan Free, 100 requests a day, 10 a
+  minute. The first "Free plans do not have access to this season" came at 17:03 local on 30 Oct; that day's refresh
+  had finished at 13:20. Refused: season and league calls, so `refresh-season` fails in about 6 s at
+  `platform_incremental_sync`, `odds_provider` gets no odds (no Match Reads since), and the odds archive and fixture
+  schedule stop. Still working: calls for one match (`/fixtures?id=`, `/odds?fixture=`). Measurement settled and
+  captured closes on Free on 31 Oct until the day's first refresh attempt failed at 15:27 local and shut the gate;
+  since then measurement and the true close are deferred, as the gate intends (do not delete the marker). 429s appeared
+  once the worker sent up to 20 requests a cycle.
+  - *Effect on the 2 Nov scorecard:* it calls no provider and takes no gate, so it runs and needs only what is already
+    in the database; picks on matches from 31 Oct stay unsettled until the plan is back. The last run before the gate
+    shut had `overdue_pending` 0. Results can be caught up later, and closes until `GIVE_UP_AFTER` (7 days after
+    kickoff). Picks and archive snapshots missed while the plan is down cannot be recreated. Stage 4 cannot go live on
+    Free. The count of stage 3 picks settled was not read: the gate is shut.
+  - *To watch:* 2 of the 10 closing fetches that returned on Free ended `snapshot_after_kickoff` (3 of the 300 before),
+    which is final for that fixture; few cases, cause not established.
+
 - **Measurement "failed" alerts on a busy match evening were a slow database, not a failure (29 Oct).** From
   16:41 UTC measurement ran out of its 50 s budget before asking API-Football anything: 33 runs in a row over 113
   minutes, then 15 more (runs took 90–450 s against ~25 s normally; before 29 Oct no such spell was longer than 4
