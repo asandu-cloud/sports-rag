@@ -92,3 +92,43 @@ def test_the_attempts_today_number_the_running_try(tmp_path):
     path.write_text(json.dumps({"attempts": [at(23, day=27).isoformat(), at(7).isoformat(), at(8).isoformat()]}))
     assert rr.attempts_today(at(8, 20), attempts_path=path) == 2
     assert rr.attempts_today(at(6), attempts_path=path) == 0  # before today's refresh time
+
+
+def run_if_due(tmp_path, monkeypatch, *, blocked=False, result=0):
+    """One scheduled run through the real command, returning the attempts left on record."""
+    from contextlib import contextmanager
+    from data_platform import cli
+    from data_platform.services import refresh_coordination as rc
+    path = tmp_path / "attempts.json"
+    check_due = rr.check_due
+    monkeypatch.setattr(rr, "_attempts_path", lambda: path)
+    monkeypatch.setattr(rr, "check_due", lambda: check_due(at(9), gate_shut=False, attempts_path=path,
+                                                           stay_awake=lambda: True, reachable=lambda: True))
+    if blocked:
+        @contextmanager
+        def held(**_):
+            raise rc.RefreshBusy("Data refresh or fixture generation is active; retry on the next tick.")
+            yield
+        monkeypatch.setattr(rc, "data_access", held)
+    args = SimpleNamespace(command="refresh-season", dry_run=False, verbose=False, if_due=True,
+                           func=lambda _: result)
+    monkeypatch.setattr(cli, "build_parser", lambda: SimpleNamespace(parse_args=lambda _: args))
+    cli.main([])
+    return rr._load(path)
+
+
+def test_a_run_that_never_got_the_gate_is_not_counted(tmp_path, settings, engine, monkeypatch):
+    # 1 Nov: the 07:16 run timed out waiting for the gate, and "today's refresh already ran" held all day.
+    assert run_if_due(tmp_path, monkeypatch, blocked=True) == []
+    assert rr.refresh_due(at(10), gate_shut=False, attempts=[])[0]
+
+
+def test_a_run_that_started_and_failed_still_counts(tmp_path, settings, engine, monkeypatch):
+    assert run_if_due(tmp_path, monkeypatch, result=1) == [at(9)]
+
+
+def test_withdrawing_removes_only_the_latest_attempt(tmp_path):
+    path = tmp_path / "attempts.json"
+    path.write_text(json.dumps({"attempts": [at(7).isoformat(), at(8).isoformat()]}))
+    rr.withdraw_attempt(attempts_path=path)
+    assert rr._load(path) == [at(7)]

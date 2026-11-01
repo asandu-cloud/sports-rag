@@ -992,6 +992,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                 return result
         except RefreshBusy as exc:
             logger.error("%s", exc)
+            if started is None and args.command == "refresh-season" and getattr(args, "if_due", False):
+                from .services import refresh_retry
+                refresh_retry.withdraw_attempt()
             return 1
         finally:
             if started is not None:  # after the gate is released, so "done" means cards can resume

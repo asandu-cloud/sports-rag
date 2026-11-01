@@ -17,10 +17,12 @@ import argparse
 from datetime import date
 import json
 from pathlib import Path
+import time
 
 from Scripts.ops.odds_archive import ROOT
 
 OUT_DIR = ROOT / "Research/scorecards"
+REFRESH_WAIT_SECONDS = 14 * 3600  # Monday 08:00 to 22:00, or from whenever the Mac wakes
 
 
 def load_rows():
@@ -30,6 +32,18 @@ def load_rows():
     boundary = int(MeasurementRuntime(repo._factory).state(CONTROL).get("after_recommendation_id") or 0)
     rows = repo.get_recent(days=3650, published_only=True, publication_scope="all", limit=10 ** 7)
     return [r for r in rows if (r.get("recommendation_id") or 0) > boundary], boundary
+
+
+def read_rows(wait=False):
+    """Read platform.db behind the refresh gate. ``wait`` is the scheduled run: it fires during the daily refresh,
+    or on wake beside it, and the weekend's results only arrive with that refresh, so it waits for it to finish."""
+    from Scripts.data_platform.services import refresh_retry
+    from Scripts.data_platform.services.refresh_coordination import data_access
+    deadline = time.monotonic() + REFRESH_WAIT_SECONDS
+    while wait and not refresh_retry.attempts_today() and time.monotonic() < deadline:
+        time.sleep(60)
+    with data_access(wait_seconds=max(0, deadline - time.monotonic()) if wait else 0):
+        return load_rows()
 
 
 def main(argv=None):
@@ -42,7 +56,7 @@ def main(argv=None):
     parser.add_argument("--notify", action="store_true", help="send the headline to the owner's chat")
     args = parser.parse_args(argv)
     from Scripts.data_platform.scorecard import build, markdown
-    rows, boundary = load_rows()
+    rows, boundary = read_rows(wait=args.notify)
     card = build(rows, as_of=args.as_of, resamples=args.resamples, after_recommendation_id=boundary,
                  method=args.method)
     folder = args.out / args.as_of

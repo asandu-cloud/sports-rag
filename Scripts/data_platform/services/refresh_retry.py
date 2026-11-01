@@ -100,3 +100,12 @@ def check_due(now: Optional[datetime] = None, *, gate_shut: Optional[bool] = Non
     if due:
         path.write_text(json.dumps({"attempts": [a.isoformat() for a in (attempts + [now])[-KEEP:]]}))
     return due, reason
+
+
+def withdraw_attempt(*, attempts_path: Optional[Path] = None) -> None:
+    """Take back the attempt ``check_due`` just recorded: the run never got the gate, so nothing ran.
+
+    On 1 Nov the 07:16 run timed out waiting for the gate and still counted, which skipped the rest of the day.
+    """
+    path = attempts_path or _attempts_path()
+    path.write_text(json.dumps({"attempts": [a.isoformat() for a in _load(path)[:-1]]}))

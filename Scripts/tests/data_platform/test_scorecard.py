@@ -137,7 +137,8 @@ def test_the_scheduled_scorecard_sends_its_headline_quietly(tmp_path, monkeypatc
                "true_close_value": 0.01, "true_close_count": 8, "intervals": {}}
     card = {"as_of": "2026-11-02", "cohorts": {"selections": {"overall": numbers, "by_engine": {}}}}
     sent = []
-    monkeypatch.setattr(job, "load_rows", lambda: ([], 0))
+    waits = []
+    monkeypatch.setattr(job, "read_rows", lambda wait=False: waits.append(wait) or ([], 0))
     monkeypatch.setattr(card_module, "build", lambda rows, **_: card)
     monkeypatch.setattr(card_module, "markdown", lambda c: "card")
     monkeypatch.setattr(ops_alerts, "notify", lambda text, silent=False: sent.append((text, silent)) or True)
@@ -145,6 +146,7 @@ def test_the_scheduled_scorecard_sends_its_headline_quietly(tmp_path, monkeypatc
     assert sent == []  # a scorecard run by hand stays out of the chat
     job.main(["--as-of", "2026-11-02", "--out", str(tmp_path), "--notify"])
     assert sent == [(ops_alerts.scorecard_message(card), True)]
+    assert waits == [False, True]  # only the scheduled run waits for the refresh
 
 
 def test_picks_are_split_by_the_prediction_changing_switches():
@@ -190,3 +192,56 @@ def test_market_and_closing_probabilities_can_be_recomputed_with_another_method(
     card = sc.build([r], resamples=10, method="power")
     assert card["method"] == "power" and "power method" in sc.markdown(card)
     assert sc.build([r], resamples=10)["method"] is None
+
+
+class TestScheduledRead:
+    """The Monday job fires while the daily refresh runs, or on wake beside it (2 Nov)."""
+
+    @pytest.fixture
+    def seen(self, monkeypatch):
+        from contextlib import contextmanager
+        from Scripts.data_platform.services import refresh_coordination, refresh_retry
+        from Scripts.ops import scorecard as job
+        seen = {"waits": [], "gated": False, "sleeps": 0, "attempts": [1]}
+
+        @contextmanager
+        def gate(wait_seconds=0):
+            seen["waits"].append(wait_seconds)
+            seen["gated"] = True
+            yield
+            seen["gated"] = False
+
+        def rows():
+            assert seen["gated"], "platform.db read outside the gate"
+            return ["rows"]
+
+        def pause(_):
+            seen["sleeps"] += 1
+
+        monkeypatch.setattr(refresh_coordination, "data_access", gate)
+        monkeypatch.setattr(refresh_retry, "attempts_today", lambda: seen["attempts"][min(seen["sleeps"], len(seen["attempts"]) - 1)])
+        monkeypatch.setattr(job, "load_rows", rows)
+        monkeypatch.setattr(job.time, "sleep", pause)
+        seen["job"] = job
+        return seen
+
+    def test_a_manual_read_is_gated_and_does_not_wait(self, seen):
+        seen["attempts"] = [0]
+        assert seen["job"].read_rows() == ["rows"]
+        assert seen["waits"] == [0] and seen["sleeps"] == 0
+
+    def test_the_scheduled_read_waits_out_a_running_refresh(self, seen):
+        assert seen["job"].read_rows(wait=True) == ["rows"]
+        assert seen["waits"] and seen["waits"][0] > 0 and seen["sleeps"] == 0
+
+    def test_the_scheduled_read_holds_until_todays_refresh_has_started(self, seen):
+        seen["attempts"] = [0, 0, 1]
+        assert seen["job"].read_rows(wait=True) == ["rows"]
+        assert seen["sleeps"] == 2
+
+    def test_no_refresh_today_does_not_lose_the_scorecard(self, seen, monkeypatch):
+        seen["attempts"] = [0]
+        clock = iter(range(0, 10 ** 7, 3600))
+        monkeypatch.setattr(seen["job"].time, "monotonic", lambda: next(clock))
+        assert seen["job"].read_rows(wait=True) == ["rows"]
+        assert seen["sleeps"] > 0

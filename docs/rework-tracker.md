@@ -964,6 +964,15 @@ total and the combined chance must then not come from multiplying. Proposed by l
 
 ## Findings that shape later steps
 
+- **A refresh that never got the gate no longer counts, and the Monday scorecard reads behind the gate (2 Nov).** On 1 Nov
+  the 07:16 run timed out waiting for the gate at 11:33, stayed on record as an attempt, and "today's refresh already
+  ran" then skipped the rest of the day. `refresh_retry.withdraw_attempt` now takes that attempt back, so the next
+  hourly tick tries again; a run that started and failed still counts towards the limit of six. The scorecard read
+  `platform.db` with no gate, which broke the rule set after 23 Oct, and at 08:00 it would have fired during the
+  refresh. The scheduled run (`--notify`) now waits for today's refresh to start and finish, for up to 14 hours, then
+  reads behind the gate, so the weekend's results are in. A run by hand is gated and does not wait. Why the 1 Nov run
+  was blocked for over four hours is still unknown; the clock probably stopped while the Mac slept, which is not proven.
+
 - **Multiplying same-match legs is badly wrong; a market-fitted score grid is close (2 Nov).** Tested on 629 fixtures
   from the odds archive, with kickoffs from 9 Oct to 8 Nov. Each match's latest pre-kickoff odds fitted one Dixon-Coles
   grid to the median 1X2 and O/U 2.5, with `rho` at the default -0.10. The answer key was the bookmakers' real combined
