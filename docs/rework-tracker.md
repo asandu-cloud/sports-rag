@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-11-01 (D49: `docs/identity.md` sets what Spix is; stage 3 live; refresh retry; history rewrite compared; stage 4 prep done; operations messages)
+Last updated: 2026-11-01 (D49, D50: `docs/identity.md` sets what Spix is, first answers; stage 3 live; refresh retry; history rewrite compared; stage 4 prep done; operations messages)
 
 ## Status
 
@@ -120,6 +120,8 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Second-round variables: M2 line movement | A3 blend | Needs 6–8 weeks of odds archive (from ~mid-Nov 2026) |
 | Second-round variables: M3 bookmaker disagreement | A5.3 confidence labels (D30) | With A5 |
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
+| Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | New step, proposed straight after stage 4; order to be confirmed by the owner | Needs stage 4's honest chances for all goal markets; a value filter alone gives 22 picks on 54 fixtures |
+| Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | What the free tier includes is still open |
 | Correct `CLAUDE.md`: Elo "signal active at 0.15" (never called) and ML R² 0.43/0.47 (saved R² ≈ 0) | Next docs pass | Stale claims mislead new sessions |
 | Done 17 Oct 16:28: production reads from the document store (`DOCUMENT_STORE=sqlite` in `.env`). The first 6 reads record `DOCUMENT_STORE: sqlite` and their projections equal the previous Chroma read of the same fixture and stage (7 of 7 markets each). Verification before the switch: every refresh stage completed; same 129,801 documents; all 881 recorded engine queries return the same documents in the same order; 341 documents differ only in a last floating-point digit; engine outputs on the 54 golden fixtures identical from both. Fallback: remove the line | Done | Unblocks the OddsPapi true-close capture (D16 rule 3, A1 step 4) |
 | WAL mode for `platform.db` (`PRAGMA journal_mode=WAL`, so readers stop waiting on writers; the cause of the 29 Oct busy evening, see Findings). First check how the daily refresh replaces, copies or backs up the file (WAL keeps recent writes in a `-wal` file beside it), and the 23 Oct refresh failure (rollback journal, 2 s timeout) | After the 2 Nov scorecard (owner, 29 Oct) | Changes how every job writes the 9.5 GB database; not before the scorecard |
@@ -928,6 +930,22 @@ Never overpay." is retired as the main selling point. The honesty rules stay, an
   recommendation: the stage 4 preview gives 22 picks on 54 fixtures and no Asian handicaps, and stage 3 published no
   1X2 or over/under 2.5 pick at all (585 selections to 1 Nov), so a value filter alone cannot supply several options
   per match.
+
+**D50 — First answers to the identity's open questions (1 Nov, owner).** Recorded in `docs/identity.md`.
+- *Recommendations:* two lists per match across markets, Most likely (what the engine thinks is likely to happen) and
+  Value (where Spix thinks the price is good). Up to three and up to two is a working default, not the owner's number.
+- *Prices:* one typical price across bookmakers, no bookmaker named, so D38's licensing rule is met by naming none.
+  Agreed with the D39 finding that about half of the best prices checked were not really on offer: the median is
+  steadier than the best price. It is computed from the whole feed, including books not licensed in the reader's
+  country. A chooser of country and popular bookmaker may come later; it needs per-country lists (only the UK is
+  done, D38) and API-Football's Bet365 prices are not the UK site's (D39).
+- *Parlay screen:* the combined chance once, in plain words, no other warnings.
+- *Membership:* free and paid, 25 euros a month for now. This replaces Rookie, Tipster and Whale when built.
+- *Home:* the website. The Discord link is still open; the proposal is in the identity file.
+- *Dropped from the launch offer:* Price Check and the Ledger, kept for serious users later.
+- *Still open:* the public line (owner), what the free tier includes, how Discord connects. The build order was not
+  decided: stage 4 stays earliest Tue 3 Nov, subject to the Mon 2 Nov scorecard, and the recommendation layer is
+  proposed to follow it.
 
 ## Findings that shape later steps
 

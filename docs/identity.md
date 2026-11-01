@@ -1,6 +1,6 @@
 # Spix identity
 
-**Status:** version 1, first draft from the owner's description, 1 Nov 2026. Section 10 lists what is still open.
+**Status:** version 2, 1 Nov 2026. Section 10 lists what is still open.
 
 This file says what Spix is, who it is for and why they pay. When there is doubt about what to build, say or cut,
 start here. Only the owner changes it. Every change gets a line in section 11, so we can see how the identity moved.
@@ -24,7 +24,7 @@ the couch.
 It felt easy, and it still felt like their bet. They did the research, they looked at the recommendations, and they
 made the choices. Spix just made that much easier.
 
-After a month they think: **how was I betting before this?** The 20 euros a month feels like great value.
+After a month they think: **how was I betting before this?** The 25 euros a month feels like great value.
 
 That thought is what Spix is trying to earn. It is the test of the whole product.
 
@@ -47,12 +47,20 @@ to feel like a second job.
 3. **The bet is still theirs.** They choose, and the choosing is part of the fun.
 4. **They can trust it.** The numbers are honest, including when a bet is a long shot.
 
+**Membership:** two tiers, free and paid. Paid is 25 euros a month for now. More tiers can come later, as Spix adds
+features or other sports.
+
 ## 5. What Spix must do well
 
 In order of importance:
 
-1. **Recommendations on the matches people care about.** Several sensible options for a match, not just one pick,
-   and nothing that makes the bettor feel foolish for choosing.
+1. **Recommendations on the matches people care about.** Sensible options for each match, not just one pick, and
+   nothing that makes the bettor feel foolish for choosing. Each match has two lists, across markets such as goals,
+   corners, cards and players:
+   - **Most likely:** what the engine thinks is likely to happen.
+   - **Value:** where Spix thinks the price is good. Some matches have none, and Spix says so.
+
+   Working default: up to three most likely and up to two value options. We adjust this after seeing real matches.
 2. **Building a bet.** A simple way to take legs from those recommendations, mix them with their own ideas and
    see what the whole bet looks like.
 3. **The research, in one place.** Form, team news, head to head, goals, corners, cards and players, with the short
@@ -88,6 +96,8 @@ These rules do not change with the selling point:
 Bettors do not care about these, so they do not lead:
 
 - **Which bookmaker is 2% better.** They will use their own book anyway. Spix does not ask them to shop around.
+  Bets show one **typical price**, the middle of the bookmakers' prices, with no bookmaker named. It is a guide:
+  the bettor checks the real price in their own app. A parlay's total is shown as "about".
 - **Margins, fair prices and closing prices.** These stay under the hood. They make the numbers honest, and the
   methodology page can explain them for anyone curious.
 - **Anything that needs betting maths to understand.** If it needs a glossary, it is not on the main screen.
@@ -119,23 +129,19 @@ file. If they disagree with it, they are out of date.
 
 ## 10. Open questions
 
-1. **What counts as a recommendation?** Today's rules give too few. In the stage 4 preview, 54 matches produced 22
-   picks and no Asian handicaps. Value alone cannot fill a Sunday, so Spix needs a rule for "sensible options on
-   this match", with value as one thing it considers.
-2. **Whose price do we show?** Bettors use their own book, and our feed does not carry every book in every country
-   (D36, D38). What should a bet show when the price at their book is unknown?
-3. **How honest is the parlay screen?** Parlays are long shots and each leg adds bookmaker margin. Proposal: show
-   the combined chance once, in plain words such as "about 1 in 6", with no warnings beyond that.
-4. **What is the price?** The picture says 20 euros a month. The earlier plan was about 25, with the year-one goal
-   of €5,000 a month. At 20 euros that means 250 members, not 200. Tiers are also undecided.
-5. **Where is home?** The website, Discord or both. The website slip only adds up odds today, while the Discord bot
-   already builds parlays.
-6. **What happens to Price Check and the Ledger?** They were two of the three member offers. Proposal: drop them
-   from the launch offer and keep the idea for serious users later.
-7. **What is the public line?** The line in section 1 is a working description, not a slogan.
+1. **What is the public line?** The line in section 1 is a working description, not a slogan. The owner is thinking
+   about this.
+2. **What does the free tier include?** The earlier free tier leaned on Price Check, which is now dropped. Proposal:
+   free members browse every match and get one full Match Read with its recommendations a day; paid members get all
+   recommendations and the bet builder.
+3. **How do the website and Discord connect?** The website is home. Discord needs a real link to it, not just a
+   second product. Proposal: the website is where people build bets and Discord is where they talk about them. One
+   account covers both, paying on the website gives the Discord role automatically, a bet built on the website can
+   be shared to Discord in one tap, and Discord posts link back to the match on the website.
 
 ## 11. Change log
 
 | Date | Change |
 |---|---|
 | 1 Nov 2026 | First version, from the owner's Sunday-morning description. Replaces "Know the real odds. Never overpay." as the main selling point. |
+| 1 Nov 2026 | Version 2, owner's answers. Recommendations are two lists per match, Most likely and Value. Bets show a typical price across bookmakers, and a bookmaker chooser may come later. The parlay screen shows the combined chance once, in plain words such as "about 1 in 6", with no other warnings. Two tiers, free and paid, 25 euros a month for now. The website is home. Price Check and the Ledger are dropped from the launch offer and kept for serious users later. |
