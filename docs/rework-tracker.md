@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-10-28 (stage 3 live; refresh retry; history rewrite compared; stage 4 prep done; operations messages)
+Last updated: 2026-11-01 (D49: `docs/identity.md` sets what Spix is; stage 3 live; refresh retry; history rewrite compared; stage 4 prep done; operations messages)
 
 ## Status
 
@@ -915,6 +915,19 @@ and one revertible commit after, with `?logo=old` to compare.
   checkpoint 1d3215c is the site before; `git revert` of the build commit undoes it (no restart needed).
 - *Not done:* the bot's Discord avatar is uploaded by the owner (Developer Portal); the favicon still has no logo
   icon (the site had none before either).
+
+**D49 — `docs/identity.md` is the reference for what Spix is; the main selling point changes (1 Nov, owner).** The
+owner felt the fair-price check had become the main selling point and was too boring for that. Their direction: Spix
+is a hub that makes picking bets convenient. A casual bettor builds their own parlay from Spix's recommendations in a
+few minutes, stays in charge of the choices, and does not care which bookmaker is 2% better. "Know the real odds.
+Never overpay." is retired as the main selling point. The honesty rules stay, and the scorecard stays the yardstick.
+- *Precedence:* `docs/identity.md` decides what Spix is, who it is for and why they pay; this tracker still decides
+  the engine plan. `PRODUCT.md`, `docs/spix-overview.md`, `docs/spix-marketing-brief.md` and the "What Spix Sells"
+  page are out of date on this until updated.
+- *Effect on the plan:* not yet changed; the identity's open questions come first. The biggest is what counts as a
+  recommendation: the stage 4 preview gives 22 picks on 54 fixtures and no Asian handicaps, and stage 3 published no
+  1X2 or over/under 2.5 pick at all (585 selections to 1 Nov), so a value filter alone cannot supply several options
+  per match.
 
 ## Findings that shape later steps
 
