@@ -100,7 +100,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | API-Football support: Superbet and Unibet answered 18 Oct (discontinued for /odds since ~Sep 2026); Betano, Betfair, SBO and Dafabet were missing 17–18 Oct and are back (19 Oct partly, 20 Oct: Betano 187 of 193 fixtures); the follow-up email is no longer needed unless they drop again | Owner | Back 19–20 Oct |
 | Done 23 Oct: bookmaker coverage watch (`ops/bookmaker_coverage.py`, job `com.bettingrag.bookmaker-coverage` at 09:45, 13:45, 17:45, 21:45 local, installed 23 Oct). Per UTC day, each bookmaker's share of the fixtures kicking off within 48 h in the odds archive's raw responses; alert when today's share is under half its median over the previous 7 days (median at least 20%; at least 20 fixtures today and 3 earlier days). Replay on 7–22 Oct: alerts on 16, 17 and 18 Oct for Betano, Betfair, SBO and Dafabet only. Alerts go to `REFRESH_ALERT_WEBHOOK_URL` (a private Discord webhook), the job log and `Index/bookmaker_coverage/latest.json`. **Owner: the webhook is not set in `.env`, so neither this nor the refresh-blocked alert reaches Discord** (the 23 Oct refresh alert was not delivered) | Done; alerts reach Telegram since 28 Oct | |
 | Red cards: the selector also outputs the bets to skip (prices below fair, boosts that are not, high-margin bet builders) | A5.4 (D32) | Part of the Daily Card |
-| Bet builder and combination pricing from the score model (correlated legs), anchored to the market | After A5, with the D25 expansion (D32) | Price Check and red cards need it |
+| Bet builder and combination pricing from the score model (correlated legs), anchored to the market | After A5, with the recommendation layer (D32, D51) | The bet builder needs it: same-match legs are allowed (D51) |
 | Price Check for singles: the member's odds against the fair price (good price / fair / overpaying) | Next build, after the card (D36) | Needs only the fair probabilities |
 | The Ledger (member bet tracking, settlement, overpayment against the fair price) | Product backlog (D32) | Web app work; reuses settlement and reference prices |
 | How to show Spix's own view when it disagrees with the market (≥10 pts on 3.4 markets per read; ≥25 pts on half the reads), given A5.1 found it mostly error | Owner, before A5.4 | Product decision (D31) |
@@ -953,7 +953,32 @@ Never overpay." is retired as the main selling point. The honesty rules stay, an
 - *Still open:* the public line (owner). The build order was not decided: stage 4 stays earliest Tue 3 Nov, subject to the Mon 2 Nov scorecard, and the recommendation layer is
   proposed to follow it.
 
+**D51 — The bet builder allows legs from the same match (2 Nov, owner); method proposed, not built.** The owner had
+wanted one leg per match because legs from one match affect each other, and accepts that the builder needs them. The
+total and the combined chance must then not come from multiplying. Proposed by leg type, measured in the finding below:
+- *Goal markets (result, totals, both teams to score, handicaps, correct score):* one score grid fitted to the market
+  for each match, counting the scorelines where every leg wins.
+- *Goals with corners or cards:* multiply, then apply a small factor measured from past matches.
+- *Player legs in the same match as another leg:* no total shown until tested.
+- *Legs that cannot both win:* blocked. *A leg already covered by another (Over 1.5 with Over 2.5):* counts once.
+
 ## Findings that shape later steps
+
+- **Multiplying same-match legs is badly wrong; a market-fitted score grid is close (2 Nov).** Tested on 629 fixtures
+  from the odds archive, with kickoffs from 9 Oct to 8 Nov. Each match's latest pre-kickoff odds fitted one Dixon-Coles
+  grid to the median 1X2 and O/U 2.5, with `rho` at the default -0.10. The answer key was the bookmakers' real combined
+  markets (ids 24, 25, 49; 1 to 3 books, Bet365, Betano, William Hill). Across 12 pairs, the mean chance error fell
+  from 6.1 points multiplied to 0.9 with the grid, and the mean price error from 34.1% to 5.0%, where the adjusted
+  price is the multiplied typical price divided by the grid's lift. BTTS was not used in the fit and the grid still
+  came within 0.4 points of the market. Over 2.5 + BTTS yes: real 2.00, multiplied 2.62, adjusted 1.90. Under 2.5 +
+  BTTS yes: real 7.50, multiplied 3.60, adjusted 7.66. Worst pair: Home win + Under 2.5, adjusted 12% too high.
+  On 7,557 finished matches, Over 2.5 and BTTS landed together in 43.7% against 30.3% if unrelated (lift 1.44), and
+  Under 2.5 + BTTS had lift 0.45. Goals with corners or cards were close to unrelated: Over 2.5 + corners over 9.5
+  0.98, BTTS + cards over 4.5 1.09, Home win + cards over 4.5 0.94, corners + cards 0.97. Not tested: goals with
+  corners or cards against real prices (no such market in the archive), within-match links after allowing for each
+  match's lines, three or more legs, player legs, and the margin in a bookmaker's own builder. No code fitting the
+  grid to market prices turned up in a search of `Scripts/`. Script:
+  session scratchpad `same_match/check_same_match.py`, read-only.
 
 - **API-Football dropped to the Free plan on Fri 30 Oct (31 Oct).** `/status` says plan Free, 100 requests a day, 10 a
   minute. The first "Free plans do not have access to this season" came at 17:03 local on 30 Oct; that day's refresh
