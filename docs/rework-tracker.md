@@ -121,7 +121,9 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Second-round variables: M3 bookmaker disagreement | A5.3 confidence labels (D30) | With A5 |
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
 | Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | New step, proposed straight after stage 4; order to be confirmed by the owner | Needs stage 4's honest chances for all goal markets; a value filter alone gives 22 picks on 54 fixtures |
-| Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | What the free tier includes is still open |
+| Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | Needs the bet builder and the recommendation lists first |
+| Website and Discord link: one-tap sharing of a bet to Discord, Discord posts linking back to the match (D50) | A7, when the bot moves to the new engine | The bot still runs the old engine |
+| Building bets inside Discord; community selections (D50) | After A7 | Owner: for later |
 | Correct `CLAUDE.md`: Elo "signal active at 0.15" (never called) and ML R² 0.43/0.47 (saved R² ≈ 0) | Next docs pass | Stale claims mislead new sessions |
 | Done 17 Oct 16:28: production reads from the document store (`DOCUMENT_STORE=sqlite` in `.env`). The first 6 reads record `DOCUMENT_STORE: sqlite` and their projections equal the previous Chroma read of the same fixture and stage (7 of 7 markets each). Verification before the switch: every refresh stage completed; same 129,801 documents; all 881 recorded engine queries return the same documents in the same order; 341 documents differ only in a last floating-point digit; engine outputs on the 54 golden fixtures identical from both. Fallback: remove the line | Done | Unblocks the OddsPapi true-close capture (D16 rule 3, A1 step 4) |
 | WAL mode for `platform.db` (`PRAGMA journal_mode=WAL`, so readers stop waiting on writers; the cause of the 29 Oct busy evening, see Findings). First check how the daily refresh replaces, copies or backs up the file (WAL keeps recent writes in a `-wal` file beside it), and the 23 Oct refresh failure (rollback journal, 2 s timeout) | After the 2 Nov scorecard (owner, 29 Oct) | Changes how every job writes the 9.5 GB database; not before the scorecard |
@@ -943,8 +945,12 @@ Never overpay." is retired as the main selling point. The honesty rules stay, an
 - *Membership:* free and paid, 25 euros a month for now. This replaces Rookie, Tipster and Whale when built.
 - *Home:* the website. The Discord link is still open; the proposal is in the identity file.
 - *Dropped from the launch offer:* Price Check and the Ledger, kept for serious users later.
-- *Still open:* the public line (owner), what the free tier includes, how Discord connects. The build order was not
-  decided: stage 4 stays earliest Tue 3 Nov, subject to the Mon 2 Nov scorecard, and the recommendation layer is
+- *Free tier (owner, same day; can change):* browse every match, plus one full Match Read with its recommendations a
+  day. Paid: all recommendations and the bet builder.
+- *Discord link (owner, same day):* the website is where people build bets, Discord where they talk about them. One
+  account, the role follows payment (`web_app/stripe_webhooks.py` already assigns it), one-tap sharing of a bet to
+  Discord, Discord posts link back to the match. Later: building bets inside Discord, and community selections.
+- *Still open:* the public line (owner). The build order was not decided: stage 4 stays earliest Tue 3 Nov, subject to the Mon 2 Nov scorecard, and the recommendation layer is
   proposed to follow it.
 
 ## Findings that shape later steps

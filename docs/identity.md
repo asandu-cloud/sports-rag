@@ -1,6 +1,6 @@
 # Spix identity
 
-**Status:** version 2, 1 Nov 2026. Section 10 lists what is still open.
+**Status:** version 3, 1 Nov 2026. Section 10 lists what is still open.
 
 This file says what Spix is, who it is for and why they pay. When there is doubt about what to build, say or cut,
 start here. Only the owner changes it. Every change gets a line in section 11, so we can see how the identity moved.
@@ -49,6 +49,15 @@ to feel like a second job.
 
 **Membership:** two tiers, free and paid. Paid is 25 euros a month for now. More tiers can come later, as Spix adds
 features or other sports.
+
+- **Free:** browse every match, plus one full Match Read with its recommendations a day.
+- **Paid:** all recommendations and the bet builder.
+
+**The website and Discord:** the website is home, where people build bets. Discord is where they talk about them.
+One account covers both, paying on the website gives the Discord role automatically, a bet built on the website can
+be shared to Discord in one tap, and Discord posts link back to the match on the website.
+
+**Later on Discord:** building bets inside Discord too, and community selections.
 
 ## 5. What Spix must do well
 
@@ -131,13 +140,6 @@ file. If they disagree with it, they are out of date.
 
 1. **What is the public line?** The line in section 1 is a working description, not a slogan. The owner is thinking
    about this.
-2. **What does the free tier include?** The earlier free tier leaned on Price Check, which is now dropped. Proposal:
-   free members browse every match and get one full Match Read with its recommendations a day; paid members get all
-   recommendations and the bet builder.
-3. **How do the website and Discord connect?** The website is home. Discord needs a real link to it, not just a
-   second product. Proposal: the website is where people build bets and Discord is where they talk about them. One
-   account covers both, paying on the website gives the Discord role automatically, a bet built on the website can
-   be shared to Discord in one tap, and Discord posts link back to the match on the website.
 
 ## 11. Change log
 
@@ -145,3 +147,4 @@ file. If they disagree with it, they are out of date.
 |---|---|
 | 1 Nov 2026 | First version, from the owner's Sunday-morning description. Replaces "Know the real odds. Never overpay." as the main selling point. |
 | 1 Nov 2026 | Version 2, owner's answers. Recommendations are two lists per match, Most likely and Value. Bets show a typical price across bookmakers, and a bookmaker chooser may come later. The parlay screen shows the combined chance once, in plain words such as "about 1 in 6", with no other warnings. Two tiers, free and paid, 25 euros a month for now. The website is home. Price Check and the Ledger are dropped from the launch offer and kept for serious users later. |
+| 1 Nov 2026 | Version 3, owner's answers. The free and paid split is set for now and can change. The website and Discord connection is agreed. Building bets on Discord and community selections are ideas for later. |
