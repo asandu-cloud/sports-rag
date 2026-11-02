@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spix | The research is done. The bet is yours.</title>
+  <meta name="description" content="Everything on today's football in one place. Look through what Spix recommends and build your own bet in minutes. 18+.">
+  <meta name="theme-color" content="#0E6336">
+  <link rel="icon" href="data:,">
+  <script>try{var t=localStorage.getItem('spix-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}</script>
+  <link rel="preload" href="fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="landing.css">
+</head>
+<body>
+<header class="bar">
+  <div class="frame">
+    <a href="/" aria-label="Spix home">{{LOGO_HEADER}}</a>
+    <nav aria-label="Main navigation"><a href="#today">Matches</a><a href="#inside">How it works</a><a href="#membership">Membership</a><a href="/static/methodology.html">Methodology</a></nav>
+    <div class="bar-end">
+      <button type="button" class="theme" id="themeToggle" aria-label="Switch theme"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+      <a class="login" href="/app">Log in</a>
+      <a class="cta small" href="/app">See today's matches</a>
+    </div>
+  </div>
+</header>
+
+<main>
+<section class="night" aria-labelledby="heroTitle">
+  <div class="frame hero">
+    <div class="hero-copy">
+      <h1 id="heroTitle"><span class="ln"><span>The research is done.</span></span><span class="ln"><span>The bet is yours.</span></span></h1>
+      <p class="lede">Everything on today's matches, in one place. Look through what Spix recommends, keep what you like and build your own bet in minutes.</p>
+      <div class="go"><a class="cta big" href="/app">See today's matches</a><p>Free to browse, no account · 18+</p></div>
+    </div>
+
+    <div class="run" data-ui id="run" data-scene="bet" role="group" aria-label="An example of someone using Spix on Arsenal v Chelsea. Spix does the research, and they open the parts they want to check. They read the Match Read, look through the recommended picks, see why Spix likes one, keep what they like and drop what they don't. The bet is theirs, and they place it in their own app.">
+      <div class="ball" id="ball" aria-hidden="true" hidden>{{BALL}}</div>
+      <div class="mouse" id="mouse" aria-hidden="true" hidden><svg class="m-hand" viewBox="0 0 24 24" width="24" height="24" focusable="false"><path d="M3 2v17.5l4.6-4.2 3 6.7 3.1-1.4-3-6.6H17z"/></svg><span class="m-dot"></span><i class="m-ring"></i></div>
+      <div class="run-head"><b>Arsenal v Chelsea</b><button type="button" class="run-pause" id="pause" aria-label="Pause the example" hidden><svg class="i-pause" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><rect x="2" y="1" width="3.5" height="12" rx="1" fill="currentColor"/><rect x="8.5" y="1" width="3.5" height="12" rx="1" fill="currentColor"/></svg><svg class="i-play" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><path d="M3 1.8c0-.8.9-1.3 1.6-.9l8 5.2c.6.4.6 1.3 0 1.7l-8 5.2c-.7.4-1.6-.1-1.6-.9z" fill="currentColor"/></svg></button></div>
+      <p class="run-say" aria-hidden="true"><span id="say">The bet is yours</span></p>
+      <div class="run-body">
+        <div class="run-side" aria-hidden="true">
+          <div class="run-track" id="track"><i id="fill"></i></div>
+          <ol class="run-rail" id="rail">
+            <li class="hit">Research</li>
+            <li class="hit">Match Read</li>
+            <li class="hit">Pick</li>
+            <li class="hit">Build</li>
+            <li>Place</li>
+          </ol>
+        </div>
+        <div class="run-stage" aria-hidden="true">
+          <ul class="run-rows" id="rows">
+            <li class="done" data-row="form"><b>Form</b><span>Arsenal W W D W L</span><i></i><dl class="row-more"><div><dt>Arsenal, last five</dt><dd>W W D W L</dd></div><div><dt>Chelsea, last five</dt><dd>D W L W D</dd></div><div><dt>Goals per game</dt><dd>2.1 and 1.6</dd></div></dl></li>
+            <li class="done"><b>Team news</b><span>No key absences for Arsenal</span><i></i></li>
+            <li class="done"><b>Head to head</b><span>Arsenal 2, draws 2, Chelsea 1</span><i></i></li>
+            <li class="done" data-row="goals"><b>Goals</b><span>About 2.9 expected</span><i></i><dl class="row-more"><div><dt>Over 1.5 goals</dt><dd>80%</dd></div><div><dt>Over 2.5 goals</dt><dd>55%</dd></div><div><dt>Both teams to score</dt><dd>59%</dd></div></dl></li>
+            <li class="done"><b>Corners and cards</b><span>About 10 and about 4</span><i></i></li>
+            <li class="done"><b>Players</b><span>Arsenal striker 36% to score</span><i></i></li>
+          </ul>
+          <p class="run-go" id="toRead"><b>Match Read</b><span>Posted</span></p>
+          <div class="run-lists">
+            <div class="run-roll"><div class="roll" id="roll">
+              <div class="lh"><b>Most likely</b><span>Chance · Price</span></div>
+              <ul>
+                <li class="opt" data-leg="over15"><span class="o-main"><b>Over 1.5 goals</b><span>Both sides keep scoring</span></span><span class="o-num"><b>80%</b><span>1.20</span></span><span class="o-tick"></span></li>
+                <li class="opt" data-leg="arsenal"><span class="o-main"><b>Arsenal or draw</b><span>Strong at home</span></span><span class="o-num"><b>72%</b><span>1.32</span></span><span class="o-tick"></span></li>
+                <li class="opt"><span class="o-main"><b>Under 5.5 cards</b><span>An average referee</span></span><span class="o-num"><b>71%</b><span>1.34</span></span><span class="o-tick"></span></li>
+                <li class="opt on" data-leg="corners"><span class="o-main"><b>Over 8.5 corners</b><span>Two sides that use the wings</span></span><span class="o-num"><b>66%</b><span>1.45</span></span><span class="o-tick"></span></li>
+              </ul>
+              <div class="lh"><b>Value</b><span>Spix likes the price</span></div>
+              <ul>
+                <li class="opt on" data-leg="btts"><span class="o-main"><b>Both teams to score</b><span>A better price than expected</span></span><span class="o-num"><b>59%</b><span>1.80</span></span><span class="o-tick"></span></li>
+                <li class="opt" data-leg="over25"><span class="o-main"><b>Over 2.5 goals</b><span>More goals than the price says</span></span><span class="o-num"><b>55%</b><span>1.90</span></span><span class="o-tick"></span></li>
+                <li class="opt" data-leg="corners95"><span class="o-main"><b>Over 9.5 corners</b><span>A busy game for corners</span></span><span class="o-num"><b>52%</b><span>2.00</span></span><span class="o-tick"></span></li>
+                <li class="opt" data-leg="striker"><span class="o-main"><b>Arsenal striker to score</b><span>Likely to start</span></span><span class="o-num"><b>36%</b><span>3.10</span></span><span class="o-tick"></span></li>
+              </ul>
+            </div></div>
+            <p class="run-go" id="toBet">Your bet<span id="count">2 legs</span></p>
+          </div>
+          <div class="run-read">
+            <p class="read-top"><b>Match Read</b><span>Posted</span></p>
+            <p class="read-short">Close, with goals in it.</p>
+            <p class="read-long">Spix expects about 2.9 goals and not much between the sides. Arsenal come in on the better run, and Chelsea are without their first-choice striker.</p>
+            <ul>
+              <li>A busy game for corners, about 10</li>
+              <li>About 4 cards, with an average referee</li>
+              <li>Both teams scored in 3 of the last 5 meetings</li>
+            </ul>
+            <p class="read-foot">Updated when the line-ups are confirmed.</p>
+            <p class="run-go" id="toPicks"><b>See what Spix recommends</b></p>
+          </div>
+          <div class="run-drawer" id="drawer">
+            <p class="read-top"><b>Why over 8.5 corners</b><span id="closeWhy">Close</span></p>
+            <dl>
+              <div><dt>Expected corners</dt><dd>About 10</dd></div>
+              <div><dt>Both sides</dt><dd>Use the wings</dd></div>
+              <div><dt>Chance</dt><dd>66%</dd></div>
+            </dl>
+          </div>
+          <div class="run-bet">
+            <div class="slip-top"><span class="slot" id="slot"></span><b>Your bet<span>2 legs</span></b></div>
+            <ul class="legs">
+              <li><b>Both teams to score</b><span>1.80</span></li>
+              <li><b>Over 8.5 corners</b><span>1.45</span></li>
+            </ul>
+            <div class="sum">
+              <p id="chance">Chance both legs land<mark>about 1 in 3</mark></p>
+              <p>Typical total<strong>about 2.58</strong></p>
+            </div>
+            <p class="run-go" id="toPlace"><b>Place it</b></p>
+            <div class="run-place">
+              <p><b>Spix doesn't take bets.</b> You place it with your usual bookmaker, so check the real price in your own app.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="frame split today" id="today">
+    <div class="reveal">
+      <h2 id="todayTitle">Today's matches</h2>
+      <p class="lede">Open a match to see the research and what Spix recommends.</p>
+      <a class="more" href="/app">See every match</a>
+    </div>
+    <div class="reveal" data-ui id="todayRows" aria-live="polite"><p class="match-note">Loading matches…</p></div>
+  </div>
+</section>
+
+<section class="band" id="inside" aria-labelledby="insideTitle">
+  <div class="frame research">
+    <div class="sheet reveal" data-ui role="group" aria-label="One example match, with its research">
+      <div class="sheet-head"><b>Arsenal v Chelsea</b><span>Example match</span></div>
+      <div class="sheet-tabs" id="researchTabs">
+        <button type="button" data-tab="form" aria-pressed="true">Form</button>
+        <button type="button" data-tab="news" aria-pressed="false">Team news</button>
+        <button type="button" data-tab="h2h" aria-pressed="false">Head to head</button>
+        <button type="button" data-tab="goals" aria-pressed="false">Goals</button>
+        <button type="button" data-tab="set" aria-pressed="false">Corners and cards</button>
+        <button type="button" data-tab="players" aria-pressed="false">Players</button>
+      </div>
+      <div class="sheet-body" aria-live="polite">
+        <p class="sheet-short" id="researchShort">Arsenal come in on the better run.</p>
+        <dl id="researchRows">
+          <div><dt>Arsenal, last five</dt><dd>W W D W L</dd></div>
+          <div><dt>Chelsea, last five</dt><dd>D W L W D</dd></div>
+          <div><dt>Goals per game</dt><dd>2.1 and 1.6</dd></div>
+        </dl>
+      </div>
+    </div>
+    <div class="reveal">
+      <h2 id="insideTitle">Everything in one place</h2>
+      <p class="lede">Form, team news, head to head, corners, cards and players. The short version comes first, and the detail is there if you want it.</p>
+    </div>
+  </div>
+</section>
+
+<section class="band well" aria-labelledby="listsTitle">
+  <div class="frame">
+    <h2 class="reveal" id="listsTitle">Two lists on every match</h2>
+    <p class="lede reveal">You never start from a blank page, and you never have to take everything Spix suggests.</p>
+    <div class="lists">
+      <div class="reveal">
+        <h3>Most likely</h3>
+        <p>What Spix's statistical models say is likely to happen. Good legs to build a bet around.</p>
+        <ul data-ui aria-label="Example options">
+          <li class="row"><b>Over 1.5 goals</b><span><b>80%</b>1.20</span></li>
+          <li class="row"><b>Arsenal or draw</b><span><b>72%</b>1.32</span></li>
+          <li class="row"><b>Over 8.5 corners</b><span><b>66%</b>1.45</span></li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <h3>Value</h3>
+        <p>Where Spix thinks the price is good. Some matches have none, and Spix tells you.</p>
+        <ul data-ui aria-label="Example options">
+          <li class="row"><b>Both teams to score</b><span><b>59%</b>1.80</span></li>
+          <li class="row"><b>Over 2.5 goals</b><span><b>55%</b>1.90</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band trust" aria-labelledby="trustTitle">
+  <div class="frame">
+    <h2 class="reveal" id="trustTitle">Every pick checked. Losses too.</h2>
+    <ul>
+      <li class="reveal"><h3>Statistics, not AI guesses</h3><p>Spix's chances come from statistical models, thousands of past matches and bookmakers' prices. Machine learning only gets a say once it proves better in testing.</p></li>
+      <li class="reveal"><h3>Honest chances</h3><p>Every pick is measured after the match, and what's off gets fixed.</p></li>
+      <li class="reveal"><h3>No profit promises</h3><p>Betting is a risk. Spix won't tell you otherwise, and it never quotes a win rate.</p></li>
+      <li class="reveal"><h3>Paid by members</h3><p>No bookmaker pays Spix, so nothing here steers you towards one.</p></li>
+    </ul>
+    <a class="reveal" href="/static/methodology.html">How Spix works</a>
+  </div>
+</section>
+
+<section class="band" id="membership" aria-labelledby="joinTitle">
+  <div class="frame split">
+    <div class="reveal">
+      <h2 id="joinTitle">Two ways in</h2>
+      <p class="lede">Start for free. Join when Spix has become part of your weekend.</p>
+    </div>
+    <ul class="menu reveal">
+      <li><b>Free</b><strong>€0</strong><p>Browse every match, plus one full Match Read with its recommendations a day.</p><a class="cta turf" href="/app">See today's matches</a></li>
+      <li><b>Member</b><strong>€25 a month</strong><p>All recommendations on every match, the bet builder and the members' Discord.</p><p class="soon">Membership opens soon.</p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="band night" aria-labelledby="talkTitle">
+  <div class="frame talk">
+    <div class="reveal">
+      <h2 id="talkTitle">Build here. Talk on Discord.</h2>
+      <p class="lede">Share your bet in one tap and see what everyone else is on.</p>
+    </div>
+    <a class="cta big reveal" href="https://discord.gg/WhzNJ4Z5A" target="_blank" rel="noopener">Join the Discord</a>
+  </div>
+</section>
+
+<section class="band" id="questions" aria-labelledby="faqTitle">
+  <div class="frame">
+    <h2 class="reveal" id="faqTitle">Straight answers</h2>
+    <dl class="faq">
+      <div class="reveal"><dt>Does Spix guarantee a profit?</dt><dd>No. Predictions can be wrong and you can lose money. Only bet what you can afford to lose.</dd></div>
+      <div class="reveal"><dt>Does Spix tell me what to bet?</dt><dd>It recommends. You choose what goes on your bet, and you can change anything or add your own ideas.</dd></div>
+      <div class="reveal"><dt>Are these AI predictions?</dt><dd>Not the chatbot kind. Spix's chances come from statistical models, thousands of past matches and bookmakers' prices, and every pick is measured after the match. Machine learning only gets a say once it proves better in testing. A language model helps word some match summaries, using only those figures. It doesn't set the chances or choose the picks.</dd></div>
+      <div class="reveal"><dt>Why is the price "typical"?</dt><dd>It's the middle of the prices across bookmakers. Yours may differ a little, so check the real price in your own app before you bet.</dd></div>
+      <div class="reveal"><dt>Can I place a bet on Spix?</dt><dd>No. Spix gives analysis and doesn't take bets. You place your bet with your own bookmaker.</dd></div>
+      <div class="reveal"><dt>What if betting stops being fun?</dt><dd>Stop, and talk to someone. <a href="/static/responsible-gambling.html">Our responsible gambling page</a> explains where to find help.</dd></div>
+    </dl>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="frame">
+    <a href="/" aria-label="Spix home">{{LOGO_FOOTER}}</a>
+    <div>
+      <nav aria-label="Footer"><a href="/static/methodology.html">Methodology</a><a href="/static/responsible-gambling.html">Responsible gambling</a><a href="/static/privacy.html">Privacy (draft)</a><a href="/static/terms.html">Terms (draft)</a><a href="https://discord.gg/WhzNJ4Z5A" target="_blank" rel="noopener">Discord</a></nav>
+      <p><strong>18+</strong> Betting involves risk. You can lose your stake. Spix provides analysis and does not accept bets. <a href="https://www.gamcare.org.uk/get-support/" target="_blank" rel="noopener">Get help</a></p>
+    </div>
+  </div>
+</footer>
+
+<script src="landing.js"></script>
+</body>
+</html>
