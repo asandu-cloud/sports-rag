@@ -38,12 +38,18 @@ def read_rows(wait=False):
     """Read platform.db behind the refresh gate. ``wait`` is the scheduled run: it fires during the daily refresh,
     or on wake beside it, and the weekend's results only arrive with that refresh, so it waits for it to finish."""
     from Scripts.data_platform.services import refresh_retry
-    from Scripts.data_platform.services.refresh_coordination import data_access
+    from Scripts.data_platform.services.refresh_coordination import RefreshBusy, data_access
     deadline = time.monotonic() + REFRESH_WAIT_SECONDS
     while wait and not refresh_retry.attempts_today() and time.monotonic() < deadline:
         time.sleep(60)
-    with data_access(wait_seconds=max(0, deadline - time.monotonic()) if wait else 0):
-        return load_rows()
+    while True:
+        try:
+            with data_access(wait_seconds=max(0, deadline - time.monotonic()) if wait else 0):
+                return load_rows()
+        except RefreshBusy:  # a failed try leaves the gate shut until the hourly retry completes (2 Nov)
+            if not wait or time.monotonic() >= deadline:
+                raise
+            time.sleep(300)
 
 
 def main(argv=None):

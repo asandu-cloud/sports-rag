@@ -964,6 +964,13 @@ total and the combined chance must then not come from multiplying. Proposed by l
 
 ## Findings that shape later steps
 
+- **The 2 Nov run: refresh done on its second try, scorecard run by hand, OpenAI out of credits (2 Nov).** The Mac stayed
+  asleep until 10:56, and the 10:19 tick was skipped correctly (battery, lid shut). The 11:15 try failed after 1m44s in
+  `legacy_model_refresh`, with API-Football connection errors just after wake. The 12:15 retry completed at 13:07. The
+  scheduled scorecard got the gate at 11:16 with the gate marker still there and stopped, so `read_rows` now keeps
+  waiting through a failed try, and it was run by hand at 14:08. OpenAI returned 429 "no credits remaining" from 13:05 at
+  the latest: `chroma_embed` warned and skipped documents, and Match Reads fall back to the fixed-template briefing.
+
 - **A refresh that never got the gate no longer counts, and the Monday scorecard reads behind the gate (2 Nov).** On 1 Nov
   the 07:16 run timed out waiting for the gate at 11:33, stayed on record as an attempt, and "today's refresh already
   ran" then skipped the rest of the day. `refresh_retry.withdraw_attempt` now takes that attempt back, so the next

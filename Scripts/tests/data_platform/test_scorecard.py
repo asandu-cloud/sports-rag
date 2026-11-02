@@ -239,6 +239,38 @@ class TestScheduledRead:
         assert seen["job"].read_rows(wait=True) == ["rows"]
         assert seen["sleeps"] == 2
 
+    def test_a_failed_refresh_try_does_not_lose_the_scorecard(self, seen, monkeypatch):
+        from contextlib import contextmanager
+        from Scripts.data_platform.services import refresh_coordination as rc
+        gate = rc.data_access
+        tries = []
+
+        @contextmanager
+        def shut_once(wait_seconds=0):
+            tries.append(wait_seconds)
+            if len(tries) == 1:
+                raise rc.RefreshBusy("A full season refresh did not complete")
+            with gate(wait_seconds=wait_seconds):
+                yield
+
+        monkeypatch.setattr(rc, "data_access", shut_once)
+        assert seen["job"].read_rows(wait=True) == ["rows"]
+        assert len(tries) == 2 and seen["sleeps"] == 1
+
+    def test_a_manual_read_gives_up_at_once_while_the_gate_is_shut(self, seen, monkeypatch):
+        from contextlib import contextmanager
+        from Scripts.data_platform.services import refresh_coordination as rc
+
+        @contextmanager
+        def shut(wait_seconds=0):
+            raise rc.RefreshBusy("A full season refresh did not complete")
+            yield
+
+        monkeypatch.setattr(rc, "data_access", shut)
+        with pytest.raises(rc.RefreshBusy):
+            seen["job"].read_rows()
+        assert seen["sleeps"] == 0
+
     def test_no_refresh_today_does_not_lose_the_scorecard(self, seen, monkeypatch):
         seen["attempts"] = [0]
         clock = iter(range(0, 10 ** 7, 3600))
