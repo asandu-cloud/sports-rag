@@ -59,7 +59,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Done: tag `pre-rework` is on GitHub at cf00af8 (checked 21 Oct with `git ls-remote`) | Done | |
 | Keep the Mac awake for scheduled jobs: the daily refresh runs under `caffeinate -i -s` since 17 Oct (it cannot idle-sleep mid-run); still open, a daily scheduled wake before 07:15 (`sudo pmset repeat wakeorpoweron MTWRFSU 07:05:00`), mains power, or a server. On 17 Oct the Mac slept on battery until ~11:48, waking for 2–3 s every ~17 min: the 07:15 refresh ran only in those slices and finished at 12:25 (stage times normal). While asleep the Match Read worker, measurement worker and odds archive do not run either, which matters for this weekend's near-kickoff captures (A1 step 4 freshness rerun, Mon 19 Oct). Again on 20 Oct: on battery, no daily wake scheduled (`pmset -g sched`), the Mac slept 07:00–11:00 with brief wakes and the refresh took 4 h 35 min (04:21–08:56 UTC; 19 Oct: 1 h 3 min). 21 Oct: 6 h 43 min (04:17–11:00 UTC), still no daily wake scheduled. 26 and 27 Oct: the refresh failed on a sleeping Mac both mornings and nothing reran it, so the gate stayed shut 8 h 22 min and 18 h 27 min (no Match Reads, no measurement) until rerun by hand; since 28 Oct the job retries hourly (`--if-due`, see Findings) | Owner (wake, mains); Telegram alerts set up 28 Oct | Operational risk to every scheduled job |
 | Closed 20 Oct: no bookmaker weights; the median stays (owner, D40) | Done | Power margin removal still becomes the default at stage 2 (D17) |
-| Make power the default margin-removal method in measurement (`reference_price`, closing consensus, publication reference, scorecard). Owner, 20 Oct: keep proportional through stages 1–3 so every stage is judged on the same yardstick; switch at the Mon 2 Nov scorecard and recompute the history from the stored per-book prices | Built 28 Oct (`reference_price.MEASUREMENT_METHOD`, `refair`, scorecard `--method`; see Findings); switch Mon 2 Nov after the scorecard | Refit anything fitted on v1 |
+| **Done 2 Nov.** Make power the default margin-removal method in measurement (`reference_price`, closing consensus, publication reference, scorecard). Owner, 20 Oct: keep proportional through stages 1–3 so every stage is judged on the same yardstick; switch at the Mon 2 Nov scorecard and recompute the history from the stored per-book prices | Built 28 Oct (`reference_price.MEASUREMENT_METHOD`, `refair`, scorecard `--method`; see Findings); switch Mon 2 Nov after the scorecard | Refit anything fitted on v1 |
 | Closed 20 Oct: no weighted reference (D40); the scorecard adds the true close instead (D39) | Done | |
 | Refresh the report artifact from this tracker | Now due (A1 done 20 Oct) | |
 | Done 23 Oct (D42): the 22 Oct probe met no error up to its end at 23:11 UTC (6.4 h after Juventus v Rennes's kickoff, 4.2 h after Bournemouth v Milan's); OddsPapi rewrites a match's history about 2 h after kickoff (adding in-play markets); `DUE_AFTER` 2 h and `SETTLED` 6 h stay; the 21 Oct evening cause is not reproduced (errors are retried since D41) | Done | |
@@ -963,6 +963,16 @@ total and the combined chance must then not come from multiplying. Proposed by l
 - *Legs that cannot both win:* blocked. *A leg already covered by another (Over 1.5 with Over 2.5):* counts once.
 
 ## Findings that shape later steps
+
+- **Power is now the measurement yardstick, and the 2 Nov checks support stage 4 on Tue 3 Nov (2 Nov).**
+  `reference_price.MEASUREMENT_METHOD` is `"power"`; the scorecard recomputes older rows from their stored prices. Stage 3
+  on power: 447 of 701 settled, won 63.3%, Spix said 76.2%, market said 67.3%, log-loss gap +0.063, return -7.8%. The
+  official cohort: 174 of 294 settled, 64.3%, 76.1%, 67.0%, +0.051, -5.8%. A few hundred picks cannot separate stages, but
+  nothing there is a fault, and Spix is still about 13 points too confident. The D29 gate rerun
+  (`Research/m1-gate-2026-11-02/`, 24,973 lines, 488 fixtures, M1 solved on every read) passes in every market: against
+  Spix, goals other than 2.5 -8.5%, spreads -9.7%, BTTS -6.1%; against the bookmakers' own price, goals -1.4% (interval
+  below zero), spreads -0.5% and BTTS -0.2% (both include zero). The A4.2 rerun (`Research/calibration-2026-11-02/`)
+  still has the market ahead of Spix in all five priced markets. Recommendation: go live with stage 4 on Tue 3 Nov.
 
 - **The 2 Nov run: refresh done on its second try, scorecard run by hand, OpenAI out of credits (2 Nov).** The Mac stayed
   asleep until 10:56, and the 10:19 tick was skipped correctly (battery, lid shut). The 11:15 try failed after 1m44s in

@@ -5,6 +5,13 @@ from data_platform import reference_price as ref
 from .test_safe_settlement import store, publish, payload, NOW, no_network  # noqa: F401  (fixtures)
 
 
+@pytest.fixture
+def proportional(monkeypatch):
+    """These figures were worked out by hand with proportional removal; power is the live yardstick since 2 Nov."""
+    from data_platform import reference_price
+    monkeypatch.setattr(reference_price, "MEASUREMENT_METHOD", "proportional")
+
+
 def option(book, market_key, odds, side=None, point=None, team=None):
     o = {"bookmaker": book, "market_key": market_key, "odds": odds, "period": "regulation_time"}
     if side is not None:
@@ -65,7 +72,7 @@ def published_result(options, side="over", line=2.5, key="totals", group="goals"
     return result
 
 
-def test_publication_reference_reads_the_prices_stored_in_the_decision_audit():
+def test_publication_reference_reads_the_prices_stored_in_the_decision_audit(proportional):
     result = published_result([option("Book", "totals", 1.8, "over", 2.5), option("Book", "totals", 2.0, "under", 2.5),
                                option("Other", "totals", 1.9, "over", 2.5), option("Other", "totals", 1.9, "under", 2.5),
                                option("Other", "btts", 1.7, "yes")])
@@ -75,19 +82,19 @@ def test_publication_reference_reads_the_prices_stored_in_the_decision_audit():
     assert reference["same_book"]["odds"] == 1.8
 
 
-def test_publication_reference_matches_handicap_teams_by_name():
+def test_publication_reference_matches_handicap_teams_by_name(proportional):
     result = published_result([option("Book", "spreads", 1.9, point=-0.5, team="A"),
                                option("Book", "spreads", 1.95, point=0.5, team="B")],
                               side="a ", line=-0.5, key="spreads", group="spreads")
     assert ref.publication_reference(result)["fair_probability"] == pytest.approx(fair(1.9, 1.95))
 
 
-def test_publication_without_stored_prices_says_so():
+def test_publication_without_stored_prices_says_so(proportional):
     reference = ref.publication_reference(published_result([]))
     assert reference == {"status": "unavailable", "reason": "no_publication_prices", "method": ref.METHOD}
 
 
-def test_publishing_records_the_reference_price(store):
+def test_publishing_records_the_reference_price(proportional, store):
     result = published_result([option("Book", "totals", 2.0, "over", 2.5), option("Book", "totals", 1.8, "under", 2.5)])
     store[1].publish(result, surface="website", published_at="2026-09-18T10:00:00Z")
     (row,) = store[0].get_recent(days=3650)
@@ -153,8 +160,9 @@ def test_a_consensus_without_usable_prices_cannot_be_recomputed():
 
 def test_new_publication_references_use_the_measurement_method(monkeypatch):
     options = [option("Book", "totals", 1.8, "over", 2.5), option("Book", "totals", 2.0, "under", 2.5)]
-    assert ref.MEASUREMENT_METHOD == "proportional"  # until the Mon 2 Nov scorecard (owner, 20 Oct)
+    assert ref.MEASUREMENT_METHOD == "power"  # since the Mon 2 Nov scorecard (owner, 20 Oct)
+    assert ref.publication_reference(published_result(options))["method"] == "power_devig_median.v2"
+    monkeypatch.setattr(ref, "MEASUREMENT_METHOD", "proportional")
     assert ref.publication_reference(published_result(options))["method"] == ref.METHOD
     monkeypatch.setattr(ref, "MEASUREMENT_METHOD", "power")
-    assert ref.publication_reference(published_result(options))["method"] == "power_devig_median.v2"
     assert ref.publication_reference(published_result([]))["method"] == "power_devig_median.v2"

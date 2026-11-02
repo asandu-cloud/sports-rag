@@ -24,7 +24,7 @@ METHOD_NAMES = {version: name for name, version in METHOD_VERSIONS.items()}
 # The measurement yardstick: the publication reference, the closing consensus and the scorecard. Owner, 20 Oct:
 # proportional through stages 1-3, so each is judged the same way; power from the Mon 2 Nov scorecard, with the
 # history recomputed from the stored prices (``refair``).
-MEASUREMENT_METHOD = "proportional"
+MEASUREMENT_METHOD = "power"
 Outcome = Tuple[str, Optional[float], float]
 
 

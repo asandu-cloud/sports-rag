@@ -14,6 +14,13 @@ from .test_measurement_cycle import Client, KICKOFF, worker
 from .test_safe_settlement import store, publish, payload, NOW, no_network  # noqa: F401  (fixtures)
 
 
+@pytest.fixture
+def proportional(monkeypatch):
+    """These figures were worked out by hand with proportional removal; power is the live yardstick since 2 Nov."""
+    from data_platform import reference_price
+    monkeypatch.setattr(reference_price, "MEASUREMENT_METHOD", "proportional")
+
+
 def book(name, *bets):
     return {"id": hash(name) % 1000, "name": name, "bets": [{"id": bid, "values": [
         {"value": value, "odd": str(odd)} for value, odd in values]} for bid, values in bets]}
@@ -41,7 +48,7 @@ def odds_calls(client):
     return [c for c in client.calls if c[0] == "/odds"]
 
 
-def test_final_snapshot_becomes_the_closing_price_with_clv_and_consensus(store):
+def test_final_snapshot_becomes_the_closing_price_with_clv_and_consensus(proportional, store):
     publish(store)  # goals over 2.5 at 2.0 with "Book"
     client = client_with(book("Book", GOALS(1.8, 2.0)), book("Other", GOALS(1.9, 1.9)))
     result = service(store, client).process(store[0].settlement_candidates())
@@ -83,7 +90,7 @@ def test_an_unplayed_fixture_needs_no_closing_price(store):
     assert odds_calls(client) == []
 
 
-def test_handicap_pick_stored_as_a_team_name_is_matched(store):
+def test_handicap_pick_stored_as_a_team_name_is_matched(proportional, store):
     p = payload("spreads", "spreads", side="A", line=-0.5)
     publish(store, p)
     client = client_with(book("Book", (4, [("Home -0.5", 1.9), ("Away -0.5", 1.95)])))
@@ -192,6 +199,6 @@ def test_the_closing_consensus_uses_the_measurement_method(monkeypatch):
         "period": "regulation_time", "participant": None, "market_key": "totals", "side": "over", "line": 2.5,
         "bookmaker": "A"}}}
     row = {"bookmakers": [book("A", GOALS(1.8, 2.05)), book("B", GOALS(1.9, 1.95))]}
-    assert closing.price_selection(prediction, row)[1]["method"] == ref.METHOD
-    monkeypatch.setattr(ref, "MEASUREMENT_METHOD", "power")
     assert closing.price_selection(prediction, row)[1]["method"] == "power_devig_median.v2"
+    monkeypatch.setattr(ref, "MEASUREMENT_METHOD", "proportional")
+    assert closing.price_selection(prediction, row)[1]["method"] == ref.METHOD
