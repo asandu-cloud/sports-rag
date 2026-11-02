@@ -33,7 +33,7 @@
       <div class="go"><a class="cta big" href="/app">See today's matches</a><p>Free to browse, no account · 18+</p></div>
     </div>
 
-    <div class="run" data-ui id="run" data-scene="bet" role="group" aria-label="An example of someone using Spix on Arsenal v Chelsea. Spix does the research, and they open the parts they want to check. They read the Match Read, look through the recommended picks, see why Spix likes one, keep what they like and drop what they don't. The bet is theirs, and they place it in their own app.">
+    <div class="run" data-ui id="run" data-scene="bet" role="group" aria-label="An example of someone using Spix on Arsenal v Chelsea. They look through the Research Area for the statistics on Arsenal, read the Match Read, look through the bets Spix recommends, see why Spix likes one, keep what they like and drop what they don't. The bet is theirs.">
       <div class="ball" id="ball" aria-hidden="true" hidden>{{BALL}}</div>
       <div class="mouse" id="mouse" aria-hidden="true" hidden><svg class="m-hand" viewBox="0 0 24 24" width="24" height="24" focusable="false"><path d="M3 2v17.5l4.6-4.2 3 6.7 3.1-1.4-3-6.6H17z"/></svg><span class="m-dot"></span><i class="m-ring"></i></div>
       <div class="run-head"><b>Arsenal v Chelsea</b><button type="button" class="run-pause" id="pause" aria-label="Pause the example" hidden><svg class="i-pause" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><rect x="2" y="1" width="3.5" height="12" rx="1" fill="currentColor"/><rect x="8.5" y="1" width="3.5" height="12" rx="1" fill="currentColor"/></svg><svg class="i-play" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><path d="M3 1.8c0-.8.9-1.3 1.6-.9l8 5.2c.6.4.6 1.3 0 1.7l-8 5.2c-.7.4-1.6-.1-1.6-.9z" fill="currentColor"/></svg></button></div>
@@ -46,18 +46,54 @@
             <li class="hit">Match Read</li>
             <li class="hit">Pick</li>
             <li class="hit">Build</li>
-            <li>Place</li>
           </ol>
         </div>
         <div class="run-stage" aria-hidden="true">
-          <ul class="run-rows" id="rows">
-            <li class="done" data-row="form"><b>Form</b><span>Arsenal W W D W L</span><i></i><dl class="row-more"><div><dt>Arsenal, last five</dt><dd>W W D W L</dd></div><div><dt>Chelsea, last five</dt><dd>D W L W D</dd></div><div><dt>Goals per game</dt><dd>2.1 and 1.6</dd></div></dl></li>
-            <li class="done"><b>Team news</b><span>No key absences for Arsenal</span><i></i></li>
-            <li class="done"><b>Head to head</b><span>Arsenal 2, draws 2, Chelsea 1</span><i></i></li>
-            <li class="done" data-row="goals"><b>Goals</b><span>About 2.9 expected</span><i></i><dl class="row-more"><div><dt>Over 1.5 goals</dt><dd>80%</dd></div><div><dt>Over 2.5 goals</dt><dd>55%</dd></div><div><dt>Both teams to score</dt><dd>59%</dd></div></dl></li>
-            <li class="done"><b>Corners and cards</b><span>About 10 and about 4</span><i></i></li>
-            <li class="done"><b>Players</b><span>Arsenal striker 36% to score</span><i></i></li>
-          </ul>
+          <div class="run-area" id="area">
+            <div class="area-head"><b>Research Area</b><p class="area-tabs"><span>Players</span><span class="on">Teams</span><span>Referees</span></p></div>
+            <div class="area-views">
+              <div class="area-find" id="find">
+                <b class="area-title">Find a team</b>
+                <p class="area-field" id="field"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><span id="typed"></span><i></i><em>Search a team</em></p>
+                <div class="area-under">
+                  <div class="area-home">
+                    <div class="area-sub"><b>Season leaders</b><span>Goals per match</span></div>
+                    <ol>
+                      <li><b>Barcelona</b><span>La Liga</span><em>4.18</em></li>
+                      <li><b>Bayern München</b><span>Bundesliga</span><em>3.38</em></li>
+                      <li><b>AS Roma</b><span>Serie A</span><em>2.80</em></li>
+                    </ol>
+                  </div>
+                  <ul class="area-hits">
+                    <li id="hit"><b>Arsenal</b><span>Premier League</span></li>
+                    <li><b>Arsenal Tivat</b><span>Conference League</span></li>
+                  </ul>
+                </div>
+              </div>
+              <div class="area-team" id="team"><div class="area-roll" id="teamRoll">
+                <div class="team-top"><b>Arsenal</b><span>Premier League · England</span><p class="team-form"><i>L</i><i class="w">W</i><i class="w">W</i><i class="w">W</i><i class="w">W</i></p></div>
+                <dl class="team-line" id="teamLine">
+                  <div><dd>9</dd><dt>Matches</dt></div>
+                  <div><dd>14</dd><dt>Scored</dt></div>
+                  <div><dd>5</dd><dt>Conceded</dt></div>
+                  <div><dd>6</dd><dt>Clean sheets</dt></div>
+                  <div id="corners"><dd>51</dd><dt>Corners won</dt></div>
+                  <div><dd>14</dd><dt>Cards</dt></div>
+                </dl>
+                <section class="team-card" id="howOften">
+                  <div class="area-sub"><b>How often</b><span>In 9 matches</span></div>
+                  <div class="meter"><span>3+ goals in the match</span><span><b>4</b> of 9 · 44%</span><i style="--to:.44"></i></div>
+                  <div class="meter" id="often"><span>10+ corners in the match</span><span><b>5</b> of 9 · 56%</span><i style="--to:.56"></i></div>
+                  <div class="meter"><span>4+ cards in the match</span><span><b>7</b> of 9 · 78%</span><i style="--to:.78"></i></div>
+                </section>
+                <section class="team-card" id="byMatch">
+                  <div class="area-sub"><b>Goals by match</b><span>Last 9</span></div>
+                  <p class="team-key"><span>Arsenal</span><span>Opponent</span></p>
+                  <div class="team-chart"><span class="col" style="--f:3;--a:0"><span class="pair"><i></i><i></i></span><small><b>COV</b>3–0</small></span><span class="col" style="--f:1;--a:0"><span class="pair"><i></i><i></i></span><small><b>AST</b>1–0</small></span><span class="col" style="--f:2;--a:1"><span class="pair"><i></i><i></i></span><small><b>CHE</b>2–1</small></span><span class="col" style="--f:2;--a:0"><span class="pair"><i></i><i></i></span><small><b>SUN</b>2–0</small></span><span class="col" style="--f:0;--a:3"><span class="pair"><i></i><i></i></span><small><b>BRI</b>0–3</small></span><span class="col" style="--f:2;--a:1"><span class="pair"><i></i><i></i></span><small><b>LEE</b>2–1</small></span><span class="col" style="--f:1;--a:0"><span class="pair"><i></i><i></i></span><small><b>NOT</b>1–0</small></span><span class="col" style="--f:2;--a:0"><span class="pair"><i></i><i></i></span><small><b>EVE</b>2–0</small></span><span class="col" style="--f:1;--a:0"><span class="pair"><i></i><i></i></span><small><b>LIV</b>1–0</small></span></div>
+                </section>
+              </div></div>
+            </div>
+          </div>
           <p class="run-go" id="toRead"><b>Match Read</b><span>Posted</span></p>
           <div class="run-lists">
             <div class="run-roll"><div class="roll" id="roll">
@@ -107,10 +143,6 @@
             <div class="sum">
               <p id="chance">Chance both legs land<mark>about 1 in 3</mark></p>
               <p>Typical total<strong>about 2.58</strong></p>
-            </div>
-            <p class="run-go" id="toPlace"><b>Place it</b></p>
-            <div class="run-place">
-              <p><b>Spix doesn't take bets.</b> You place it with your usual bookmaker, so check the real price in your own app.</p>
             </div>
           </div>
         </div>

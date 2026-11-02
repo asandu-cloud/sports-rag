@@ -21,9 +21,8 @@
 
   /* ---- How Spix works: someone using it, on a loop ---- */
   const run = $('run'), ball = $('ball'), slot = $('slot'), track = $('track'), fill = $('fill'), mouse = $('mouse'), roller = $('roll');
-  const rows = [...$('rows').children], words = [...$('rail').children];
+  const area = $('area'), teamRoll = $('teamRoll'), words = [...$('rail').children];
   const leg = (name) => run.querySelector(`[data-leg="${name}"]`);
-  const row = (name) => run.querySelector(`[data-row="${name}"]`);
   const RADIUS = 11, LANDED = 620, TICK = 100;
 
   let ballAt = { x: 0, y: 0, turn: 0 }, anchor = slot, onScreen = false, paused = false, wake = null;
@@ -63,15 +62,6 @@
     const from = ballAt;
     anchor = words[i]; place(onLine(i));
     return ball.animate([{ transform: pose(from) }, { transform: pose(ballAt) }], { duration: 900, easing: 'cubic-bezier(.76,0,.24,1)' }).finished;
-  };
-  const hop = (el, to = spot(el)) => {
-    const from = ballAt, peak = { x: (from.x + to.x) / 2, y: Math.min(from.y, to.y) - 34, turn: from.turn };
-    anchor = el; setBall({ ...to, turn: from.turn });
-    return ball.animate([
-      { transform: pose(from), easing: 'cubic-bezier(0,.55,.45,1)' },
-      { transform: pose(peak), offset: .45, easing: 'cubic-bezier(.55,0,1,.45)' },
-      { transform: pose(ballAt) },
-    ], { duration: LANDED }).finished;
   };
   // The logo's drop (D48): up, down onto the bet, one squash and a small rebound.
   const drop = (el) => {
@@ -134,29 +124,33 @@
     const picked = run.querySelectorAll('.opt.on').length;
     $('count').textContent = picked ? `${picked} leg${picked > 1 ? 's' : ''}` : 'No legs yet';
   };
-  const open = (target) => rows.forEach(item => item.classList.toggle('open', item === target));
+  const type = async (text) => {
+    for (const letter of text) { $('typed').textContent += letter; await beat(110); }
+  };
   const tap = async (name) => {
     await click(leg(name), leg(name).querySelector('.o-tick'));
     leg(name).classList.toggle('on');
     count();
   };
-  const scroll = async (to) => {
-    const from = Number(roller.dataset.at || 0), notches = 3;
+  const scroll = async (box, to) => {
+    const from = Number(box.dataset.at || 0), notches = 3;
     for (let i = 1; i <= notches; i++) {
-      roller.style.transform = `translateY(${-(from + (to - from) * i / notches)}px)`;
+      box.style.transform = `translateY(${-(from + (to - from) * i / notches)}px)`;
       await beat(210);
     }
-    roller.dataset.at = to;
+    box.dataset.at = to;
   };
-  const deepest = () => Math.max(0, roller.offsetHeight - roller.parentElement.offsetHeight);
+  const deepest = (box) => Math.max(0, box.offsetHeight - box.parentElement.offsetHeight);
 
   const startOver = () => {
     run.classList.add('hold');
     run.dataset.scene = 'research';
-    rows.forEach(item => item.classList.remove('done', 'open'));
+    area.classList.remove('found', 'seen');
+    $('field').classList.remove('on');
+    $('typed').textContent = '';
     run.querySelectorAll('.opt.on').forEach(option => option.classList.remove('on'));
     $('drawer').classList.remove('open');
-    roller.style.transform = ''; roller.dataset.at = 0;
+    [roller, teamRoll].forEach(box => { box.style.transform = ''; box.dataset.at = 0; });
     hover(null);
     count();
     $('say').textContent = 'Spix does the research';
@@ -169,23 +163,28 @@
 
   const play = async () => {
     for (;;) {
-      await beat(500);
-      for (const item of rows) { item.classList.add('done'); await beat(330); }
-      await beat(300);
+      await beat(1500);
 
-      // Using the research
-      say('Open what you want to check');
-      await click(row('form'), row('form').querySelector('b'), .7);
-      open(row('form'));
-      await beat(440);
-      await glide(aim(row('form').querySelector('.row-more div:nth-child(2)'), .3), 1.3);
-      await beat(700);
-      await click(row('goals'), row('goals').querySelector('b'), .7);
-      open(row('goals'));
+      // Through the Research Area to the statistics
+      say('Look up a team');
+      await click($('field'), $('field'), .3);
+      $('field').classList.add('on');
       hover(null);
-      await beat(440);
-      await glide(aim(row('goals').querySelector('.row-more div:nth-child(2)'), .3), 1.3);
-      await beat(700);
+      await beat(240);
+      await type('Arsenal');
+      area.classList.add('found');
+      await beat(420);
+      await click($('hit'), $('hit').querySelector('b'), .6);
+      area.classList.add('seen');
+      say('Find the statistics'); hover(null);
+      await beat(620);
+      await pass($('corners'), $('corners'), 620);
+      await pass($('often'), $('often').querySelector('span'), 720);
+      hover(null);
+      await scroll(teamRoll, $('howOften').offsetTop - teamRoll.offsetTop);
+      await pass(run.querySelector('.col:nth-child(3)'), run.querySelector('.col:nth-child(3) .pair'), 620);
+      await pass(run.querySelector('.col:nth-child(5)'), run.querySelector('.col:nth-child(5) .pair'), 620);
+      hover(null);
 
       // The Match Read
       say('Read the short version');
@@ -207,10 +206,10 @@
       await pass(leg('arsenal'), leg('arsenal').querySelector('.o-main'), 400);
       await pass(leg('btts'), leg('btts').querySelector('.o-main'), 420);
       hover(null);
-      await scroll(deepest());
+      await scroll(roller, deepest(roller));
       await pass(leg('striker'), leg('striker').querySelector('.o-main'), 520);
       hover(null);
-      await scroll(0);
+      await scroll(roller, 0);
       await beat(200);
 
       say('See why Spix likes it');
@@ -239,12 +238,7 @@
       await glide(aim(run.querySelector('.legs'), .36, .3), 1.2);
       await beat(340);
       await glide(aim($('chance'), .8), 1.2);
-      await beat(900);
-
-      await click($('toPlace'));
-      run.dataset.scene = 'place'; say('You place it in your own app'); step(4); hover(null);
-      await hop(words[4], onLine(4));
-      await beat(1300);
+      await beat(1400);
       await glide({ x: run.offsetWidth + 30, y: run.offsetHeight * .78 }, 1.2);
       await beat(500);
 
