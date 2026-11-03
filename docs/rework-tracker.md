@@ -105,7 +105,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | The Ledger (member bet tracking, settlement, overpayment against the fair price) | Product backlog (D32) | Web app work; reuses settlement and reference prices |
 | How to show Spix's own view when it disagrees with the market (≥10 pts on 3.4 markets per read; ≥25 pts on half the reads), given A5.1 found it mostly error | Owner, before A5.4 | Product decision (D31) |
 | If A5.4 prices corners and cards against the market too, A4's calibrators (stage 5) lose their purpose except where no two-sided price exists. Stage 1 replay (17 Oct): Spix's corner picks lose ~2% at the close under either variance; A5.2's market rule kept +4.2% on corners. Candidate to join the stage 4 bundle (owner) | Decide with A5.4 (D31) | Calibrators fit Spix's own probability |
-| A5.4: build the chosen policy behind a switch (`line_selection`, `match_read_compiler`, `confidence_from_edge`), golden preview; proposal in D31 | A5; live at A3.7 stage 6, earliest Tue 17 Nov | Gate (report): published picks' calibration error ≤ 3 pts and closing line value at least neutral over 4+ live matchweeks |
+| A5.4: build the chosen policy behind a switch (`line_selection`, `match_read_compiler`, `confidence_from_edge`), golden preview; proposal in D31. Cards from Pinnacle's fair price: plan `docs/superpowers/plans/2026-11-03-cards-work.md` (D58) | A5; cards live Tue 10 Nov if ready (D58), the rest at A3.7 stage 6, earliest Tue 17 Nov | Gate (report): published picks' calibration error ≤ 3 pts and closing line value at least neutral over 4+ live matchweeks |
 | Rerun the A5.1 study (`python -m Scripts.ops.disagreement_study --out Research/disagreement-<date>`) as weeks accrue | A5, with each A5 step | Rerun 23 Oct on two weeks (`Research/disagreement-2026-10-23/`, 32,855 lines, 295 fixtures): see the finding of 23 Oct on corners. Rerun 28 Oct (`Research/disagreement-2026-10-28/`, 44,196 lines, 393 fixtures): corners again carry information (c +0.38, +0.08 to +0.63); no other market's interval excludes zero |
 | Rerun the A4.2 study weekly (`python -m Scripts.ops.calibration_study --out Research/calibration-<date>`); calibrator decision with ≥3 weeks of audited fixtures | A4, decision at A3.7 stage 5 (not before Tue 10 Nov, D29) | Not adopted 16 Oct: one audited week, no market passes the gate (D28). Rerun 23 Oct (`Research/calibration-2026-10-23/`, up to 238 fixtures): Platt passes the gate on goals (−5.77%) and Asian handicap (−3.41%), which leave A4's scope at stage 4 (M1, D29); not on corners (+0.21%) or cards (+0.00%), the markets A4 keeps; BTTS not adopted (389 rows). Fixed corner dispersions still no worse than the floors on counts. Rerun 28 Oct (`Research/calibration-2026-10-28/`, up to 336 fixtures): no market passes; Platt on goals −3.78% (−0.0433 to +0.0031) and the handicap −2.47% (−0.0286 to +0.0011) no longer clear zero, corners +0.14%, cards −0.60%, BTTS −6.40% (542 rows, interval includes zero); Spix's log loss is above the market's in every market. Rerun 3 Nov (`Research/calibration-2026-11-03/`, up to 439 fixtures, D54 c): only the handicap passes (Platt −3.24%, −0.0316 to −0.0056), but stage 4 prices the handicap from the market, so it has no use there; in the markets A4 still owns no calibrator passes: corners +0.11% (−0.0060 to +0.0066), cards −0.61% (−0.0126 to +0.0068); goals −3.22% and BTTS −4.71% include zero. Stage 5 has nothing to ship. The market is ahead of Spix in all five markets (every interval above zero). The cards rows still grade a straight red as one card; rerun cards after D54 (b) |
 | Qualify the card settlement definition (yellow + red vs bookmakers' bookings rules, second yellows) before calibrating or scoring cards | Now (D54), with the `/fixtures/events` refresh and backfill; reapplied to all past rows | Cards are graded yellow + red (indicative); the market's own card slope is 1.40 on that grading (D28) |
@@ -1043,6 +1043,22 @@ the meta description follow it. The owner also asked for the samples to show onl
   statistical models say", because v1's chance is the market's fair chance (spec section 4).
 - *Revert:* `git revert` of this commit; checkpoint 1e510ef is the page before.
 
+**D58 — A5.4 cards takes the Tue 10 Nov slot (3 Nov, owner).** The calibrators failed again (A4.2 rerun 3 Nov), so
+stage 5 has nothing to ship. A5.4 goes live on Tue 10 Nov if it is built with its switch off and previewed by Sat 7
+Nov, and Monday's scorecard shows no fault with stage 4; otherwise 17 Nov. Plan:
+`docs/superpowers/plans/2026-11-03-cards-work.md` (6 tasks, A5.4 first). What the data showed while planning:
+- *No cards pick has been published since 17 May.* Reads since 25 Oct (1,170): no profiled referee 484, no prices 472,
+  conviction too thin 103, value too low 83. So A5.4 adds cards picks, and "no cards picks" (D54 d's alternative) is
+  today's state. The plan prices cards from **Pinnacle alone** and does not apply the referee guardrail to a line
+  priced that way (builder's calls, for the owner to confirm). Shots on target: no prices in any read.
+- *Published picks already settle cards the bookmakers' way* (`yellow_1_red_2_max_3_per_player`, from player
+  statistics). Only the studies count a straight red as one; they recompute on each run, so D54 (b) is a change to
+  `calibration_data.fixture_outcomes`, with no stored row to re-grade.
+- *Player statistics agree with the events rule* on 97.6% of 19,357 matches with card events (94.3% of the 3,427 with
+  a red). The events (D54 a) are kept for checking and modelling, not needed to settle. The backfill is about 540
+  requests (536 matches finished 20 Sep–3 Nov), then about one per finished match a day.
+- *Migration numbers:* `0010` is the events table; the recommendation layer's ledger takes `0011`.
+
 ## Findings that shape later steps
 
 - **Checks from a worktree (3 Nov, corrected).** Three pinned `golden_snapshots check` runs from the backend folder
@@ -1050,7 +1066,7 @@ the meta description follow it. The owner also asked for the samples to show onl
   after the D56 change. They did not reproduce: the orchestrator's pinned runs in a linked scratch worktree, and the
   same command rerun in the backend folder at 20:37, print "no changes across 54 fixtures". So a worktree is not the
   cause. No shared input changed in between (`Index/ml_models` dates from 4 Sep, `.env` from 03:16), and the cause is
-  not established. If it shows again, record the time and keep the output. Three `test_phase4_baseline_freeze.py` tests
+  not established. If it shows again, save the output with the time and run `pgrep -fl python` at that moment. Three `test_phase4_baseline_freeze.py` tests
   error in any worktree (the file passes 7/7 from main): the replay refuses `Index/` files whose real path is the main
   folder's. `engine_switches.snapshot()` returns the defaults in a bare process until `.env` is loaded with
   `load_dotenv(Path('.env').resolve())`; after that it matches production.
