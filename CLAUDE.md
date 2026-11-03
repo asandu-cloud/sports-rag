@@ -157,6 +157,31 @@ instance per folder.
 - **The data format between them.** `recommendations.v1` changes only on the backend branch; the frontend asks
   for changes there.
 
+#### Committing and merging
+- **Backend and frontend** commit only on their own branch, in small steps, each with a clear message and its
+  tracker entry in the same commit. They never commit on `main` and never merge into it. When a piece is ready,
+  they tell the owner in one short message: what changed, the test results (and screenshots for the frontend),
+  and whether it needs a migration, a new `.env` line or a website restart.
+- **The orchestrator** is the only instance in `~/Desktop/Betting_RAG`, and the only one that merges into `main`.
+  It reviews with `git log main..<branch>` and `git diff --stat main...<branch>`, then reads the diffs that
+  matter. It does not write product code, and it never edits files in the worktrees: it writes problems down for
+  that branch's instance.
+- **Checks before every merge** (on a trial merge):
+  - the branch merges cleanly;
+  - the full Python suite and the JS tests pass;
+  - `python -m Scripts.ops.golden_snapshots check` is unchanged, so no published pick moves with the switches off;
+  - none of the never-stage folders are in the branch;
+  - no tracker D-number clashes;
+  - no rename or drop of anything the live code uses.
+- **The merge itself:** `git merge --no-ff <branch>`, so each merge can be reverted in one step. Ask the owner
+  before each merge until they say merges that pass the checks may go ahead. Always ask before restarting the
+  website or running a migration.
+- **After a merge:** the orchestrator updates the status block above and the tracker status if needed, and tells
+  the other branch to run `git merge main`.
+- **Docs-only changes on `main`** (this file, the tracker status) are made by the orchestrator and committed
+  directly, small and revertible.
+- **Content** commits in its own repo and never in this one.
+
 ## What This Is
 A football betting assistant that uses RAG (Retrieval-Augmented Generation) over a Chroma vector database to score and recommend parlays, totals, goal intervals, handicap lines, BTTS, moneyline, correct scores, player props, and team comparisons. Covers the top 5 European domestic leagues (EPL, LaLiga, SerieA, Bundesliga, Ligue1) and 3 European competitions (UCL, UEL, UECL). Delivered via CLI, Streamlit UI, Discord bot (Spix's Picks), live betting bot (SpixLive), and a FastAPI-powered web app (SpixBot).
 
