@@ -1029,11 +1029,11 @@ homework." (two fixed lines, "Your bet, without" / "the homework."), with the se
 recommends on every match, in one place. Keep what you like and build your own bet in minutes." The browser title and
 the meta description follow it. The owner also asked for the samples to show only what v1 will have (D52, D53):
 - *Numbers:* one score grid for the example match (Arsenal 1.6, Chelsea 1.3 goals, Spix's "about 2.9"); typical
-  price about 5% under the fair price; "worth it at" from `fair_prices.minimum_odds` (2%).
+  price about 5% under the fair price; "worth it at" from `fair_prices.minimum_odds` (2%) of the chance as shown (55% gives 1.86; corrected from 1.85 on 3 Nov).
 - *Most likely (3, at 1.30 or more):* Arsenal +0.5 69% 1.38, Over 8.5 corners 62% 1.54, Both teams to score 58% 1.64.
   Gone: Over 1.5 goals (79% would price about 1.21, under the floor), "Arsenal or draw" (double chance is not a v1
   market; Arsenal +0.5 is the same bet), Under 5.5 cards (no cards in v1).
-- *Value (2):* Over 2.5 goals 55% "Worth it at 1.85 or better", Over 9.5 corners 52% "Worth it at 1.97 or better";
+- *Value (2):* Over 2.5 goals 55% "Worth it at 1.86 or better", Over 9.5 corners 52% "Worth it at 1.97 or better";
   the player leg is gone.
 - *The demo's bet:* Arsenal +0.5 with Both teams to score, two goal legs from one match, "about 2 in 5" from the grid
   (the legs' chances multiplied would say 40%, the grid 42%). The demo now drops the corners leg, since corners and
