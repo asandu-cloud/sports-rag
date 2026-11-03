@@ -966,8 +966,8 @@ total and the combined chance must then not come from multiplying. Proposed by l
 
 - **Stage 4 is live, and on its first matchday most matches have no pick, as the replay said (3 Nov).** The owner set
   `SPIX_MARKET_ANCHOR=full` and `SPIX_SELECTION_POLICY=market_value` in `.env` (saved 03:16 local); `engine_switches`
-  reads `full`, `market_value`, bookmaker set `all`. The first read under them was 01:26:37 UTC. The website was not
-  restarted (running since 29 Oct); the go-live note asks for a restart. Of the 18 fixtures of 3 Nov (8 UCL, 10
+  reads `full`, `market_value`, bookmaker set `all`. The first read under them was 01:26:37 UTC. The website, running
+  since 29 Oct, was restarted at 13:07 local (owner's request), as the go-live note asks. Of the 18 fixtures of 3 Nov (8 UCL, 10
   Championship), 5 have a pick and 7 picks in all; one of the 5 (Galatasaray v Stuttgart, 2 picks) is still a stage 3 read
   of 01:14 UTC. The days before had a pick on nearly every match (31 Oct: 46 of 50 fixtures, 124 picks; 1 Nov: 32 of 32,
   81). Most results are no-bets because no price clears the 2% value threshold against the market's fair price (totals
