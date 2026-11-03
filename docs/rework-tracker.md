@@ -1045,12 +1045,13 @@ the meta description follow it. The owner also asked for the samples to show onl
 
 ## Findings that shape later steps
 
-- **Checks from a worktree (3 Nov).** Run the merge checks from the main folder. In a worktree,
-  `golden_snapshots check` reports about 7,000 changed values per fixture even with every engine switch pinned to its
-  default on the command line, and the output is the same before and after a branch's change; from the main folder
-  the same pinned check prints "no changes across 54 fixtures" (orchestrator, 3 Nov, main at 2a1093d and the backend
-  branch at 8c14581). Why a worktree differs is not established. Three `test_phase4_baseline_freeze.py` tests error in
-  a worktree only (the file passes 7/7 from main): the replay refuses `Index/` files whose real path is the main
+- **Checks from a worktree (3 Nov, corrected).** Three pinned `golden_snapshots check` runs from the backend folder
+  and a scratch copy (about 19:45–20:05 local) reported about 7,000 changed values per fixture, the same before and
+  after the D56 change. They did not reproduce: the orchestrator's pinned runs in a linked scratch worktree, and the
+  same command rerun in the backend folder at 20:37, print "no changes across 54 fixtures". So a worktree is not the
+  cause. No shared input changed in between (`Index/ml_models` dates from 4 Sep, `.env` from 03:16), and the cause is
+  not established. If it shows again, record the time and keep the output. Three `test_phase4_baseline_freeze.py` tests
+  error in any worktree (the file passes 7/7 from main): the replay refuses `Index/` files whose real path is the main
   folder's. `engine_switches.snapshot()` returns the defaults in a bare process until `.env` is loaded with
   `load_dotenv(Path('.env').resolve())`; after that it matches production.
 
