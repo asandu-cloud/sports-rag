@@ -1043,6 +1043,33 @@ the meta description follow it. The owner also asked for the samples to show onl
   statistical models say", because v1's chance is the market's fair chance (spec section 4).
 - *Revert:* `git revert` of this commit; checkpoint 1e510ef is the page before.
 
+**D58 — The recommendation layer's look: version B, tiles (3 Nov, owner).** Plan task 3. Three layouts were mocked on
+one canvas (https://claude.ai/artifact/JuLV2x1g6Qvp7aDPo1zsKF) from the stored `recommendations.v1` blocks of 3 Nov.
+The matches were Bodo/Glimt v Lille (the only Value pick, 13:12 read), Villarreal v PSG (none) and Viking v Sabah FA
+(no prices). Each version had the board card, the match page on a phone and on desktop, a working line stepper, and
+Add into a slip. The owner chose B:
+- *Most likely:* swipeable cards on a phone, a row of cards on desktop. Each card has the market, the pick, the
+  chance in words with the %, the why sentence, the typical price and Add.
+- *Value:* its own card, with "Worth it at X or better" as the figure.
+- *Explore the match:* underline tabs. Goals, Corners and Handicap get a large − / + stepper with "Line n of m".
+  Every market shows its options as tiles side by side, Spix's pick marked.
+- *Board card:* the top Most likely pick first, then the teams and "N suggestions · 1 value pick".
+
+The mockup made these calls, carried into tasks 4–5 unless the owner says otherwise:
+- *One leg per market per match:* adding another line of the same market replaces the first in the slip, so
+  "covered" legs never arise.
+- *No total price* for legs from one match (task 5 still open), as on the landing page (D57).
+- *A match with no prices:* "The bookmakers haven't priced this match yet, so there are no suggestions. They usually
+  appear a day or two before kick-off." Each market says "Nothing stands out here".
+- *A Value pick on a whole line* ("Over 10" corners) adds "Exactly 10 corners: you get your stake back." The block's
+  value `pick` has no unit ("Over 10"), so the front end adds the market's word.
+
+Seen in the blocks, for the backend:
+- *Most likely sits at the price floor:* the top picks cluster at 1.30–1.36 and 71–75%. Galatasaray v Stuttgart's
+  three are all 1.30, and Over 2.5 goals and Both teams to score there have the same chance to 16 digits, which the
+  bookmakers' identical prices can explain.
+- *The Value pick moved on:* the later Bodo/Glimt read has no released selection, so the mockup shows an earlier read.
+
 ## Findings that shape later steps
 
 - **Checks from a worktree (3 Nov).** Run the merge checks from the main folder. In a worktree,
