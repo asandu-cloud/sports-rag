@@ -7,6 +7,7 @@ populated as a side-effect of importing these modules.
 from .base import Base, TimestampMixin  # noqa: F401
 from .core import Competition, Season, Team, Player  # noqa: F401
 from .fixtures import Fixture, FixtureTeamStats, FixturePlayerStats  # noqa: F401
+from .fixture_events import FixtureEvent  # noqa: F401
 from .sync import SyncRun, SyncWatermark, RawPayloadArchive  # noqa: F401
 from .features import TeamFeatureSnapshot, PlayerFeatureSnapshot  # noqa: F401
 from .users import AppUser, AppSubscriptionEvent, AppReferral  # noqa: F401
@@ -43,6 +44,7 @@ __all__ = [
     "Fixture",
     "FixtureTeamStats",
     "FixturePlayerStats",
+    "FixtureEvent",
     "SyncRun",
     "SyncWatermark",
     "RawPayloadArchive",
