@@ -36,7 +36,7 @@
     <div class="run" data-ui id="run" data-scene="bet" role="group" aria-label="An example of someone using Spix on Arsenal v Chelsea. They look through the Research Area for the statistics on Arsenal, read the Match Read, look through the bets Spix recommends, see why Spix likes one, keep what they like and drop what they don't. The bet is theirs.">
       <div class="ball" id="ball" aria-hidden="true" hidden>{{BALL}}</div>
       <div class="mouse" id="mouse" aria-hidden="true" hidden><svg class="m-hand" viewBox="0 0 24 24" width="24" height="24" focusable="false"><path d="M3 2v17.5l4.6-4.2 3 6.7 3.1-1.4-3-6.6H17z"/></svg><span class="m-dot"></span><i class="m-ring"></i></div>
-      <div class="run-head"><b>Arsenal v Chelsea</b><button type="button" class="run-pause" id="pause" aria-label="Pause the example" hidden><svg class="i-pause" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><rect x="2" y="1" width="3.5" height="12" rx="1" fill="currentColor"/><rect x="8.5" y="1" width="3.5" height="12" rx="1" fill="currentColor"/></svg><svg class="i-play" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><path d="M3 1.8c0-.8.9-1.3 1.6-.9l8 5.2c.6.4.6 1.3 0 1.7l-8 5.2c-.7.4-1.6-.1-1.6-.9z" fill="currentColor"/></svg></button></div>
+      <div class="run-head"><p class="run-name"><b>Arsenal v Chelsea</b><span>Example</span></p><button type="button" class="run-pause" id="pause" aria-label="Pause the example" hidden><svg class="i-pause" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><rect x="2" y="1" width="3.5" height="12" rx="1" fill="currentColor"/><rect x="8.5" y="1" width="3.5" height="12" rx="1" fill="currentColor"/></svg><svg class="i-play" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><path d="M3 1.8c0-.8.9-1.3 1.6-.9l8 5.2c.6.4.6 1.3 0 1.7l-8 5.2c-.7.4-1.6-.1-1.6-.9z" fill="currentColor"/></svg></button></div>
       <p class="run-say" aria-hidden="true"><span id="say">The bet is yours</span></p>
       <div class="run-body">
         <div class="run-side" aria-hidden="true">
@@ -196,7 +196,8 @@
       <div class="reveal">
         <h3>Most likely</h3>
         <p>What Spix's statistical models say is likely to happen. Good legs to build a bet around.</p>
-        <ul data-ui aria-label="Example options">
+        <p class="eg">Example: Arsenal v Chelsea</p>
+        <ul data-ui aria-label="Example options, Arsenal v Chelsea">
           <li class="row"><b>Over 1.5 goals</b><span><b>80%</b>1.20</span></li>
           <li class="row"><b>Arsenal or draw</b><span><b>72%</b>1.32</span></li>
           <li class="row"><b>Over 8.5 corners</b><span><b>66%</b>1.45</span></li>
@@ -205,7 +206,8 @@
       <div class="reveal">
         <h3>Value</h3>
         <p>Where Spix thinks the price is good. Some matches have none, and Spix tells you.</p>
-        <ul data-ui aria-label="Example options">
+        <p class="eg">Example: Arsenal v Chelsea</p>
+        <ul data-ui aria-label="Example options, Arsenal v Chelsea">
           <li class="row"><b>Both teams to score</b><span><b>59%</b>1.80</span></li>
           <li class="row"><b>Over 2.5 goals</b><span><b>55%</b>1.90</span></li>
         </ul>

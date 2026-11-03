@@ -999,6 +999,16 @@ nothing here changes published picks before Tue 10 Nov.
 - *If the calibrators fail again,* stage 5 has nothing to ship and A5.4 may go live Tue 10 Nov instead of Tue 17 Nov.
   The owner decides after the rerun.
 
+**D55 — Landing page: the sample picks are labelled "Example" (3 Nov, frontend).** Before launch, every made-up
+pick on the landing preview says it is an example: the hero demo's head reads "Arsenal v Chelsea · Example", and each
+of the two sample lists under "Two lists on every match" has the line "Example: Arsenal v Chelsea" (the research
+sheet already said "Example match"). `landing-preview/serve.py` takes a port (`serve.py 8011` for the frontend
+worktree). Revert: `git revert` of this commit; checkpoint 961c416 is the page before.
+- *Found, not changed (owner):* the samples show things the recommendation layer will not have at launch: a cards
+  leg and a player leg ("Under 5.5 cards", "Arsenal striker to score"; cards and players are out of v1, D52),
+  Most likely at 1.20 (v1 needs a typical price of at least 1.30), and Value picks with a typical price, where v1
+  shows "Worth it at X or better" (D53).
+
 ## Findings that shape later steps
 
 - **Stage 4 is live, and on its first matchday most matches have no pick, as the replay said (3 Nov).** The owner set

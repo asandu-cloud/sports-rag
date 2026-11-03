@@ -88,7 +88,9 @@ h3 { font-size: 22px; line-height: 1.2; font-weight: 750; }
 .run[data-scene="read"] .m-ring { border-color: var(--turf); }
 @media (hover: none) { .m-hand { display: none; } .m-dot { display: block; } }
 .run-head { display: flex; justify-content: space-between; gap: 16px; align-items: center; min-height: 34px; padding: 12px 20px 0; }
-.run-head b { font-weight: 600; }
+.run-name { display: flex; gap: 10px; align-items: baseline; min-width: 0; }
+.run-name b { font-weight: 600; }
+.run-name span { color: var(--lit-2); font-size: 14px; }
 .run-pause { display: grid; place-items: center; width: 36px; height: 36px; margin-right: -11px; padding: 0; background: none; border: 0; border-radius: 6px; color: var(--lit-2); transition: color .18s ease, background-color .18s ease; }
 .run-pause:hover { color: var(--lit); background: var(--night-3); }
 .run-pause .i-play, .run.paused .run-pause .i-pause { display: none; }
@@ -299,7 +301,8 @@ mark { background: var(--flood); color: var(--flood-ink); padding: 1px 8px; bord
 /* Two lists */
 .lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px clamp(32px, 5vw, 72px); margin-top: 48px; }
 .lists p { margin-top: 8px; max-width: 30em; }
-.lists ul { margin-top: 20px; }
+.lists .eg { margin-top: 20px; color: var(--ink-2); font-size: 14px; }
+.lists ul { margin-top: 8px; }
 .row { display: flex; justify-content: space-between; gap: 16px; padding: 12px 16px; background: var(--surface); }
 .row + .row { margin-top: 2px; }
 .row:first-child { border-radius: 8px 8px 0 0; } .row:last-child { border-radius: 0 0 8px 8px; }
