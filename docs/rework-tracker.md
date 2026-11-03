@@ -1348,6 +1348,29 @@ Calls the builder made in the revision:
   (about 9 ms per card). Not built: the card's design, the headline rule (owner, D36), a Discord command, the
   Romanian text.
 
+- **A5.4 cards replay: Pinnacle-priced cards picks hold their value to the close (3 Nov; cards plan task 4).**
+  `Scripts/ops/cards_reference_replay.py` reruns the cards selector, as live under `SPIX_CARDS_REFERENCE=pinnacle`
+  with stage 4's switches, on the stored reads with kickoffs 9 Oct–2 Nov (`Research/cards-reference-2026-11-03/`,
+  and `-pinnacle-then/` with Pinnacle's OddsPapi prices, all already downloaded, no billable request). Graded on the
+  bookmakers' card count; the three-picks-per-match limit is not applied.
+  - *Pre-match reads (latest per fixture), 498:* cards prices in 477, Pinnacle's in 307. **165 picks (one fixture in
+    three)**, median odds 1.73: Pinnacle's stated 63.3%, won 63.7% (won − stated +0.4, −7.0 to +7.0); value at the
+    read +7.9%, at Pinnacle's close in API-Football's last snapshot +7.7% (+6.6 to +8.8), at Pinnacle's true close
+    (OddsPapi, last price before kickoff) +6.2% (+4.9 to +7.7, 149 picks). Bookmakers: Betano 89, Bet365 69, 1xBet 7.
+  - *Sides:* 113 unders (value at the true close +7.1%), 52 overs (+4.3%), mostly under 4.5 (62) and over 3.5 (27);
+    unders lead, as the 24 Oct finding suggested, but overs carry value too.
+  - *Price confirmation's Pinnacle check (D61) at the read* keeps 119 of the 165 (dropped: Pinnacle not seen within
+    60 min 22, Pinnacle moved 15, line not listed 7; unknown 2). The kept picks: stated 62.8%, won 60.2% (−2.6, −11.1
+    to +5.9); value at the true close **+7.7% (+6.2 to +9.2, 116 picks)**, higher than without the check, so the
+    check removes mostly stale-reference picks.
+  - *Lineup reads (238):* 95 picks, 78 kept; stated 63.1%, won 68.4%; no value at the close (the reads can postdate
+    Pinnacle's last move).
+  - *Reading it:* Pinnacle's chance matches what happened on these picks, and the softer books' prices beat it on
+    one match in three by about 8% at the read and still about 8% at Pinnacle's true close. The result rests on
+    Betano and Bet365 settling cards as graded here (yellow 1, red 2, at most 3; their rules were read from guides and
+    help pages, 24 Oct). A book that counts more (1xBet may count coaches) would make its unders look like value they
+    are not; 1xBet has 7 picks. Results alone (±7 pts) cannot pass or fail the 3-point gate yet.
+
 - **Card settlement: the bookmakers count a straight red as two (24 Oct; before stage 5).** The four bookmakers that
   price cards in our reads are Betano (422 of 556 reads since 9 Oct), Bet365 (385), 1xBet (379) and Pinnacle (366).
   Their rules: yellow 1, red 2, a second yellow ignored (at most 3 per player), regulation time only, cards to
