@@ -1094,6 +1094,24 @@ Seen in real reads, for the backend:
   hyphen). The front end matches them to the market's own option for the label, side and line. Sending `side`,
   `line` and `label` on each value item would remove the guess.
 
+**D60 — Your bet: any option, and goal legs from one match through the score grid (3 Nov, frontend branch).** Plan
+task 5, built on D59.
+- *Any option goes in the slip,* from Most likely, Value or Explore the match. Another line of the same market from
+  one match replaces the first (D58).
+- *Goal legs from one match* (Result, Goals, Both teams to score, Handicap) are combined through the block's
+  `score_grid`. This is an independent Poisson score for each team, 0–12 and renormalised. The chance is the
+  share of scores where every leg lands. A push, or the losing half of a quarter line, counts as not landing.
+- *Matches multiply.* The chance is said once, as "about 1 in N" with the %, then "Check the price in your
+  bookmaker's app before you place it." and the 18+ line.
+- *Refusals* show in the slip: "Corners and goals from one match can't be combined yet.", "Combining bets from one
+  match needs prices for both teams.", "These two can't both win." (three or more: "These can't all win
+  together.").
+- *No total price for legs from one match.* The plan's task 5 asked for "about" the fair price 1 / chance. D58,
+  the owner's chosen mockup, carries "no total price", so D58 wins until the owner says otherwise. With no total
+  price, the stake and potential win step aside. A value leg shows "worth it at X+" in place of a price.
+- *Older flows* (the board's best pick, the `?recs=off` page) keep one selection per fixture.
+- *The disabled "Parlay scoring coming soon" button* is removed. It did nothing and is not in the design.
+
 ## Findings that shape later steps
 
 - **Checks from a worktree (3 Nov).** Run the merge checks from the main folder. In a worktree,

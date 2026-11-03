@@ -313,6 +313,74 @@ function renderMarketExplorer(f, view = {}) {
     </section>`;
 }
 
+// ----- Your bet: chances of legs together -----
+const GRID_MARKETS = new Set(['moneyline', 'goals', 'btts', 'spreads']);
+
+// Does a goal-market leg land at this score? A push (a whole line hit exactly) does not land.
+function legLands(leg, home, away) {
+  const { side, line } = leg;
+  if (leg.market === 'moneyline') return side === 'home' ? home > away : side === 'away' ? away > home : home === away;
+  if (leg.market === 'goals') return side === 'over' ? home + away > line : home + away < line;
+  if (leg.market === 'btts') return side === 'yes' ? home > 0 && away > 0 : !(home > 0 && away > 0);
+  if (leg.market === 'spreads') return side === 'home' ? home + line > away : away + line > home;
+  return false;
+}
+
+// The chance every leg lands, from the score grid: independent Poisson goals for each
+// team, 0-12, renormalised (as market_goal_model.score_probabilities). Null when a leg
+// is outside the grid's markets or there is no grid.
+function jointChance(legs, grid) {
+  if (!grid || !Number.isFinite(grid.home) || !Number.isFinite(grid.away)) return null;
+  if (!legs.length || legs.some(leg => !GRID_MARKETS.has(leg.market) || !leg.side)) return null;
+  const poisson = (rate, goals) => {
+    let value = Math.exp(-rate);
+    for (let i = 1; i <= goals; i++) value *= rate / i;
+    return value;
+  };
+  let total = 0, landed = 0;
+  for (let home = 0; home <= 12; home++) {
+    for (let away = 0; away <= 12; away++) {
+      const weight = poisson(grid.home, home) * poisson(grid.away, away);
+      total += weight;
+      if (legs.every(leg => legLands(leg, home, away))) landed += weight;
+    }
+  }
+  return landed / total;
+}
+
+// Why a match's legs can't go together, or null when they can.
+function slipRefusal(legs, grid) {
+  const corners = legs.filter(leg => leg.market === 'corners');
+  const goals = legs.filter(leg => leg.market !== 'corners');
+  if (corners.length && goals.length) return "Corners and goals from one match can't be combined yet.";
+  if (goals.length < 2) return null;
+  if (!grid) return 'Combining bets from one match needs prices for both teams.';
+  const chance = jointChance(goals, grid);
+  if (chance === null) return "Bets from one match can't be combined here yet.";
+  if (chance < 1e-6) return legs.length === 2 ? "These two can't both win." : "These can't all win together.";
+  return null;
+}
+
+// The chance the whole slip lands: one match's legs through its grid, matches multiplied.
+// Null when any leg's chance is unknown.
+function slipChance(slipLegs) {
+  if (!slipLegs.length) return null;
+  const matches = new Map();
+  slipLegs.forEach(l => {
+    const id = String(l.fixtureId || l.fixture);
+    matches.set(id, [...(matches.get(id) || []), l]);
+  });
+  let chance = 1;
+  for (const group of matches.values()) {
+    const part = group.length === 1
+      ? group[0].leg?.chance
+      : jointChance(group.map(l => l.leg), group.find(l => l.grid)?.grid);
+    if (part == null || !Number.isFinite(Number(part))) return null;
+    chance *= Number(part);
+  }
+  return chance;
+}
+
 // The board card: the first Most likely pick, then the match and how much there is to see.
 function renderRecsBoardCard(f, homeEmblem, awayEmblem) {
   const block = f.recommendations;
@@ -803,23 +871,45 @@ const slip = {
     const key = fixture + '|' + pick;
     if (this.legs.find(l => l.key === key)) { this.remove(key); return false; }
     const fixtureId = String(options.fixtureId || fixture);
-    const sameFixtureLeg = this.legs.find(leg => String(leg.fixtureId || leg.fixture) === fixtureId);
-    if (sameFixtureLeg) {
+    const leg = options.leg || null;
+    const sameFixture = this.legs.filter(l => String(l.fixtureId || l.fixture) === fixtureId);
+    // Legs from the older flows carry no leg: one selection per fixture, as before.
+    if (sameFixture.length && (!leg || sameFixture.some(l => !l.leg))) {
       showToast(
         'This slip accepts one selection per fixture. Same-game combined odds need a verified bookmaker quote.',
         'error',
       );
       return null;
     }
-    this.legs.push({ key, fixture, fixtureId, pick, odds, market });
+    // One leg per market per match: another line of the same market replaces the first.
+    const replaced = leg ? sameFixture.filter(l => l.leg.market === leg.market) : [];
+    if (leg) {
+      const kept = sameFixture.filter(l => !replaced.includes(l));
+      const grid = options.grid || kept.find(l => l.grid)?.grid || null;
+      const refusal = slipRefusal(kept.map(l => l.leg).concat([leg]), grid);
+      if (refusal) {
+        this._notice(refusal);
+        return null;
+      }
+    }
+    this.legs = this.legs.filter(l => !replaced.includes(l));
+    this.legs.push({ key, fixture, fixtureId, pick, odds, market, leg, grid: options.grid || null });
+    this.notice = '';
     this._render();
     this._update();
     if (!this.open) this.toggle();
     return true;
   },
 
+  _notice(text) {
+    this.notice = text;
+    this._render();
+    if (!this.open) this.toggle();
+  },
+
   remove(key) {
     this.legs = this.legs.filter(l => l.key !== key);
+    this.notice = '';
     this._render();
     this._update();
     // sync add buttons
@@ -830,6 +920,7 @@ const slip = {
 
   clear() {
     this.legs = [];
+    this.notice = '';
     this._render();
     this._update();
     document.querySelectorAll('.fixture-add-btn.added, .market-add-btn.added').forEach(b => b.classList.remove('added'));
@@ -840,29 +931,39 @@ const slip = {
     this._calcPayout();
   },
 
-  score() {
-    if (!this.legs.length) { showToast('Add picks first', 'error'); return; }
-    showToast(
-      'Parlay scoring is not available yet. This slip only totals independent fixture odds.',
-      'error',
-    );
-  },
-
   _render() {
     const legsEl = document.getElementById('slipLegs');
+    const notice = document.getElementById('slipNotice');
+    notice.textContent = this.notice || '';
+    notice.classList.toggle('hidden', !this.notice);
     if (!this.legs.length) {
-      legsEl.innerHTML = '<div class="slip-empty">No picks yet. Browse fixtures to add bets.</div>';
+      legsEl.innerHTML = '<div class="slip-empty">Tap Add on any option to start your bet. You can mix Spix\'s picks with your own.</div>';
       document.getElementById('slipQuality').classList.add('hidden');
       return;
     }
-    legsEl.innerHTML = this.legs.map(l => `
+    legsEl.innerHTML = this.legs.map(l => {
+      const price = !l.leg ? esc(String(l.odds))
+        : l.odds != null ? recsPrice(l.odds)
+        : l.leg.worth != null ? `worth it at ${recsPrice(l.leg.worth)}+` : '';
+      return `
       <div class="slip-leg">
         <div class="slip-leg-fixture">${esc(l.fixture)}</div>
         <div class="slip-leg-pick">${esc(l.pick)}</div>
-        <div class="slip-leg-odds mono">${esc(String(l.odds))}</div>
+        <div class="slip-leg-odds mono">${price}</div>
         <button class="slip-leg-remove" aria-label="Remove ${esc(l.pick)} from slip" onclick="slip.remove('${esc(l.key).replace(/'/g,"\\'")}')">${ICONS.close}</button>
       </div>
-    `).join('');
+    `;
+    }).join('');
+  },
+
+  // The prices multiply only when each match has one priced leg: legs from one
+  // match are not independent, and no total price is shown for them (D58).
+  _totalPrice() {
+    if (!this.legs.length) return null;
+    const matches = new Set(this.legs.map(l => String(l.fixtureId || l.fixture)));
+    if (matches.size !== this.legs.length) return null;
+    const prices = this.legs.map(l => (l.odds == null ? NaN : parseFloat(l.odds)));
+    return prices.every(Number.isFinite) ? prices.reduce((acc, price) => acc * price, 1) : null;
   },
 
   _update() {
@@ -872,12 +973,25 @@ const slip = {
       const el = document.getElementById(id);
       if (el) el.textContent = n;
     });
-    const combined = this.legs.reduce((acc, l) => acc * parseFloat(l.odds), 1);
-    const oddsStr = n ? combined.toFixed(2) : '--';
+    const combined = this._totalPrice();
+    const oddsStr = combined === null ? '--' : combined.toFixed(2);
+    // Without a total price a stake has nothing to multiply, so the stake area steps aside.
+    document.getElementById('slipFoot').classList.toggle('no-total', n > 0 && combined === null);
     ['slipOdds','slipMobileOdds'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.textContent = oddsStr;
     });
+    // The chance, said once, when every leg's chance is known.
+    const chance = slipChance(this.legs);
+    document.getElementById('slipChance').classList.toggle('hidden', chance === null);
+    if (chance !== null) {
+      document.getElementById('slipChanceLabel').textContent = n === 1 ? 'Chance it lands' : n === 2 ? 'Chance both land' : `Chance all ${n} land`;
+      document.getElementById('slipChanceWords').textContent = chanceWords(chance);
+      document.getElementById('slipChancePct').textContent = chancePercent(chance);
+    }
+    const check = document.getElementById('slipCheck');
+    check.textContent = "Check the price in your bookmaker's app before you place it.";
+    check.classList.toggle('hidden', n === 0);
     this._calcPayout();
 
     // mobile bar
@@ -887,9 +1001,10 @@ const slip = {
 
   _calcPayout() {
     const stake = parseFloat(document.getElementById('slipStake').value) || 0;
-    const combined = this.legs.reduce((acc, l) => acc * parseFloat(l.odds), 1);
-    const payout = stake * combined;
-    document.getElementById('slipPayout').textContent = '$' + (stake ? payout.toFixed(2) : '0.00');
+    const combined = this._totalPrice();
+    document.getElementById('slipPayout').textContent = combined === null && this.legs.length
+      ? '--'
+      : '$' + (stake && combined !== null ? (stake * combined).toFixed(2) : '0.00');
   }
 };
 

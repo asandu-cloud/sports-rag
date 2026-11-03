@@ -145,3 +145,90 @@ Object.assign(normaliser, { _formatMatchReadSelection: () => '', _formatFixtureT
 assert.equal(normaliser._normaliseMatchReadCard({ id: 1, status: 'no_bet', recommendations: block }, 'UCL').recommendations, null);
 
 console.log('Recommendation layer page, explorer, board card and ?recs=off checks passed.');
+
+// ----- Task 5: the slip. Joint chances of goal legs from one match, through the score grid. -----
+const j = Function('esc', source.slice(helpersStart, helpersEnd) + 'return { jointChance, slipChance };')(esc);
+const grid = { home: 1.4, away: 1.1 };
+const over25leg = { market: 'goals', side: 'over', line: 2.5 }, over15leg = { market: 'goals', side: 'over', line: 1.5 };
+assert.ok(Math.abs(j.jointChance([over25leg], grid) - 0.4562) < 1e-4);
+assert.ok(Math.abs(j.jointChance([over25leg, { market: 'btts', side: 'yes', line: null }], grid) - 0.3762) < 1e-4);
+assert.ok(Math.abs(j.jointChance([{ market: 'moneyline', side: 'home', line: null }, { market: 'goals', side: 'under', line: 1.5 }], grid) - 0.1149) < 1e-4);
+assert.ok(Math.abs(j.jointChance([over15leg, over25leg], grid) - 0.4562) < 1e-4, 'a covered leg counts once');
+assert.equal(j.jointChance([over25leg], null), null);
+assert.equal(j.jointChance([{ market: 'corners', side: 'over', line: 9.5 }], grid), null, 'corners are not in the goal grid');
+// Handicap: side and line are that side's own; Lille +1.5 is the away side not losing by two or more.
+assert.ok(Math.abs(j.jointChance([{ market: 'spreads', side: 'away', line: 1.5 }], grid)
+  - (1 - j.jointChance([{ market: 'spreads', side: 'home', line: -1.5 }], grid))) < 1e-9);
+
+// The slip itself, on a minimal DOM.
+const elements = new Map();
+const el = id => {
+  if (!elements.has(id)) {
+    const classes = new Set(['hidden']);
+    elements.set(id, { id, innerHTML: '', textContent: '', value: '', classList: {
+      add: c => classes.add(c), remove: c => classes.delete(c), contains: c => classes.has(c),
+      toggle: (c, on) => (on ?? !classes.has(c)) ? classes.add(c) : classes.delete(c) } });
+  }
+  return elements.get(id);
+};
+const toasts = [];
+const slipFrom = source.indexOf('const slip = {');
+const slipTo = source.indexOf('\n// ----- Mobile section menu', slipFrom);
+assert.ok(slipFrom >= 0 && slipTo > slipFrom);
+const makeSlip = () => Function('esc', 'document', 'showToast', 'ui',
+  source.slice(helpersStart, helpersEnd) + source.slice(slipFrom, slipTo) + '\nreturn slip;')(
+  esc, { getElementById: el, querySelectorAll: () => [] }, message => toasts.push(message), { overlay() {} });
+const s = makeSlip();
+const goalLeg = (side, line, chance) => ({ market: 'goals', side, line, chance });
+const addGoal = (side, line, chance, g = grid, fixtureId = 'A') =>
+  s.add(`Match ${fixtureId}`, `${side} ${line} goals`, 1.5, 'Goals', { fixtureId, leg: goalLeg(side, line, chance), grid: g });
+
+assert.equal(addGoal('over', 2.5, 0.46), true);
+assert.equal(s.add('Match A', 'Over 9.5 corners', 1.8, 'Corners', { fixtureId: 'A', leg: { market: 'corners', side: 'over', line: 9.5, chance: 0.5 }, grid }), null);
+assert.match(el('slipNotice').textContent, /Corners and goals from one match can't be combined yet\./);
+s.clear();
+assert.equal(addGoal('over', 2.5, 0.46, null), true);
+assert.equal(s.add('Match A', 'Both teams to score', 1.7, 'Both teams to score', { fixtureId: 'A', leg: { market: 'btts', side: 'yes', line: null, chance: 0.5 }, grid: null }), null);
+assert.match(el('slipNotice').textContent, /Combining bets from one match needs prices for both teams\./);
+// A draw with goals means both teams scored, so draw + over 0.5 + BTTS no cannot all happen.
+s.clear();
+assert.equal(s.add('Match A', 'Draw', 4, 'Result', { fixtureId: 'A', leg: { market: 'moneyline', side: 'draw', line: null, chance: 0.25 }, grid }), true);
+assert.equal(s.add('Match A', 'Over 0.5 goals', 1.05, 'Goals', { fixtureId: 'A', leg: goalLeg('over', 0.5, 0.92), grid }), true);
+assert.equal(s.add('Match A', 'Both teams to score: No', 1.9, 'Both teams to score', { fixtureId: 'A', leg: { market: 'btts', side: 'no', line: null, chance: 0.5 }, grid }), null);
+assert.match(el('slipNotice').textContent, /These can't all win together\./);
+assert.equal(s.legs.length, 2, 'a refused leg changes nothing');
+s.clear();
+assert.equal(addGoal('under', 1.5, 0.29), true);
+assert.equal(s.add('Match A', 'Bodo −1.5', 3, 'Handicap', { fixtureId: 'A', leg: { market: 'spreads', side: 'home', line: -1.5, chance: 0.3 }, grid }), null);
+assert.match(el('slipNotice').textContent, /These two can't both win\./);
+
+// One leg per market per match: another goals line replaces the first.
+s.clear();
+addGoal('over', 2.5, 0.46);
+addGoal('over', 1.5, 0.71);
+assert.deepEqual(s.legs.map(l => l.pick), ['over 1.5 goals']);
+
+// Different matches multiply; one match's goal legs use the grid; the chance is said once.
+s.clear();
+addGoal('over', 2.5, 0.3);
+s.add('Match B', 'Draw', 4, 'Result', { fixtureId: 'B', leg: { market: 'moneyline', side: 'draw', line: null, chance: 0.2 }, grid });
+assert.ok(Math.abs(j.slipChance(s.legs) - 0.06) < 1e-9);
+assert.equal(el('slipChanceWords').textContent, 'about 1 in 17');
+assert.equal(el('slipChanceLabel').textContent, 'Chance both land');
+assert.equal(el('slipOdds').textContent, '6.00', 'one leg per match: the prices multiply');
+assert.equal(el('slipFoot').classList.contains('no-total'), false);
+s.clear();
+addGoal('over', 2.5, 0.46);
+s.add('Match A', 'Both teams to score', 1.7, 'Both teams to score', { fixtureId: 'A', leg: { market: 'btts', side: 'yes', line: null, chance: 0.5 }, grid });
+assert.ok(Math.abs(j.slipChance(s.legs) - 0.3762) < 1e-4);
+assert.equal(el('slipOdds').textContent, '--', 'no total price for legs from one match (D58)');
+assert.equal(el('slipFoot').classList.contains('no-total'), true, 'the stake area hides when there is no total price');
+assert.match(el('slipCheck').textContent, /Check the price in your bookmaker's app before you place it\./);
+assert.equal(el('slipCheck').classList.contains('hidden'), false);
+
+// Legs from older flows (no leg) keep the one-per-fixture rule.
+s.clear(); toasts.length = 0;
+s.add('Match C', 'Over 2.5', 2, 'Match Read', { fixtureId: 'C' });
+assert.equal(s.add('Match C', 'BTTS Yes', 2, 'Match Read', { fixtureId: 'C' }), null);
+assert.equal(toasts.length, 1);
+console.log('Slip joint chance, refusals, replacement and display checks passed.');
