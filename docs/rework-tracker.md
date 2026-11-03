@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-11-01 (D49, D50: `docs/identity.md` sets what Spix is, first answers; stage 3 live; refresh retry; history rewrite compared; stage 4 prep done; operations messages)
+Last updated: 2026-11-03 (stage 4 live; first matchday: 5 of 18 fixtures with a pick, see Findings)
 
 ## Status
 
@@ -963,6 +963,19 @@ total and the combined chance must then not come from multiplying. Proposed by l
 - *Legs that cannot both win:* blocked. *A leg already covered by another (Over 1.5 with Over 2.5):* counts once.
 
 ## Findings that shape later steps
+
+- **Stage 4 is live, and on its first matchday most matches have no pick, as the replay said (3 Nov).** The owner set
+  `SPIX_MARKET_ANCHOR=full` and `SPIX_SELECTION_POLICY=market_value` in `.env` (saved 03:16 local); `engine_switches`
+  reads `full`, `market_value`, bookmaker set `all`. The first read under them was 01:26:37 UTC. The website was not
+  restarted (running since 29 Oct); the go-live note asks for a restart. Of the 18 fixtures of 3 Nov (8 UCL, 10
+  Championship), 5 have a pick and 7 picks in all; one of the 5 (Galatasaray v Stuttgart, 2 picks) is still a stage 3 read
+  of 01:14 UTC. The days before had a pick on nearly every match (31 Oct: 46 of 50 fixtures, 124 picks; 1 Nov: 32 of 32,
+  81). Most results are no-bets because no price clears the 2% value threshold against the market's fair price (totals
+  15, spreads 15, 1X2 16, BTTS 12). 17 picks reached price confirmation: 5 confirmed, 7 not carried (all Betfair, mostly
+  BTTS: OddsPapi has no Betfair history, D43), 3 price gone, 2 suspended. In line with the 24 and 28 Oct replays (225
+  picks in 19 days at 2%, 58 after confirmation at 60 minutes). The surfaces still show only these picks; the Most likely
+  list (D50, recommendation layer) is what gives every match options. Open: when the best price is Betfair's, selection
+  could fall back to the best carried bookmaker that still clears 2% (not built; owner to decide).
 
 - **Power is now the measurement yardstick, and the 2 Nov checks support stage 4 on Tue 3 Nov (2 Nov).**
   `reference_price.MEASUREMENT_METHOD` is `"power"`; the scorecard recomputes older rows from their stored prices. Stage 3
