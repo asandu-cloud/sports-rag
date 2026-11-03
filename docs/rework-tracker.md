@@ -103,9 +103,9 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Bet builder and combination pricing from the score model (correlated legs), anchored to the market | Goal-market legs: now, in the recommendation layer (D53). Goals with corners or cards: after D51's factor is measured | The bet builder needs it: same-match legs are allowed (D51) |
 | Price Check for singles: the member's odds against the fair price (good price / fair / overpaying) | Next build, after the card (D36) | Needs only the fair probabilities |
 | The Ledger (member bet tracking, settlement, overpayment against the fair price) | Product backlog (D32) | Web app work; reuses settlement and reference prices |
-| How to show Spix's own view when it disagrees with the market (≥10 pts on 3.4 markets per read; ≥25 pts on half the reads), given A5.1 found it mostly error | Owner, before A5.4 | Product decision (D31) |
+| How to show Spix's own view when it disagrees with the market (≥10 pts on 3.4 markets per read; ≥25 pts on half the reads), given A5.1 found it mostly error | Owner, stage 6. For cards on 10 Nov: as stage 4, Spix's number kept, not shown (D61) | Product decision (D31) |
 | If A5.4 prices corners and cards against the market too, A4's calibrators (stage 5) lose their purpose except where no two-sided price exists. Stage 1 replay (17 Oct): Spix's corner picks lose ~2% at the close under either variance; A5.2's market rule kept +4.2% on corners. Candidate to join the stage 4 bundle (owner) | Decide with A5.4 (D31) | Calibrators fit Spix's own probability |
-| A5.4: build the chosen policy behind a switch (`line_selection`, `match_read_compiler`, `confidence_from_edge`), golden preview; proposal in D31. Cards from Pinnacle's fair price: plan `docs/superpowers/plans/2026-11-03-cards-work.md` (D58) | A5; cards live Tue 10 Nov if ready (D58), the rest at A3.7 stage 6, earliest Tue 17 Nov | Gate (report): published picks' calibration error ≤ 3 pts and closing line value at least neutral over 4+ live matchweeks |
+| A5.4: build the chosen policy behind a switch (`line_selection`, `match_read_compiler`, `confidence_from_edge`), golden preview; proposal in D31. Cards from Pinnacle's fair price: plan `docs/superpowers/plans/2026-11-03-cards-work.md` (D58, revised D61: Pinnacle re-checked at price confirmation, no referee guardrail on Pinnacle-priced lines, cards left out of the recommendation layer's Value list) | A5; cards live Tue 10 Nov if ready (D58), the rest at A3.7 stage 6, earliest Tue 17 Nov | Gate (report): published picks' calibration error ≤ 3 pts and closing line value at least neutral over 4+ live matchweeks |
 | Rerun the A5.1 study (`python -m Scripts.ops.disagreement_study --out Research/disagreement-<date>`) as weeks accrue | A5, with each A5 step | Rerun 23 Oct on two weeks (`Research/disagreement-2026-10-23/`, 32,855 lines, 295 fixtures): see the finding of 23 Oct on corners. Rerun 28 Oct (`Research/disagreement-2026-10-28/`, 44,196 lines, 393 fixtures): corners again carry information (c +0.38, +0.08 to +0.63); no other market's interval excludes zero |
 | Rerun the A4.2 study weekly (`python -m Scripts.ops.calibration_study --out Research/calibration-<date>`); calibrator decision with ≥3 weeks of audited fixtures | A4, decision at A3.7 stage 5 (not before Tue 10 Nov, D29) | Not adopted 16 Oct: one audited week, no market passes the gate (D28). Rerun 23 Oct (`Research/calibration-2026-10-23/`, up to 238 fixtures): Platt passes the gate on goals (−5.77%) and Asian handicap (−3.41%), which leave A4's scope at stage 4 (M1, D29); not on corners (+0.21%) or cards (+0.00%), the markets A4 keeps; BTTS not adopted (389 rows). Fixed corner dispersions still no worse than the floors on counts. Rerun 28 Oct (`Research/calibration-2026-10-28/`, up to 336 fixtures): no market passes; Platt on goals −3.78% (−0.0433 to +0.0031) and the handicap −2.47% (−0.0286 to +0.0011) no longer clear zero, corners +0.14%, cards −0.60%, BTTS −6.40% (542 rows, interval includes zero); Spix's log loss is above the market's in every market. Rerun 3 Nov (`Research/calibration-2026-11-03/`, up to 439 fixtures, D54 c): only the handicap passes (Platt −3.24%, −0.0316 to −0.0056), but stage 4 prices the handicap from the market, so it has no use there; in the markets A4 still owns no calibrator passes: corners +0.11% (−0.0060 to +0.0066), cards −0.61% (−0.0126 to +0.0068); goals −3.22% and BTTS −4.71% include zero. Stage 5 has nothing to ship. The market is ahead of Spix in all five markets (every interval above zero). The cards rows still grade a straight red as one card; rerun cards after D54 (b) |
 | Qualify the card settlement definition (yellow + red vs bookmakers' bookings rules, second yellows) before calibrating or scoring cards | Now (D54), with the `/fixtures/events` refresh and backfill; reapplied to all past rows | Cards are graded yellow + red (indicative); the market's own card slope is 1.40 on that grading (D28) |
@@ -1058,6 +1058,31 @@ Nov, and Monday's scorecard shows no fault with stage 4; otherwise 17 Nov. Plan:
   a red). The events (D54 a) are kept for checking and modelling, not needed to settle. The backfill is about 540
   requests (536 matches finished 20 Sep–3 Nov), then about one per finished match a day.
 - *Migration numbers:* `0010` is the events table; the recommendation layer's ledger takes `0011`.
+
+**D61 — A5.4 cards: the owner's three answers, and the plan revised (3 Nov, owner).** After a second read of this
+tracker the cards plan (`docs/superpowers/plans/2026-11-03-cards-work.md`, now 7 tasks) goes live on 10 Nov for
+cards only; the rest of A5.4 (bets to skip, labels, bookmakers by country, how Spix's own view is shown) stays at
+stage 6 (D33). The owner's answers:
+- *Spix's own view on cards:* as stage 4. Cards publish Pinnacle's chance; Spix's own number is kept in the data and
+  nothing new is shown. How to show Spix's view when it disagrees stays open for stage 6.
+- *Referees:* the profiled-referee guardrail does not apply to a cards line priced from Pinnacle, since the published
+  chance is Pinnacle's, not Spix's referee-based number; the profile guardrails stay. The referee belongs in Spix's
+  own model, which keeps being improved: today's referee modifier, then D1 (the fitted referee effect) in A6's cards
+  model.
+- *Recommendation layer:* option (b). The Value list leaves out picks from markets outside the layer (cards, shots on
+  target) until cards join it. The picks are still published on the card.
+
+Calls the builder made in the revision:
+- *Price confirmation re-checks Pinnacle for a Pinnacle-priced pick* and fails closed. Our Pinnacle copy is a median
+  130 min old in the last 3 h before kickoff (A1.4), and with one reference book a stale price could fake the value.
+  The pick needs Pinnacle seen within 60 min and 2% value against its current fair price, which becomes the
+  published chance.
+- *The replay judges on price as well as results:* value at Pinnacle's closing price, the over/under split (expected
+  mostly unders at the softer bookmakers, as Pinnacle also overstated overs on 9–22 Oct), and how many picks held
+  against Pinnacle's real price at the read.
+- *The go-live note carries A5.4's gate* (calibration error ≤ 3 pts, closing value at least neutral, over 4+ live
+  matchweeks), so the first verdict is early December.
+- *The events backfill* (~540 requests) fits in one quiet day, after the owner's go with the day's remaining count.
 
 ## Findings that shape later steps
 
