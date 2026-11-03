@@ -30,14 +30,18 @@ on it. The Discord bot still runs the old engine until A7.
     before any front-end change.
   - Design: `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`.
   - Plan: `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks, the data block first).
+  - Tasks 1–2 merged 3 Nov (D56): the `recommendations.v1` block on the match card, off behind
+    `SPIX_RECOMMENDATIONS`. Next: task 3, mockups with real matches for the owner to pick from.
 - **Cards work that does not change picks starts now (D54):**
   - add the events to the refresh and backfill them from 20 Sep;
   - count a straight red as two cards;
-  - rerun the calibration study;
+  - rerun the calibration study (done 3 Nov: no calibrator passes in corners or cards, so stage 5 has nothing to
+    ship);
   - build A5.4 behind an off switch.
 - **Next dates.**
   - Mon 9 Nov 08:00: the scorecard checks stage 4.
-  - Tue 10 Nov: earliest next engine change (stage 5; if the calibrators fail again, A5.4 may go instead, owner decides, D54).
+  - Tue 10 Nov: earliest next engine change. Stage 5 has nothing to ship (3 Nov rerun); the owner decides whether
+    A5.4 takes this slot (D54).
   - Tue 17 Nov: earliest stage 6.
 - **Update this block** in the same commit as the tracker whenever a stage goes live or the current project
   changes.
