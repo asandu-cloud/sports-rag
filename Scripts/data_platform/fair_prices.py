@@ -16,6 +16,7 @@ from 2% below fair down (``FAIR_BAND``, owner to confirm), fair in between.
 from __future__ import annotations
 
 import math
+import statistics
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 from .confidence_labels import MIN_VALUE
@@ -134,6 +135,20 @@ def fair_card(canonical_results: Iterable[Mapping[str, Any]]) -> dict:
             lines.append(max(entries, key=lambda e: (e["book_count"],
                                                      -abs(e["outcomes"][0]["fair_probability"] - 0.5))))
     return {"version": VERSION, "method": METHOD, "min_books": MIN_BOOKS, "min_value": MIN_VALUE, "lines": lines}
+
+
+def typical_price(books, market: str, side: str, line) -> Optional[float]:
+    """The median across bookmakers of each one's best odds for one outcome, to the cent (half up); None below
+    ``MIN_BOOKS`` bookmakers. A handicap's ``side`` is the normalised team and ``line`` that team's handicap."""
+    side, best = norm(side), []
+    for outcomes in books.values():
+        prices = [o[2] for o in outcomes if o[0] == side and (o[1] == line or (
+            o[1] is not None and line is not None and abs(float(o[1]) - float(line)) < 1e-9))]
+        if prices:
+            best.append(max(prices))
+    if len(best) < MIN_BOOKS:
+        return None
+    return math.floor(statistics.median(best) * 100 + 0.5 + 1e-9) / 100
 
 
 def fair_outcome(canonical_results: Iterable[Mapping[str, Any]], market: str, side: str, line) -> Optional[dict]:

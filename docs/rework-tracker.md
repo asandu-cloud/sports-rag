@@ -107,7 +107,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | If A5.4 prices corners and cards against the market too, A4's calibrators (stage 5) lose their purpose except where no two-sided price exists. Stage 1 replay (17 Oct): Spix's corner picks lose ~2% at the close under either variance; A5.2's market rule kept +4.2% on corners. Candidate to join the stage 4 bundle (owner) | Decide with A5.4 (D31) | Calibrators fit Spix's own probability |
 | A5.4: build the chosen policy behind a switch (`line_selection`, `match_read_compiler`, `confidence_from_edge`), golden preview; proposal in D31 | A5; live at A3.7 stage 6, earliest Tue 17 Nov | Gate (report): published picks' calibration error ≤ 3 pts and closing line value at least neutral over 4+ live matchweeks |
 | Rerun the A5.1 study (`python -m Scripts.ops.disagreement_study --out Research/disagreement-<date>`) as weeks accrue | A5, with each A5 step | Rerun 23 Oct on two weeks (`Research/disagreement-2026-10-23/`, 32,855 lines, 295 fixtures): see the finding of 23 Oct on corners. Rerun 28 Oct (`Research/disagreement-2026-10-28/`, 44,196 lines, 393 fixtures): corners again carry information (c +0.38, +0.08 to +0.63); no other market's interval excludes zero |
-| Rerun the A4.2 study weekly (`python -m Scripts.ops.calibration_study --out Research/calibration-<date>`); calibrator decision with ≥3 weeks of audited fixtures | A4, decision at A3.7 stage 5 (not before Tue 10 Nov, D29) | Not adopted 16 Oct: one audited week, no market passes the gate (D28). Rerun 23 Oct (`Research/calibration-2026-10-23/`, up to 238 fixtures): Platt passes the gate on goals (−5.77%) and Asian handicap (−3.41%), which leave A4's scope at stage 4 (M1, D29); not on corners (+0.21%) or cards (+0.00%), the markets A4 keeps; BTTS not adopted (389 rows). Fixed corner dispersions still no worse than the floors on counts. Rerun 28 Oct (`Research/calibration-2026-10-28/`, up to 336 fixtures): no market passes; Platt on goals −3.78% (−0.0433 to +0.0031) and the handicap −2.47% (−0.0286 to +0.0011) no longer clear zero, corners +0.14%, cards −0.60%, BTTS −6.40% (542 rows, interval includes zero); Spix's log loss is above the market's in every market |
+| Rerun the A4.2 study weekly (`python -m Scripts.ops.calibration_study --out Research/calibration-<date>`); calibrator decision with ≥3 weeks of audited fixtures | A4, decision at A3.7 stage 5 (not before Tue 10 Nov, D29) | Not adopted 16 Oct: one audited week, no market passes the gate (D28). Rerun 23 Oct (`Research/calibration-2026-10-23/`, up to 238 fixtures): Platt passes the gate on goals (−5.77%) and Asian handicap (−3.41%), which leave A4's scope at stage 4 (M1, D29); not on corners (+0.21%) or cards (+0.00%), the markets A4 keeps; BTTS not adopted (389 rows). Fixed corner dispersions still no worse than the floors on counts. Rerun 28 Oct (`Research/calibration-2026-10-28/`, up to 336 fixtures): no market passes; Platt on goals −3.78% (−0.0433 to +0.0031) and the handicap −2.47% (−0.0286 to +0.0011) no longer clear zero, corners +0.14%, cards −0.60%, BTTS −6.40% (542 rows, interval includes zero); Spix's log loss is above the market's in every market. Rerun 3 Nov (`Research/calibration-2026-11-03/`, up to 439 fixtures, D54 c): only the handicap passes (Platt −3.24%, −0.0316 to −0.0056), but stage 4 prices the handicap from the market, so it has no use there; in the markets A4 still owns no calibrator passes: corners +0.11% (−0.0060 to +0.0066), cards −0.61% (−0.0126 to +0.0068); goals −3.22% and BTTS −4.71% include zero. Stage 5 has nothing to ship. The market is ahead of Spix in all five markets (every interval above zero). The cards rows still grade a straight red as one card; rerun cards after D54 (b) |
 | Qualify the card settlement definition (yellow + red vs bookmakers' bookings rules, second yellows) before calibrating or scoring cards | Now (D54), with the `/fixtures/events` refresh and backfill; reapplied to all past rows | Cards are graded yellow + red (indicative); the market's own card slope is 1.40 on that grading (D28) |
 | Cards and goals variance floors (no qualified dispersion yet) | A6 | Cards outside research qualification; goals use the score matrix |
 | Market expansion wave 1: team goal totals, double chance, draw no bet (D25) | After A5 | No new modelling; anchored by M1 |
@@ -120,7 +120,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Second-round variables: M2 line movement | A3 blend | Needs 6–8 weeks of odds archive (from ~mid-Nov 2026) |
 | Second-round variables: M3 bookmaker disagreement | A5.3 confidence labels (D30) | With A5 |
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
-| Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52, approved 3 Nov, D53); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`; plan `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks; mockups are task 3, after the data block) awaiting the owner's review | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
+| Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52, approved 3 Nov, D53); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`; plan `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks; mockups are task 3, after the data block). Tasks 1–2 (the data block behind `SPIX_RECOMMENDATIONS`, off) built on the backend branch 3 Nov, D56 | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
 | Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | Needs the bet builder and the recommendation lists first |
 | Website and Discord link: one-tap sharing of a bet to Discord, Discord posts linking back to the match (D50) | A7, when the bot moves to the new engine | The bot still runs the old engine |
 | Building bets inside Discord; community selections (D50) | After A7 | Owner: for later |
@@ -1009,7 +1009,30 @@ worktree). Revert: `git revert` of this commit; checkpoint 961c416 is the page b
   Most likely at 1.20 (v1 needs a typical price of at least 1.30), and Value picks with a typical price, where v1
   shows "Worth it at X or better" (D53).
 
+**D56 — Recommendation layer data block built, behind its display switch (3 Nov, backend branch).** Plan tasks 1–2:
+`Scripts/data_platform/recommendations.py` and `fair_prices.typical_price`; the card's new `recommendations` key is
+the `recommendations.v1` block when `SPIX_RECOMMENDATIONS=on`, else null. Calls the builder made (spec section 7):
+- *Never the same bet twice in Most likely.* Two goal-market options that win on exactly the same scorelines (a team
+  −0.5 and that team to win) count as one; the likelier stays. Found on real data: Lask Linz v Slovan listed both.
+- *Handicap options say `side: "home"/"away"`,* each with its own handicap, so the slip's score grid needs no mapping.
+- *The why sentences* read the card's metrics, which under stage 4 are the market's goal model; "Spix expects about
+  3.3 goals" therefore states the published projection. The owner signs off the copy.
+- *Real data, latest read of each 3–4 Nov UCL/UEL fixture (19):* all 18 priced fixtures get 3 Most likely options,
+  with 47–57 options and 4–5 suggestions each; Viking v Sabah (no prices) gets an empty block. Villarreal v PSG:
+  "Both teams to score" 71%. One Value pick (Bodo/Glimt v Lille, "Over 10" corners, worth it at 2.11). Most likely
+  sits near the 1.30 price floor (Galatasaray v Stuttgart: three options at 75%, 1.30): a tuning question once the
+  ledger has results. Blocks saved for the mockups in `Research/recommendations-blocks-2026-11-03/blocks.json`.
+
 ## Findings that shape later steps
+
+- **Checks from a worktree (3 Nov).** Run the merge checks from the main folder. In a worktree,
+  `golden_snapshots check` reports about 7,000 changed values per fixture even with every engine switch pinned to its
+  default on the command line, and the output is the same before and after a branch's change; from the main folder
+  the same pinned check prints "no changes across 54 fixtures" (orchestrator, 3 Nov, main at 2a1093d and the backend
+  branch at 8c14581). Why a worktree differs is not established. Three `test_phase4_baseline_freeze.py` tests error in
+  a worktree only (the file passes 7/7 from main): the replay refuses `Index/` files whose real path is the main
+  folder's. `engine_switches.snapshot()` returns the defaults in a bare process until `.env` is loaded with
+  `load_dotenv(Path('.env').resolve())`; after that it matches production.
 
 - **Stage 4 is live, and on its first matchday most matches have no pick, as the replay said (3 Nov).** The owner set
   `SPIX_MARKET_ANCHOR=full` and `SPIX_SELECTION_POLICY=market_value` in `.env` (saved 03:16 local); `engine_switches`

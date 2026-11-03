@@ -61,6 +61,8 @@ def build_match_read_card(read: Mapping[str, Any]) -> Dict[str, Any]:
         "metrics": _metrics_card(_mapping_or_empty(source.get("data")).get("canonical_results")),
         # The market's fair price per main line and Spix's own take (D36): what each bet is worth, no bookmaker named.
         "fair_prices": _fair_prices_card(_mapping_or_empty(source.get("data")).get("canonical_results")),
+        # What Spix would take in each market, Most likely and Value (D52, D53); only behind the display switch.
+        "recommendations": _recommendations_card(source, selections),
         "visuals": _visuals_card(script.get("visuals")),
         "timing": {
             "is_preliminary": _optional_text(timing.get("state")) == "preliminary",
@@ -185,6 +187,18 @@ def _fair_prices_card(canonical_results: Any) -> Dict[str, Any]:
 
     results = canonical_results if isinstance(canonical_results, Sequence) and not isinstance(canonical_results, (str, bytes)) else []
     return fair_card([item for item in results if isinstance(item, Mapping)])
+
+
+def _recommendations_card(source: Mapping[str, Any], selections: Sequence[Any]) -> Dict[str, Any] | None:
+    from .. import recommendations
+
+    if not recommendations.enabled():
+        return None
+    results = _mapping_or_empty(source.get("data")).get("canonical_results")
+    results = results if isinstance(results, Sequence) and not isinstance(results, (str, bytes)) else []
+    return recommendations.block(results, selections=[item for item in selections if isinstance(item, Mapping)],
+                                 metrics=_metrics_card(results),
+                                 prices_as_of=_mapping_or_empty(source.get("provenance")).get("evaluated_at"))
 
 
 def _visuals_card(value: Any) -> Dict[str, str | None]:
