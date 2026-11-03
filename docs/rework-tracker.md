@@ -1070,6 +1070,30 @@ Seen in the blocks, for the backend:
   bookmakers' identical prices can explain.
 - *The Value pick moved on:* the later Bodo/Glimt read has no released selection, so the mockup shows an earlier read.
 
+**D59 — The recommendation layer's match page and board card, front end (3 Nov, frontend branch).** Plan task 4,
+built to version B (D58). It shows only when the card carries the `recommendations.v1` block (`SPIX_RECOMMENDATIONS=on`).
+`?recs=off` brings back the old page to compare. The checkpoint commit before it is "Checkpoint before the
+recommendation layer front end".
+- *Match page:* Most likely, Value, Explore the match (Result, Goals, Both teams to score, Handicap, Corners; the
+  first market open), then the Match Read's research under "The Match Read". The old selection list gives way to
+  Value. "Other model angles" is removed in both versions.
+- *Board card:* the first Most likely pick, its chance and typical price, then the teams and "N suggestions · M value
+  picks".
+- *Chance in words:* the nearest of 1/10 … 9/10. Below 10% it reads "about 1 in N", and above 90% "about N−1 in N"
+  (my call), so 2% is never "about 1 in 10". Long shots (under 25%) say "A long shot," once, Value included.
+- *"Prices as of"* is the read's time, shown in the viewer's time. It is hidden when nothing is priced.
+- *The slip* is the app's existing side panel, not the mockup's column. Task 5 reworks it.
+- *Methodology page:* a short "Most likely, Value and the chance shown" section (spec section 4). The owner signs
+  off the copy.
+
+Seen in real reads, for the backend:
+- *A Value pick without figures:* AS Roma v Sassuolo (7 Nov) has the handicap pick "As Roma -1.5" with `chance` and
+  `worth_it_at` both null, while its Over 3.25 pick has both. The page shows the pick without "Worth it at" rather
+  than a wrong figure.
+- *Value picks are written as the engine words them:* "Away", "Home", "As Roma -1.5" (team-name case, ASCII
+  hyphen). The front end matches them to the market's own option for the label, side and line. Sending `side`,
+  `line` and `label` on each value item would remove the guess.
+
 ## Findings that shape later steps
 
 - **Checks from a worktree (3 Nov).** Run the merge checks from the main folder. In a worktree,

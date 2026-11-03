@@ -176,7 +176,7 @@ button, a, [role="button"], [role="link"] { touch-action: manipulation; }
 }
 
 /* Label role: the single uppercase voice. */
-.match-read-alternatives-title,
+.recs-label,
 .market-card-title,
 .match-league-badge,
 .auth-divider,
@@ -968,16 +968,6 @@ button.fixture-teams:hover { color: var(--accent-l); }
   line-height: 1.5;
 }
 .match-read-relationship { margin: 16px 0 0; max-width: 72ch; color: var(--text3); font-size: 14px; line-height: 1.55; }
-.match-read-alternatives { margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border2); }
-.match-read-alternatives-title { margin: 0 0 8px; }
-.match-read-alternatives-list { display: flex; flex-wrap: wrap; gap: 6px; }
-.match-read-alternatives-list span {
-  color: var(--text2);
-  background: var(--surface2);
-  border-radius: 4px;
-  font-size: 13px;
-  padding: 5px 9px;
-}
 
 /* -- Market tabs and cards (preview data) -- */
 .market-tabs {
@@ -1053,6 +1043,160 @@ button.fixture-teams:hover { color: var(--accent-l); }
 }
 .market-add-btn:hover { background: var(--accent-dim); }
 .market-add-btn.added { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+
+/* -- Recommendation layer: design B, tiles (D58) -- */
+.recs { display: flex; flex-direction: column; gap: 32px; margin: 0 0 32px; }
+.recs-section { min-width: 0; }
+.recs-head {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline;
+  gap: 4px 16px; margin: 0 0 14px;
+}
+.recs-title {
+  margin: 0;
+  font-size: 26px; font-weight: 800; line-height: 1.1;
+  font-stretch: var(--display-stretch);
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+.recs-asof { color: var(--text3); font-size: 14px; font-variant-numeric: tabular-nums; }
+.recs-note { margin: 0; color: var(--text2); font-size: 15px; }
+.recs-note b { color: var(--text); }
+.recs-fig { font-weight: 800; font-stretch: 85%; font-size: 22px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.recs-pick {
+  margin: 0;
+  font-size: 22px; font-weight: 800; line-height: 1.1;
+  font-stretch: var(--display-stretch);
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+.recs-pct { color: var(--text2); font-variant-numeric: tabular-nums; font-weight: 400; }
+.recs-add {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 44px;
+  padding: 0 14px 0 12px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--accent-l);
+  font-size: 14px; font-weight: 700;
+  white-space: nowrap;
+  transition: background-color .15s var(--ease), color .15s var(--ease);
+}
+.recs-add:hover { background: var(--accent-dim); }
+.recs-add.added { background: var(--accent); color: var(--on-accent); }
+
+/* Most likely: a strip of cards that scrolls sideways on phones. */
+.recs-strip { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x mandatory; }
+.recs-card {
+  flex: 1 0 min(80%, 250px);
+  scroll-snap-align: start;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.recs-chance { margin: 0; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.recs-words { font-weight: 600; }
+.recs-why { margin: 0; flex: 1; color: var(--text2); font-size: 14px; }
+.recs-card-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+
+/* Value */
+.recs-value-card {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.recs-value-card + .recs-value-card { margin-top: 12px; }
+.recs-value-main { flex: 1 1 220px; min-width: 0; display: grid; gap: 4px; }
+.recs-value-chance { margin: 0; color: var(--text2); font-size: 14px; }
+.recs-value-worth { flex: 1 1 160px; display: grid; gap: 2px; }
+.recs-value-worth > span:first-child { color: var(--text2); font-size: 14px; }
+
+/* Explore the match */
+.recs-title.recs-head { margin-bottom: 14px; }
+.recs-explore .recs-title { margin-bottom: 8px; }
+.recs-tabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--border); }
+.recs-tab {
+  min-height: 44px;
+  padding: 0 14px;
+  border-bottom: 3px solid transparent;
+  color: var(--text2);
+  font-size: 15px; font-weight: 500;
+  white-space: nowrap;
+}
+.recs-tab:hover { color: var(--text); }
+.recs-tab.is-on { border-bottom-color: var(--accent); color: var(--accent-l); font-weight: 700; }
+.recs-market { margin-top: 20px; }
+.recs-summary { margin-bottom: 16px; }
+.recs-swipe { touch-action: pan-y; }
+.recs-stepper { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 16px; }
+.recs-step {
+  width: 56px; height: 56px; flex: none;
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 24px; line-height: 1;
+}
+.recs-step:hover:not(:disabled) { background: var(--surface-hover); }
+.recs-step:disabled { color: var(--text3); border-color: var(--border); opacity: .6; cursor: not-allowed; }
+.recs-line { min-width: 170px; display: grid; gap: 4px; text-align: center; }
+.recs-line-text {
+  font-size: 30px; font-weight: 800; line-height: 1;
+  font-stretch: var(--display-stretch);
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+.recs-line-pos { color: var(--text3); font-size: 13px; }
+.recs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.recs-tile {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.recs-tile.is-pick { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.recs-tile .recs-add { margin-top: 6px; }
+.recs-pickmark {
+  display: inline-flex; align-self: flex-start; align-items: center;
+  height: 24px; padding: 0 8px;
+  border-radius: 4px;
+  background: var(--accent-dim);
+  color: var(--accent-l);
+  font-size: 12px; font-weight: 700;
+  white-space: nowrap;
+}
+.recs-option-label { font-weight: 700; font-size: 17px; }
+.recs-option-chance { color: var(--text2); font-size: 14px; }
+
+/* Board card */
+.match-read-fixture-card.recs-board-card { padding: 0; gap: 0; overflow: hidden; }
+.recs-board-body { padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 6px; }
+.recs-board-topline { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.recs-board-topline .match-card-time { font-size: 14px; }
+.recs-board-pick {
+  margin: 0;
+  font-size: 28px; font-weight: 800; line-height: 1.05;
+  font-stretch: var(--display-stretch);
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+.recs-board-chance { margin: 0; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.recs-board-chance b { font-weight: 600; }
+.recs-board-foot { background: var(--surface2); padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; }
+.recs-board-teams {
+  margin: 0;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  font-size: 16px; font-weight: 700;
+}
+.recs-board-teams .match-card-emblem { width: 28px; height: 28px; }
+.recs-board-v { color: var(--text3); font-weight: 400; }
+.recs-board-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.recs-board-count { color: var(--text2); font-size: 14px; }
 
 /* ================================================================
    BET SLIP
