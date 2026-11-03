@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-11-03 (stage 4 live; first matchday: 5 of 18 fixtures with a pick, see Findings)
+Last updated: 2026-11-03 (stage 4 live; first matchday: 5 of 18 fixtures with a pick, see Findings; D52 recommendation layer moved up to now)
 
 ## Status
 
@@ -120,7 +120,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Second-round variables: M2 line movement | A3 blend | Needs 6–8 weeks of odds archive (from ~mid-Nov 2026) |
 | Second-round variables: M3 bookmaker disagreement | A5.3 confidence labels (D30) | With A5 |
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
-| Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | New step, proposed straight after stage 4; order to be confirmed by the owner | Needs stage 4's honest chances for all goal markets; a value filter alone gives 22 picks on 54 fixtures |
+| Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`, awaiting the owner's approval and three answers | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
 | Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | Needs the bet builder and the recommendation lists first |
 | Website and Discord link: one-tap sharing of a bet to Discord, Discord posts linking back to the match (D50) | A7, when the bot moves to the new engine | The bot still runs the old engine |
 | Building bets inside Discord; community selections (D50) | After A7 | Owner: for later |
@@ -961,6 +961,21 @@ total and the combined chance must then not come from multiplying. Proposed by l
 - *Goals with corners or cards:* multiply, then apply a small factor measured from past matches.
 - *Player legs in the same match as another leg:* no total shown until tested.
 - *Legs that cannot both win:* blocked. *A leg already covered by another (Over 1.5 with Over 2.5):* counts once.
+
+**D52 — The recommendation layer moves up to now (3 Nov, owner).** Stage 4 alone leaves most matches with no pick (13
+of 18 on 3 Nov), which suits unit bets but not the casual bettor in `docs/identity.md` section 2. The owner wants
+each match to be something to browse: what Spix would take in each market, with the freedom to take anything else.
+Design: `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`.
+- *Shape:* per match, Most likely (up to 3) and Value (up to 2, the stage 4 picks unchanged), then "Explore the
+  match": Result, Goals, Both teams to score, Handicap and Corners, each with Spix's suggestion marked, a line stepper
+  and Add on every priced option.
+- *Numbers:* the market's fair chance and a median typical price from the stored reads (`fair_prices`, every half
+  line); no engine change and no engine switch, so it can ship before the Mon 9 Nov scorecard without touching the
+  stage 4 measurement. A display switch `SPIX_RECOMMENDATIONS` (off by default). Cards and shots on target are left
+  out until stage 6 and the card settlement fix.
+- *Measured:* the Most likely options of the last read before kickoff are logged and settled as their own cohort.
+- *Open (owner):* same-match goal legs in this project or later (D51); "worth it at" in place of the typical price on
+  Value picks; who designs the look (Claude Design, as D47, or mockups first). Stage 5 and 6 dates are unchanged.
 
 ## Findings that shape later steps
 
