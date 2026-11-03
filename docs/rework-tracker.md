@@ -120,7 +120,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Second-round variables: M2 line movement | A3 blend | Needs 6–8 weeks of odds archive (from ~mid-Nov 2026) |
 | Second-round variables: M3 bookmaker disagreement | A5.3 confidence labels (D30) | With A5 |
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
-| Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52, approved 3 Nov, D53); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`; plan `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks; mockups are task 3, after the data block) awaiting the owner's review | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
+| Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52, approved 3 Nov, D53); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`; plan `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks; mockups are task 3, after the data block). Tasks 1–2 (the data block behind `SPIX_RECOMMENDATIONS`, off) built on the backend branch 3 Nov, D55 | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
 | Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | Needs the bet builder and the recommendation lists first |
 | Website and Discord link: one-tap sharing of a bet to Discord, Discord posts linking back to the match (D50) | A7, when the bot moves to the new engine | The bot still runs the old engine |
 | Building bets inside Discord; community selections (D50) | After A7 | Owner: for later |
@@ -999,7 +999,29 @@ nothing here changes published picks before Tue 10 Nov.
 - *If the calibrators fail again,* stage 5 has nothing to ship and A5.4 may go live Tue 10 Nov instead of Tue 17 Nov.
   The owner decides after the rerun.
 
+**D55 — Recommendation layer data block built, behind its display switch (3 Nov, backend branch).** Plan tasks 1–2:
+`Scripts/data_platform/recommendations.py` and `fair_prices.typical_price`; the card's new `recommendations` key is
+the `recommendations.v1` block when `SPIX_RECOMMENDATIONS=on`, else null. Calls the builder made (spec section 7):
+- *Never the same bet twice in Most likely.* Two goal-market options that win on exactly the same scorelines (a team
+  −0.5 and that team to win) count as one; the likelier stays. Found on real data: Lask Linz v Slovan listed both.
+- *Handicap options say `side: "home"/"away"`,* each with its own handicap, so the slip's score grid needs no mapping.
+- *The why sentences* read the card's metrics, which under stage 4 are the market's goal model; "Spix expects about
+  3.3 goals" therefore states the published projection. The owner signs off the copy.
+- *Real data, latest read of each 3–4 Nov UCL/UEL fixture (19):* all 18 priced fixtures get 3 Most likely options,
+  with 47–57 options and 4–5 suggestions each; Viking v Sabah (no prices) gets an empty block. Villarreal v PSG:
+  "Both teams to score" 71%. One Value pick (Bodo/Glimt v Lille, "Over 10" corners, worth it at 2.11). Most likely
+  sits near the 1.30 price floor (Galatasaray v Stuttgart: three options at 75%, 1.30): a tuning question once the
+  ledger has results. Blocks saved for the mockups in `Research/recommendations-blocks-2026-11-03/blocks.json`.
+
 ## Findings that shape later steps
+
+- **Checks on the backend branch (3 Nov).** `golden_snapshots check` exits 1 on main too, even with every engine
+  switch pinned to its default on the command line: the 17–18 Oct bundle no longer matches (about 7,000 changed values
+  per fixture). The gate is therefore "output unchanged from main", which held for D55 (byte-identical output before
+  and after). Run without the pins, the command loads `.env` and replays stage 4 against the defaults' bundle. Three
+  `test_phase4_baseline_freeze.py` tests error in a worktree only: the replay refuses `Index/` files whose real path
+  is the main folder's. `engine_switches.snapshot()` returns the defaults in a bare process until `.env` is loaded
+  with `load_dotenv(Path('.env').resolve())`; after that it matches production.
 
 - **Stage 4 is live, and on its first matchday most matches have no pick, as the replay said (3 Nov).** The owner set
   `SPIX_MARKET_ANCHOR=full` and `SPIX_SELECTION_POLICY=market_value` in `.env` (saved 03:16 local); `engine_switches`

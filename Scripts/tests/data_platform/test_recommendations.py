@@ -94,3 +94,126 @@ def test_most_likely_keeps_three_compatible_markets_by_chance_with_price_breakin
     assert rec.most_likely([None, corners_over_55]) == [corners_over_55]
     tie = rec.most_likely([mk("btts", "yes", None, 0.6, 1.5), mk("corners", "over", 9.5, 0.6, 1.6)])
     assert [p["market"] for p in tie] == ["corners", "btts"]
+
+
+# --- Task 2: the recommendations.v1 block -------------------------------------------------------------------------
+
+def whole_line_goals_result():
+    options = [{"market_key": "totals", "side": side, "point": 5.0, "odds": odds, "bookmaker": book}
+               for book, pair in {"A": (2.85, 1.40), "B": (2.70, 1.45)}.items()
+               for side, odds in zip(("over", "under"), pair)]
+    return result("goals", options)
+
+
+def btts_result():
+    options = [{"market_key": "btts", "side": side, "point": None, "odds": odds, "bookmaker": book}
+               for book, pair in {"A": (1.55, 2.40), "B": (1.60, 2.30)}.items()
+               for side, odds in zip(("yes", "no"), pair)]
+    return result("btts", options)
+
+
+def corners_result(projected=10.2):
+    options = [{"market_key": "totals_corners_over_under", "side": side, "point": 9.5, "odds": odds, "bookmaker": book}
+               for book, pair in {"A": (1.70, 2.05), "B": (1.75, 2.00)}.items()
+               for side, odds in zip(("over", "under"), pair)]
+    return result("corners", options, projection={"value": projected, "components": {}})
+
+
+def all_markets_results():
+    cards = result("cards", [])
+    return [moneyline_result()[0], goals_result(), btts_result(), spreads_result(), corners_result(), cards]
+
+
+def results_with_goal_model(home, away):
+    goals = goals_result()
+    goals["context"]["market_anchor"] = {"goal_model": {"version": "m1", "home": home, "away": away, "error": 0.0}}
+    return [goals, btts_result()]
+
+
+METRICS = {"projected_total_goals": 3.31, "team_goals": {"home": 1.44, "away": 1.87}, "result_probabilities": None}
+
+
+def test_value_shows_worth_it_at_the_minimum_odds_even_on_a_whole_line():
+    sel = {"position": 1, "market": {"group": "goals"}, "pick": "Over 5", "published_recommendation_id": 9,
+           "quote": {"side": "over", "line": 5.0}}
+    value = rec.block([whole_line_goals_result()], selections=[sel], metrics={},
+                      prices_as_of="2026-11-03T11:13:27")["value"]
+    chance = fp.fair_outcome([whole_line_goals_result()], "goals", "over", 5.0)["fair_probability"]
+    assert value == [{"position": 1, "market": "goals", "pick": "Over 5", "chance": pytest.approx(chance),
+                      "worth_it_at": fp.minimum_odds(chance), "published_recommendation_id": 9}]
+
+
+def test_value_reads_a_stored_selections_quote_and_keeps_at_most_two():
+    stored = [{"position": p, "market": {"group": "goals"}, "pick": "Over 2.5", "published_recommendation_id": None,
+               "data": {"decision": {"quote": {"side": "over", "line": 2.5}}}} for p in (0, 1, 2)]
+    value = rec.block([goals_result()], selections=stored, metrics={}, prices_as_of=None)["value"]
+    assert [v["position"] for v in value] == [0, 1]
+    assert value[0]["worth_it_at"] == fp.minimum_odds(fp.fair_outcome([goals_result()], "goals", "over", 2.5)["fair_probability"])
+
+
+def test_a_value_pick_with_no_stored_prices_has_no_worth_it_at():
+    sel = {"position": 0, "market": {"group": "goals"}, "pick": "Over 2.5", "quote": {"side": "over", "line": 2.5}}
+    value = rec.block([result("goals", [])], selections=[sel], metrics={}, prices_as_of=None)["value"]
+    assert value[0]["chance"] is None and value[0]["worth_it_at"] is None
+
+
+def test_every_market_is_listed_with_its_suggestion_or_none_and_cards_are_absent():
+    b = rec.block(all_markets_results(), selections=[], metrics=METRICS, prices_as_of=None)
+    assert b["version"] == "recommendations.v1"
+    assert [m["market"] for m in b["markets"]] == list(rec.MARKETS)
+    assert "cards" not in {m["market"] for m in b["markets"]}
+    by_market = {m["market"]: m for m in b["markets"]}
+    assert by_market["btts"]["suggestion"]["label"] == "Both teams to score"
+    assert by_market["moneyline"]["suggestion"] is None  # nobody is above half
+
+
+def test_a_read_with_no_prices_gives_an_empty_block():
+    b = rec.block([result("goals", [])], selections=[], metrics={}, prices_as_of=None)
+    assert b["most_likely"] == [] and b["value"] == [] and b["score_grid"] is None
+    assert all(m["options"] == [] and m["suggestion"] is None for m in b["markets"])
+    assert [m["market"] for m in b["markets"]] == list(rec.MARKETS)
+
+
+def test_most_likely_carries_a_why_from_the_reads_figures():
+    b = rec.block(all_markets_results(), selections=[], metrics=METRICS, prices_as_of="2026-11-03T11:13:27")
+    why = {o["market"]: o["why"] for o in b["most_likely"]}
+    assert why["btts"] == "Spix expects Lyon about 1.4 goals and Lens about 1.9."
+    assert why["corners"] == "Spix expects about 10.2 corners."
+    assert b["prices_as_of"] == "2026-11-03T11:13:27"
+    bare = {o["market"]: o["why"] for o in rec.block(all_markets_results(), selections=[], metrics={},
+                                                     prices_as_of=None)["most_likely"]}
+    assert bare["btts"] is None and bare["goals"] is None  # a missing figure gives no sentence
+    assert bare["corners"] == "Spix expects about 10.2 corners."  # from the corners result itself
+
+
+def test_why_templates_per_market():
+    assert rec.why({"market": "goals"}, METRICS, {}) == "Spix expects about 3.3 goals."
+    assert rec.why({"market": "moneyline"}, METRICS, {"home_team": "Lyon", "away_team": "Lens"}) == \
+        "Spix expects Lyon about 1.4 goals and Lens about 1.9."
+    assert rec.why({"market": "goals"}, {}, {}) is None
+    assert rec.why({"market": "corners"}, METRICS, {}, corners=None) is None
+
+
+def test_score_grid_comes_from_the_stored_goal_model_and_is_null_without_one():
+    assert rec.block(results_with_goal_model(1.44, 2.32), selections=[], metrics={},
+                     prices_as_of=None)["score_grid"] == {"home": 1.44, "away": 2.32}
+    assert rec.block([goals_result()], selections=[], metrics={}, prices_as_of=None)["score_grid"] is None
+
+
+def test_the_switch_is_off_unless_set_to_on(monkeypatch):
+    monkeypatch.delenv("SPIX_RECOMMENDATIONS", raising=False)
+    assert not rec.enabled()
+    monkeypatch.setenv("SPIX_RECOMMENDATIONS", " On ")
+    assert rec.enabled()
+    monkeypatch.setenv("SPIX_RECOMMENDATIONS", "off")
+    assert not rec.enabled()
+
+
+def test_most_likely_never_lists_the_same_bet_twice_under_two_markets():
+    # Lask Linz v Slovan, 3 Nov: "Lask Linz −0.5" and "Lask Linz to win" win on exactly the same scorelines
+    handicap = mk("spreads", "home", -0.5, 0.73, 1.33)
+    win = mk("moneyline", "home", None, 0.73, 1.35)
+    over = mk("goals", "over", 2.5, 0.73, 1.33)
+    assert [p["market"] for p in rec.most_likely([handicap, win, over])] == ["moneyline", "goals"]
+    assert rec.same_bet(mk("spreads", "away", 0.5), mk("moneyline", "home", None)) is False
+    assert rec.same_bet(handicap, win) and not rec.same_bet(win, over)

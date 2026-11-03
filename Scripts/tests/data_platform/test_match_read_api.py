@@ -449,3 +449,17 @@ def test_price_check_refuses_unpriced_lines_unknown_markets_and_impossible_odds(
     assert client.get(path, params={"market": "goals", "side": "over", "line": 2.5, "odds": 1.0}).status_code == 422
     assert client.get("/api/match-reads/fixtures/nothing-here/price-check",
                       params={"market": "goals", "side": "over", "line": 2.5, "odds": 2.0}).status_code == 404
+
+
+def test_card_carries_the_recommendations_block_only_when_the_switch_is_on(settings, engine, session_factory,
+                                                                         monkeypatch):
+    from data_platform.services.match_read_cards import build_match_read_card
+
+    read = _metrics_read(_service(session_factory))
+    monkeypatch.delenv("SPIX_RECOMMENDATIONS", raising=False)
+    assert build_match_read_card(read)["recommendations"] is None
+    monkeypatch.setenv("SPIX_RECOMMENDATIONS", "on")
+    block = build_match_read_card(read)["recommendations"]
+    assert block["version"] == "recommendations.v1"
+    assert block["prices_as_of"] == read["provenance"]["evaluated_at"]
+    assert [v["position"] for v in block["value"]] == [s["position"] for s in read["selections"]]
