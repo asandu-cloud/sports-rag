@@ -1,6 +1,6 @@
 """Local preview of the new landing page, on its own port. Not part of the production website.
 
-    .venv/bin/python -B landing-preview/serve.py    # then open http://127.0.0.1:8010
+    .venv/bin/python -B landing-preview/serve.py [port]    # then open http://127.0.0.1:8010 (or the port given)
 
 The page keeps the production paths, so it can move into the site unchanged: the schedule API is read through to the
 local website on port 8000, and links to /app, /static/ and /auth/ redirect there.
@@ -11,11 +11,12 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import re
+import sys
 from urllib.error import URLError
 from urllib.request import urlopen
 
 HERE = Path(__file__).resolve().parent
-PORT = 8010
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8010
 SITE = "http://127.0.0.1:8000"
 SCHEDULE = re.compile(r"^/api/match-reads/schedule/\d{4}-\d{2}-\d{2}$")
 ON_SITE = ("/app", "/static/", "/auth/")

@@ -120,7 +120,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Second-round variables: M2 line movement | A3 blend | Needs 6–8 weeks of odds archive (from ~mid-Nov 2026) |
 | Second-round variables: M3 bookmaker disagreement | A5.3 confidence labels (D30) | With A5 |
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
-| Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52, approved 3 Nov, D53); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`; plan `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks; mockups are task 3, after the data block). Tasks 1–2 (the data block behind `SPIX_RECOMMENDATIONS`, off) built on the backend branch 3 Nov, D55 | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
+| Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52, approved 3 Nov, D53); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`; plan `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks; mockups are task 3, after the data block). Tasks 1–2 (the data block behind `SPIX_RECOMMENDATIONS`, off) built on the backend branch 3 Nov, D56 | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
 | Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | Needs the bet builder and the recommendation lists first |
 | Website and Discord link: one-tap sharing of a bet to Discord, Discord posts linking back to the match (D50) | A7, when the bot moves to the new engine | The bot still runs the old engine |
 | Building bets inside Discord; community selections (D50) | After A7 | Owner: for later |
@@ -999,7 +999,17 @@ nothing here changes published picks before Tue 10 Nov.
 - *If the calibrators fail again,* stage 5 has nothing to ship and A5.4 may go live Tue 10 Nov instead of Tue 17 Nov.
   The owner decides after the rerun.
 
-**D55 — Recommendation layer data block built, behind its display switch (3 Nov, backend branch).** Plan tasks 1–2:
+**D55 — Landing page: the sample picks are labelled "Example" (3 Nov, frontend).** Before launch, every made-up
+pick on the landing preview says it is an example: the hero demo's head reads "Arsenal v Chelsea · Example", and each
+of the two sample lists under "Two lists on every match" has the line "Example: Arsenal v Chelsea" (the research
+sheet already said "Example match"). `landing-preview/serve.py` takes a port (`serve.py 8011` for the frontend
+worktree). Revert: `git revert` of this commit; checkpoint 961c416 is the page before.
+- *Found, not changed (owner):* the samples show things the recommendation layer will not have at launch: a cards
+  leg and a player leg ("Under 5.5 cards", "Arsenal striker to score"; cards and players are out of v1, D52),
+  Most likely at 1.20 (v1 needs a typical price of at least 1.30), and Value picks with a typical price, where v1
+  shows "Worth it at X or better" (D53).
+
+**D56 — Recommendation layer data block built, behind its display switch (3 Nov, backend branch).** Plan tasks 1–2:
 `Scripts/data_platform/recommendations.py` and `fair_prices.typical_price`; the card's new `recommendations` key is
 the `recommendations.v1` block when `SPIX_RECOMMENDATIONS=on`, else null. Calls the builder made (spec section 7):
 - *Never the same bet twice in Most likely.* Two goal-market options that win on exactly the same scorelines (a team
@@ -1015,13 +1025,14 @@ the `recommendations.v1` block when `SPIX_RECOMMENDATIONS=on`, else null. Calls 
 
 ## Findings that shape later steps
 
-- **Checks on the backend branch (3 Nov).** `golden_snapshots check` exits 1 on main too, even with every engine
-  switch pinned to its default on the command line: the 17–18 Oct bundle no longer matches (about 7,000 changed values
-  per fixture). The gate is therefore "output unchanged from main", which held for D55 (byte-identical output before
-  and after). Run without the pins, the command loads `.env` and replays stage 4 against the defaults' bundle. Three
-  `test_phase4_baseline_freeze.py` tests error in a worktree only: the replay refuses `Index/` files whose real path
-  is the main folder's. `engine_switches.snapshot()` returns the defaults in a bare process until `.env` is loaded
-  with `load_dotenv(Path('.env').resolve())`; after that it matches production.
+- **Checks from a worktree (3 Nov).** Run the merge checks from the main folder. In a worktree,
+  `golden_snapshots check` reports about 7,000 changed values per fixture even with every engine switch pinned to its
+  default on the command line, and the output is the same before and after a branch's change; from the main folder
+  the same pinned check prints "no changes across 54 fixtures" (orchestrator, 3 Nov, main at 2a1093d and the backend
+  branch at 8c14581). Why a worktree differs is not established. Three `test_phase4_baseline_freeze.py` tests error in
+  a worktree only (the file passes 7/7 from main): the replay refuses `Index/` files whose real path is the main
+  folder's. `engine_switches.snapshot()` returns the defaults in a bare process until `.env` is loaded with
+  `load_dotenv(Path('.env').resolve())`; after that it matches production.
 
 - **Stage 4 is live, and on its first matchday most matches have no pick, as the replay said (3 Nov).** The owner set
   `SPIX_MARKET_ANCHOR=full` and `SPIX_SELECTION_POLICY=market_value` in `.env` (saved 03:16 local); `engine_switches`
