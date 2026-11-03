@@ -8,8 +8,9 @@ its typical price is the median of the bookmakers' best prices, with no bookmake
 Spix's suggestion in a market is its likeliest option at a chance of at least ``MIN_CHANCE`` and a typical price of
 at least ``MIN_PRICE``. Most likely is the top ``MAX_MOST_LIKELY`` markets' suggestions that can all win together:
 goal-market legs are checked against the scorelines 0-0 to ``MAX_SCORE``-``MAX_SCORE``; corners never conflict.
-Value is the read's released selections (stage 4), each with "Worth it at X or better": the fair-price card's
-minimum odds at the outcome's fair chance, any line. No engine output changes: the lists are compiled from what the
+Value is the read's released selections (stage 4) in the layer's markets, each with "Worth it at X or better": the
+fair-price card's minimum odds at the outcome's fair chance, any line; a cards or shots-on-target pick stays out
+until the owner adds those markets (D61). No engine output changes: the lists are compiled from what the
 read already stores. The block reaches the card only when the display switch ``SPIX_RECOMMENDATIONS`` is ``on``.
 """
 from __future__ import annotations
@@ -194,7 +195,9 @@ def block(canonical_results: Iterable[Mapping[str, Any]], *, selections: Iterabl
     fixture = next((r.get("fixture") for r in canonical_results if isinstance(r.get("fixture"), Mapping)), {})
     likely = [{**o, "why": why(o, metrics, fixture, corners=corners)}
               for o in most_likely(m["suggestion"] for m in markets)]
-    ordered = sorted((s for s in selections or [] if isinstance(s, Mapping)), key=lambda s: s.get("position") or 0)
+    ordered = sorted((s for s in selections or [] if isinstance(s, Mapping)
+                      and (s.get("market") or {}).get("group") in MARKETS),  # cards and SoT stay out (D61)
+                     key=lambda s: s.get("position") or 0)
     return {"version": VERSION, "prices_as_of": prices_as_of, "most_likely": likely,
             "value": [_value(canonical_results, s) for s in ordered[:MAX_VALUE]], "markets": markets,
             "score_grid": _score_grid(results)}

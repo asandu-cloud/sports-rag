@@ -163,3 +163,48 @@ def test_a_lopsided_2_5_line_takes_the_goal_model_and_is_never_picked(monkeypatc
     assert under["_probability_source"] == "market_goal_model" and under["_model_prob"] == pytest.approx(0.20)
     assert under["_ev"] == pytest.approx(0.20 * 6.0 - 1) and under["_eligible"] is False
     assert (result["bet_recommendation"] or {}).get("point") != 2.5
+
+
+# --- A5.4 cards: Pinnacle's fair price is the reference (D54 d, D58, D61) ------------------------
+
+def cards_options(rows=None, point=4.5):
+    # Pinnacle sets the chance; Bet365 and Betano lean to overs, so Betano's under is long against Pinnacle.
+    rows = rows or {"Pinnacle": (2.10, 1.75), "Bet365": (1.85, 1.95), "Betano": (1.80, 2.05)}
+    return [{"side": side, "point": point, "odds": odds, "bookmaker": book, "market_key": "totals_cards_over_under"}
+            for book, prices in rows.items() for side, odds in zip(("over", "under"), prices) if odds]
+
+
+def pinnacle(options, projection=4.0):
+    return line_selection.select_best_total_recommendation(options, projection, 6.0, anchor_points="all",
+                                                           anchor_books=("Pinnacle",))
+
+
+def test_cards_take_pinnacles_fair_price_and_pick_where_another_book_beats_it(market_value):
+    result = pinnacle(cards_options())
+    pick, under = result["bet_recommendation"], remove_vig_two_way(2.10, 1.75)[1]
+    assert pick["bookmaker"] == "Betano" and pick["side"] == "under" and pick["point"] == 4.5
+    assert pick["_model_prob"] == pytest.approx(under) and pick["_probability_source"] == "market_consensus"
+    assert pick["_ev"] == pytest.approx(under * 2.05 - 1)
+    median = 1 - statistics.median(remove_vig_two_way(o, u)[0] for o, u in ((2.10, 1.75), (1.85, 1.95), (1.80, 2.05)))
+    assert pick["_model_prob"] != pytest.approx(median)  # Pinnacle alone, not the median of the three
+    record = result["market_anchor"]
+    assert record["books_used"] == ["pinnacle"]
+    assert list(record["lines"]) == ["4.5"] and record["lines"]["4.5"]["books"] == 1
+    assert record["lines"]["4.5"]["market_over"] == pytest.approx(1 - under)
+
+
+def test_a_line_pinnacle_prices_on_one_side_only_is_never_a_pick(market_value):
+    options = cards_options({"Pinnacle": (3.20, None), "Betano": (3.40, 1.40)}, point=5.5)
+    # Spix's own 8 cards make Betano's over 5.5 look like value, and without a reference it is picked...
+    assert line_selection.select_best_total_recommendation(options, 8.0, 8.0)["bet_recommendation"] is not None
+    # ...but Pinnacle has no two-sided price on the line, so there is no chance to publish and no pick.
+    result = pinnacle(options, projection=8.0)
+    assert result["bet_recommendation"] is None and result["market_anchor"]["lines"] == {}
+    assert all("_probability_source" not in row for row in result["all_lines"])
+
+
+def test_pinnacles_own_quote_is_never_the_pick(market_value_all_books):
+    options = cards_options({"Pinnacle": (2.10, 1.75), "Bet365": (2.00, 1.72)})
+    result = pinnacle(options, projection=7.0)
+    assert result["bet_recommendation"] is None
+    assert all(row["_ev"] < 0.02 for row in result["all_lines"] if row["bookmaker"] == "Pinnacle")

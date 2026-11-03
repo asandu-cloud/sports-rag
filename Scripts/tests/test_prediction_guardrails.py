@@ -53,6 +53,19 @@ class PredictionGuardrailTests(unittest.TestCase):
         self.assertFalse(assessment["eligible"])
         self.assertIn("profiled referee", " ".join(assessment["reasons"]))
 
+    def test_a_pinnacle_priced_cards_line_does_not_need_a_profiled_referee(self):
+        # A5.4 (D61): the published chance is Pinnacle's, not Spix's referee-based number.
+        priced = assess_market_quality(
+            _quality(current_matches=10), "cards", referee_source="unavailable", market_priced=True,
+        )
+        thin = assess_market_quality(
+            _quality(current_matches=1), "cards", referee_source="unavailable", market_priced=True,
+        )
+
+        self.assertTrue(priced["eligible"])
+        self.assertFalse(thin["eligible"])  # the profile guardrails still apply
+        self.assertNotIn("profiled referee", " ".join(thin["reasons"]))
+
 
 if __name__ == "__main__":
     unittest.main()

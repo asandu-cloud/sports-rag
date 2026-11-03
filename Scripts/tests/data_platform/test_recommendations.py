@@ -151,6 +151,15 @@ def test_value_reads_a_stored_selections_quote_and_keeps_at_most_two():
     assert value[0]["worth_it_at"] == fp.minimum_odds(fp.fair_outcome([goals_result()], "goals", "over", 2.5)["fair_probability"])
 
 
+def test_value_leaves_out_picks_from_markets_outside_the_layer():
+    # D61 (b): a published cards or shots-on-target pick stays on the card but not in the Value list.
+    picks = [{"position": 0, "market": {"group": "cards"}, "pick": "Under 4.5", "quote": {"side": "under", "line": 4.5}},
+             {"position": 1, "market": {"group": "sot"}, "pick": "Over 8.5", "quote": {"side": "over", "line": 8.5}},
+             {"position": 2, "market": {"group": "goals"}, "pick": "Over 2.5", "quote": {"side": "over", "line": 2.5}}]
+    value = rec.block([goals_result()], selections=picks, metrics={}, prices_as_of=None)["value"]
+    assert [(v["position"], v["market"]) for v in value] == [(2, "goals")]
+
+
 def test_a_value_pick_with_no_stored_prices_has_no_worth_it_at():
     sel = {"position": 0, "market": {"group": "goals"}, "pick": "Over 2.5", "quote": {"side": "over", "line": 2.5}}
     value = rec.block([result("goals", [])], selections=[sel], metrics={}, prices_as_of=None)["value"]

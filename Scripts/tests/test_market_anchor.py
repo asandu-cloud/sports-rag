@@ -111,3 +111,46 @@ def test_the_service_anchors_goals_2_5_and_1x2_only_when_switched_on(monkeypatch
         assert on.context["engine_switches"]["SPIX_MARKET_ANCHOR"] == "strict"
     on = _Anchored.evaluate(monkeypatch, "goals", "strict")
     assert on.context["market_anchor"]["lines"]["2.5"]["books"] == 1
+
+
+# --- A5.4 cards from Pinnacle's fair price, behind SPIX_CARDS_REFERENCE (D58, D61) ---------------
+
+def _cards_event():
+    from Scripts.tests.test_market_service import _event
+    prices = {"Pinnacle": (2.10, 1.75), "Bet365": (1.85, 1.95), "Betano": (1.80, 2.05)}
+    return {**_event(), "bookmakers": [
+        {"title": book, "markets": [{"key": "totals_cards_over_under", "outcomes": [
+            {"name": "Over", "point": 4.5, "price": over}, {"name": "Under", "point": 4.5, "price": under}]}]}
+        for book, (over, under) in prices.items()]}
+
+
+def _evaluate_cards(monkeypatch, reference):
+    from types import SimpleNamespace
+    monkeypatch.setenv("SPIX_SELECTION_POLICY", "market_value")
+    if reference:
+        monkeypatch.setenv("SPIX_CARDS_REFERENCE", reference)
+    else:
+        monkeypatch.delenv("SPIX_CARDS_REFERENCE", raising=False)
+    audit = {"temporal_status": "fixture_rows_strictly_before_target_date",
+             "current_season_matches": 12, "effective_sample_size": 12}
+    unprofiled = SimpleNamespace(source="unavailable")  # no referee profile for this match
+    with mock.patch.object(market_service, "get_prediction_profile_context", return_value=({"cards_pm": 2.2}, audit)), \
+            mock.patch.object(market_service, "projected_total_cards", return_value=(4.0, 4.0, 4.0, unprofiled)):
+        return market_service.evaluate_market(_cards_event(), "EPL", "cards")
+
+
+def test_switch_off_leaves_cards_on_spixs_own_numbers(monkeypatch):
+    unset, off = _evaluate_cards(monkeypatch, None), _evaluate_cards(monkeypatch, "off")
+    assert unset.decision == off.decision and "market_anchor" not in off.context
+    assert off.context["engine_switches"]["SPIX_CARDS_REFERENCE"] == "off"
+    assert all("_probability_source" not in c["option"] for c in off.context["decision_audit"]["candidates"])
+
+
+def test_the_service_prices_cards_from_pinnacle_without_the_referee_guardrail(monkeypatch):
+    on = _evaluate_cards(monkeypatch, "pinnacle")
+    assert on.context["market_anchor"]["reference"] == "pinnacle"
+    assert on.context["market_anchor"]["books_used"] == ["pinnacle"]
+    assert on.decision.is_recommended
+    assert on.decision.quote.bookmaker == "Betano" and on.decision.quote.side == "under"
+    assert on.decision.model_probability == pytest.approx(remove_vig_two_way(2.10, 1.75)[1])
+    assert on.context["data_quality"]["recommendation_guardrail"]["eligible"] is True
