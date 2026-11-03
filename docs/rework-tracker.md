@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-11-03 (stage 4 live; first matchday: 5 of 18 fixtures with a pick, see Findings; D52 recommendation layer moved up to now)
+Last updated: 2026-11-03 (stage 4 live; D52 recommendation layer approved with same-match goal legs, D53; cards work that does not change picks starts now, D54)
 
 ## Status
 
@@ -100,7 +100,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | API-Football support: Superbet and Unibet answered 18 Oct (discontinued for /odds since ~Sep 2026); Betano, Betfair, SBO and Dafabet were missing 17–18 Oct and are back (19 Oct partly, 20 Oct: Betano 187 of 193 fixtures); the follow-up email is no longer needed unless they drop again | Owner | Back 19–20 Oct |
 | Done 23 Oct: bookmaker coverage watch (`ops/bookmaker_coverage.py`, job `com.bettingrag.bookmaker-coverage` at 09:45, 13:45, 17:45, 21:45 local, installed 23 Oct). Per UTC day, each bookmaker's share of the fixtures kicking off within 48 h in the odds archive's raw responses; alert when today's share is under half its median over the previous 7 days (median at least 20%; at least 20 fixtures today and 3 earlier days). Replay on 7–22 Oct: alerts on 16, 17 and 18 Oct for Betano, Betfair, SBO and Dafabet only. Alerts go to `REFRESH_ALERT_WEBHOOK_URL` (a private Discord webhook), the job log and `Index/bookmaker_coverage/latest.json`. **Owner: the webhook is not set in `.env`, so neither this nor the refresh-blocked alert reaches Discord** (the 23 Oct refresh alert was not delivered) | Done; alerts reach Telegram since 28 Oct | |
 | Red cards: the selector also outputs the bets to skip (prices below fair, boosts that are not, high-margin bet builders) | A5.4 (D32) | Part of the Daily Card |
-| Bet builder and combination pricing from the score model (correlated legs), anchored to the market | After A5, with the recommendation layer (D32, D51) | The bet builder needs it: same-match legs are allowed (D51) |
+| Bet builder and combination pricing from the score model (correlated legs), anchored to the market | Goal-market legs: now, in the recommendation layer (D53). Goals with corners or cards: after D51's factor is measured | The bet builder needs it: same-match legs are allowed (D51) |
 | Price Check for singles: the member's odds against the fair price (good price / fair / overpaying) | Next build, after the card (D36) | Needs only the fair probabilities |
 | The Ledger (member bet tracking, settlement, overpayment against the fair price) | Product backlog (D32) | Web app work; reuses settlement and reference prices |
 | How to show Spix's own view when it disagrees with the market (≥10 pts on 3.4 markets per read; ≥25 pts on half the reads), given A5.1 found it mostly error | Owner, before A5.4 | Product decision (D31) |
@@ -108,7 +108,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | A5.4: build the chosen policy behind a switch (`line_selection`, `match_read_compiler`, `confidence_from_edge`), golden preview; proposal in D31 | A5; live at A3.7 stage 6, earliest Tue 17 Nov | Gate (report): published picks' calibration error ≤ 3 pts and closing line value at least neutral over 4+ live matchweeks |
 | Rerun the A5.1 study (`python -m Scripts.ops.disagreement_study --out Research/disagreement-<date>`) as weeks accrue | A5, with each A5 step | Rerun 23 Oct on two weeks (`Research/disagreement-2026-10-23/`, 32,855 lines, 295 fixtures): see the finding of 23 Oct on corners. Rerun 28 Oct (`Research/disagreement-2026-10-28/`, 44,196 lines, 393 fixtures): corners again carry information (c +0.38, +0.08 to +0.63); no other market's interval excludes zero |
 | Rerun the A4.2 study weekly (`python -m Scripts.ops.calibration_study --out Research/calibration-<date>`); calibrator decision with ≥3 weeks of audited fixtures | A4, decision at A3.7 stage 5 (not before Tue 10 Nov, D29) | Not adopted 16 Oct: one audited week, no market passes the gate (D28). Rerun 23 Oct (`Research/calibration-2026-10-23/`, up to 238 fixtures): Platt passes the gate on goals (−5.77%) and Asian handicap (−3.41%), which leave A4's scope at stage 4 (M1, D29); not on corners (+0.21%) or cards (+0.00%), the markets A4 keeps; BTTS not adopted (389 rows). Fixed corner dispersions still no worse than the floors on counts. Rerun 28 Oct (`Research/calibration-2026-10-28/`, up to 336 fixtures): no market passes; Platt on goals −3.78% (−0.0433 to +0.0031) and the handicap −2.47% (−0.0286 to +0.0011) no longer clear zero, corners +0.14%, cards −0.60%, BTTS −6.40% (542 rows, interval includes zero); Spix's log loss is above the market's in every market |
-| Qualify the card settlement definition (yellow + red vs bookmakers' bookings rules, second yellows) before calibrating or scoring cards | A4, before stage 5 | Cards are graded yellow + red (indicative); the market's own card slope is 1.40 on that grading (D28) |
+| Qualify the card settlement definition (yellow + red vs bookmakers' bookings rules, second yellows) before calibrating or scoring cards | Now (D54), with the `/fixtures/events` refresh and backfill; reapplied to all past rows | Cards are graded yellow + red (indicative); the market's own card slope is 1.40 on that grading (D28) |
 | Cards and goals variance floors (no qualified dispersion yet) | A6 | Cards outside research qualification; goals use the score matrix |
 | Market expansion wave 1: team goal totals, double chance, draw no bet (D25) | After A5 | No new modelling; anchored by M1 |
 | Market expansion wave 2: team corners totals, corners handicap (D25) | After wave 1 | Team corner projections exist; priced on ~half of fixtures |
@@ -120,7 +120,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Second-round variables: M2 line movement | A3 blend | Needs 6–8 weeks of odds archive (from ~mid-Nov 2026) |
 | Second-round variables: M3 bookmaker disagreement | A5.3 confidence labels (D30) | With A5 |
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
-| Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`, awaiting the owner's approval and three answers | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
+| Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52, approved 3 Nov, D53); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`; next: 2–3 mockups with real matches, then the plan | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
 | Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | Needs the bet builder and the recommendation lists first |
 | Website and Discord link: one-tap sharing of a bet to Discord, Discord posts linking back to the match (D50) | A7, when the bot moves to the new engine | The bot still runs the old engine |
 | Building bets inside Discord; community selections (D50) | After A7 | Owner: for later |
@@ -976,6 +976,28 @@ Design: `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`.
 - *Measured:* the Most likely options of the last read before kickoff are logged and settled as their own cohort.
 - *Open (owner):* same-match goal legs in this project or later (D51); "worth it at" in place of the typical price on
   Value picks; who designs the look (Claude Design, as D47, or mockups first). Stage 5 and 6 dates are unchanged.
+
+**D53 — The owner approves the recommendation layer (3 Nov) with three answers.** Design as written in
+`docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`, plus:
+- *Same-match legs:* included for goal markets only (result, goals, both teams to score, handicap), priced from the
+  score grid stage 4 fits to each match's prices (D51). Corners with goals waits for D51's measured factor; until
+  then a goals leg and a corners leg from one match are refused with a plain line.
+- *Value picks* show "Worth it at X or better" (`fair_prices` minimum odds, no bookmaker named), not the typical
+  price.
+- *The look:* Claude mocks 2–3 versions side by side with real matches from stored reads; the owner picks one before
+  the build. Checkpoint commit before each visual change, real-data screenshots before calling it done.
+
+**D54 — Cards work that does not change picks starts now (3 Nov, owner).** The stage rule (D26, D29) still holds:
+nothing here changes published picks before Tue 10 Nov.
+- *a)* Add API-Football `/fixtures/events` to the daily refresh (agreed 24 Oct) and backfill card events from 20 Sep
+  over several days, within the daily request budget.
+- *b)* Settle cards the bookmakers' way (a straight red counts 2) and reapply it to all past rows so the stages stay
+  comparable.
+- *c)* Rerun the A4.2 calibration study this week.
+- *d)* Build A5.4 (corners and cards priced against the market; the cards reference is Pinnacle alone or no cards
+  picks) behind its switch, off, with a golden preview.
+- *If the calibrators fail again,* stage 5 has nothing to ship and A5.4 may go live Tue 10 Nov instead of Tue 17 Nov.
+  The owner decides after the rerun.
 
 ## Findings that shape later steps
 

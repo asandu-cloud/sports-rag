@@ -1,6 +1,6 @@
 # Recommendation layer: browse a match, see what Spix would take
 
-**Status:** draft for the owner, 3 Nov 2026. Tracker D52. Nothing is built until the owner approves this file.
+**Status:** approved by the owner, 3 Nov 2026 (tracker D52, D53). Answers to section 8 are at the end.
 **Reads with:** `docs/identity.md` (sections 2, 5, 6 and 8 decide this design), tracker D50 and D51.
 
 ## 1. Why
@@ -63,9 +63,9 @@ when asked). The research sections already on the page stay below.
 Any added option goes to the slip at its typical price. The slip total is shown as "about" (`identity.md` section
 8). Under the stake, one plain line: "Check the price in your bookmaker's app before you place it."
 
-Same-match legs: see the owner's question 1 in section 8. Until it is answered, the slip keeps today's rule of one
-leg per match, and a second leg from the same match is refused with a plain line: "Combining bets from one match
-comes with the bet builder."
+Same-match legs: goal-market legs from one match can be combined (owner's answer 1). Their combined chance comes
+from the match's score grid, not from multiplying. A corners leg with a goals leg from the same match is refused
+with a plain line until D51's factor is measured: "Corners and goals from one match can't be combined yet."
 
 ## 3. How Spix chooses (working defaults, to be tuned after real matches)
 
@@ -131,7 +131,7 @@ All numbers come from what each Match Read already stores. No new engine output 
 
 ## 6. Not in this version
 
-Same-match pricing (unless the owner says yes to question 1), player bets, cards and shots on target, the free and
+Same-match pricing beyond goal markets, player bets, cards and shots on target, the free and
 paid split (built with the two tiers before launch; the lists count as recommendations), Discord (A7), a bookmaker
 chooser, and the Betfair fallback for Value picks.
 
@@ -158,3 +158,9 @@ browser).
    *Recommendation: yes. The bettor checks their own app against one number.*
 3. **The look.** Do you want to design this page in Claude Design, as with the card, or should I mock two or three
    versions side by side with real matches for you to choose from first?
+
+### Answers (3 Nov 2026, owner)
+
+1. Yes: include same-match legs for goal markets only.
+2. Yes: Value picks show "Worth it at X or better".
+3. Mockups first: 2–3 versions side by side with real matches; the owner picks one.
