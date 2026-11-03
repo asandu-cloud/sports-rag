@@ -120,7 +120,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Second-round variables: M2 line movement | A3 blend | Needs 6–8 weeks of odds archive (from ~mid-Nov 2026) |
 | Second-round variables: M3 bookmaker disagreement | A5.3 confidence labels (D30) | With A5 |
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
-| Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52, approved 3 Nov, D53); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`; next: 2–3 mockups with real matches, then the plan | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
+| Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52, approved 3 Nov, D53); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`; plan `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks; mockups are task 3, after the data block) awaiting the owner's review | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
 | Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | Needs the bet builder and the recommendation lists first |
 | Website and Discord link: one-tap sharing of a bet to Discord, Discord posts linking back to the match (D50) | A7, when the bot moves to the new engine | The bot still runs the old engine |
 | Building bets inside Discord; community selections (D50) | After A7 | Owner: for later |
