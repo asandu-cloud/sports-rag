@@ -1023,6 +1023,26 @@ the `recommendations.v1` block when `SPIX_RECOMMENDATIONS=on`, else null. Calls 
   sits near the 1.30 price floor (Galatasaray v Stuttgart: three options at 75%, 1.30): a tuning question once the
   ledger has results. Blocks saved for the mockups in `Research/recommendations-blocks-2026-11-03/blocks.json`.
 
+**D57 — Landing page: headline B, and sample picks that match the first version (3 Nov, owner).** From four
+headlines side by side (https://claude.ai/artifact/BP7SGaHdh2oDj1f6vQfLtd) the owner chose B: "Your bet, without the
+homework." (two fixed lines, "Your bet, without" / "the homework."), with the sentence "Form, team news and what Spix
+recommends on every match, in one place. Keep what you like and build your own bet in minutes." The browser title and
+the meta description follow it. The owner also asked for the samples to show only what v1 will have (D52, D53):
+- *Numbers:* one score grid for the example match (Arsenal 1.6, Chelsea 1.3 goals, Spix's "about 2.9"); typical
+  price about 5% under the fair price; "worth it at" from `fair_prices.minimum_odds` (2%).
+- *Most likely (3, at 1.30 or more):* Arsenal +0.5 69% 1.38, Over 8.5 corners 62% 1.54, Both teams to score 58% 1.64.
+  Gone: Over 1.5 goals (79% would price about 1.21, under the floor), "Arsenal or draw" (double chance is not a v1
+  market; Arsenal +0.5 is the same bet), Under 5.5 cards (no cards in v1).
+- *Value (2):* Over 2.5 goals 55% "Worth it at 1.85 or better", Over 9.5 corners 52% "Worth it at 1.97 or better";
+  the player leg is gone.
+- *The demo's bet:* Arsenal +0.5 with Both teams to score, two goal legs from one match, "about 2 in 5" from the grid
+  (the legs' chances multiplied would say 40%, the grid 42%). The demo now drops the corners leg, since corners and
+  goals from one match can't be combined yet. No total price: the same-match total is still open (plan task 5), so
+  the slip says "Check the price for both in your bookmaker's app." The "why" drawer explains Arsenal +0.5.
+- *Copy:* Most likely now reads "The bets most likely to land, at a price that still pays", not "what Spix's
+  statistical models say", because v1's chance is the market's fair chance (spec section 4).
+- *Revert:* `git revert` of this commit; checkpoint 1e510ef is the page before.
+
 ## Findings that shape later steps
 
 - **Checks from a worktree (3 Nov).** Run the merge checks from the main folder. In a worktree,

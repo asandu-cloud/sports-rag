@@ -5,7 +5,7 @@
     form: ['Arsenal come in on the better run.', [['Arsenal, last five', 'W W D W L'], ['Chelsea, last five', 'D W L W D'], ['Goals per game', '2.1 and 1.6']]],
     news: ['No key absences for Arsenal.', [['Arsenal', 'One doubt in midfield'], ['Chelsea', 'First-choice striker out'], ['Line-ups', 'About an hour before kick-off']]],
     h2h: ['These two have been close lately.', [['Last five meetings', 'Arsenal 2, draws 2, Chelsea 1'], ['Goals per meeting', '2.8'], ['Both teams scored', '3 of 5']]],
-    goals: ['Spix expects about 2.9 goals.', [['Over 1.5 goals', '80%'], ['Over 2.5 goals', '55%'], ['Both teams to score', '59%']]],
+    goals: ['Spix expects about 2.9 goals.', [['Over 1.5 goals', '79%'], ['Over 2.5 goals', '55%'], ['Both teams to score', '58%']]],
     set: ['A busy game for corners, average for cards.', [['Expected corners', 'About 10'], ['Expected cards', 'About 4'], ['Referee', 'Average for cards']]],
     players: ['Three players most likely to score.', [['Arsenal striker', '36%'], ['Chelsea winger', '28%'], ['Arsenal winger', '24%']]],
   };
@@ -202,18 +202,16 @@
       // Looking through the picks
       run.dataset.scene = 'lists'; say('Look through the picks'); step(2); hover(null);
       await roll(2);
-      await pass(leg('over15'), leg('over15').querySelector('.o-main'), 400);
-      await pass(leg('arsenal'), leg('arsenal').querySelector('.o-main'), 400);
-      await pass(leg('btts'), leg('btts').querySelector('.o-main'), 420);
+      await pass(leg('corners'), leg('corners').querySelector('.o-main'), 400);
+      await pass(leg('btts'), leg('btts').querySelector('.o-main'), 400);
+      await pass(leg('over25'), leg('over25').querySelector('.o-main'), 520);
       hover(null);
       await scroll(roller, deepest(roller));
-      await pass(leg('striker'), leg('striker').querySelector('.o-main'), 520);
-      hover(null);
       await scroll(roller, 0);
       await beat(200);
 
       say('See why Spix likes it');
-      await click(leg('corners'), leg('corners').querySelector('.o-main b'), .4);
+      await click(leg('arsenal'), leg('arsenal').querySelector('.o-main b'), .4);
       $('drawer').classList.add('open');
       await beat(500);
       await glide(aim($('drawer').querySelector('dl'), .3, .4), 1.2);
@@ -224,12 +222,12 @@
       await beat(420);
 
       say('Keep what you like');
-      await tap('btts'); await beat(200);
       await tap('arsenal'); await beat(200);
-      await tap('corners'); await beat(480);
+      await tap('corners'); await beat(200);
+      await tap('btts'); await beat(480);
 
       say("Drop what you don't");
-      await tap('arsenal'); await beat(460);
+      await tap('corners'); await beat(460);
 
       await click($('toBet'));
       run.dataset.scene = 'bet'; say('The bet is yours'); step(3); hover(null);

@@ -219,6 +219,7 @@ h3 { font-size: 22px; line-height: 1.2; font-weight: 750; }
 .o-main { min-width: 0; }
 .o-main b { display: block; font-weight: 700; }
 .o-main span { display: block; color: var(--lit-2); font-size: 14px; }
+.o-main .worth { color: var(--lit); }
 .o-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .o-num b { font-weight: 700; }
 .o-num span { color: var(--lit-2); margin-left: 8px; }
@@ -250,6 +251,7 @@ h3 { font-size: 22px; line-height: 1.2; font-weight: 750; }
 .sum p { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 2px 16px; color: var(--lit-2); }
 .sum mark, .sum strong { font-size: 30px; line-height: 1.15; font-weight: 800; font-stretch: 74%; text-transform: uppercase; letter-spacing: .01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sum strong { color: var(--lit); }
+.sum .sum-note { font-size: 15px; }
 mark { background: var(--flood); color: var(--flood-ink); padding: 1px 8px; border-radius: 2px; }
 
 /* The line the ball rolls down: short, top right, the words to its right */
@@ -307,6 +309,7 @@ mark { background: var(--flood); color: var(--flood-ink); padding: 1px 8px; bord
 .row + .row { margin-top: 2px; }
 .row:first-child { border-radius: 8px 8px 0 0; } .row:last-child { border-radius: 0 0 8px 8px; }
 .row b { font-weight: 700; }
+.row small { display: block; margin-top: 2px; color: var(--ink-2); font-size: 14px; font-weight: 400; }
 .row span { font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
 .row span b { color: var(--ink); margin-right: 8px; }
 
@@ -384,6 +387,7 @@ mark { background: var(--flood); color: var(--flood-ink); padding: 1px 8px; bord
   .cta.small { padding-inline: 12px; }
   .run-stage { height: 600px; }
   .o-main span { display: none; }
+  .o-main .worth { display: block; }
   .col small b { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
