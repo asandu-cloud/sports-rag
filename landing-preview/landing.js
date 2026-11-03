@@ -312,17 +312,6 @@
   };
   loadToday();
 
-  /* ---- Theme, stored the same way as the rest of the site ---- */
-  const toggleTheme = $('themeToggle');
-  const paintTheme = () => toggleTheme.setAttribute('aria-label', `Switch to ${document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'} theme`);
-  toggleTheme.addEventListener('click', () => {
-    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-    document.documentElement.dataset.theme = next;
-    try { localStorage.setItem('spix-theme', next); } catch (error) { /* the choice just lasts for this visit */ }
-    paintTheme();
-  });
-  paintTheme();
-
   /* ---- Motion ---- */
   if (!still && 'IntersectionObserver' in window) {
     const reveal = new IntersectionObserver((seen) => seen.forEach(entry => {

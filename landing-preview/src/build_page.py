@@ -9,6 +9,8 @@ root,sp=here.parents[1],here
 src=open(f'{sp}/page.html').read()
 logo=open(f'{root}/docs/brand/logo/spix-wordmark-white.svg').read().strip()
 logo=re.sub(r'<\?xml[^>]*>\s*','',logo)
+# Navy and pink: the name and its ball are pink, the ball's patches navy
+logo=logo.replace('#FAFDFA','#FF7399').replace('#111E17','#000831')
 def word(cls,uid): return logo.replace('spix-white-ball',uid).replace(' role="img"','',1).replace(' aria-label="spix"','',1).replace('<svg ',f'<svg class="{cls}" aria-hidden="true" ',1)
 start=logo.index('<g transform="translate(109.56 -59.41)">')
 depth=0
