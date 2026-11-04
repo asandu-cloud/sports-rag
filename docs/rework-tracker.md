@@ -1257,10 +1257,20 @@ handicap that names neither team (`side` null). Whole and quarter lines (Everton
 task 6 ledger runs whether or not `SPIX_RECOMMENDATIONS` is on, so the scorecard has "said x%, happened y%" from
 the first day the lists show. This replaces the plan's "nothing is logged while the display switch is off" and the
 design's "every option shown is logged" (section 4).
-- *Builder's call:* each row records `shown`, the display switch when it was logged, so the shown picks can be told
-  apart from the ones logged before launch.
-- *Also asked (4 Nov):* a small dashboard for the owner only, with Most likely's and Value's performance over time.
-  Being designed.
+- *Owner dashboard (4 Nov, owner, from mockups):* a local page for the owner only, on its own port (8300), started
+  when wanted, never part of the live website. A Report page (week-by-week "said" against "hit", one tile per
+  market, each market on its own, Most likely or Value) and a History page like the fixtures page (played
+  matches, one line per pick with what happened: "Under 11.5 corners · 10 corners · Hit"). Most likely is also
+  rebuilt for past matches with a stored read; Value is stage 4's published picks. *Owner:* no change to the
+  engine or to any running job; it logs the picks and presents them. Design
+  `docs/superpowers/specs/2026-11-04-owner-dashboard-design.md`, plan `docs/superpowers/plans/2026-11-04-owner-dashboard.md`.
+- *Builder's calls:* the log lives in its own file, `Index/owner_dashboard.db`; `platform.db` is only read, inside
+  `data_access()`, in short batches. So the recommendation plan's task 6 (a ledger table in `platform.db`,
+  migration 0011, called from the measurement cycle) is replaced and needs no migration, and task 7 (a
+  scorecard section) is not built unless the owner asks: the dashboard's report shows said against hit. The
+  `shown` flag first proposed here is dropped: the log is built from stored reads, so the launch date will split
+  the record. A match is logged once it is over, from its last read before its own kickoff, so a postponed
+  match logs the read for its new date.
 
 ## Findings that shape later steps
 

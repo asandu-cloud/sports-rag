@@ -333,6 +333,9 @@ Spreads in `jointChance` use the home team's view: `side` is "home"/"away" in th
 
 ### Task 6: Most likely ledger — log the last read before kickoff, settle from the canonical tables
 
+> **Replaced 4 Nov (D67):** the owner dashboard (`docs/superpowers/plans/2026-11-04-owner-dashboard.md`) keeps
+> the log in its own file and reads `platform.db` only; no table, migration or measurement-cycle call here.
+
 **Files:**
 - Create: `Scripts/data_platform/models/recommendation_options.py`, register in `models/__init__.py`
 - Create: `Scripts/data_platform/alembic/versions/0011_recommendation_options.py` (revises `0010_fixture_events`,
@@ -383,6 +386,8 @@ def test_unfinished_fixtures_stay_ungraded(...):   # status NS / PST -> outcome 
   cohort can never enter the Value track record or the stage measurement — the builder's reading of spec section 5).
 
 ### Task 7: Scorecard section "Most likely: said x%, happened y%"
+
+> **Not built unless the owner asks (D67):** the owner dashboard's report shows said against hit.
 
 **Files:**
 - Modify: `Scripts/data_platform/scorecard.py` (new `most_likely(rows) -> dict` and a markdown section)
