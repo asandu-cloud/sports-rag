@@ -1287,6 +1287,23 @@ design's "every option shown is logged" (section 4).
     chart's scale fits the data in 10% steps (0–100% when the values spread wider than 50 points); requests addressed
     to any host other than `127.0.0.1:<port>` or `localhost:<port>`, and posts from another origin, are refused (403).
 
+**D68 — The recommendation layer is live (4 Nov, owner).** The owner added `SPIX_RECOMMENDATIONS=on` to `.env` and
+asked for the restart; the website was restarted at about 19:50 local and answered within 4 seconds. The engine
+switches are stage 4's, unchanged (`SPIX_CARDS_REFERENCE` still off for 10 Nov). No migration (D67).
+- *Checks (backend):* the full suite on the live code (main at 8ded014) passed, 2,766 passed and 4 skipped, with
+  `test_phase4_baseline_freeze.py` left out as it errors in a worktree (see "Checks from a worktree" below); the
+  5 JS test files pass. Every Match Read card served carries `recommendations.v1`: 7 Champions League matches that
+  night (21 Most likely, 1 Value), 17 Europa League and 18 Conference League the next day (105 Most likely, 1 Value).
+  Screenshots of the board and Lens v Como, on and with `?recs=off`: on shows Most likely, Value and Explore the
+  match; off shows the previous card and page.
+- *Finding:* "Worth it at" can sit above the price the pick was published at. Lens v Como, Under 3.5 goals: the
+  engine picked it at 1.65 (1xBet) with a 62.1% chance (`asian_equivalent_non_push`, market-probability.v2); the
+  Value list takes its chance from the fair-price card, 61.5%, so it shows "Worth it at 1.66 or better". The other
+  live Value pick (Over 2.5 goals, picked at 1.67, worth it at 1.65) is consistent. The cause is two chances for the
+  same option; the Value item follows the spec ("the fair-price card's minimum odds") and D65's rule that a Value
+  pick's chance is its Explore option's. *Open (owner):* keep it, or let a Value item take the chance it was picked
+  with, so its "Worth it at" is never above the price Spix found. Display only; published picks unchanged.
+
 ## Findings that shape later steps
 
 - **Checks from a worktree (3 Nov, corrected).** Three pinned `golden_snapshots check` runs from the backend folder
