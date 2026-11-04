@@ -237,6 +237,7 @@ class MatchReadRepository:
                 if _kickoff_calendar_date(row.kickoff) == matchday
             ]
 
+    @retry_database_busy  # the public board's read waits out a writer like the writes do (D72)
     def list_delivered_for_matchday(
         self,
         *,

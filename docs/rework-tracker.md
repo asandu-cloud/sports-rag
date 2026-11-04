@@ -1380,6 +1380,20 @@ against the backend's `before_kickoff` list (`before-kickoff.v1`, D70) and its `
   website was restarted. First board: 14 started matches with their picks (UCL 9, UEL 1, Championship 3, Belgian
   Pro League 1) and real statuses (FT, 1H, 2H, HT); no errors in the website log.
 
+**D72 — The board's reads wait out a locked database (4 Nov, backend).** The orchestrator found a 503 in the website
+log ("Stored fixture schedule failed for 2026-11-02", 21:19, "database is locked"). It was not only the schedule:
+from 22 Oct to 2 Nov, 20 public requests failed this way, 18 board reads ("Match Read store failed", 14 of them on
+the busy evening of 29 Oct) and 2 schedule reads; none since 2 Nov. `platform.db` is still in rollback-journal mode
+(`journal_mode=delete`, checked read-only inside `data_access()` on 4 Nov), and SQLite waits 2 s
+(`db.py`), so a writer holding the journal longer turns a visitor's read into an error. The writes already retry a
+lock (`retry_database_busy`, three attempts); the two public reads did not.
+- *Fix:* `MatchReadRepository.list_delivered_for_matchday` and `FixtureScheduleRepository.list_for_matchday` now
+  use the same retry, so a read waits up to about 6 s before the page says the board is unavailable. Two tests (a
+  locked first attempt, then the rows). Full suite 2,781 passed, 4 skipped (worktree-only file left out); JS 6/6;
+  pinned golden check unchanged. No published pick, no write path and no job changes. Live after the merge and a
+  website restart.
+- *Still open:* WAL mode (open items) removes the cause, since readers then stop waiting on writers.
+
 ## Findings that shape later steps
 
 - **Checks from a worktree (3 Nov, corrected).** Three pinned `golden_snapshots check` runs from the backend folder
