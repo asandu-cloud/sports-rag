@@ -445,7 +445,7 @@ function beforeKickoffFor(entry, search, league) {
     readAt: entry.read_at || null, status: entry.status || null, most_likely: mostLikely, value };
 }
 
-function renderBeforeKickoffCard(f, homeEmblem, awayEmblem) {
+function renderBeforeKickoffCard(f, homeEmblem, awayEmblem, leagueName) {
   const block = f.beforeKickoff;
   const row = item => `<li><span class="bk-pick">${esc(item.label)}</span><span class="bk-chance">${esc(chanceWords(item.chance))} · ${chancePercent(item.chance)}</span></li>`;
   const list = (title, items) => (items.length
@@ -456,14 +456,23 @@ function renderBeforeKickoffCard(f, homeEmblem, awayEmblem) {
     ${checked ? `<p class="bk-foot">Last checked at ${checked}, before kickoff.</p>` : ''}`
     : `<p class="bk-none">${esc(f.scheduleNote)}</p>`;
   return `
-    <div class="bk-top"><span class="bk-time">${esc(f.time)}</span><span class="bk-status">${esc(f.scheduleLabel)}</span></div>
+    <div class="bk-top"><span class="bk-time">${leagueName ? `${esc(leagueName)} · ` : ''}${esc(f.time)}</span><span class="bk-status">${esc(f.scheduleLabel)}</span></div>
     <h3 class="bk-teams">${homeEmblem}<span>${esc(f.home)}</span> <span class="bk-v">v</span> ${awayEmblem}<span>${esc(f.away)}</span></h3>
     ${body}`;
 }
 
-// Upcoming matches first, then the ones that have started (D71, the owner's choice B).
-function splitStartedFixtures(fixtures) {
-  return { upcoming: fixtures.filter(f => !f.afterKickoff), started: fixtures.filter(f => f.afterKickoff) };
+// Started matches sit only under the Live tab (D73); every other view keeps the matches still to come.
+function boardFixturesFor(fixtures, view) {
+  return fixtures.filter(f => Boolean(f.afterKickoff) === (view === 'live'));
+}
+
+// The Live tab: matches in play first, then the finished ones, each in kickoff order. A match whose status
+// is unknown counts as in play.
+const FINISHED_CODES = new Set(['FT', 'AET', 'PEN', 'ABD']);
+function liveBoardGroups(fixtures) {
+  const byKickoff = (a, b) => String(a.kickoff).localeCompare(String(b.kickoff)) || String(a.id).localeCompare(String(b.id));
+  const sorted = [...fixtures].sort(byKickoff);
+  return { inPlay: sorted.filter(f => !FINISHED_CODES.has(f.liveShort)), finished: sorted.filter(f => FINISHED_CODES.has(f.liveShort)) };
 }
 
 // ----- End of pure render helpers -----
@@ -1255,6 +1264,7 @@ const appModule = {
     this._leagueResizeObserver?.disconnect();
     filters.innerHTML = `
       <button class="league-chip league-all" data-league="all" aria-label="All leagues">All</button>
+      <button class="league-chip league-live hidden" data-league="live" aria-label="Matches that have started">Live</button>
       <div class="league-scroll-wrap">
         <div class="league-viewport" id="leagueViewport">
           <div class="league-scroll-content">
@@ -1297,7 +1307,7 @@ const appModule = {
       const button = event.target.closest('.league-chip');
       if (!button || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
-      const buttons = [...filters.querySelectorAll('.league-chip')];
+      const buttons = [...filters.querySelectorAll('.league-chip:not(.hidden)')];
       const current = buttons.indexOf(button);
       const index = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
         : Math.max(0, Math.min(buttons.length - 1, current + (event.key === 'ArrowRight' ? 1 : -1)));
@@ -1313,6 +1323,14 @@ const appModule = {
       this._leagueResizeObserver.observe(filters.querySelector('.league-scroll-content'));
     }
     document.fonts?.ready.then(() => this._queueLeagueRailUpdate());
+  },
+
+  _syncLiveChip(count) {
+    const chip = document.querySelector('#leagueFilters .league-live');
+    if (!chip) return;
+    chip.classList.toggle('hidden', !count);
+    chip.closest('#leagueFilters').classList.toggle('has-live', Boolean(count));
+    this._queueLeagueRailUpdate();
   },
 
   _syncLeagueChips(activeBtn) {
@@ -1361,7 +1379,7 @@ const appModule = {
     const viewport = document.getElementById('leagueViewport');
     if (!viewport) return;
     const behavior = ui.reducedMotion.matches ? 'instant' : 'smooth';
-    if (button.dataset.league === 'all') { viewport.scrollTo({ left: 0, behavior }); return; }
+    if (['all', 'live'].includes(button.dataset.league)) { viewport.scrollTo({ left: 0, behavior }); return; }
     const target = button.getBoundingClientRect(), windowRect = viewport.getBoundingClientRect();
     if (target.left < windowRect.left + 12) viewport.scrollBy({ left: target.left - windowRect.left - 12, behavior });
     else if (target.right > windowRect.right - 12) viewport.scrollBy({ left: target.right - windowRect.right + 12, behavior });
@@ -1600,6 +1618,7 @@ const appModule = {
     const label = live ? liveStatusLabel(live, fixture.time)
       : fixture.scheduleLabel === 'Match started' ? `Kicked off ${fixture.time}` : fixture.scheduleLabel;
     return { ...fixture, afterKickoff: true, beforeKickoff: picks || null, scheduleLabel: label,
+      liveShort: String(live?.short || row.status || '').toUpperCase(),
       scheduleNote: picks ? fixture.scheduleNote : 'Spix had no picks for this match before kickoff.' };
   },
 
@@ -1642,7 +1661,8 @@ const appModule = {
     if (!container || !bestBetsContainer) return;
 
     const targetDate = this._selectedDateISO();
-    const requestedLeagues = this.activeLeague === 'all'
+    const everyLeague = ['all', 'live'].includes(this.activeLeague);
+    const requestedLeagues = everyLeague
       ? this.LEAGUES
       : this.LEAGUES.filter(league => league.id === this.activeLeague);
 
@@ -1656,7 +1676,7 @@ const appModule = {
     }
 
     const scheduleUrl = `/api/match-reads/schedule/${targetDate}`
-      + (this.activeLeague === 'all' ? '' : `?league=${encodeURIComponent(this.activeLeague)}`);
+      + (everyLeague ? '' : `?league=${encodeURIComponent(this.activeLeague)}`);
     const responses = await Promise.allSettled([
       (async () => {
         const response = await fetch(scheduleUrl);
@@ -1773,7 +1793,7 @@ const appModule = {
   _renderFixtures(state = {}) {
     const container = document.getElementById('fixturesContainer');
     if (!container) return;
-    // A single filtered league lays its cards out in rows on desktop (style.css).
+    // A single filtered league (or the Live tab) lays its cards out in rows on desktop (style.css).
     container.classList.toggle('is-single-league', this.activeLeague !== 'all');
     if (state.loading) {
       container.innerHTML = '<div class="empty-state"><p>Preparing the matchday board…</p><span class="empty-state-hint">Loading the fixture schedule and published Match Reads.</span></div>';
@@ -1783,9 +1803,28 @@ const appModule = {
       container.innerHTML = `<div class="error-state"><p>${esc(state.error)}</p><button class="retry-btn" onclick="appModule._loadMatchday()">Try again</button></div>`;
       return;
     }
-    const fixtures = this.fixtures;
-    const byLeague = {};
-    fixtures.forEach(f => { (byLeague[f.league] = byLeague[f.league] || []).push(f); });
+    // Started matches have their own tab (D73). It shows only while there are some; without them, or with
+    // the before-kickoff list off, the board is as it was.
+    const startedCount = this.fixtures.filter(f => f.afterKickoff).length;
+    if (this.activeLeague === 'live' && !startedCount) {
+      this.activeLeague = 'all';
+      this._syncLeagueChips(document.querySelector('#leagueFilters .league-all'));
+    }
+    this._syncLiveChip(startedCount);
+    const live = this.activeLeague === 'live';
+    container.classList.toggle('is-single-league', this.activeLeague !== 'all');
+    const fixtures = boardFixturesFor(this.fixtures, this.activeLeague);
+    const sections = [];
+    if (live) {
+      const { inPlay, finished } = liveBoardGroups(fixtures);
+      if (inPlay.length) sections.push({ name: 'In play', fxs: inPlay });
+      if (finished.length) sections.push({ name: 'Finished', fxs: finished });
+    } else {
+      const byLeague = {};
+      fixtures.forEach(f => { (byLeague[f.league] = byLeague[f.league] || []).push(f); });
+      Object.entries(byLeague).forEach(([leagueId, fxs]) => sections.push({
+        league: this.LEAGUES.find(l => l.id === leagueId) || { name: leagueId }, fxs }));
+    }
     container.innerHTML = '';
     if (state.notice) {
       const notice = document.createElement('p');
@@ -1795,25 +1834,24 @@ const appModule = {
       container.appendChild(notice);
     }
     if (!fixtures.length) {
-      const message = state.emptyMessage || 'No fixtures for this selection.';
-      const hint = state.emptyHint || 'There may be no matches in the selected leagues on this date.';
+      const message = startedCount ? 'No more matches to come here today.' : state.emptyMessage || 'No fixtures for this selection.';
+      const hint = startedCount ? 'Matches that have started are under Live.'
+        : state.emptyHint || 'There may be no matches in the selected leagues on this date.';
       container.innerHTML += `<div class="empty-state"><div class="empty-state-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div><p>${esc(message)}</p><span class="empty-state-hint">${esc(hint)}</span></div>`;
       return;
     }
-    Object.entries(byLeague).forEach(([leagueId, fxs]) => {
-      const league = this.LEAGUES.find(l => l.id === leagueId) || { name: leagueId };
+    sections.forEach(({ league, name, fxs }) => {
       const group = document.createElement('section');
       group.className = 'league-group';
-      group.setAttribute('aria-label', league.name);
-      const crest = league.logo
+      group.setAttribute('aria-label', league ? league.name : name);
+      const crest = league?.logo
         ? `<span class="league-crest" aria-hidden="true"><img src="${esc(league.logo)}" alt=""></span>`
         : '';
-      group.innerHTML = `<div class="league-header"><div class="league-header-left">${crest}<h2 class="league-name">${esc(league.name)}</h2></div><span class="league-count">${esc(pluralise(fxs.length, 'match', 'matches'))}</span></div>`;
-      const { upcoming, started } = splitStartedFixtures(fxs);
-      [...upcoming, ...started].forEach((f, i) => {
-        if (started.length && i === upcoming.length) group.insertAdjacentHTML('beforeend', '<p class="bk-divider">Started</p>');
+      group.innerHTML = `<div class="league-header"><div class="league-header-left">${crest}<h2 class="league-name">${esc(league ? league.name : name)}</h2></div><span class="league-count">${esc(pluralise(fxs.length, 'match', 'matches'))}</span></div>`;
+      fxs.forEach((f, i) => {
         if (f.isMatchRead || f.isScheduleOnly) {
-          group.appendChild(this._createMatchReadFixtureCard(f, league, i));
+          const own = league || this.LEAGUES.find(l => l.id === f.league) || { name: f.league };
+          group.appendChild(this._createMatchReadFixtureCard(f, own, i, live));
           return;
         }
         const slipKey = `${f.home} vs ${f.away}|${f.pick}`;
@@ -1860,7 +1898,7 @@ const appModule = {
     });
   },
 
-  _createMatchReadFixtureCard(f, league, index) {
+  _createMatchReadFixtureCard(f, league, index, named = false) {
     // The card's content is read in full by assistive technology; the "View
     // Match Read" button is its keyboard entry point, while a click anywhere
     // on the card opens the read for pointer users.
@@ -1908,7 +1946,8 @@ const appModule = {
 
     if (f.afterKickoff) {
       card.classList.add('bk-card');
-      card.innerHTML = renderBeforeKickoffCard(f, emblem(f.visuals?.homeTeamLogo, f.home, 'home'), emblem(f.visuals?.awayTeamLogo, f.away, 'away'));
+      card.innerHTML = renderBeforeKickoffCard(f, emblem(f.visuals?.homeTeamLogo, f.home, 'home'), emblem(f.visuals?.awayTeamLogo, f.away, 'away'),
+        named ? league?.name : '');
     } else if (f.recommendations && !f.isScheduleOnly) {
       card.classList.add('recs-board-card');
       card.innerHTML = renderRecsBoardCard(f, emblem(f.visuals?.homeTeamLogo, f.home, 'home'), emblem(f.visuals?.awayTeamLogo, f.away, 'away'));

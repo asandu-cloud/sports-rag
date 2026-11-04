@@ -1394,6 +1394,28 @@ lock (`retry_database_busy`, three attempts); the two public reads did not.
   website restart.
 - *Still open:* WAL mode (open items) removes the cause, since readers then stop waiting on writers.
 
+**D73 — Started matches move to a Live tab (5 Nov, owner; frontend).** The owner, after D71 went live: "We cannot
+keep the current design for the matches that have already been played", and asked for a separate category beside
+the leagues. This replaces D71's placement (B: a "Started" divider inside each league). The quiet card, its
+contents and its rules stay as D71 describes.
+- *What changed:* a "Live" chip sits right after "All" in the league row and shows only while the board has
+  started matches. The other tabs and "All" now list only matches still to come. Opening Live loads every league
+  and shows two groups: "In play" first, then "Finished" (FT, AET, PEN and ABD), each in kickoff order. A match
+  whose status is unknown counts as in play. Each card names its league there ("Champions League · 22:00"), since
+  the leagues are mixed. A view with nothing left to come but some started matches says "No more matches to come
+  here today. Matches that have started are under Live." If Live empties (another date, `?recs=off`, the list
+  switched off), the board falls back to All.
+- *Owner (5 Nov):* finished matches stay under Live until the day ends, after the ones in play.
+- *Ruling:* the chip carries no count. On a league tab only that league is loaded, so a count would change with
+  the view (14 under All, 9 under the Champions League tab on 4 Nov).
+- *Checks:* `test_before_kickoff_web.js` adds the Live tab's split, the in-play / finished groups and the league
+  name on the card; a missing list still gives today's board. All 6 JS files pass; the Python suite gave 2,785
+  passed with the 3 known worktree errors. Screenshots were taken on 8100 by replaying production's board data,
+  saved read-only from 8000 at 23:58 on 4 Nov (1 match in play, 13 finished). Cache tags moved to `live-20261104a`.
+  The checkpoint is e54f274, the commit before this one.
+- *Going live:* the switches are already on, so this is live as soon as it is merged. No restart is needed, since
+  the static files are read from disk.
+
 ## Findings that shape later steps
 
 - **Checks from a worktree (3 Nov, corrected).** Three pinned `golden_snapshots check` runs from the backend folder
