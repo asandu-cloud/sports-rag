@@ -39,6 +39,7 @@ on it. The Discord bot still runs the old engine until A7.
   - "Worth it at" uses the chance a Value pick was made with (D68, live 4 Nov).
   - Started matches keep their picks from before kickoff, with a live status (D70, D71): live 4 Nov at 22:41
     (`SPIX_BEFORE_KICKOFF=on`, `SPIX_LIVE_STATUS=on`; the status costs at most 400 API-Football requests a day).
+    Since 5 Nov they sit in their own Live tab, in play first, then finished (D73).
 - **Cards work that does not change picks (D54):**
   - add the events to the refresh and backfill them from 20 Sep (done 4 Nov: migration 0010, 554 matches
     backfilled, the refresh saves events from now on, D64);
