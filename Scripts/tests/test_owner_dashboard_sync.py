@@ -133,3 +133,70 @@ def test_a_busy_gate_stops_the_update_and_keeps_what_it_wrote(platform, conn):
     assert sync.log_most_likely(conn, platform, now=NOW, gate=gate) == {
         "logged": 20, "picks": 20, "skipped_busy": True}
     assert sync.log_most_likely(conn, platform, now=NOW, gate=nullcontext)["logged"] == 5
+
+
+def add_team_stats(path, api_id, *, is_home, corners, shots_on=4, yellow=2, red=0):
+    with sqlite3.connect(path) as db:
+        fixture = db.execute("SELECT id FROM fixtures WHERE api_football_id = ?", (api_id,)).fetchone()[0]
+        db.execute("INSERT INTO fixture_team_stats (fixture_id, team_id, opponent_team_id, is_home, corners, shots_on, "
+                   "yellow_cards, red_cards, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'x', 'x')",
+                   (fixture, 1 if is_home else 2, 2 if is_home else 1, is_home, corners, shots_on, yellow, red))
+
+
+def log_pick(conn, api_id, market, side, line, position=0):
+    with conn:
+        conn.execute("INSERT OR IGNORE INTO matches (fixture_api_id, league, home, away, read_id) "
+                     "VALUES (?, 'Ligue1', ?, ?, 1)", (str(api_id), HOME, AWAY))
+        conn.execute("INSERT INTO most_likely (fixture_api_id, position, market, side, line, label, chance, version) "
+                     "VALUES (?, ?, ?, ?, ?, 'x', 0.6, 'recommendations.v1')", (str(api_id), position, market, side, line))
+
+
+def outcomes(conn, api_id):
+    return {(r["market"], r["side"], r["line"]): (r["outcome"], r["pending_reason"]) for r in conn.execute(
+        "SELECT * FROM most_likely WHERE fixture_api_id = ?", (str(api_id),))}
+
+
+def test_goal_markets_grade_from_the_score_and_corners_from_both_teams(platform, conn):
+    add_fixture(platform, 301, "2026-11-03 20:00:00.000000", home_goals=2, away_goals=1)
+    add_team_stats(platform, 301, is_home=True, corners=6, shots_on=5, yellow=1, red=1)
+    add_team_stats(platform, 301, is_home=False, corners=5, shots_on=3, yellow=3)
+    picks = [("goals", "over", 2.5), ("btts", "no", None), ("moneyline", "home", None), ("spreads", "home", -0.5),
+             ("corners", "over", 9.5), ("corners", "under", 9.5)]
+    for position, (market, side, line) in enumerate(picks):
+        log_pick(conn, 301, market, side, line, position)
+    assert sync.grade(conn, platform, now=NOW, gate=nullcontext) == {"graded": 6, "pending": 0, "skipped_busy": False}
+    assert outcomes(conn, 301) == {
+        ("goals", "over", 2.5): ("hit", None), ("btts", "no", None): ("miss", None),
+        ("moneyline", "home", None): ("hit", None), ("spreads", "home", -0.5): ("hit", None),
+        ("corners", "over", 9.5): ("hit", None), ("corners", "under", 9.5): ("miss", None)}
+    facts = conn.execute("SELECT * FROM matches WHERE fixture_api_id = '301'").fetchone()
+    assert (facts["status"], facts["home_goals"], facts["away_goals"]) == ("FT", 2, 1)
+    assert (facts["corners_home"], facts["corners_away"], facts["sot_home"], facts["sot_away"]) == (6, 5, 5, 3)
+    assert (facts["yellow_home"], facts["yellow_away"], facts["red_home"], facts["red_away"]) == (1, 3, 1, 0)
+
+
+def test_extra_time_and_missing_corners_stay_pending_and_grade_when_the_corners_arrive(platform, conn):
+    add_fixture(platform, 302, "2026-11-03 20:00:00.000000", status="AET")
+    log_pick(conn, 302, "goals", "over", 2.5)
+    add_fixture(platform, 303, "2026-11-03 20:00:00.000000")
+    add_team_stats(platform, 303, is_home=True, corners=6)
+    log_pick(conn, 303, "corners", "over", 9.5)
+    assert sync.grade(conn, platform, now=NOW, gate=nullcontext)["pending"] == 2
+    assert outcomes(conn, 302) == {("goals", "over", 2.5): (None, "extra time")}
+    assert outcomes(conn, 303) == {("corners", "over", 9.5): (None, "corners not in yet")}
+    add_team_stats(platform, 303, is_home=False, corners=3)
+    assert sync.grade(conn, platform, now=NOW, gate=nullcontext)["graded"] == 1
+    assert outcomes(conn, 303) == {("corners", "over", 9.5): ("miss", None)}
+
+
+def test_a_value_picks_match_gets_its_facts_without_a_most_likely_log(platform, conn):
+    add_fixture(platform, 304, "2026-11-03 20:00:00.000000", home_goals=0, away_goals=0)
+    add_team_stats(platform, 304, is_home=True, corners=4)
+    add_team_stats(platform, 304, is_home=False, corners=7)
+    with conn:
+        conn.execute("INSERT INTO value_picks (selection_key, fixture_api_id, kickoff, league, home, away, market) "
+                     "VALUES ('k', '304', '2026-11-03T20:00:00Z', 'EPL', 'Everton', 'Coventry', 'corners')")
+    sync.grade(conn, platform, now=NOW, gate=nullcontext)
+    facts = conn.execute("SELECT * FROM matches WHERE fixture_api_id = '304'").fetchone()
+    assert (facts["home"], facts["league"], facts["corners_home"], facts["corners_away"], facts["read_id"]) == (
+        "Everton", "EPL", 4, 7, None)

@@ -89,6 +89,93 @@ def _store_read(conn, fixture_api_id: str, match: dict, read: dict, now: datetim
     return len(picks)
 
 
+FACT_COLUMNS = ("status", "home_goals", "away_goals", "corners_home", "corners_away", "yellow_home", "yellow_away",
+                "red_home", "red_away", "sot_home", "sot_away")
+
+
+def _facts(db, ids: List[str]) -> Dict[str, dict]:
+    """Score, status and both teams' corners, cards and shots on target per match (API-Football id)."""
+    found, internal = {}, {}
+    for api_id, fixture_id, kickoff, status, home_goals, away_goals in db.execute(
+            f"SELECT api_football_id, id, kickoff_utc, status, home_goals, away_goals FROM fixtures "
+            f"WHERE api_football_id IN ({_marks(len(ids))})", [int(i) for i in ids]):
+        found[str(api_id)] = {"kickoff": _iso(kickoff), "status": status, "home_goals": home_goals,
+                              "away_goals": away_goals}
+        internal[fixture_id] = str(api_id)
+    if internal:
+        for fixture_id, is_home, corners, shots_on, yellow, red in db.execute(
+                f"SELECT fixture_id, is_home, corners, shots_on, yellow_cards, red_cards FROM fixture_team_stats "
+                f"WHERE fixture_id IN ({_marks(len(internal))})", list(internal)):
+            end = "home" if is_home else "away"
+            found[internal[fixture_id]].update({f"corners_{end}": corners, f"sot_{end}": shots_on,
+                                                f"yellow_{end}": yellow, f"red_{end}": red})
+    return found
+
+
+def _store_facts(conn, fixture_api_id: str, facts: dict) -> None:
+    values = [facts.get(column) for column in FACT_COLUMNS]
+    with conn:
+        if conn.execute("SELECT 1 FROM matches WHERE fixture_api_id = ?", (fixture_api_id,)).fetchone():
+            conn.execute(f"UPDATE matches SET {', '.join(f'{c} = ?' for c in FACT_COLUMNS)} WHERE fixture_api_id = ?",
+                         values + [fixture_api_id])
+            return
+        pick = conn.execute("SELECT league, home, away, kickoff FROM value_picks WHERE fixture_api_id = ? LIMIT 1",
+                            (fixture_api_id,)).fetchone()
+        conn.execute(f"INSERT INTO matches (fixture_api_id, league, home, away, kickoff, {', '.join(FACT_COLUMNS)}) "
+                     f"VALUES (?, ?, ?, ?, ?, {_marks(len(FACT_COLUMNS))})",
+                     [fixture_api_id, pick["league"] if pick else None, pick["home"] if pick else None,
+                      pick["away"] if pick else None, facts.get("kickoff") or (pick["kickoff"] if pick else None)]
+                     + values)
+
+
+def _outcome(pick, match):
+    """("hit" | "miss", None) for a graded Most likely pick, else (None, why it waits)."""
+    if match["status"] in ("AET", "PEN"):
+        return None, "extra time"  # the stored score includes extra time; these markets settle on 90 minutes
+    if match["status"] != "FT":
+        return None, "not final"
+    if pick["market"] == "corners":
+        if match["corners_home"] is None or match["corners_away"] is None:
+            return None, "corners not in yet"
+        total = match["corners_home"] + match["corners_away"]
+        won = total > pick["line"] if pick["side"] == "over" else total < pick["line"]
+    elif match["home_goals"] is None or match["away_goals"] is None:
+        return None, "score not in yet"
+    else:
+        won = recommendations.wins({"market": pick["market"], "side": pick["side"], "line": pick["line"]},
+                                   match["home_goals"], match["away_goals"])
+    return ("hit" if won else "miss"), None
+
+
+def grade(conn, platform_path, *, now: datetime, gate=data_access) -> dict:
+    """Refresh the facts of every match with an ungraded Most likely pick or a Value pick still settling, then
+    grade the Most likely picks."""
+    out = {"graded": 0, "pending": 0, "skipped_busy": False}
+    ids = {row[0] for row in conn.execute("SELECT DISTINCT fixture_api_id FROM most_likely WHERE outcome IS NULL")}
+    ids |= {row[0] for row in conn.execute(
+        "SELECT DISTINCT v.fixture_api_id FROM value_picks v LEFT JOIN matches m USING (fixture_api_id) "
+        "WHERE m.fixture_api_id IS NULL OR m.status IS NULL OR m.status NOT IN ('FT', 'AET', 'PEN') "
+        "OR m.corners_home IS NULL OR m.corners_away IS NULL OR v.outcome IS NULL")}
+    try:
+        for chunk in _chunks(sorted(i for i in ids if str(i).isdigit())):
+            with gate(), _platform(platform_path) as db:
+                facts = _facts(db, chunk)
+            for fixture_api_id, values in facts.items():
+                _store_facts(conn, fixture_api_id, values)
+    except RefreshBusy:
+        out["skipped_busy"] = True
+    graded_at = _iso(now.isoformat())
+    with conn:
+        for pick in conn.execute("SELECT p.rowid, p.*, m.status, m.home_goals, m.away_goals, m.corners_home, "
+                                 "m.corners_away FROM most_likely p JOIN matches m USING (fixture_api_id) "
+                                 "WHERE p.outcome IS NULL").fetchall():
+            outcome, reason = _outcome(pick, pick)
+            conn.execute("UPDATE most_likely SET outcome = ?, pending_reason = ?, graded_at = ? WHERE rowid = ?",
+                         (outcome, reason, graded_at if outcome else None, pick["rowid"]))
+            out["graded" if outcome else "pending"] += 1
+    return out
+
+
 def log_most_likely(conn, platform_path, *, now: datetime, gate=data_access) -> dict:
     """Log the Most likely of every finished match not logged yet; ``skipped_busy`` when the refresh held the gate."""
     out = {"logged": 0, "picks": 0, "skipped_busy": False}
