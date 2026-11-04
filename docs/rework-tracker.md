@@ -1376,7 +1376,9 @@ against the backend's `before_kickoff` list (`before-kickoff.v1`, D70) and its `
   as entries for matches moved past kickoff.
 - *Going live:* after the merges, the owner adds `SPIX_BEFORE_KICKOFF=on` (and `SPIX_LIVE_STATUS=on` for the
   status) to `.env`, then the website is restarted.
-- *Live 4 Nov, 22:41:* the owner added `SPIX_BEFORE_KICKOFF=on` and `SPIX_LIVE_STATUS=on` to `.env` and the website was restarted. First board: 14 started matches with their picks (UCL 9, UEL 1, Championship 3, Belgian Pro League 1) and real statuses (FT, 1H, 2H, HT); no errors in the website log.
+- *Live 4 Nov, 22:41:* the owner added `SPIX_BEFORE_KICKOFF=on` and `SPIX_LIVE_STATUS=on` to `.env` and the
+  website was restarted. First board: 14 started matches with their picks (UCL 9, UEL 1, Championship 3, Belgian
+  Pro League 1) and real statuses (FT, 1H, 2H, HT); no errors in the website log.
 
 ## Findings that shape later steps
 
