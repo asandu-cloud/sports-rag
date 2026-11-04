@@ -1,4 +1,4 @@
-// The recommendation layer's match page and board card (design B, tiles; D58), rendered from app.js's pure
+// The recommendation layer's match page and board card (design B, tiles; D63), rendered from app.js's pure
 // helpers with a synthetic recommendations.v1 block. No browser, network or database.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -221,7 +221,7 @@ s.clear();
 addGoal('over', 2.5, 0.46);
 s.add('Match A', 'Both teams to score', 1.7, 'Both teams to score', { fixtureId: 'A', leg: { market: 'btts', side: 'yes', line: null, chance: 0.5 }, grid });
 assert.ok(Math.abs(j.slipChance(s.legs) - 0.3762) < 1e-4);
-assert.equal(el('slipOdds').textContent, '--', 'no total price for legs from one match (D58)');
+assert.equal(el('slipOdds').textContent, '--', 'no total price for legs from one match (D63)');
 assert.equal(el('slipFoot').classList.contains('no-total'), true, 'the stake area hides when there is no total price');
 assert.match(el('slipCheck').textContent, /Check the price in your bookmaker's app before you place it\./);
 assert.equal(el('slipCheck').classList.contains('hidden'), false);

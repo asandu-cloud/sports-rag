@@ -1044,7 +1044,7 @@ button.fixture-teams:hover { color: var(--accent-l); }
 .market-add-btn:hover { background: var(--accent-dim); }
 .market-add-btn.added { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 
-/* -- Recommendation layer: design B, tiles (D58) -- */
+/* -- Recommendation layer: design B, tiles (D63) -- */
 .recs { display: flex; flex-direction: column; gap: 32px; margin: 0 0 32px; }
 .recs-section { min-width: 0; }
 .recs-head {

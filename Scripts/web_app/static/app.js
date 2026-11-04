@@ -95,7 +95,7 @@ function marketLabel(group) {
   return MARKET_LABELS[group] || group || '';
 }
 
-// ----- Recommendation layer (recommendations.v1, design B "tiles", D58) -----
+// ----- Recommendation layer (recommendations.v1, design B "tiles", D63) -----
 // The block is built by the backend; these helpers only draw it. Chances are the
 // bookmakers' own view without their margin, so prices sit beside them as figures.
 const RECS_MARKETS = { moneyline: 'Result', goals: 'Goals', btts: 'Both teams to score', spreads: 'Handicap', corners: 'Corners' };
@@ -957,7 +957,7 @@ const slip = {
   },
 
   // The prices multiply only when each match has one priced leg: legs from one
-  // match are not independent, and no total price is shown for them (D58).
+  // match are not independent, and no total price is shown for them (D63).
   _totalPrice() {
     if (!this.legs.length) return null;
     const matches = new Set(this.legs.map(l => String(l.fixtureId || l.fixture)));
