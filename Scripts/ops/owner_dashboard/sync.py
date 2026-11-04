@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from contextlib import closing
+from contextlib import closing, contextmanager
 from datetime import date, datetime, timedelta
+from functools import partial
+from pathlib import Path
 from typing import Dict, Iterable, List
 
 from Scripts.data_platform import fair_prices as fp, recommendations, scorecard
@@ -232,11 +234,33 @@ def _value_window(conn, today: date) -> int:
     return max(0, (today - start).days)
 
 
-def _recent_published(days):
+def platform_path() -> Path:
+    """The database the data gate guards (the same ``DATABASE_URL`` the jobs use)."""
+    from sqlalchemy.engine import make_url
+    from Scripts.data_platform import config
+    return Path(make_url(config.SETTINGS.database_url).database).resolve()
+
+
+@contextmanager
+def _read_only_session(path):
+    """A repository session on ``platform.db`` opened ``mode=ro``: it can read, and any write fails."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+    engine = create_engine(f"sqlite:///file:{path}?mode=ro&uri=true", future=True, connect_args={"timeout": 10})
+    try:
+        with Session(engine) as session:
+            yield session
+            session.rollback()
+    finally:
+        engine.dispose()
+
+
+def _recent_published(days, platform=None, *, gate=data_access):
+    """The scorecard's published rows for the last ``days`` days, through a read-only connection, inside the gate."""
     from Scripts.data_platform.repositories.predictions import PredictionRepository
-    with data_access():
-        return PredictionRepository().get_recent(days=days, published_only=True, publication_scope="all",
-                                                 limit=10 ** 6)
+    repository = PredictionRepository(session_factory=partial(_read_only_session, platform or platform_path()))
+    with gate():
+        return repository.get_recent(days=days, published_only=True, publication_scope="all", limit=10 ** 6)
 
 
 def log_value(conn, *, load_rows=_recent_published, today: date) -> dict:

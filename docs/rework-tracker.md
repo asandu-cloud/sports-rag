@@ -1272,7 +1272,8 @@ design's "every option shown is logged" (section 4).
   the record. A match is logged once it is over, from its last read before its own kickoff, so a postponed
   match logs the read for its new date.
 - *Built and first run (4 Nov, backend):* `Scripts/ops/owner_dashboard/` (store, sync, report, pages, server,
-  stylesheet; 22 tests). Start with `.venv/bin/python -m Scripts.ops.owner_dashboard` from the repo root, then open
+  stylesheet; 23 tests). Value picks are read through the repository on a `mode=ro` connection, like every other
+  `platform.db` read here. Start with `.venv/bin/python -m Scripts.ops.owner_dashboard` from the repo root, then open
   `http://127.0.0.1:8300/`; it updates on start (`--no-update` skips that) and on "Update now". The first update, with
   no refresh running, took about 8 seconds: 675 finished matches logged (5 Sep to 3 Nov), 1,542 Most likely picks, all
   graded (1,049 hit, 493 miss, none pending), and 25 Value selections (43 published rows, amendments folded into their

@@ -11,6 +11,7 @@ import argparse
 import sys
 import threading
 from datetime import datetime, timezone
+from functools import partial
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
@@ -27,13 +28,6 @@ FONT_FILES = ("archivo-latin.woff2", "archivo-latin-ext.woff2")
 _update_lock = threading.Lock()
 
 
-def platform_path() -> Path:
-    """The database the data gate guards (the same ``DATABASE_URL`` the jobs use)."""
-    from sqlalchemy.engine import make_url
-    from Scripts.data_platform import config
-    return Path(make_url(config.SETTINGS.database_url).database).resolve()
-
-
 def _meta(conn, key):
     row = conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
     return row[0] if row else None
@@ -45,11 +39,12 @@ def _set_meta(conn, key, value):
                      "excluded.value", (key, value))
 
 
-def update(conn, platform, *, now=None, gate=data_access, load_rows=sync._recent_published) -> dict:
+def update(conn, platform, *, now=None, gate=data_access, load_rows=None) -> dict:
     """Log new Most likely picks, refresh the Value picks, then grade (so a Value match gets its facts in the same
     update). A busy gate skips what is left of that step; ``updated_at`` only moves when nothing was skipped."""
     with _update_lock:
         now = now or datetime.now(timezone.utc)
+        load_rows = load_rows or partial(sync._recent_published, platform=platform)
         out = {"most_likely": sync.log_most_likely(conn, platform, now=now, gate=gate)}
         try:
             out["value"] = dict(sync.log_value(conn, load_rows=load_rows, today=now.date()), skipped_busy=False)
@@ -143,7 +138,7 @@ def main(argv=None) -> int:
     parser.add_argument("--no-update", action="store_true", help="serve what is saved, without reading platform.db")
     args = parser.parse_args(argv)
     conn = store.connect(args.db)
-    platform = platform_path()
+    platform = sync.platform_path()
 
     def run_update():
         print(f"Updated: {_say(update(conn, platform))}", flush=True)

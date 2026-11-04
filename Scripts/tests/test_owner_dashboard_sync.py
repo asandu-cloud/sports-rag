@@ -5,7 +5,8 @@ from contextlib import nullcontext
 from datetime import date, datetime, timezone
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import OperationalError
 
 from Scripts.data_platform.models import Base
 from Scripts.data_platform.services.refresh_coordination import RefreshBusy
@@ -241,3 +242,13 @@ def test_value_labels_use_the_layers_words():
     assert sync.value_label("cards", "over", 4.5, "Lyon", "Lens", "Over 4.5") == "Over 4.5 cards"
     assert sync.value_label("sot", "under", 8.5, "Lyon", "Lens", "Under 8.5") == "Under 8.5 shots on target"
     assert sync.value_label("spreads", "Lens B", 0.5, "Lyon", "Lens", "Lens B 0.5") == "Lens B 0.5"
+
+
+def test_value_picks_are_read_inside_the_gate_through_a_read_only_connection(platform):
+    entered = []
+    gate = lambda: entered.append(1) or nullcontext()
+    assert sync._recent_published(3, platform, gate=gate) == [] and entered == [1]
+    with sync._read_only_session(platform) as session:
+        with pytest.raises(OperationalError, match="readonly"):
+            session.execute(text("CREATE TABLE written (a INTEGER)"))
+    assert "written" not in {row[0] for row in sqlite3.connect(platform).execute("SELECT name FROM sqlite_master")}
