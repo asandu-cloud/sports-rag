@@ -1271,6 +1271,20 @@ design's "every option shown is logged" (section 4).
   `shown` flag first proposed here is dropped: the log is built from stored reads, so the launch date will split
   the record. A match is logged once it is over, from its last read before its own kickoff, so a postponed
   match logs the read for its new date.
+- *Built and first run (4 Nov, backend):* `Scripts/ops/owner_dashboard/` (store, sync, report, pages, server,
+  stylesheet; 22 tests). Start with `.venv/bin/python -m Scripts.ops.owner_dashboard` from the repo root, then open
+  `http://127.0.0.1:8300/`; it updates on start (`--no-update` skips that) and on "Update now". The first update, with
+  no refresh running, took about 8 seconds: 675 finished matches logged (5 Sep to 3 Nov), 1,542 Most likely picks, all
+  graded (1,049 hit, 493 miss, none pending), and 25 Value selections (43 published rows, amendments folded into their
+  first publication: 5 hit, 5 miss, 15 pending). A second update took under a second. `platform.db`'s alembic version
+  (`0010_fixture_events`) and its 48 tables were the same before and after.
+  - *Finding:* the 161 September matches have reads but no Most likely picks: the layer finds no priced option in those
+    early reads. So the Most likely record starts in October. From 5 Oct to 3 Nov it reads said 69%, hit 68%
+    (corners 70/71, goals 69/68, handicap 69/67, both teams to score 65/58, result 68/79).
+  - *Calls made while building:* the Value window starts a day before the oldest unsettled pick's publication, since
+    the repository filters by prediction date, not kickoff; the history shows only matches that have kicked off; the
+    chart's scale fits the data in 10% steps (0–100% when the values spread wider than 50 points); requests addressed
+    to any host other than `127.0.0.1:<port>` or `localhost:<port>`, and posts from another origin, are refused (403).
 
 ## Findings that shape later steps
 

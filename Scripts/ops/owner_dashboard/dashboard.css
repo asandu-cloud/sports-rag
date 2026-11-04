@@ -75,7 +75,7 @@ a { color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .top :focus-visible { outline-color: var(--tb-fg); }
 
-main { padding: 28px 0 64px; }
+main.wrap { padding-top: 28px; padding-bottom: 64px; }
 h1 { font-size: 28px; line-height: 1.2; margin: 18px 0 6px; letter-spacing: -0.01em; }
 h1 span { color: var(--text3); font-weight: 500; }
 h2 { font-size: 13px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text3); margin: 36px 0 12px; }
@@ -94,7 +94,8 @@ h2 { font-size: 13px; font-weight: 700; letter-spacing: 0.05em; text-transform: 
 .swatch { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--chart-1); }
 .swatch.said { border-top: 2px dashed var(--chart-2); }
 .readout { font-size: 13px; color: var(--text3); margin: 6px 0 4px; min-height: 20px; }
-.chart { width: 100%; height: auto; display: block; }
+.chart-scroll { overflow-x: auto; }
+.chart { width: 100%; min-width: 600px; height: auto; display: block; }
 .chart .grid { stroke: var(--border-soft); stroke-width: 1; }
 .chart .tick { fill: var(--text3); font-size: 12px; }
 .chart .end { fill: var(--text2); font-size: 13px; font-weight: 700; }
@@ -107,7 +108,7 @@ h2 { font-size: 13px; font-weight: 700; letter-spacing: 0.05em; text-transform: 
 .chart .cross { stroke: var(--border2); stroke-width: 1; visibility: hidden; }
 .chart .week { fill: transparent; cursor: crosshair; outline: none; }
 .chart .week:focus-visible { fill: var(--hover-wash, rgba(128, 128, 128, 0.08)); }
-.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
 .tile { display: flex; flex-direction: column; gap: 2px; text-decoration: none; background: var(--surface);
         border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
 .tile:hover { background: var(--surface-hover); }
@@ -146,4 +147,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .result.miss { background: var(--loss-dim); color: var(--loss); }
 .result.pending { background: var(--amber-dim); color: var(--amber); }
 .result.void { background: var(--surface2); color: var(--text2); }
-@media (max-width: 640px) { .pick { grid-template-columns: 1fr auto; } .pick .list { grid-column: 1 / -1; } }
+@media (max-width: 640px) {
+  .pick { grid-template-columns: 1fr auto; } .pick .list { grid-column: 1 / -1; }
+  th, td { padding: 9px 10px; }
+}

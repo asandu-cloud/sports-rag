@@ -2,6 +2,7 @@
 script (the chart's readout) writes with ``textContent`` only."""
 from __future__ import annotations
 
+import math
 from datetime import date, datetime, timedelta, timezone
 from html import escape
 from typing import List, Optional
@@ -27,7 +28,12 @@ def pct(value) -> str:
 
 
 def _count(value) -> str:
-    return f"{value:g}"
+    return f"{value:,g}"
+
+
+def _tally(row) -> str:
+    """"1,542 settled", with the pending count only when there is one."""
+    return f"{_count(row['picks'])} settled" + (f" · {row['pending']:,} pending" if row["pending"] else "")
 
 
 def _day(moment) -> str:
@@ -85,16 +91,23 @@ def _link(kind: str, market: Optional[str] = None) -> str:
     return escape(_href(kind, market))
 
 
-W, H, LEFT, RIGHT, TOP, BOTTOM = 720, 240, 44, 104, 14, 30
+W, H, LEFT, RIGHT, TOP, BOTTOM = 960, 280, 48, 110, 14, 30
 
 
 def _chart(weeks: List[dict]) -> str:
-    """Hit (solid) and said (dashed) per week on one 0–100% axis; a week with no settled pick has no point."""
+    """Hit (solid) and said (dashed) per week on one axis, fitted to the data in steps of 10% (0–100% in quarters
+    when the values spread wider than 50 points); a week with no settled pick has no point."""
     plot_w, plot_h, n = W - LEFT - RIGHT, H - TOP - BOTTOM, len(weeks)
     xs = [LEFT + (plot_w / 2 if n == 1 else i * plot_w / (n - 1)) for i in range(n)]
-    y = lambda value: TOP + (1 - value) * plot_h
+    values = [w[k] for w in weeks for k in ("hit", "said") if w[k] is not None]
+    low = max(0.0, math.floor((min(values) - 0.05) * 10) / 10)
+    high = min(1.0, math.ceil((max(values) + 0.05) * 10) / 10)
+    if high - low > 0.5:
+        low, high = 0.0, 1.0
+    step = 0.1 if high - low <= 0.5 else 0.25
+    y = lambda value: TOP + (high - value) / (high - low) * plot_h
     parts = []
-    for level in (0, 0.25, 0.5, 0.75, 1):
+    for level in [low + i * step for i in range(round((high - low) / step) + 1)]:
         parts.append(f'<line class="grid" x1="{LEFT}" x2="{W - RIGHT}" y1="{y(level):.1f}" y2="{y(level):.1f}"/>'
                      f'<text class="tick" x="{LEFT - 8}" y="{y(level) + 4:.1f}" text-anchor="end">{pct(level)}</text>')
     step = max(1, -(-n // 7))
@@ -143,7 +156,7 @@ def _tile(kind: str, market: dict, chosen: Optional[str]) -> str:
     return (f'<a class="tile" href="{_link(kind, market["market"])}"{on}>'
             f'<span class="name">{escape(MARKETS.get(market["market"], market["market"]))}</span>'
             f'<b>{pct(market["hit"])}</b><span class="sub">said {pct(market["said"])} · '
-            f'{market["picks"]} settled · {market["pending"]} pending</span>{gap_text}</a>')
+            f'{_tally(market)}</span>{gap_text}</a>')
 
 
 def report_page(conn, *, kind: str = "most_likely", market: Optional[str] = None, updated=None, notice=None) -> str:
@@ -168,13 +181,13 @@ def report_page(conn, *, kind: str = "most_likely", market: Optional[str] = None
     every = report.summary(conn, kind=kind)["overall"] if market else overall
     all_tile = (f'<a class="tile all" href="{_link(kind)}"{_current(not market, "true")}>'
                 f'<span class="name">All markets</span><b>{pct(every["hit"])}</b><span class="sub">said '
-                f'{pct(every["said"])} · {every["picks"]} settled · {every["pending"]} pending</span></a>')
+                f'{pct(every["said"])} · {_tally(every)}</span></a>')
     body = f"""{head}
-<p class="headline"><b>{pct(overall["hit"])}</b> hit <span>· said {pct(overall["said"])} · {overall["picks"]} settled · {overall["pending"]} pending</span></p>
+<p class="headline"><b>{pct(overall["hit"])}</b> hit <span>· said {pct(overall["said"])} · {_tally(overall)}</span></p>
 <section class="panel">
 <div class="legend"><span><i class="swatch hit"></i>Hit</span><span><i class="swatch said"></i>Said</span></div>
 <p class="readout" aria-live="polite" data-idle="{idle}">{idle}</p>
-{_chart(data["weeks"])}
+<div class="chart-scroll">{_chart(data["weeks"])}</div>
 </section>
 <h2>Markets</h2>
 <div class="tiles">{all_tile}{"".join(_tile(kind, m, market) for m in data["markets"])}</div>
