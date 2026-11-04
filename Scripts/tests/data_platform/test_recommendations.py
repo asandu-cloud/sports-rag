@@ -139,8 +139,9 @@ def test_value_shows_worth_it_at_the_minimum_odds_even_on_a_whole_line():
     value = rec.block([whole_line_goals_result()], selections=[sel], metrics={},
                       prices_as_of="2026-11-03T11:13:27")["value"]
     chance = fp.fair_outcome([whole_line_goals_result()], "goals", "over", 5.0)["fair_probability"]
-    assert value == [{"position": 1, "market": "goals", "pick": "Over 5", "chance": pytest.approx(chance),
-                      "worth_it_at": fp.minimum_odds(chance), "published_recommendation_id": 9}]
+    assert value == [{"position": 1, "market": "goals", "side": "over", "line": 5.0, "label": "Over 5 goals",
+                      "pick": "Over 5", "chance": pytest.approx(chance), "worth_it_at": fp.minimum_odds(chance),
+                      "published_recommendation_id": 9}]
 
 
 def test_value_reads_a_stored_selections_quote_and_keeps_at_most_two():
@@ -164,6 +165,37 @@ def test_a_value_pick_with_no_stored_prices_has_no_worth_it_at():
     sel = {"position": 0, "market": {"group": "goals"}, "pick": "Over 2.5", "quote": {"side": "over", "line": 2.5}}
     value = rec.block([result("goals", [])], selections=[sel], metrics={}, prices_as_of=None)["value"]
     assert value[0]["chance"] is None and value[0]["worth_it_at"] is None
+
+
+def test_a_handicap_value_pick_finds_its_chance_from_the_team_in_the_quotes_side():
+    # Stored handicap quotes name the team in "side" and never set "team" (all 3,125 on 4 Nov), e.g. Valencia's
+    # "Real Madrid -1.5"; the pick's chance is its Explore option's.
+    sel = {"position": 0, "market": {"group": "spreads"}, "pick": "Lens 0.5",
+           "data": {"decision": {"quote": {"side": "Lens", "line": 0.5}}}}
+    value = rec.block([spreads_result()], selections=[sel], metrics={}, prices_as_of=None)["value"]
+    away = next(o for o in rec.options([spreads_result()])["spreads"] if o["side"] == "away" and o["line"] == 0.5)
+    assert value[0]["chance"] == pytest.approx(away["chance"])
+    assert value[0]["worth_it_at"] == fp.minimum_odds(away["chance"])
+
+
+def test_each_value_item_names_its_option_in_the_explore_lists_words():
+    # recommendations.v1, added 4 Nov: side, line and label as the options have them, so the front end matches a
+    # Value pick to its option without reading the engine's wording ("Away", "Lens 0.5").
+    results = [spreads_result(), moneyline_result()[0], goals_result()]
+    picks = [{"position": 0, "market": {"group": "spreads"}, "pick": "Lens 0.5", "quote": {"side": "Lens", "line": 0.5}},
+             {"position": 1, "market": {"group": "moneyline"}, "pick": "Away", "quote": {"side": "away", "line": None}}]
+    b = rec.block(results, selections=picks, metrics={}, prices_as_of=None)
+    assert [(v["side"], v["line"], v["label"]) for v in b["value"]] == [("away", 0.5, "Lens +0.5"), ("away", None, "Lens to win")]
+    explore = {(o["market"], o["side"], o["line"]): o["label"] for m in b["markets"] for o in m["options"]}
+    assert all(explore[(v["market"], v["side"], v["line"])] == v["label"] for v in b["value"])
+    goals = {"position": 0, "market": {"group": "goals"}, "pick": "Under 3.5", "quote": {"side": "under", "line": 3.5}}
+    assert rec.block(results, selections=[goals], metrics={}, prices_as_of=None)["value"][0]["label"] == "Under 3.5 goals"
+
+
+def test_a_handicap_pick_on_a_team_the_read_does_not_name_keeps_the_engines_words():
+    sel = {"position": 0, "market": {"group": "spreads"}, "pick": "Lens B 0.5", "quote": {"side": "Lens B", "line": 0.5}}
+    value = rec.block([spreads_result()], selections=[sel], metrics={}, prices_as_of=None)["value"][0]
+    assert (value["side"], value["line"], value["label"], value["chance"]) == (None, 0.5, "Lens B 0.5", None)
 
 
 def test_every_market_is_listed_with_its_suggestion_or_none_and_cards_are_absent():

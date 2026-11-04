@@ -165,13 +165,20 @@ def _quote(selection: Mapping[str, Any]) -> Mapping[str, Any]:
     return stored if isinstance(stored, Mapping) else selection.get("quote") or {}
 
 
-def _value(canonical_results, selection: Mapping[str, Any]) -> dict:
+def _value(canonical_results, selection: Mapping[str, Any], fixture: Mapping[str, Any]) -> dict:
+    """One Value item: the pick's chance and "Worth it at", and its side, line and label as its option has them.
+    A handicap quote names its team in ``side``; the options say home or away."""
     market, quote = (selection.get("market") or {}).get("group"), _quote(selection)
-    side = quote.get("team") if market == "spreads" else quote.get("side")
-    outcome = fp.fair_outcome(canonical_results, market, side, quote.get("line")) if side else None
+    side, line = quote.get("side"), None if quote.get("line") is None else float(quote.get("line"))
+    outcome = fp.fair_outcome(canonical_results, market, side, line) if side else None
     chance = outcome["fair_probability"] if outcome else None
-    return {"position": selection.get("position"), "market": market, "pick": selection.get("pick"), "chance": chance,
-            "worth_it_at": fp.minimum_odds(chance) if chance else None,
+    if market == "spreads":
+        side = dict(zip(fp._teams({"fixture": fixture}), ("home", "away"))).get(fp.norm(side))
+    named = side in (("home", "away") if market == "spreads" else fp.SIDES.get(market, ())) and (
+        line is not None or market in ("moneyline", "btts"))
+    return {"position": selection.get("position"), "market": market, "side": side if named else None, "line": line,
+            "label": _label({"fixture": fixture}, market, side, line) if named else selection.get("pick"),
+            "pick": selection.get("pick"), "chance": chance, "worth_it_at": fp.minimum_odds(chance) if chance else None,
             "published_recommendation_id": selection.get("published_recommendation_id")}
 
 
@@ -199,5 +206,5 @@ def block(canonical_results: Iterable[Mapping[str, Any]], *, selections: Iterabl
                       and (s.get("market") or {}).get("group") in MARKETS),  # cards and SoT stay out (D61)
                      key=lambda s: s.get("position") or 0)
     return {"version": VERSION, "prices_as_of": prices_as_of, "most_likely": likely,
-            "value": [_value(canonical_results, s) for s in ordered[:MAX_VALUE]], "markets": markets,
+            "value": [_value(canonical_results, s, fixture) for s in ordered[:MAX_VALUE]], "markets": markets,
             "score_grid": _score_grid(results)}
