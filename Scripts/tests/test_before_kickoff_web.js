@@ -10,7 +10,7 @@ const helpersStart = source.indexOf('// ----- Pure render helpers');
 const helpersEnd = source.indexOf('// ----- End of pure render helpers -----');
 assert.ok(helpersStart >= 0 && helpersEnd > helpersStart);
 const h = Function('esc', source.slice(helpersStart, helpersEnd)
-  + 'return { liveStatusLabel, beforeKickoffFor, renderBeforeKickoffCard, boardFixturesFor, liveBoardGroups };')(esc);
+  + 'return { liveStatusLabel, beforeKickoffFor, beforeKickoffListOn, renderBeforeKickoffCard, boardFixturesFor, liveBoardGroups };')(esc);
 const text = html => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
 // The match status: live codes, breaks, finishes and the rare ones; a late start is not live;
@@ -116,6 +116,21 @@ assert.deepEqual(merged['909'], byId(today)['909'], 'a postponed match is not a 
 assert.deepEqual(board._mergeSchedule(schedule, [], leagues, new Map()), today);
 assert.equal(byId(today)['906'].scheduleNote, 'No pre-match recommendation is available for this fixture.');
 assert.equal(today.some(f => f.afterKickoff || f.beforeKickoff), false);
+
+// D74: a league whose list is on but empty (no started match there had picks) still moves its started matches
+// to Live. The list is on when the key is there, even empty; missing (switch off) or ?recs=off is off.
+assert.equal(h.beforeKickoffListOn({ cards: [], before_kickoff: [] }, ''), true);
+assert.equal(h.beforeKickoffListOn({ cards: [] }, ''), false);
+assert.equal(h.beforeKickoffListOn({ cards: [], before_kickoff: [] }, '?recs=off'), false);
+assert.equal(h.beforeKickoffListOn(null, ''), false);
+const listed = byId(board._mergeSchedule(schedule, [], leagues, picks, new Set(['UECL'])));
+assert.equal(listed['908'].afterKickoff, true);
+assert.equal(listed['908'].beforeKickoff, null);
+assert.equal(listed['908'].scheduleNote, 'Spix had no picks for this match before kickoff.');
+assert.deepEqual(listed['909'], byId(today)['909'], 'still not a started match');
+const onlyListed = byId(board._mergeSchedule(schedule, [], leagues, new Map(), new Set(['UEL'])));
+assert.equal(onlyListed['901'].afterKickoff, true, 'no entries anywhere, list on: started matches still move');
+assert.deepEqual(board._mergeSchedule(schedule, [], leagues, new Map(), new Set()), today, 'list off everywhere: today\'s board');
 
 // The live status: the entry's own, else the schedule row's live_status; null and a missing key alike.
 const live = new Map([['901', h.beforeKickoffFor(entry('901', 'UEL', { status: { short: 'HT', elapsed: 45 } }), '', 'UEL')]]);

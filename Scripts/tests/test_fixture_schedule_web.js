@@ -16,8 +16,9 @@ function makeBoard(fetch) {
     if (!elements.has(id)) elements.set(id, { setAttribute() {} });
     return elements.get(id);
   } };
-  const board = Function('document', 'fetch', 'ui', 'showToast', 'Date', `return ({${source.slice(start, end)}})`)(
-    document, fetch, { enter() {} }, () => {}, DateStub);
+  // The before-kickoff list (D71-D74) is off in these boards: no response sends the key.
+  const board = Function('document', 'fetch', 'ui', 'showToast', 'Date', 'beforeKickoffListOn', 'window', `return ({${source.slice(start, end)}})`)(
+    document, fetch, { enter() {} }, () => {}, DateStub, payload => Array.isArray(payload?.before_kickoff), { location: { search: '' } });
   Object.assign(board, {
     _requestId: 0, activeLeague: 'all', LEAGUES: [{ id: 'EPL', name: 'Premier League' }],
     fixtures: [], bestBets: [], fixtureIndex: {},

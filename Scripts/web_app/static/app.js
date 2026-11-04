@@ -445,6 +445,11 @@ function beforeKickoffFor(entry, search, league) {
     readAt: entry.read_at || null, status: entry.status || null, most_likely: mostLikely, value };
 }
 
+// The list is on for a league when its board sends the key, even empty (D74); missing means the switch is off.
+function beforeKickoffListOn(payload, search) {
+  return Array.isArray(payload?.before_kickoff) && new URLSearchParams(search || '').get('recs') !== 'off';
+}
+
 function renderBeforeKickoffCard(f, homeEmblem, awayEmblem, leagueName) {
   const block = f.beforeKickoff;
   const row = item => `<li><span class="bk-pick">${esc(item.label)}</span><span class="bk-chance">${esc(chanceWords(item.chance))} · ${chancePercent(item.chance)}</span></li>`;
@@ -1622,9 +1627,9 @@ const appModule = {
       scheduleNote: picks ? fixture.scheduleNote : 'Spix had no picks for this match before kickoff.' };
   },
 
-  _mergeSchedule(schedule, cards, availableLeagues, beforeKickoff = new Map()) {
+  _mergeSchedule(schedule, cards, availableLeagues, beforeKickoff = new Map(), listedLeagues = new Set()) {
     const published = new Map(cards.map(card => [String(card.id), card]));
-    const pickedLeagues = new Set([...beforeKickoff.values()].map(picks => picks.league));
+    const pickedLeagues = new Set([...beforeKickoff.values()].map(picks => picks.league).concat([...listedLeagues]));
     const merged = new Map();
     schedule.forEach(row => {
       let fixture = this._normaliseScheduledFixture(row, availableLeagues.has(row.fixture?.league));
@@ -1702,6 +1707,9 @@ const appModule = {
     const persistedCards = successfulBoards.flatMap(result => result.value.payload.cards
       .map(card => this._normaliseMatchReadCard(card, result.value.league.id)));
     const beforeKickoff = new Map();
+    const listedLeagues = new Set(successfulBoards
+      .filter(result => beforeKickoffListOn(result.value.payload, window.location.search))
+      .map(result => result.value.league.id));
     successfulBoards.forEach(result => {
       const entries = Array.isArray(result.value.payload.before_kickoff) ? result.value.payload.before_kickoff : [];
       entries.forEach(entry => {
@@ -1709,7 +1717,7 @@ const appModule = {
         if (picks) beforeKickoff.set(picks.id, picks);
       });
     });
-    const fixtures = this._mergeSchedule(scheduleLoaded ? scheduleResponse.value : [], persistedCards, availableLeagues, beforeKickoff);
+    const fixtures = this._mergeSchedule(scheduleLoaded ? scheduleResponse.value : [], persistedCards, availableLeagues, beforeKickoff, listedLeagues);
     const notices = [];
     if (!scheduleLoaded) notices.push('The full fixture schedule could not be loaded. Showing published Match Reads only.');
     const failed = boardResponses.length - successfulBoards.length;

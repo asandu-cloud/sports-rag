@@ -1416,6 +1416,22 @@ contents and its rules stay as D71 describes.
 - *Going live:* the switches are already on, so this is live as soon as it is merged. No restart is needed, since
   the static files are read from disk.
 
+**D74 — Live takes every started match while the list is on (5 Nov, frontend).** The orchestrator found an edge case
+after D73 merged. A started match only moved to Live in a league that sent at least one before-kickoff entry, so in
+a league where no started match had picks, those matches stayed under All as the old schedule card ("Match
+started", "No pre-match recommendation…"). The owner asked for started matches to leave the league lists, so they
+now move whenever that league's list is on.
+- *How "on" is read:* the board response has the `before_kickoff` key, even empty. With `SPIX_BEFORE_KICKOFF=on`
+  the backend sends `[]` for a league with nothing to send (checked on 8000, 5 Nov: EPL and UCL both `[]`). With the
+  switch off the key is missing. A missing key, or `?recs=off`, still gives exactly the old board (tested). This
+  refines D71's "missing or empty gives today's board", which was only needed before the switch existed.
+- *Checks:* `beforeKickoffListOn` and the merge with a listed league that has no entries are tested. Two older
+  harnesses (`test_fixture_schedule_web.js`, `test_frontend_interactions.js`) now pass that helper in, as they do
+  the others. All 6 JS files pass; the Python suite gave 2,785 passed with the 3 known worktree errors. A replay of
+  production's 4 Nov board with the Jupiler Pro League's list emptied shows Kortrijk v KV Mechelen under Live as
+  "Spix had no picks for this match before kickoff", and All with nothing left to come. Cache tags moved to
+  `live-20261105a`. Live on merge; no restart.
+
 ## Findings that shape later steps
 
 - **Checks from a worktree (3 Nov, corrected).** Three pinned `golden_snapshots check` runs from the backend folder
