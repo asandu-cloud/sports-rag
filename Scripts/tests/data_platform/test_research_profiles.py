@@ -438,12 +438,12 @@ def test_migration_round_trip_keeps_legacy_tables(settings):
     command.upgrade(cfg, "0008_match_read_cycle")
     db = create_engine(settings.database_url)
     before = set(inspect(db).get_table_names())
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, "0009_research_profiles")
     assert set(inspect(db).get_table_names()) - before == {
         "research_peer_stats", "research_profile_builds", "research_referee_aliases"}
     command.downgrade(cfg, "0008_match_read_cycle")
     assert set(inspect(db).get_table_names()) == before
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, "0009_research_profiles")
     assert "ix_research_player_fixture" in {i["name"] for i in inspect(db).get_indexes("fixture_player_stats")}
     db.dispose()
 

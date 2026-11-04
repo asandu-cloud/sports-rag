@@ -154,6 +154,22 @@ def cmd_refresh(args) -> int:
     return 1 if res.get("error_count") else 0
 
 
+def cmd_backfill_events(args) -> int:
+    from .db import get_sessionmaker
+    from .services.refresh_coordination import RefreshBusy
+    from .sync import ApiFootballClient
+    from .sync.events_backfill import backfill_events
+
+    client = None if args.dry_run else ApiFootballClient()
+    try:
+        result = backfill_events(get_sessionmaker(), client, since=args.since, limit=args.limit, dry_run=args.dry_run)
+    except (RefreshBusy, RuntimeError) as exc:
+        logger.error("%s", exc)
+        return 1
+    print(json.dumps(result, indent=2))
+    return 1 if result["errors"] else 0
+
+
 def cmd_sync_schedule(args) -> int:
     from .services.fixture_schedule import sync_fixture_schedule
     from .config import DEFAULT_MATCH_READ_WORKER_LEAGUES
@@ -680,6 +696,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--archive", action="store_true", default=True)
     p.add_argument("--no-archive", dest="archive", action="store_false")
     p.set_defaults(func=cmd_refresh)
+
+    p = sub.add_parser("backfill-events", help="Fetch match events for finished fixtures since a date that have none")
+    _add_common_args(p)
+    p.add_argument("--since", type=date.fromisoformat, required=True, help="YYYY-MM-DD, kickoff date (UTC)")
+    p.add_argument("--limit", type=int, help="At most this many requests")
+    p.add_argument("--dry-run", action="store_true", help="Print how many requests it would make; make none")
+    p.set_defaults(func=cmd_backfill_events)
 
     p = sub.add_parser("sync-schedule", help="Refresh upcoming schedules only; no player data or embeddings")
     _add_common_args(p)
