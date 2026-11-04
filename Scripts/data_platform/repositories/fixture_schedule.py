@@ -6,7 +6,7 @@ from typing import Sequence
 from sqlalchemy import select
 from sqlalchemy.orm import aliased
 
-from ..db import session_scope
+from ..db import retry_database_busy, session_scope
 from ..models import Competition, Fixture, Team
 
 
@@ -14,6 +14,7 @@ class FixtureScheduleRepository:
     def __init__(self, session_factory=session_scope):
         self._factory = session_factory
 
+    @retry_database_busy  # the public board's read waits out a writer like the writes do (D72)
     def list_for_matchday(self, *, target_date: date, leagues: Sequence[str]) -> list[dict]:
         start = datetime.combine(target_date, datetime.min.time(), tzinfo=timezone.utc)
         home, away = aliased(Team), aliased(Team)
