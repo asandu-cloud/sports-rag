@@ -93,3 +93,68 @@ def test_an_empty_dashboard_says_so(conn):
     assert "No settled Value picks yet" in page
     assert "<svg" not in page
     assert "Not updated yet" in page
+
+
+FACTS = {"status": "FT", "home": "Lyon", "away": "Lens", "home_goals": 2, "away_goals": 1, "corners_home": 6,
+         "corners_away": 4, "yellow_home": 2, "red_home": 0, "yellow_away": 2, "red_away": 1, "sot_home": 5,
+         "sot_away": 4}
+
+
+def test_what_happened_names_the_number_the_pick_settles_on():
+    assert pages.what_happened("goals", FACTS, {"side": "over", "line": 1.5}) == "3 goals"
+    assert pages.what_happened("goals", dict(FACTS, home_goals=1, away_goals=0), {"side": "over", "line": 0.5}) == "1 goal"
+    assert pages.what_happened("corners", FACTS, {"side": "under", "line": 11.5}) == "10 corners"
+    assert pages.what_happened("corners", dict(FACTS, corners_away=None), {"side": "under", "line": 11.5}) == (
+        "corners not in yet")
+    assert pages.what_happened("moneyline", FACTS, {"side": "home"}) == "2–1"
+    assert pages.what_happened("btts", FACTS, {"side": "yes"}) == "2–1"
+    assert pages.what_happened("spreads", FACTS, {"side": "away", "line": 0.5}) == "Lens lost by 1"
+    assert pages.what_happened("spreads", FACTS, {"side": "LENS", "line": 0.5}) == "Lens lost by 1"  # a Value side
+    assert pages.what_happened("spreads", FACTS, {"side": "home", "line": -1.5}) == "Lyon won by 1"
+    assert pages.what_happened("spreads", dict(FACTS, away_goals=2), {"side": "home", "line": -0.5}) == "Lyon drew"
+    assert pages.what_happened("cards", FACTS, {"side": "over", "line": 4.5, "actual_result": 6.0}) == "6 cards"
+    assert pages.what_happened("cards", FACTS, {"side": "over", "line": 4.5}) == "5 cards"
+    assert pages.what_happened("sot", FACTS, {"side": "under", "line": 9.5}) == "9 shots on target"
+    assert pages.what_happened("goals", dict(FACTS, status="AET"), {"side": "over", "line": 2.5}) == (
+        "2–1 after extra time")
+
+
+def test_history_groups_a_day_by_league_with_one_line_per_pick(conn):
+    add_match(conn, "1", "2026-11-03T12:00:00Z", league="UCL", home="Lyon", away="Lens")
+    add_match(conn, "2", "2026-11-03T12:30:00Z", league="EPL", corners=(6, None))
+    add_likely(conn, "1", "goals", "over", 1.5, 0.80, "hit", label="Over 1.5 goals")
+    add_likely(conn, "1", "spreads", "away", 0.5, 0.55, "miss", label="Lens +0.5", position=1)
+    add_value(conn, "v1", "1", "2026-11-03T12:00:00Z", "spreads", 0.49, "half_miss", label="Lens +0.25",
+              side="Lens", line=0.25, home="Lyon", away="Lens")
+    add_likely(conn, "2", "corners", "under", 11.5, 0.63, None, label="Under 11.5 corners", reason="corners not in yet")
+    page = pages.history_page(conn, day="2026-11-03")
+    assert page.index("Premier League") < page.index("Champions League")  # the live site's league order
+    assert page.count('class="pick"') == 4
+    assert "Lyon v Lens" in page and "2–1" in page and "Corners 10 (6–4)" in page and "Corners not in yet" in page
+    assert "Over 1.5 goals" in page and "said 80%" in page and "1.25" in page and "3 goals" in page
+    assert "Lens +0.25" in page and "said 49%" in page and "2.10 at Pinnacle" in page and "Lens lost by 1" in page
+    for result in (">Hit<", ">Miss<", ">Half miss<", ">Pending<"):
+        assert result in page
+    assert "waiting for the corners" in page
+    assert page.index("Over 1.5 goals") < page.index("Lens +0.5") < page.index("Lens +0.25")  # Most likely first
+
+
+def test_history_opens_on_the_latest_day_with_a_settled_pick_and_skips_days_without_picks(conn):
+    add_match(conn, "1", "2026-11-02T12:00:00Z")
+    add_likely(conn, "1", "goals", "over", 1.5, 0.80, "hit")
+    add_match(conn, "2", "2026-11-04T12:00:00Z", home="Lyon", away="Lens")
+    add_likely(conn, "2", "corners", "under", 11.5, 0.63, None, reason="corners not in yet")
+    add_match(conn, "3", "2026-11-05T12:00:00Z", home="Ajax", away="PSV")  # seen, no picks
+    add_match(conn, "4", "2026-10-28T12:00:00Z", home="Roma", away="Lazio")
+    add_likely(conn, "4", "goals", "under", 3.5, 0.70, "hit")
+    page = pages.history_page(conn)
+    assert 'href="/history?day=2026-11-02" aria-current="page"' in page
+    assert 'href="/history?day=2026-11-04"' in page and "2026-11-05" not in page and "Ajax" not in page
+    assert "Lyon v Lens" not in page  # that day is in the strip, not on the page
+    assert 'href="/history?day=2026-10-28"' in page  # the earlier week's latest day with picks
+    later = pages.history_page(conn, day="2026-11-04")
+    assert "Lyon v Lens" in later and 'href="/history?day=2026-11-04" aria-current="page"' in later
+
+
+def test_an_empty_history_says_so(conn):
+    assert "No played matches with picks yet" in pages.history_page(conn)

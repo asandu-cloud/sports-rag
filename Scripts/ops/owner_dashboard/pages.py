@@ -2,10 +2,12 @@
 script (the chart's readout) writes with ``textContent`` only."""
 from __future__ import annotations
 
+from datetime import date, datetime, timedelta, timezone
 from html import escape
 from typing import List, Optional
 from urllib.parse import urlencode
 
+from Scripts.data_platform import fair_prices as fp
 from Scripts.ops.owner_dashboard import report
 from Scripts.ops.owner_dashboard.report import KINDS, MARKETS, local
 
@@ -182,3 +184,173 @@ def report_page(conn, *, kind: str = "most_likely", market: Optional[str] = None
 <tbody>{rows}</tbody>
 </table></div>"""
     return layout("Report", "Report", body, updated=updated, notice=notice, back=_href(kind, market), script=READOUT)
+
+
+LEAGUES = {"EPL": "Premier League", "LaLiga": "La Liga", "SerieA": "Serie A", "Bundesliga": "Bundesliga",
+           "Ligue1": "Ligue 1", "Championship": "Championship", "SuperLig": "Süper Lig", "Eredivisie": "Eredivisie",
+           "PrimeiraLiga": "Primeira Liga", "BelgianProLeague": "Jupiler Pro League", "UCL": "Champions League",
+           "UEL": "Europa League", "UECL": "Conference League"}  # the live site's names and order
+RESULTS = {"hit": ("Hit", "hit"), "half_hit": ("Half hit", "hit"), "miss": ("Miss", "miss"),
+           "half_miss": ("Half miss", "miss"), "push": ("Push", "void"), "void": ("Void", "void")}
+WAITING = {"corners not in yet": "waiting for the corners", "score not in yet": "waiting for the score",
+           "not final": "waiting for the final result"}
+COUNTS = {"goals": ("goal", "goals"), "corners": ("corner", "corners"), "cards": ("card", "cards"),
+          "sot": ("shot on target", "shots on target")}
+
+
+def _pair(facts, key):
+    home, away = facts.get(f"{key}_home"), facts.get(f"{key}_away")
+    return None if home is None or away is None else (home, away)
+
+
+def _cards(facts):
+    counts = [facts.get(k) for k in ("yellow_home", "red_home", "yellow_away", "red_away")]
+    return None if None in counts else counts
+
+
+def _number(value, market) -> str:
+    one, many = COUNTS[market]
+    return f"{float(value):g} {one if float(value) == 1 else many}"
+
+
+def _team_side(side, home, away) -> Optional[str]:
+    if side in ("home", "away"):
+        return side
+    return {fp.norm(home or ""): "home", fp.norm(away or ""): "away"}.get(fp.norm(side or ""))
+
+
+def what_happened(market: str, facts: dict, pick: dict) -> str:
+    """The number the pick settled on: a total for over/under markets, the score or the margin otherwise."""
+    home_goals, away_goals = facts.get("home_goals"), facts.get("away_goals")
+    score = None if home_goals is None or away_goals is None else f"{home_goals}–{away_goals}"
+    if facts.get("status") in ("AET", "PEN") and score and market in ("goals", "moneyline", "btts", "spreads"):
+        return f"{score} after extra time"
+    if market in COUNTS:
+        if pick.get("actual_result") is not None:
+            return _number(pick["actual_result"], market)
+        if market == "goals":
+            total = None if score is None else home_goals + away_goals
+        elif market == "cards":
+            total = None if _cards(facts) is None else sum(_cards(facts))
+        else:
+            pair = _pair(facts, "corners" if market == "corners" else "sot")
+            total = None if pair is None else sum(pair)
+        return f"{'score' if market == 'goals' else COUNTS[market][1]} not in yet" if total is None else (
+            _number(total, market))
+    if score is None:
+        return "score not in yet"
+    side = _team_side(pick.get("side"), facts.get("home"), facts.get("away")) if market == "spreads" else None
+    if side is None:
+        return score
+    margin = home_goals - away_goals if side == "home" else away_goals - home_goals
+    team = facts.get("home") if side == "home" else facts.get("away")
+    return f"{team} drew" if margin == 0 else f"{team} {'won' if margin > 0 else 'lost'} by {abs(margin)}"
+
+
+def _facts_line(match: dict) -> str:
+    parts = []
+    if match.get("status") in ("AET", "PEN"):
+        parts.append("After extra time" + (" and penalties" if match["status"] == "PEN" else ""))
+    corners = _pair(match, "corners")
+    parts.append(f"Corners {sum(corners)} ({corners[0]}–{corners[1]})" if corners else "Corners not in yet")
+    cards = _cards(match)
+    if cards:
+        reds = cards[1] + cards[3]
+        parts.append(f"Cards {sum(cards)}" + (f" ({reds} red)" if reds else ""))
+    sot = _pair(match, "sot")
+    if sot:
+        parts.append(f"Shots on target {sum(sot)} ({sot[0]}–{sot[1]})")
+    return " · ".join(parts)
+
+
+def _played(conn, now: datetime) -> List[dict]:
+    """Every match with a logged pick that has kicked off, with its picks (Most likely first, in list order)."""
+    matches = {row["fixture_api_id"]: dict(row, picks=[]) for row in conn.execute(
+        "SELECT * FROM matches WHERE fixture_api_id IN (SELECT fixture_api_id FROM most_likely "
+        "UNION SELECT fixture_api_id FROM value_picks)")}
+    for row in conn.execute("SELECT * FROM most_likely ORDER BY fixture_api_id, position"):
+        matches[row["fixture_api_id"]]["picks"].append(
+            dict(row, list="Most likely", said=row["chance"],
+                 price=None if row["typical_price"] is None else f"{row['typical_price']:.2f}"))
+    for row in conn.execute("SELECT * FROM value_picks ORDER BY published_at, selection_key"):
+        match = matches.setdefault(row["fixture_api_id"], {
+            "fixture_api_id": row["fixture_api_id"], "league": row["league"], "home": row["home"],
+            "away": row["away"], "kickoff": row["kickoff"], "status": None, "picks": []})
+        price = None if row["odds"] is None else f"{row['odds']:.2f}" + (
+            f" at {row['bookmaker']}" if row["bookmaker"] else "")
+        match["picks"].append(dict(row, list="Value", price=price, pending_reason=None))
+    played = []
+    for match in matches.values():
+        moment = local(match.get("kickoff"))
+        if moment and moment <= now.astimezone():
+            played.append(dict(match, moment=moment, day=moment.date()))
+    return played
+
+
+def _pick_line(match: dict, pick: dict) -> str:
+    what = what_happened(pick["market"], match, pick)
+    if pick["outcome"] is None:
+        result, style = "Pending", "pending"
+        reason = pick.get("pending_reason")
+        what = f"{what} · not graded" if reason == "extra time" else WAITING.get(reason, what)
+    else:
+        result, style = RESULTS.get(pick["outcome"], (pick["outcome"].replace("_", " ").capitalize(), "void"))
+    meta = " · ".join(x for x in (f"said {pct(pick['said'])}", pick.get("price")) if x)
+    return (f'<div class="pick"><span class="list">{escape(pick["list"])}</span>'
+            f'<span><b>{escape(pick["label"] or "")}</b> <span class="meta">· {escape(meta)}</span><br>'
+            f'<span class="what">{escape(what)}</span></span><span class="result {style}">{escape(result)}</span></div>')
+
+
+def _match_card(match: dict) -> str:
+    home_goals, away_goals = match.get("home_goals"), match.get("away_goals")
+    score = "" if home_goals is None or away_goals is None else f"{home_goals}–{away_goals}"
+    if match.get("status") and match["status"] != "FT":
+        score = " · ".join(x for x in (score, match["status"]) if x)
+    return (f'<article class="match"><div class="head"><span class="teams">{escape(match["home"] or "")} v '
+            f'{escape(match["away"] or "")}<small>{match["moment"]:%H:%M}</small></span>'
+            f'<span class="score">{escape(score)}</span></div><div class="facts">{escape(_facts_line(match))}</div>'
+            f'{"".join(_pick_line(match, p) for p in match["picks"])}</article>')
+
+
+def _day_link(day, label: str, *, on=False, step=False) -> str:
+    return (f'<a{' class="step"' if step else ""} href="/history?day={day.isoformat()}"{_current(on)}>'
+            f'{escape(label)}</a>')
+
+
+def history_page(conn, *, day=None, updated=None, notice=None, now: Optional[datetime] = None) -> str:
+    """One played day: its matches by league, one line per pick. Opens on the latest day with a settled pick;
+    the strip shows that day's week (days with picks only) and steps to the nearest week with picks."""
+    played = _played(conn, now or datetime.now(timezone.utc))
+    days = sorted({m["day"] for m in played})
+    back = "/history" + (f"?day={day}" if day else "")
+    if not days:
+        body = '<h1>History</h1><p class="empty">No played matches with picks yet. They appear here once a match is over.</p>'
+        return layout("History", "History", body, updated=updated, notice=notice, back=back)
+    try:
+        chosen = date.fromisoformat(str(day)) if day else None
+    except ValueError:
+        chosen = None
+    if chosen not in days:
+        settled = [m["day"] for m in played if any(p["outcome"] is not None for p in m["picks"])]
+        chosen = max(settled or days)
+    monday = chosen - timedelta(days=chosen.weekday())
+    sunday = monday + timedelta(days=6)
+    earlier = [d for d in days if d < monday]
+    later = [d for d in days if d > sunday]
+    strip = ((_day_link(max(earlier), "‹ Earlier week", step=True) if earlier else "")
+             + "".join(_day_link(d, _day(d), on=d == chosen) for d in days if monday <= d <= sunday)
+             + (_day_link(min(later), "Later week ›", step=True) if later else ""))
+    today = sorted((m for m in played if m["day"] == chosen), key=lambda m: (
+        list(LEAGUES).index(m["league"]) if m["league"] in LEAGUES else len(LEAGUES), m["league"] or "",
+        m["moment"], m["home"] or ""))
+    groups, league = [], object()
+    for match in today:
+        if match["league"] != league:
+            league = match["league"]
+            groups.append(f'<h2 class="league">{escape(LEAGUES.get(league, league or "Other"))}</h2>')
+        groups.append(_match_card(match))
+    picks = sum(len(m["picks"]) for m in today)
+    body = (f'<nav class="days" aria-label="Days">{strip}</nav><h1>{escape(_day(chosen))} <span>· {len(today)} '
+            f'{"match" if len(today) == 1 else "matches"} · {picks} {"pick" if picks == 1 else "picks"}</span></h1>'
+            + "".join(groups))
+    return layout("History", "History", body, updated=updated, notice=notice, back=back)
