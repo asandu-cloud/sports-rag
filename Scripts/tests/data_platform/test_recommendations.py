@@ -161,6 +161,21 @@ def test_value_leaves_out_picks_from_markets_outside_the_layer():
     assert [(v["position"], v["market"]) for v in value] == [(2, "goals")]
 
 
+def test_a_value_pick_keeps_the_chance_it_was_picked_with_so_worth_it_is_not_above_its_price():
+    # D68 (owner, 4 Nov): Lens v Como, Under 3.5 goals, picked at 1.65 with 62.07%; the fair card's 61.5% gave
+    # "Worth it at 1.66", above the price Spix found.
+    sel = {"position": 1, "market": {"group": "goals"}, "pick": "Over 2.5", "quote_odds": 1.95,
+           "model_probability": 0.5231, "quote": {"side": "over", "line": 2.5}}
+    value = rec.block([goals_result()], selections=[sel], metrics={}, prices_as_of=None)["value"]
+    assert fp.fair_outcome([goals_result()], "goals", "over", 2.5)["fair_probability"] != pytest.approx(0.5231)
+    assert value[0]["chance"] == 0.5231 and value[0]["worth_it_at"] == fp.minimum_odds(0.5231) == 1.95
+    for unusable in (None, 0, 1.2, "0.52"):
+        fallback = rec.block([goals_result()], selections=[dict(sel, model_probability=unusable)], metrics={},
+                             prices_as_of=None)["value"]
+        assert fallback[0]["chance"] == pytest.approx(
+            fp.fair_outcome([goals_result()], "goals", "over", 2.5)["fair_probability"])
+
+
 def test_a_value_pick_with_no_stored_prices_has_no_worth_it_at():
     sel = {"position": 0, "market": {"group": "goals"}, "pick": "Over 2.5", "quote": {"side": "over", "line": 2.5}}
     value = rec.block([result("goals", [])], selections=[sel], metrics={}, prices_as_of=None)["value"]
@@ -169,7 +184,7 @@ def test_a_value_pick_with_no_stored_prices_has_no_worth_it_at():
 
 def test_a_handicap_value_pick_finds_its_chance_from_the_team_in_the_quotes_side():
     # Stored handicap quotes name the team in "side" and never set "team" (all 3,125 on 4 Nov), e.g. Valencia's
-    # "Real Madrid -1.5"; the pick's chance is its Explore option's.
+    # "Real Madrid -1.5"; with no chance of its own, the pick's chance is its Explore option's.
     sel = {"position": 0, "market": {"group": "spreads"}, "pick": "Lens 0.5",
            "data": {"decision": {"quote": {"side": "Lens", "line": 0.5}}}}
     value = rec.block([spreads_result()], selections=[sel], metrics={}, prices_as_of=None)["value"]

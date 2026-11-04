@@ -120,7 +120,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Second-round variables: M2 line movement | A3 blend | Needs 6–8 weeks of odds archive (from ~mid-Nov 2026) |
 | Second-round variables: M3 bookmaker disagreement | A5.3 confidence labels (D30) | With A5 |
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
-| Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52, approved 3 Nov, D53); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`; plan `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks; mockups are task 3, after the data block). Tasks 1–2 (the data block behind `SPIX_RECOMMENDATIONS`, off) merged 3 Nov, D56; task 3 look chosen (version B, D63); tasks 4–5 (match page, board card, slip) merged 4 Nov, D59, D60, shown only when the switch is on. Task 6 replaced by the owner dashboard (D67, merged 4 Nov, no migration); task 7 dropped. Live 4 Nov (D68). Open: the methodology copy (draft kept for the owner's sign-off) and the "Worth it at" finding (D68) | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
+| Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52, approved 3 Nov, D53); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`; plan `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks; mockups are task 3, after the data block). Tasks 1–2 (the data block behind `SPIX_RECOMMENDATIONS`, off) merged 3 Nov, D56; task 3 look chosen (version B, D63); tasks 4–5 (match page, board card, slip) merged 4 Nov, D59, D60, shown only when the switch is on. Task 6 replaced by the owner dashboard (D67, merged 4 Nov, no migration); task 7 dropped. Live 4 Nov (D68). Open: the methodology copy (draft kept for the owner's sign-off); the "Worth it at" fix (D68, owner 4 Nov) waits for the merge and a website restart | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
 | Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | Needs the bet builder and the recommendation lists first |
 | Website and Discord link: one-tap sharing of a bet to Discord, Discord posts linking back to the match (D50) | A7, when the bot moves to the new engine | The bot still runs the old engine |
 | Building bets inside Discord; community selections (D50) | After A7 | Owner: for later |
@@ -1301,8 +1301,13 @@ switches are stage 4's, unchanged (`SPIX_CARDS_REFERENCE` still off for 10 Nov).
   Value list takes its chance from the fair-price card, 61.5%, so it shows "Worth it at 1.66 or better". The other
   live Value pick (Over 2.5 goals, picked at 1.67, worth it at 1.65) is consistent. The cause is two chances for the
   same option; the Value item follows the spec ("the fair-price card's minimum odds") and D65's rule that a Value
-  pick's chance is its Explore option's. *Open (owner):* keep it, or let a Value item take the chance it was picked
-  with, so its "Worth it at" is never above the price Spix found. Display only; published picks unchanged.
+  pick's chance is its Explore option's.
+  - *Owner (4 Nov):* a Value item takes the chance it was picked with (the selection's `model_probability`), so its
+    "Worth it at" is never above the price Spix found. A pick with no usable chance of its own falls back to its
+    option's fair-card chance, as before. The cost: now and then its percentage is a point off the same option in
+    Explore the match. Built on backend (`recommendations._value`, one test): Lens v Como now reads "Worth it at
+    1.65 or better", and the other Value pick stays at 1.65. Golden check unchanged; display only, published picks
+    unchanged. Live after the merge and a website restart.
 
 ## Findings that shape later steps
 
