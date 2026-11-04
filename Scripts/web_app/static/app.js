@@ -160,10 +160,18 @@ function recsSuggestionCount(block) {
   return (block?.markets || []).filter(m => m.suggestion).length + (block?.value?.length || 0);
 }
 
-// A value item carries only its pick ("Over 10", "Away", "As Roma -1.5"); its side and
-// line come from the market's own option when one matches, otherwise from the pick's words.
+// A value item names its side, line and label (D65). Older blocks, and a handicap that
+// names neither team (side null), carry only the pick ("Over 10", "Away", "As Roma -1.5"):
+// then side and line come from the market's own option when one matches, else the pick's words.
 function recsValueLeg(item, block) {
   const unit = RECS_UNITS[item.market] || '';
+  const figure = value => (value == null || !Number.isFinite(Number(value)) ? null : Number(value));
+  const leg = (side, line, label) => ({
+    market: item.market, side, line, label,
+    chance: figure(item.chance), worth: figure(item.worth_it_at),
+    whole: Boolean(unit) && Number.isInteger(line),
+  });
+  if (item.side != null) return leg(item.side, item.line ?? null, item.label || String(item.pick || ''));
   const pick = String(item.pick || '');
   const plain = value => String(value).toLowerCase().replace(/\u2212/g, '-').replace(/\s+/g, ' ').trim();
   const options = (block?.markets || []).find(m => m.market === item.market)?.options || [];
@@ -171,15 +179,9 @@ function recsValueLeg(item, block) {
   const known = options.find(o => plain(o.label) === plain(pick) || plain(o.label) === plain(pick + unit))
     || (sideWord ? options.find(o => o.side === sideWord) : null);
   const words = pick.match(/^(over|under)\s+(\d+(?:\.\d+)?)$/i);
-  const side = known ? known.side : words ? words[1].toLowerCase() : sideWord || null;
-  const line = known ? known.line : words ? Number(words[2]) : null;
-  const label = known ? known.label : words ? pick + unit : pick;
-  const figure = value => (value == null || !Number.isFinite(Number(value)) ? null : Number(value));
-  return {
-    market: item.market, side, line, label,
-    chance: figure(item.chance), worth: figure(item.worth_it_at),
-    whole: Boolean(unit) && Number.isInteger(line),
-  };
+  if (known) return leg(known.side, known.line, known.label);
+  if (words) return leg(words[1].toLowerCase(), Number(words[2]), pick + unit);
+  return leg(sideWord || null, null, pick);
 }
 
 // The stepper's lines. Handicap pairs each home line with the away side's opposite line.
