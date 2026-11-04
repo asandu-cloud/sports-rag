@@ -1253,6 +1253,40 @@ either is the same leg in the slip. The old matching on the `pick` wording stays
 handicap that names neither team (`side` null). Whole and quarter lines (Everton "Under 10 corners", Mainz "Over
 4.25 goals") have no Explore option and show on their own, the whole line with its "you get your stake back" line.
 
+**D67 — Most likely is logged from now, while the display is still off (4 Nov, owner).** The recommendation plan's
+task 6 ledger runs whether or not `SPIX_RECOMMENDATIONS` is on, so the scorecard has "said x%, happened y%" from
+the first day the lists show. This replaces the plan's "nothing is logged while the display switch is off" and the
+design's "every option shown is logged" (section 4).
+- *Owner dashboard (4 Nov, owner, from mockups):* a local page for the owner only, on its own port (8300), started
+  when wanted, never part of the live website. A Report page (week-by-week "said" against "hit", one tile per
+  market, each market on its own, Most likely or Value) and a History page like the fixtures page (played
+  matches, one line per pick with what happened: "Under 11.5 corners · 10 corners · Hit"). Most likely is also
+  rebuilt for past matches with a stored read; Value is stage 4's published picks. *Owner:* no change to the
+  engine or to any running job; it logs the picks and presents them. Design
+  `docs/superpowers/specs/2026-11-04-owner-dashboard-design.md`, plan `docs/superpowers/plans/2026-11-04-owner-dashboard.md`.
+- *Builder's calls:* the log lives in its own file, `Index/owner_dashboard.db`; `platform.db` is only read, inside
+  `data_access()`, in short batches. So the recommendation plan's task 6 (a ledger table in `platform.db`,
+  migration 0011, called from the measurement cycle) is replaced and needs no migration, and task 7 (a
+  scorecard section) is not built unless the owner asks: the dashboard's report shows said against hit. The
+  `shown` flag first proposed here is dropped: the log is built from stored reads, so the launch date will split
+  the record. A match is logged once it is over, from its last read before its own kickoff, so a postponed
+  match logs the read for its new date.
+- *Built and first run (4 Nov, backend):* `Scripts/ops/owner_dashboard/` (store, sync, report, pages, server,
+  stylesheet; 23 tests). Value picks are read through the repository on a `mode=ro` connection, like every other
+  `platform.db` read here. Start with `.venv/bin/python -m Scripts.ops.owner_dashboard` from the repo root, then open
+  `http://127.0.0.1:8300/`; it updates on start (`--no-update` skips that) and on "Update now". The first update, with
+  no refresh running, took about 8 seconds: 675 finished matches logged (5 Sep to 3 Nov), 1,542 Most likely picks, all
+  graded (1,049 hit, 493 miss, none pending), and 25 Value selections (43 published rows, amendments folded into their
+  first publication: 5 hit, 5 miss, 15 pending). A second update took under a second. `platform.db`'s alembic version
+  (`0010_fixture_events`) and its 48 tables were the same before and after.
+  - *Finding:* the 161 September matches have reads but no Most likely picks: the layer finds no priced option in those
+    early reads. So the Most likely record starts in October. From 5 Oct to 3 Nov it reads said 69%, hit 68%
+    (corners 70/71, goals 69/68, handicap 69/67, both teams to score 65/58, result 68/79).
+  - *Calls made while building:* the Value window starts a day before the oldest unsettled pick's publication, since
+    the repository filters by prediction date, not kickoff; the history shows only matches that have kicked off; the
+    chart's scale fits the data in 10% steps (0–100% when the values spread wider than 50 points); requests addressed
+    to any host other than `127.0.0.1:<port>` or `localhost:<port>`, and posts from another origin, are refused (403).
+
 ## Findings that shape later steps
 
 - **Checks from a worktree (3 Nov, corrected).** Three pinned `golden_snapshots check` runs from the backend folder
