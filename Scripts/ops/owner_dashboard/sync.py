@@ -10,10 +10,10 @@ from __future__ import annotations
 import json
 import sqlite3
 from contextlib import closing
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import Dict, Iterable, List
 
-from Scripts.data_platform import recommendations
+from Scripts.data_platform import fair_prices as fp, recommendations, scorecard
 from Scripts.data_platform.calibration_data import _time
 from Scripts.data_platform.services.refresh_coordination import RefreshBusy, data_access
 
@@ -193,3 +193,64 @@ def log_most_likely(conn, platform_path, *, now: datetime, gate=data_access) -> 
     except RefreshBusy:
         out["skipped_busy"] = True
     return out
+
+
+VALUE_START = date(2026, 11, 1)  # stage 4 went live 3 Nov
+TOTALS = {"goals": "goals", "corners": "corners", "cards": "cards", "sot": "shots on target"}
+VALUE_COLUMNS = ("selection_key", "fixture_api_id", "kickoff", "league", "home", "away", "market", "side", "line",
+                 "label", "pick", "odds", "bookmaker", "said", "outcome", "actual_result", "published_at")
+
+
+def value_label(market, side, line, home, away, pick) -> str:
+    """A Value pick in the layer's words; the engine's own pick text when the side is not one the layer names."""
+    side = str(side or "").lower() if market != "spreads" else side
+    if market in TOTALS and side in ("over", "under") and line is not None:
+        return f"{side.capitalize()} {float(line):g} {TOTALS[market]}"
+    if market == "moneyline" and side in ("home", "away", "draw"):
+        return "Draw" if side == "draw" else f"{home if side == 'home' else away} to win"
+    if market == "btts" and side in ("yes", "no"):
+        return "Both teams to score" if side == "yes" else "Not both teams to score"
+    if market == "spreads" and line is not None:
+        team = {fp.norm(home): home, fp.norm(away): away}.get(fp.norm(side or ""))
+        if team:
+            return f"{team} {recommendations._signed(float(line))}"
+    return pick or ""
+
+
+def _stage_4(row) -> bool:
+    switches = (row.get("tracking") or {}).get("engine_switches") or {}
+    return switches.get("SPIX_SELECTION_POLICY") == "market_value"
+
+
+def _value_window(conn, today: date) -> int:
+    """Days back to ask for: a day before the oldest unsettled pick's publication (or the newest pick's, once all
+    are settled), so outcomes keep updating and new picks arrive without reading the whole history."""
+    oldest, newest = conn.execute(
+        "SELECT MIN(CASE WHEN outcome IS NULL THEN published_at END), MAX(published_at) FROM value_picks").fetchone()
+    moment = _time(oldest or newest)
+    start = moment.date() - timedelta(days=1) if moment else VALUE_START
+    return max(0, (today - start).days)
+
+
+def _recent_published(days):
+    from Scripts.data_platform.repositories.predictions import PredictionRepository
+    with data_access():
+        return PredictionRepository().get_recent(days=days, published_only=True, publication_scope="all",
+                                                 limit=10 ** 6)
+
+
+def log_value(conn, *, load_rows=_recent_published, today: date) -> dict:
+    """Store stage 4's published Value picks, each selection once (its first publication), with its outcome."""
+    rows = scorecard.cohort([r for r in load_rows(_value_window(conn, today)) if _stage_4(r)], "selections")
+    values = [(r["selection_key"], str(r.get("fixture_id")), _iso(r.get("kickoff")), r.get("league"),
+               r.get("home_team"), r.get("away_team"), r.get("market"), r.get("side"), r.get("line"),
+               value_label(r.get("market"), r.get("side"), r.get("line"), r.get("home_team"), r.get("away_team"),
+                           r.get("pick")),
+               r.get("pick"), r.get("odds"), r.get("bookmaker"), r.get("model_prob"), r.get("outcome"),
+               r.get("actual_result"), _iso(r.get("published_at"))) for r in rows if r.get("selection_key")]
+    with conn:
+        conn.executemany(
+            f"INSERT INTO value_picks ({', '.join(VALUE_COLUMNS)}) VALUES ({_marks(len(VALUE_COLUMNS))}) "
+            f"ON CONFLICT (selection_key) DO UPDATE SET "
+            f"{', '.join(f'{c} = excluded.{c}' for c in VALUE_COLUMNS[1:])}", values)
+    return {"picks": len(values)}

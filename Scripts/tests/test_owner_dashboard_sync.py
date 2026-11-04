@@ -2,7 +2,7 @@
 import json
 import sqlite3
 from contextlib import nullcontext
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import pytest
 from sqlalchemy import create_engine
@@ -200,3 +200,44 @@ def test_a_value_picks_match_gets_its_facts_without_a_most_likely_log(platform, 
     facts = conn.execute("SELECT * FROM matches WHERE fixture_api_id = '304'").fetchone()
     assert (facts["home"], facts["league"], facts["corners_home"], facts["corners_away"], facts["read_id"]) == (
         "Everton", "EPL", 4, 7, None)
+
+
+def value_row(key, *, rec_id=1, role="initial", policy="market_value", outcome=None, actual=None, market="corners",
+              side="under", line=10.0, pick="Under 10", home="Everton", away="Coventry", published="2026-11-03T09:00:00Z"):
+    return {"selection_key": key, "recommendation_id": rec_id, "publication_role": role, "fixture_id": "401",
+            "kickoff": "2026-11-06T20:00:00Z", "league": "EPL", "home_team": home, "away_team": away,
+            "market": market, "side": side, "line": line, "pick": pick, "odds": 1.7, "bookmaker": "Pinnacle",
+            "model_prob": 0.618, "outcome": outcome, "actual_result": actual, "published_at": published,
+            "tracking": {"engine_switches": {"SPIX_SELECTION_POLICY": policy}}}
+
+
+def test_only_stage_4_picks_each_selection_once_and_outcomes_update(conn):
+    asked = []
+    rows = [value_row("a", rec_id=1), value_row("a", rec_id=2, role="amendment"),
+            value_row("legacy", policy="legacy"), value_row("old", policy=None)]
+    load = lambda days: asked.append(days) or rows
+    assert sync.log_value(conn, load_rows=load, today=date(2026, 11, 4)) == {"picks": 1}
+    stored = conn.execute("SELECT * FROM value_picks").fetchall()
+    assert [(r["selection_key"], r["label"], r["said"], r["outcome"]) for r in stored] == [
+        ("a", "Under 10 corners", 0.618, None)]
+    rows[0] = value_row("a", rec_id=1, outcome="hit", actual=8.0)
+    sync.log_value(conn, load_rows=load, today=date(2026, 11, 7))
+    assert [tuple(r) for r in conn.execute("SELECT outcome, actual_result FROM value_picks")] == [("hit", 8.0)]
+    assert asked == [3, 5]  # from 1 Nov, then from the unsettled pick published 3 Nov, a day early
+
+
+def test_once_every_pick_is_settled_the_window_starts_at_the_newest_pick(conn):
+    asked = []
+    rows = [value_row("a", outcome="miss", published="2026-11-05T09:00:00Z")]
+    sync.log_value(conn, load_rows=lambda days: asked.append(days) or rows, today=date(2026, 11, 20))
+    sync.log_value(conn, load_rows=lambda days: asked.append(days) or rows, today=date(2026, 11, 20))
+    assert asked == [19, 16]  # 1 Nov, then 4 Nov (a day before the newest pick), never the whole history
+
+
+def test_value_labels_use_the_layers_words():
+    assert sync.value_label("spreads", "As Roma", -1.5, "AS Roma", "Sassuolo", "As Roma -1.5") == "AS Roma −1.5"
+    assert sync.value_label("corners", "under", 10.0, "Everton", "Coventry", "Under 10") == "Under 10 corners"
+    assert sync.value_label("moneyline", "away", None, "Lyon", "Lens", "Away") == "Lens to win"
+    assert sync.value_label("cards", "over", 4.5, "Lyon", "Lens", "Over 4.5") == "Over 4.5 cards"
+    assert sync.value_label("sot", "under", 8.5, "Lyon", "Lens", "Under 8.5") == "Under 8.5 shots on target"
+    assert sync.value_label("spreads", "Lens B", 0.5, "Lyon", "Lens", "Lens B 0.5") == "Lens B 0.5"
