@@ -72,6 +72,13 @@ assert.deepEqual(h.recsValueLeg(block.value[0], block),
 assert.deepEqual(h.recsValueLeg({ market: 'moneyline', pick: 'Away', chance: 0.3, worth_it_at: 3.4 }, block),
   { market: 'moneyline', side: 'away', line: null, label: 'Lille to win', chance: 0.3, worth: 3.4, whole: false });
 assert.equal(h.recsValueLeg({ market: 'spreads', pick: 'BODO/GLIMT -1.5', chance: 0.33, worth_it_at: 3.1 }, block).label, 'Bodo/Glimt −1.5');
+// Since D65 a value item carries side, line and label; they are used as sent, whatever the pick's wording.
+assert.deepEqual(h.recsValueLeg({ market: 'spreads', side: 'away', line: 1.5, label: 'Lille +1.5', pick: 'L +1,5', chance: 0.67, worth_it_at: 1.5 }, block),
+  { market: 'spreads', side: 'away', line: 1.5, label: 'Lille +1.5', chance: 0.67, worth: 1.5, whole: false });
+assert.deepEqual(h.recsValueLeg({ market: 'corners', side: 'under', line: 10, label: 'Under 10 corners', pick: 'Under 10', chance: 0.62, worth_it_at: 1.65 }, block),
+  { market: 'corners', side: 'under', line: 10, label: 'Under 10 corners', chance: 0.62, worth: 1.65, whole: true });
+// A handicap naming neither team comes with side null and label = pick: the old matching still applies.
+assert.equal(h.recsValueLeg({ market: 'spreads', side: null, line: null, label: 'BODO/GLIMT -1.5', pick: 'BODO/GLIMT -1.5', chance: 0.33, worth_it_at: 3.1 }, block).side, 'home');
 const unpricedValue = h.renderRecommendations({ ...fixture, recommendations: { ...block,
   value: [{ position: 1, market: 'spreads', pick: 'Bodo/Glimt -1.5', chance: null, worth_it_at: null }] } });
 assert.match(text(unpricedValue), /Bodo\/Glimt −1\.5/);

@@ -1246,6 +1246,13 @@ backend branch).** Reported by the frontend: Valencia's "Real Madrid −1.5" and
 - No published pick changes (the block is display-only, behind `SPIX_RECOMMENDATIONS`); the pinned golden check is
   unchanged.
 
+**D66 — The page uses the Value items' own side, line and label (4 Nov, frontend branch).** Follows the backend's
+D65. A Value item that sends `side` is shown with its own `label` ("Real Madrid −1.5", "Under 10 corners") and its
+`side` and `line`, whatever the `pick` wording. On a half line that matches its Explore option exactly, so adding
+either is the same leg in the slip. The old matching on the `pick` wording stays only for older blocks and for a
+handicap that names neither team (`side` null). Whole and quarter lines (Everton "Under 10 corners", Mainz "Over
+4.25 goals") have no Explore option and show on their own, the whole line with its "you get your stake back" line.
+
 ## Findings that shape later steps
 
 - **Checks from a worktree (3 Nov, corrected).** Three pinned `golden_snapshots check` runs from the backend folder
