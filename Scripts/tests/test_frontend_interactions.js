@@ -43,7 +43,8 @@ console.log('Spring reversal, settling and reduced-motion checks passed.');
     return { ok: true, json: async () => ({ cards: [{ id: url.endsWith('/first') ? 'old' : 'new' }] }) };
   };
   const start = source.indexOf('  _normaliseScheduledFixture('), end = source.indexOf('  _renderFixtures(', start);
-  const board = Function('document', 'fetch', 'ui', 'showToast', `return ({${source.slice(start, end)}})`)(document, fetch, { enter() {} }, () => {});
+  const board = Function('document', 'fetch', 'ui', 'showToast', 'beforeKickoffListOn', 'window', `return ({${source.slice(start, end)}})`)(
+    document, fetch, { enter() {} }, () => {}, payload => Array.isArray(payload?.before_kickoff), { location: { search: '' } });
   let renders = 0;
   Object.assign(board, {
     _requestId: 0, activeLeague: 'all', LEAGUES: [{ id: 'league', name: 'League' }], fixtures: [], bestBets: [], fixtureIndex: {},
