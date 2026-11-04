@@ -167,11 +167,17 @@ def _quote(selection: Mapping[str, Any]) -> Mapping[str, Any]:
 
 def _value(canonical_results, selection: Mapping[str, Any], fixture: Mapping[str, Any]) -> dict:
     """One Value item: the pick's chance and "Worth it at", and its side, line and label as its option has them.
-    A handicap quote names its team in ``side``; the options say home or away."""
+    The chance is the one the pick was made with (D68), so "Worth it at" is never above the price Spix found; a pick
+    without one takes its option's fair-card chance. A handicap quote names its team in ``side``; the options say
+    home or away."""
     market, quote = (selection.get("market") or {}).get("group"), _quote(selection)
     side, line = quote.get("side"), None if quote.get("line") is None else float(quote.get("line"))
-    outcome = fp.fair_outcome(canonical_results, market, side, line) if side else None
-    chance = outcome["fair_probability"] if outcome else None
+    picked = selection.get("model_probability")
+    if isinstance(picked, (int, float)) and not isinstance(picked, bool) and 0 < picked < 1:
+        chance = float(picked)
+    else:
+        outcome = fp.fair_outcome(canonical_results, market, side, line) if side else None
+        chance = outcome["fair_probability"] if outcome else None
     if market == "spreads":
         side = dict(zip(fp._teams({"fixture": fixture}), ("home", "away"))).get(fp.norm(side))
     named = side in (("home", "away") if market == "spreads" else fp.SIDES.get(market, ())) and (
