@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-11-03 (stage 4 live; D52 recommendation layer approved with same-match goal legs, D53; cards work that does not change picks starts now, D54)
+Last updated: 2026-11-04 (A5.4 cards merged behind its switch, live Tue 10 Nov, D58, D62; match events live with a backfill from 20 Sep, D64; recommendation layer tasks 1–5 merged behind `SPIX_RECOMMENDATIONS`)
 
 ## Status
 
@@ -120,7 +120,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Second-round variables: M2 line movement | A3 blend | Needs 6–8 weeks of odds archive (from ~mid-Nov 2026) |
 | Second-round variables: M3 bookmaker disagreement | A5.3 confidence labels (D30) | With A5 |
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
-| Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52, approved 3 Nov, D53); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`; plan `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks; mockups are task 3, after the data block). Tasks 1–2 (the data block behind `SPIX_RECOMMENDATIONS`, off) built on the backend branch 3 Nov, D56 | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
+| Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52, approved 3 Nov, D53); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`; plan `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks; mockups are task 3, after the data block). Tasks 1–2 (the data block behind `SPIX_RECOMMENDATIONS`, off) merged 3 Nov, D56; task 3 look chosen (version B, D63); tasks 4–5 (match page, board card, slip) merged 4 Nov, D59, D60, shown only when the switch is on. Next: tasks 6–7 (Most likely ledger, migration 0011; scorecard section), then task 8 | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
 | Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | Needs the bet builder and the recommendation lists first |
 | Website and Discord link: one-tap sharing of a bet to Discord, Discord posts linking back to the match (D50) | A7, when the bot moves to the new engine | The bot still runs the old engine |
 | Building bets inside Discord; community selections (D50) | After A7 | Owner: for later |
@@ -1224,6 +1224,10 @@ and the pinned `golden_snapshots check` prints "no changes across 54 fixtures".
 - *Left for later (minor):* `--limit` accepts 0 or a negative number (a negative one drops matches from the newest
   end); one error catch in the command is redundant; A5.4's price confirmation devigs Pinnacle's prices under the
   quoting bookmaker's name (a label only, results unchanged).
+- *Live 4 Nov (orchestrator, owner's go):* merged to main (478fb96); `init-db` ran 0009 → 0010 under the writer
+  gate with no refresh running (an APFS clone kept as a rollback point, deleted after the checks). Backfill
+  `--since 2026-09-20`: 554 matches, 554 requests, 9,464 event rows, no errors, about 4 minutes; 2,195 yellow and
+  112 red card events, kickoffs 20 Sep to 3 Nov. The daily refresh saves events from its next run.
 
 ## Findings that shape later steps
 

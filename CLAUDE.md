@@ -30,10 +30,12 @@ on it. The Discord bot still runs the old engine until A7.
     before any front-end change.
   - Design: `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`.
   - Plan: `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks, the data block first).
-  - Tasks 1–2 merged 3 Nov (D56): the `recommendations.v1` block on the match card, off behind
-    `SPIX_RECOMMENDATIONS`. Next: task 3, mockups with real matches for the owner to pick from.
+  - Tasks 1–5 merged by 4 Nov: the `recommendations.v1` block (D56), the look (version B, tiles, D63), the match
+    page, board card and slip (D59, D60). All of it shows only when `SPIX_RECOMMENDATIONS=on`, which is off.
+    Next: task 6 (Most likely ledger, migration 0011) and task 7 (scorecard section), then task 8 (go live).
 - **Cards work that does not change picks (D54):**
-  - add the events to the refresh and backfill them from 20 Sep (still to come on `backend`);
+  - add the events to the refresh and backfill them from 20 Sep (done 4 Nov: migration 0010, 554 matches
+    backfilled, the refresh saves events from now on, D64);
   - count a straight red as two cards (done 3 Nov in the studies: yellow 1, red 2, at most 3 per player);
   - rerun the calibration study (done 3 Nov: no calibrator passes in corners or cards, so stage 5 has nothing to
     ship);
