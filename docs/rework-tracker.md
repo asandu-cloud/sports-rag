@@ -1148,8 +1148,19 @@ recommendation layer front end".
   (my call), so 2% is never "about 1 in 10". Long shots (under 25%) say "A long shot," once, Value included.
 - *"Prices as of"* is the read's time, shown in the viewer's time. It is hidden when nothing is priced.
 - *The slip* is the app's existing side panel, not the mockup's column. Task 5 reworks it.
-- *Methodology page:* a short "Most likely, Value and the chance shown" section (spec section 4). The owner signs
-  off the copy.
+- *Methodology page:* the section "Most likely, Value and the chance shown" (spec section 4) is held back from
+  `methodology.html` until the lists go live (orchestrator review, 4 Nov). The page is live as soon as it merges,
+  while the switch is still off, and its sentence on logging Most likely needs plan task 6. The draft is kept here
+  for task 8, and the owner signs off the copy then:
+  > Each match lists the options most likely to land and, when there are any, value picks. The chance shown is the
+  > bookmakers' own view of the outcome, with their margin taken out. It is not a discovery of Spix's. Spix's work
+  > is choosing which options to show, explaining them and spotting value: a value pick is one where a bookmaker's
+  > price beats the fair price for its chance. "Worth it at 2.10 or better" means the bet stops being value below
+  > that price.
+  >
+  > The price beside each option is a typical price from when the prices were checked. It is a guide, not a quote,
+  > so check the price in your bookmaker's app. Most likely options are measured on their own: each one shown is
+  > logged with its stated chance and settled, apart from the value picks. *(Only once task 6 ships.)*
 
 Seen in real reads, for the backend:
 - *A Value pick without figures:* AS Roma v Sassuolo (7 Nov) has the handicap pick "As Roma -1.5" with `chance` and
