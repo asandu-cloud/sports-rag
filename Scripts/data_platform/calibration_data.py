@@ -7,9 +7,10 @@ with a two-sided price supplies the de-vigged market probability). Each selectio
 is graded with the settlement's own Asian rules: half results count half, pushes and
 voids carry no weight (as in the scorecard).
 
-Cards are graded as yellow + red cards from the match statistics; bookmakers'
-card rules differ (bookings points, second yellows), so card calibration is
-indicative until the card definition is qualified.
+Cards are graded the bookmakers' way, as published picks settle (``participation_cards``, D54 b): per player with
+recorded minutes, yellow 1 and red 2, at most 3, regulation time only (FT). A match whose player statistics are
+incomplete (a team with fewer than 11 rows or 7 players with minutes, a missing or contradictory card count) is
+not graded on cards; it never falls back to the team statistics.
 """
 from __future__ import annotations
 
@@ -23,6 +24,7 @@ from .scorecard import outcome_weight
 from .settlement import asian_outcome, utc_datetime
 
 TOTALS = {"goals", "corners", "cards"}
+CARDS_RULE = "yellow_1_red_2_max_3_per_player"  # settlement_policy's card_count
 
 
 def _time(value):
@@ -133,16 +135,39 @@ def grade(selection, outcome):
     return None if label is None else outcome_weight(label)
 
 
+# Per team: player rows, players with minutes, the weighted cards of those players, and rows that make the total
+# unknown (participation_cards' rules: a missing or contradictory count, a carded player without minutes, > 150).
+_PLAYER_CARDS = """SELECT p.fixture_id, p.team_id, COUNT(*),
+                          SUM(p.minutes >= 1), SUM(CASE WHEN p.minutes >= 1 THEN MIN(p.yellow_cards + 2 * p.red_cards, 3) END),
+                          SUM(CASE WHEN p.minutes IS NOT NULL AND p.minutes < 1 THEN 0
+                                   WHEN p.yellow_cards IS NULL OR p.red_cards IS NULL THEN 1
+                                   WHEN p.yellow_cards NOT IN (0, 1, 2) OR p.red_cards NOT IN (0, 1)
+                                        OR (p.yellow_cards = 2 AND p.red_cards != 1) THEN 1
+                                   WHEN p.minutes IS NULL THEN p.yellow_cards + p.red_cards > 0
+                                   ELSE p.minutes > 150 END)
+                   FROM fixture_player_stats p JOIN fixtures f ON f.id = p.fixture_id
+                   WHERE f.status = 'FT' GROUP BY p.fixture_id, p.team_id"""
+
+
+def _bookmaker_cards(db):
+    """{fixture id: the bookmakers' card total} for FT matches whose two teams' player statistics are complete."""
+    teams = defaultdict(dict)
+    for fid, team, rows, participants, cards, unknown in db.execute(_PLAYER_CARDS):
+        teams[fid][team] = (cards or 0) if rows >= 11 and participants >= 7 and not unknown else None
+    sides = {fid: {home, away} for fid, home, away in db.execute(
+        "SELECT id, home_team_id, away_team_id FROM fixtures WHERE status = 'FT'")}
+    return {fid: sum(by_team.values()) for fid, by_team in teams.items()
+            if set(by_team) == sides.get(fid) and len(by_team) == 2 and None not in by_team.values()}
+
+
 def fixture_outcomes(db_path):
     query_goals = "SELECT id, api_football_id, home_goals, away_goals FROM fixtures WHERE status IN ('FT', 'AET', 'PEN')"
-    query_stats = """SELECT fixture_id, SUM(corners), SUM(COALESCE(yellow_cards, 0) + COALESCE(red_cards, 0)),
-                            COUNT(corners), COUNT(yellow_cards), COUNT(*)
-                     FROM fixture_team_stats GROUP BY fixture_id"""
+    query_stats = "SELECT fixture_id, SUM(corners), COUNT(corners) FROM fixture_team_stats GROUP BY fixture_id"
     with closing(sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=60)) as db:
-        stats = {fid: (corners if n_corners == 2 else None, cards if n_cards == 2 else None)
-                 for fid, corners, cards, n_corners, n_cards, n in db.execute(query_stats)}
-        return {str(api): {"home_goals": hg, "away_goals": ag, "corners": stats.get(fid, (None, None))[0],
-                           "cards": stats.get(fid, (None, None))[1]}
+        corners = {fid: total if n == 2 else None for fid, total, n in db.execute(query_stats)}
+        cards = _bookmaker_cards(db)
+        return {str(api): {"home_goals": hg, "away_goals": ag, "corners": corners.get(fid), "cards": cards.get(fid),
+                           "cards_rule": CARDS_RULE}
                 for fid, api, hg, ag in db.execute(query_goals)}
 
 

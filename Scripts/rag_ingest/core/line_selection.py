@@ -126,6 +126,10 @@ def safe_float(x) -> Optional[float]:
         return None
 
 
+def _book_name(bookmaker) -> str:
+    return str(bookmaker or "").strip().casefold()
+
+
 def _quote_identity(option: Dict) -> Tuple:
     """Only pair opposing quotes for the exact same market and rule set."""
     return tuple(str(option.get(key) or "").strip().lower() for key in
@@ -151,11 +155,13 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
                                      combined_var: Optional[float] = None, *,
                                      count_probabilities: Optional[Dict[int, float]] = None,
                                      anchor_points: Optional[Iterable[float]] = None,
+                                     anchor_books: Optional[Iterable[str]] = None,
                                      market_count_probabilities: Optional[Dict[int, float]] = None) -> Dict[str, Optional[Dict]]:
     """Pick the best totals line. ``market_count_probabilities`` (stage 4) price every line from the
     market's goal model, and line scoring centres on its mean; ``anchor_points`` (half lines only) take
     the market's consensus fair probability (stage 3). Either is marked ``_probability_source``;
-    Spix's own probability stays in ``_spix_prob``."""
+    Spix's own probability stays in ``_spix_prob``. ``anchor_books`` (A5.4 cards: Pinnacle) take the
+    anchor from those bookmakers alone, and a line they do not price on both sides is never picked."""
     if not options:
         return {
             "best_value": None,
@@ -210,13 +216,17 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
     # Market anchor: median across bookmakers of each book's fair over probability, half lines only.
     anchor_over: Dict[float, float] = {}
     anchor_record = None
+    reference = sorted({_book_name(b) for b in anchor_books}) if anchor_books else None
     if anchor_points:
         anchor_record = {**market_anchor_record("strict"), "lines": {}}
+        if reference:
+            anchor_record["books_used"] = reference
         every_line = anchor_points == "all"  # D35: corners at each line's consensus (no-push equivalent)
         points = sorted({_pt for (_bm, _pt, _sd) in _fair_implied}) if every_line else anchor_points
         for point in points:
             point = float(point)
-            values = [p for (_bm, _pt, _sd), p in _fair_implied.items() if _sd == "over" and _pt == point]
+            values = [p for (_bm, _pt, _sd), p in _fair_implied.items() if _sd == "over" and _pt == point
+                      and (reference is None or _book_name(_bm[0]) in reference)]
             if values and (every_line or (point * 2) % 2 == 1):
                 anchor_over[point] = statistics.median(values)
                 anchor_record["lines"][str(point)] = {"market_over": anchor_over[point], "books": len(values)}
@@ -300,6 +310,8 @@ def select_best_total_recommendation(options: List[Dict], projection_total: floa
         if market_value and spix_p is not None:
             eligible, score = bool(point in priced_points and ev >= MARKET_VALUE_MIN_EV
                                    and bookmaker_sets.quotable(opt.get("bookmaker"))), ev
+        if reference and spix_p is None:  # outside the reference: no chance to publish
+            eligible = False
         if not bookmaker_sets.allowed(opt.get("bookmaker")):
             eligible = False
 

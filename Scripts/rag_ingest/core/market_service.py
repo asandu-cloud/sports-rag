@@ -295,6 +295,7 @@ def _apply_quality_guardrails(
     *,
     variance_source: Optional[str] = None,
     referee_source: Optional[str] = None,
+    market_priced: bool = False,
 ) -> Decision:
     quality = result_context.get("data_quality")
     if not isinstance(quality, dict):
@@ -305,6 +306,7 @@ def _apply_quality_guardrails(
         market,
         variance_source=variance_source,
         referee_source=referee_source,
+        market_priced=market_priced,
     )
     quality["recommendation_guardrail"] = assessment
     if not decision.is_recommended:
@@ -542,14 +544,18 @@ def _evaluate_market(
                         "distribution_version": "dixon_coles.v2" if market_name == "goals" else "count_totals.v1"},
         )
         decision = _unavailable("Insufficient profile data to project this market.")
+        reference_priced = False
         if value is not None:
             scope = market_anchor_scope()
+            cards_reference = market_name == "cards" and engine_switches.value("SPIX_CARDS_REFERENCE") == "pinnacle"
             goal_model = market_name == "goals" and scope in GOAL_MODEL_SCOPES
             anchor_kwargs: Dict[str, Any] = {}
             if market_name == "goals" and scope in ANCHORED_SCOPES:
                 anchor_kwargs["anchor_points"] = (2.5,)
             if market_name == "corners" and scope == "full":
                 anchor_kwargs["anchor_points"] = "all"  # each corner line at its own market consensus (D35)
+            if cards_reference:  # A5.4 (D58, D61): each cards line at Pinnacle's own fair price
+                anchor_kwargs.update(anchor_points="all", anchor_books=("Pinnacle",))
             fit = _market_goal_model(event, home, away) if goal_model else None
             if fit is not None:
                 anchor_kwargs["market_count_probabilities"] = market_goal_model.total_probabilities(fit)
@@ -561,6 +567,10 @@ def _evaluate_market(
                 result_context["market_anchor"] = _goal_model_record(fit, selector_result.get("market_anchor"), scope)
             elif selector_result.get("market_anchor"):
                 result_context["market_anchor"] = {**selector_result["market_anchor"], "scope": scope}
+                if cards_reference:
+                    result_context["market_anchor"]["reference"] = "pinnacle"
+            pick = selector_result.get("bet_recommendation") or {}
+            reference_priced = cards_reference and pick.get("_probability_source") == "market_consensus"
             decision = _with_confidence(_quote_decision(selector_result, _requested_quote), market_name)
         decision = _apply_quality_guardrails(
             decision,
@@ -568,6 +578,7 @@ def _evaluate_market(
             market_name,
             variance_source=variance_details.get("legacy_variance_source", variance_details.get("source")),
             referee_source=referee_source,
+            market_priced=reference_priced,
         )
         decision = apply_release_policy(decision, result_context)
         return _build_result(

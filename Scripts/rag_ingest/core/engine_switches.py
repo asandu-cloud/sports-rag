@@ -22,6 +22,7 @@ SWITCHES: Dict[str, tuple] = {
     "SPIX_SELECTION_POLICY": ("legacy", frozenset({"legacy", "market_value"})),  # D33 (b), D35: stage 4 bundle
     "SPIX_BOOKMAKER_SET": ("all", frozenset({"all", "romania"})),              # D32, D35: picks only at these books
     "SPIX_CONFIDENCE_LABELS": ("edge", frozenset({"edge", "evidence"})),       # A5.3 (D44): high/low from evidence
+    "SPIX_CARDS_REFERENCE": ("off", frozenset({"off", "pinnacle"})),           # A5.4 (D58, D61): cards from Pinnacle
 }
 
 

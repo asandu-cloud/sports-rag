@@ -32,17 +32,18 @@ on it. The Discord bot still runs the old engine until A7.
   - Plan: `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks, the data block first).
   - Tasks 1–2 merged 3 Nov (D56): the `recommendations.v1` block on the match card, off behind
     `SPIX_RECOMMENDATIONS`. Next: task 3, mockups with real matches for the owner to pick from.
-- **Cards work that does not change picks starts now (D54):**
-  - add the events to the refresh and backfill them from 20 Sep;
-  - count a straight red as two cards;
+- **Cards work that does not change picks (D54):**
+  - add the events to the refresh and backfill them from 20 Sep (still to come on `backend`);
+  - count a straight red as two cards (done 3 Nov in the studies: yellow 1, red 2, at most 3 per player);
   - rerun the calibration study (done 3 Nov: no calibrator passes in corners or cards, so stage 5 has nothing to
     ship);
-  - build A5.4 behind an off switch.
+  - build A5.4 behind an off switch (merged 4 Nov: `SPIX_CARDS_REFERENCE`, off; cards priced from Pinnacle when
+    on, D61, D62).
 - **Next dates.**
   - Mon 9 Nov 08:00: the scorecard checks stage 4.
-  - Tue 10 Nov: earliest next engine change. Stage 5 has nothing to ship (3 Nov rerun); the owner decides whether
-    A5.4 takes this slot (D54).
-  - Tue 17 Nov: earliest stage 6.
+  - Tue 10 Nov: A5.4 cards takes this slot (owner, D58), not before the scorecard. Go-live: the owner adds
+    `SPIX_CARDS_REFERENCE=pinnacle` to `.env`, then the website is restarted.
+  - Tue 17 Nov: earliest next stage.
 - **Update this block** in the same commit as the tracker whenever a stage goes live or the current project
   changes.
 
@@ -59,6 +60,7 @@ Check the switches with `Scripts.rag_ingest.core.engine_switches.snapshot()`:
 - `SPIX_SELECTION_POLICY`
 - `SPIX_BOOKMAKER_SET`
 - `SPIX_CONFIDENCE_LABELS`
+- `SPIX_CARDS_REFERENCE`
 
 The tests pin every switch to its default (`Scripts/tests/conftest.py`). After a switch changes, the website must be
 restarted.
