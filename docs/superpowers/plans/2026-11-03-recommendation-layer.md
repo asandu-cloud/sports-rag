@@ -348,7 +348,7 @@ Spreads in `jointChance` use the home team's view: `side` is "home"/"away" in th
 - Produces:
   - Table `recommendation_options`: `id`, `fixture_api_id` (str), `match_read_id` (int), `list` (str, "most_likely"),
     `version` (str), `market`, `side`, `line` (nullable float), `label`, `chance`, `typical_price`, `kickoff`
-    (tz datetime), `logged_at`, `shown` (bool: the display switch was on when the row was logged, D66), `outcome`
+    (tz datetime), `logged_at`, `shown` (bool: the display switch was on when the row was logged, D67), `outcome`
     (nullable: "hit"/"miss"), `pending_reason` (nullable), `graded_at`. Unique `(fixture_api_id, list, market, side, line)`.
   - `RecommendationLedger(session_factory).sync(now: datetime) -> dict` — `{"logged": n, "graded": n, "pending": n}`.
 
@@ -362,7 +362,7 @@ def test_logs_the_most_likely_of_the_last_read_before_kickoff_once(session_facto
     assert ledger.sync(at("2026-11-04T23:00Z"))["logged"] == 0
 
 def test_most_likely_is_logged_whether_or_not_the_display_is_on(monkeypatch, ...):
-    # owner, 4 Nov (D66): logged from now, while the display is still off; `shown` records the switch
+    # owner, 4 Nov (D67): logged from now, while the display is still off; `shown` records the switch
     monkeypatch.delenv("SPIX_RECOMMENDATIONS", raising=False)
     assert ledger.sync(...)["logged"] == 3 and not any(row.shown for row in rows())
 
@@ -374,7 +374,7 @@ def test_unfinished_fixtures_stay_ungraded(...):   # status NS / PST -> outcome 
 ```
 
 - [ ] **Step 2: Run to verify failure.**
-- [ ] **Step 3: Implement** model, migration and ledger. Logged whether or not the display is on (owner, D66);
+- [ ] **Step 3: Implement** model, migration and ledger. Logged whether or not the display is on (owner, D67);
   `shown` is `recommendations.enabled()` at sync time.
   Fixtures to log: kickoff ≤ now, no rows yet, within the last 3 days. The read: latest `provenance.evaluated_at`
   before kickoff (ties to the higher id). Grade only status `FT`.

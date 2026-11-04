@@ -102,7 +102,7 @@ All numbers come from what each Match Read already stores. No new engine output 
 ## 4. Honesty and care
 
 - **Measured like everything else.** Every Most likely option is logged with its stated chance and typical
-  price, then settled; from 4 Nov also while the display is off, marked as not shown (owner, D66). The options measured are the ones in the last read before kickoff, so each match counts
+  price, then settled; from 4 Nov also while the display is off, marked as not shown (owner, D67). The options measured are the ones in the last read before kickoff, so each match counts
   once *(my call)*. The scorecard gets its own section: "Most likely: said x%, happened y%", by market. This is
   its own cohort and does not touch the Value cohort or the stage measurement.
 - **No tipster words.** No "lock", "banker", "sure thing" or "hot". No streaks, no "you missed this", no

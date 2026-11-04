@@ -1246,7 +1246,14 @@ backend branch).** Reported by the frontend: Valencia's "Real Madrid −1.5" and
 - No published pick changes (the block is display-only, behind `SPIX_RECOMMENDATIONS`); the pinned golden check is
   unchanged.
 
-**D66 — Most likely is logged from now, while the display is still off (4 Nov, owner).** The recommendation plan's
+**D66 — The page uses the Value items' own side, line and label (4 Nov, frontend branch).** Follows the backend's
+D65. A Value item that sends `side` is shown with its own `label` ("Real Madrid −1.5", "Under 10 corners") and its
+`side` and `line`, whatever the `pick` wording. On a half line that matches its Explore option exactly, so adding
+either is the same leg in the slip. The old matching on the `pick` wording stays only for older blocks and for a
+handicap that names neither team (`side` null). Whole and quarter lines (Everton "Under 10 corners", Mainz "Over
+4.25 goals") have no Explore option and show on their own, the whole line with its "you get your stake back" line.
+
+**D67 — Most likely is logged from now, while the display is still off (4 Nov, owner).** The recommendation plan's
 task 6 ledger runs whether or not `SPIX_RECOMMENDATIONS` is on, so the scorecard has "said x%, happened y%" from
 the first day the lists show. This replaces the plan's "nothing is logged while the display switch is off" and the
 design's "every option shown is logged" (section 4).
