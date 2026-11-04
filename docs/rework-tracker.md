@@ -1229,6 +1229,23 @@ and the pinned `golden_snapshots check` prints "no changes across 54 fixtures".
   `--since 2026-09-20`: 554 matches, 554 requests, 9,464 event rows, no errors, about 4 minutes; 2,195 yellow and
   112 red card events, kickoffs 20 Sep to 3 Nov. The daily refresh saves events from its next run.
 
+**D65 — `recommendations.v1`: handicap Value picks get their chance, and each Value item names its option (4 Nov,
+backend branch).** Reported by the frontend: Valencia's "Real Madrid −1.5" and Roma's −1.5 came with `chance` and
+`worth_it_at` null.
+- *Cause:* stored handicap quotes name the team in `side` and never set `team` (all 3,125 stored handicap picks on
+  4 Nov); `_value` read `team`, so every handicap Value pick had no chance. Not the team-name normalisation. Fixed:
+  `_value` reads `side` in every market, as the publication reference already does. Valencia v Real Madrid now shows
+  52.4%, worth it at 1.95; AS Roma v Sassuolo 53.2%, 1.92, the same chances as the Explore options.
+- *Format change (frontend's request; fields added, so the version stays `recommendations.v1`):* each Value item
+  adds `side`, `line` and `label` as the Explore options have them. `side` is home/draw/away, over/under or yes/no
+  (a handicap's team becomes home or away); `line` is the picked side's own (null for result and both teams to
+  score); `label` is the option's words ("Real Madrid −1.5", "Lens to win", "Over 2.5 goals"). `pick` stays. When a
+  handicap names neither of the read's teams, `side` is null and `label` is the engine's `pick`.
+- *For the frontend:* `(market, side, line)` finds the Value pick's Explore option only on half lines, since the
+  options are half lines only; a Value pick on a whole or quarter line (Roma's "Over 3.25 goals") has no option.
+- No published pick changes (the block is display-only, behind `SPIX_RECOMMENDATIONS`); the pinned golden check is
+  unchanged.
+
 ## Findings that shape later steps
 
 - **Checks from a worktree (3 Nov, corrected).** Three pinned `golden_snapshots check` runs from the backend folder
