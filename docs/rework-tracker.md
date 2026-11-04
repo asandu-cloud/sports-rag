@@ -1309,6 +1309,16 @@ switches are stage 4's, unchanged (`SPIX_CARDS_REFERENCE` still off for 10 Nov).
     1.65 or better", and the other Value pick stays at 1.65. Golden check unchanged; display only, published picks
     unchanged. Live after the merge and a website restart.
 
+**D69 — New cache tags on app.js and style.css (4 Nov, frontend).** After go-live the owner's browser still showed
+the old page on 8000, though the server sent the current files: every page still loaded `app.js` and `style.css` as
+`?v=logo-20261029a`, the tag since 29 Oct, so a browser that cached them earlier kept the old copies. Both now load as
+`?v=recs-20261104a` in `index.html`, `methodology.html`, `privacy.html`, `terms.html` and `responsible-gambling.html`.
+`index.html` is the only page that loads `app.js`. The app shell is served with `Cache-Control: no-cache`, so
+browsers pick up the new tags on their next visit. The other assets keep their tags because they have not changed
+since them (`logo.js` and `theme.js` 29 Oct, `landing.css`, `methodology.js` and `research/` early October). Rule
+from now on: any commit that changes a versioned file changes its tag in the same commit. Live after the merge; no
+restart needed, as the static files are read from disk.
+
 ## Findings that shape later steps
 
 - **Checks from a worktree (3 Nov, corrected).** Three pinned `golden_snapshots check` runs from the backend folder
