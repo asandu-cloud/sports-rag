@@ -416,6 +416,56 @@ function renderRecsBoardCard(f, homeEmblem, awayEmblem) {
     </div>`;
 }
 
+// ----- Before kickoff (D71): a started match keeps the picks Spix had for it, with nothing to bet with. -----
+const LIVE_STATUS_LABELS = {
+  '1H': 'Live', '2H': 'Live', ET: 'Live', BT: 'Live', P: 'Live', INT: 'Live', LIVE: 'Live',
+  HT: 'Half time', FT: 'Full time', AET: 'Full time', PEN: 'Full time',
+  PST: 'Postponed', SUSP: 'Suspended', ABD: 'Abandoned', CANC: 'Cancelled', AWD: 'Match awarded', WO: 'Walkover',
+  NS: 'Not started yet', TBD: 'Not started yet',
+};
+
+// A status the API could not give, or one we do not know, says only when the match kicked off.
+function liveStatusLabel(status, time) {
+  return LIVE_STATUS_LABELS[String(status?.short || '').toUpperCase()] || `Kicked off ${time}`;
+}
+
+// The entry, unless absent, of another version, without picks or switched off with ?recs=off. Labels and
+// chances only: anything else an entry carries (a price) never reaches the card.
+function beforeKickoffFor(entry, search, league) {
+  if (!entry || entry.version !== 'before-kickoff.v1' || entry.fixture?.event_id == null) return null;
+  if (new URLSearchParams(search || '').get('recs') === 'off') return null;
+  const picks = (list, most) => (Array.isArray(list) ? list : [])
+    .filter(item => item?.label && item.chance != null && Number.isFinite(Number(item.chance)))
+    .slice(0, most)
+    .map(item => ({ label: String(item.label), chance: Number(item.chance) }));
+  const mostLikely = picks(entry.most_likely, 3);
+  const value = picks(entry.value, 2);
+  if (!mostLikely.length && !value.length) return null;
+  return { id: String(entry.fixture.event_id), league: entry.fixture.league || league,
+    readAt: entry.read_at || null, status: entry.status || null, most_likely: mostLikely, value };
+}
+
+function renderBeforeKickoffCard(f, homeEmblem, awayEmblem) {
+  const block = f.beforeKickoff;
+  const row = item => `<li><span class="bk-pick">${esc(item.label)}</span><span class="bk-chance">${esc(chanceWords(item.chance))} · ${chancePercent(item.chance)}</span></li>`;
+  const list = (title, items) => (items.length
+    ? `<div class="bk-section"><span class="recs-label">${title}</span><ul class="bk-list">${items.map(row).join('')}</ul></div>` : '');
+  const checked = block ? recsClock(block.readAt) : '';
+  const body = block
+    ? `${list('Most likely, before kickoff', block.most_likely)}${list('Value, before kickoff', block.value)}
+    ${checked ? `<p class="bk-foot">Last checked at ${checked}, before kickoff.</p>` : ''}`
+    : `<p class="bk-none">${esc(f.scheduleNote)}</p>`;
+  return `
+    <div class="bk-top"><span class="bk-time">${esc(f.time)}</span><span class="bk-status">${esc(f.scheduleLabel)}</span></div>
+    <h3 class="bk-teams">${homeEmblem}<span>${esc(f.home)}</span> <span class="bk-v">v</span> ${awayEmblem}<span>${esc(f.away)}</span></h3>
+    ${body}`;
+}
+
+// Upcoming matches first, then the ones that have started (D71, the owner's choice B).
+function splitStartedFixtures(fixtures) {
+  return { upcoming: fixtures.filter(f => !f.afterKickoff), started: fixtures.filter(f => f.afterKickoff) };
+}
+
 // ----- End of pure render helpers -----
 
 function showToast(msg, type = 'info') {
@@ -1542,11 +1592,24 @@ const appModule = {
     };
   },
 
-  _mergeSchedule(schedule, cards, availableLeagues) {
+  // A started match in a league that sent before-kickoff picks (D71): its picks if it had any, the
+  // live status when known, and a true sentence if it had none. Not a postponed or called-off match.
+  _afterKickoff(fixture, row, picks) {
+    if (['PST', 'CANC', 'AWD', 'WO'].includes(String(row.status || '').toUpperCase())) return fixture;
+    const live = picks?.status || row.live_status;
+    const label = live ? liveStatusLabel(live, fixture.time)
+      : fixture.scheduleLabel === 'Match started' ? `Kicked off ${fixture.time}` : fixture.scheduleLabel;
+    return { ...fixture, afterKickoff: true, beforeKickoff: picks || null, scheduleLabel: label,
+      scheduleNote: picks ? fixture.scheduleNote : 'Spix had no picks for this match before kickoff.' };
+  },
+
+  _mergeSchedule(schedule, cards, availableLeagues, beforeKickoff = new Map()) {
     const published = new Map(cards.map(card => [String(card.id), card]));
+    const pickedLeagues = new Set([...beforeKickoff.values()].map(picks => picks.league));
     const merged = new Map();
     schedule.forEach(row => {
-      const fixture = this._normaliseScheduledFixture(row, availableLeagues.has(row.fixture?.league));
+      let fixture = this._normaliseScheduledFixture(row, availableLeagues.has(row.fixture?.league));
+      if (!fixture.scheduled && pickedLeagues.has(fixture.league)) fixture = this._afterKickoff(fixture, row, beforeKickoff.get(fixture.id));
       const read = published.get(fixture.id);
       // A known postponement/cancellation or kickoff must not become actionable
       // because an earlier published card still exists.
@@ -1618,7 +1681,15 @@ const appModule = {
     const availableLeagues = new Set(successfulBoards.map(result => result.value.league.id));
     const persistedCards = successfulBoards.flatMap(result => result.value.payload.cards
       .map(card => this._normaliseMatchReadCard(card, result.value.league.id)));
-    const fixtures = this._mergeSchedule(scheduleLoaded ? scheduleResponse.value : [], persistedCards, availableLeagues);
+    const beforeKickoff = new Map();
+    successfulBoards.forEach(result => {
+      const entries = Array.isArray(result.value.payload.before_kickoff) ? result.value.payload.before_kickoff : [];
+      entries.forEach(entry => {
+        const picks = beforeKickoffFor(entry, window.location.search, result.value.league.id);
+        if (picks) beforeKickoff.set(picks.id, picks);
+      });
+    });
+    const fixtures = this._mergeSchedule(scheduleLoaded ? scheduleResponse.value : [], persistedCards, availableLeagues, beforeKickoff);
     const notices = [];
     if (!scheduleLoaded) notices.push('The full fixture schedule could not be loaded. Showing published Match Reads only.');
     const failed = boardResponses.length - successfulBoards.length;
@@ -1738,7 +1809,9 @@ const appModule = {
         ? `<span class="league-crest" aria-hidden="true"><img src="${esc(league.logo)}" alt=""></span>`
         : '';
       group.innerHTML = `<div class="league-header"><div class="league-header-left">${crest}<h2 class="league-name">${esc(league.name)}</h2></div><span class="league-count">${esc(pluralise(fxs.length, 'match', 'matches'))}</span></div>`;
-      fxs.forEach((f, i) => {
+      const { upcoming, started } = splitStartedFixtures(fxs);
+      [...upcoming, ...started].forEach((f, i) => {
+        if (started.length && i === upcoming.length) group.insertAdjacentHTML('beforeend', '<p class="bk-divider">Started</p>');
         if (f.isMatchRead || f.isScheduleOnly) {
           group.appendChild(this._createMatchReadFixtureCard(f, league, i));
           return;
@@ -1833,7 +1906,10 @@ const appModule = {
       ? ''
       : `<button class="match-card-open" type="button" aria-label="View Match Read: ${esc(f.home)} versus ${esc(f.away)}">View Match Read <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
 
-    if (f.recommendations && !f.isScheduleOnly) {
+    if (f.afterKickoff) {
+      card.classList.add('bk-card');
+      card.innerHTML = renderBeforeKickoffCard(f, emblem(f.visuals?.homeTeamLogo, f.home, 'home'), emblem(f.visuals?.awayTeamLogo, f.away, 'away'));
+    } else if (f.recommendations && !f.isScheduleOnly) {
       card.classList.add('recs-board-card');
       card.innerHTML = renderRecsBoardCard(f, emblem(f.visuals?.homeTeamLogo, f.home, 'home'), emblem(f.visuals?.awayTeamLogo, f.away, 'away'));
     } else card.innerHTML = `
