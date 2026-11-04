@@ -19,20 +19,25 @@ Much of the rest of this file describes the **legacy** engine (`rag_cli_v2.py`, 
 (`market_service.py`, `line_selection.py`, `market_goal_model.py`), staged behind switches (below). The website runs
 on it. The Discord bot still runs the old engine until A7.
 
-### Current status (as of 3 Nov 2026; the tracker is newer if it disagrees)
+### Current status (as of 4 Nov 2026; the tracker is newer if it disagrees)
 - **Engine stages 1–4 live.** Stage 4 went live 3 Nov: `SPIX_MARKET_ANCHOR=full` and
   `SPIX_SELECTION_POLICY=market_value`, every bookmaker, 2% value threshold, price confirmation at 60 minutes,
   failing closed. Value picks are rare by design: 5 of 18 matches on 3 Nov.
-- **Current project: the recommendation layer (D52, approved D53).**
+- **Recommendation layer live 4 Nov (D52, approved D53, live D68).**
   - Each match gets Most likely (up to 3) and Value (up to 2) lists, plus "Explore the match": every market with
     Spix's suggestion marked, a line stepper, and Add on any option.
   - Same-match goal legs are included. Value picks show "Worth it at X or better". Mockups with real matches come
     before any front-end change.
   - Design: `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`.
   - Plan: `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks, the data block first).
-  - Tasks 1–5 merged by 4 Nov: the `recommendations.v1` block (D56), the look (version B, tiles, D63), the match
-    page, board card and slip (D59, D60). All of it shows only when `SPIX_RECOMMENDATIONS=on`, which is off.
-    Next: task 6 (Most likely ledger, migration 0011) and task 7 (scorecard section), then task 8 (go live).
+  - Built and merged 4 Nov: the `recommendations.v1` block (D56, Value fix D65), the look (version B, tiles, D63),
+    the match page, board card and slip (D59, D60). The owner added `SPIX_RECOMMENDATIONS=on` and the website was
+    restarted on 4 Nov (D68). `?recs=off` shows the previous card.
+  - Task 6 became the owner dashboard (D67): Most likely and Value picks logged from now, said against hit, local
+    only. Start it with `.venv/bin/python -m Scripts.ops.owner_dashboard` (http://127.0.0.1:8300/). Task 7 (a
+    scorecard section) is dropped, and no migration 0011 is needed.
+  - Open (owner, D68): "Worth it at" can sit above the price a Value pick was published at (Lens v Como, 1.66
+    against 1.65). Display only.
 - **Cards work that does not change picks (D54):**
   - add the events to the refresh and backfill them from 20 Sep (done 4 Nov: migration 0010, 554 matches
     backfilled, the refresh saves events from now on, D64);
