@@ -1,5 +1,5 @@
-// Before-kickoff cards on the board (D71): a started match keeps the picks Spix had for it before kickoff,
-// shown quietly after the upcoming matches in its league, with no price, Add button or link. Rendered from
+// Before-kickoff cards on the board (D71, D73): a started match keeps the picks Spix had for it before kickoff,
+// shown quietly in the Live tab, not in its league, with no price, Add button or link. Rendered from
 // app.js's pure helpers and the schedule merge with synthetic before-kickoff.v1 entries. No browser or network.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -10,7 +10,7 @@ const helpersStart = source.indexOf('// ----- Pure render helpers');
 const helpersEnd = source.indexOf('// ----- End of pure render helpers -----');
 assert.ok(helpersStart >= 0 && helpersEnd > helpersStart);
 const h = Function('esc', source.slice(helpersStart, helpersEnd)
-  + 'return { liveStatusLabel, beforeKickoffFor, renderBeforeKickoffCard, splitStartedFixtures };')(esc);
+  + 'return { liveStatusLabel, beforeKickoffFor, renderBeforeKickoffCard, boardFixturesFor, liveBoardGroups };')(esc);
 const text = html => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
 // The match status: live codes, breaks, finishes and the rare ones; a late start is not live;
@@ -128,12 +128,25 @@ assert.equal(withLive['906'].scheduleLabel, 'Live');
 assert.equal(withLive['910'].scheduleLabel, 'Kicked off 19:45');
 assert.equal(withLive['911'].scheduleLabel, 'Not started yet');
 
-// Placement: upcoming first in kickoff order, then the started ones; unchanged when nothing has started.
-const order = h.splitStartedFixtures(board._mergeSchedule(schedule, [], leagues, picks).filter(f => f.league === 'UEL'));
-assert.deepEqual(order.upcoming.map(f => f.id), ['909', '907'], 'kickoff order, as today');
-assert.deepEqual(order.started.map(f => f.id), ['901', '906']);
-const plain = h.splitStartedFixtures(today);
-assert.deepEqual(plain.upcoming.map(f => f.id), today.map(f => f.id));
-assert.deepEqual(plain.started, []);
+// The Live tab (D73): started matches leave the league lists and sit under Live, in play first, then finished.
+const mergedList = board._mergeSchedule(schedule, [], leagues, picks);
+assert.deepEqual(h.boardFixturesFor(mergedList, 'live').map(f => f.id), ['901', '906']);
+assert.deepEqual(h.boardFixturesFor(mergedList, 'all').map(f => f.id), ['908', '909', '907'], 'no started match in the leagues; order as today');
+assert.deepEqual(h.boardFixturesFor(today, 'all'), today, 'nothing has the new treatment: the board is today\'s');
+assert.deepEqual(h.boardFixturesFor(today, 'live'), []);
+assert.equal(withLive['906'].liveShort, '2H');
+assert.equal(withLive['910'].liveShort, 'NS', 'no live status: the schedule row\'s own code');
+const later = new Date(Date.now() - 30 * 60e3).toISOString();
+const groups = h.liveBoardGroups([
+  { id: 'a', kickoff: later, liveShort: '2H' }, { id: 'b', kickoff: past, liveShort: 'FT' },
+  { id: 'c', kickoff: past, liveShort: 'HT' }, { id: 'd', kickoff: later, liveShort: 'PEN' },
+  { id: 'e', kickoff: past, liveShort: 'AET' }, { id: 'f', kickoff: past, liveShort: 'ABD' }, { id: 'g', kickoff: past, liveShort: '' }]);
+assert.deepEqual(groups.inPlay.map(f => f.id), ['c', 'g', 'a'], 'in play, in kickoff order; unknown counts as in play');
+assert.deepEqual(groups.finished.map(f => f.id), ['b', 'e', 'f', 'd']);
 
-console.log('Before-kickoff card, join by id, placement, live status and switched-off board checks passed.');
+// In the Live tab each card names its league, since the leagues are mixed there.
+const named = h.renderBeforeKickoffCard({ time: '19:45', home: 'A', away: 'B', scheduleLabel: 'Live', beforeKickoff: bk }, '', '', 'Champions League');
+assert.match(text(named), /^Champions League · 19:45 Live/);
+assert.match(text(card), /^22:00 Live/, 'no league name unless given');
+
+console.log('Before-kickoff card, join by id, Live tab, live status and switched-off board checks passed.');

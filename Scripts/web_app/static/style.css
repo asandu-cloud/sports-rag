@@ -542,6 +542,20 @@ html[data-logo="old"] .logo-word { display: none; }
   transition: opacity .16s var(--ease);
 }
 .league-all.active::after { opacity: 1; }
+/* The Live tab (D73) sits beside All when matches have started, outside the scrolling leagues. */
+.league-live { min-width: 44px; margin-right: 8px; }
+.league-filters.has-live .league-all { margin-right: 0; }
+.league-filters.has-live .league-all::before { display: none; }
+.league-live::before {
+  content: ''; position: absolute; right: -10px; top: 15px; bottom: 15px;
+  width: 1px; background: var(--border);
+}
+.league-live::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -1px;
+  height: 3px; background: var(--accent); opacity: 0;
+  transition: opacity .16s var(--ease);
+}
+.league-live.active::after { opacity: 1; }
 .league-scroll-wrap { position: relative; flex: 1; min-width: 0; }
 .league-viewport {
   overflow-x: auto;
@@ -1199,7 +1213,6 @@ button.fixture-teams:hover { color: var(--accent-l); }
 .recs-board-count { color: var(--text2); font-size: 14px; }
 
 /* -- Before kickoff (D71): a started match's picks, on the page ground, with nothing to bet with -- */
-.bk-divider { grid-column: 1 / -1; margin: 8px 0 0; font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text3); }
 .match-read-fixture-card.bk-card,
 .match-read-fixture-card.bk-card:hover { cursor: default; border-color: var(--border-soft); background: transparent; box-shadow: none; }
 .bk-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 14px; }
