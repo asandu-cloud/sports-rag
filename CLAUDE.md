@@ -36,8 +36,10 @@ on it. The Discord bot still runs the old engine until A7.
   - Task 6 became the owner dashboard (D67): Most likely and Value picks logged from now, said against hit, local
     only. Start it with `.venv/bin/python -m Scripts.ops.owner_dashboard` (http://127.0.0.1:8300/). Task 7 (a
     scorecard section) is dropped, and no migration 0011 is needed.
-  - Open (owner, D68): "Worth it at" can sit above the price a Value pick was published at (Lens v Como, 1.66
-    against 1.65). Display only.
+  - "Worth it at" uses the chance a Value pick was made with (D68, live 4 Nov).
+  - Started matches keep their picks from before kickoff, with a live status (D70, D71): merged 4 Nov behind
+    `SPIX_BEFORE_KICKOFF` and `SPIX_LIVE_STATUS` (off; the status costs at most 400 API-Football requests a day).
+    Go-live: the owner adds both lines set to `on` to `.env`, then the website is restarted.
 - **Cards work that does not change picks (D54):**
   - add the events to the refresh and backfill them from 20 Sep (done 4 Nov: migration 0010, 554 matches
     backfilled, the refresh saves events from now on, D64);
