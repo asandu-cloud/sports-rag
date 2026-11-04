@@ -1029,11 +1029,11 @@ homework." (two fixed lines, "Your bet, without" / "the homework."), with the se
 recommends on every match, in one place. Keep what you like and build your own bet in minutes." The browser title and
 the meta description follow it. The owner also asked for the samples to show only what v1 will have (D52, D53):
 - *Numbers:* one score grid for the example match (Arsenal 1.6, Chelsea 1.3 goals, Spix's "about 2.9"); typical
-  price about 5% under the fair price; "worth it at" from `fair_prices.minimum_odds` (2%).
+  price about 5% under the fair price; "worth it at" from `fair_prices.minimum_odds` (2%) of the chance as shown (55% gives 1.86; corrected from 1.85 on 3 Nov).
 - *Most likely (3, at 1.30 or more):* Arsenal +0.5 69% 1.38, Over 8.5 corners 62% 1.54, Both teams to score 58% 1.64.
   Gone: Over 1.5 goals (79% would price about 1.21, under the floor), "Arsenal or draw" (double chance is not a v1
   market; Arsenal +0.5 is the same bet), Under 5.5 cards (no cards in v1).
-- *Value (2):* Over 2.5 goals 55% "Worth it at 1.85 or better", Over 9.5 corners 52% "Worth it at 1.97 or better";
+- *Value (2):* Over 2.5 goals 55% "Worth it at 1.86 or better", Over 9.5 corners 52% "Worth it at 1.97 or better";
   the player leg is gone.
 - *The demo's bet:* Arsenal +0.5 with Both teams to score, two goal legs from one match, "about 2 in 5" from the grid
   (the legs' chances multiplied would say 40%, the grid 42%). The demo now drops the corners leg, since corners and
@@ -1110,6 +1110,85 @@ across 54 fixtures".
   check drops (`reference_*` reasons in `price_confirmation`).
 - *For the merge checks:* pin `SPIX_CARDS_REFERENCE=off` with the other switches. *For the frontend:* the
   `recommendations.v1` Value list now leaves out cards and shots-on-target picks (D61); the shape is unchanged.
+**D63 — The recommendation layer's look: version B, tiles (3 Nov, owner).** Plan task 3. Three layouts were mocked on
+one canvas (https://claude.ai/artifact/JuLV2x1g6Qvp7aDPo1zsKF) from the stored `recommendations.v1` blocks of 3 Nov.
+The matches were Bodo/Glimt v Lille (the only Value pick, 13:12 read), Villarreal v PSG (none) and Viking v Sabah FA
+(no prices). Each version had the board card, the match page on a phone and on desktop, a working line stepper, and
+Add into a slip. The owner chose B:
+- *Most likely:* swipeable cards on a phone, a row of cards on desktop. Each card has the market, the pick, the
+  chance in words with the %, the why sentence, the typical price and Add.
+- *Value:* its own card, with "Worth it at X or better" as the figure.
+- *Explore the match:* underline tabs. Goals, Corners and Handicap get a large − / + stepper with "Line n of m".
+  Every market shows its options as tiles side by side, Spix's pick marked.
+- *Board card:* the top Most likely pick first, then the teams and "N suggestions · 1 value pick".
+
+The mockup made these calls, carried into tasks 4–5 unless the owner says otherwise:
+- *One leg per market per match:* adding another line of the same market replaces the first in the slip, so
+  "covered" legs never arise.
+- *No total price* for legs from one match (task 5 still open), as on the landing page (D57).
+- *A match with no prices:* "The bookmakers haven't priced this match yet, so there are no suggestions. They usually
+  appear a day or two before kick-off." Each market says "Nothing stands out here".
+- *A Value pick on a whole line* ("Over 10" corners) adds "Exactly 10 corners: you get your stake back." The block's
+  value `pick` has no unit ("Over 10"), so the front end adds the market's word.
+
+Seen in the blocks, for the backend:
+- *Most likely sits at the price floor:* the top picks cluster at 1.30–1.36 and 71–75%. Galatasaray v Stuttgart's
+  three are all 1.30, and Over 2.5 goals and Both teams to score there have the same chance to 16 digits, which the
+  bookmakers' identical prices can explain.
+- *The Value pick moved on:* the later Bodo/Glimt read has no released selection, so the mockup shows an earlier read.
+
+**D59 — The recommendation layer's match page and board card, front end (3 Nov, frontend branch).** Plan task 4,
+built to version B (D63). It shows only when the card carries the `recommendations.v1` block (`SPIX_RECOMMENDATIONS=on`).
+`?recs=off` brings back the old page to compare. The checkpoint commit before it is "Checkpoint before the
+recommendation layer front end".
+- *Match page:* Most likely, Value, Explore the match (Result, Goals, Both teams to score, Handicap, Corners; the
+  first market open), then the Match Read's research under "The Match Read". The old selection list gives way to
+  Value. "Other model angles" is removed in both versions.
+- *Board card:* the first Most likely pick, its chance and typical price, then the teams and "N suggestions · M value
+  picks".
+- *Chance in words:* the nearest of 1/10 … 9/10. Below 10% it reads "about 1 in N", and above 90% "about N−1 in N"
+  (my call), so 2% is never "about 1 in 10". Long shots (under 25%) say "A long shot," once, Value included.
+- *"Prices as of"* is the read's time, shown in the viewer's time. It is hidden when nothing is priced.
+- *The slip* is the app's existing side panel, not the mockup's column. Task 5 reworks it.
+- *Methodology page:* the section "Most likely, Value and the chance shown" (spec section 4) is held back from
+  `methodology.html` until the lists go live (orchestrator review, 4 Nov). The page is live as soon as it merges,
+  while the switch is still off, and its sentence on logging Most likely needs plan task 6. The draft is kept here
+  for task 8, and the owner signs off the copy then:
+  > Each match lists the options most likely to land and, when there are any, value picks. The chance shown is the
+  > bookmakers' own view of the outcome, with their margin taken out. It is not a discovery of Spix's. Spix's work
+  > is choosing which options to show, explaining them and spotting value: a value pick is one where a bookmaker's
+  > price beats the fair price for its chance. "Worth it at 2.10 or better" means the bet stops being value below
+  > that price.
+  >
+  > The price beside each option is a typical price from when the prices were checked. It is a guide, not a quote,
+  > so check the price in your bookmaker's app. Most likely options are measured on their own: each one shown is
+  > logged with its stated chance and settled, apart from the value picks. *(Only once task 6 ships.)*
+
+Seen in real reads, for the backend:
+- *A Value pick without figures:* AS Roma v Sassuolo (7 Nov) has the handicap pick "As Roma -1.5" with `chance` and
+  `worth_it_at` both null, while its Over 3.25 pick has both. The page shows the pick without "Worth it at" rather
+  than a wrong figure.
+- *Value picks are written as the engine words them:* "Away", "Home", "As Roma -1.5" (team-name case, ASCII
+  hyphen). The front end matches them to the market's own option for the label, side and line. Sending `side`,
+  `line` and `label` on each value item would remove the guess.
+
+**D60 — Your bet: any option, and goal legs from one match through the score grid (3 Nov, frontend branch).** Plan
+task 5, built on D59.
+- *Any option goes in the slip,* from Most likely, Value or Explore the match. Another line of the same market from
+  one match replaces the first (D63).
+- *Goal legs from one match* (Result, Goals, Both teams to score, Handicap) are combined through the block's
+  `score_grid`. This is an independent Poisson score for each team, 0–12 and renormalised. The chance is the
+  share of scores where every leg lands. A push, or the losing half of a quarter line, counts as not landing.
+- *Matches multiply.* The chance is said once, as "about 1 in N" with the %, then "Check the price in your
+  bookmaker's app before you place it." and the 18+ line.
+- *Refusals* show in the slip: "Corners and goals from one match can't be combined yet.", "Combining bets from one
+  match needs prices for both teams.", "These two can't both win." (three or more: "These can't all win
+  together.").
+- *No total price for legs from one match.* The plan's task 5 asked for "about" the fair price 1 / chance. D63,
+  the owner's chosen mockup, carries "no total price", so D63 wins until the owner says otherwise. With no total
+  price, the stake and potential win step aside. A value leg shows "worth it at X+" in place of a price.
+- *Older flows* (the board's best pick, the `?recs=off` page) keep one selection per fixture.
+- *The disabled "Parlay scoring coming soon" button* is removed. It did nothing and is not in the design.
 
 **D64 — Match events are built and rehearsed on a copy, ready to merge (3–4 Nov, backend branch).** Cards plan
 tasks 6–7 (D54 a, D58). Nothing here changes a published pick: the events are stored for checking and modelling,

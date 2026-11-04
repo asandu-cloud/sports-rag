@@ -95,6 +95,325 @@ function marketLabel(group) {
   return MARKET_LABELS[group] || group || '';
 }
 
+// ----- Recommendation layer (recommendations.v1, design B "tiles", D63) -----
+// The block is built by the backend; these helpers only draw it. Chances are the
+// bookmakers' own view without their margin, so prices sit beside them as figures.
+const RECS_MARKETS = { moneyline: 'Result', goals: 'Goals', btts: 'Both teams to score', spreads: 'Handicap', corners: 'Corners' };
+const RECS_UNITS = { goals: ' goals', corners: ' corners' };
+const RECS_TILE_MARKETS = new Set(['moneyline', 'btts']);
+const CHANCE_FRACTIONS = [[1, 10], [1, 8], [1, 6], [1, 5], [1, 4], [1, 3], [2, 5], [1, 2], [3, 5], [2, 3], [3, 4], [4, 5], [5, 6], [9, 10]];
+
+// A chance in words: the nearest plain fraction, or "1 in N" (and "N-1 in N") at the extremes.
+function chanceWords(p) {
+  const chance = Math.min(0.995, Math.max(0.005, Number(p) || 0));
+  if (chance < 0.1) return `about 1 in ${Math.round(1 / chance)}`;
+  if (chance > 0.9) {
+    const n = Math.round(1 / (1 - chance));
+    return `about ${n - 1} in ${n}`;
+  }
+  let best = CHANCE_FRACTIONS[0];
+  for (const f of CHANCE_FRACTIONS) if (Math.abs(f[0] / f[1] - chance) < Math.abs(best[0] / best[1] - chance)) best = f;
+  return `about ${best[0]} in ${best[1]}`;
+}
+
+function chancePercent(p) {
+  return `${Math.min(99, Math.max(1, Math.round(Number(p) * 100)))}%`;
+}
+
+// A long shot says so once, before the chance.
+function recsWords(option) {
+  const longShot = typeof option.long_shot === 'boolean' ? option.long_shot : option.chance < 0.25;
+  return (longShot ? 'A long shot, ' : '') + chanceWords(option.chance);
+}
+
+function recsPrice(value) {
+  const price = Number(value);
+  return value != null && Number.isFinite(price) ? price.toFixed(2) : '';
+}
+
+function recsMarketName(market) {
+  return RECS_MARKETS[market] || marketLabel(market);
+}
+
+// The block's prices_as_of is UTC without an offset; it is shown in the viewer's time.
+function recsClock(iso) {
+  if (!iso) return '';
+  const stamp = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`);
+  if (Number.isNaN(stamp.getTime())) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return `${pad(stamp.getHours())}:${pad(stamp.getMinutes())}`;
+}
+
+// The block, unless absent or switched off with ?recs=off (to compare with the old page).
+function recommendationsFor(card, search) {
+  const block = card?.recommendations;
+  if (!block || block.version !== 'recommendations.v1') return null;
+  return new URLSearchParams(search || '').get('recs') === 'off' ? null : block;
+}
+
+function recsPriced(block) {
+  return Boolean(block?.most_likely?.length) || (block?.markets || []).some(m => m.options?.length);
+}
+
+// Markets with a suggestion, plus value picks.
+function recsSuggestionCount(block) {
+  return (block?.markets || []).filter(m => m.suggestion).length + (block?.value?.length || 0);
+}
+
+// A value item carries only its pick ("Over 10", "Away", "As Roma -1.5"); its side and
+// line come from the market's own option when one matches, otherwise from the pick's words.
+function recsValueLeg(item, block) {
+  const unit = RECS_UNITS[item.market] || '';
+  const pick = String(item.pick || '');
+  const plain = value => String(value).toLowerCase().replace(/\u2212/g, '-').replace(/\s+/g, ' ').trim();
+  const options = (block?.markets || []).find(m => m.market === item.market)?.options || [];
+  const sideWord = ['home', 'away', 'draw', 'yes', 'no'].find(word => word === plain(pick));
+  const known = options.find(o => plain(o.label) === plain(pick) || plain(o.label) === plain(pick + unit))
+    || (sideWord ? options.find(o => o.side === sideWord) : null);
+  const words = pick.match(/^(over|under)\s+(\d+(?:\.\d+)?)$/i);
+  const side = known ? known.side : words ? words[1].toLowerCase() : sideWord || null;
+  const line = known ? known.line : words ? Number(words[2]) : null;
+  const label = known ? known.label : words ? pick + unit : pick;
+  const figure = value => (value == null || !Number.isFinite(Number(value)) ? null : Number(value));
+  return {
+    market: item.market, side, line, label,
+    chance: figure(item.chance), worth: figure(item.worth_it_at),
+    whole: Boolean(unit) && Number.isInteger(line),
+  };
+}
+
+// The stepper's lines. Handicap pairs each home line with the away side's opposite line.
+function recsStepperPairs(market) {
+  const options = market?.options || [];
+  if (market?.market === 'spreads') {
+    return options.filter(o => o.side === 'home').sort((a, b) => a.line - b.line).map(home => ({
+      text: home.label,
+      options: [home, options.find(o => o.side === 'away' && o.line === -home.line)].filter(Boolean),
+    }));
+  }
+  const unit = RECS_UNITS[market?.market] || '';
+  return [...new Set(options.map(o => o.line).filter(line => line != null))].sort((a, b) => a - b).map(line => ({
+    text: `${line}${unit}`,
+    options: ['over', 'under'].map(side => options.find(o => o.side === side && o.line === line)).filter(Boolean),
+  }));
+}
+
+function recsIsSuggestion(market, option) {
+  const s = market?.suggestion;
+  return Boolean(s) && option.side === s.side && option.line === s.line;
+}
+
+// The line shown: the one asked for, else the suggestion's, else the middle one.
+function recsLineIndex(market, asked) {
+  const pairs = recsStepperPairs(market);
+  if (!pairs.length) return 0;
+  if (Number.isInteger(asked)) return Math.min(Math.max(asked, 0), pairs.length - 1);
+  const at = pairs.findIndex(pair => pair.options.some(o => recsIsSuggestion(market, o)));
+  return at >= 0 ? at : Math.floor(pairs.length / 2);
+}
+
+function recsAddButton(ref, leg, added) {
+  return `<button type="button" class="recs-add${added ? ' added' : ''}" data-recs-add="${esc(ref)}" aria-label="${added ? 'Remove' : 'Add'} ${esc(leg.label)} ${added ? 'from' : 'to'} your bet">${addButtonContent(added, true)}</button>`;
+}
+
+// Most likely and Value: the top of the match page.
+function renderRecommendations(f, view = {}) {
+  const block = f.recommendations;
+  if (!block) return '';
+  const added = view.added || (() => false);
+  const priced = recsPriced(block);
+  const clock = priced ? recsClock(block.prices_as_of) : '';
+  const cards = (block.most_likely || []).map((o, i) => `
+    <article class="recs-card">
+      <span class="recs-label">${esc(recsMarketName(o.market))}</span>
+      <h3 class="recs-pick">${esc(o.label)}</h3>
+      <p class="recs-chance"><span class="recs-words">${esc(recsWords(o))}</span><span class="recs-pct">${chancePercent(o.chance)}</span></p>
+      ${o.why ? `<p class="recs-why">${esc(o.why)}</p>` : '<p class="recs-why"></p>'}
+      <div class="recs-card-foot"><span class="recs-fig">${recsPrice(o.typical_price)}</span>${recsAddButton(`ml:${i}`, o, added(o))}</div>
+    </article>`).join('');
+  const mostLikely = `
+    <section class="recs-section" aria-labelledby="recsMostLikely">
+      <div class="recs-head">
+        <h2 class="recs-title" id="recsMostLikely">Most likely</h2>
+        ${clock ? `<span class="recs-asof">Prices as of ${clock}</span>` : ''}
+      </div>
+      ${priced
+        ? `<div class="recs-strip">${cards}</div>`
+        : '<p class="recs-note">The bookmakers haven\'t priced this match yet, so there are no suggestions. They usually appear a day or two before kick-off.</p>'}
+    </section>`;
+  if (!priced) return mostLikely;
+  const values = (block.value || []).map((item, i) => {
+    const leg = recsValueLeg(item, block);
+    return `
+      <article class="recs-value-card">
+        <div class="recs-value-main">
+          <span class="recs-label">${esc(recsMarketName(leg.market))}</span>
+          <h3 class="recs-pick">${esc(leg.label)}</h3>
+          ${leg.chance != null ? `<p class="recs-value-chance">${esc(recsWords(leg))} · ${chancePercent(leg.chance)}</p>` : ''}
+          ${leg.whole ? `<p class="recs-value-chance">Exactly ${esc(leg.line)}${esc(RECS_UNITS[leg.market])}: you get your stake back.</p>` : ''}
+        </div>
+        ${leg.worth != null ? `<div class="recs-value-worth"><span>Worth it at</span><span class="recs-fig">${recsPrice(leg.worth)} or better</span></div>` : ''}
+        ${recsAddButton(`value:${i}`, leg, added(leg))}
+      </article>`;
+  }).join('');
+  return `${mostLikely}
+    <section class="recs-section" aria-labelledby="recsValue">
+      <h2 class="recs-title recs-head" id="recsValue">Value</h2>
+      ${values || '<p class="recs-note">No value picks on this match today. The prices are about right.</p>'}
+    </section>`;
+}
+
+// "Explore the match": every market, Spix's suggestion marked, Add on any option.
+function renderMarketExplorer(f, view = {}) {
+  const block = f.recommendations;
+  const markets = block?.markets || [];
+  const open = markets.find(m => m.market === view.open) || markets[0];
+  if (!open) return '';
+  const added = view.added || (() => false);
+  const tabs = markets.map(m => `<button type="button" class="recs-tab${m === open ? ' is-on' : ''}" data-recs-tab="${esc(m.market)}" aria-pressed="${m === open}">${esc(recsMarketName(m.market))}</button>`).join('');
+  let body;
+  if (!open.options?.length) {
+    body = '<p class="recs-note"><b>Nothing stands out here.</b> No bookmaker prices this market yet.</p>';
+  } else {
+    const suggested = open.suggestion ? open.options.find(o => recsIsSuggestion(open, o)) || open.suggestion : null;
+    const summary = suggested
+      ? `Spix's pick here: ${suggested.label}, ${chanceWords(suggested.chance)}.`
+      : 'Nothing stands out here. Every option can still be added.';
+    let shown = open.options;
+    let stepper = '';
+    if (!RECS_TILE_MARKETS.has(open.market)) {
+      const pairs = recsStepperPairs(open);
+      const index = recsLineIndex(open, view.line?.[open.market]);
+      shown = pairs[index]?.options || [];
+      stepper = `
+        <div class="recs-stepper">
+          <button type="button" class="recs-step" data-recs-step="-1" aria-label="Lower line"${index <= 0 ? ' disabled' : ''}>−</button>
+          <div class="recs-line" aria-live="polite"><span class="recs-line-text">${esc(pairs[index]?.text || '')}</span><span class="recs-line-pos">Line ${index + 1} of ${pairs.length}</span></div>
+          <button type="button" class="recs-step" data-recs-step="1" aria-label="Higher line"${index >= pairs.length - 1 ? ' disabled' : ''}>+</button>
+        </div>`;
+    }
+    const tiles = shown.map(o => {
+      const pick = recsIsSuggestion(open, o);
+      return `
+        <div class="recs-tile${pick ? ' is-pick' : ''}">
+          ${pick ? '<span class="recs-pickmark">Spix\'s pick</span>' : ''}
+          <span class="recs-option-label">${esc(o.label)}</span>
+          <span class="recs-fig">${recsPrice(o.typical_price)}</span>
+          <span class="recs-option-chance">${esc(recsWords(o))} · ${chancePercent(o.chance)}</span>
+          ${recsAddButton(`opt:${open.market}:${open.options.indexOf(o)}`, o, added(o))}
+        </div>`;
+    }).join('');
+    body = `<p class="recs-note recs-summary">${esc(summary)}</p><div class="recs-swipe" data-recs-swipe>${stepper}<div class="recs-grid">${tiles}</div></div>`;
+  }
+  return `
+    <section class="recs-section recs-explore" aria-labelledby="recsExplore">
+      <h2 class="recs-title" id="recsExplore">Explore the match</h2>
+      <div class="recs-tabs" role="group" aria-label="Markets">${tabs}</div>
+      <div class="recs-market">${body}</div>
+    </section>`;
+}
+
+// ----- Your bet: chances of legs together -----
+const GRID_MARKETS = new Set(['moneyline', 'goals', 'btts', 'spreads']);
+
+// Does a goal-market leg land at this score? A push (a whole line hit exactly) does not land.
+function legLands(leg, home, away) {
+  const { side, line } = leg;
+  if (leg.market === 'moneyline') return side === 'home' ? home > away : side === 'away' ? away > home : home === away;
+  if (leg.market === 'goals') return side === 'over' ? home + away > line : home + away < line;
+  if (leg.market === 'btts') return side === 'yes' ? home > 0 && away > 0 : !(home > 0 && away > 0);
+  if (leg.market === 'spreads') return side === 'home' ? home + line > away : away + line > home;
+  return false;
+}
+
+// The chance every leg lands, from the score grid: independent Poisson goals for each
+// team, 0-12, renormalised (as market_goal_model.score_probabilities). Null when a leg
+// is outside the grid's markets or there is no grid.
+function jointChance(legs, grid) {
+  if (!grid || !Number.isFinite(grid.home) || !Number.isFinite(grid.away)) return null;
+  if (!legs.length || legs.some(leg => !GRID_MARKETS.has(leg.market) || !leg.side)) return null;
+  const poisson = (rate, goals) => {
+    let value = Math.exp(-rate);
+    for (let i = 1; i <= goals; i++) value *= rate / i;
+    return value;
+  };
+  let total = 0, landed = 0;
+  for (let home = 0; home <= 12; home++) {
+    for (let away = 0; away <= 12; away++) {
+      const weight = poisson(grid.home, home) * poisson(grid.away, away);
+      total += weight;
+      if (legs.every(leg => legLands(leg, home, away))) landed += weight;
+    }
+  }
+  return landed / total;
+}
+
+// Why a match's legs can't go together, or null when they can.
+function slipRefusal(legs, grid) {
+  const corners = legs.filter(leg => leg.market === 'corners');
+  const goals = legs.filter(leg => leg.market !== 'corners');
+  if (corners.length && goals.length) return "Corners and goals from one match can't be combined yet.";
+  if (goals.length < 2) return null;
+  if (!grid) return 'Combining bets from one match needs prices for both teams.';
+  const chance = jointChance(goals, grid);
+  if (chance === null) return "Bets from one match can't be combined here yet.";
+  if (chance < 1e-6) return legs.length === 2 ? "These two can't both win." : "These can't all win together.";
+  return null;
+}
+
+// The chance the whole slip lands: one match's legs through its grid, matches multiplied.
+// Null when any leg's chance is unknown.
+function slipChance(slipLegs) {
+  if (!slipLegs.length) return null;
+  const matches = new Map();
+  slipLegs.forEach(l => {
+    const id = String(l.fixtureId || l.fixture);
+    matches.set(id, [...(matches.get(id) || []), l]);
+  });
+  let chance = 1;
+  for (const group of matches.values()) {
+    const part = group.length === 1
+      ? group[0].leg?.chance
+      : jointChance(group.map(l => l.leg), group.find(l => l.grid)?.grid);
+    if (part == null || !Number.isFinite(Number(part))) return null;
+    chance *= Number(part);
+  }
+  return chance;
+}
+
+// The board card: the first Most likely pick, then the match and how much there is to see.
+function renderRecsBoardCard(f, homeEmblem, awayEmblem) {
+  const block = f.recommendations;
+  const first = block?.most_likely?.[0];
+  const time = `<span class="match-card-time">${esc(f.time)}</span>`;
+  let top;
+  if (first) {
+    top = `
+      <div class="recs-board-topline"><span class="recs-label">Most likely</span>${time}</div>
+      <p class="recs-board-pick">${esc(first.label)}</p>
+      <p class="recs-board-chance"><span><b>${esc(recsWords(first))}</b> <span class="recs-pct">· ${chancePercent(first.chance)}</span></span><span class="recs-fig">${recsPrice(first.typical_price)}</span></p>`;
+  } else if (recsPriced(block)) {
+    top = `<div class="recs-board-topline"><span class="recs-label">Explore the match</span>${time}</div>
+      <p class="recs-note">Nothing stands out here. Every option can still be added.</p>`;
+  } else {
+    top = `<div class="recs-board-topline"><span class="recs-label">Not priced yet</span>${time}</div>
+      <p class="recs-note">Suggestions come once the bookmakers price this match.</p>`;
+  }
+  const values = block?.value?.length || 0;
+  const counts = recsPriced(block)
+    ? [pluralise(recsSuggestionCount(block), 'suggestion'), values ? pluralise(values, 'value pick') : ''].filter(Boolean).join(' · ')
+    : '';
+  return `
+    <div class="recs-board-body">${top}</div>
+    <div class="recs-board-foot">
+      <h3 class="recs-board-teams">${homeEmblem}<span>${esc(f.home)}</span> <span class="recs-board-v">v</span> ${awayEmblem}<span>${esc(f.away)}</span></h3>
+      <div class="recs-board-row">
+        <span class="recs-board-count">${counts}</span>
+        <button class="match-card-open" type="button" aria-label="View match: ${esc(f.home)} versus ${esc(f.away)}">View match <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+    </div>`;
+}
+
 // ----- End of pure render helpers -----
 
 function showToast(msg, type = 'info') {
@@ -536,6 +855,7 @@ auth.init();
 const slip = {
   legs: [],
   open: false,
+  onChange: null,
 
   toggle() {
     this.open = !this.open;
@@ -551,23 +871,45 @@ const slip = {
     const key = fixture + '|' + pick;
     if (this.legs.find(l => l.key === key)) { this.remove(key); return false; }
     const fixtureId = String(options.fixtureId || fixture);
-    const sameFixtureLeg = this.legs.find(leg => String(leg.fixtureId || leg.fixture) === fixtureId);
-    if (sameFixtureLeg) {
+    const leg = options.leg || null;
+    const sameFixture = this.legs.filter(l => String(l.fixtureId || l.fixture) === fixtureId);
+    // Legs from the older flows carry no leg: one selection per fixture, as before.
+    if (sameFixture.length && (!leg || sameFixture.some(l => !l.leg))) {
       showToast(
         'This slip accepts one selection per fixture. Same-game combined odds need a verified bookmaker quote.',
         'error',
       );
       return null;
     }
-    this.legs.push({ key, fixture, fixtureId, pick, odds, market });
+    // One leg per market per match: another line of the same market replaces the first.
+    const replaced = leg ? sameFixture.filter(l => l.leg.market === leg.market) : [];
+    if (leg) {
+      const kept = sameFixture.filter(l => !replaced.includes(l));
+      const grid = options.grid || kept.find(l => l.grid)?.grid || null;
+      const refusal = slipRefusal(kept.map(l => l.leg).concat([leg]), grid);
+      if (refusal) {
+        this._notice(refusal);
+        return null;
+      }
+    }
+    this.legs = this.legs.filter(l => !replaced.includes(l));
+    this.legs.push({ key, fixture, fixtureId, pick, odds, market, leg, grid: options.grid || null });
+    this.notice = '';
     this._render();
     this._update();
     if (!this.open) this.toggle();
     return true;
   },
 
+  _notice(text) {
+    this.notice = text;
+    this._render();
+    if (!this.open) this.toggle();
+  },
+
   remove(key) {
     this.legs = this.legs.filter(l => l.key !== key);
+    this.notice = '';
     this._render();
     this._update();
     // sync add buttons
@@ -578,6 +920,7 @@ const slip = {
 
   clear() {
     this.legs = [];
+    this.notice = '';
     this._render();
     this._update();
     document.querySelectorAll('.fixture-add-btn.added, .market-add-btn.added').forEach(b => b.classList.remove('added'));
@@ -588,43 +931,67 @@ const slip = {
     this._calcPayout();
   },
 
-  score() {
-    if (!this.legs.length) { showToast('Add picks first', 'error'); return; }
-    showToast(
-      'Parlay scoring is not available yet. This slip only totals independent fixture odds.',
-      'error',
-    );
-  },
-
   _render() {
     const legsEl = document.getElementById('slipLegs');
+    const notice = document.getElementById('slipNotice');
+    notice.textContent = this.notice || '';
+    notice.classList.toggle('hidden', !this.notice);
     if (!this.legs.length) {
-      legsEl.innerHTML = '<div class="slip-empty">No picks yet. Browse fixtures to add bets.</div>';
+      legsEl.innerHTML = '<div class="slip-empty">Tap Add on any option to start your bet. You can mix Spix\'s picks with your own.</div>';
       document.getElementById('slipQuality').classList.add('hidden');
       return;
     }
-    legsEl.innerHTML = this.legs.map(l => `
+    legsEl.innerHTML = this.legs.map(l => {
+      const price = !l.leg ? esc(String(l.odds))
+        : l.odds != null ? recsPrice(l.odds)
+        : l.leg.worth != null ? `worth it at ${recsPrice(l.leg.worth)}+` : '';
+      return `
       <div class="slip-leg">
         <div class="slip-leg-fixture">${esc(l.fixture)}</div>
         <div class="slip-leg-pick">${esc(l.pick)}</div>
-        <div class="slip-leg-odds mono">${esc(String(l.odds))}</div>
+        <div class="slip-leg-odds mono">${price}</div>
         <button class="slip-leg-remove" aria-label="Remove ${esc(l.pick)} from slip" onclick="slip.remove('${esc(l.key).replace(/'/g,"\\'")}')">${ICONS.close}</button>
       </div>
-    `).join('');
+    `;
+    }).join('');
+  },
+
+  // The prices multiply only when each match has one priced leg: legs from one
+  // match are not independent, and no total price is shown for them (D63).
+  _totalPrice() {
+    if (!this.legs.length) return null;
+    const matches = new Set(this.legs.map(l => String(l.fixtureId || l.fixture)));
+    if (matches.size !== this.legs.length) return null;
+    const prices = this.legs.map(l => (l.odds == null ? NaN : parseFloat(l.odds)));
+    return prices.every(Number.isFinite) ? prices.reduce((acc, price) => acc * price, 1) : null;
   },
 
   _update() {
+    if (this.onChange) this.onChange();
     const n = this.legs.length;
     ['slipCount','slipToggleCount','slipMobileCount','menuSlipCount'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.textContent = n;
     });
-    const combined = this.legs.reduce((acc, l) => acc * parseFloat(l.odds), 1);
-    const oddsStr = n ? combined.toFixed(2) : '--';
+    const combined = this._totalPrice();
+    const oddsStr = combined === null ? '--' : combined.toFixed(2);
+    // Without a total price a stake has nothing to multiply, so the stake area steps aside.
+    document.getElementById('slipFoot').classList.toggle('no-total', n > 0 && combined === null);
     ['slipOdds','slipMobileOdds'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.textContent = oddsStr;
     });
+    // The chance, said once, when every leg's chance is known.
+    const chance = slipChance(this.legs);
+    document.getElementById('slipChance').classList.toggle('hidden', chance === null);
+    if (chance !== null) {
+      document.getElementById('slipChanceLabel').textContent = n === 1 ? 'Chance it lands' : n === 2 ? 'Chance both land' : `Chance all ${n} land`;
+      document.getElementById('slipChanceWords').textContent = chanceWords(chance);
+      document.getElementById('slipChancePct').textContent = chancePercent(chance);
+    }
+    const check = document.getElementById('slipCheck');
+    check.textContent = "Check the price in your bookmaker's app before you place it.";
+    check.classList.toggle('hidden', n === 0);
     this._calcPayout();
 
     // mobile bar
@@ -634,9 +1001,10 @@ const slip = {
 
   _calcPayout() {
     const stake = parseFloat(document.getElementById('slipStake').value) || 0;
-    const combined = this.legs.reduce((acc, l) => acc * parseFloat(l.odds), 1);
-    const payout = stake * combined;
-    document.getElementById('slipPayout').textContent = '$' + (stake ? payout.toFixed(2) : '0.00');
+    const combined = this._totalPrice();
+    document.getElementById('slipPayout').textContent = combined === null && this.legs.length
+      ? '--'
+      : '$' + (stake && combined !== null ? (stake * combined).toFixed(2) : '0.00');
   }
 };
 
@@ -1086,6 +1454,7 @@ const appModule = {
       tags: Array.isArray(card.game_script?.tags) ? card.game_script.tags : [],
       update,
       markets,
+      recommendations: recommendationsFor(card, window.location.search),
     };
   },
 
@@ -1462,7 +1831,10 @@ const appModule = {
       ? ''
       : `<button class="match-card-open" type="button" aria-label="View Match Read: ${esc(f.home)} versus ${esc(f.away)}">View Match Read <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
 
-    card.innerHTML = `
+    if (f.recommendations && !f.isScheduleOnly) {
+      card.classList.add('recs-board-card');
+      card.innerHTML = renderRecsBoardCard(f, emblem(f.visuals?.homeTeamLogo, f.home, 'home'), emblem(f.visuals?.awayTeamLogo, f.away, 'away'));
+    } else card.innerHTML = `
       <div class="match-card-topline">
         <span class="match-card-time mono">${esc(f.time)}</span>
         ${updateLabel}
@@ -1557,6 +1929,10 @@ const appModule = {
   _renderMatchReadSummary(f) {
     const container = document.getElementById('matchReadSummary');
     if (!container) return;
+    if (f.recommendations) {
+      this._renderRecommendationsPage(f, container);
+      return;
+    }
     const marketLabels = MARKET_LABELS;
     const selections = Array.isArray(f.selections) ? f.selections : [];
     const updateLabel = f.update?.is_updated && f.update?.label
@@ -1611,33 +1987,12 @@ const appModule = {
           </div>`;
         }).join('')}</div>${sharedLines.length ? `<div class="match-read-shared"><p class="match-read-shared-title">Applies to every selection</p>${sharedLines.map(line => `<p>${esc(line)}</p>`).join('')}</div>` : ''}`
       : `<p class="match-read-no-selection">${esc(noBetCopy)}</p>`;
-    // A key point is dropped when every figure in it already appears in the thesis.
-    const thesisText = String(f.briefing?.summary || f.thesis || '');
-    const allPoints = Array.isArray(f.briefing?.bullets) ? f.briefing.bullets : [];
-    const restatesThesis = point => {
-      const figures = String(point).match(/\d+(?:\.\d+)?/g) || [];
-      return thesisText && figures.length > 0 && figures.every(figure => thesisText.includes(figure));
-    };
-    const keyPoints = allPoints.filter(point => !restatesThesis(point) && !restatesFigures(point, f.metrics));
-    const alternatives = Array.isArray(f.alternatives) ? f.alternatives : [];
-    const alternativesHtml = alternatives.length
-      ? `<div class="match-read-alternatives">
-          <p class="match-read-alternatives-title">Other model angles — not released selections</p>
-          <div class="match-read-alternatives-list">${alternatives.map(alternative => {
-            const market = marketLabels[alternative.market?.group] || alternative.market?.group || 'Market';
-            return `<span>${esc(market)}: ${esc(alternative.pick || 'Unavailable')}</span>`;
-          }).join('')}</div>
-        </div>`
-      : '';
     container.innerHTML = `
       <section class="match-read-summary" aria-label="Published Match Read">
         <div class="match-read-summary-head">${updateLabel}</div>
-        <p class="match-read-thesis">${esc(f.briefing?.summary || f.thesis || 'No fixture-level briefing is available yet.')}</p>
-        ${figuresMarkup(f.metrics, f.home, f.away, 'match-read-figures')}
-        ${keyPoints.length ? `<ul class="match-read-key-points">${keyPoints.map(point => `<li>${esc(point)}</li>`).join('')}</ul>` : ''}
+        ${this._matchReadResearch(f)}
         ${actionable}
         ${f.selectionRelationship ? `<p class="match-read-relationship">${esc(f.selectionRelationship)}</p>` : ''}
-        ${alternativesHtml}
       </section>
     `;
     container.querySelectorAll('[data-match-read-add]').forEach(button => {
@@ -1665,6 +2020,113 @@ const appModule = {
           button.classList.add('added');
         }
       });
+    });
+  },
+
+  // The read's own research: thesis, model figures and key points.
+  _matchReadResearch(f) {
+    // A key point is dropped when every figure in it already appears in the thesis.
+    const thesisText = String(f.briefing?.summary || f.thesis || '');
+    const allPoints = Array.isArray(f.briefing?.bullets) ? f.briefing.bullets : [];
+    const restatesThesis = point => {
+      const figures = String(point).match(/\d+(?:\.\d+)?/g) || [];
+      return thesisText && figures.length > 0 && figures.every(figure => thesisText.includes(figure));
+    };
+    const keyPoints = allPoints.filter(point => !restatesThesis(point) && !restatesFigures(point, f.metrics));
+    return `
+      <p class="match-read-thesis">${esc(f.briefing?.summary || f.thesis || 'No fixture-level briefing is available yet.')}</p>
+      ${figuresMarkup(f.metrics, f.home, f.away, 'match-read-figures')}
+      ${keyPoints.length ? `<ul class="match-read-key-points">${keyPoints.map(point => `<li>${esc(point)}</li>`).join('')}</ul>` : ''}`;
+  },
+
+  // The recommendation layer's match page: Most likely, Value, Explore the match,
+  // then the Match Read's research. Its Value list replaces the old selection list.
+  _renderRecommendationsPage(f, container) {
+    container.innerHTML = `
+      <div class="recs" id="recsBlock"></div>
+      <section class="match-read-summary" aria-labelledby="recsResearch">
+        <h2 class="recs-title recs-head" id="recsResearch">The Match Read</h2>
+        ${this._matchReadResearch(f)}
+      </section>`;
+    this._paintRecommendations(f);
+    if (container.dataset.recsBound) return;
+    container.dataset.recsBound = '1';
+    container.addEventListener('click', event => {
+      const match = this.currentMatch;
+      if (!match?.recommendations) return;
+      const tab = event.target.closest('[data-recs-tab]');
+      const step = event.target.closest('[data-recs-step]');
+      const add = event.target.closest('[data-recs-add]');
+      if (tab) {
+        this._recsView(match).open = tab.dataset.recsTab;
+        this._paintRecommendations(match);
+      } else if (step && !step.disabled) this._recsStep(match, Number(step.dataset.recsStep));
+      else if (add) this._recsAdd(match, add.dataset.recsAdd);
+    });
+    // On phones a sideways swipe over the line moves it, like the − / + buttons.
+    let touch = null;
+    container.addEventListener('touchstart', event => {
+      touch = event.target.closest('[data-recs-swipe]') ? event.touches[0] : null;
+      if (touch) touch = { x: touch.clientX, y: touch.clientY };
+    }, { passive: true });
+    container.addEventListener('touchend', event => {
+      if (!touch || !this.currentMatch?.recommendations) return;
+      const end = event.changedTouches[0];
+      const dx = end.clientX - touch.x, dy = end.clientY - touch.y;
+      touch = null;
+      if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) this._recsStep(this.currentMatch, dx < 0 ? 1 : -1);
+    }, { passive: true });
+  },
+
+  _recsView(f) {
+    this._recsViews = this._recsViews || {};
+    return (this._recsViews[f.id] = this._recsViews[f.id] || { open: null, line: {} });
+  },
+
+  _recsSlipKey(f, leg) {
+    return `${f.home} vs ${f.away}|${leg.label}`;
+  },
+
+  // Redraws the lists and the explorer, keeping keyboard focus on the same control.
+  _paintRecommendations(f) {
+    const host = document.getElementById('recsBlock');
+    if (!host || !f.recommendations) return;
+    const active = document.activeElement;
+    const focusKey = active && host.contains(active)
+      ? ['recsTab', 'recsStep', 'recsAdd'].find(key => active.dataset[key] !== undefined)
+      : null;
+    const focusValue = focusKey ? active.dataset[focusKey] : null;
+    const view = { ...this._recsView(f), added: leg => slip.legs.some(l => l.key === this._recsSlipKey(f, leg)) };
+    host.innerHTML = renderRecommendations(f, view) + renderMarketExplorer(f, view);
+    if (!focusKey) return;
+    const attr = focusKey.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`);
+    const target = [...host.querySelectorAll(`[data-${attr}]`)].find(el => el.dataset[focusKey] === focusValue && !el.disabled)
+      || host.querySelector('[data-recs-step]:not([disabled])');
+    if (target) target.focus();
+  },
+
+  _recsStep(f, delta) {
+    const view = this._recsView(f);
+    const markets = f.recommendations.markets || [];
+    const market = markets.find(m => m.market === view.open) || markets[0];
+    if (!market || RECS_TILE_MARKETS.has(market.market)) return;
+    const last = recsStepperPairs(market).length - 1;
+    view.line[market.market] = Math.min(Math.max(recsLineIndex(market, view.line[market.market]) + delta, 0), last);
+    this._paintRecommendations(f);
+  },
+
+  _recsAdd(f, ref) {
+    const block = f.recommendations;
+    const [kind, first, second] = String(ref).split(':');
+    let leg = null;
+    if (kind === 'ml') leg = block.most_likely?.[Number(first)];
+    else if (kind === 'value' && block.value?.[Number(first)]) leg = recsValueLeg(block.value[Number(first)], block);
+    else if (kind === 'opt') leg = (block.markets || []).find(m => m.market === first)?.options?.[Number(second)];
+    if (!leg) return;
+    slip.add(`${f.home} vs ${f.away}`, leg.label, leg.typical_price ?? null, recsMarketName(leg.market), {
+      fixtureId: f.id,
+      leg: { market: leg.market, side: leg.side, line: leg.line, chance: leg.chance, worth: leg.worth ?? null },
+      grid: block.score_grid || null,
     });
   },
 
@@ -1808,6 +2270,10 @@ const appModule = {
 };
 
 const app = appModule;
+// The match page's Add buttons follow the slip, whichever side changed it.
+slip.onChange = () => {
+  if (app.currentMatch?.recommendations) app._paintRecommendations(app.currentMatch);
+};
 document.addEventListener('research-navigate', event => {
   router.go('app', 'research', null, event.detail.route);
 });

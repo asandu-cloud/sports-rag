@@ -186,6 +186,12 @@
           <div class="slip-legs" id="slipLegs"></div>
         </div>
         <div class="slip-foot" id="slipFoot">
+          <p class="slip-notice hidden" id="slipNotice" role="status"></p>
+          <div class="slip-chance hidden" id="slipChance">
+            <span class="slip-label" id="slipChanceLabel">Chance it lands</span>
+            <span class="slip-chance-words"><mark id="slipChanceWords"></mark></span>
+            <span class="slip-chance-pct" id="slipChancePct"></span>
+          </div>
           <div class="slip-row">
             <span class="slip-label">Combined Odds</span>
             <span class="slip-value mono" id="slipOdds">--</span>
@@ -201,11 +207,12 @@
             <button class="quick-stake" onclick="slip.setStake(50)">$50</button>
             <button class="quick-stake" onclick="slip.setStake(100)">$100</button>
           </div>
-          <div class="slip-row">
+          <div class="slip-row slip-payout-row">
             <span class="slip-label">Potential Win</span>
             <span class="slip-payout mono" id="slipPayout">$0.00</span>
           </div>
-          <button class="slip-score-btn" id="slipScoreBtn" disabled title="Parlay scoring will return once it uses verified bookmaker quotes and a real model.">Parlay scoring coming soon</button>
+          <p class="slip-check hidden" id="slipCheck"></p>
+          <p class="slip-care">18+ · Betting involves risk. <a href="https://www.gamcare.org.uk/get-support/" target="_blank" rel="noopener">Get help from GamCare</a></p>
           <div class="slip-quality hidden" id="slipQuality">
             <div class="quality-bar"><div class="quality-fill" id="qualityFill"></div></div>
             <span class="quality-label" id="qualityLabel"></span>
