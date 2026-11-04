@@ -12,7 +12,7 @@ line as the published chance and pick where another allowed bookmaker beats it b
 with the median. Because our Pinnacle copy is often stale near kickoff, price confirmation also reads Pinnacle's
 current price in OddsPapi and keeps the pick only if it still clears 2% against it. A replay over stored reads and a
 golden preview give the owner the evidence before 10 Nov. The refresh adds `/fixtures/events` per finished match into
-a new `fixture_events` table; a CLI command backfills it.
+a new `fixture_match_events` table; a CLI command backfills it.
 
 **Tech Stack:** Python 3.11, SQLAlchemy + Alembic (platform.db), pytest.
 
@@ -245,7 +245,7 @@ def test_value_leaves_out_picks_from_markets_outside_the_layer():  # a cards pic
 - Test: `Scripts/tests/data_platform/test_sync_upserts.py`, a pipeline test with a fake client
 
 **Interfaces:**
-- Produces: table `fixture_events`: `id`, `fixture_id` (FK `fixtures.id`, cascade), `event_index`, `team_api_id`,
+- Produces: table `fixture_match_events` (not `fixture_events`: the history download's staging DB uses that name): `id`, `fixture_id` (FK `fixtures.id`, cascade), `event_index`, `team_api_id`,
   `player_api_id`, `assist_api_id`, `elapsed`, `extra`, `event_type`, `detail`, `comments`, `raw_json`, `fetched_at`;
   unique `(fixture_id, event_index)`. A new canonical table: the history download's `player_history_events` is a
   batch-import record and stays as it is.
@@ -266,7 +266,7 @@ def test_value_leaves_out_picks_from_markets_outside_the_layer():  # a cards pic
 **Interfaces:**
 - Consumes: Task 6's client method and upsert.
 - Produces: `backfill_events(session_factory, client, *, since, limit=None, dry_run=False) -> {"candidates", "fetched", "rows", "errors"}`:
-  finished fixtures (FT/AET/PEN) since `since` with no `fixture_events` rows, oldest first; `--dry-run` prints the
+  finished fixtures (FT/AET/PEN) since `since` with no `fixture_match_events` rows, oldest first; `--dry-run` prints the
   count of requests it would make and makes none. Writes inside `data_access(writer=True)`, one fixture per commit.
 
 - [ ] **Step 1: Failing tests:** dry run makes no requests and counts candidates; a run with `limit=2` fetches the two

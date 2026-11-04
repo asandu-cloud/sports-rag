@@ -133,6 +133,10 @@ class ApiFootballClient:
         data = self._get("/fixtures/players", params={"fixture": fixture_id})
         return data.get("response", []) or []
 
+    def fixture_events(self, fixture_id: int) -> List[Dict[str, Any]]:
+        data = self._get("/fixtures/events", params={"fixture": fixture_id})
+        return data.get("response", []) or []
+
     def teams_for_league(self, *, league: int, season: int) -> List[Dict[str, Any]]:
         data = self._get("/teams", params={"league": league, "season": season})
         return data.get("response", []) or []

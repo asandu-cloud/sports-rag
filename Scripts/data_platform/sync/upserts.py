@@ -14,12 +14,13 @@ import logging
 from datetime import date, datetime, timezone
 from typing import Any, Dict, Iterable, Mapping, Optional, Tuple
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from ..models import (
     Competition,
     Fixture,
+    FixtureEvent,
     FixturePlayerStats,
     FixtureTeamStats,
     Player,
@@ -481,6 +482,42 @@ def upsert_fixture_player_stats(
                     setattr(existing, col, value)
                 rows_upserted += 1
     return rows_upserted
+
+
+def upsert_fixture_events(
+    session: Session,
+    *,
+    fixture: Fixture,
+    events_response: Iterable[Mapping[str, Any]],
+) -> int:
+    """Replace a fixture's events with API-Football's ``/fixtures/events`` rows, kept in their order.
+
+    An empty reply leaves stored events alone: a finished match always has some (substitutions at
+    least), so an empty list means the feed has nothing yet, not that the match had no events.
+    """
+    events = list(events_response or [])
+    if not events:
+        return 0
+    session.execute(delete(FixtureEvent).where(FixtureEvent.fixture_id == fixture.id))
+    fetched_at = datetime.now(timezone.utc)
+    for index, event in enumerate(events):
+        clock = event.get("time") or {}
+        session.add(FixtureEvent(
+            fixture_id=fixture.id,
+            event_index=index,
+            team_api_id=_coerce_int((event.get("team") or {}).get("id")),
+            player_api_id=_coerce_int((event.get("player") or {}).get("id")),
+            assist_api_id=_coerce_int((event.get("assist") or {}).get("id")),
+            elapsed=_coerce_int(clock.get("elapsed")),
+            extra=_coerce_int(clock.get("extra")),
+            event_type=event.get("type"),
+            detail=event.get("detail"),
+            comments=event.get("comments"),
+            raw_json=dict(event),
+            fetched_at=fetched_at,
+        ))
+    session.flush()
+    return len(events)
 
 
 # ---------------------------------------------------------------------------

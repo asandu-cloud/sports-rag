@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import inspect, select
 from sqlalchemy.orm import Session
 
 from ..models import Fixture, SyncRun
@@ -26,6 +26,7 @@ from .apifootball import ApiFootballClient, COMPETITIONS, CompetitionSpec, iter_
 from .upserts import (
     get_watermark,
     upsert_competition,
+    upsert_fixture_events,
     upsert_fixture_from_api_row,
     upsert_fixture_player_stats,
     upsert_fixture_team_stats,
@@ -67,6 +68,7 @@ class SyncStats:
     fixtures_changed: int = 0
     team_stats_rows: int = 0
     player_stats_rows: int = 0
+    event_rows: int = 0
     fixture_detail_calls: int = 0
     errors: List[Dict[str, Any]] = field(default_factory=list)
 
@@ -76,6 +78,7 @@ class SyncStats:
             "fixtures_changed": self.fixtures_changed,
             "team_stats_rows": self.team_stats_rows,
             "player_stats_rows": self.player_stats_rows,
+            "event_rows": self.event_rows,
             "fixture_detail_calls": self.fixture_detail_calls,
             "error_count": len(self.errors),
             "errors": self.errors[:20],
@@ -96,8 +99,9 @@ def sync_fixture_details(
     archiver=None,
     sync_run_id: Optional[int] = None,
     fetch_players: bool = True,
+    fetch_events: bool = False,
 ) -> None:
-    """Fetch + upsert team + player stats for a single fixture."""
+    """Fetch + upsert team + player stats (and, with ``fetch_events``, events) for a single fixture."""
     try:
         team_payload = client.fixture_statistics(fixture.api_football_id)
         stats.fixture_detail_calls += 1
@@ -136,6 +140,26 @@ def sync_fixture_details(
     except Exception as exc:  # pragma: no cover - network path
         stats.errors.append({"fixture_id": fixture.api_football_id, "stage": "player_stats", "error": str(exc)})
         logger.warning("player_stats failed for fixture %s: %s", fixture.api_football_id, exc)
+
+    if not fetch_events:
+        return
+
+    try:
+        events_payload = client.fixture_events(fixture.api_football_id)
+        stats.fixture_detail_calls += 1
+        if archiver is not None:
+            archiver.archive_json(
+                provider="api_football",
+                endpoint="/fixtures/events",
+                params={"fixture": fixture.api_football_id},
+                payload=events_payload,
+                sync_run_id=sync_run_id,
+            )
+        with session.begin_nested():  # a failed write loses the events only, never the stats above
+            stats.event_rows += upsert_fixture_events(session, fixture=fixture, events_response=events_payload)
+    except Exception as exc:  # pragma: no cover - network path
+        stats.errors.append({"fixture_id": fixture.api_football_id, "stage": "events", "error": str(exc)})
+        logger.warning("events failed for fixture %s: %s", fixture.api_football_id, exc)
 
 
 # ---------------------------------------------------------------------------
@@ -285,6 +309,8 @@ def incremental_refresh(
     scope_label = "ALL" if codes is None else ",".join(codes)
     run = _start_run(session, kind="incremental", scope=f"{scope_label}:{','.join(map(str, year_list))}")
     stats = SyncStats()
+    # Events need migration 0010; until init-db creates the table the refresh carries on without them.
+    fetch_events = fetch_players and inspect(session.connection()).has_table("fixture_match_events")
 
     try:
         for spec in specs:
@@ -343,7 +369,7 @@ def incremental_refresh(
                             api_id = fixture.api_football_id
                             fixture.payload_digest = None
                             session.commit()
-                            detail_client = _buffer_fixture_details(client, api_id, fetch_players)
+                            detail_client = _buffer_fixture_details(client, api_id, fetch_players, fetch_events)
                         sync_fixture_details(
                             session,
                             client=detail_client,
@@ -352,6 +378,7 @@ def incremental_refresh(
                             archiver=archiver,
                             sync_run_id=run.id,
                             fetch_players=fetch_players,
+                            fetch_events=fetch_events,
                         )
                         if short_transactions and len(stats.errors) == errors_before_fixture:
                             fixture.payload_digest = digest
@@ -382,14 +409,16 @@ def incremental_refresh(
         raise
 
 
-def _buffer_fixture_details(client, api_id, fetch_players):
+def _buffer_fixture_details(client, api_id, fetch_players, fetch_events=False):
     """Fetch remote details without an open write transaction.
 
     Replay the responses through the existing normalization/upsert code.
     Failures are replayed too, so its usual error accounting is preserved.
     """
     responses = {}
-    for name in ("fixture_statistics", "fixture_players") if fetch_players else ("fixture_statistics",):
+    names = ("fixture_statistics",) + (("fixture_players",) if fetch_players else ()) + (
+        ("fixture_events",) if fetch_events else ())
+    for name in names:
         try:
             responses[name] = getattr(client, name)(api_id)
         except Exception as exc:

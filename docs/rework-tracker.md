@@ -108,7 +108,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | A5.4: build the chosen policy behind a switch (`line_selection`, `match_read_compiler`, `confidence_from_edge`), golden preview; proposal in D31. Cards from Pinnacle's fair price: plan `docs/superpowers/plans/2026-11-03-cards-work.md` (D58, revised D61: Pinnacle re-checked at price confirmation, no referee guardrail on Pinnacle-priced lines, cards left out of the recommendation layer's Value list). Built 3 Nov on the backend branch (plan task 2): switch `SPIX_CARDS_REFERENCE` (`off` | `pinnacle`, default off; merge checks pin it to off with the others); on, each cards line takes Pinnacle's own fair price, a line Pinnacle does not price on both sides is never picked, the referee guardrail is skipped for those picks, and the anchor record says `reference: pinnacle`. **Ready for Tue 10 Nov, switch off (D62).** Plan task 3 (3 Nov): price confirmation also reads Pinnacle's own price now for such a pick, in the same free history request; the pick needs Pinnacle seen within 60 min, both sides listed, and 2% value against Pinnacle's current fair price, which becomes the published chance; otherwise no bet (`reference_not_recent`, `reference_not_listed`, `reference_moved`) | A5; cards live Tue 10 Nov if ready (D58), the rest at A3.7 stage 6, earliest Tue 17 Nov | Gate (report): published picks' calibration error ≤ 3 pts and closing line value at least neutral over 4+ live matchweeks |
 | Rerun the A5.1 study (`python -m Scripts.ops.disagreement_study --out Research/disagreement-<date>`) as weeks accrue | A5, with each A5 step | Rerun 23 Oct on two weeks (`Research/disagreement-2026-10-23/`, 32,855 lines, 295 fixtures): see the finding of 23 Oct on corners. Rerun 28 Oct (`Research/disagreement-2026-10-28/`, 44,196 lines, 393 fixtures): corners again carry information (c +0.38, +0.08 to +0.63); no other market's interval excludes zero |
 | Rerun the A4.2 study weekly (`python -m Scripts.ops.calibration_study --out Research/calibration-<date>`); calibrator decision with ≥3 weeks of audited fixtures | A4, decision at A3.7 stage 5 (not before Tue 10 Nov, D29) | Not adopted 16 Oct: one audited week, no market passes the gate (D28). Rerun 23 Oct (`Research/calibration-2026-10-23/`, up to 238 fixtures): Platt passes the gate on goals (−5.77%) and Asian handicap (−3.41%), which leave A4's scope at stage 4 (M1, D29); not on corners (+0.21%) or cards (+0.00%), the markets A4 keeps; BTTS not adopted (389 rows). Fixed corner dispersions still no worse than the floors on counts. Rerun 28 Oct (`Research/calibration-2026-10-28/`, up to 336 fixtures): no market passes; Platt on goals −3.78% (−0.0433 to +0.0031) and the handicap −2.47% (−0.0286 to +0.0011) no longer clear zero, corners +0.14%, cards −0.60%, BTTS −6.40% (542 rows, interval includes zero); Spix's log loss is above the market's in every market. Rerun 3 Nov (`Research/calibration-2026-11-03/`, up to 439 fixtures, D54 c): only the handicap passes (Platt −3.24%, −0.0316 to −0.0056), but stage 4 prices the handicap from the market, so it has no use there; in the markets A4 still owns no calibrator passes: corners +0.11% (−0.0060 to +0.0066), cards −0.61% (−0.0126 to +0.0068); goals −3.22% and BTTS −4.71% include zero. Stage 5 has nothing to ship. The market is ahead of Spix in all five markets (every interval above zero). Cards rerun 3 Nov with the bookmakers' count (D54 b; `Research/calibration-2026-11-03-cards-rule/`, 4,748 rows, 416 fixtures): the market's own cards error falls from 3.2 to 2.6 pts (slope 1.21 to 1.14), as expected when grading by the rule the bookmakers price; Spix's rises from 5.7 to 8.6 (slope 0.94 to 0.89); Spix − market log loss +0.0123 to +0.0569. Platt on cards −1.32% (−0.0207 to +0.0075): still no calibrator |
-| Qualify the card settlement definition (yellow + red vs bookmakers' bookings rules, second yellows) before calibrating or scoring cards | Studies done 3 Nov (D54 b): `calibration_data.fixture_outcomes` grades cards as published picks settle (player statistics, yellow 1, red 2, at most 3, FT only; incomplete statistics ungraded), so every study rerun recomputes past rows. The `/fixtures/events` refresh and backfill: cards plan tasks 6–7 (D58, D61) | Published picks already settled this way; on the old grading (yellow + red) the market's card slope was 1.40 in D28 and 1.21 on the 3 Nov data; 1.14 on the same data with the new count |
+| Qualify the card settlement definition (yellow + red vs bookmakers' bookings rules, second yellows) before calibrating or scoring cards | Studies done 3 Nov (D54 b): `calibration_data.fixture_outcomes` grades cards as published picks settle (player statistics, yellow 1, red 2, at most 3, FT only; incomplete statistics ungraded), so every study rerun recomputes past rows. The `/fixtures/events` refresh: built 3 Nov (cards plan task 6), into a new table `fixture_match_events` (migration 0010). The refresh asks for one more request per finished match. It skips events until `init-db` creates the table after the merge, and an events failure keeps that match's statistics and fetches it again next run. The backfill: built 3 Nov (task 7), `python -m Scripts.data_platform backfill-events --since 2026-09-20 [--limit N] [--dry-run]`: finished matches with no events, oldest first, one request each, under the writer gate. Rehearsed on a copy 4 Nov (D64): 20 matches, reds agree with the statistics in all 20. The full run after the merge waits for the owner's go, with the dry-run count and the day's remaining requests (D58, D61, D64) | Published picks already settled this way; on the old grading (yellow + red) the market's card slope was 1.40 in D28 and 1.21 on the 3 Nov data; 1.14 on the same data with the new count |
 | Cards and goals variance floors (no qualified dispersion yet) | A6 | Cards outside research qualification; goals use the score matrix |
 | Market expansion wave 1: team goal totals, double chance, draw no bet (D25) | After A5 | No new modelling; anchored by M1 |
 | Market expansion wave 2: team corners totals, corners handicap (D25) | After wave 1 | Team corner projections exist; priced on ~half of fixtures |
@@ -1057,7 +1057,9 @@ Nov, and Monday's scorecard shows no fault with stage 4; otherwise 17 Nov. Plan:
 - *Player statistics agree with the events rule* on 97.6% of 19,357 matches with card events (94.3% of the 3,427 with
   a red). The events (D54 a) are kept for checking and modelling, not needed to settle. The backfill is about 540
   requests (536 matches finished 20 Sep–3 Nov), then about one per finished match a day.
-- *Migration numbers:* `0010` is the events table; the recommendation layer's ledger takes `0011`.
+- *Migration numbers:* `0010` is the events table; the recommendation layer's ledger takes `0011`. The table is
+  `fixture_match_events` (3 Nov, task 6): the player-history staging database already has a `fixture_events` of
+  its own, with another layout, and is built from the platform's tables.
 
 **D61 — A5.4 cards: the owner's three answers, and the plan revised (3 Nov, owner).** After a second read of this
 tracker the cards plan (`docs/superpowers/plans/2026-11-03-cards-work.md`, now 7 tasks) goes live on 10 Nov for
@@ -1108,6 +1110,41 @@ across 54 fixtures".
   check drops (`reference_*` reasons in `price_confirmation`).
 - *For the merge checks:* pin `SPIX_CARDS_REFERENCE=off` with the other switches. *For the frontend:* the
   `recommendations.v1` Value list now leaves out cards and shots-on-target picks (D61); the shape is unchanged.
+
+**D64 — Match events are built and rehearsed on a copy, ready to merge (3–4 Nov, backend branch).** Cards plan
+tasks 6–7 (D54 a, D58). Nothing here changes a published pick: the events are stored for checking and modelling,
+and the pinned `golden_snapshots check` prints "no changes across 54 fixtures".
+- *What ships:* the table `fixture_match_events` (migration `0010`); the daily refresh asks for one
+  `/fixtures/events` request per finished match; the command `backfill-events` fills the older matches (Open items,
+  card settlement row).
+- *Builder's calls:*
+  - an empty events reply leaves the stored events alone, since a finished match always has some;
+  - only the daily refresh fetches events; the bootstrap and replays do not, and older matches go through the command;
+  - an events failure counts as a refresh error, like a player-statistics failure: the match keeps its statistics,
+    the refresh retries hourly and fetches it again. Cost: one more way a run can fail;
+  - the command holds the writer gate for its whole run, so the Match Read worker sees one change, not one per match.
+    Cost: the worker skips its runs for about 4 minutes during the full backfill (0.45 s a request in the
+    rehearsal). Run it outside refresh hours;
+  - the command stops before any request while the table is missing.
+- *Order, each step on the owner's go:* the rehearsal on a copy (done 4 Nov, below); the merge; `init-db` on the real
+  database; the full backfill (about 535 requests, against the day's remaining budget).
+- *Rehearsal (4 Nov, on an APFS clone of `Index/platform.db`, deleted after):* `init-db` 0009 → 0010 in seconds; the
+  dry run counts 554 matches (D58's 536 plus 3 Nov's late games), the same as a direct count; 20 requests in 9 s, 20
+  fetched, 308 events, no errors or empty replies; a second dry run counts 534, so a stopped run resumes.
+  - *Cards against the statistics, 20 matches:* reds agree in all 20 (2 reds, in the events and in the player and
+    team statistics). Yellows agree in 18. In one, the events lack a yellow that both statistics have. In the other,
+    the player and team statistics record a second-yellow dismissal as a red alone, so grading from the statistics
+    gives that player 2 where the bookmakers' rule gives 3. The older player-history events show this is rare: of
+    1,768 second yellows, the player statistics have 1,754 as 2 yellows + 1 red, 10 as a red alone and 4 as nothing;
+    8 of 2,226 straight reds are missing. Settling from the events where the two disagree is possible after the
+    backfill; not needed now.
+  - *For the modelling:* count `Card` events only. A VAR "Card upgrade" is not always followed by a red (one of
+    the two in the sample left the yellow standing). Team statistics store no red as empty, not 0.
+- *For the merge checks:* needs `init-db` after the merge, with the owner's go; until then the refresh skips events.
+  No `.env` line, no website restart.
+- *Left for later (minor):* `--limit` accepts 0 or a negative number (a negative one drops matches from the newest
+  end); one error catch in the command is redundant; A5.4's price confirmation devigs Pinnacle's prices under the
+  quoting bookmaker's name (a label only, results unchanged).
 
 ## Findings that shape later steps
 

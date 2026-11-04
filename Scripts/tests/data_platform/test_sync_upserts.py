@@ -15,6 +15,7 @@ from data_platform.sync.apifootball import CompetitionSpec
 from data_platform.sync.upserts import (
     get_watermark,
     upsert_competition,
+    upsert_fixture_events,
     upsert_fixture_from_api_row,
     upsert_fixture_player_stats,
     upsert_fixture_team_stats,
@@ -164,3 +165,63 @@ def test_watermark_round_trip(session_factory):
         assert wm is not None
         assert wm.last_cursor == "2025-08-10"
         assert (wm.meta or {}).get("mode") == "bootstrap"
+
+
+def _events_response(count=5):
+    """API-Football /fixtures/events rows: cards and a goal, in match order."""
+    rows = [
+        {"time": {"elapsed": 12, "extra": None}, "team": {"id": 100}, "player": {"id": 7, "name": "A"},
+         "assist": {"id": None}, "type": "Card", "detail": "Yellow Card", "comments": "Foul"},
+        {"time": {"elapsed": 30, "extra": None}, "team": {"id": 200}, "player": {"id": 8, "name": "B"},
+         "assist": {"id": 9}, "type": "Goal", "detail": "Normal Goal", "comments": None},
+        {"time": {"elapsed": 44, "extra": 2}, "team": {"id": 200}, "player": {"id": 10, "name": "C"},
+         "assist": {"id": None}, "type": "Card", "detail": "Red Card", "comments": "Professional foul"},
+        {"time": {"elapsed": 70, "extra": None}, "team": {"id": 100}, "player": {"id": 11, "name": "D"},
+         "assist": {"id": None}, "type": "Card", "detail": "Yellow Card", "comments": None},
+        {"time": {"elapsed": 88, "extra": None}, "team": {"id": 100}, "player": {"id": 11, "name": "D"},
+         "assist": {"id": None}, "type": "Card", "detail": "Red Card", "comments": "Second yellow"},
+    ]
+    return rows[:count]
+
+
+def test_events_upsert_replaces_a_fixtures_events(session_factory):
+    from sqlalchemy import select
+    from data_platform.models import FixtureEvent
+    with session_factory() as s:
+        comp = upsert_competition(s, SPEC)
+        season = upsert_season(s, competition=comp, year=2025)
+        s.flush()
+        fx, _ = upsert_fixture_from_api_row(s, api_row=_api_fixture_row(), competition=comp, season=season)
+        assert upsert_fixture_events(s, fixture=fx, events_response=_events_response()) == 5
+        s.flush()
+        red = s.scalars(select(FixtureEvent).where(FixtureEvent.event_index == 2)).one()
+        assert (red.team_api_id, red.player_api_id, red.elapsed, red.extra, red.event_type, red.detail) == (
+            200, 10, 44, 2, "Card", "Red Card")
+        assert red.raw_json["comments"] == "Professional foul" and red.fetched_at is not None
+        assert upsert_fixture_events(s, fixture=fx, events_response=_events_response(4)) == 4
+        s.flush()
+        assert len(s.scalars(select(FixtureEvent).where(FixtureEvent.fixture_id == fx.id)).all()) == 4
+        # A finished match always has events (substitutions at least): an empty reply is missing data
+        assert upsert_fixture_events(s, fixture=fx, events_response=[]) == 0
+        s.flush()
+        assert len(s.scalars(select(FixtureEvent).where(FixtureEvent.fixture_id == fx.id)).all()) == 4
+
+
+def test_events_migration_round_trip(settings):
+    from pathlib import Path
+    from alembic import command
+    from alembic.config import Config
+    from sqlalchemy import create_engine, inspect
+    root = Path(__file__).resolve().parents[2] / "data_platform"
+    cfg = Config(str(root / "alembic.ini"))
+    cfg.set_main_option("script_location", str(root / "alembic"))
+    command.upgrade(cfg, "0009_research_profiles")
+    db = create_engine(settings.database_url)
+    before = set(inspect(db).get_table_names())
+    command.upgrade(cfg, "head")
+    assert set(inspect(db).get_table_names()) - before == {"fixture_match_events"}
+    assert {tuple(u["column_names"]) for u in inspect(db).get_unique_constraints("fixture_match_events")} == {
+        ("fixture_id", "event_index")}
+    command.downgrade(cfg, "0009_research_profiles")
+    assert set(inspect(db).get_table_names()) == before
+    db.dispose()

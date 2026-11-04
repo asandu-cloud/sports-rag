@@ -335,7 +335,8 @@ Spreads in `jointChance` use the home team's view: `side` is "home"/"away" in th
 
 **Files:**
 - Create: `Scripts/data_platform/models/recommendation_options.py`, register in `models/__init__.py`
-- Create: `Scripts/data_platform/alembic/versions/0010_recommendation_options.py` (revises `0009_research_profiles`)
+- Create: `Scripts/data_platform/alembic/versions/0011_recommendation_options.py` (revises `0010_fixture_events`,
+  the cards work's events table, D58; check `alembic heads` shows one head)
 - Create: `Scripts/data_platform/services/recommendation_ledger.py`
 - Modify: `Scripts/data_platform/services/measurement_cycle.py:186-200` (call the ledger inside the same
   `data_access()` block, after the cycle, in its own try/except so it can never fail the cycle)
