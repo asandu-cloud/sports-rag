@@ -1319,6 +1319,37 @@ since them (`logo.js` and `theme.js` 29 Oct, `landing.css`, `methodology.js` and
 from now on: any commit that changes a versioned file changes its tag in the same commit. Live after the merge; no
 restart needed, as the static files are read from disk.
 
+**D70 — Started matches keep their picks from before kickoff, with a live status (4 Nov, owner).** Until now a
+started match fell back to a schedule card saying "No pre-match recommendation is available for this fixture", wrong
+since D68. *Owner, from selectable questions:* in each league, upcoming matches come first and started ones follow;
+the card shows Most likely and Value; the live status is shown (the extra API-Football requests are accepted); no Hit
+or Miss for now (a public track record is its own decision). The card's look is the frontend's, from its mockups.
+- *Built (backend):* the board `/api/match-reads/{league}/{date}` gains `before_kickoff` (each entry
+  `before-kickoff.v1`: fixture, logos, `read_at`, up to 3 Most likely and 2 Value as market, side, line, label and
+  chance, and `status`). It carries no price, no "Worth it at" and nothing to add, and started matches stay out of
+  `cards`, so nothing after kickoff reads as a bet to place now. An entry is the effective read among those evaluated
+  before kickoff, and only if it passed the release check a second before kickoff: what a visitor could see then. A
+  freshness check after kickoff is ignored. Behind `SPIX_BEFORE_KICKOFF` (off) and `SPIX_RECOMMENDATIONS`.
+- *Live status:* `data_platform/services/live_status.py`, behind `SPIX_LIVE_STATUS` (off). The stored schedule keeps
+  "NS" until the next morning's refresh on purpose: `features_from_canonical` and `events_backfill` select finished
+  fixtures by that status, so writing live statuses there could move published picks (rejected). The website instead
+  asks API-Football for the day's started matches in every public league: one request per 20, with no retries and
+  a 10-second read limit. It asks at most every 5 minutes, never again once a match is over or called off, and at
+  most 400 requests a UTC day. Statuses stay in the website's memory; nothing is written. A request never waits
+  for another's provider call. The status reaches `before_kickoff[].status` and `live_status` on the schedule's rows,
+  where the stored `status` string is unchanged. Expected cost: about 80 requests on a European night, 130 to 250 on a
+  busy Saturday. The schedule endpoint's "cannot invoke providers" rule now has this one exception.
+- *Tests:* 12 new (live-status cache, request and switch; the board's list, its release rule, and the status on
+  both endpoints). `conftest.py` now pins `SPIX_RECOMMENDATIONS`, `SPIX_BEFORE_KICKOFF` and `SPIX_LIVE_STATUS` blank, so
+  no test reaches API-Football whatever `.env` holds. Full suite 2,779 passed, 4 skipped (the worktree-only
+  `test_phase4_baseline_freeze.py` left out); JS 5/5; pinned golden check unchanged. Checked on real data on port 8200
+  at 22:27 with the list on and the status off: 14 started matches on 4 Nov (9 Champions League, 1 Europa League,
+  1 Belgian, 3 Championship), each with three Most likely picks; Fenerbahçe v Liverpool also kept its Value pick.
+  - *Finding:* the card shows the last read before kickoff, so a Value pick withdrawn before kickoff is not on it.
+    Lens v Como's "Under 3.5 goals" was on the read of 13:44 UTC and gone from the one of 19:54 UTC.
+- *Going live:* the frontend's card merged, then `SPIX_BEFORE_KICKOFF=on` and `SPIX_LIVE_STATUS=on` in `.env` and a
+  website restart. No migration.
+
 **D71 — Before-kickoff cards on the board (4 Nov, frontend; owner's choice).** For the rest of the day, a started
 match keeps the picks Spix had for it before kickoff, so someone watching it can still see what Spix said. Built
 against the backend's `before_kickoff` list (`before-kickoff.v1`, D70) and its `status` / `live_status` objects.

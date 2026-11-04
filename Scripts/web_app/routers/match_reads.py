@@ -78,6 +78,32 @@ def _get_fixture_schedule_repository():
     return FixtureScheduleRepository()
 
 
+_LIVE_STATUSES = None
+
+
+def _get_live_statuses():
+    """One in-memory live-status cache per website process (D70), shared by every board request."""
+    global _LIVE_STATUSES
+    if _LIVE_STATUSES is None:
+        from data_platform.services.live_status import LiveStatuses
+
+        _LIVE_STATUSES = LiveStatuses()
+    return _LIVE_STATUSES
+
+
+def _live_statuses_for(matchday: date, now: datetime, rows: Optional[Sequence[Mapping[str, Any]]] = None) -> Dict[str, Any]:
+    """Live status for the day's started matches in every public league, so one request covers the whole board.
+    Only called while ``SPIX_LIVE_STATUS`` is on; a schedule failure gives no statuses, never an error page."""
+    try:
+        if rows is None:
+            rows = _get_fixture_schedule_repository().list_for_matchday(
+                target_date=matchday, leagues=PUBLIC_MATCH_READ_LEAGUES)
+        return _get_live_statuses().lookup([row.get("fixture") or {} for row in rows], now=now)
+    except Exception as exc:
+        logger.warning("Live status is unavailable for %s: %s", matchday, type(exc).__name__)
+        return {}
+
+
 def _utc_now() -> datetime:
     """Small clock seam so public-card freshness is testable."""
     return datetime.now(timezone.utc)
@@ -254,8 +280,62 @@ def _effective_cards(
             # board.  It remains visible to operations through the log.
             logger.warning("Skipping unreadable Match Read fixture %s: %s", fixture_id, exc)
 
+    return _by_kickoff(cards)
+
+
+def _before_kickoff(reads: Sequence[Mapping[str, Any]], *, now: datetime) -> List[Dict[str, Any]]:
+    """Each started match's picks as the board showed them at kickoff (D70).
+
+    Only reads evaluated before kickoff count, and the effective one among them must have passed the release
+    check a second before kickoff: what a visitor could see then, never a read made or refreshed afterwards.
+    """
+    from data_platform.services import before_kickoff
+    from data_platform.services.match_read_release import assess_match_read_release
+
+    observations = _latest_successful_observations(reads)
+    by_fixture: Dict[str, List[Mapping[str, Any]]] = {}
+    for read in reads:
+        fixture = read.get("fixture") if isinstance(read.get("fixture"), Mapping) else {}
+        fixture_id = str(fixture.get("event_id") or "").strip()
+        if fixture_id:
+            by_fixture.setdefault(fixture_id, []).append(read)
+    entries = []
+    for fixture_id, fixture_reads in by_fixture.items():
+        kickoff = _timestamp_rank((fixture_reads[0].get("fixture") or {}).get("kickoff"))
+        if kickoff == float("-inf") or kickoff > now.timestamp():
+            continue
+        effective = select_effective_match_read(
+            read for read in fixture_reads if _timestamp_rank(_evaluated_at(read)) < kickoff)
+        if effective is None:
+            continue
+        observed = _observed_at_for_read(effective, observations)
+        if observed is not None and _timestamp_rank(
+                observed.isoformat() if isinstance(observed, datetime) else observed) > kickoff:
+            observed = None  # a check after kickoff says nothing about what was shown at kickoff
+        assessment = assess_match_read_release(
+            effective, now=datetime.fromtimestamp(kickoff - 1, tz=timezone.utc), observed_at=observed)
+        if not assessment.eligible:
+            continue
+        try:
+            card = _card_from_read(effective)
+        except ValueError as exc:
+            logger.warning("Skipping unreadable Match Read fixture %s: %s", fixture_id, exc)
+            continue
+        read_at = assessment.freshness_checked_at or assessment.evaluated_at
+        item = before_kickoff.entry(card, read_at=read_at.isoformat().replace("+00:00", "Z") if read_at else None)
+        if item is not None:
+            entries.append(item)
+    return _by_kickoff(entries)
+
+
+def _evaluated_at(read: Mapping[str, Any]) -> Any:
+    provenance = read.get("provenance")
+    return provenance.get("evaluated_at") if isinstance(provenance, Mapping) else None
+
+
+def _by_kickoff(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return sorted(
-        cards,
+        items,
         key=lambda card: (
             str(card.get("fixture", {}).get("kickoff") or ""),
             str(card.get("fixture", {}).get("event_id") or ""),
@@ -341,7 +421,9 @@ def get_matchday_schedule(target_date: str, league: Optional[str] = None) -> Dic
     """Return the seven-day board's stored schedule, independent of publication.
 
     A schedule entry is not a Match Read or a recommendation. This endpoint
-    cannot invoke providers, the prediction engine, or the publication worker.
+    cannot invoke the prediction engine or the publication worker. Its one
+    provider call is the live status of started matches (D70), only while
+    ``SPIX_LIVE_STATUS`` is on, kept in memory and never written.
     """
     matchday = _parse_matchday(target_date)
     today = _utc_now().date()
@@ -359,6 +441,12 @@ def get_matchday_schedule(target_date: str, league: Optional[str] = None) -> Dic
     except Exception as exc:
         logger.exception("Stored fixture schedule failed for %s", matchday)
         raise HTTPException(status_code=503, detail="The fixture schedule is temporarily unavailable.") from exc
+    from data_platform.services import live_status
+
+    if live_status.enabled():
+        statuses = _live_statuses_for(matchday, _utc_now(), None if league else fixtures)
+        for row in fixtures:
+            row["live_status"] = statuses.get(str((row.get("fixture") or {}).get("event_id")))
     return {"schema_version": "fixture-schedule.v1", "date": matchday.isoformat(),
             "fixtures": fixtures, "count": len(fixtures)}
 
@@ -500,11 +588,22 @@ def get_matchday_match_reads(league: str, target_date: str) -> Dict[str, Any]:
     matchday = _parse_matchday(target_date)
     service = _get_match_read_service()
     reads = _load_matchday_reads(service, league=league_code, target_date=matchday)
-    cards = _effective_cards(reads, now=_utc_now())
-    return {
+    now = _utc_now()
+    cards = _effective_cards(reads, now=now)
+    body = {
         "schema_version": MATCH_READ_BOARD_SCHEMA_VERSION,
         "league": league_code,
         "date": matchday.isoformat(),
         "cards": cards,
         "count": len(cards),
     }
+    from data_platform.services import before_kickoff, live_status
+
+    if before_kickoff.enabled():
+        entries = _before_kickoff(reads, now=now)
+        if entries and live_status.enabled():
+            statuses = _live_statuses_for(matchday, now)
+            for entry in entries:
+                entry["status"] = statuses.get(entry["fixture"]["event_id"])
+        body["before_kickoff"] = entries
+    return body
