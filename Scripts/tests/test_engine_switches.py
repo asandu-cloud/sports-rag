@@ -14,7 +14,8 @@ def test_defaults_are_todays_behaviour(monkeypatch):
     assert engine_switches.snapshot() == {"version": "engine-switches.v1", "DOCUMENT_STORE": "chroma",
                                           "SPIX_COUNT_DISPERSION": "floors", "SPIX_DEVIG_METHOD": "proportional",
                                           "SPIX_MARKET_ANCHOR": "off", "SPIX_SELECTION_POLICY": "legacy",
-                                          "SPIX_BOOKMAKER_SET": "all", "SPIX_CONFIDENCE_LABELS": "edge"}
+                                          "SPIX_BOOKMAKER_SET": "all", "SPIX_CONFIDENCE_LABELS": "edge",
+                                          "SPIX_CARDS_REFERENCE": "off"}
     assert prediction_guardrails.fixed_dispersion_enabled() is False
     assert team_resolution.document_store_handle() is None
 
@@ -74,3 +75,11 @@ def test_switched_on_totals_selection_prices_against_the_power_fair(monkeypatch)
         implied[method] = {row["side"]: row["_implied_prob"] for row in result["all_lines"]}
     assert implied["proportional"]["under"] == remove_vig_two_way(1.45, 2.80)[1]
     assert implied["power"]["under"] == devig.power([1.45, 2.80])[1]
+
+
+def test_the_cards_reference_switch_is_off_in_tests_and_listed_in_the_snapshot():
+    # A5.4 (D58, D61): cards from Pinnacle's fair price only when the owner sets SPIX_CARDS_REFERENCE=pinnacle.
+    import os
+    assert os.environ.get("SPIX_CARDS_REFERENCE") == "off"
+    assert engine_switches.snapshot()["SPIX_CARDS_REFERENCE"] == "off"
+    assert engine_switches.SWITCHES["SPIX_CARDS_REFERENCE"] == ("off", frozenset({"off", "pinnacle"}))

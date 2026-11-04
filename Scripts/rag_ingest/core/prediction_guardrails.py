@@ -153,11 +153,14 @@ def assess_market_quality(
     *,
     variance_source: Optional[str] = None,
     referee_source: Optional[str] = None,
+    market_priced: bool = False,
 ) -> Dict[str, Any]:
     """Decide whether data quality permits a public recommendation.
 
     This does not recalculate odds or alter a model value.  It converts known
-    input limitations into a transparent suppression/cap decision.
+    input limitations into a transparent suppression/cap decision.  A cards
+    line priced from Pinnacle (``market_priced``, A5.4, D61) publishes Pinnacle's
+    chance, not Spix's referee-based number, so it needs no profiled referee.
     """
     home, away = _profile_values(data_quality)
     profile_status = str((data_quality.get("profiles") or {}).get("status") or "unavailable")
@@ -183,7 +186,7 @@ def assess_market_quality(
         )
     if min_effective < QUALITY_GUARDRAILS["minimum_effective_sample_size"]:
         reasons.append("Effective profile sample is below the minimum guardrail.")
-    if market == "cards" and QUALITY_GUARDRAILS["cards_require_profiled_referee"]:
+    if market == "cards" and QUALITY_GUARDRAILS["cards_require_profiled_referee"] and not market_priced:
         if referee_source != "profile":
             reasons.append("Cards recommendations require a profiled referee assignment.")
 

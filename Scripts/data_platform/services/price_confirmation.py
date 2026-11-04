@@ -19,6 +19,12 @@ OddsPapi records changes only and checks each bookmaker on its own schedule (22 
 bookmaker was seen on any line of the match within ``MAX_AGE`` (``None``: no limit; the record keeps when it was
 seen either way).
 
+A cards pick priced from Pinnacle's fair price (A5.4, ``context.market_anchor.reference``, D61) also needs
+Pinnacle's own price now, because our copy of Pinnacle is often stale near kickoff (A1.4: a median 130 minutes
+old in the last 3 hours) and it is the pick's only reference: Pinnacle seen within ``MAX_AGE``, both sides of the
+line listed and active, and value at the published odds against Pinnacle's current fair price of at least
+``min_ev``. The published chance becomes that fair price; anything else is a no-bet.
+
 The evidence goes to the result's ``context["price_confirmation"]``. Only reads made under
 ``SPIX_SELECTION_POLICY=market_value`` (A3.7 stage 4) are checked. Fixture ids come from weekly fixture
 lists (one billable request per competition and week) cached apart from the true close's, so a list
@@ -43,6 +49,7 @@ VERSION = "price-confirmation.v1"
 TOLERANCE = 0.005  # as the price check (ops/price_check.py)
 MAX_AGE = timedelta(minutes=60)  # owner, 28 Oct (D45); None would take the newest price however old, with its time
 CACHE = oddspapi.CACHE / "confirmation"
+REFERENCE = "pinnacle"  # A5.4 cards (D61): the bookmaker whose fair price a referenced pick is published at
 REASONS = {
     "price_gone": "the bookmaker's price is now shorter and no longer has value",
     "suspended": "the bookmaker has suspended the line",
@@ -56,6 +63,9 @@ REASONS = {
     "market_list_error": "OddsPapi's market list could not be read",
     "history_error": "OddsPapi's price history could not be read",
     "no_oddspapi_key": "no OddsPapi key is set",
+    "reference_not_recent": "OddsPapi has not checked Pinnacle recently",
+    "reference_not_listed": "Pinnacle does not list both sides of the line",
+    "reference_moved": "against Pinnacle's price now, the pick no longer has value",
 }
 
 
@@ -93,11 +103,16 @@ class PriceConfirmation:
             return {**records, **{i: _record(snapshots[i], now, s, reason="fixture_list_error") for i, s in slugs.items()}}
         if odds_id is None:
             return {**records, **{i: _record(snapshots[i], now, s, reason="fixture_not_matched") for i, s in slugs.items()}}
-        bodies, failed = self._histories(odds_id, set(slugs.values()))
+        referenced = {i for i in slugs if _reference(snapshots[i])}
+        bodies, failed = self._histories(odds_id, set(slugs.values()) | ({REFERENCE} if referenced else set()))
         for i, slug in slugs.items():
             known = {"oddspapi_fixture_id": odds_id}
-            records[i] = (_record(snapshots[i], now, slug, reason="history_error", **known) if slug in failed
-                          else self._verdict(snapshots[i], lines[i], slug, bodies.get(slug), now, known))
+            if slug in failed or (i in referenced and REFERENCE in failed):
+                records[i] = _record(snapshots[i], now, slug, reason="history_error", **known)
+                continue
+            records[i] = self._verdict(snapshots[i], lines[i], slug, bodies.get(slug), now, known)
+            if i in referenced and records[i]["status"] != "not_confirmed":
+                records[i] = self._against_reference(snapshots[i], lines[i], records[i], bodies.get(REFERENCE), now)
         return records
 
     def _fixture_id(self, fixture):
@@ -153,14 +168,39 @@ class PriceConfirmation:
         place = oddspapi.locate(self.index, line)
         return [p for p in oddspapi.series(body, slug, *place) if p[0] <= now] if place else []
 
-    def _own_fair(self, snapshot, line, slug, body, now):
-        """The bookmaker's own fair probability for the pick now, from all its prices on the line, or None."""
+    def _prices_now(self, line, slug, body, now):
+        """[(side, point, price)] of every outcome of the line at the bookmaker now, or None if one is missing."""
         prices = []
         for side, point in line_outcomes(line):
             points = self._points(body, slug, {**line, "side": side, "point": point}, now)
             if not points or not points[-1][2] or not points[-1][1]:
                 return None
             prices.append((side, point, points[-1][1]))
+        return prices
+
+    def _against_reference(self, snapshot, line, record, body, now):
+        """The record of a Pinnacle-priced pick, kept only while it has value against Pinnacle's price now."""
+        seen = oddspapi.last_seen(body, REFERENCE)
+        if seen is None or (self.max_age is not None and now - seen > self.max_age):
+            return {**record, "status": "not_confirmed", "reason": "reference_not_recent"}
+        prices = self._prices_now(line, REFERENCE, body, now)
+        if prices is None:
+            return {**record, "status": "not_confirmed", "reason": "reference_not_listed"}
+        fair = self._fair(snapshot, line, prices)
+        reference = {"site": REFERENCE, "seen_at": seen.isoformat(), "odds": {side: price for side, _, price in prices},
+                     "fair_probability": fair}
+        odds = record["own_odds"] if record["status"] == "repriced" else snapshot["decision"]["quote"]["odds"]
+        if fair is None or fair * odds - 1 < self.min_ev:
+            return {**record, "status": "not_confirmed", "reason": "reference_moved", "reference": reference}
+        return {**record, "reference": reference}
+
+    def _own_fair(self, snapshot, line, slug, body, now):
+        """The bookmaker's own fair probability for the pick now, from all its prices on the line, or None."""
+        prices = self._prices_now(line, slug, body, now)
+        return None if prices is None else self._fair(snapshot, line, prices)
+
+    @staticmethod
+    def _fair(snapshot, line, prices):
         switches = (snapshot.get("context") or {}).get("engine_switches") or {}
         _, consensus, _ = devig_consensus({line["bookmaker"]: prices}, line["side"], line["point"],
                                           spreads=line["market"] == "spreads",
@@ -226,6 +266,11 @@ def _rebuild(original, snapshot):
     return type(original).from_dict(snapshot) if callable(getattr(original, "to_dict", None)) else snapshot
 
 
+def _reference(snapshot):
+    """True for a pick priced from Pinnacle's own fair price (A5.4 cards)."""
+    return ((snapshot.get("context") or {}).get("market_anchor") or {}).get("reference") == REFERENCE
+
+
 def _recommended(snapshot):
     return (snapshot.get("decision") or {}).get("status") == "recommended"
 
@@ -258,6 +303,14 @@ def _apply(snapshot, record):
     out = {**snapshot, "context": {**(snapshot.get("context") or {}), "price_confirmation": {
         k: v for k, v in record.items() if k != "fair_probability"}}}
     decision = dict(snapshot["decision"])
+    reference = record.get("reference")
+    if reference and record["status"] != "not_confirmed":  # the published chance is Pinnacle's fair price now
+        p = reference["fair_probability"]
+        implied = decision.get("implied_probability")
+        decision.update(model_probability=p, settlement_profile={"full_win": p, "half_win": 0.0, "push": 0.0,
+                                                                 "half_loss": 0.0, "full_loss": 1.0 - p},
+                        value_edge=p - implied if implied is not None else None)
+        decision["expected_value"] = _expected_value(decision, decision["quote"]["odds"])
     if record["status"] == "repriced":
         own, fair = record["own_odds"], record.get("fair_probability")
         decision.update(quote={**decision["quote"], "odds": own}, expected_value=_expected_value(decision, own),

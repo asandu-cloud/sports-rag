@@ -289,3 +289,74 @@ def test_last_seen_is_the_bookmakers_newest_record_on_any_line():
     body = betano([entry(40, 2.12)], seen=4)
     assert oddspapi.last_seen(body, "betano") == NOW - timedelta(minutes=4)
     assert oddspapi.last_seen(body, "pinnacle") is None
+
+
+# --- A5.4 cards: a Pinnacle-priced pick also needs Pinnacle's price now (D61) ----------------------
+
+CARDS_INDEX = oddspapi.market_index([
+    {"marketId": 1200, "marketType": "totals-bookings", "handicap": 4.5, "period": "fulltime", "playerProp": False,
+     "sportId": 10, "outcomes": [{"outcomeId": 1200, "outcomeName": "Under"}, {"outcomeId": 1201, "outcomeName": "Over"}]}])
+PINNACLE_UNDER = (1 / 1.75) / (1 / 2.10 + 1 / 1.75)  # Pinnacle 2.10 / 1.75, margin removed (proportional)
+
+
+def cards_pick(odds=2.05):
+    pick = result(odds=odds, line=4.5, probability=PINNACLE_UNDER)
+    pick["market"] = {"group": "cards", "key": "totals", "unit": "cards", "participant": None}
+    pick["decision"]["quote"].update(side="under", market_key="totals_cards_over_under")
+    pick["context"]["market_anchor"] = {"reference": "pinnacle", "books_used": ["pinnacle"]}
+    return pick
+
+
+def books(pinnacle=(2.10, 1.75), seen=2, betano_under=2.05):
+    over, under = pinnacle
+    pin = {("1200", "1201"): [entry(seen, over)] if over else [], ("1200", "1200"): [entry(seen, under)]}
+    return {"betano": history("betano", {("1200", "1200"): [entry(8, betano_under)], ("1200", "1201"): [entry(8, 1.80)]}),
+            "pinnacle": history("pinnacle", {k: v for k, v in pin.items() if v})}
+
+
+def confirm_cards(bodies, **kwargs):
+    client = Client(bodies)
+    [out] = pcf.PriceConfirmation(client, CARDS_INDEX, min_ev=0.02, clock=lambda: NOW, **kwargs)([cards_pick()])
+    return out, client
+
+
+def test_a_pinnacle_priced_pick_is_confirmed_at_pinnacles_price_now():
+    out, client = confirm_cards(books(pinnacle=(2.05, 1.78)))
+    now_under = (1 / 1.78) / (1 / 2.05 + 1 / 1.78)
+    assert record(out)["status"] == "confirmed"
+    assert record(out)["reference"] == {"site": "pinnacle", "seen_at": (NOW - timedelta(minutes=2)).isoformat(),
+                                        "odds": {"over": 2.05, "under": 1.78}, "fair_probability": pytest.approx(now_under)}
+    decision = out["decision"]
+    assert decision["model_probability"] == pytest.approx(now_under)
+    assert decision["expected_value"] == pytest.approx(now_under * 2.05 - 1)
+    assert client.calls[1][2] == {"fixtureId": "op1", "bookmakers": "betano,pinnacle"}  # one free request
+
+
+@pytest.mark.parametrize("bodies, reason", [
+    (books(pinnacle=(1.85, 2.00)), "reference_moved"),         # against Pinnacle now, 2.05 has no value
+    (books(seen=90), "reference_not_recent"),                  # OddsPapi last saw Pinnacle 90 minutes ago
+    (books(pinnacle=(None, 1.75)), "reference_not_listed"),     # Pinnacle lists the under only
+    ({"betano": books()["betano"]}, "reference_not_recent"),   # no Pinnacle prices for the match
+])
+def test_a_pinnacle_priced_pick_without_pinnacles_price_now_is_no_bet(bodies, reason):
+    out, _ = confirm_cards(bodies)
+    assert out["decision"]["status"] == "no_bet" and record(out)["reason"] == reason
+    assert out["decision"]["reason"] == f"Price not confirmed: {pcf.REASONS[reason]}."
+
+
+def test_a_pick_without_a_reference_is_checked_as_before():
+    client = Client({"betano": betano([entry(40, 2.12)])})
+    [out] = confirm([result()], client)
+    assert "reference" not in record(out) and out["decision"]["model_probability"] == 0.52
+    assert client.calls[1][2] == {"fixtureId": "op1", "bookmakers": "betano"}
+
+
+def test_a_repriced_pinnacle_priced_pick_takes_pinnacles_price_now_at_the_bookmakers_own_odds():
+    out, _ = confirm_cards(books(pinnacle=(2.05, 1.78), betano_under=1.98))
+    now_under = (1 / 1.78) / (1 / 2.05 + 1 / 1.78)
+    betano_fair = (1 / 1.98) / (1 / 1.80 + 1 / 1.98)
+    decision = out["decision"]
+    assert record(out)["status"] == "repriced" and decision["quote"]["odds"] == 1.98
+    assert decision["model_probability"] == pytest.approx(now_under)
+    assert decision["expected_value"] == pytest.approx(now_under * 1.98 - 1)
+    assert decision["value_edge"] == pytest.approx(now_under - betano_fair)

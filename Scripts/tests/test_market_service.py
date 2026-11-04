@@ -112,7 +112,8 @@ class MarketServiceTests(unittest.TestCase):
         self.assertEqual(result.context["engine_switches"], {
             "version": "engine-switches.v1", "DOCUMENT_STORE": "chroma", "SPIX_COUNT_DISPERSION": "fixed",
             "SPIX_DEVIG_METHOD": "proportional", "SPIX_MARKET_ANCHOR": "off", "SPIX_SELECTION_POLICY": "legacy",
-            "SPIX_BOOKMAKER_SET": "all", "SPIX_CONFIDENCE_LABELS": "edge", "ignored": {"DOCUMENT_STORE": "postgres"}})
+            "SPIX_BOOKMAKER_SET": "all", "SPIX_CONFIDENCE_LABELS": "edge", "SPIX_CARDS_REFERENCE": "off",
+            "ignored": {"DOCUMENT_STORE": "postgres"}})
 
     def test_the_engine_labels_a_result_as_it_is_built(self):
         with mock.patch.dict(os.environ, {"SPIX_CONFIDENCE_LABELS": "evidence"}), \

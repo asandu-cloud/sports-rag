@@ -96,3 +96,64 @@ def test_only_the_latest_reads_json_is_fetched_one_read_per_statement(traced_tab
     json_reads = [s for s in statements if "read_json" in s]
     assert len(json_reads) == 2 and all("rowid = " in s for s in json_reads)
     assert sum("LIMIT" in s for s in statements) == 3  # the other columns in pages of 2
+
+
+def outcomes_db(tmp_path, fixtures):
+    """A platform.db stand-in: ``fixtures`` maps api id -> (status, {team id: [(minutes, yellow, red), ...]})."""
+    import sqlite3
+    path = tmp_path / "platform.db"
+    db = sqlite3.connect(path)
+    db.executescript("""
+        CREATE TABLE fixtures (id INTEGER PRIMARY KEY, api_football_id INTEGER, home_team_id INTEGER,
+                               away_team_id INTEGER, status TEXT, home_goals INTEGER, away_goals INTEGER);
+        CREATE TABLE fixture_team_stats (fixture_id INTEGER, team_id INTEGER, corners INTEGER,
+                                         yellow_cards INTEGER, red_cards INTEGER);
+        CREATE TABLE fixture_player_stats (fixture_id INTEGER, team_id INTEGER, player_id INTEGER,
+                                           minutes INTEGER, yellow_cards INTEGER, red_cards INTEGER);""")
+    for fid, (api, (status, teams)) in enumerate(fixtures.items(), start=1):
+        home, away = teams
+        db.execute("INSERT INTO fixtures VALUES (?, ?, ?, ?, ?, 2, 1)", (fid, api, home, away, status))
+        for team, players in teams.items():
+            yellows = sum(y or 0 for _, y, _ in players)
+            reds = sum(r or 0 for _, _, r in players)
+            db.execute("INSERT INTO fixture_team_stats VALUES (?, ?, 5, ?, ?)", (fid, team, yellows, reds))
+            db.executemany("INSERT INTO fixture_player_stats VALUES (?, ?, ?, ?, ?, ?)",
+                           [(fid, team, team * 100 + i, *p) for i, p in enumerate(players)])
+    db.commit()
+    db.close()
+    return path
+
+
+def squad(*carded, rows=11):
+    """``carded`` (minutes, yellow, red) rows, filled up to ``rows`` with uncarded 90-minute players."""
+    return list(carded) + [(90, 0, 0)] * (rows - len(carded))
+
+
+def test_a_straight_red_counts_two_and_a_sending_off_after_two_yellows_three(tmp_path):
+    db = outcomes_db(tmp_path, {101: ("FT", {1: squad((90, 1, 0), (90, 1, 0), (90, 1, 0), (40, 0, 1)),
+                                             2: squad((70, 2, 1), (90, 1, 0))})})
+    outcome = cd.fixture_outcomes(db)["101"]
+    assert outcome["cards"] == 3 + 2 + 3 + 1
+    assert outcome["cards_rule"] == "yellow_1_red_2_max_3_per_player"
+
+
+def test_players_without_minutes_do_not_count(tmp_path):
+    db = outcomes_db(tmp_path, {101: ("FT", {1: squad((0, 1, 0), rows=12), 2: squad((90, 1, 0))})})
+    assert cd.fixture_outcomes(db)["101"]["cards"] == 1
+
+
+@pytest.mark.parametrize("home", [
+    squad((90, 1, 0), rows=10),                              # a team with fewer than 11 player rows
+    squad((90, None, 0)),                                    # a player with minutes and no card count
+    squad((90, 1, 0))[:6] + [(0, 0, 0)] * 5,                # fewer than 7 players with minutes
+])
+def test_incomplete_player_statistics_leave_cards_ungraded(tmp_path, home):
+    db = outcomes_db(tmp_path, {101: ("FT", {1: home, 2: squad((90, 1, 0))})})
+    assert cd.fixture_outcomes(db)["101"]["cards"] is None
+
+
+def test_extra_time_leaves_cards_ungraded_but_keeps_goals_and_corners(tmp_path):
+    db = outcomes_db(tmp_path, {101: ("AET", {1: squad((90, 1, 0)), 2: squad((90, 1, 0))})})
+    outcome = cd.fixture_outcomes(db)["101"]
+    assert outcome["cards"] is None
+    assert (outcome["home_goals"], outcome["away_goals"], outcome["corners"]) == (2, 1, 10)
