@@ -1198,6 +1198,25 @@ button.fixture-teams:hover { color: var(--accent-l); }
 .recs-board-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .recs-board-count { color: var(--text2); font-size: 14px; }
 
+/* -- Before kickoff (D71): a started match's picks, on the page ground, with nothing to bet with -- */
+.bk-divider { grid-column: 1 / -1; margin: 8px 0 0; font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text3); }
+.match-read-fixture-card.bk-card,
+.match-read-fixture-card.bk-card:hover { cursor: default; border-color: var(--border-soft); background: transparent; box-shadow: none; }
+.bk-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 14px; }
+.bk-time { color: var(--text3); font-variant-numeric: tabular-nums; }
+.bk-status { font-size: 13px; font-weight: 600; color: var(--text2); background: var(--surface2); border-radius: 6px; padding: 3px 8px; }
+.bk-teams { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; color: var(--text2); }
+.bk-teams .match-card-emblem { width: 28px; height: 28px; }
+.bk-v { color: var(--text3); font-weight: 400; }
+.bk-section { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px solid var(--border-soft); }
+.bk-section + .bk-section { border-top: 0; padding-top: 4px; }
+.bk-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.bk-list li { display: flex; flex-direction: column; gap: 1px; }
+.bk-pick { font-size: 16px; font-weight: 600; color: var(--text); }
+.bk-chance { font-size: 14px; color: var(--text2); }
+.bk-foot { margin: 0; font-size: 13px; color: var(--text3); }
+.bk-none { margin: 0; font-size: 15px; color: var(--text2); }
+
 /* ================================================================
    BET SLIP
    ================================================================ */

@@ -1319,6 +1319,33 @@ since them (`logo.js` and `theme.js` 29 Oct, `landing.css`, `methodology.js` and
 from now on: any commit that changes a versioned file changes its tag in the same commit. Live after the merge; no
 restart needed, as the static files are read from disk.
 
+**D71 — Before-kickoff cards on the board (4 Nov, frontend; owner's choice).** For the rest of the day, a started
+match keeps the picks Spix had for it before kickoff, so someone watching it can still see what Spix said. Built
+against the backend's `before_kickoff` list (`before-kickoff.v1`, D70) and its `status` / `live_status` objects.
+- *Owner (4 Nov, from three mockups):* version B. In each league the upcoming matches come first, then a quiet
+  "Started" divider and the started ones. Live status yes; no Hit or Miss for now.
+- *The card:* time, status, teams, "Most likely, before kickoff" (up to 3) and "Value, before kickoff" (up to 2),
+  each with its chance in words and %, then "Last checked at HH:MM, before kickoff." It has no price, no
+  "Worth it at", no Add, no slip and no link. It sits flat on the page ground, not lifted like a card you can open.
+  Only labels and chances are read from an entry, so a price can never reach it.
+- *Status:* 1H, 2H, ET, BT, P, INT and LIVE show Live; HT shows Half time; FT, AET and PEN show Full time;
+  PST, SUSP, ABD, CANC, AWD and WO have their own words. NS or TBD after the kickoff time shows "Not started yet",
+  and null, a missing key or an unknown code shows "Kicked off HH:MM". The entry's own status comes first, then
+  the schedule row's `live_status`.
+- *Rulings:* a started match with no picks, in a league that sent entries, also sits under "Started" in the quiet
+  card, saying "Spix had no picks for this match before kickoff." That matches the chosen mockup, and it keeps
+  the old raised card out of the started group. A postponed, cancelled, awarded or walkover match is not
+  "started" and keeps its place. The new treatment applies per league, and only when that league's list has at
+  least one usable entry. A missing or empty list, or `?recs=off`, gives exactly today's board, old sentence
+  included (tested).
+- *Checks:* `test_before_kickoff_web.js` covers the card, the join by event id, placement, every status, the
+  switched-off board and that the card has no price or button. All 6 JS files pass; the Python suite gave 2,771
+  passed with the 3 known worktree errors. Cache tags moved to `bk-20261104a` (D69 rule). Screenshots were taken
+  on 8100 with the page's fetch wrapped, since the backend list was not merged yet: tomorrow's real picks were sent
+  as entries for matches moved past kickoff.
+- *Going live:* after the merges, the owner adds `SPIX_BEFORE_KICKOFF=on` (and `SPIX_LIVE_STATUS=on` for the
+  status) to `.env`, then the website is restarted.
+
 ## Findings that shape later steps
 
 - **Checks from a worktree (3 Nov, corrected).** Three pinned `golden_snapshots check` runs from the backend folder
