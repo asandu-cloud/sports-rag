@@ -1246,6 +1246,15 @@ backend branch).** Reported by the frontend: Valencia's "Real Madrid −1.5" and
 - No published pick changes (the block is display-only, behind `SPIX_RECOMMENDATIONS`); the pinned golden check is
   unchanged.
 
+**D66 — Most likely is logged from now, while the display is still off (4 Nov, owner).** The recommendation plan's
+task 6 ledger runs whether or not `SPIX_RECOMMENDATIONS` is on, so the scorecard has "said x%, happened y%" from
+the first day the lists show. This replaces the plan's "nothing is logged while the display switch is off" and the
+design's "every option shown is logged" (section 4).
+- *Builder's call:* each row records `shown`, the display switch when it was logged, so the shown picks can be told
+  apart from the ones logged before launch.
+- *Also asked (4 Nov):* a small dashboard for the owner only, with Most likely's and Value's performance over time.
+  Being designed.
+
 ## Findings that shape later steps
 
 - **Checks from a worktree (3 Nov, corrected).** Three pinned `golden_snapshots check` runs from the backend folder
