@@ -40,9 +40,9 @@ on it. The Discord bot still runs the old engine until A7.
   - Started matches keep their picks from before kickoff, with a live status (D70, D71): live 4 Nov at 22:41
     (`SPIX_BEFORE_KICKOFF=on`, `SPIX_LIVE_STATUS=on`; the status costs at most 400 API-Football requests a day).
     Since 5 Nov they sit in their own Live tab, in play first, then finished (D73).
-  - Pick notes (D75): one line for each pick and one against, from recent form, in fixed wording. Merged 5 Nov
-    behind `SPIX_PICK_NOTES` (off); the frontend's display comes next. Go-live: the owner adds
-    `SPIX_PICK_NOTES=on` to `.env`, then the website is restarted.
+  - Pick notes (D75): merged 5 Nov behind `SPIX_PICK_NOTES` (off). The owner rejected the for/against wording on
+    5 Nov (the two lines can contradict each other); a new approach that explains the pick from the data is being
+    worked out, and the frontend's display (D76) waits for it. Keep the switch off.
 - **Cards work that does not change picks (D54):**
   - add the events to the refresh and backfill them from 20 Sep (done 4 Nov: migration 0010, 554 matches
     backfilled, the refresh saves events from now on, D64);
