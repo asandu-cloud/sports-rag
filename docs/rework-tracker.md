@@ -121,7 +121,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Second-round variables: M3 bookmaker disagreement | A5.3 confidence labels (D30) | With A5 |
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
 | Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52, approved 3 Nov, D53); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`; plan `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks; mockups are task 3, after the data block). Tasks 1–2 (the data block behind `SPIX_RECOMMENDATIONS`, off) merged 3 Nov, D56; task 3 look chosen (version B, D63); tasks 4–5 (match page, board card, slip) merged 4 Nov, D59, D60, shown only when the switch is on. Task 6 replaced by the owner dashboard (D67, merged 4 Nov, no migration); task 7 dropped. Live 4 Nov (D68). Open: the methodology copy (draft kept for the owner's sign-off); the "Worth it at" fix (D68, owner 4 Nov) waits for the merge and a website restart | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
-| Pick notes (one line for, one against) on every Most likely and Value pick: into `recommendations.v1` behind an off switch, then the frontend on 8100 (D75) | Frontend on 8100 after the merge; live when the owner adds `SPIX_PICK_NOTES=on` | Fixed wording chosen and built behind `SPIX_PICK_NOTES` (off) 5 Nov; three layouts mocked, with the owner |
+| Pick notes (one line for, one against) on every Most likely and Value pick: into `recommendations.v1` behind an off switch, then the frontend on 8100 (D75) | Frontend on 8100 after the merge; live when the owner adds `SPIX_PICK_NOTES=on` | Fixed wording chosen and built behind `SPIX_PICK_NOTES` (off) 5 Nov; the owner chose layout B, built on the frontend 5 Nov (D76) |
 | Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | Needs the bet builder and the recommendation lists first |
 | Website and Discord link: one-tap sharing of a bet to Discord, Discord posts linking back to the match (D50) | A7, when the bot moves to the new engine | The bot still runs the old engine |
 | Building bets inside Discord; community selections (D50) | After A7 | Owner: for later |
@@ -1475,6 +1475,31 @@ the match page and the board card; and one line on the methodology page saying a
 - *Next:* the frontend shows it on 8100 after the merge (three layouts mocked with these real notes, with the
   owner). The live site gets it only when the owner adds `SPIX_PICK_NOTES=on` to `.env` and the website restarts.
 - *Checks:* 70 new tests; full suite 2,851 passed, 4 skipped; JS 6 of 6. No engine code touched.
+
+**D76 — Pick notes on the cards: tap to open (5 Nov, owner chose layout B; frontend).** Three layouts were mocked
+with D75's real notes: A, always open; B, tap to open everywhere; C, open on the match page and a tap on the board.
+The owner chose B: "lets go for tap to open. add them to staging but also prepare them for production code".
+- *What it looks like:* a quiet "For and against +" under the pick. A tap opens it to a For line and an Against
+  line, each with a small tag, and the + turns to −. On the match page it sits under each Most likely pick, above
+  the price and Add, and under each Value pick, before "Worth it at". On the board card it sits under the first
+  pick's chance. The tap on the board opens the note, not the match; anywhere else on the card still opens the
+  match. On the match page a note stays open when the lists redraw (Add, the line stepper, a tab).
+- *Rulings:* every note starts closed. The mockup showed the first one open only to show what opening looks like.
+  A note with only one line names that line on the tap ("For" or "Against"). A note with no words shows nothing.
+  Cards in the Live tab show no notes: the before-kickoff list keeps only label and chance. The backend can add
+  notes there if the owner wants them. The summary keeps a 44 px tap height, so the board card is a little taller
+  than in the mockup.
+- *Safe to merge with the switch off:* a card without notes renders exactly as before. On 5 Nov's Europa League
+  board (17 cards), the match page and the board card came out byte for byte the same as the code before this
+  change, 34 of 34. A missing or null note shows nothing, and this is tested.
+- *Checks:* `test_pick_notes_web.js` (new) covers the note, placement, the closed default, open state across
+  redraws, the board's tap and the Live tab. All 7 JS files pass; the Python suite gave 2,855 passed with the 3
+  known worktree errors. On 8100 with `SPIX_PICK_NOTES=on` on the command line, all 52 picks on the board carry a
+  note. In the browser: the board's tap opened the note without opening the match. Add then Remove on the match
+  page left the open notes open. Cache tags moved to `live-20261105b`. The checkpoint is 2aa8640, the commit
+  before this one.
+- *Going live:* merge (nothing changes while the switch is off), then the owner adds `SPIX_PICK_NOTES=on` to `.env`
+  and the website is restarted.
 
 ## Findings that shape later steps
 

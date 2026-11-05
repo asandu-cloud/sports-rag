@@ -218,11 +218,27 @@ function recsAddButton(ref, leg, added) {
   return `<button type="button" class="recs-add${added ? ' added' : ''}" data-recs-add="${esc(ref)}" aria-label="${added ? 'Remove' : 'Add'} ${esc(leg.label)} ${added ? 'from' : 'to'} your bet">${addButtonContent(added, true)}</button>`;
 }
 
+// A pick's note (D75): one line for it and one against, behind a tap (layout B, D76). Nothing without words.
+function renderPickNote(note, { open = false, ref = '' } = {}) {
+  const parts = [['For', note?.for], ['Against', note?.against]]
+    .filter(([, words]) => typeof words === 'string' && words.trim());
+  if (!parts.length) return '';
+  const tap = parts.length === 2 ? 'For and against' : parts[0][0];
+  const lines = parts.map(([tag, words]) => `<p class="pick-note-line"><span class="pick-note-tag">${tag}</span>${esc(words.trim())}</p>`).join('');
+  return `<details class="pick-note"${ref ? ` data-pick-note="${esc(ref)}"` : ''}${open ? ' open' : ''}><summary>${tap}</summary><div class="pick-note-body">${lines}</div></details>`;
+}
+
+// The board card opens the match on a tap anywhere but its note, which opens and closes itself.
+function opensMatch(event) {
+  return !event?.target?.closest?.('.pick-note');
+}
+
 // Most likely and Value: the top of the match page.
 function renderRecommendations(f, view = {}) {
   const block = f.recommendations;
   if (!block) return '';
   const added = view.added || (() => false);
+  const notes = view.notes || {};
   const priced = recsPriced(block);
   const clock = priced ? recsClock(block.prices_as_of) : '';
   const cards = (block.most_likely || []).map((o, i) => `
@@ -231,7 +247,7 @@ function renderRecommendations(f, view = {}) {
       <h3 class="recs-pick">${esc(o.label)}</h3>
       <p class="recs-chance"><span class="recs-words">${esc(recsWords(o))}</span><span class="recs-pct">${chancePercent(o.chance)}</span></p>
       ${o.why ? `<p class="recs-why">${esc(o.why)}</p>` : '<p class="recs-why"></p>'}
-      <div class="recs-card-foot"><span class="recs-fig">${recsPrice(o.typical_price)}</span>${recsAddButton(`ml:${i}`, o, added(o))}</div>
+      ${renderPickNote(o.note, { ref: `ml:${i}`, open: notes[`ml:${i}`] })}<div class="recs-card-foot"><span class="recs-fig">${recsPrice(o.typical_price)}</span>${recsAddButton(`ml:${i}`, o, added(o))}</div>
     </article>`).join('');
   const mostLikely = `
     <section class="recs-section" aria-labelledby="recsMostLikely">
@@ -252,7 +268,7 @@ function renderRecommendations(f, view = {}) {
           <span class="recs-label">${esc(recsMarketName(leg.market))}</span>
           <h3 class="recs-pick">${esc(leg.label)}</h3>
           ${leg.chance != null ? `<p class="recs-value-chance">${esc(recsWords(leg))} · ${chancePercent(leg.chance)}</p>` : ''}
-          ${leg.whole ? `<p class="recs-value-chance">Exactly ${esc(leg.line)}${esc(RECS_UNITS[leg.market])}: you get your stake back.</p>` : ''}
+          ${leg.whole ? `<p class="recs-value-chance">Exactly ${esc(leg.line)}${esc(RECS_UNITS[leg.market])}: you get your stake back.</p>` : ''}${renderPickNote(item.note, { ref: `value:${i}`, open: notes[`value:${i}`] })}
         </div>
         ${leg.worth != null ? `<div class="recs-value-worth"><span>Worth it at</span><span class="recs-fig">${recsPrice(leg.worth)} or better</span></div>` : ''}
         ${recsAddButton(`value:${i}`, leg, added(leg))}
@@ -393,7 +409,7 @@ function renderRecsBoardCard(f, homeEmblem, awayEmblem) {
     top = `
       <div class="recs-board-topline"><span class="recs-label">Most likely</span>${time}</div>
       <p class="recs-board-pick">${esc(first.label)}</p>
-      <p class="recs-board-chance"><span><b>${esc(recsWords(first))}</b> <span class="recs-pct">· ${chancePercent(first.chance)}</span></span><span class="recs-fig">${recsPrice(first.typical_price)}</span></p>`;
+      <p class="recs-board-chance"><span><b>${esc(recsWords(first))}</b> <span class="recs-pct">· ${chancePercent(first.chance)}</span></span><span class="recs-fig">${recsPrice(first.typical_price)}</span></p>${renderPickNote(first.note)}`;
   } else if (recsPriced(block)) {
     top = `<div class="recs-board-topline"><span class="recs-label">Explore the match</span>${time}</div>
       <p class="recs-note">Nothing stands out here. Every option can still be added.</p>`;
@@ -1985,7 +2001,7 @@ const appModule = {
       }, { once: true });
     });
     if (f.isScheduleOnly) return card;
-    card.addEventListener('click', () => this._showMatch(f.id));
+    card.addEventListener('click', event => { if (opensMatch(event)) this._showMatch(f.id); });
     return card;
   },
 
@@ -2188,6 +2204,10 @@ const appModule = {
       } else if (step && !step.disabled) this._recsStep(match, Number(step.dataset.recsStep));
       else if (add) this._recsAdd(match, add.dataset.recsAdd);
     });
+    // "toggle" does not bubble, so it is caught on the way down.
+    container.addEventListener('toggle', event => {
+      if (this.currentMatch?.recommendations && event.target.matches?.('.pick-note')) this._recsNoteToggled(this.currentMatch, event.target);
+    }, true);
     // On phones a sideways swipe over the line moves it, like the − / + buttons.
     let touch = null;
     container.addEventListener('touchstart', event => {
@@ -2206,6 +2226,14 @@ const appModule = {
   _recsView(f) {
     this._recsViews = this._recsViews || {};
     return (this._recsViews[f.id] = this._recsViews[f.id] || { open: null, line: {} });
+  },
+
+  // A note opened or closed on the match page stays that way when the lists are redrawn.
+  _recsNoteToggled(f, details) {
+    const ref = details?.dataset?.pickNote;
+    if (!ref) return;
+    const view = this._recsView(f);
+    view.notes = { ...view.notes, [ref]: details.open };
   },
 
   _recsSlipKey(f, leg) {

@@ -1212,6 +1212,32 @@ button.fixture-teams:hover { color: var(--accent-l); }
 .recs-board-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .recs-board-count { color: var(--text2); font-size: 14px; }
 
+/* Pick notes (D76): a quiet "For and against" under a pick, opened with a tap. */
+.pick-note > summary {
+  display: flex; align-items: center; gap: 6px;
+  min-height: 44px;
+  list-style: none;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 14px; font-weight: 600;
+}
+.pick-note > summary::-webkit-details-marker { display: none; }
+.pick-note > summary::after { content: '+'; color: var(--text3); font-weight: 400; }
+.pick-note[open] > summary::after { content: '\2212'; }
+.pick-note > summary:hover { color: var(--text); }
+.pick-note-body { display: grid; gap: 6px; padding-bottom: 6px; }
+.pick-note-line { margin: 0; color: var(--text2); font-size: 14px; line-height: 1.45; }
+.pick-note-tag {
+  display: block; margin-bottom: 1px;
+  color: var(--text3);
+  font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+}
+.recs-card .pick-note, .recs-value-main .pick-note { border-top: 1px solid var(--border-soft); }
+/* In the strip, a card beside an open note grows: its own note stays under the pick, the space goes above the price. */
+.recs-card .recs-why:has(+ .pick-note) { flex: none; }
+.recs-card .pick-note { margin-bottom: auto; }
+.recs-value-main .pick-note { margin-top: 6px; }
+
 /* -- Before kickoff (D71): a started match's picks, on the page ground, with nothing to bet with -- */
 .match-read-fixture-card.bk-card,
 .match-read-fixture-card.bk-card:hover { cursor: default; border-color: var(--border-soft); background: transparent; box-shadow: none; }
