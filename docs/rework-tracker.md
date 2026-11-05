@@ -121,7 +121,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Second-round variables: M3 bookmaker disagreement | A5.3 confidence labels (D30) | With A5 |
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
 | Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52, approved 3 Nov, D53); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`; plan `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks; mockups are task 3, after the data block). Tasks 1–2 (the data block behind `SPIX_RECOMMENDATIONS`, off) merged 3 Nov, D56; task 3 look chosen (version B, D63); tasks 4–5 (match page, board card, slip) merged 4 Nov, D59, D60, shown only when the switch is on. Task 6 replaced by the owner dashboard (D67, merged 4 Nov, no migration); task 7 dropped. Live 4 Nov (D68). Open: the methodology copy (draft kept for the owner's sign-off); the "Worth it at" fix (D68, owner 4 Nov) waits for the merge and a website restart | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
-| Pick notes (one line for, one against) on every Most likely and Value pick: into `recommendations.v1` behind an off switch, then the frontend on 8100 (D75) | Next, after the owner chooses fixed wording or GPT | Logic and a file preview built 5 Nov; nothing reaches the site yet |
+| Pick notes (one line for, one against) on every Most likely and Value pick: into `recommendations.v1` behind an off switch, then the frontend on 8100 (D75) | Frontend on 8100 after the merge; live when the owner adds `SPIX_PICK_NOTES=on` | Fixed wording chosen and built behind `SPIX_PICK_NOTES` (off) 5 Nov; three layouts mocked, with the owner |
 | Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | Needs the bet builder and the recommendation lists first |
 | Website and Discord link: one-tap sharing of a bet to Discord, Discord posts linking back to the match (D50) | A7, when the bot moves to the new engine | The bot still runs the old engine |
 | Building bets inside Discord; community selections (D50) | After A7 | Owner: for later |
@@ -1433,7 +1433,8 @@ now move whenever that league's list is on.
   "Spix had no picks for this match before kickoff", and All with nothing left to come. Cache tags moved to
   `live-20261105a`. Live on merge; no restart.
 
-**D75 — Pick notes: one line for each pick and one against it (5 Nov, owner; backend branch, not on the site yet).**
+**D75 — Pick notes: one line for each pick and one against it (5 Nov, owner; fixed wording chosen; built behind
+`SPIX_PICK_NOTES`, off on the live site).**
 The owner asked for GPT-written notes on each pick, as BettingPros has, so the research would "seem better than it
 is" and sell better. That part was declined: it fails the identity's honesty question (section 9) and the public
 record would show it up. Notes that are true and specific were offered instead. From options, the owner chose:
@@ -1445,9 +1446,13 @@ the match page and the board card; and one line on the methodology page saying a
   the last 5 and the season, half lines only (`repositories/team_form.py`, read only). Every pick gets the same
   kinds of fact, so none is chosen because it flatters the pick.
 - *Wording:* said from each team's side ("Brighton avoided defeat in 3 of their last 5 Premier League matches";
-  "4 of Ferencvaros's last 5 … had 3 or more goals"). A count supports a pick only when it happened in at least half
-  the matches. The against line says what happened in the other matches; with no form against it, "At 72% it still
-  loses about 3 times in 10".
+  "4 of Ferencvarosi TC's last 5 Europa League matches had 3 or more goals"). The for line is the form most for the
+  pick, when it happened in at least half the matches; otherwise why it is listed. The against line is the form most
+  against it (said as what happened in the other matches) when under half; otherwise "It still loses about 3 times
+  in 10". Neither line repeats the chance, which the card shows just above (frontend, after mocking it on the real
+  board, 5 Nov: the opening "At 73%, this is the likeliest…" sentence repeated down the whole list). The against
+  fallback stays: swapping it for a weak count ("1 of 5 had 2 goals or fewer") would make a 71% pick look surer than
+  it is. UEFA competitions take the site's short names (Champions, Europa, Conference League).
 - *GPT-5.6* may word the notes, one call per match, reused while the facts are unchanged. A note is refused, and
   that pick takes the fixed wording, when it has a number not in the pick's facts, a number in words, a tipster
   word or promise, an instruction to bet, or a whole-match count given to one team.
@@ -1458,11 +1463,18 @@ the match page and the board card; and one line on the methodology page saying a
   whole-match counts to one team ("Ferencvarosi TC had 8 or more corners") and used jargon ("the likeliest
   qualifying market option"). After a stricter instruction and a check for the first, it still cited minority
   counts as support ("4 of Anderlecht's 9 … saw both teams score" for Both teams to score; "AC Milan won 1 of 3" for
-  AC Milan). The fixed wording has neither problem. **Owner to choose:** the fixed wording (recommended) or GPT.
-  With the fixed wording, the methodology line about a language model does not apply to the notes.
-- *Next:* a `note` (`for`, `against`, `source`) on each `recommendations.v1` item, written with each read, behind an
-  off switch; the frontend shows it on 8100 after the merge, mocked first with these real examples.
-- *Checks:* 58 new tests; full suite 2,839 passed, 4 skipped; JS 6 of 6. No engine code touched.
+  AC Milan). The fixed wording has neither problem. **The owner chose the fixed wording (5 Nov).** So no language
+  model writes the notes, and the methodology line about one is not needed. The GPT path stays in the preview only.
+- *On the cards* (`services/pick_note_service.py`, hooked into `_card_from_read`): each Most likely and Value item
+  gets `note: {"for", "against"}` when the display switch `SPIX_PICK_NOTES=on` (off by default and in the tests).
+  It covers the board, the match page and its history; the before-kickoff list keeps its own items. Each fixture's
+  form is read once an hour per website process; a failed read leaves the card as it was and is retried. Nothing is
+  stored and the worker is unchanged. On 8200 with the switch on (5 Nov), the Europa League board took 2.2–2.3 s
+  against 2.0 s on the live site; the Premier League board 0.3 s. On 5 Nov's 107 picks, the for line fell back to
+  the reason on 18 and the against line to the loss count on 67.
+- *Next:* the frontend shows it on 8100 after the merge (three layouts mocked with these real notes, with the
+  owner). The live site gets it only when the owner adds `SPIX_PICK_NOTES=on` to `.env` and the website restarts.
+- *Checks:* 70 new tests; full suite 2,851 passed, 4 skipped; JS 6 of 6. No engine code touched.
 
 ## Findings that shape later steps
 

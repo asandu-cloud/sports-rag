@@ -76,11 +76,10 @@ def test_facts_give_each_pick_its_reason_chance_and_each_teams_form():
     assert facts()["competition"] == "Premier League"
 
 
-def test_the_fixed_note_gives_the_reason_and_best_form_for_and_the_weakest_form_against():
+def test_the_fixed_note_gives_the_best_form_for_and_the_weakest_form_against():
     over = facts()["picks"][0]
     note = pn.fixed_note(over, "Premier League")
-    assert note["for"] == ("At 72%, this is the likeliest option in its market that still pays at least 1.30. "
-                           "3 of Arsenal's last 5 Premier League matches had 3 or more goals.")
+    assert note["for"] == "3 of Arsenal's last 5 Premier League matches had 3 or more goals."
     assert note["against"] == "3 of Brighton's last 5 Premier League matches had 2 goals or fewer."
 
 
@@ -88,15 +87,27 @@ def test_with_no_form_against_it_the_fixed_note_says_how_often_it_still_loses():
     pick = {**facts()["picks"][0], "form": [{"team": "Arsenal", "about": "match", "counted": "had 3 or more goals",
                                               "opposite": "had 2 goals or fewer", "last": {"played": 5, "landed": 4},
                                               "season": {"played": 9, "landed": 6}}]}
-    assert pn.fixed_note(pick, "Premier League")["against"] == "At 72% it still loses about 3 times in 10."
+    assert pn.fixed_note(pick, "Premier League")["against"] == "It still loses about 3 times in 10."
     assert pn.fixed_note({**pick, "form": []}, "Premier League")["for"] == (
-        "At 72%, this is the likeliest option in its market that still pays at least 1.30.")
+        "The likeliest option in its market that still pays at least 1.30.")
 
 
-def test_a_value_pick_names_the_price_it_is_worth():
+def test_a_value_pick_without_form_for_it_names_the_price_it_is_worth():
     win = facts()["picks"][1]
-    assert pn.fixed_note(win, "Premier League")["for"].startswith(
+    assert pn.fixed_note(win, "Premier League")["for"] == "Arsenal won 3 of their last 5 Premier League matches."
+    assert pn.fixed_note({**win, "form": []}, "Premier League")["for"] == (
         "The best price found is above the 1.86 it is worth at the market's 55%.")
+
+
+@pytest.mark.parametrize("name, short", [
+    ("UEFA Champions League", "Champions League"),
+    ("UEFA Europa League", "Europa League"),
+    ("UEFA Europa Conference League", "Conference League"),
+    ("Premier League", "Premier League"),
+    (None, None),
+])
+def test_competitions_take_the_short_names_the_site_uses(name, short):
+    assert pn.match_facts(block(), {**FIXTURE, "competition": name}, {})["competition"] == short
 
 
 @pytest.mark.parametrize("market, side, line, role, about, counted", [
@@ -139,7 +150,7 @@ def test_team_results_read_as_the_team_did_them():
     pick = pn.match_facts({"most_likely": [option("moneyline", "home", None, "Arsenal to win", 0.6)]}, FIXTURE,
                           {"home": ARSENAL, "away": BRIGHTON})["picks"][0]
     note = pn.fixed_note(pick, "Premier League")
-    assert note["for"].endswith(" Arsenal won 3 of their last 5 Premier League matches.")
+    assert note["for"] == "Arsenal won 3 of their last 5 Premier League matches."
     assert note["against"] == "Brighton avoided defeat in 3 of their last 5 Premier League matches."
     two_draws = [match(1, 0), match(1, 1), match(2, 0), match(0, 0), match(3, 0)]
     pick = pn.match_facts({"most_likely": [option("spreads", "away", 0.5, "Brighton +0.5", 0.6)]}, FIXTURE,

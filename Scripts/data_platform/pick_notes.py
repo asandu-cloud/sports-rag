@@ -170,7 +170,8 @@ def match_facts(block: Mapping[str, Any], fixture: Mapping[str, Any],
             if kind == "value" and isinstance(item.get("worth_it_at"), (int, float)):
                 pick["worth_it_at"] = item["worth_it_at"]
             picks.append(pick)
-    return {"fixture": teams, "competition": fixture.get("competition"), "picks": picks}
+    competition = fixture.get("competition")
+    return {"fixture": teams, "competition": _SHORT_NAMES.get(competition, competition), "picks": picks}
 
 
 def _rate(entry: Mapping[str, Any]) -> float:
@@ -178,6 +179,9 @@ def _rate(entry: Mapping[str, Any]) -> float:
 
 
 _RESULTS = ("won", "lost", "drew", "failed to win")
+# The names the site uses; the long ones do not fit a phone card.
+_SHORT_NAMES = {"UEFA Champions League": "Champions League", "UEFA Europa League": "Europa League",
+                "UEFA Europa Conference League": "Conference League"}
 
 
 def _possessive(team: Any) -> str:
@@ -197,23 +201,24 @@ def _form_sentence(entry: Mapping[str, Any], competition: Optional[str], *, agai
 
 
 def fixed_note(pick: Mapping[str, Any], competition: Optional[str]) -> dict:
-    """The fixed wording: the reason with the chance and the form most for it (if it won at least half the time);
-    against, the form most against it (if under half), else how often it still loses at the market's chance."""
+    """The fixed wording: for, the form most for it (if it happened at least half the time), else the reason it is
+    listed; against, the form most against it (if under half), else how often it still loses. The card shows the
+    chance just above, so neither line repeats it (D75)."""
     percent = pick["chance_percent"]
     if pick.get("kind") == "value":
-        first = (f"The best price found is above the {pick['worth_it_at']:.2f} it is worth at the market's {percent}%."
-                 if pick.get("worth_it_at") else f"The best price found is above what the market's {percent}% says it is worth.")
+        reason = (f"The best price found is above the {pick['worth_it_at']:.2f} it is worth at the market's {percent}%."
+                  if pick.get("worth_it_at") else f"The best price found is above what the market's {percent}% says it is worth.")
     else:
-        first = f"At {percent}%, this is the likeliest option in its market that still pays at least {MIN_PRICE:.2f}."
+        reason = _REASONS["most_likely"]
     form = pick.get("form") or []
     best = max(form, key=lambda e: (_rate(e), e["last"]["played"]), default=None)
     worst = min(form, key=lambda e: (_rate(e), -e["last"]["played"]), default=None)
-    note_for = first if best is None or _rate(best) < 0.5 else f"{first} {_form_sentence(best, competition)}"
+    note_for = reason if best is None or _rate(best) < 0.5 else _form_sentence(best, competition)
     if worst is not None and _rate(worst) < 0.5 and worst.get("opposite"):
         against = _form_sentence(worst, competition, against=True)
     else:
         times = pick["loses_about_in_10"]
-        against = f"At {pick['chance_percent']}% it still loses about {times} {'time' if times == 1 else 'times'} in 10."
+        against = f"It still loses about {times} {'time' if times == 1 else 'times'} in 10."
     return {"for": note_for, "against": against}
 
 

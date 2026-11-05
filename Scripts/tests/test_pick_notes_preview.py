@@ -36,5 +36,5 @@ def test_the_markdown_shows_each_pick_with_its_two_lines():
     text = preview.markdown([entry], "2026-11-08")
     assert "## Arsenal v Brighton (EPL, 15:00 UTC)" in text
     assert "**Over 2.5 goals** (Most likely, 72%)" in text and "**Arsenal to win** (Value, 55%)" in text
-    assert "- For: At 72%, this is the likeliest option in its market that still pays at least 1.30." in text
+    assert "- For: 3 of Arsenal's last 5 Premier League matches had 3 or more goals." in text
     assert "- Against: 3 of Brighton's last 5 Premier League matches had 2 goals or fewer." in text
