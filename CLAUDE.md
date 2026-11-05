@@ -19,7 +19,7 @@ Much of the rest of this file describes the **legacy** engine (`rag_cli_v2.py`, 
 (`market_service.py`, `line_selection.py`, `market_goal_model.py`), staged behind switches (below). The website runs
 on it. The Discord bot still runs the old engine until A7.
 
-### Current status (as of 4 Nov 2026; the tracker is newer if it disagrees)
+### Current status (as of 5 Nov 2026; the tracker is newer if it disagrees)
 - **Engine stages 1–4 live.** Stage 4 went live 3 Nov: `SPIX_MARKET_ANCHOR=full` and
   `SPIX_SELECTION_POLICY=market_value`, every bookmaker, 2% value threshold, price confirmation at 60 minutes,
   failing closed. Value picks are rare by design: 5 of 18 matches on 3 Nov.
@@ -40,6 +40,9 @@ on it. The Discord bot still runs the old engine until A7.
   - Started matches keep their picks from before kickoff, with a live status (D70, D71): live 4 Nov at 22:41
     (`SPIX_BEFORE_KICKOFF=on`, `SPIX_LIVE_STATUS=on`; the status costs at most 400 API-Football requests a day).
     Since 5 Nov they sit in their own Live tab, in play first, then finished (D73).
+  - Pick notes (D75): one line for each pick and one against, from recent form, in fixed wording. Merged 5 Nov
+    behind `SPIX_PICK_NOTES` (off); the frontend's display comes next. Go-live: the owner adds
+    `SPIX_PICK_NOTES=on` to `.env`, then the website is restarted.
 - **Cards work that does not change picks (D54):**
   - add the events to the refresh and backfill them from 20 Sep (done 4 Nov: migration 0010, 554 matches
     backfilled, the refresh saves events from now on, D64);
