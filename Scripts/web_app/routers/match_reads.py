@@ -91,6 +91,19 @@ def _get_live_statuses():
     return _LIVE_STATUSES
 
 
+_PICK_NOTES = None
+
+
+def _get_pick_notes():
+    """One pick-notes service per website process (D75), so each fixture's form is read once an hour."""
+    global _PICK_NOTES
+    if _PICK_NOTES is None:
+        from data_platform.services.pick_note_service import PickNotes
+
+        _PICK_NOTES = PickNotes()
+    return _PICK_NOTES
+
+
 def _live_statuses_for(matchday: date, now: datetime, rows: Optional[Sequence[Mapping[str, Any]]] = None) -> Dict[str, Any]:
     """Live status for the day's started matches in every public league, so one request covers the whole board.
     Only called while ``SPIX_LIVE_STATUS`` is on; a schedule failure gives no statuses, never an error page."""
@@ -227,6 +240,10 @@ def _card_from_read(read: Mapping[str, Any]) -> Dict[str, Any]:
     except MatchReadCardError as exc:
         raise ValueError(f"Stored Match Read {read.get('id')} is not deliverable: {exc}") from exc
     card["update"] = _update_metadata(read)
+    from data_platform.services import pick_note_service
+
+    if pick_note_service.enabled():
+        _get_pick_notes().attach(card, now=_utc_now())
     return card
 
 
