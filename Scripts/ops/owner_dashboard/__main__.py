@@ -69,7 +69,8 @@ def route(conn, path: str, query: dict):
     """(status, content type, body) for a GET."""
     page = dict(updated=_meta(conn, "updated_at"), notice=_notice(conn))
     if path == "/":
-        body = pages.report_page(conn, kind=query.get("kind") or "most_likely", market=query.get("market"), **page)
+        body = pages.report_page(conn, kind=query.get("kind") or "most_likely", market=query.get("market"),
+                                 league=query.get("league"), **page)
     elif path == "/history":
         body = pages.history_page(conn, day=query.get("day"), **page)
     elif path == "/dashboard.css":

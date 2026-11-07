@@ -19,7 +19,7 @@ Much of the rest of this file describes the **legacy** engine (`rag_cli_v2.py`, 
 (`market_service.py`, `line_selection.py`, `market_goal_model.py`), staged behind switches (below). The website runs
 on it. The Discord bot still runs the old engine until A7.
 
-### Current status (as of 5 Nov 2026; the tracker is newer if it disagrees)
+### Current status (as of 7 Nov 2026; the tracker is newer if it disagrees)
 - **Engine stages 1–4 live.** Stage 4 went live 3 Nov: `SPIX_MARKET_ANCHOR=full` and
   `SPIX_SELECTION_POLICY=market_value`, every bookmaker, 2% value threshold, price confirmation at 60 minutes,
   failing closed. Value picks are rare by design: 5 of 18 matches on 3 Nov.
@@ -34,15 +34,16 @@ on it. The Discord bot still runs the old engine until A7.
     the match page, board card and slip (D59, D60). The owner added `SPIX_RECOMMENDATIONS=on` and the website was
     restarted on 4 Nov (D68). `?recs=off` shows the previous card.
   - Task 6 became the owner dashboard (D67): Most likely and Value picks logged from now, said against hit, local
-    only. Start it with `.venv/bin/python -m Scripts.ops.owner_dashboard` (http://127.0.0.1:8300/). Task 7 (a
-    scorecard section) is dropped, and no migration 0011 is needed.
+    only. Start it with `.venv/bin/python -m Scripts.ops.owner_dashboard` (http://127.0.0.1:8300/). Since 7 Nov
+    it also shows each league, and a league can be opened alone (D78). Task 7 (a scorecard section) is dropped,
+    and no migration 0011 is needed.
   - "Worth it at" uses the chance a Value pick was made with (D68, live 4 Nov).
   - Started matches keep their picks from before kickoff, with a live status (D70, D71): live 4 Nov at 22:41
     (`SPIX_BEFORE_KICKOFF=on`, `SPIX_LIVE_STATUS=on`; the status costs at most 400 API-Football requests a day).
     Since 5 Nov they sit in their own Live tab, in play first, then finished (D73).
-  - Pick notes (D75): one line for each pick and one against, from recent form, in fixed wording. Merged 5 Nov
-    behind `SPIX_PICK_NOTES` (off); the frontend's display comes next. Go-live: the owner adds
-    `SPIX_PICK_NOTES=on` to `.env`, then the website is restarted.
+  - Pick notes (D75): merged 5 Nov behind `SPIX_PICK_NOTES` (off). The owner rejected the for/against wording on
+    5 Nov (the two lines can contradict each other); a new approach that explains the pick from the data is being
+    worked out, and the frontend's display (D76) waits for it. Keep the switch off.
 - **Cards work that does not change picks (D54):**
   - add the events to the refresh and backfill them from 20 Sep (done 4 Nov: migration 0010, 554 matches
     backfilled, the refresh saves events from now on, D64);

@@ -31,12 +31,12 @@ def add_likely(conn, fixture, market, side, line, chance, outcome, *, label=None
 
 
 def add_value(conn, key, fixture, kickoff, market, said, outcome, *, label="Under 10 corners", side="under",
-              line=10.0, actual=None, home="Everton", away="Coventry"):
+              line=10.0, actual=None, home="Everton", away="Coventry", league="EPL"):
     conn.execute(
         "INSERT INTO value_picks (selection_key, fixture_api_id, kickoff, league, home, away, market, side, line, "
         "label, pick, odds, bookmaker, said, outcome, actual_result, published_at) "
-        "VALUES (?, ?, ?, 'EPL', ?, ?, ?, ?, ?, ?, ?, 2.1, 'Pinnacle', ?, ?, ?, '2026-11-03T09:00:00Z')",
-        (key, fixture, kickoff, home, away, market, side, line, label, label, said, outcome, actual))
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2.1, 'Pinnacle', ?, ?, ?, '2026-11-03T09:00:00Z')",
+        (key, fixture, kickoff, league, home, away, market, side, line, label, label, said, outcome, actual))
 
 
 def test_said_and_hit_are_taken_over_settled_picks_with_half_results_weighted(conn):
@@ -86,6 +86,69 @@ def test_the_report_page_has_the_tiles_the_legend_and_the_weekly_table(conn):
     for word in ("profit", "roi", "return", "stake", "lock", "banker", "ai"):
         assert not re.search(rf"\b{word}\b", text), word
     assert "€" not in text
+
+
+def three_leagues(conn):
+    add_match(conn, "1", "2026-11-04T19:00:00Z", league="UCL")
+    add_match(conn, "2", "2026-11-07T15:00:00Z", league="EPL")
+    add_match(conn, "3", "2026-11-08T15:00:00Z", league="LaLiga")
+    add_likely(conn, "1", "goals", "over", 1.5, 0.70, "miss")
+    add_likely(conn, "2", "goals", "over", 1.5, 0.80, "hit")
+    add_likely(conn, "2", "corners", "under", 11.5, 0.60, "miss", position=1)
+    add_likely(conn, "3", "corners", "under", 11.5, 0.65, "hit")
+
+
+def test_leagues_come_in_the_live_sites_order_and_follow_the_market(conn):
+    three_leagues(conn)
+    whole = report.summary(conn, kind="most_likely")
+    assert [lg["league"] for lg in whole["leagues"]] == ["EPL", "LaLiga", "UCL"]
+    epl = whole["leagues"][0]
+    assert (epl["picks"], epl["hit"]) == (2, 0.5) and epl["said"] == pytest.approx(0.70)
+    corners = report.summary(conn, kind="most_likely", market="corners")
+    assert [(lg["league"], lg["hit"]) for lg in corners["leagues"]] == [("EPL", 0.0), ("LaLiga", 1.0)]
+
+
+def test_a_league_can_be_opened_alone_and_its_markets_follow_it(conn):
+    three_leagues(conn)
+    epl = report.summary(conn, kind="most_likely", league="EPL")
+    assert epl["overall"]["picks"] == 2 and epl["overall"]["hit"] == 0.5
+    assert [m["market"] for m in epl["markets"]] == ["goals", "corners"]
+    assert [lg["league"] for lg in epl["leagues"]] == ["EPL", "LaLiga", "UCL"]  # the table stays
+    ucl = report.summary(conn, kind="most_likely", league="UCL")
+    assert [m["market"] for m in ucl["markets"]] == ["goals"]
+    both = report.summary(conn, kind="most_likely", market="goals", league="UCL")
+    assert (both["overall"]["picks"], both["overall"]["hit"]) == (1, 0.0)
+    assert [(w["week"], w["settled"]) for w in both["weeks"]] == [("2026-11-02", 1)]
+
+
+def test_value_picks_are_split_by_their_own_league(conn):
+    add_value(conn, "a", "1", "2026-11-04T19:00:00Z", "corners", 0.55, "hit", league="UCL")
+    add_value(conn, "b", "2", "2026-11-07T15:00:00Z", "corners", 0.52, "miss")
+    assert [lg["league"] for lg in report.summary(conn, kind="value")["leagues"]] == ["EPL", "UCL"]
+
+
+def test_the_report_page_has_a_league_table_that_keeps_the_market(conn):
+    three_leagues(conn)
+    page = pages.report_page(conn, kind="most_likely", market="goals")
+    assert "<h2>Leagues</h2>" in page
+    assert 'href="/?kind=most_likely&amp;market=goals&amp;league=EPL"' in page
+    assert ">Premier League<" in page and ">Champions League<" in page and ">All leagues<" in page
+    assert ">La Liga<" not in page.split("<h2>Leagues</h2>")[1]  # no goals pick there
+    assert "<td>+20</td>" in page and "<td>−70</td>" in page  # hit minus said, in points
+    opened = pages.report_page(conn, kind="most_likely", league="EPL")
+    assert "· All markets · Premier League</span>" in opened
+    assert 'href="/?kind=most_likely&amp;market=corners&amp;league=EPL"' in opened  # market tiles keep the league
+    assert 'href="/?kind=value&amp;league=EPL"' in opened
+    assert 'class="on"' in opened and 'href="/?kind=most_likely" aria-current' not in opened
+    unknown = pages.report_page(conn, kind="most_likely", league="Narnia")
+    assert "· All markets</span>" in unknown and "Narnia" not in unknown
+
+
+def test_the_league_table_counts_settled_picks_as_the_tiles_do(conn):
+    add_value(conn, "a", "1", "2026-11-04T19:00:00Z", "corners", 0.55, "hit")
+    add_value(conn, "b", "2", "2026-11-04T19:00:00Z", "corners", 0.52, "push")
+    table = pages.report_page(conn, kind="value").split("<h2>Leagues</h2>")[1].split("</table>")[0]
+    assert ">All leagues</a></td><td>2</td>" in table and ">Premier League</a></td><td>2</td>" in table
 
 
 def test_an_empty_dashboard_says_so(conn):

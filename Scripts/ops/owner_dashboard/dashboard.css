@@ -122,6 +122,11 @@ th, td { padding: 9px 20px; text-align: right; border-bottom: 1px solid var(--bo
 th:first-child, td:first-child { text-align: left; }
 th { font-size: 12px; font-weight: 700; color: var(--text3); letter-spacing: 0.04em; text-transform: uppercase; }
 tbody tr:last-child td { border-bottom: 0; }
+.leagues td a { text-decoration: none; font-weight: 600; }
+.leagues td a:hover { text-decoration: underline; }
+.leagues tr.on td { background: var(--accent-dim); }
+.leagues tr.on a { color: var(--accent); font-weight: 800; }
+.note { font-size: 13px; color: var(--text3); margin: 8px 2px 0; }
 
 /* History */
 .days { display: flex; align-items: center; gap: 8px; margin: 18px 0 8px; flex-wrap: wrap; }
