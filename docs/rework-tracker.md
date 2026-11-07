@@ -121,7 +121,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Second-round variables: M3 bookmaker disagreement | A5.3 confidence labels (D30) | With A5 |
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
 | Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52, approved 3 Nov, D53); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`; plan `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks; mockups are task 3, after the data block). Tasks 1–2 (the data block behind `SPIX_RECOMMENDATIONS`, off) merged 3 Nov, D56; task 3 look chosen (version B, D63); tasks 4–5 (match page, board card, slip) merged 4 Nov, D59, D60, shown only when the switch is on. Task 6 replaced by the owner dashboard (D67, merged 4 Nov, no migration); task 7 dropped. Live 4 Nov (D68). Open: the methodology copy (draft kept for the owner's sign-off); the "Worth it at" fix (D68, owner 4 Nov) waits for the merge and a website restart | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
-| Pick notes (one line for, one against) on every Most likely and Value pick: into `recommendations.v1` behind an off switch, then the frontend on 8100 (D75) | Frontend on 8100 after the merge; live when the owner adds `SPIX_PICK_NOTES=on` | Fixed wording chosen and built behind `SPIX_PICK_NOTES` (off) 5 Nov; the owner chose layout B, built on the frontend 5 Nov (D76) |
+| Pick notes (one line for, one against) on every Most likely and Value pick: into `recommendations.v1` behind an off switch, then the frontend on 8100 (D75) | Frontend on 8100 after the merge; live when the owner adds `SPIX_PICK_NOTES=on` | Fixed wording chosen and built behind `SPIX_PICK_NOTES` (off) 5 Nov; the owner chose layout B, built on the frontend 5 Nov (D76); the owner then rejected the wording (the two lines can contradict each other), so the display is on hold until notes explained from the data behind the pick are agreed, and the switch stays off |
 | Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | Needs the bet builder and the recommendation lists first |
 | Website and Discord link: one-tap sharing of a bet to Discord, Discord posts linking back to the match (D50) | A7, when the bot moves to the new engine | The bot still runs the old engine |
 | Building bets inside Discord; community selections (D50) | After A7 | Owner: for later |
@@ -1500,6 +1500,10 @@ The owner chose B: "lets go for tap to open. add them to staging but also prepar
   before this one.
 - *Going live:* merge (nothing changes while the switch is off), then the owner adds `SPIX_PICK_NOTES=on` to `.env`
   and the website is restarted.
+- *On hold (5 Nov):* the owner rejected the note wording, not the layout: on one card "2 of Lillestrom's last 4
+  Europa League matches had 9 or more corners" stood against "3 of Plzen's last 4 Europa League matches had 8
+  corners or fewer". The notes count recent form, but picks come from bookmaker prices, so the two can disagree.
+  The orchestrator holds this commit; the display waits for notes explained from the data behind the pick.
 
 **D78 — League by league on the owner dashboard (7 Nov, owner; backend).** The owner asked for per-league
 statistics on the owner dashboard (D67). D77 is held for the game-read engine design.
