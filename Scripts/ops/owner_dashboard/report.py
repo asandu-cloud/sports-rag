@@ -1,5 +1,5 @@
 """The report's numbers: "said" (the average chance Spix gave) against "hit" (how often the picks came in), over
-settled picks only, week by week (ISO weeks by kickoff, the Mac's local time) and market by market.
+settled picks only, week by week (ISO weeks by kickoff, the Mac's local time), market by market and league by league.
 
 Value picks weigh as the scorecard does (``scorecard.outcome_weight``): a half result counts half, a push or a
 void carries no weight. Most likely options are half lines, so each settles whole.
@@ -14,6 +14,11 @@ from Scripts.data_platform.scorecard import outcome_weight
 MARKETS = {"moneyline": "Result", "goals": "Goals", "btts": "Both teams to score", "spreads": "Handicap",
            "corners": "Corners", "cards": "Cards", "sot": "Shots on target"}
 KINDS = {"most_likely": "Most likely", "value": "Value"}
+LEAGUES = {"EPL": "Premier League", "LaLiga": "La Liga", "SerieA": "Serie A", "Bundesliga": "Bundesliga",
+           "Ligue1": "Ligue 1", "Championship": "Championship", "SuperLig": "Süper Lig", "Eredivisie": "Eredivisie",
+           "PrimeiraLiga": "Primeira Liga", "BelgianProLeague": "Jupiler Pro League", "UCL": "Champions League",
+           "UEL": "Europa League", "UECL": "Conference League"}  # the live site's names and order
+OTHER = "Other"  # a pick whose match has no league stored
 
 
 def local(kickoff) -> Optional[datetime]:
@@ -25,15 +30,15 @@ def local(kickoff) -> Optional[datetime]:
 
 
 def _picks(conn, kind: str) -> List[dict]:
-    """(kickoff, market, said, outcome) for every logged pick of one list."""
+    """(kickoff, league, market, said, outcome) for every logged pick of one list."""
     if kind == "most_likely":
-        sql = ("SELECT m.kickoff, p.market, p.chance AS said, p.outcome FROM most_likely p "
-               "JOIN matches m USING (fixture_api_id)")
+        sql = ("SELECT m.kickoff, COALESCE(m.league, ?) AS league, p.market, p.chance AS said, p.outcome "
+               "FROM most_likely p JOIN matches m USING (fixture_api_id)")
     elif kind == "value":
-        sql = "SELECT kickoff, market, said, outcome FROM value_picks"
+        sql = "SELECT kickoff, COALESCE(league, ?) AS league, market, said, outcome FROM value_picks"
     else:
         raise ValueError(f"unknown list: {kind!r}")
-    return [dict(row) for row in conn.execute(sql)]
+    return [dict(row) for row in conn.execute(sql, (OTHER,))]
 
 
 def _tally(picks: List[dict]) -> dict:
@@ -55,15 +60,22 @@ def _monday(moment: datetime):
     return (moment - timedelta(days=moment.weekday())).date()
 
 
-def summary(conn, *, kind: str, market: Optional[str] = None) -> dict:
+def _ordered(names, order: List[str]) -> List[str]:
+    return sorted(names, key=lambda name: (order.index(name) if name in order else len(order), name))
+
+
+def summary(conn, *, kind: str, market: Optional[str] = None, league: Optional[str] = None) -> dict:
     """``weeks`` (every ISO week from the first pick's to the last's, empty ones too), ``markets`` (each market
-    with a pick, in a fixed order) and ``overall``; ``weeks`` and ``overall`` follow ``market`` when given."""
+    with a pick in ``league``, in a fixed order), ``leagues`` (each league with a pick in ``market``, in the live
+    site's order) and ``overall``; ``weeks`` and ``overall`` follow both when given."""
     picks = [p for p in _picks(conn, kind) if local(p["kickoff"])]
-    order = list(MARKETS)
-    markets = [dict(_tally([p for p in picks if p["market"] == name]), market=name)
-               for name in sorted({p["market"] for p in picks}, key=lambda m: (order.index(m) if m in order
-                                                                                else len(order), m))]
-    chosen = [p for p in picks if market is None or p["market"] == market]
+    in_league = [p for p in picks if league is None or p["league"] == league]
+    in_market = [p for p in picks if market is None or p["market"] == market]
+    markets = [dict(_tally([p for p in in_league if p["market"] == name]), market=name)
+               for name in _ordered({p["market"] for p in in_league}, list(MARKETS))]
+    leagues = [dict(_tally([p for p in in_market if p["league"] == name]), league=name)
+               for name in _ordered({p["league"] for p in in_market}, list(LEAGUES))]
+    chosen = [p for p in in_league if market is None or p["market"] == market]
     by_week: Dict = {}
     for pick in chosen:
         by_week.setdefault(_monday(local(pick["kickoff"])), []).append(pick)
@@ -73,4 +85,4 @@ def summary(conn, *, kind: str, market: Optional[str] = None) -> dict:
         while week <= last:
             weeks.append(dict(_tally(by_week.get(week, [])), week=week.isoformat()))
             week += timedelta(days=7)
-    return {"weeks": weeks, "markets": markets, "overall": _tally(chosen)}
+    return {"weeks": weeks, "markets": markets, "leagues": leagues, "overall": _tally(chosen)}

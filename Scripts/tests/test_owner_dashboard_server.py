@@ -32,6 +32,15 @@ def test_routes_serve_both_pages_the_stylesheet_and_404(conn):
         assert server.route(conn, path, {})[0] == 404
 
 
+def test_the_report_route_opens_a_league(conn):
+    conn.execute("INSERT INTO matches (fixture_api_id, league, kickoff, status) VALUES ('1', 'EPL', "
+                 "'2026-11-07T15:00:00Z', 'FT')")
+    conn.execute("INSERT INTO most_likely (fixture_api_id, position, market, side, line, label, chance, version, "
+                 "outcome) VALUES ('1', 0, 'goals', 'over', 1.5, 'Over 1.5 goals', 0.8, 'recommendations.v1', 'hit')")
+    body = server.route(conn, "/", {"league": "EPL"})[2].decode()
+    assert "· All markets · Premier League</span>" in body
+
+
 def test_update_now_runs_one_update_and_a_busy_refresh_is_reported_not_raised(conn, monkeypatch):
     calls, busy = [], {"value": False}
     monkeypatch.setattr(sync, "log_most_likely", lambda c, p, *, now, gate: calls.append("most_likely") or
