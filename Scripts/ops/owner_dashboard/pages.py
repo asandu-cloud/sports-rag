@@ -10,7 +10,7 @@ from urllib.parse import urlencode
 
 from Scripts.data_platform import fair_prices as fp
 from Scripts.ops.owner_dashboard import report
-from Scripts.ops.owner_dashboard.report import KINDS, MARKETS, local
+from Scripts.ops.owner_dashboard.report import KINDS, LEAGUES, MARKETS, local
 
 THEME = """<script>try{var t=localStorage.getItem("spix-owner-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}</script>"""
 THEME_TOGGLE = """<script>document.querySelector(".theme").addEventListener("click",function(){var r=document.documentElement,
@@ -83,12 +83,13 @@ def layout(title: str, active: str, body: str, *, updated=None, notice=None, bac
 """
 
 
-def _href(kind: str, market: Optional[str] = None) -> str:
-    return "/?" + urlencode({"kind": kind, **({"market": market} if market else {})})
+def _href(kind: str, market: Optional[str] = None, league: Optional[str] = None) -> str:
+    return "/?" + urlencode({"kind": kind, **({"market": market} if market else {}),
+                             **({"league": league} if league else {})})
 
 
-def _link(kind: str, market: Optional[str] = None) -> str:
-    return escape(_href(kind, market))
+def _link(kind: str, market: Optional[str] = None, league: Optional[str] = None) -> str:
+    return escape(_href(kind, market, league))
 
 
 W, H, LEFT, RIGHT, TOP, BOTTOM = 960, 280, 48, 110, 14, 30
@@ -149,37 +150,60 @@ def _chart(weeks: List[dict]) -> str:
             f'The table below has the numbers.">{"".join(parts)}</svg>')
 
 
-def _tile(kind: str, market: dict, chosen: Optional[str]) -> str:
-    gap = "" if market["hit"] is None else round((market["hit"] - market["said"]) * 100)
-    gap_text = "" if gap == "" else f'<span class="gap">{"+" if gap > 0 else "−" if gap < 0 else "±"}{abs(gap)} vs said</span>'
+def _gap(row) -> str:
+    """Hit minus said in points ("+3", "−2", "±0"); empty before anything settles."""
+    if row["hit"] is None:
+        return ""
+    gap = round((row["hit"] - row["said"]) * 100)
+    return f'{"+" if gap > 0 else "−" if gap < 0 else "±"}{abs(gap)}'
+
+
+def _tile(kind: str, market: dict, chosen: Optional[str], league: Optional[str]) -> str:
+    gap_text = f'<span class="gap">{_gap(market)} vs said</span>' if _gap(market) else ""
     on = _current(market["market"] == chosen, "true")
-    return (f'<a class="tile" href="{_link(kind, market["market"])}"{on}>'
+    return (f'<a class="tile" href="{_link(kind, market["market"], league)}"{on}>'
             f'<span class="name">{escape(MARKETS.get(market["market"], market["market"]))}</span>'
             f'<b>{pct(market["hit"])}</b><span class="sub">said {pct(market["said"])} · '
             f'{_tally(market)}</span>{gap_text}</a>')
 
 
-def report_page(conn, *, kind: str = "most_likely", market: Optional[str] = None, updated=None, notice=None) -> str:
+def _league_row(kind: str, row: dict, market: Optional[str], chosen: Optional[str]) -> str:
+    """One league's line in the table: its name opens it, keeping the market."""
+    on = row.get("league") == chosen
+    name = LEAGUES.get(row["league"], row["league"]) if row.get("league") else "All leagues"
+    return (f'<tr{' class="on"' if on else ""}><td><a href="{_link(kind, market, row.get("league"))}"'
+            f'{_current(on, "true")}>{escape(name)}</a></td><td>{row["picks"]:,}</td><td>{row["pending"]:,}</td>'
+            f'<td>{pct(row["said"])}</td><td>{pct(row["hit"])}</td><td>{_gap(row) or "–"}</td></tr>')
+
+
+def report_page(conn, *, kind: str = "most_likely", market: Optional[str] = None, league: Optional[str] = None,
+                updated=None, notice=None) -> str:
     kind = kind if kind in KINDS else "most_likely"
-    data = report.summary(conn, kind=kind, market=market)
-    if market not in {m["market"] for m in data["markets"]}:
-        market, data = None, report.summary(conn, kind=kind)
-    switch = "".join(f'<a href="{_link(name, market)}"{_current(name == kind)}>{label}</a>'
+    data = report.summary(conn, kind=kind, market=market, league=league)
+    if league is not None and league not in {lg["league"] for lg in data["leagues"]}:
+        league, data = None, report.summary(conn, kind=kind, market=market)
+    if market is not None and market not in {m["market"] for m in data["markets"]}:
+        market, data = None, report.summary(conn, kind=kind, league=league)
+    switch = "".join(f'<a href="{_link(name, market, league)}"{_current(name == kind)}>{label}</a>'
                      for name, label in KINDS.items())
-    scope = MARKETS.get(market, market) if market else "All markets"
+    scope = " · ".join([MARKETS.get(market, market) if market else "All markets"]
+                       + ([LEAGUES.get(league, league)] if league else []))
     overall = data["overall"]
     head = f'<div class="switch">{switch}</div><h1>{escape(KINDS[kind])} <span>· {escape(scope)}</span></h1>'
     if not overall["picks"]:
         waiting = f" {overall['pending']} waiting for their results." if overall["pending"] else ""
         body = (head + f'<p class="empty">No settled {escape(KINDS[kind])} picks yet.{waiting} '
                 f'The report fills as matches finish.</p>')
-        return layout("Report", "Report", body, updated=updated, notice=notice, back=_href(kind, market))
+        return layout("Report", "Report", body, updated=updated, notice=notice, back=_href(kind, market, league))
     idle = "Hover or tab through the weeks to read each one."
     rows = "".join(
         f'<tr><td>Week of {escape(_short(local(w["week"] + "T12:00:00")))}</td><td>{_count(w["settled"])}</td>'
         f'<td>{w["pending"]}</td><td>{pct(w["said"])}</td><td>{pct(w["hit"])}</td></tr>' for w in data["weeks"])
-    every = report.summary(conn, kind=kind)["overall"] if market else overall
-    all_tile = (f'<a class="tile all" href="{_link(kind)}"{_current(not market, "true")}>'
+    every = report.summary(conn, kind=kind, league=league)["overall"] if market else overall
+    every_league = report.summary(conn, kind=kind, market=market)["overall"] if league else overall
+    leagues = _league_row(kind, every_league, market, league) + "".join(
+        _league_row(kind, row, market, league) for row in data["leagues"])
+    all_tile = (f'<a class="tile all" href="{_link(kind, None, league)}"{_current(not market, "true")}>'
                 f'<span class="name">All markets</span><b>{pct(every["hit"])}</b><span class="sub">said '
                 f'{pct(every["said"])} · {_tally(every)}</span></a>')
     body = f"""{head}
@@ -190,19 +214,22 @@ def report_page(conn, *, kind: str = "most_likely", market: Optional[str] = None
 <div class="chart-scroll">{_chart(data["weeks"])}</div>
 </section>
 <h2>Markets</h2>
-<div class="tiles">{all_tile}{"".join(_tile(kind, m, market) for m in data["markets"])}</div>
+<div class="tiles">{all_tile}{"".join(_tile(kind, m, market, league) for m in data["markets"])}</div>
+<h2>Leagues</h2>
+<div class="panel table leagues"><table>
+<thead><tr><th>League</th><th>Settled</th><th>Pending</th><th>Said</th><th>Hit</th><th>Hit vs said</th></tr></thead>
+<tbody>{leagues}</tbody>
+</table></div>
+<p class="note">A league with few settled picks can land far from what was said by chance alone.</p>
 <h2>Week by week</h2>
 <div class="panel table"><table>
 <thead><tr><th>Week</th><th>Settled</th><th>Pending</th><th>Said</th><th>Hit</th></tr></thead>
 <tbody>{rows}</tbody>
 </table></div>"""
-    return layout("Report", "Report", body, updated=updated, notice=notice, back=_href(kind, market), script=READOUT)
+    return layout("Report", "Report", body, updated=updated, notice=notice, back=_href(kind, market, league),
+                  script=READOUT)
 
 
-LEAGUES = {"EPL": "Premier League", "LaLiga": "La Liga", "SerieA": "Serie A", "Bundesliga": "Bundesliga",
-           "Ligue1": "Ligue 1", "Championship": "Championship", "SuperLig": "Süper Lig", "Eredivisie": "Eredivisie",
-           "PrimeiraLiga": "Primeira Liga", "BelgianProLeague": "Jupiler Pro League", "UCL": "Champions League",
-           "UEL": "Europa League", "UECL": "Conference League"}  # the live site's names and order
 RESULTS = {"hit": ("Hit", "hit"), "half_hit": ("Half hit", "hit"), "miss": ("Miss", "miss"),
            "half_miss": ("Half miss", "miss"), "push": ("Push", "void"), "void": ("Void", "void")}
 WAITING = {"corners not in yet": "waiting for the corners", "score not in yet": "waiting for the score",

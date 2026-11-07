@@ -1476,6 +1476,26 @@ the match page and the board card; and one line on the methodology page saying a
   owner). The live site gets it only when the owner adds `SPIX_PICK_NOTES=on` to `.env` and the website restarts.
 - *Checks:* 70 new tests; full suite 2,851 passed, 4 skipped; JS 6 of 6. No engine code touched.
 
+**D78 — League by league on the owner dashboard (7 Nov, owner; backend).** The owner asked for per-league
+statistics on the owner dashboard (D67). D77 is held for the game-read engine design.
+- *What changed:* the Report page has a Leagues table under the market tiles, for Most likely and for Value. It
+  gives each league's settled and pending picks, said, hit, and hit minus said in points, in the live site's league
+  order, with an "All leagues" row first. A league's name opens the report for that league alone: the headline, the
+  chart, the market tiles and the weekly table then cover only it. The table follows the chosen market and the tiles
+  follow the chosen league, so "Corners in the Premier League" is one click from either side. Value picks use their
+  own league; a pick with no league stored shows as "Other". A league or market with nothing in the other's choice
+  falls back to all.
+- *Ruling:* the table's Settled column counts settled picks, as the tiles and the headline do (a push counts one),
+  not the weighted count of the weekly table. Said and hit are weighted as before (D67).
+- *First read* (the dashboard's file as updated 6 Nov 11:40; Most likely, 1,689 settled, said 69%, hit 68%): hit
+  minus said runs from −9 (Champions League, 162 picks) to +12 (Jupiler Pro League, 81 picks); 10 of the 13 leagues
+  are within 5 points. At 81–219 picks a league, with the three picks of one match tending to win or lose together,
+  gaps of this size can come from chance. Nothing to act on yet.
+- *Checks:* five new report and page tests and one route test. Full suite 2,861 passed, 4 skipped, with the 3 known
+  worktree errors; pinned golden check unchanged (54 fixtures). Checked on 8200 against the dashboard's own file
+  with `--no-update`: all leagues, Corners in the Premier League, and Value. No platform.db read, no engine code, no
+  migration. Live once merged and the dashboard (not the website) is restarted.
+
 ## Findings that shape later steps
 
 - **Checks from a worktree (3 Nov, corrected).** Three pinned `golden_snapshots check` runs from the backend folder
