@@ -1496,6 +1496,30 @@ statistics on the owner dashboard (D67). D77 is held for the game-read engine de
   with `--no-update`: all leagues, Corners in the Premier League, and Value. No platform.db read, no engine code, no
   migration. Live once merged and the dashboard (not the website) is restarted.
 
+**D79 — Units and ROI for Value picks on the owner dashboard (8 Nov, owner; backend).** The owner asked for a
+return in units, per day and per week, Value picks only, one unit on each bet. This lifts the dashboard design's
+"no money figures" non-goal (D67) for Value; Most likely keeps said against hit only.
+- *What changed:* the Value report's headline gains a second line, profit in units and ROI over the units staked.
+  The weekly table gains Profit (units) and ROI columns. A new Day by day table, under the weekly one, gives each
+  day with a Value pick (by kickoff, the Mac's local time): settled, pending, said, hit, profit and ROI. Each day
+  links to that day in History, and History's day heading gives the day's Value units and ROI. All of it follows
+  the chosen market and league. Profit is green, a loss red.
+- *Builder's calls:* the price is the one each pick was published at (the stored odds and bookmaker). Settlement
+  is the scorecard's own flat stake (`outcomes.outcome_accounting`): a hit returns the odds; a half hit returns
+  half the stake at the odds plus half the stake back; a half miss loses half the stake; a push or a void gives
+  the unit back and counts as staked. ROI is profit over units staked. A pick with no valid odds is left out of
+  the money; none is today.
+- *Ruling:* the weekly table's Settled column and the chart readout now count settled picks, as the headline,
+  tiles and league table do (D78), not the weighted count. So a week's Settled equals the units staked behind
+  its ROI. Most likely is unchanged, since its options are half lines.
+- *First read* (the dashboard's file as updated 8 Nov 02:35): 48 settled Value picks, −0.25 units, ROI −1%. By
+  day: Tue 3 Nov −0.65 (10 picks), Wed 4 −2.00 (2), Thu 5 +3.88 (6), Fri 6 +2.21 (5), Sat 7 −3.69 (25); Sun 8 has
+  16 pending. Checked by hand against the stored odds and results. 48 picks is far too few to read a return from.
+- *Checks:* four new report and page tests. Full suite 2,865 passed, 4 skipped, with the 3 known worktree errors;
+  pinned golden check unchanged (54 fixtures). Checked on 8200 against the dashboard's own file with
+  `--no-update`. No platform.db read, no engine code, no migration. Live once merged and the dashboard (not the
+  website) is restarted.
+
 ## Findings that shape later steps
 
 - **Checks from a worktree (3 Nov, corrected).** Three pinned `golden_snapshots check` runs from the backend folder

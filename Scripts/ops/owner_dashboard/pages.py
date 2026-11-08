@@ -143,7 +143,7 @@ def _chart(weeks: List[dict]) -> str:
         right = W - RIGHT if i == n - 1 else (xs[i] + xs[i + 1]) / 2
         day = local(week["week"] + "T12:00:00")
         say = (f"Week of {_short(day)}: hit {pct(week['hit'])}, said {pct(week['said'])}, "
-               f"{_count(week['settled'])} settled, {week['pending']} pending")
+               f"{week['picks']:,} settled, {week['pending']} pending")
         parts.append(f'<rect class="week" tabindex="0" x="{left:.1f}" y="{TOP}" width="{max(right - left, 1):.1f}" '
                      f'height="{plot_h}" data-x="{xs[i]:.1f}" data-say="{escape(say)}" aria-label="{escape(say)}"/>')
     return (f'<svg class="chart" viewBox="0 0 {W} {H}" role="img" aria-label="Hit and said, week by week. '
@@ -156,6 +156,45 @@ def _gap(row) -> str:
         return ""
     gap = round((row["hit"] - row["said"]) * 100)
     return f'{"+" if gap > 0 else "−" if gap < 0 else "±"}{abs(gap)}'
+
+
+def _units(value) -> str:
+    """A profit in units, signed ("+1.50", "−1.00", "0.00"); "–" before anything is staked."""
+    if value is None:
+        return "–"
+    text = f"{abs(value):.2f}"
+    return text if text == "0.00" else ("+" if value > 0 else "−") + text
+
+
+def _roi(value) -> str:
+    """The profit over the units staked, in whole percent, signed."""
+    if value is None:
+        return "–"
+    points = round(value * 100)
+    return f'{"+" if points > 0 else "−" if points < 0 else ""}{abs(points)}%'
+
+
+def _tone(row) -> str:
+    """Colours a profit and its ROI by their sign."""
+    if _units(row["profit"]) in ("–", "0.00"):
+        return ""
+    return ' class="up"' if row["profit"] > 0 else ' class="down"'
+
+
+def _money(row) -> str:
+    return f'<td{_tone(row)}>{_units(row["profit"])}</td><td{_tone(row)}>{_roi(row["roi"])}</td>'
+
+
+def _returns(row, more: str = "") -> str:
+    """"+0.50 units · ROI +17% on 3 units staked", for Value picks."""
+    staked = row["staked"]
+    return (f'<b{_tone(row)}>{_units(row["profit"])}</b> units <span>· ROI {_roi(row["roi"])} on '
+            f'{_count(staked)} {"unit" if staked == 1 else "units"} staked{more}</span>')
+
+
+MONEY = "<th>Profit (units)</th><th>ROI</th>"
+FLAT_STAKE = ("One unit on each settled pick, at the price it was published at. A push or a void gives the unit "
+              "back; a half result settles half of it.")
 
 
 def _tile(kind: str, market: dict, chosen: Optional[str], league: Optional[str]) -> str:
@@ -196,9 +235,23 @@ def report_page(conn, *, kind: str = "most_likely", market: Optional[str] = None
                 f'The report fills as matches finish.</p>')
         return layout("Report", "Report", body, updated=updated, notice=notice, back=_href(kind, market, league))
     idle = "Hover or tab through the weeks to read each one."
+    money = kind == "value"  # Value picks carry a price; Most likely shows said against hit only
     rows = "".join(
-        f'<tr><td>Week of {escape(_short(local(w["week"] + "T12:00:00")))}</td><td>{_count(w["settled"])}</td>'
-        f'<td>{w["pending"]}</td><td>{pct(w["said"])}</td><td>{pct(w["hit"])}</td></tr>' for w in data["weeks"])
+        f'<tr><td>Week of {escape(_short(local(w["week"] + "T12:00:00")))}</td><td>{w["picks"]:,}</td>'
+        f'<td>{w["pending"]}</td><td>{pct(w["said"])}</td><td>{pct(w["hit"])}</td>{_money(w) if money else ""}</tr>'
+        for w in data["weeks"])
+    daily = "".join(
+        f'<tr><td><a href="/history?day={d["day"]}">{escape(_day(date.fromisoformat(d["day"])))}</a></td>'
+        f'<td>{d["picks"]:,}</td><td>{d["pending"]:,}</td><td>{pct(d["said"])}</td><td>{pct(d["hit"])}</td>'
+        f'{_money(d)}</tr>' for d in data["days"])
+    days = f"""
+<h2>Day by day</h2>
+<div class="panel table daily"><table>
+<thead><tr><th>Day</th><th>Settled</th><th>Pending</th><th>Said</th><th>Hit</th>{MONEY}</tr></thead>
+<tbody>{daily}</tbody>
+</table></div>
+<p class="note">{FLAT_STAKE}</p>""" if money else ""
+    returns = f'\n<p class="headline money">{_returns(overall)}</p>' if money else ""
     every = report.summary(conn, kind=kind, league=league)["overall"] if market else overall
     every_league = report.summary(conn, kind=kind, market=market)["overall"] if league else overall
     leagues = _league_row(kind, every_league, market, league) + "".join(
@@ -207,7 +260,7 @@ def report_page(conn, *, kind: str = "most_likely", market: Optional[str] = None
                 f'<span class="name">All markets</span><b>{pct(every["hit"])}</b><span class="sub">said '
                 f'{pct(every["said"])} · {_tally(every)}</span></a>')
     body = f"""{head}
-<p class="headline"><b>{pct(overall["hit"])}</b> hit <span>· said {pct(overall["said"])} · {_tally(overall)}</span></p>
+<p class="headline"><b>{pct(overall["hit"])}</b> hit <span>· said {pct(overall["said"])} · {_tally(overall)}</span></p>{returns}
 <section class="panel">
 <div class="legend"><span><i class="swatch hit"></i>Hit</span><span><i class="swatch said"></i>Said</span></div>
 <p class="readout" aria-live="polite" data-idle="{idle}">{idle}</p>
@@ -223,9 +276,9 @@ def report_page(conn, *, kind: str = "most_likely", market: Optional[str] = None
 <p class="note">A league with few settled picks can land far from what was said by chance alone.</p>
 <h2>Week by week</h2>
 <div class="panel table"><table>
-<thead><tr><th>Week</th><th>Settled</th><th>Pending</th><th>Said</th><th>Hit</th></tr></thead>
+<thead><tr><th>Week</th><th>Settled</th><th>Pending</th><th>Said</th><th>Hit</th>{MONEY if money else ""}</tr></thead>
 <tbody>{rows}</tbody>
-</table></div>"""
+</table></div>{days}"""
     return layout("Report", "Report", body, updated=updated, notice=notice, back=_href(kind, market, league),
                   script=READOUT)
 
@@ -390,7 +443,15 @@ def history_page(conn, *, day=None, updated=None, notice=None, now: Optional[dat
             groups.append(f'<h2 class="league">{escape(LEAGUES.get(league, league or "Other"))}</h2>')
         groups.append(_match_card(match))
     picks = sum(len(m["picks"]) for m in today)
+    value = report.tally([p for m in today for p in m["picks"] if p["list"] == "Value"])
+    waiting = f' · {value["pending"]:,} pending' if value["pending"] else ""
+    if value["staked"]:
+        returns = f'<p class="headline">Value picks {_returns(value, waiting)}</p>'
+    elif value["pending"]:
+        returns = f'<p class="headline">Value picks <span>· {value["pending"]:,} pending, no result yet</span></p>'
+    else:
+        returns = ""
     body = (f'<nav class="days" aria-label="Days">{strip}</nav><h1>{escape(_day(chosen))} <span>· {len(today)} '
             f'{"match" if len(today) == 1 else "matches"} · {picks} {"pick" if picks == 1 else "picks"}</span></h1>'
-            + "".join(groups))
+            + returns + "".join(groups))
     return layout("History", "History", body, updated=updated, notice=notice, back=back)

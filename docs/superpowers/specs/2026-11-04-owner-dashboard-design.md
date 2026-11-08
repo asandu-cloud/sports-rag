@@ -31,7 +31,8 @@ nothing records Most likely at all, and nothing shows either over time.
 ## Non-goals
 
 - No public page, no login, nothing on port 8000.
-- No money figures (profit, return); offered, not asked for. Hit against said only.
+- No money figures (profit, return); offered, not asked for. Hit against said only. *Lifted for Value picks on
+  8 Nov at the owner's request: units and ROI per day and per week (D79).*
 - No editing or hiding picks. No cards or shots-on-target in Most likely (the layer does not cover them).
 - No legacy (pre-stage-4) picks.
 
