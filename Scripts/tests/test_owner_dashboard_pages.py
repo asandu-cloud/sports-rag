@@ -31,12 +31,12 @@ def add_likely(conn, fixture, market, side, line, chance, outcome, *, label=None
 
 
 def add_value(conn, key, fixture, kickoff, market, said, outcome, *, label="Under 10 corners", side="under",
-              line=10.0, actual=None, home="Everton", away="Coventry", league="EPL"):
+              line=10.0, actual=None, home="Everton", away="Coventry", league="EPL", odds=2.1):
     conn.execute(
         "INSERT INTO value_picks (selection_key, fixture_api_id, kickoff, league, home, away, market, side, line, "
         "label, pick, odds, bookmaker, said, outcome, actual_result, published_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 2.1, 'Pinnacle', ?, ?, ?, '2026-11-03T09:00:00Z')",
-        (key, fixture, kickoff, league, home, away, market, side, line, label, label, said, outcome, actual))
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pinnacle', ?, ?, ?, '2026-11-03T09:00:00Z')",
+        (key, fixture, kickoff, league, home, away, market, side, line, label, label, odds, said, outcome, actual))
 
 
 def test_said_and_hit_are_taken_over_settled_picks_with_half_results_weighted(conn):
@@ -149,6 +149,73 @@ def test_the_league_table_counts_settled_picks_as_the_tiles_do(conn):
     add_value(conn, "b", "2", "2026-11-04T19:00:00Z", "corners", 0.52, "push")
     table = pages.report_page(conn, kind="value").split("<h2>Leagues</h2>")[1].split("</table>")[0]
     assert ">All leagues</a></td><td>2</td>" in table and ">Premier League</a></td><td>2</td>" in table
+
+
+def test_value_returns_are_one_unit_a_pick_at_the_published_price(conn):
+    for key, odds, outcome in (("a", 2.10, "hit"), ("b", 1.90, "miss"), ("c", 2.00, "half_hit"),
+                               ("d", 1.80, "half_miss"), ("e", 2.50, "push"), ("f", 2.20, None)):
+        add_value(conn, key, "1", "2026-11-04T19:00:00Z", "corners", 0.55, outcome, odds=odds)
+    overall = report.summary(conn, kind="value")["overall"]
+    assert overall["staked"] == 5  # the push's unit comes back; the pending pick is not staked yet
+    assert overall["profit"] == pytest.approx(1.10 - 1 + 0.50 - 0.50 + 0)
+    assert overall["roi"] == pytest.approx(0.10 / 5)
+    add_match(conn, "2", "2026-11-04T19:00:00Z")
+    add_likely(conn, "2", "goals", "over", 1.5, 0.80, "hit")
+    likely = report.summary(conn, kind="most_likely")["overall"]
+    assert (likely["staked"], likely["profit"], likely["roi"]) == (0, None, None)  # Most likely carries no money
+
+
+def test_value_returns_go_day_by_day_and_week_by_week(conn):
+    add_value(conn, "a", "1", "2026-11-04T19:00:00Z", "corners", 0.55, "hit", odds=2.5)  # Wed 4 Nov
+    add_value(conn, "b", "2", "2026-11-07T12:00:00Z", "corners", 0.52, "miss")  # Sat 7 Nov
+    add_value(conn, "c", "3", "2026-11-07T17:00:00Z", "goals", 0.50, "hit", odds=1.9)
+    add_value(conn, "d", "4", "2026-11-10T19:00:00Z", "goals", 0.50, None)  # Tue 10 Nov, not settled
+    data = report.summary(conn, kind="value")
+    assert [(d["day"], d["staked"], d["pending"]) for d in data["days"]] == [
+        ("2026-11-04", 1, 0), ("2026-11-07", 2, 0), ("2026-11-10", 0, 1)]
+    assert [d["profit"] for d in data["days"]] == [pytest.approx(1.5), pytest.approx(-0.1), None]
+    assert data["days"][1]["roi"] == pytest.approx(-0.05)
+    assert [(w["week"], w["profit"]) for w in data["weeks"]] == [("2026-11-02", pytest.approx(1.4)),
+                                                                ("2026-11-09", None)]
+    assert data["weeks"][0]["roi"] == pytest.approx(1.4 / 3)
+    goals = report.summary(conn, kind="value", market="goals")
+    assert [(d["day"], d["profit"]) for d in goals["days"]] == [("2026-11-07", pytest.approx(0.9)),
+                                                                ("2026-11-10", None)]
+
+
+def test_the_value_report_gives_units_and_roi_by_day_and_by_week(conn):
+    add_value(conn, "a", "1", "2026-11-04T19:00:00Z", "corners", 0.55, "hit", odds=2.5)
+    add_value(conn, "b", "2", "2026-11-07T12:00:00Z", "corners", 0.52, "miss")
+    add_value(conn, "c", "3", "2026-11-07T17:00:00Z", "goals", 0.50, "push")
+    page = pages.report_page(conn, kind="value")
+    assert '<b class="up">+0.50</b> units <span>· ROI +17% on 3 units staked</span>' in page
+    days = page.split("<h2>Day by day</h2>")[1].split("</table>")[0]
+    assert '<a href="/history?day=2026-11-04">Wed 4 Nov</a>' in days
+    assert '<td class="up">+1.50</td><td class="up">+150%</td>' in days
+    assert '<td class="down">−1.00</td><td class="down">−50%</td>' in days  # a miss and a push on Sat 7 Nov
+    weeks = page.split("<h2>Week by week</h2>")[1].split("</table>")[0]
+    assert "<th>Profit (units)</th><th>ROI</th>" in weeks and '<td class="up">+0.50</td>' in weeks
+    assert "<td>Week of 2 Nov</td><td>3</td>" in weeks  # settled picks, the push included: the units staked
+    add_match(conn, "4", "2026-11-04T19:00:00Z")
+    add_likely(conn, "4", "goals", "over", 1.5, 0.80, "hit")
+    likely = pages.report_page(conn, kind="most_likely")
+    assert "Day by day" not in likely and "units" not in likely and "ROI" not in likely
+
+
+def test_history_gives_the_days_value_units_and_roi(conn):
+    add_match(conn, "1", "2026-11-03T12:00:00Z")
+    add_likely(conn, "1", "goals", "over", 1.5, 0.80, "hit")
+    add_value(conn, "a", "1", "2026-11-03T12:00:00Z", "corners", 0.55, "hit", odds=2.4)
+    add_value(conn, "b", "2", "2026-11-03T15:00:00Z", "corners", 0.52, "miss", home="Lyon", away="Lens")
+    add_value(conn, "c", "3", "2026-11-03T17:00:00Z", "goals", 0.50, None, home="Ajax", away="PSV")
+    add_match(conn, "4", "2026-11-04T12:00:00Z", home="Roma", away="Lazio")
+    add_likely(conn, "4", "goals", "under", 3.5, 0.70, "hit")
+    page = pages.history_page(conn, day="2026-11-03")
+    assert ('Value picks <b class="up">+0.40</b> units <span>· ROI +20% on 2 units staked · 1 pending</span>'
+            in page)
+    assert "Value picks" not in pages.history_page(conn, day="2026-11-04")  # no Value pick that day
+    add_value(conn, "d", "5", "2026-11-04T15:00:00Z", "goals", 0.50, None, home="Ajax", away="PSV")
+    assert "Value picks <span>· 1 pending, no result yet</span>" in pages.history_page(conn, day="2026-11-04")
 
 
 def test_an_empty_dashboard_says_so(conn):

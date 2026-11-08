@@ -122,8 +122,12 @@ th, td { padding: 9px 20px; text-align: right; border-bottom: 1px solid var(--bo
 th:first-child, td:first-child { text-align: left; }
 th { font-size: 12px; font-weight: 700; color: var(--text3); letter-spacing: 0.04em; text-transform: uppercase; }
 tbody tr:last-child td { border-bottom: 0; }
-.leagues td a { text-decoration: none; font-weight: 600; }
-.leagues td a:hover { text-decoration: underline; }
+.leagues td a, .daily td a { text-decoration: none; font-weight: 600; }
+.leagues td a:hover, .daily td a:hover { text-decoration: underline; }
+td.up, .headline b.up { color: var(--green); }
+td.down, .headline b.down { color: var(--loss); }
+td.up, td.down { font-weight: 600; }
+.headline.money { margin-top: -12px; }
 .leagues tr.on td { background: var(--accent-dim); }
 .leagues tr.on a { color: var(--accent); font-weight: 800; }
 .note { font-size: 13px; color: var(--text3); margin: 8px 2px 0; }
