@@ -138,7 +138,7 @@ def build_refresh_plan(
     lookback_days: int = 7,
     sync_platform: bool = True,
     build_referees: bool = True,
-    embed: bool = True,
+    embed: bool = False,
     retrain_ml: bool = False,
     build_platform_features: bool = True,
 ) -> List[RefreshStage]:
@@ -237,9 +237,10 @@ def build_refresh_plan(
         ))
 
     if embed and legacy_codes:
-        # Predictions read the SQLite document store; Chroma only serves semantic search
-        # (Whale chat, rag_cli_v2) until A7. An OpenAI/Chroma failure is a warning, not a
-        # failed refresh (the cause of the 10-13 Oct outages).
+        # Opt-in since D81 (owner, 9 Nov): nothing running reads Chroma, so the daily refresh
+        # writes the SQLite document store only. Predictions read that store; Chroma served
+        # semantic search (Whale chat, rag_cli_v2), which A7 retires. When asked for, an
+        # OpenAI/Chroma failure is a warning, not a failed refresh (the 10-13 Oct outages).
         plan.append(RefreshStage(
             name="chroma_embed",
             description="Best effort: embed the normalized season into Chroma for semantic search.",
@@ -389,7 +390,7 @@ def run_refresh_season(args, *, runner: Runner = subprocess.run) -> SeasonRefres
         lookback_days=args.lookback_days,
         sync_platform=not args.skip_platform_sync,
         build_referees=not args.skip_referees,
-        embed=not args.skip_embedding,
+        embed=bool(getattr(args, "embed", False)) and not getattr(args, "skip_embedding", False),
         retrain_ml=False,  # --skip-training remains a backwards-compatible no-op.
         build_platform_features=not args.skip_platform_features,
     )

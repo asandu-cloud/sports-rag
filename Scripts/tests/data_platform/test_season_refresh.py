@@ -33,7 +33,6 @@ def test_default_plan_refreshes_every_public_domestic_league_in_both_active_path
         "canonical_feature_snapshots",
         "canonical_kb_enqueue",
         "canonical_kb_refresh",
-        "chroma_embed",
         "platform_health",
     ]
 
@@ -49,12 +48,9 @@ def test_default_plan_refreshes_every_public_domestic_league_in_both_active_path
     assert "--normalize" in legacy
     # Rework A2a: predictions read the SQLite document store; embedding is a separate, non-fatal stage.
     assert "--load-documents" in legacy and "--embed" not in legacy
+    # D81: nothing reads Chroma, so the daily refresh writes the SQLite store only.
     kb_refresh = plan[5].command
-    assert kb_refresh[kb_refresh.index("--vector-backend") + 1] == "sqlite+chroma"
-    embed = plan[6]
-    assert "01_embed_and_upsert.py" in embed.command[1] and "--all-leagues" in embed.command
-    assert embed.command[embed.command.index("--season") + 1] == "2026"
-    assert embed.accepted_exit_codes == (0, 1)
+    assert kb_refresh[kb_refresh.index("--vector-backend") + 1] == "sqlite"
     assert "--retrain-ml" not in legacy
     assert "--build-referees" in legacy
 
@@ -197,3 +193,48 @@ def test_without_embedding_the_store_is_still_written_and_chroma_is_skipped():
     kb_refresh = next(stage for stage in plan if stage.name == "canonical_kb_refresh").command
     assert kb_refresh[kb_refresh.index("--vector-backend") + 1] == "sqlite"
     assert "--load-documents" in next(stage for stage in plan if stage.name == "legacy_model_refresh").command
+
+
+def test_embedding_into_chroma_is_opt_in_and_comes_back_whole():
+    from data_platform.season_refresh import build_refresh_plan, resolve_competitions
+
+    plan = build_refresh_plan(season=2026, competitions=resolve_competitions(None), embed=True)
+    names = [stage.name for stage in plan]
+    assert names[-2:] == ["chroma_embed", "platform_health"]
+    kb_refresh = next(stage for stage in plan if stage.name == "canonical_kb_refresh").command
+    assert kb_refresh[kb_refresh.index("--vector-backend") + 1] == "sqlite+chroma"
+    embed = plan[-2]
+    assert "01_embed_and_upsert.py" in embed.command[1] and "--all-leagues" in embed.command
+    assert embed.command[embed.command.index("--season") + 1] == "2026"
+    assert embed.accepted_exit_codes == (0, 1)
+
+
+def _dry_run_stages(*flags):
+    from data_platform.cli import build_parser
+    from data_platform.season_refresh import run_refresh_season
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("dry run must not invoke a child command")
+
+    args = build_parser().parse_args(["refresh-season", "--season", "2026", "--dry-run", *flags])
+    report = run_refresh_season(args, runner=fail_if_called)
+    return {stage.name: stage.command for stage in report.stages}
+
+
+def test_refresh_season_skips_chroma_unless_embed_is_asked_for():
+    stages = _dry_run_stages()
+    assert "chroma_embed" not in stages
+    kb_refresh = stages["canonical_kb_refresh"]
+    assert kb_refresh[kb_refresh.index("--vector-backend") + 1] == "sqlite"
+
+    stages = _dry_run_stages("--embed")
+    assert "chroma_embed" in stages
+    kb_refresh = stages["canonical_kb_refresh"]
+    assert kb_refresh[kb_refresh.index("--vector-backend") + 1] == "sqlite+chroma"
+
+
+def test_old_skip_embedding_flag_is_still_accepted_and_still_skips():
+    stages = _dry_run_stages("--skip-embedding")
+    assert "chroma_embed" not in stages
+    stages = _dry_run_stages("--embed", "--skip-embedding")
+    assert "chroma_embed" not in stages

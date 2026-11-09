@@ -65,7 +65,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Done 23 Oct (D42): the 22 Oct probe met no error up to its end at 23:11 UTC (6.4 h after Juventus v Rennes's kickoff, 4.2 h after Bournemouth v Milan's); OddsPapi rewrites a match's history about 2 h after kickoff (adding in-play markets); `DUE_AFTER` 2 h and `SETTLED` 6 h stay; the 21 Oct evening cause is not reproduced (errors are retried since D41) | Done | |
 | Done 23 Oct (D42): OddsPapi's "No historical odds found" answers stayed so. Two of 22 Oct's (William Hill on Celtic v Celta, one Betfair outcome on Juventus v Rennes) were re-asked every 30 minutes until the Mac slept at 23:51 UTC, then once at 07:19 UTC 23 Oct: still 404 at 12.3 h and 14.6 h after kickoff. `SETTLED` (6 h) stays | Done | |
 | Done 28 Oct: no, the rewrite keeps every pre-kickoff price (56 fixtures compared, see Findings). Was: Does OddsPapi's post-match rewrite drop soft bookmakers' pre-kickoff lines? 27 minutes before Juventus v Rennes kicked off (22 Oct), Betano's history had 227 markets; after the rewrite 214 have pre-kickoff prices (1xBet 366 → 347, Bet365 230 → 227; Pinnacle unchanged, 106). Save a weekend match's history at kickoff and compare it with the rewritten one (D42). **Capture running since 23 Oct 07:39 UTC** (`ops/history_rewrite_check.py capture`, `Research/history-rewrite-2026-10-24/`): 73 fixtures of 23–25 Oct (top five, Championship, Primeira Liga, Süper Lig), each saved 2–100 min after kickoff and 3–12 h after; Pinnacle, Betano, 1xBet, Bet365 (ES), Marathonbet, William Hill; free histories, 3 fixture lists bought (the true close reuses them); the Mac must be awake (mains, lid open). Then `compare` | Mon 26 Oct | Own-bookmaker closes (`same_book`) come from the rewritten history |
-| Stop embedding into Chroma entirely | A7 | Whale chat and `rag_cli_v2` still search Chroma by meaning |
+| Delete `Index/chroma` (about 18 GB) and the Chroma write code | A7 | The daily embedding stopped on 9 Nov by the owner's call (D81, `refresh-season --embed` brings it back). Whale chat and `rag_cli_v2` would still search the old index by meaning until A7 retires them |
 | A6c LightGBM market-error challenger (D14) | After A6's base model passes | Must beat fitted A6 vs the market baseline |
 | Rerun the blend study (`Scripts/ops/blend_study.py`) on A6's forecasts: does Spix earn c > 0? | A6 gate | D20 |
 | **Temporary (D21):** 1X2 and O/U 2.5 publish the market's probability (power) with c = 0 **only until A6**; rerun the blend study on A6's forecasts and refit c if Spix earns it | A3.7 go-live, then A6 gate | Not permanent: revisit at A6 |
@@ -1575,6 +1575,26 @@ dark theme, only the green and the highlighter change.
   and cache tags, the two docs and the tracker.
 - *Going live:* merge. The website serves these files from disk with new cache tags, so a reload shows them; no
   migration and no `.env` line.
+
+**D81 — The daily refresh stops embedding into Chroma (9 Nov, owner; backend).** Nothing running reads Chroma.
+The website, the Match Reads, the recommendations, the market engine, the pick notes (D75) and the briefings all
+read the SQLite document store and the platform database. The only Chroma code still reached was the write side
+(`services/kb.py`, `kb/refresher.py`, the refresh's `chroma_embed` stage). No Discord bot, Streamlit app or old
+engine process runs. Since the OpenAI credit ran out (findings, 9 Nov), the embed step has ended in WARN on every
+refresh. The owner chose to stop it. The planned pick notes take their evidence from plain database lookups, not
+from a search by meaning, so they do not need Chroma either.
+- *What changed:* `refresh-season` no longer embeds by default. The plan has no `chroma_embed` stage, and
+  `canonical_kb_refresh` loads with `--vector-backend sqlite` instead of `sqlite+chroma`. A new `--embed` flag
+  brings both back without a revert. `--skip-embedding` is kept as a harmless compatibility flag and wins over
+  `--embed`. `build_refresh_plan(embed=...)` now defaults to `False`. The launchd job is unchanged.
+- *Not changed:* `Index/chroma` is left as it is (about 18 GB). Deleting it is a separate, permanent decision for
+  A7, when Whale chat and `rag_cli_v2` retire. Until then the old index simply stops updating.
+- *Checks:* tests for the new default (plan and CLI), for `--embed` bringing back the stage and the
+  `sqlite+chroma` load, and for `--skip-embedding` still being accepted. A dry run of the scheduled job's arguments
+  (`--include-europe`) lists seven stages, with no `chroma_embed`, and loads into `sqlite`. The golden check, with
+  every engine switch at its default, shows no changes across 54 fixtures. Full suite: 2,868 passed, and the 3
+  known worktree-only errors in `test_phase4_baseline_freeze.py`.
+- *Going live:* merge. It applies from the next daily refresh. No restart, migration or `.env` line.
 
 ## Findings that shape later steps
 
