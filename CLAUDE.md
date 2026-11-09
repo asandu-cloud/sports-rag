@@ -49,12 +49,10 @@ on it. The Discord bot still runs the old engine until A7.
     5 Nov (the two lines can contradict each other); a new approach that explains the pick from the data is being
     worked out. The frontend's display (D76) was taken off its branch on 9 Nov and waits for it. Keep the switch
     off.
-  - Pick evidence (D82): merged 9 Nov behind `SPIX_PICK_EVIDENCE` (off). It adds "How Spix reads it" and, for
-    each Most likely pick in the domestic leagues, a verdict and past matches at similar odds (the owner's
-    "Easier to read" card). Its display (D83, match page only, a sheet of the matches behind each row) was merged
-    the same evening and shows nothing while the switch is off. Going live: the owner adds
-    `SPIX_PICK_EVIDENCE=on` to `.env`, then the website is restarted. Open for the owner: "How Spix reads it"
-    repeats the chances and goals of the Match Read's figures panel further down.
+  - Pick evidence live 9 Nov at 18:51 (D82, D83, `SPIX_PICK_EVIDENCE=on`). "How Spix reads it" sits above
+    Most likely. Each Most likely pick in the domestic leagues gets a verdict, a detail line and past matches at
+    similar odds, with a sheet of those matches (the owner's "Easier to read" card). Match page only. Open for
+    the owner: "How Spix reads it" repeats the chances and goals of the Match Read's figures panel further down.
 - **Cobalt palette live 9 Nov (D80).** Cobalt `#0246A4` replaced the turf green, lime cream `#D5F097` the
   highlighter, and mint cream `#F2FFFA` is the light ground; the dark theme uses a light cobalt `#88B4F2`. Cache
   tags are `evidence-20261109a` (style.css, app.js, since D83) and `palette-20261109a` (theme.js). Open for the owner: the steel
@@ -69,13 +67,14 @@ on it. The Discord bot still runs the old engine until A7.
   - count a straight red as two cards (done 3 Nov in the studies: yellow 1, red 2, at most 3 per player);
   - rerun the calibration study (done 3 Nov: no calibrator passes in corners or cards, so stage 5 has nothing to
     ship);
-  - build A5.4 behind an off switch (merged 4 Nov: `SPIX_CARDS_REFERENCE`, off; cards priced from Pinnacle when
-    on, D61, D62).
+  - build A5.4 behind an off switch (merged 4 Nov: `SPIX_CARDS_REFERENCE`; cards priced from Pinnacle when on,
+    D61, D62).
+- **Cards stage (A5.4) live 9 Nov at 18:51**, a day ahead of its Tue 10 Nov slot (owner): `SPIX_CARDS_REFERENCE=pinnacle`.
+  No club match is played before 20 Nov, so no pick changed early.
 - **Next dates.**
-  - Tue 10 Nov: A5.4 cards takes this slot (owner, D58); the 9 Nov scorecard cleared it. Go-live: the owner adds
-    `SPIX_CARDS_REFERENCE=pinnacle` to `.env`, then the website is restarted. Checklist in the tracker (9 Nov).
   - No club matches from 9 to 19 Nov (international break). Cards picks start with the 20–22 Nov weekend, once
-    cards prices appear (about 18–19 Nov). The Mon 16 Nov scorecard has no new matches.
+    cards prices appear (about 18–19 Nov). Then check that new reads record `pinnacle`, and ask the backend for
+    checks 4–7 (tracker, 9 Nov). The Mon 16 Nov scorecard has no new matches.
   - Mon 23 Nov 08:00: the first scorecard to judge cards.
   - Tue 24 Nov: earliest next stage (owner, 9 Nov: 17 Nov would share cards' first weekend).
 - **Update this block** in the same commit as the tracker whenever a stage goes live or the current project

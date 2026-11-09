@@ -1717,6 +1717,13 @@ before.
   rather than early December.
   *Owner, 9 Nov:* cards still go on Tue 10 Nov as planned (the quiet week is used to check the switch is picked up),
   and the next stage is Tue 24 Nov at the earliest.
+  *Live 9 Nov at 18:51 (orchestrator):* the owner added `SPIX_CARDS_REFERENCE=pinnacle` and `SPIX_PICK_EVIDENCE=on`
+  to `.env` (saved 18:48) a day ahead of the slot, and the frontend restarted the website at the owner's request
+  (pid 98972, health 200). `engine_switches.snapshot()` shows cards `pinnacle` and every other switch as before;
+  nothing is listed as ignored. No club match is played before 20 Nov, so no published pick changes earlier than
+  planned and the Mon 23 Nov scorecard still judges cards first. The newest Match Read is from 8 Nov 20:03 and records cards `off`.
+  The check that new reads record `pinnacle` waits for the first 20–22 Nov reads; checks 4–7 (Pinnacle as the only
+  book, price confirmation, about one cards pick per four matches, Value without cards) follow around 18–20 Nov.
 
 - **Checks from a worktree (3 Nov, corrected).** Three pinned `golden_snapshots check` runs from the backend folder
   and a scratch copy (about 19:45–20:05 local) reported about 7,000 changed values per fixture, the same before and
