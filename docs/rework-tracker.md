@@ -1504,6 +1504,8 @@ The owner chose B: "lets go for tap to open. add them to staging but also prepar
   Europa League matches had 9 or more corners" stood against "3 of Plzen's last 4 Europa League matches had 8
   corners or fewer". The notes count recent form, but picks come from bookmaker prices, so the two can disagree.
   The orchestrator holds this commit; the display waits for notes explained from the data behind the pick.
+- *Off the branch (9 Nov):* the display's code was reverted on the frontend branch so the palette (D80) could go
+  live without it. It stays in the history (5de398b) and comes back, adapted, with the new notes.
 
 **D78 — League by league on the owner dashboard (7 Nov, owner; backend).** The owner asked for per-league
 statistics on the owner dashboard (D67). D77 is held for the game-read engine design.
