@@ -1115,6 +1115,88 @@ button.fixture-teams:hover { color: var(--accent-l); }
 .recs-why { margin: 0; flex: 1; color: var(--text2); font-size: 14px; }
 .recs-card-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 
+/* Pick evidence (D83, the owner's "Easier to read" mockup): How Spix reads it above the picks, then under each
+   Most likely pick a verdict set by a rule, one detail line, and past matches at similar odds that open a sheet. */
+.recs-ev-cap { font-size: 13px; font-weight: 500; color: var(--text3); }
+.recs-story { padding: 18px; border-radius: 10px; background: var(--surface2); display: grid; gap: 14px; }
+.recs-story-lead { margin: 0; font-size: 18px; font-weight: 700; line-height: 1.3; text-wrap: balance; }
+.recs-kv { margin: 0; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px 24px; }
+@media (max-width: 600px) { .recs-kv { grid-template-columns: minmax(0, 1fr); } }
+.recs-kv div { display: grid; align-content: start; gap: 2px; min-width: 0; }
+.recs-kv dt { font-size: 13px; color: var(--text3); }
+.recs-kv dd { margin: 0; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.recs-kv-item { white-space: nowrap; }
+.recs-kv-sep { color: var(--text3); font-weight: 400; }
+.recs-evidence-note { flex: 1; display: grid; align-content: start; gap: 6px; }
+.recs-verdict { margin: 0; font-size: 16px; font-weight: 700; line-height: 1.3; }
+.recs-detail { margin: 0; font-size: 15px; line-height: 1.5; color: var(--text2); }
+.recs-ev { display: grid; gap: 2px; margin: 4px 0 6px; padding-top: 10px; border-top: 1px solid var(--border); }
+.recs-ev-head { margin: 0 0 4px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.recs-ev-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 4px 10px;
+  width: calc(100% + 16px); margin: 0 -8px; padding: 7px 8px;
+  border-radius: 6px; text-align: left;
+}
+.recs-ev-row:hover { background: var(--surface-hover); }
+.recs-ev-name { display: grid; min-width: 0; line-height: 1.25; }
+.recs-ev-name b { font-size: 14px; font-weight: 700; }
+.recs-ev-name span { font-size: 13px; color: var(--text3); font-variant-numeric: tabular-nums; }
+.recs-ev-count { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; color: var(--text2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.recs-ev-count b { color: var(--text); font-weight: 800; font-size: 16px; }
+.recs-ev-count .icon { color: var(--text3); }
+.recs-ev-bar { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--chart-track); overflow: hidden; }
+.recs-ev-bar i { display: block; height: 100%; border-radius: 2px; background: var(--accent); }
+
+/* The sheet behind an evidence row. */
+.recs-sheet {
+  width: min(680px, calc(100vw - 32px)); max-height: min(86vh, 860px);
+  margin: auto; /* the reset's margin 0 would pin the dialog to the top left */
+  padding: 0;
+  border: 1px solid var(--border); border-radius: 14px;
+  background: var(--bg); color: var(--text);
+  box-shadow: var(--shadow-lg);
+}
+.recs-sheet::backdrop { background: var(--overlay); }
+.recs-sheet-body { display: grid; gap: 14px; padding: 20px 20px 24px; }
+.recs-sheet-body p { margin: 0; color: var(--text2); font-size: 15px; }
+.recs-sheet-top { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.recs-sheet-body .recs-sheet-label { font-size: 13px; font-weight: 600; color: var(--text3); }
+.recs-sheet-title {
+  margin: 4px 0 0;
+  font-size: 24px; font-weight: 800; line-height: 1.05;
+  font-stretch: var(--display-stretch); text-transform: uppercase; text-wrap: balance;
+}
+.recs-sheet-close { width: 44px; height: 44px; flex: none; border-radius: 8px; display: grid; place-items: center; color: var(--text2); }
+.recs-sheet-close:hover { background: var(--surface-hover); color: var(--text); }
+.recs-sheet-body .recs-sheet-tally { color: var(--text); font-size: 17px; }
+.recs-sheet-tally b { background: var(--marker); color: var(--on-marker); padding: 0 0.22em; border-radius: 2px; }
+.recs-sheet-table { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.recs-sheet-table table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.recs-sheet-table th, .recs-sheet-table td { padding: 9px 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--border); }
+.recs-sheet-table tr:last-child td { border-bottom: none; }
+.recs-sheet-table th {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text3); font-stretch: var(--label-stretch);
+}
+.recs-sheet-table .r { text-align: right; }
+.recs-sheet-table td.yes { font-weight: 700; }
+.recs-sheet-table td.no { color: var(--text3); }
+.recs-sheet-yn { display: inline-flex; align-items: center; gap: 4px; }
+.recs-sheet-table td.yes .icon { color: var(--accent); }
+.recs-sheet-season { color: var(--text3); font-size: 13px; }
+.recs-sheet-when, .recs-sheet-ask-short { display: none; }
+/* On phones the date moves under the match and the last column is headed "Won?", so the price, score and answer
+   stay in view without scrolling. */
+@media (max-width: 560px) {
+  .recs-sheet-ask { display: none; }
+  .recs-sheet-ask-short { display: inline; }
+  .recs-sheet-body { padding: 16px 16px 20px; }
+  .recs-sheet-table th, .recs-sheet-table td { padding: 8px; white-space: normal; }
+  .recs-sheet-table td.r, .recs-sheet-table td.yes, .recs-sheet-table td.no { white-space: nowrap; }
+  .recs-sheet-table .recs-sheet-date { display: none; }
+  .recs-sheet-when { display: block; color: var(--text3); font-size: 13px; }
+}
+
 /* Value */
 .recs-value-card {
   display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px;
