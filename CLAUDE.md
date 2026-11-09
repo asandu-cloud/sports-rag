@@ -49,6 +49,10 @@ on it. The Discord bot still runs the old engine until A7.
     5 Nov (the two lines can contradict each other); a new approach that explains the pick from the data is being
     worked out. The frontend's display (D76) was taken off its branch on 9 Nov and waits for it. Keep the switch
     off.
+  - Pick evidence (D82): merged 9 Nov behind `SPIX_PICK_EVIDENCE` (off). It adds "How Spix reads it" and, for
+    each Most likely pick in the domestic leagues, a verdict and past matches at similar odds (the owner's
+    "Easier to read" card). Going live takes the frontend display, then the owner's `.env` line and a website
+    restart.
 - **Cobalt palette live 9 Nov (D80).** Cobalt `#0246A4` replaced the turf green, lime cream `#D5F097` the
   highlighter, and mint cream `#F2FFFA` is the light ground; the dark theme uses a light cobalt `#88B4F2`. Cache
   tags are `live-20261109a` (style.css, app.js) and `palette-20261109a` (theme.js). Open for the owner: the steel
