@@ -56,8 +56,9 @@ on it. The Discord bot still runs the old engine until A7.
     `/app?preview=evidence` puts a saved real card (Brighton v Brentford, 8 Nov) on today's board for that
     browser tab, labelled as a preview; `?preview=off` ends it (D84, link only, writes nothing).
 - **Cobalt palette live 9 Nov (D80).** Cobalt `#0246A4` replaced the turf green, lime cream `#D5F097` the
-  highlighter, and mint cream `#F2FFFA` is the light ground; the dark theme uses a light cobalt `#88B4F2`. Cache
-  tags are `preview-20261109a` (style.css, app.js, since D84) and `palette-20261109a` (theme.js). Open for the owner: the steel
+  highlighter, and mint cream `#F2FFFA` is the light ground; the dark theme uses a light cobalt `#88B4F2`. Since
+  9 Nov evening the dark theme is "cobalt night" (D85): near-black greys with a faint cobalt tint (`--bg #111316`)
+  and mint cream text. Cache tags are `night-20261109a` (style.css, theme.js) and `preview-20261109a` (app.js). Open for the owner: the steel
   blue of the Away segment and the "preliminary" label now sits close to the cobalt.
 - **OpenAI out of credit since 5 Nov 18:04.** Match Read briefings use the fixed fallback wording. Picks are not
   affected. Topping up is the owner's call. The briefings cost roughly $5–10 a week at the 3–5 Nov pace.
