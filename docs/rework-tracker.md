@@ -1677,6 +1677,30 @@ before.
 - *Going live:* merge (nothing changes while `SPIX_PICK_EVIDENCE` is off); the owner adds `SPIX_PICK_EVIDENCE=on`
   to `.env`; the website is restarted (asked first).
 
+**D84 — A sample match behind a link, so the pick evidence can be seen during the break (9 Nov; frontend).** The owner
+asked for "a dummy match for today": D83 went live at 18:51, and no club match is played before 20 Nov. Opening
+`/app?preview=evidence` puts one saved real card on today's board, three hours from now (rounded up to the half
+hour), labelled as a sample. `?preview=off` ends it; without the link nobody sees it.
+- *The card:* Brighton v Brentford, Premier League, 8 Nov (event 1557458), built by the router's own `_card_from_read`
+  with the switch on, saved as `Scripts/web_app/static/preview/pick-evidence-card.json`. Its picks, prices ("Prices
+  as of 15:56"), story and evidence are the real ones from before that kickoff; only the kick-off time is moved.
+  It shows under All and Premier League on Today, never on other leagues or days.
+- *Labelled:* a line above the board ("Preview: Brighton v Brentford, played on 8 Nov, is shown as a sample match…
+  It is not a real fixture today.") and an amber note on the match page saying the same.
+- *Read-only:* nothing is written anywhere. The card is a static file read by the browser; no route, API, database,
+  switch or website process changes. Add puts its picks on the browser's own slip, as for any match. The flag lives
+  in the tab's `sessionStorage` (`spix-preview`), because the router drops the query after the first page change.
+- *Rulings:* (1) A saved past card rather than a made-up match: the live API refuses a fixture after kickoff, and
+  invented picks or evidence would show something Spix never said. (2) No change on main's server: a fake fixture
+  in the database or the API would reach the scorecard, the dashboard or the Discord bot.
+- *Checks:* new `Scripts/tests/test_preview_match_web.js` (the flag, the moved kick-off, the note, the saved card
+  drawing the story, a verdict on every pick and a sheet behind every row); all 8 JS test files pass; the 46 real
+  cards still draw exactly as main. On 8100 with the real (empty) board, no replay: the sample shows on Today under
+  All and Premier League, stays after a page change, is gone on La Liga and on Tomorrow, the sheet opens (Brighton's
+  12 matches), `?preview=off` clears it and a plain visit never shows it; phone and desktop, light and dark, no
+  sideways scroll. Cache tags `preview-20261109a` (style.css, app.js).
+- *Afterwards:* the link can stay unused or the file and the few lines can be removed once club matches return.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A

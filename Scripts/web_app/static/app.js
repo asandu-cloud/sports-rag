@@ -349,6 +349,29 @@ function renderEvidenceSheet(f, ref, options = {}) {
     ${team && !total ? `<p>Scores are from ${esc(team)}'s side: W 2–1 means ${esc(team)} won 2–1.</p>` : ''}`;
 }
 
+// ----- Sample match (D84): a link-only preview of the pick evidence while no club matches are on -----
+// ?preview=evidence puts a saved real card (Brighton v Brentford, 8 Nov, built by the production pick-evidence code)
+// on today's board for the browser session, labelled as a preview; ?preview=off ends it. Nothing is written anywhere.
+function previewMode(search, stored) {
+  const asked = new URLSearchParams(search || '').get('preview');
+  if (asked === 'evidence') return 'evidence';
+  if (asked === 'off') return null;
+  return stored === 'evidence' ? 'evidence' : null;
+}
+
+// The saved card moved to three hours from now, on the next half hour, so it shows as an upcoming match today.
+function previewMatchCard(card, now) {
+  if (!card?.fixture || typeof card.fixture !== 'object') return null;
+  const kickoff = new Date(now.getTime() + 3 * 3600 * 1000);
+  const halfHours = Math.ceil(kickoff.getTime() / 1800000);
+  const start = new Date(halfHours * 1800000).toISOString().replace('.000Z', 'Z');
+  return { ...card, preview: true, fixture: { ...card.fixture, kickoff: start } };
+}
+
+function renderPreviewNote(f) {
+  return `<p class="preview-note"><b>Preview.</b> ${esc(f.home)} v ${esc(f.away)} was played on 8 Nov. It is shown here as a sample match so the pick evidence can be seen while no club matches are on. It is not a real fixture today.</p>`;
+}
+
 // Most likely and Value: the top of the match page.
 function renderRecommendations(f, view = {}) {
   const block = f.recommendations;
@@ -1778,6 +1801,34 @@ const appModule = {
       || String(a.league).localeCompare(String(b.league)) || String(a.id).localeCompare(String(b.id)));
   },
 
+  // D84: the sample match is on for this browser session once ?preview=evidence was opened, until ?preview=off.
+  _previewOn() {
+    let stored = null;
+    try { stored = sessionStorage.getItem('spix-preview'); } catch (error) { /* storage blocked: the query alone decides */ }
+    const mode = previewMode(window.location.search, stored);
+    try {
+      if (mode) sessionStorage.setItem('spix-preview', mode);
+      else sessionStorage.removeItem('spix-preview');
+    } catch (error) { /* storage blocked */ }
+    return mode === 'evidence';
+  },
+
+  // D84: the sample match for today's board, when the preview is on and its league is being shown.
+  async _previewFixture(requestedLeagues) {
+    if (this.activeDate !== 0 || !this._previewOn()) return null;
+    if (this._previewCard === undefined) {
+      try {
+        const response = await fetch('/static/preview/pick-evidence-card.json');
+        this._previewCard = response.ok ? await response.json() : null;
+      } catch (error) {
+        this._previewCard = null;
+      }
+    }
+    const card = previewMatchCard(this._previewCard, new Date());
+    if (!card || !requestedLeagues.some(league => league.id === card.fixture.league)) return null;
+    return { ...this._normaliseMatchReadCard(card, card.fixture.league), isPreview: true };
+  },
+
   async _loadMatchday({ background = false } = {}) {
     const requestId = ++this._requestId;
     const containers = ['fixturesContainer', 'bestBetsContainer'].map(id => document.getElementById(id));
@@ -1830,6 +1881,7 @@ const appModule = {
         return { league, payload };
       }),
     ]);
+    const preview = await this._previewFixture(requestedLeagues);
     if (requestId !== this._requestId) return;
 
     const [scheduleResponse, ...boardResponses] = responses;
@@ -1838,6 +1890,7 @@ const appModule = {
     const availableLeagues = new Set(successfulBoards.map(result => result.value.league.id));
     const persistedCards = successfulBoards.flatMap(result => result.value.payload.cards
       .map(card => this._normaliseMatchReadCard(card, result.value.league.id)));
+    if (preview) persistedCards.push(preview);
     const beforeKickoff = new Map();
     const listedLeagues = new Set(successfulBoards
       .filter(result => beforeKickoffListOn(result.value.payload, window.location.search))
@@ -1851,6 +1904,7 @@ const appModule = {
     });
     const fixtures = this._mergeSchedule(scheduleLoaded ? scheduleResponse.value : [], persistedCards, availableLeagues, beforeKickoff, listedLeagues);
     const notices = [];
+    if (preview) notices.push(`Preview: ${preview.home} v ${preview.away}, played on 8 Nov, is shown as a sample match so the pick evidence can be seen. It is not a real fixture today.`);
     if (!scheduleLoaded) notices.push('The full fixture schedule could not be loaded. Showing published Match Reads only.');
     const failed = boardResponses.length - successfulBoards.length;
     if (failed) notices.push(`${failed} league${failed === 1 ? '' : 's'} could not load its analyses. Please try again shortly.`);
@@ -2299,7 +2353,7 @@ const appModule = {
   // The recommendation layer's match page: Most likely, Value, Explore the match,
   // then the Match Read's research. Its Value list replaces the old selection list.
   _renderRecommendationsPage(f, container) {
-    container.innerHTML = `
+    container.innerHTML = `${f.isPreview ? renderPreviewNote(f) : ''}
       <div class="recs" id="recsBlock"></div>
       <section class="match-read-summary" aria-labelledby="recsResearch">
         <h2 class="recs-title recs-head" id="recsResearch">The Match Read</h2>
@@ -2562,6 +2616,7 @@ document.addEventListener('research-navigate', event => {
 // screen with the league controls hidden.
 const initialPath = window.location.pathname.replace(/\/+$/, '') || '/';
 const initialAnchor = initialPath === '/app' ? '' : location.hash;
+appModule._previewOn(); // D84: remember ?preview= before the first page change drops the query
 router.go(initialPath === '/app' ? 'app' : 'landing',
   location.hash.startsWith('#research') ? 'research' : location.hash === '#best-bets' ? 'best-bets' : 'fixtures', null,
   location.hash.startsWith('#research/') ? location.hash.slice('#research/'.length) : 'players');
