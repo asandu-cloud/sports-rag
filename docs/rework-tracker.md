@@ -1578,6 +1578,16 @@ dark theme, only the green and the highlighter change.
 
 ## Findings that shape later steps
 
+- **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
+  GPT-5.6 call on 9 Nov (for the pick-notes mockup) failed with 429 `insufficient_quota`, code
+  `credit_balance_exhausted`. Counted through the gated, read-only reader (`game_script_json` →
+  `briefing.source`): the last GPT briefing was written at 18:04 on 5 Nov. Since then every read, 643 of them over
+  6–8 Nov, carries `deterministic_fallback`. Before that, GPT and the fallback were mixed (85 GPT to 306 fallback on
+  4 Nov). Picks are untouched, because the briefing only words the read and the fallback works as designed. Other
+  OpenAI callers were not checked: the Chroma embeddings (`data_platform/kb/chroma_adapter.py`, `vectors/chroma.py`),
+  the legacy engine and the Discord bot (`SPIX_PICK_NOTES` is off). Topping up is the owner's call. The
+  pick-notes mockup's notes were written by Claude in session from the same facts, instructions and checks
+  (artifact C732K7mQTdXUxUFQ44wUez, 9 Nov).
 - **Stage 4 passes its safety check at the 9 Nov scorecard.** The scheduled run started at 08:12 local, waited for
   the day's refresh (started 13:15), and wrote `Research/scorecards/2026-11-09/` at 14:10. Stage 4's picks (anchor
   `full`, selection `market_value`, kickoffs 3–8 Nov): 72 selections, all graded (35 hit, 30 miss, 6 push, 1 half
