@@ -1599,6 +1599,8 @@ dark theme, only the green and the highlighter change.
   17 Nov slot would share cards' first weekend and could not be told apart from it, so the next stage moves to Tue
   24 Nov at the earliest (owner to confirm). The A5.4 gate (4+ live matchweeks) gives its first verdict mid-December
   rather than early December.
+  *Owner, 9 Nov:* cards still go on Tue 10 Nov as planned (the quiet week is used to check the switch is picked up),
+  and the next stage is Tue 24 Nov at the earliest.
 
 - **Checks from a worktree (3 Nov, corrected).** Three pinned `golden_snapshots check` runs from the backend folder
   and a scratch copy (about 19:45–20:05 local) reported about 7,000 changed values per fixture, the same before and
