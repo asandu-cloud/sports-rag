@@ -1722,6 +1722,37 @@ taste skill's true black. The owner chose cobalt night: "cobalt night is the bes
   no sideways scroll. All 8 JS test files pass. `DESIGN.md` and `docs/brand/color-palette.md` updated. Cache tags
   `night-20261109a` (style.css, theme.js).
 
+**D86 — The landing page's first screen follows the app again (9 Nov; frontend, owner).** The owner asked for the
+landing preview's first screen to reflect what changed since it was built: the colours (D80, D85) and how the match
+cards look (D59-D63, D82-D83). Built with the taste skill's restyle path (before and after inspected into
+`.taste-skill/landing-before` and `landing-after`). Landing preview only (`landing-preview/`); the website is
+untouched.
+- *Colours, the whole page:* turf green becomes cobalt `#0246A4` (bar, trust band, footer, active tab), neon yellow
+  becomes lime cream `#D5F097` (the main button, the highlighted figure), the light ground mint cream `#F2FFFA`, and
+  the night sections and the dark theme take the app's cobalt night values (`#111316`/`#191C1F`/`#202327`, light
+  cobalt `#88B4F2` for actions). The secondary button uses cobalt in light and light cobalt in dark, as in the app.
+  `theme-color` is cobalt.
+- *The example panel is now the app in its dark theme:* the Research Area as before, then "View match" opens the match
+  page with "How Spix reads it", the Most likely tiles (verdict, detail, past matches at similar odds, price, Add),
+  which the hand swipes through, and the Value card ("Worth it at 1.86 or better"). It opens the evidence sheet behind
+  "Arsenal's 12", adds Arsenal +0.5, Both teams to score and Over 2.5 goals with the Add buttons (the bet slip bar
+  rises with the first leg), drops Over 2.5, and opens the bet slip: "Chance both land", about 2 in 5, 42%, the price
+  check line and 18+. The old Chalk Match Read sheet, the "Why" drawer and the list rows with ticks are gone.
+- *Figures:* one grid for the whole example (expected goals 1.6 and 1.3) run through the app's own `jointChance` and
+  `chanceWords`: Arsenal 44%, draw 24%, Chelsea 31% (99 by rounding, as the app shows it), Arsenal +0.5 69%, both
+  teams to score 58%, over 2.5 goals 55%, the two legs together 42%. The lead, the verdicts and the detail lines
+  follow `pick_evidence.py`'s rules (favourites at a 12-point gap; a group agrees at 60%). Corners are not combined
+  with goals legs, because the app's slip refuses that. The 12 matches in the sheet (6 won, 3 drawn, 3 lost; Arsenal
+  scored in 10, both scored in 8) are sample rows with seasons and no dates, under the panel's "Example" label; for
+  the owner to confirm or replace.
+- *Today's matches* are cards with a border and "View match" in light cobalt. They still show only the fixtures,
+  because the preview server reads only the schedule.
+- *Checks:* desktop and phone loops (every 2.5 s through one loop), light and dark with reduced motion (the still
+  panel shows the finished slip), tablet; no sideways scroll; every new text pair 6.3:1 or better. The inspector
+  reports the same two page-wide findings as before (no photographs, no video), nothing new. All 8 JS test files
+  pass. First-screen options shown side by side: A cobalt night with the lime cream button (built), B with a mint
+  cream button, C on a cobalt field.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A

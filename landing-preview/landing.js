@@ -14,16 +14,18 @@
     UCL: 'Champions League', UEL: 'Europa League', UECL: 'Conference League', SuperLig: 'Süper Lig' };
   const TOP_LEAGUES = ['EPL', 'UCL', 'LaLiga', 'SerieA', 'Bundesliga', 'Ligue1', 'UEL'];
   const TODAY_ROWS = 5;
+  const ARROW = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
 
   const $ = (id) => document.getElementById(id);
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const escape = (text) => String(text).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   /* ---- How Spix works: someone using it, on a loop ---- */
-  const run = $('run'), ball = $('ball'), slot = $('slot'), track = $('track'), fill = $('fill'), mouse = $('mouse'), roller = $('roll');
-  const area = $('area'), teamRoll = $('teamRoll'), words = [...$('rail').children];
+  const run = $('run'), ball = $('ball'), slot = $('slot'), track = $('track'), fill = $('fill'), mouse = $('mouse');
+  const area = $('area'), teamRoll = $('teamRoll'), page = $('page'), strip = $('strip'), sheetRoll = $('sheetRoll');
+  const words = [...$('rail').children];
   const leg = (name) => run.querySelector(`[data-leg="${name}"]`);
-  const RADIUS = 11, LANDED = 620, TICK = 100;
+  const RADIUS = 11, TICK = 100;
 
   let ballAt = { x: 0, y: 0, turn: 0 }, anchor = slot, onScreen = false, paused = false, wake = null;
   let mouseAt = { x: 0, y: 0 }, under = null;
@@ -120,18 +122,22 @@
     await beat(pause);
   };
 
+  // The slip bar rises with the first leg, as in the app.
   const count = () => {
-    const picked = run.querySelectorAll('.opt.on').length;
-    $('count').textContent = picked ? `${picked} leg${picked > 1 ? 's' : ''}` : 'No legs yet';
+    const picked = run.querySelectorAll('[data-leg].on').length;
+    $('count').textContent = picked;
+    $('toBet').classList.toggle('up', picked > 0);
   };
   const type = async (text) => {
     for (const letter of text) { $('typed').textContent += letter; await beat(110); }
   };
   const tap = async (name) => {
-    await click(leg(name), leg(name).querySelector('.o-tick'));
+    const add = leg(name).querySelector('.add');
+    await click(add, add, .5);
     leg(name).classList.toggle('on');
     count();
   };
+  // Scrolling: three notches of a wheel, to a place measured from the layout (transforms don't move it).
   const scroll = async (box, to) => {
     const from = Number(box.dataset.at || 0), notches = 3;
     for (let i = 1; i <= notches; i++) {
@@ -139,8 +145,25 @@
       await beat(210);
     }
     box.dataset.at = to;
+    await beat(300);
   };
+  const top = (el, box) => { let y = 0; for (let n = el; n && n !== box; n = n.offsetParent) y += n.offsetTop; return y; };
   const deepest = (box) => Math.max(0, box.offsetHeight - box.parentElement.offsetHeight);
+  const toTop = (box, el, gap = 8) => scroll(box, Math.min(deepest(box), Math.max(0, top(el, box) - gap)));
+  // The Most likely strip moves sideways, the hand dragging it; the last tile stops at the right edge.
+  const drag = async (tile) => {
+    const last = strip.lastElementChild;
+    const x = Math.min(tile.offsetLeft, Math.max(0, last.offsetLeft + last.offsetWidth - strip.offsetWidth));
+    const from = Number(strip.dataset.at || 0);
+    if (x === from) return;
+    const r = run.getBoundingClientRect(), box = page.parentElement.getBoundingClientRect(), row = strip.getBoundingClientRect();
+    const seen = (Math.max(row.top, box.top) + Math.min(row.bottom, box.bottom)) / 2;
+    await glide({ x: box.left - r.left + box.width * (x > from ? .74 : .26), y: seen - r.top });
+    strip.style.transform = `translateX(${-x}px)`;
+    strip.dataset.at = x;
+    await glide({ x: mouseAt.x + (from - x) * .55, y: mouseAt.y + 4 }, .7);
+    await beat(300);
+  };
 
   const startOver = () => {
     run.classList.add('hold');
@@ -148,9 +171,10 @@
     area.classList.remove('found', 'seen');
     $('field').classList.remove('on');
     $('typed').textContent = '';
-    run.querySelectorAll('.opt.on').forEach(option => option.classList.remove('on'));
-    $('drawer').classList.remove('open');
-    [roller, teamRoll].forEach(box => { box.style.transform = ''; box.dataset.at = 0; });
+    run.querySelectorAll('[data-leg].on').forEach(option => option.classList.remove('on'));
+    [$('sheet'), $('dim')].forEach(el => el.classList.remove('open'));
+    [teamRoll, page, sheetRoll].forEach(box => { box.style.transform = ''; box.dataset.at = 0; });
+    strip.style.transform = ''; strip.dataset.at = 0;
     hover(null);
     count();
     $('say').textContent = 'Spix does the research';
@@ -186,54 +210,62 @@
       await pass(run.querySelector('.col:nth-child(5)'), run.querySelector('.col:nth-child(5) .pair'), 620);
       hover(null);
 
-      // The Match Read
-      say('Read the short version');
-      await click($('toRead'));
-      run.dataset.scene = 'read'; step(1); roll(1); hover(null);
-      await beat(620);
-      await glide(aim(run.querySelector('.read-short'), .34), 1.2);
-      await beat(420);
-      await glide(aim(run.querySelector('.read-long'), .78, .3), 1.4);
-      await beat(420);
-      await glide(aim(run.querySelector('.run-read ul'), .42, .76), 1.3);
-      await beat(420);
-      await click($('toPicks'));
+      // The match page, and how Spix reads it
+      await click($('toRead'), $('toRead').querySelector('span'), .5);
+      run.dataset.scene = 'read'; say('See how Spix reads it'); step(1); roll(1); hover(null);
+      await beat(800);
+      await glide(aim($('lead'), .3), 1.2);
+      await beat(700);
+      await glide(aim($('kv'), .45, .25), 1.3);
+      await beat(900);
 
       // Looking through the picks
-      run.dataset.scene = 'lists'; say('Look through the picks'); step(2); hover(null);
-      await roll(2);
-      await pass(leg('corners'), leg('corners').querySelector('.o-main'), 400);
-      await pass(leg('btts'), leg('btts').querySelector('.o-main'), 400);
-      await pass(leg('over25'), leg('over25').querySelector('.o-main'), 520);
+      const [first, second, third] = strip.children;
+      run.dataset.scene = 'lists'; say('Look through the picks'); step(2);
+      roll(2);
+      await toTop(page, $('mostHead'));
+      await pass(first, first.querySelector('.t-pick'), 520);
+      await pass(first, first.querySelector('.t-verdict'), 620);
+      await drag(second);
+      await pass(second, second.querySelector('.t-pick'), 620);
+      await drag(third);
+      await pass(third, third.querySelector('.t-pick'), 620);
       hover(null);
-      await scroll(roller, deepest(roller));
-      await scroll(roller, 0);
-      await beat(200);
+      await toTop(page, $('valueHead'));
+      await pass(leg('over25'), leg('over25').querySelector('.v-worth'), 820);
+      hover(null);
 
+      // The matches behind one pick
       say('See why Spix likes it');
-      await click(leg('arsenal'), leg('arsenal').querySelector('.o-main b'), .4);
-      $('drawer').classList.add('open');
-      await beat(500);
-      await glide(aim($('drawer').querySelector('dl'), .3, .4), 1.2);
+      await toTop(page, first.querySelector('.t-verdict'), 12);
+      await drag(first);
+      await click($('evRow'), $('evRow').querySelector('.t-count'), .5);
+      $('dim').classList.add('open'); $('sheet').classList.add('open'); hover(null);
+      await beat(700);
+      await glide(aim($('tally'), .3), 1.2);
       await beat(900);
-      await click($('closeWhy'), $('closeWhy'));
-      $('drawer').classList.remove('open');
-      hover(null);
-      await beat(420);
+      await toTop(sheetRoll, $('sheetTable'), 4);
+      await glide(aim($('sheetTable'), .3, .45), 1.2);
+      await beat(1100);
+      await click($('closeSheet'));
+      $('sheet').classList.remove('open'); $('dim').classList.remove('open'); hover(null);
+      await beat(500);
 
       say('Keep what you like');
-      await tap('arsenal'); await beat(200);
-      await tap('corners'); await beat(200);
-      await tap('btts'); await beat(480);
+      await tap('arsenal'); await beat(300);
+      await drag(third);
+      await tap('btts'); await beat(300);
+      await toTop(page, $('valueHead'));
+      await tap('over25'); await beat(520);
 
       say("Drop what you don't");
-      await tap('corners'); await beat(460);
+      await tap('over25'); await beat(520);
 
-      await click($('toBet'));
+      await click($('toBet'), $('toBet').querySelector('.bar-left'), .5);
       run.dataset.scene = 'bet'; say('The bet is yours'); step(3); hover(null);
       await beat(380);
       await drop(slot);
-      await glide(aim(run.querySelector('.legs'), .36, .3), 1.2);
+      await glide(aim($('legs'), .36, .3), 1.2);
       await beat(340);
       await glide(aim($('chance'), .8), 1.2);
       await beat(1400);
@@ -302,10 +334,10 @@
       $('todayTitle').textContent = label;
       box.innerHTML = fixtures.map(f => {
         const time = new Date(f.kickoff).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-        return `<a class="match" href="/app"><b>${escape(f.home_team)} v ${escape(f.away_team)}</b><span>${time} · ${escape(leagueName(f.league))}</span><em>Open</em></a>`;
+        return `<a class="match" href="/app"><b>${escape(f.home_team)} v ${escape(f.away_team)}</b><span>${time} · ${escape(leagueName(f.league))}</span><em>View match${ARROW}</em></a>`;
       }).join('');
     } catch (error) {
-      box.innerHTML = '<a class="match" href="/app"><b>See the matchday board</b><span>The live list could not be loaded here.</span><em>Open</em></a>';
+      box.innerHTML = `<a class="match" href="/app"><b>See the matchday board</b><span>The live list could not be loaded here.</span><em>Open${ARROW}</em></a>`;
     }
   };
   loadToday();
