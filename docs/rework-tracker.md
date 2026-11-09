@@ -1702,6 +1702,26 @@ hour), labelled as a sample. `?preview=off` ends it; without the link nobody see
   sideways scroll. Cache tags `preview-20261109a` (style.css, app.js).
 - *Afterwards:* the link can stay unused or the file and the few lines can be removed once club matches return.
 
+**D85 — Cobalt night: the dark theme's greys take cobalt's hue (9 Nov; frontend, owner).** The owner asked which
+dark-mode backgrounds suit the cobalt theme. Measured, the dark greys carried mint cream's tint (hue 163-166, chroma
+0.015, the same as the light canvas), which reads as green at night: the old turf-green theme under a cobalt bar.
+Three options were shown side by side on the real sample match (D84): today's mint night, cobalt night, and the
+taste skill's true black. The owner chose cobalt night: "cobalt night is the best looking one".
+- *What changes (dark theme only):* the grounds, surfaces, rules and grey text keep their lightness and take cobalt's
+  hue (258) at OKLCH chroma 0.005-0.014: `--bg #111316`, `--bg2 #0C0D10`, `--surface #191C1F`, `--surface2 #202327`,
+  `--surface-hover #1E2124`, `--border #303339`, `--border2 #61676F`, `--border-soft #24272B`, `--text2 #C1C5CA`,
+  `--text3 #9B9FA5`, `--chart-muted #6B7076`; the cobalt washes `#1F2938`/`#2A3648`; the main text is mint cream
+  `#F2FFFA`, the light theme's canvas. The cobalt bar, light cobalt, lime cream, amber, red and Away blue are
+  unchanged, and so is the light theme. `theme.js`'s `?logo=old` dark chrome follows the new canvas.
+- *Why not the others:* true black put pure white on black at night and lost the evidence sheet against the dimmed
+  page; navy or slate is ruled out by the taste skill's app-screen rules (style `true-black-flat`, seed 1004214109,
+  whose sheet names a cool near-black as the ground for a product with this temperature).
+- *Checks:* every text grey 5.9:1 or better on every surface (mint cream 18.1:1 on the canvas), control rules 3.0:1,
+  light cobalt 8.7:1, the same lightness steps between ground and cards as before. Before (8000) and after (8100)
+  in dark: landing, board, match page, evidence sheet, slip, Research Area, methodology and the phone match page;
+  no sideways scroll. All 8 JS test files pass. `DESIGN.md` and `docs/brand/color-palette.md` updated. Cache tags
+  `night-20261109a` (style.css, theme.js).
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A

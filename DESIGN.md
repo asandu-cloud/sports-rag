@@ -25,22 +25,22 @@ colors:
   loss-red-wash: "#FFE4E1"
   away-blue: "#2D5F87"
   away-blue-wash: "#E0EDF9"
-  floodlit-ground: "#0D1511"
-  floodlit-well: "#090F0C"
-  floodlit-surface: "#151E1A"
-  floodlit-quiet-fill: "#1C2521"
-  floodlit-hover: "#19231E"
-  floodlit-rule: "#2B3631"
-  floodlit-control-rule: "#5D6A63"
-  floodlit-soft-rule: "#202925"
-  chalk-ink: "#EFF1EC"
-  chalk-ink-secondary: "#C1C6C0"
-  chalk-ink-tertiary: "#99A19A"
+  floodlit-ground: "#111316"
+  floodlit-well: "#0C0D10"
+  floodlit-surface: "#191C1F"
+  floodlit-quiet-fill: "#202327"
+  floodlit-hover: "#1E2124"
+  floodlit-rule: "#303339"
+  floodlit-control-rule: "#61676F"
+  floodlit-soft-rule: "#24272B"
+  chalk-ink: "#F2FFFA"
+  chalk-ink-secondary: "#C1C5CA"
+  chalk-ink-tertiary: "#9B9FA5"
   floodlit-cobalt: "#88B4F2"
   floodlit-cobalt-hover: "#ACCAF6"
   floodlit-on-cobalt: "#08152B"
-  floodlit-cobalt-wash: "#1E2B30"
-  floodlit-cobalt-wash-strong: "#283842"
+  floodlit-cobalt-wash: "#1F2938"
+  floodlit-cobalt-wash-strong: "#2A3648"
   floodlit-marker: "#D5F097"
   floodlit-amber: "#F2B966"
   floodlit-amber-wash: "#3A2B16"
@@ -265,12 +265,12 @@ A near-monochrome mint-tinted paper-and-ink palette with one cobalt accent, one 
 - **Loss Red** (`loss-red` + wash): errors, destructive hover (clear slip, remove leg). Never used for "no bet".
 
 ### Neutral
-- **Chalk Canvas / Floodlit Ground** (`chalk-canvas` mint cream / `floodlit-ground`): page background. The browser `theme-color` is the top bar's cobalt.
+- **Chalk Canvas / Floodlit Ground** (`chalk-canvas` mint cream / `floodlit-ground`): page background. The browser `theme-color` is the top bar's cobalt. Floodlit's greys are "cobalt night" since 9 Nov 2026 (D85): near-black with cobalt's own hue at a whisper of tint, never navy or slate, at the same lightness steps as the mint-tinted greys they replaced.
 - **Chalk Surface / Floodlit Surface**: cards, panels, modal, slip, inputs.
 - **Chalk Well / Floodlit Well**: sunk areas: footer, shared-caveats panel, Research filter panels.
 - **Quiet Fill**: low-emphasis chips, pending status, alternatives list, disabled primary.
 - **Rules**: `chalk-rule` for card and section borders, `chalk-soft-rule` for inner dividers and crest rings, `chalk-control-rule` (3.3:1) for inputs, outlined controls, list bullets and the Draw segment.
-- **Ink tiers**: `ink` (primary text, team names), `ink-secondary` (supporting copy), `ink-tertiary` (meta, labels, timestamps). Floodlit mirrors them as `chalk-ink` tiers.
+- **Ink tiers**: `ink` (primary text, team names), `ink-secondary` (supporting copy), `ink-tertiary` (meta, labels, timestamps). Floodlit mirrors them as `chalk-ink` tiers; its primary ink is mint cream, the Chalk canvas (D85).
 
 ### Named Rules
 **The One Cobalt Rule.** Cobalt means "you can act here" or "this is selected". It never decorates, never colours a heading, and never signals a positive outcome on its own.
