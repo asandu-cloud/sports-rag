@@ -1591,6 +1591,15 @@ dark theme, only the green and the highlighter change.
   picks were its update of 03:28 on 8 Nov; Sunday's later picks bring stage 4 to 72 (counted through the
   dashboard's gated, read-only reader after the refresh, 9 Nov).
 
+- **No club matches from 9 to 19 Nov: the cards stage is first judged on Mon 23 Nov (9 Nov).** The stored fixture
+  list (`fixtures`, read inside the gate) has 43 matches on 8 Nov, then none until Fri 20 Nov (3), Sat 21 (46) and
+  Sun 22 (34): the international break. If `SPIX_CARDS_REFERENCE=pinnacle` goes live on Tue 10 Nov as planned, its
+  first picks come from reads for 20–22 Nov once cards prices appear (usually 1–2 days before kickoff), the Mon 16 Nov
+  scorecard has no new matches, and the first cards results reach the Mon 23 Nov scorecard. A change in the Tue
+  17 Nov slot would share cards' first weekend and could not be told apart from it, so the next stage moves to Tue
+  24 Nov at the earliest (owner to confirm). The A5.4 gate (4+ live matchweeks) gives its first verdict mid-December
+  rather than early December.
+
 - **Checks from a worktree (3 Nov, corrected).** Three pinned `golden_snapshots check` runs from the backend folder
   and a scratch copy (about 19:45–20:05 local) reported about 7,000 changed values per fixture, the same before and
   after the D56 change. They did not reproduce: the orchestrator's pinned runs in a linked scratch worktree, and the
