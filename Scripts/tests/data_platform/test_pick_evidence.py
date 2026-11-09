@@ -117,8 +117,12 @@ def test_verdict_is_a_rule_on_the_counts(rates, expected):
                                                                               "most goals expected from Liverpool."),
     ({"home": 0.30, "draw": 0.25, "away": 0.45}, {"home": 1.2, "away": 1.5}, "Palace are favourites, with goals "
                                                                               "expected at both ends."),
-    ({"home": 0.40, "draw": 0.28, "away": 0.32}, {"home": 1.6, "away": 1.5}, "Liverpool are slight favourites, with "
+    ({"home": 0.40, "draw": 0.28, "away": 0.32}, {"home": 1.9, "away": 1.6}, "Liverpool are slight favourites, with "
                                                                               "plenty of goals expected."),
+    ({"home": 0.18, "draw": 0.21, "away": 0.61}, {"home": 1.12, "away": 2.17}, "Palace are clear favourites, with "
+                                                                                "most goals expected from Palace."),
+    ({"home": 0.45, "draw": 0.25, "away": 0.30}, {"home": 1.78, "away": 1.45}, "Liverpool are favourites, with goals "
+                                                                                "expected at both ends."),
     ({"home": 0.36, "draw": 0.30, "away": 0.34}, {"home": 1.0, "away": 0.9}, "Too close to call, with few goals "
                                                                               "expected."),
     ({"home": 0.65, "draw": 0.2, "away": 0.15}, None, "Liverpool are clear favourites."),
@@ -152,6 +156,19 @@ def test_detail_for_a_handicap_gives_the_picked_teams_record():
                                        {**match(3, A, OTHER, 3, 1), "venue": "H"}]}]
     assert pe.detail(p, groups, [p], "City", "Forest") == "Forest won 1, drew 1 and lost 1 of their 3 matches at " \
                                                           "similar odds."
+
+
+def test_a_record_with_no_wins_says_none():
+    p = pick("spreads", "home", 1.5, label="Palace +1.5")
+    rows = [{**match(i, H, OTHER, 0, i % 2), "venue": "H"} for i in range(4)]
+    assert pe.detail(p, [{"key": "home", "rows": rows}], [p], "Palace", "Liverpool") == \
+        "Palace won none, drew 2 and lost 2 of their 4 matches at similar odds."
+
+
+def test_the_story_rounds_the_figures_it_shows():
+    built = pe.story({"home_team": "City", "away_team": "Forest"},
+                     {**FIGURES, "goals_expected": {"home": 1.8995, "away": 1.1033}, "corners_expected": 10.335051})
+    assert built["goals_expected"] == {"home": 1.9, "away": 1.1} and built["corners_expected"] == 10.3
 
 
 def test_detail_for_both_teams_to_score_gives_each_teams_scoring():

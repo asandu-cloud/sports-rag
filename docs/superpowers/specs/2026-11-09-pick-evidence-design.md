@@ -81,12 +81,13 @@ The OpenAI account has had no credit since 5 Nov, so production starts with **fi
 facts** (this design), in the same shape: a lead of at most 14 words and a detail line of at most 25.
 
 - **Lead:** who the favourite is ("X are clear favourites" at 60% or more; "X are favourites" when 12 points or
-  more ahead; "X are slight favourites" when 4 points or more ahead; otherwise "Too close to call on price") and the
-  goals ("with plenty of goals expected" at 3.0 or more; "with few goals expected" at 2.2 or less; "with goals
-  expected at both ends" when both teams are at 1.1 or more; otherwise "with most goals expected from X").
+  more ahead; "X are slight favourites" when 4 points or more ahead; otherwise "Too close to call") and the goals
+  ("with plenty of goals expected" at 3.4 or more in all; "with few goals expected" at 2.3 or less; "with most goals
+  expected from X" when one side expects at least 1.5 times the other's; otherwise "with goals expected at both
+  ends"). The figures in the table are rounded to one decimal.
 - **Detail, first sentence:** goals or corners: "Similar matches averaged A to B goals." (the three groups'
   averages; one figure when they agree); a result or handicap: the picked team's group as "X won W, drew D and lost
-  L of their N matches at similar odds."; both teams to score: "X scored in A of their N, Y in B of theirs."
+  L of their N matches at similar odds." (a zero reads "none"); both teams to score: "X scored in A of their N, Y in B of theirs."
 - **Detail, second sentence:** when the same market has a likelier option on the same side priced under 1.30,
   "Under 12.5 is safer but pays only 1.17." That says why Most likely lists this line.
 
@@ -114,7 +115,7 @@ On each card's `recommendations` block, while the switch is on:
 - Each Most likely item with evidence gains `evidence: {"verdict", "detail", "groups": [{"key", "won", "of",
   "means", "results": [true, false, ...]}]}`, `results` in the order of that group's `matches`.
 
-The shared match lists sit once per card (about 10 KB), not once per pick.
+The shared match lists sit once per card (about 15 KB), not once per pick.
 
 ## Going live
 

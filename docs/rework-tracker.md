@@ -1614,7 +1614,22 @@ for/against notes. Design: `docs/superpowers/specs/2026-11-09-pick-evidence-desi
 - *Picks:* unchanged. Everything is read after the picks are made; nothing in the engine, the worker or the stored
   records changes.
 - *Step 1 (pure module):* `data_platform/pick_evidence.py` with 48 tests.
-- *Step 2 and 3 (9 Nov):* the history reader and service (10 tests) and the website wiring behind `SPIX_PICK_EVIDENCE` (3 tests; pinned off in the tests). Still to do before "ready": a full suite run past the known worktree error (the first run stopped there with `-x`, 2,044 passed), the pinned golden check (it showed diffs on the first try, likely the pins, not this change, which runs only in the website), and a real-data on/off comparison on 8200.
+- *Steps 2 and 3:* the history reader and service (10 tests) and the website wiring behind `SPIX_PICK_EVIDENCE`
+  (3 tests; pinned off in the tests).
+- *Real data (the mockup's four Premier League matches, 7 and 8 Nov, rebuilt with the production code):* every card
+  is otherwise unchanged; counts match the mockup's or differ by one match in a group (the team groups now draw on
+  all ten leagues, and this season's prices come from the final pre-kickoff snapshot instead of the reads). The
+  verdict moved on 3 of 12 picks. Loading the history takes about 1 s once an hour; each card after that is
+  instant. About 15 KB of evidence per card.
+- *Rulings from that check:* "plenty of goals" now needs 3.4 expected in all (at 3.0, all four matches said it);
+  "most goals expected from X" needs one side at 1.5 times the other's; a zero in a record reads "none"; the story's
+  figures are rounded to one decimal.
+- *Checks:* full suite 2,933 passed, 4 skipped, with the 3 known worktree errors. The pinned golden check is not
+  clean, on main or on this branch: all 54 fixtures change, and the two outputs are byte for byte the same, so
+  this branch adds nothing to it. It was clean at 16:17 for D81. The cause is not found yet (no unrecorded read is
+  reported; `.env` last changed 14:24, the refresh ran 13:46). Reported to the orchestrator.
+- *Going live:* merge (nothing changes while the switch is off); the frontend builds the display from the mockup;
+  the owner adds `SPIX_PICK_EVIDENCE=on` to `.env`; the website is restarted.
 
 ## Findings that shape later steps
 

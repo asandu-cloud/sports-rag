@@ -25,6 +25,7 @@ TEAM_MATCHES, TEAM_MINIMUM = 12, 8
 LEAGUE_MATCHES, LEAGUE_MINIMUM = 40, 20
 BACKS, AGAINST = 0.6, 0.5
 LEAD_WORDS, DETAIL_WORDS = 14, 25
+PLENTY, FEW, ONE_SIDED = 3.4, 2.3, 1.5  # expected goals: a high total, a low total, one side's share
 SHOWN = ("date", "season", "competition", "home", "away", "home_price", "draw_price", "away_price", "home_goals",
          "away_goals", "corners")
 
@@ -143,14 +144,14 @@ def lead(home: str, away: str, chances: Mapping[str, float], goals: Optional[Map
     if not goals or goals.get("home") is None or goals.get("away") is None:
         return first + "."
     g_home, g_away = goals["home"], goals["away"]
-    if g_home + g_away >= 3.0:
+    if g_home + g_away >= PLENTY:
         second = "with plenty of goals expected"
-    elif g_home + g_away <= 2.2:
+    elif g_home + g_away <= FEW:
         second = "with few goals expected"
-    elif min(g_home, g_away) >= 1.1:
-        second = "with goals expected at both ends"
-    else:
+    elif max(g_home, g_away) >= ONE_SIDED * min(g_home, g_away):
         second = f"with most goals expected from {home if g_home >= g_away else away}"
+    else:
+        second = "with goals expected at both ends"
     both = f"{first}, {second}."
     return both if _words(both) <= LEAD_WORDS else first + "."
 
@@ -162,6 +163,10 @@ def _record(rows: Sequence[Mapping[str, Any]], view: str, side: str) -> tuple:
         home, away = roles(row, view)
         margins.append(home - away if side == "home" else away - home)
     return sum(m > 0 for m in margins), sum(m == 0 for m in margins), sum(m < 0 for m in margins)
+
+
+def _count(n: int) -> str:
+    return "none" if n == 0 else str(n)
 
 
 def _scored(rows: Sequence[Mapping[str, Any]]) -> int:
@@ -195,7 +200,8 @@ def _first_sentence(pick, groups, home, away) -> str:
         if by_key.get(key):
             w, d, l = _record(by_key[key], key, key)
             team = home if key == "home" else away
-            return f"{team} won {w}, drew {d} and lost {l} of their {w + d + l} matches at similar odds."
+            return (f"{team} won {_count(w)}, drew {_count(d)} and lost {_count(l)} of their {w + d + l} matches at "
+                    "similar odds.")
     return ""
 
 
@@ -234,9 +240,10 @@ def story(fixture: Mapping[str, Any], figures: Mapping[str, Any]) -> Optional[di
     goals = figures.get("goals_expected")
     goals = goals if isinstance(goals, Mapping) and all(_figure(goals.get(k)) is not None for k in ("home", "away")) \
         else None
+    corners = _figure(figures.get("corners_expected"))
     return {"lead": lead(fixture["home_team"], fixture["away_team"], chances, goals), "result_chances": dict(chances),
-            "goals_expected": dict(goals) if goals else None,
-            "corners_expected": _figure(figures.get("corners_expected"))}
+            "goals_expected": {k: round(float(goals[k]), 1) for k in ("home", "away")} if goals else None,
+            "corners_expected": None if corners is None else round(corners, 1)}
 
 
 def _tonight(block: Mapping[str, Any]) -> Optional[dict]:
