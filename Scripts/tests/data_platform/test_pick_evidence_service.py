@@ -142,7 +142,7 @@ def test_a_european_cup_card_gets_the_story_only_and_no_history_is_read(tmp_path
     assert platform.asked_finished == 0
 
 
-def test_a_failed_history_read_leaves_the_picks_as_they_were_and_is_tried_again(tmp_path):
+def test_a_failed_history_read_leaves_the_picks_as_they_were_and_is_tried_again_after_five_minutes(tmp_path):
     platform = Platform(fail=True)
     evidence = service(tmp_path, platform)
     target = card()
@@ -150,7 +150,9 @@ def test_a_failed_history_read_leaves_the_picks_as_they_were_and_is_tried_again(
     assert "evidence" not in target["recommendations"] and "evidence" not in target["recommendations"]["most_likely"][0]
     assert target["recommendations"]["story"]  # the story needs no history
     platform.fail = False
-    evidence.attach(target, CORNERS, now=NOW + timedelta(minutes=1))
+    evidence.attach(target, CORNERS, now=NOW + timedelta(minutes=4))
+    assert "evidence" not in target["recommendations"]
+    evidence.attach(target, CORNERS, now=NOW + timedelta(minutes=6))
     assert target["recommendations"]["evidence"]
 
 
@@ -167,3 +169,82 @@ def test_the_switch_is_off_unless_it_says_on(monkeypatch):
     assert not pick_evidence_service.enabled()
     monkeypatch.setenv("SPIX_PICK_EVIDENCE", " On ")
     assert pick_evidence_service.enabled()
+
+
+# ---- the refresh gate (the orchestrator's go-live note) --------------------------------------------------------------
+
+class Gate:
+    """Stands in for the refresh gate: refuses at once while ``busy``, counting every try."""
+
+    def __init__(self):
+        self.busy, self.tries = False, 0
+
+    def __call__(self):
+        from contextlib import contextmanager
+        from data_platform.services.refresh_coordination import RefreshBusy
+
+        @contextmanager
+        def gate():
+            self.tries += 1
+            if self.busy:
+                raise RefreshBusy("refresh running")
+            yield
+        return gate()
+
+
+def gated(tmp_path, platform, gate):
+    from data_platform.services.pick_evidence_service import History, PickEvidence
+
+    return PickEvidence(History(football_data=football_data(tmp_path / "fd.sqlite3"), platform=platform, gate=gate))
+
+
+def test_during_a_refresh_the_database_is_not_read_and_the_next_try_waits_five_minutes(tmp_path):
+    platform, gate = Platform(), Gate()
+    gate.busy = True
+    evidence = gated(tmp_path, platform, gate)
+    first = card()
+    evidence.attach(first, CORNERS, now=NOW)
+    assert "evidence" not in first["recommendations"] and first["recommendations"]["story"]
+    assert platform.asked_finished == 0
+    tries = gate.tries
+    evidence.attach(card(), CORNERS, now=NOW + timedelta(minutes=4))
+    assert gate.tries == tries  # no new try inside five minutes
+    gate.busy = False
+    later = card()
+    evidence.attach(later, CORNERS, now=NOW + timedelta(minutes=6))
+    assert later["recommendations"]["evidence"] and platform.asked_finished == 1
+
+
+def test_a_refresh_after_a_good_load_keeps_the_last_good_history(tmp_path):
+    platform, gate = Platform(), Gate()
+    evidence = gated(tmp_path, platform, gate)
+    evidence.attach(card(), CORNERS, now=NOW)
+    gate.busy = True
+    target = card()
+    evidence.attach(target, CORNERS, now=NOW + timedelta(minutes=61))
+    assert target["recommendations"]["evidence"]["groups"] and platform.asked_finished == 1
+
+
+def test_every_database_read_goes_through_the_gate(tmp_path):
+    platform, gate = Platform(), Gate()
+    gated(tmp_path, platform, gate).attach(card(), CORNERS, now=NOW)
+    assert gate.tries == 2  # the fixture's teams, then the history
+
+
+def test_the_read_gate_refuses_at_once_while_a_refresh_is_incomplete_and_sends_no_alert(settings, monkeypatch):
+    from pathlib import Path
+
+    import pytest
+    from data_platform.services import refresh_alerts, refresh_coordination
+    from data_platform.services.refresh_coordination import RefreshBusy, read_gate
+
+    observed = []
+    monkeypatch.setattr(refresh_alerts, "observe_gate", lambda *a, **k: observed.append(a))
+    _, marker = refresh_coordination._paths()
+    with read_gate():
+        pass
+    Path(marker).write_text("in progress\n")
+    with pytest.raises(RefreshBusy):
+        with read_gate():
+            pass
+    assert observed == []

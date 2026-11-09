@@ -1630,6 +1630,14 @@ for/against notes. Design: `docs/superpowers/specs/2026-11-09-pick-evidence-desi
   switches took their live `.env` values. Write the switches out on the command line.)
 - *Going live:* merge (nothing changes while the switch is off); the frontend builds the display from the mockup;
   the owner adds `SPIX_PICK_EVIDENCE=on` to `.env`; the website is restarted.
+- *Follow-up (9 Nov, after the merge; the orchestrator's go-live note):* the history load must not get in the daily
+  refresh's way. Every platform read of the evidence now goes through a new `refresh_coordination.read_gate`, which
+  never waits and never alerts: while the refresh writes, waits to write or left its data incomplete, it refuses at
+  once and the database is not touched. After a failed read the next try waits 5 minutes (before, every request
+  tried again, each with up to three database retries); meanwhile the last good history is kept, or the picks show
+  no evidence if none was loaded yet. The fixture's team lookup follows the same rule. Checks: 4 new tests (one
+  changed: the retry now waits 5 minutes); the four real matches give the same evidence through the real gate;
+  full suite 2,937 passed, 4 skipped, with the 3 known worktree errors; pinned golden check unchanged (54 fixtures).
 
 ## Findings that shape later steps
 

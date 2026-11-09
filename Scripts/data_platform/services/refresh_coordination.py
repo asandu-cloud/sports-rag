@@ -104,6 +104,15 @@ def _data_access(*, writer=False, full_refresh=False, wait_seconds=0):
 
 
 @contextmanager
+def read_gate():
+    """A reader's gate that never waits and never alerts: ``RefreshBusy`` at once while a refresh writes, is waiting
+    to write, or left its data incomplete. For website reads that skip and try again later (pick evidence, D82);
+    scheduled jobs keep ``data_access``, whose observations drive the refresh alerts."""
+    with _data_access():
+        yield
+
+
+@contextmanager
 def data_access(*, writer=False, full_refresh=False, wait_seconds=0):
     from .refresh_alerts import observe_gate
     _, marker = _paths()
