@@ -3,12 +3,14 @@
 Each card's ``recommendations.v1`` block gains ``story`` (How Spix reads it) and, in the ten domestic leagues,
 ``evidence`` (the shared groups of past matches) plus each Most likely item's ``evidence`` (``pick_evidence.build``).
 The history is football-data's 2024/25 and 2025/26 (a static file, read once) and this season's finished matches
-from the platform database, refreshed once every ``KEEP``; a match's final pre-kickoff price is read once. A failed
-read leaves the picks without evidence and is tried again on the next request. Nothing that was on the card changes.
+from the platform database, refreshed once every ``KEEP``; a match's final pre-kickoff price is read once. Every
+database read goes through the refresh gate without waiting (``refresh_coordination.read_gate``), so nothing is read
+while the daily refresh writes. After a failed read the next try waits ``RETRY``; meanwhile the last good history is
+kept, or the picks show no evidence if there is none yet. Nothing that was on the card changes.
 """
 from __future__ import annotations
 
-from contextlib import closing
+from contextlib import closing, nullcontext
 from datetime import timedelta
 import logging
 import os
@@ -21,6 +23,7 @@ from .. import pick_evidence
 
 logger = logging.getLogger(__name__)
 KEEP = timedelta(hours=1)
+RETRY = timedelta(minutes=5)
 FIRST_SEASON = int(pick_evidence.SINCE[:4])
 FOOTBALL_DATA = Path(__file__).resolve().parents[3] / "Index/football_data.sqlite3"
 PRICE = ("1x2", "Market average", 0)  # football-data's average of the bookmakers' pre-closing 1X2 prices
@@ -28,6 +31,10 @@ PRICE = ("1x2", "Market average", 0)  # football-data's average of the bookmaker
 
 def enabled() -> bool:
     return os.environ.get("SPIX_PICK_EVIDENCE", "").strip().lower() == "on"
+
+
+class HistoryUnavailable(RuntimeError):
+    pass
 
 
 def football_data_rows(path: Path) -> List[dict]:
@@ -55,8 +62,13 @@ def football_data_rows(path: Path) -> List[dict]:
 
 
 class History:
-    def __init__(self, *, football_data: Path = FOOTBALL_DATA, platform=None, keep: timedelta = KEEP):
-        self._path, self._platform, self._keep = Path(football_data), platform, keep
+    def __init__(self, *, football_data: Path = FOOTBALL_DATA, platform=None, keep: timedelta = KEEP, gate=None,
+                 retry: timedelta = RETRY):
+        """``gate`` makes the context each database read runs in; by default the refresh gate for the real database
+        and none for an injected ``platform`` (tests)."""
+        self._path, self._platform, self._keep, self._retry = Path(football_data), platform, keep, retry
+        self._gate = gate if gate is not None else (nullcontext if platform is not None else None)
+        self._failed_at = None
         self._static: Optional[List[dict]] = None
         self._names: Dict[int, str] = {}
         self._prices: Dict[str, dict] = {}
@@ -90,10 +102,34 @@ class History:
                     "home_price": price["home"], "draw_price": price["draw"], "away_price": price["away"]})
         return rows
 
+    def _read(self, now, read):
+        """Run one database read inside the gate, or refuse at once while the last failure is under ``RETRY`` old."""
+        if self._failed_at is not None and now - self._failed_at < self._retry:
+            raise HistoryUnavailable("the platform database was busy; trying again later")
+        if self._gate is None:
+            from .refresh_coordination import read_gate
+            self._gate = read_gate
+        try:
+            with self._gate():
+                value = read()
+        except Exception:
+            self._failed_at = now
+            raise
+        self._failed_at = None
+        return value
+
     def _current(self, now):
         with self._lock:
             if self._loaded is None or now - self._loaded[0] >= self._keep:
-                rows = self._load()
+                try:
+                    rows = self._read(now, self._load)
+                except Exception as exc:
+                    if self._loaded is None:
+                        raise
+                    if not isinstance(exc, HistoryUnavailable):
+                        logger.warning("Pick evidence keeps the history loaded at %s (%s)",
+                                       self._loaded[0].isoformat(), type(exc).__name__)
+                    return self._loaded
                 by_team: Dict[int, list] = {}
                 by_league: Dict[str, list] = {}
                 for row in rows:
@@ -114,9 +150,9 @@ class History:
             chosen.update((id(r), r) for r in by_team.get(team, []))
         return list(chosen.values())
 
-    def teams(self, event_id: str) -> Optional[tuple]:
+    def teams(self, event_id: str, now) -> Optional[tuple]:
         if event_id not in self._teams:
-            found = self._repository().teams(event_id)
+            found = self._read(now, lambda: self._repository().teams(event_id))
             if not found:
                 return None
             self._teams[event_id] = tuple(found)
@@ -148,7 +184,7 @@ class PickEvidence:
         history, teams = [], None
         if fixture.get("league") in pick_evidence.DOMESTIC and block.get("most_likely"):
             try:
-                teams = self._history.teams(str(fixture.get("event_id") or ""))
+                teams = self._history.teams(str(fixture.get("event_id") or ""), now)
                 history = self._history.subset(now, fixture["league"], teams) if teams else []
             except Exception as exc:  # the card must never fail for its evidence
                 logger.warning("Pick evidence history unavailable for %s (%s)", fixture.get("event_id"),
