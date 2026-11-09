@@ -19,7 +19,7 @@ Much of the rest of this file describes the **legacy** engine (`rag_cli_v2.py`, 
 (`market_service.py`, `line_selection.py`, `market_goal_model.py`), staged behind switches (below). The website runs
 on it. The Discord bot still runs the old engine until A7.
 
-### Current status (as of 8 Nov 2026; the tracker is newer if it disagrees)
+### Current status (as of 9 Nov 2026; the tracker is newer if it disagrees)
 - **Engine stages 1–4 live.** Stage 4 went live 3 Nov: `SPIX_MARKET_ANCHOR=full` and
   `SPIX_SELECTION_POLICY=market_value`, every bookmaker, 2% value threshold, price confirmation at 60 minutes,
   failing closed. Value picks are rare by design: 5 of 18 matches on 3 Nov.
@@ -44,7 +44,12 @@ on it. The Discord bot still runs the old engine until A7.
     Since 5 Nov they sit in their own Live tab, in play first, then finished (D73).
   - Pick notes (D75): merged 5 Nov behind `SPIX_PICK_NOTES` (off). The owner rejected the for/against wording on
     5 Nov (the two lines can contradict each other); a new approach that explains the pick from the data is being
-    worked out, and the frontend's display (D76) waits for it. Keep the switch off.
+    worked out. The frontend's display (D76) was taken off its branch on 9 Nov and waits for it. Keep the switch
+    off.
+- **Cobalt palette live 9 Nov (D80).** Cobalt `#0246A4` replaced the turf green, lime cream `#D5F097` the
+  highlighter, and mint cream `#F2FFFA` is the light ground; the dark theme uses a light cobalt `#88B4F2`. Cache
+  tags are `live-20261109a` (style.css, app.js) and `palette-20261109a` (theme.js). Open for the owner: the steel
+  blue of the Away segment and the "preliminary" label now sits close to the cobalt.
 - **Cards work that does not change picks (D54):**
   - add the events to the refresh and backfill them from 20 Sep (done 4 Nov: migration 0010, 554 matches
     backfilled, the refresh saves events from now on, D64);
