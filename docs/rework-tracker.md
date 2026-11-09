@@ -1578,6 +1578,19 @@ dark theme, only the green and the highlighter change.
 
 ## Findings that shape later steps
 
+- **Stage 4 passes its safety check at the 9 Nov scorecard.** The scheduled run started at 08:12 local, waited for
+  the day's refresh (started 13:15), and wrote `Research/scorecards/2026-11-09/` at 14:10. Stage 4's picks (anchor
+  `full`, selection `market_value`, kickoffs 3–8 Nov): 72 selections, all graded (35 hit, 30 miss, 6 push, 1 half
+  miss). Spix said 51.0% and won 53.4% (win minus said +2.4 pts, −9.9 to +14.7). Log-loss gap against the market
+  −0.001 (−0.010 to +0.006), as an anchored price should be. Price CLV +2.0% (+0.1 to +3.8); fair CLV −1.6% (−3.3
+  to +0.1); value at Pinnacle's true close −0.9% (−3.2 to +1.4) on 66 picks, the best of any stage so far (all
+  picks −2.4%). Return +2.5% (−22.6 to +28.9) on 72 units. No sign of a fault, which is all a week can show (D26);
+  whether the 2% value is real needs many more weeks. Over all 3,135 published picks since the week of 5 Oct, mostly
+  from earlier stages, Spix said 74.8% and won 65.5% (−9.2 pts, −12.2 to −6.4); stage 4's own picks no longer show
+  that overconfidence. So the cards switch (A5.4) keeps its Tue 10 Nov slot (D58). The owner dashboard's 64 Value
+  picks were its update of 03:28 on 8 Nov; Sunday's later picks bring stage 4 to 72 (counted through the
+  dashboard's gated, read-only reader after the refresh, 9 Nov).
+
 - **Checks from a worktree (3 Nov, corrected).** Three pinned `golden_snapshots check` runs from the backend folder
   and a scratch copy (about 19:45–20:05 local) reported about 7,000 changed values per fixture, the same before and
   after the D56 change. They did not reproduce: the orchestrator's pinned runs in a linked scratch worktree, and the
