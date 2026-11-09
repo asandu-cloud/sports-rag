@@ -253,11 +253,11 @@ The world explicitly refuses the sportsbook default of neon on dark, glows, and 
 A near-monochrome mint-tinted paper-and-ink palette with one cobalt accent, one highlighter, and three quiet semantic washes.
 
 ### Primary
-- **Cobalt** (Chalk `cobalt`, Floodlit `floodlit-cobalt`): primary buttons, links, active date chip, active nav and league underline, add-to-slip, focus rings, slip counts, the Home segment of the balance bar, Research chart bars, and the top bar in both themes. Hover deepens in Chalk (`cobalt-deep`) and lightens in Floodlit (`floodlit-cobalt-hover`). Floodlit uses a light cobalt because cobalt itself reads at only 2.1:1 on the dark ground. Cobalt replaced the turf green on 9 Nov 2026 (D80): the green felt like tennis, and blue reads as trust.
+- **Cobalt** (Chalk `cobalt`, Floodlit `floodlit-cobalt`): primary buttons, links, active date chip, active nav and league underline, add-to-slip, focus rings, slip counts, the Home segment of the balance bar, Research chart bars, the pick-evidence bars and checks, and the top bar in both themes. Hover deepens in Chalk (`cobalt-deep`) and lightens in Floodlit (`floodlit-cobalt-hover`). Floodlit uses a light cobalt because cobalt itself reads at only 2.1:1 on the dark ground. Cobalt replaced the turf green on 9 Nov 2026 (D80): the green felt like tennis, and blue reads as trust.
 - **Cobalt Wash** (`cobalt-wash`, `cobalt-wash-strong`): the tinted ground for active nav, slip toggle, "ready"/"updated" status, high-confidence and strong-value chips, and the recommended market line.
 
 ### Secondary
-- **Lime Marker** (`lime-marker`, `floodlit-marker`, both lime cream): the highlighter. Behind the one marked figure in a read (projected total goals), the landing hero's one marked word, the Research Area's main insight figure, and text selection. Ink on marker in both themes.
+- **Lime Marker** (`lime-marker`, `floodlit-marker`, both lime cream): the highlighter. Behind the one marked figure in a read (projected total goals), the landing hero's one marked word, the Research Area's main insight figure, the count in a pick-evidence sheet, and text selection. Ink on marker in both themes.
 
 ### Tertiary
 - **Away Blue** (`away-blue` + wash): the Away segment of the balance bar, the "preliminary" status and the Research "lenient" tag. It is a data colour, not an action colour. Since cobalt became the action colour (D80) the two blues sit close (1.3:1 in Chalk, 1.1:1 in Floodlit); a new Away colour is an open choice.
@@ -366,6 +366,22 @@ Kickoff time and "Updated" meta on top; two rows of crest plus condensed upperca
 
 ### Match Read Panel (signature)
 A 12px surface panel: status label, the thesis at reading size with one marked figure, key points, then selections separated by 1px rules. Each selection row carries a condensed pick, role and confidence chips, the price (figure style) with the bookmaker in tertiary ink, and an outlined Add button; the explanation spans below at 68ch. Shared caveats sit in a sunk well under a Label heading; withheld angles follow a dashed rule as quiet-fill chips.
+
+### Pick Evidence (D83)
+From the owner's approved mockup ("Easier to read", 9 Nov), on the match page only, and only when the card carries
+`pick-evidence.v1` (`SPIX_PICK_EVIDENCE`); without it the page is as before.
+- **How Spix reads it:** a 10px quiet-fill panel above Most likely. A 13px tertiary caption, a bold 18px lead
+  sentence, then a three-column list (one column under 600px) of the chance of each result, goals expected and
+  corners expected, each figure once, the dots in tertiary ink. Cup cards get this panel only.
+- **On each Most likely card:** the "why" line gives way to a bold 16px verdict and a 15px secondary detail line,
+  then a soft rule and "Past matches at similar odds" with up to three rows (home team, away team, league). Each row
+  is a full-width button: the group's name and price range on the left, "won of N" on the right with a chevron, and a
+  4px bar (cobalt on the chart track) beneath. Hover is the surface-hover fill.
+- **The sheet:** a native modal dialog (14px radius, Lift shadow, overlay backdrop), up to 680px wide. A label
+  naming the pick, a condensed uppercase title, one plain sentence on how the group was chosen, the count marked in
+  lime ("9 of 12") with what it means, then a table of the matches: date and season, the match from the group's side
+  ("v" at home, "at" away), the price, the goals, corners or score, and Yes with a cobalt check or No in tertiary ink.
+  Under 560px the date moves under the match and the last column is headed "Won?", so nothing scrolls sideways.
 
 ### Toast
 Ink ground with canvas text (inverts per theme), 8px radius, Float shadow, a small status dot ringed in cobalt or loss red; slides up 10px and fades out after 2.2s.

@@ -121,7 +121,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Second-round variables: M3 bookmaker disagreement | A5.3 confidence labels (D30) | With A5 |
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
 | Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52, approved 3 Nov, D53); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`; plan `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks; mockups are task 3, after the data block). Tasks 1–2 (the data block behind `SPIX_RECOMMENDATIONS`, off) merged 3 Nov, D56; task 3 look chosen (version B, D63); tasks 4–5 (match page, board card, slip) merged 4 Nov, D59, D60, shown only when the switch is on. Task 6 replaced by the owner dashboard (D67, merged 4 Nov, no migration); task 7 dropped. Live 4 Nov (D68). Open: the methodology copy (draft kept for the owner's sign-off); the "Worth it at" fix (D68, owner 4 Nov) waits for the merge and a website restart | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
-| Pick notes (one line for, one against) on every Most likely and Value pick: into `recommendations.v1` behind an off switch, then the frontend on 8100 (D75) | Frontend on 8100 after the merge; live when the owner adds `SPIX_PICK_NOTES=on` | Fixed wording chosen and built behind `SPIX_PICK_NOTES` (off) 5 Nov; the owner chose layout B, built on the frontend 5 Nov (D76); the owner then rejected the wording (the two lines can contradict each other), so the display is on hold until notes explained from the data behind the pick are agreed, and the switch stays off |
+| Pick notes (one line for, one against) on every Most likely and Value pick: into `recommendations.v1` behind an off switch, then the frontend on 8100 (D75) | Frontend on 8100 after the merge; live when the owner adds `SPIX_PICK_NOTES=on` | Fixed wording chosen and built behind `SPIX_PICK_NOTES` (off) 5 Nov; the owner chose layout B, built on the frontend 5 Nov (D76); the owner then rejected the wording (the two lines can contradict each other), so the display is on hold until notes explained from the data behind the pick are agreed, and the switch stays off. Replaced 9 Nov by pick evidence (D82 data, merged behind `SPIX_PICK_EVIDENCE`, off; D83 display, on the frontend branch): live when the owner adds `SPIX_PICK_EVIDENCE=on` and the website is restarted |
 | Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | Needs the bet builder and the recommendation lists first |
 | Website and Discord link: one-tap sharing of a bet to Discord, Discord posts linking back to the match (D50) | A7, when the bot moves to the new engine | The bot still runs the old engine |
 | Building bets inside Discord; community selections (D50) | After A7 | Owner: for later |
@@ -1638,6 +1638,44 @@ for/against notes. Design: `docs/superpowers/specs/2026-11-09-pick-evidence-desi
   no evidence if none was loaded yet. The fixture's team lookup follows the same rule. Checks: 4 new tests (one
   changed: the retry now waits 5 minutes); the four real matches give the same evidence through the real gate;
   full suite 2,937 passed, 4 skipped, with the 3 known worktree errors; pinned golden check unchanged (54 fixtures).
+
+**D83 — Pick evidence on the match page (9 Nov; frontend, from D82's data).** The display of the owner's approved
+mockup ("Easier to read", https://claude.ai/artifact/C732K7mQTdXUxUFQ44wUez), built from its template and reading
+`pick-evidence.v1`. Only the match page changes; the board card, Value, Explore the match and the Match Read are as
+before.
+- *What shows:* "How Spix reads it" above Most likely (the lead, then the chance of each result, goals and corners
+  expected; a missing figure leaves out its cell). Each Most likely card with evidence shows the verdict, the detail
+  line (left out when empty) and "Past matches at similar odds": a row per group with the group's price range, "won
+  of N", a bar and a chevron. A tap opens a modal sheet of the group's matches: date and season (the competition
+  too when it is not tonight's), the match from the group's side ("v" at home, "at" away), the team's win price or
+  the league's home and away prices, the goals or corners total or the score (W/D/L from the team's side in team
+  groups), and Yes or No. Close, a tap outside or Escape shuts it. Cup cards get the story only.
+- *Nothing new without the data:* a card or pick without `story`/`evidence`, or whose evidence does not join up (an
+  unknown group, a missing or other-version `evidence` block, counts that do not add up, results that do not match
+  the group's matches), renders exactly as today, with its "why" line.
+- *Rulings:* (1) Team names are shown in full, as the backend's lead and detail write them; the mockup's short names
+  (Forest, Man City) were a hand-made map for four Premier League matches, and mixing short rows with full-name
+  sentences would read oddly. (2) On phones (under 560px) the sheet's date moves under the match and the last column
+  is headed "Won?" instead of the pick's name, so the price, score and answer stay in view; at 390px the mockup's
+  table scrolled sideways and hid the answer. (3) The "Scores are from X's side" note shows only when the sheet shows
+  scores, not goals or corners totals. (4) The sheet says "League matches since August 2024" for a team's group,
+  since a team's matches can come from another of the ten leagues (a promoted side's Premier League season), and
+  names that competition beside the season.
+- *Checks:* new `Scripts/tests/test_pick_evidence_web.js` (story, rows, verdicts, the sheet for team and league
+  groups and for goals, corners and score markets, escaping, and every broken-data case drawing the page as before);
+  all 7 JS test files pass; Python suite 2,937 passed, 4 skipped, with the 3 known worktree errors. On 46 real
+  cards from 5-8 Nov rebuilt through the router's own `_card_from_read` with
+  the switch on (29 Premier League, La Liga, Serie A, Bundesliga and Championship cards with evidence on all 87
+  Most likely picks, and 17 Europa League cards with the story only): with the new keys removed, all 46 draw exactly
+  what main draws (Most likely, Value, Explore and the board card); the 17 cup cards are main's page with the story
+  added above; all 255 sheets list as many matches and as many Yes as their row's count. Screenshots on 8100 (switch
+  on its command line only) against 8000, phone and desktop, light and dark: no sideways scroll on any page or sheet.
+  Cache tags `evidence-20261109a` (style.css, app.js).
+- *Open for the owner:* "How Spix reads it" repeats the chance of each result and the goals that the Match Read's
+  own figures panel shows further down (two decimals there, one here). The mockup left the Match Read
+  unchanged, so this build does too.
+- *Going live:* merge (nothing changes while `SPIX_PICK_EVIDENCE` is off); the owner adds `SPIX_PICK_EVIDENCE=on`
+  to `.env`; the website is restarted (asked first).
 
 ## Findings that shape later steps
 

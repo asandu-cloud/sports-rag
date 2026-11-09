@@ -14,6 +14,7 @@ const ICONS = {
   plus: '<svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
   check: '<svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   close: '<svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  chevron: '<svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 };
 // Content for add-to-slip buttons: icon only on compact buttons, icon plus label on market buttons.
 function addButtonContent(added, withLabel) {
@@ -218,6 +219,136 @@ function recsAddButton(ref, leg, added) {
   return `<button type="button" class="recs-add${added ? ' added' : ''}" data-recs-add="${esc(ref)}" aria-label="${added ? 'Remove' : 'Add'} ${esc(leg.label)} ${added ? 'from' : 'to'} your bet">${addButtonContent(added, true)}</button>`;
 }
 
+// ----- Pick evidence (pick-evidence.v1 from the backend, D82; display D83 from the owner's "Easier to read" mockup) -----
+// "How Spix reads it" above the picks; under each Most likely pick a verdict, a detail line and past matches at
+// similar odds, each row opening those matches. Every key is optional: without usable evidence a card is as before.
+const EVIDENCE_DATE = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' });
+const EVIDENCE_SINCE = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', month: 'long', year: 'numeric' });
+const recsFigure = value => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+
+// The story, when the chance of each result is there.
+function recsStory(block) {
+  const story = block?.story;
+  const chances = story?.result_chances;
+  if (!chances || ['home', 'draw', 'away'].some(side => recsFigure(chances[side]) == null)) return null;
+  return story;
+}
+
+// How Spix reads it: one lead sentence, then each figure once.
+function renderRecsStory(block, home, away) {
+  const story = recsStory(block);
+  if (!story) return '';
+  // The dot ends a figure rather than starting the next, so a long name wraps after it.
+  const list = items => items.map((item, i) => `<span class="recs-kv-item">${item}${i < items.length - 1 ? ' <span class="recs-kv-sep" aria-hidden="true">·</span>' : ''}</span>`).join(' ');
+  const chances = story.result_chances;
+  const goals = story.goals_expected;
+  const cells = [['Chance of each result', list([`${esc(home)} ${chancePercent(chances.home)}`, `Draw ${chancePercent(chances.draw)}`, `${esc(away)} ${chancePercent(chances.away)}`])]];
+  if (recsFigure(goals?.home) != null && recsFigure(goals?.away) != null) {
+    cells.push(['Goals expected', list([`${esc(home)} ${goals.home.toFixed(1)}`, `${esc(away)} ${goals.away.toFixed(1)}`])]);
+  }
+  if (recsFigure(story.corners_expected) != null) cells.push(['Corners expected', story.corners_expected.toFixed(1)]);
+  return `
+    <section class="recs-story" aria-label="How Spix reads it">
+      <span class="recs-ev-cap">How Spix reads it</span>
+      ${story.lead ? `<p class="recs-story-lead">${esc(story.lead)}</p>` : ''}
+      <dl class="recs-kv">${cells.map(([name, value]) => `<div><dt>${name}</dt><dd>${value}</dd></div>`).join('')}</dl>
+    </section>`;
+}
+
+// A pick's rows, each joined to the card's group of matches, in the card's order; null unless every row joins up.
+function recsPickEvidence(block, item) {
+  const shared = block?.evidence;
+  const own = item?.evidence;
+  if (shared?.version !== 'pick-evidence.v1' || !Array.isArray(shared.groups)) return null;
+  if (!own?.verdict || !Array.isArray(own.groups) || !own.groups.length) return null;
+  const rows = own.groups.map(row => {
+    const group = shared.groups.find(g => g.key === row.key);
+    const counted = Number.isInteger(row.won) && Number.isInteger(row.of) && row.of > 0 && row.won >= 0 && row.won <= row.of;
+    const matched = Array.isArray(group?.matches) && Array.isArray(row.results) && row.results.length === group.matches.length;
+    return counted && matched ? { ...row, group } : null;
+  });
+  if (rows.some(row => !row)) return null;
+  rows.sort((a, b) => shared.groups.indexOf(a.group) - shared.groups.indexOf(b.group));
+  return { verdict: String(own.verdict), detail: typeof own.detail === 'string' ? own.detail : '', rows };
+}
+
+function recsEvidenceRow(index, row) {
+  const team = row.group.team;
+  const name = team ? `${team}'s ${row.of}` : `${row.of} league matches`;
+  const sub = team ? `win odds ${recsPrice(row.group.price_from)}–${recsPrice(row.group.price_to)}` : 'closest home and away odds';
+  return `
+        <button type="button" class="recs-ev-row" data-recs-evidence="${index}:${esc(row.key)}" aria-haspopup="dialog" aria-label="${esc(`${name}: ${row.won} of ${row.of}. See the matches`)}">
+          <span class="recs-ev-name"><b>${esc(name)}</b><span>${esc(sub)}</span></span>
+          <span class="recs-ev-count"><b>${row.won}</b> of ${row.of} ${ICONS.chevron}</span>
+          <span class="recs-ev-bar" aria-hidden="true"><i style="width:${(100 * row.won / row.of).toFixed(1)}%"></i></span>
+        </button>`;
+}
+
+// The verdict and detail, then the rows; a pick without evidence keeps its "why" line.
+function renderRecsPickNote(block, item, index) {
+  const evidence = recsPickEvidence(block, item);
+  if (!evidence) return item.why ? `<p class="recs-why">${esc(item.why)}</p>` : '<p class="recs-why"></p>';
+  return `<div class="recs-evidence-note">
+        <p class="recs-verdict">${esc(evidence.verdict)}</p>
+        ${evidence.detail ? `<p class="recs-detail">${esc(evidence.detail)}</p>` : ''}
+      </div>
+      <div class="recs-ev">
+        <p class="recs-ev-head"><span class="recs-ev-cap">Past matches at similar odds</span><span class="recs-ev-cap">Won</span></p>${evidence.rows.map(row => recsEvidenceRow(index, row)).join('')}
+      </div>`;
+}
+
+// The sheet behind one row ("<pick index>:<group key>"): those matches, from the group's side. '' when not there.
+function renderEvidenceSheet(f, ref, options = {}) {
+  const block = f?.recommendations;
+  const [index, key] = String(ref ?? '').split(':');
+  const item = /^\d+$/.test(index) ? block?.most_likely?.[Number(index)] : null;
+  const row = item ? recsPickEvidence(block, item)?.rows.find(r => r.key === key) : null;
+  if (!row) return '';
+  const leagueName = options.leagueName || (code => code);
+  const shared = block.evidence;
+  const { team, matches } = row.group;
+  const tonight = shared.tonight || {};
+  const since = /^\d{4}-\d{2}-\d{2}$/.test(String(shared.since)) ? ` since ${EVIDENCE_SINCE.format(new Date(`${shared.since}T12:00:00Z`))}` : '';
+  const title = team ? `${team}'s ${row.of} matches priced like this` : `The ${row.of} league matches priced like this`;
+  const about = team
+    ? `League matches${since}. ${team}'s win odds in these matches ran from ${recsPrice(row.group.price_from)} to ${recsPrice(row.group.price_to)}. Before this match they were ${recsPrice(tonight[row.key])}.`
+    : `${leagueName(shared.competition)}${since}: the matches whose home and away odds were closest to this match's ${recsPrice(tonight.home)} and ${recsPrice(tonight.away)}.`;
+  const total = item.market === 'goals' ? m => m.home_goals + m.away_goals : item.market === 'corners' ? m => m.corners : null;
+  const valueHead = item.market === 'goals' ? 'Goals' : item.market === 'corners' ? 'Corners' : 'Score';
+  const score = m => {
+    if (!team) return `${m.home_goals}–${m.away_goals}`;
+    const [own, other] = m.venue === 'H' ? [m.home_goals, m.away_goals] : [m.away_goals, m.home_goals];
+    return `${own > other ? 'W' : own === other ? 'D' : 'L'} ${own}–${other}`;
+  };
+  const rows = matches.map((m, i) => {
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(String(m.date)) ? EVIDENCE_DATE.format(new Date(`${m.date}T12:00:00Z`)) : String(m.date ?? '');
+    const season = m.competition && m.competition !== shared.competition ? `${m.season} · ${leagueName(m.competition)}` : m.season;
+    const label = !team ? `${m.home} v ${m.away}` : m.venue === 'H' ? `v ${m.away}` : `at ${m.home}`;
+    const price = !team ? `${recsPrice(m.home_price)} / ${recsPrice(m.away_price)}` : recsPrice(m.venue === 'H' ? m.home_price : m.away_price);
+    const won = row.results[i] === true;
+    return `
+          <tr>
+            <td class="recs-sheet-date">${esc(day)}<br><span class="recs-sheet-season">${esc(season)}</span></td>
+            <td>${esc(label)}<span class="recs-sheet-when">${esc(day)} · ${esc(season)}</span></td>
+            <td class="r">${esc(price)}</td>
+            <td class="r">${esc(total ? String(total(m)) : score(m))}</td>
+            <td class="${won ? 'yes' : 'no'}"><span class="recs-sheet-yn">${won ? `${ICONS.check}Yes` : 'No'}</span></td>
+          </tr>`;
+  }).join('');
+  return `
+    <div class="recs-sheet-top">
+      <div><p class="recs-sheet-label">Evidence for ${esc(item.label)}</p><h2 class="recs-sheet-title" id="recsSheetTitle">${esc(title)}</h2></div>
+      <button type="button" class="recs-sheet-close" data-recs-sheet-close aria-label="Close">${ICONS.close}</button>
+    </div>
+    <p>${esc(about)}</p>
+    <p class="recs-sheet-tally"><b>${row.won} of ${row.of}</b>${row.means ? `: ${esc(row.means)}.` : '.'}</p>
+    <div class="recs-sheet-table"><table>
+      <thead><tr><th class="recs-sheet-date">Date</th><th>Match</th><th class="r">${team ? 'Win odds' : 'Home / away'}</th><th class="r">${valueHead}</th><th><span class="recs-sheet-ask">${esc(String(item.label || '').replace(/ (corners|goals)$/, ''))}?</span><span class="recs-sheet-ask-short">Won?</span></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    ${team && !total ? `<p>Scores are from ${esc(team)}'s side: W 2–1 means ${esc(team)} won 2–1.</p>` : ''}`;
+}
+
 // Most likely and Value: the top of the match page.
 function renderRecommendations(f, view = {}) {
   const block = f.recommendations;
@@ -225,12 +356,13 @@ function renderRecommendations(f, view = {}) {
   const added = view.added || (() => false);
   const priced = recsPriced(block);
   const clock = priced ? recsClock(block.prices_as_of) : '';
+  const story = renderRecsStory(block, f.home, f.away);
   const cards = (block.most_likely || []).map((o, i) => `
     <article class="recs-card">
       <span class="recs-label">${esc(recsMarketName(o.market))}</span>
       <h3 class="recs-pick">${esc(o.label)}</h3>
       <p class="recs-chance"><span class="recs-words">${esc(recsWords(o))}</span><span class="recs-pct">${chancePercent(o.chance)}</span></p>
-      ${o.why ? `<p class="recs-why">${esc(o.why)}</p>` : '<p class="recs-why"></p>'}
+      ${renderRecsPickNote(block, o, i)}
       <div class="recs-card-foot"><span class="recs-fig">${recsPrice(o.typical_price)}</span>${recsAddButton(`ml:${i}`, o, added(o))}</div>
     </article>`).join('');
   const mostLikely = `
@@ -243,7 +375,7 @@ function renderRecommendations(f, view = {}) {
         ? `<div class="recs-strip">${cards}</div>`
         : '<p class="recs-note">The bookmakers haven\'t priced this match yet, so there are no suggestions. They usually appear a day or two before kick-off.</p>'}
     </section>`;
-  if (!priced) return mostLikely;
+  if (!priced) return story + mostLikely;
   const values = (block.value || []).map((item, i) => {
     const leg = recsValueLeg(item, block);
     return `
@@ -258,7 +390,7 @@ function renderRecommendations(f, view = {}) {
         ${recsAddButton(`value:${i}`, leg, added(leg))}
       </article>`;
   }).join('');
-  return `${mostLikely}
+  return `${story}${mostLikely}
     <section class="recs-section" aria-labelledby="recsValue">
       <h2 class="recs-title recs-head" id="recsValue">Value</h2>
       ${values || '<p class="recs-note">No value picks on this match today. The prices are about right.</p>'}
@@ -2182,11 +2314,13 @@ const appModule = {
       const tab = event.target.closest('[data-recs-tab]');
       const step = event.target.closest('[data-recs-step]');
       const add = event.target.closest('[data-recs-add]');
+      const evidence = event.target.closest('[data-recs-evidence]');
       if (tab) {
         this._recsView(match).open = tab.dataset.recsTab;
         this._paintRecommendations(match);
       } else if (step && !step.disabled) this._recsStep(match, Number(step.dataset.recsStep));
       else if (add) this._recsAdd(match, add.dataset.recsAdd);
+      else if (evidence) this._openEvidenceSheet(match, evidence.dataset.recsEvidence);
     });
     // On phones a sideways swipe over the line moves it, like the − / + buttons.
     let touch = null;
@@ -2238,6 +2372,25 @@ const appModule = {
     const last = recsStepperPairs(market).length - 1;
     view.line[market.market] = Math.min(Math.max(recsLineIndex(market, view.line[market.market]) + delta, 0), last);
     this._paintRecommendations(f);
+  },
+
+  // The matches behind one evidence row, in a modal sheet; a tap outside it, Close or Escape shuts it.
+  _openEvidenceSheet(f, ref) {
+    const html = renderEvidenceSheet(f, ref, { leagueName: code => this.LEAGUES.find(l => l.id === code)?.name || code });
+    if (!html) return;
+    let sheet = document.getElementById('recsSheet');
+    if (!sheet) {
+      sheet = document.createElement('dialog');
+      sheet.id = 'recsSheet';
+      sheet.className = 'recs-sheet';
+      sheet.setAttribute('aria-labelledby', 'recsSheetTitle');
+      document.body.appendChild(sheet);
+      sheet.addEventListener('click', event => {
+        if (event.target === sheet || event.target.closest('[data-recs-sheet-close]')) sheet.close();
+      });
+    }
+    sheet.innerHTML = `<div class="recs-sheet-body">${html}</div>`;
+    sheet.showModal();
   },
 
   _recsAdd(f, ref) {
