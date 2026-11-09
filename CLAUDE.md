@@ -53,6 +53,8 @@ on it. The Discord bot still runs the old engine until A7.
   highlighter, and mint cream `#F2FFFA` is the light ground; the dark theme uses a light cobalt `#88B4F2`. Cache
   tags are `live-20261109a` (style.css, app.js) and `palette-20261109a` (theme.js). Open for the owner: the steel
   blue of the Away segment and the "preliminary" label now sits close to the cobalt.
+- **OpenAI out of credit since 5 Nov 18:04.** Match Read briefings use the fixed fallback wording, and the daily
+  refresh's best-effort Chroma step fails. Picks are not affected. Topping up is the owner's call.
 - **Cards work that does not change picks (D54):**
   - add the events to the refresh and backfill them from 20 Sep (done 4 Nov: migration 0010, 554 matches
     backfilled, the refresh saves events from now on, D64);
