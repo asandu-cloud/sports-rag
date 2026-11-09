@@ -1549,6 +1549,25 @@ return in units, per day and per week, Value picks only, one unit on each bet. T
   `--no-update`. No platform.db read, no engine code, no migration. Live once merged and the dashboard (not the
   website) is restarted.
 
+**D80 — A cobalt palette for the website, on staging (9 Nov, owner; frontend; an experiment).** The owner felt the
+turf green "has too much of a tennis feel" and chose blue, for trust, with three colours: cobalt blue `#0246A4`
+for the green, lime cream `#D5F097` for the yellow highlighter, and mint cream `#F2FFFA` for the rest. In the
+dark theme, only the green and the highlighter change.
+- *What changed (light):* every turf token is cobalt: buttons, links, selection, focus, the header bar (both
+  themes) and the browser bar colour. The highlighter is lime cream. The page background is mint cream; the
+  wells, quiet fills and rules keep their lightness at mint cream's hue. Ink, amber and red are unchanged.
+- *Rulings:* in the dark theme, cobalt itself reads at only 2.1:1 on the dark ground, so actions use a light
+  cobalt `#88B4F2` (8.7:1), as the dark theme used a light green before; buttons there are light cobalt with
+  navy text. Every new text pair is 5:1 or better. The Away and "preliminary" blue (`--info`) is left as it was,
+  but it now sits next to the action blue (1.3:1 light, 1.1:1 dark) in the balance bar of the match read: the
+  owner's call. `DESIGN.md` and `docs/brand/color-palette.md` describe the live site, so they are updated when
+  the owner settles the palette, before any merge. The landing preview (8011) and the logo files keep the green.
+- *Checks:* all 7 JS files pass; no test pins a colour. Before and after on 5 Nov's real Europa League board
+  replayed in the browser (there are no matches during this week's international break): board, match page,
+  slip and home page, light, dark and phone. Cache tags: `live-20261109a`, theme script `palette-20261109a`.
+  The checkpoint is e8e5e43, the commit before this one.
+- *Going live:* only once the owner chooses it; then the docs above, a merge and a website restart.
+
 ## Findings that shape later steps
 
 - **Checks from a worktree (3 Nov, corrected).** Three pinned `golden_snapshots check` runs from the backend folder

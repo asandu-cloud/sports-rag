@@ -16,9 +16,9 @@
   };
   const effective = () => root.dataset.theme || 'light';
 
-  // D48: the header is turf green in both themes; ?logo=old brings back the old header colours.
-  const CHROME = { light: '#0E6336', dark: '#0E6336' };
-  const OLD_CHROME = { light: '#F3F7F3', dark: '#0D1511' };
+  // D48, D80: the header is cobalt in both themes; ?logo=old brings back the old header colours.
+  const CHROME = { light: '#0246A4', dark: '#0246A4' };
+  const OLD_CHROME = { light: '#F2FFFA', dark: '#0D1511' };
 
   function syncButtons() {
     const current = effective();
