@@ -63,9 +63,11 @@ on it. The Discord bot still runs the old engine until A7.
     on, D61, D62).
 - **Next dates.**
   - Tue 10 Nov: A5.4 cards takes this slot (owner, D58); the 9 Nov scorecard cleared it. Go-live: the owner adds
-    `SPIX_CARDS_REFERENCE=pinnacle` to `.env`, then the website is restarted.
-  - Mon 16 Nov 08:00: the scorecard checks A5.4 cards.
-  - Tue 17 Nov: earliest next stage.
+    `SPIX_CARDS_REFERENCE=pinnacle` to `.env`, then the website is restarted. Checklist in the tracker (9 Nov).
+  - No club matches from 9 to 19 Nov (international break). Cards picks start with the 20–22 Nov weekend, once
+    cards prices appear (about 18–19 Nov). The Mon 16 Nov scorecard has no new matches.
+  - Mon 23 Nov 08:00: the first scorecard to judge cards.
+  - Tue 24 Nov: earliest next stage (owner, 9 Nov: 17 Nov would share cards' first weekend).
 - **Update this block** in the same commit as the tracker whenever a stage goes live or the current project
   changes.
 
