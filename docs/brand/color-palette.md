@@ -8,8 +8,15 @@ football on a turf-green header, in both themes), "Landing" design, Fraunces, Cl
 name on a turf tile (`docs/brand/logo/spix-discord-avatar.png`, 512 px). Logo files and the script that builds them:
 `docs/brand/logo/`. The round-3 ball options below stay on record; the website uses Classic.
 
-Website header colours (`--tb-*` in `style.css`, the same in light and dark): bar Turf `#0E6336`, border `#0B5530`,
-logo and active text `#FAFDFA` (7.2:1), other links `#D3E9D9` (5.6:1), button White on Turf text. The logo colours are proposals until a design and font are picked; the website
+Website palette, 9 Nov 2026 (D80, owner): the turf green gave the site "too much of a tennis feel", so the website
+moved to blue, for trust. Cobalt `#0246A4` replaces the turf green, lime cream `#D5F097` replaces the floodlight
+yellow highlighter, and mint cream `#F2FFFA` is the light page ground. The dark theme changes only the green (to a
+light cobalt that reads on the dark ground) and the highlighter. The logo files below and the landing preview still
+use the turf green.
+
+Website header colours (`--tb-*` in `style.css`, the same in light and dark): bar Cobalt `#0246A4`, border
+`#023A88`, logo and active text Mint cream `#F2FFFA` (8.5:1), other links `#D0DDF2` (6.3:1), button Mint cream with
+Cobalt text. The logo colours are proposals until a design and font are picked; the website
 colours are the live values. If `style.css` changes, update this file in the same commit.
 
 ## Logo colours (proposed)
@@ -55,21 +62,21 @@ everything in Chalk on dark (the patches knock out to the background).
 
 | Token | Hex | Role |
 |---|---|---|
-| `--bg` | `#F3F7F3` | Page canvas |
-| `--bg2` | `#E7EDE8` | Sunk wells, footer |
-| `--surface` | `#FCFEFC` | Cards, panels |
-| `--surface2` | `#ECF2ED` | Quiet fills, chips |
-| `--border` | `#CFD7D0` | Lines |
-| `--border2` | `#808981` | Inputs, controls |
+| `--bg` | `#F2FFFA` | Page canvas: mint cream |
+| `--bg2` | `#E3F1EC` | Sunk wells, footer |
+| `--surface` | `#FBFFFD` | Cards, panels |
+| `--surface2` | `#E9F5F0` | Quiet fills, chips |
+| `--border` | `#CFD7D4` | Lines |
+| `--border2` | `#808986` | Inputs, controls |
 | `--text` | `#111E17` | Main text |
 | `--text2` | `#404B44` | Secondary text |
 | `--text3` | `#5D6660` | Labels |
-| `--accent` | `#0E6336` | Turf: actions and selection only |
-| `--accent-dim` | `#DAF1DD` | Green wash |
-| `--marker` | `#F0E488` | Floodlight highlighter (one price) |
+| `--accent` | `#0246A4` | Cobalt: actions and selection only (8.5:1 on the canvas) |
+| `--accent-dim` | `#DCE5F2` | Cobalt wash |
+| `--marker` | `#D5F097` | Lime cream highlighter (one figure) |
 | `--amber` | `#905100` | Caution |
 | `--loss` | `#AA342C` | Losses |
-| `--info` | `#2D5F87` | Information |
+| `--info` | `#2D5F87` | Information, the Away share (close to cobalt: open, D80) |
 
 ## Website, dark theme (Floodlit)
 
@@ -84,9 +91,9 @@ everything in Chalk on dark (the patches knock out to the background).
 | `--text` | `#EFF1EC` | Main text |
 | `--text2` | `#C1C6C0` | Secondary text |
 | `--text3` | `#99A19A` | Labels |
-| `--accent` | `#89CD9B` | Pitch green: actions and selection only |
-| `--accent-dim` | `#1A3424` | Green wash |
-| `--marker` | `#E7DB79` | Floodlight highlighter (one price) |
+| `--accent` | `#88B4F2` | Light cobalt: actions and selection only (cobalt itself reads at 2.1:1 here; this reads at 8.7:1) |
+| `--accent-dim` | `#1E2B30` | Cobalt wash |
+| `--marker` | `#D5F097` | Lime cream highlighter (one figure) |
 | `--amber` | `#F2B966` | Caution |
 | `--loss` | `#F4928A` | Losses |
-| `--info` | `#98C3E8` | Information |
+| `--info` | `#98C3E8` | Information, the Away share (close to light cobalt: open, D80) |

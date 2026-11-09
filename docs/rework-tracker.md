@@ -1568,7 +1568,13 @@ dark theme, only the green and the highlighter change.
   replayed in the browser (there are no matches during this week's international break): board, match page,
   slip and home page, light, dark and phone. Cache tags: `live-20261109a`, theme script `palette-20261109a`.
   The checkpoint is e8e5e43, the commit before this one.
-- *Going live:* only once the owner chooses it; then the docs above, a merge and a website restart.
+- *Chosen (9 Nov):* the owner: "add the new colours to the production website". `DESIGN.md` and
+  `docs/brand/color-palette.md` now carry the cobalt palette (turf renamed cobalt, the floodlight marker renamed the
+  lime marker, the top bar described as it is). D76's display was taken off the branch first, so the merge brings
+  only the colours: against main, the branch changes `style.css`, `theme.js`, the five pages' browser bar colour
+  and cache tags, the two docs and the tracker.
+- *Going live:* merge. The website serves these files from disk with new cache tags, so a reload shows them; no
+  migration and no `.env` line.
 
 ## Findings that shape later steps
 
