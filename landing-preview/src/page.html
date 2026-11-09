@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Spix | Your bet, without the homework.</title>
   <meta name="description" content="Form, team news and what Spix recommends on every match, in one place. Keep what you like and build your own bet in minutes. 18+.">
-  <meta name="theme-color" content="#0E6336">
+  <meta name="theme-color" content="#0246A4">
   <link rel="icon" href="data:,">
   <script>try{var t=localStorage.getItem('spix-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}</script>
   <link rel="preload" href="fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -33,7 +33,7 @@
       <div class="go"><a class="cta big" href="/app">See today's matches</a><p>Free to browse, no account · 18+</p></div>
     </div>
 
-    <div class="run" data-ui id="run" data-scene="bet" role="group" aria-label="An example of someone using Spix on Arsenal v Chelsea. They look through the Research Area for the statistics on Arsenal, read the Match Read, look through the bets Spix recommends, see why Spix likes one, keep what they like and drop what they don't. The bet is theirs.">
+    <div class="run" data-ui id="run" data-scene="bet" role="group" aria-label="An example of someone using Spix on Arsenal v Chelsea. They look up Arsenal&rsquo;s statistics in the Research Area, open the match to see how Spix reads it, look through the picks Spix recommends and the past matches behind one, keep what they like and drop what they don&rsquo;t. The bet is theirs.">
       <div class="ball" id="ball" aria-hidden="true" hidden>{{BALL}}</div>
       <div class="mouse" id="mouse" aria-hidden="true" hidden><svg class="m-hand" viewBox="0 0 24 24" width="24" height="24" focusable="false"><path d="M3 2v17.5l4.6-4.2 3 6.7 3.1-1.4-3-6.6H17z"/></svg><span class="m-dot"></span><i class="m-ring"></i></div>
       <div class="run-head"><p class="run-name"><b>Arsenal v Chelsea</b><span>Example</span></p><button type="button" class="run-pause" id="pause" aria-label="Pause the example" hidden><svg class="i-pause" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><rect x="2" y="1" width="3.5" height="12" rx="1" fill="currentColor"/><rect x="8.5" y="1" width="3.5" height="12" rx="1" fill="currentColor"/></svg><svg class="i-play" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true" focusable="false"><path d="M3 1.8c0-.8.9-1.3 1.6-.9l8 5.2c.6.4.6 1.3 0 1.7l-8 5.2c-.7.4-1.6-.1-1.6-.9z" fill="currentColor"/></svg></button></div>
@@ -94,52 +94,79 @@
               </div></div>
             </div>
           </div>
-          <p class="run-go" id="toRead"><b>Match Read</b><span>Posted</span></p>
-          <div class="run-lists">
-            <div class="run-roll"><div class="roll" id="roll">
-              <div class="lh"><b>Most likely</b><span>Chance · Price</span></div>
-              <ul>
-                <li class="opt on" data-leg="arsenal"><span class="o-main"><b>Arsenal +0.5</b><span>Arsenal win or draw</span></span><span class="o-num"><b>69%</b><span>1.38</span></span><span class="o-tick"></span></li>
-                <li class="opt" data-leg="corners"><span class="o-main"><b>Over 8.5 corners</b><span>Two sides that use the wings</span></span><span class="o-num"><b>62%</b><span>1.54</span></span><span class="o-tick"></span></li>
-                <li class="opt on" data-leg="btts"><span class="o-main"><b>Both teams to score</b><span>Both sides keep scoring</span></span><span class="o-num"><b>58%</b><span>1.64</span></span><span class="o-tick"></span></li>
-              </ul>
-              <div class="lh"><b>Value</b><span>Spix likes the price</span></div>
-              <ul>
-                <li class="opt" data-leg="over25"><span class="o-main"><b>Over 2.5 goals</b><span class="worth">Worth it at 1.86 or better</span></span><span class="o-num"><b>55%</b></span><span class="o-tick"></span></li>
-                <li class="opt" data-leg="corners95"><span class="o-main"><b>Over 9.5 corners</b><span class="worth">Worth it at 1.97 or better</span></span><span class="o-num"><b>52%</b></span><span class="o-tick"></span></li>
-              </ul>
+          <p class="run-go" id="toRead"><b>Arsenal v Chelsea</b><span>View match <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></p>
+          <div class="run-page">
+            <div class="page-roll" id="page">
+              <p><b class="pg-title">Arsenal <span>v</span> Chelsea</b></p>
+              <p class="pg-meta">Premier League · 17:30</p>
+              <section class="pg-story" id="story">
+                <span class="cap">How Spix reads it</span>
+                <p class="pg-lead" id="lead">Arsenal are favourites, with goals expected at both ends.</p>
+                <dl class="pg-kv" id="kv">
+                  <div><dt>Chance of each result</dt><dd><span>Arsenal 44% <i>·</i></span> <span>Draw 24% <i>·</i></span> <span>Chelsea 31%</span></dd></div>
+                  <div><dt>Goals expected</dt><dd><span>Arsenal 1.6 <i>·</i></span> <span>Chelsea 1.3</span></dd></div>
+                  <div><dt>Corners expected</dt><dd>10.1</dd></div>
+                </dl>
+              </section>
+              <p class="pg-head" id="mostHead"><b>Most likely</b><span>Prices as of 14:05</span></p>
+              <div class="pg-strip" id="strip">
+                <article class="tile" data-leg="arsenal">
+                  <span class="t-label">Handicap</span>
+                  <b class="t-pick">Arsenal +0.5</b>
+                  <p class="t-chance"><b>about 2 in 3</b><span>69%</span></p>
+                  <p class="t-verdict">All three groups agree.</p>
+                  <p class="t-detail">Arsenal won 6, drew 3 and lost 3 of their 12 matches at similar odds.</p>
+                  <div class="t-ev"><p class="t-ev-head"><span>Past matches at similar odds</span><span>Won</span></p><p class="t-row" id="evRow"><span class="t-name"><b>Arsenal&rsquo;s 12</b><span>win odds 2.02–2.30</span></span><span class="t-count"><b>9</b> of 12 <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg></span><i style="--to:0.750"></i></p><p class="t-row"><span class="t-name"><b>Chelsea&rsquo;s 12</b><span>win odds 2.90–3.40</span></span><span class="t-count"><b>8</b> of 12 <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg></span><i style="--to:0.667"></i></p><p class="t-row"><span class="t-name"><b>40 league matches</b><span>closest home and away odds</span></span><span class="t-count"><b>27</b> of 40 <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg></span><i style="--to:0.675"></i></p></div>
+                  <p class="t-foot"><b class="t-price">1.38</b><span class="add"><svg class="i-plus" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg><svg class="i-check" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span class="w-add">Add</span><span class="w-added">Added</span></span></p>
+                </article>
+                <article class="tile" data-leg="corners">
+                  <span class="t-label">Corners</span>
+                  <b class="t-pick">Over 8.5 corners</b>
+                  <p class="t-chance"><b>about 3 in 5</b><span>62%</span></p>
+                  <p class="t-verdict">Two of the three groups agree.</p>
+                  <p class="t-detail">Similar matches averaged 9.4 to 10.8 corners.</p>
+                  <div class="t-ev"><p class="t-ev-head"><span>Past matches at similar odds</span><span>Won</span></p><p class="t-row"><span class="t-name"><b>Arsenal&rsquo;s 12</b><span>win odds 2.02–2.30</span></span><span class="t-count"><b>8</b> of 12 <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg></span><i style="--to:0.667"></i></p><p class="t-row"><span class="t-name"><b>Chelsea&rsquo;s 12</b><span>win odds 2.90–3.40</span></span><span class="t-count"><b>6</b> of 12 <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg></span><i style="--to:0.500"></i></p><p class="t-row"><span class="t-name"><b>40 league matches</b><span>closest home and away odds</span></span><span class="t-count"><b>26</b> of 40 <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg></span><i style="--to:0.650"></i></p></div>
+                  <p class="t-foot"><b class="t-price">1.54</b><span class="add"><svg class="i-plus" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg><svg class="i-check" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span class="w-add">Add</span><span class="w-added">Added</span></span></p>
+                </article>
+                <article class="tile" data-leg="btts">
+                  <span class="t-label">Both teams to score</span>
+                  <b class="t-pick">Both teams to score</b>
+                  <p class="t-chance"><b>about 3 in 5</b><span>58%</span></p>
+                  <p class="t-verdict">All three groups agree.</p>
+                  <p class="t-detail">Arsenal scored in 10 of their 12, Chelsea in 9 of theirs.</p>
+                  <div class="t-ev"><p class="t-ev-head"><span>Past matches at similar odds</span><span>Won</span></p><p class="t-row"><span class="t-name"><b>Arsenal&rsquo;s 12</b><span>win odds 2.02–2.30</span></span><span class="t-count"><b>8</b> of 12 <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg></span><i style="--to:0.667"></i></p><p class="t-row"><span class="t-name"><b>Chelsea&rsquo;s 12</b><span>win odds 2.90–3.40</span></span><span class="t-count"><b>9</b> of 12 <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg></span><i style="--to:0.750"></i></p><p class="t-row"><span class="t-name"><b>40 league matches</b><span>closest home and away odds</span></span><span class="t-count"><b>25</b> of 40 <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg></span><i style="--to:0.625"></i></p></div>
+                  <p class="t-foot"><b class="t-price">1.64</b><span class="add"><svg class="i-plus" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg><svg class="i-check" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span class="w-add">Add</span><span class="w-added">Added</span></span></p>
+                </article>
+              </div>
+              <p class="pg-head" id="valueHead"><b>Value</b></p>
+              <article class="vcard" data-leg="over25">
+                <div class="v-main"><span class="t-label">Goals</span><b class="t-pick">Over 2.5 goals</b><p class="v-chance">about 3 in 5 · 55%</p></div>
+                <p class="v-worth"><span>Worth it at</span><b>1.86 or better</b></p>
+                <span class="add"><svg class="i-plus" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg><svg class="i-check" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span class="w-add">Add</span><span class="w-added">Added</span></span>
+              </article>
+            </div>
+          </div>
+          <p class="run-bar" id="toBet"><span class="bar-left"><span class="badge" id="count">0</span>Bet slip</span><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 15 6-6 6 6"/></svg></p>
+          <div class="run-dim" id="dim"></div>
+          <div class="run-sheet" id="sheet">
+            <div class="sh-top"><div><p class="sh-label">Evidence for Arsenal +0.5</p><b class="sh-title">Arsenal&rsquo;s 12 matches priced like this</b></div><span class="sh-close" id="closeSheet"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></span></div>
+            <div class="sh-view"><div class="sh-roll" id="sheetRoll">
+              <p>League matches since August 2024. Arsenal&rsquo;s win odds in these matches ran from 2.02 to 2.30. Before this match they were 2.15.</p>
+              <p class="sh-tally" id="tally"><mark>9 of 12</mark>: Arsenal did not lose.</p>
+              <div class="sh-table" id="sheetTable"><table><thead><tr><th>Match</th><th class="r">Win odds</th><th class="r">Score</th><th>Won?</th></tr></thead><tbody><tr><td>at Newcastle<small>2025/26</small></td><td class="r">2.25</td><td class="r">W 2–1</td><td class="yes"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>Yes</td></tr><tr><td>v Liverpool<small>2025/26</small></td><td class="r">2.10</td><td class="r">D 1–1</td><td class="yes"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>Yes</td></tr><tr><td>at Aston Villa<small>2025/26</small></td><td class="r">2.20</td><td class="r">L 1–2</td><td class="no">No</td></tr><tr><td>at Brighton<small>2025/26</small></td><td class="r">2.08</td><td class="r">W 2–1</td><td class="yes"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>Yes</td></tr><tr><td>at Man United<small>2025/26</small></td><td class="r">2.02</td><td class="r">W 1–0</td><td class="yes"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>Yes</td></tr><tr><td>at Tottenham<small>2024/25</small></td><td class="r">2.05</td><td class="r">W 1–0</td><td class="yes"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>Yes</td></tr><tr><td>at Chelsea<small>2024/25</small></td><td class="r">2.30</td><td class="r">D 1–1</td><td class="yes"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>Yes</td></tr><tr><td>v Man City<small>2024/25</small></td><td class="r">2.28</td><td class="r">D 2–2</td><td class="yes"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>Yes</td></tr><tr><td>at Bournemouth<small>2024/25</small></td><td class="r">2.12</td><td class="r">L 0–2</td><td class="no">No</td></tr><tr><td>at Newcastle<small>2024/25</small></td><td class="r">2.18</td><td class="r">L 0–1</td><td class="no">No</td></tr><tr><td>at Fulham<small>2024/25</small></td><td class="r">2.06</td><td class="r">W 2–1</td><td class="yes"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>Yes</td></tr><tr><td>at Crystal Palace<small>2024/25</small></td><td class="r">2.15</td><td class="r">W 3–2</td><td class="yes"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>Yes</td></tr></tbody></table></div>
+              <p>Scores are from Arsenal&rsquo;s side: W 2–1 means Arsenal won 2–1.</p>
             </div></div>
-            <p class="run-go" id="toBet">Your bet<span id="count">2 legs</span></p>
-          </div>
-          <div class="run-read">
-            <p class="read-top"><b>Match Read</b><span>Posted</span></p>
-            <p class="read-short">Close, with goals in it.</p>
-            <p class="read-long">Spix expects about 2.9 goals and not much between the sides. Arsenal come in on the better run, and Chelsea are without their first-choice striker.</p>
-            <ul>
-              <li>A busy game for corners, about 10</li>
-              <li>About 4 cards, with an average referee</li>
-              <li>Both teams scored in 3 of the last 5 meetings</li>
-            </ul>
-            <p class="read-foot">Updated when the line-ups are confirmed.</p>
-            <p class="run-go" id="toPicks"><b>See what Spix recommends</b></p>
-          </div>
-          <div class="run-drawer" id="drawer">
-            <p class="read-top"><b>Why Arsenal +0.5</b><span id="closeWhy">Close</span></p>
-            <dl>
-              <div><dt>Expected goals</dt><dd>Arsenal 1.6, Chelsea 1.3</dd></div>
-              <div><dt>Wins if</dt><dd>Arsenal win or draw</dd></div>
-              <div><dt>Chance</dt><dd>69%</dd></div>
-            </dl>
           </div>
           <div class="run-bet">
-            <div class="slip-top"><span class="slot" id="slot"></span><b>Your bet<span>2 legs</span></b></div>
-            <ul class="legs">
-              <li><b>Arsenal +0.5</b><span>1.38</span></li>
-              <li><b>Both teams to score</b><span>1.64</span></li>
+            <div class="slip-top"><span class="slot" id="slot"></span><b>Bet slip</b><span class="badge">2</span><span class="slip-x"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></span></div>
+            <ul class="legs" id="legs">
+              <li><span>Arsenal v Chelsea</span><b>Arsenal +0.5</b><em>1.38</em><i><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></i></li>
+              <li><span>Arsenal v Chelsea</span><b>Both teams to score</b><em>1.64</em><i><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></i></li>
             </ul>
             <div class="sum">
-              <p id="chance">Chance both legs land<mark>about 2 in 5</mark></p>
-              <p class="sum-note">Check the price for both in your bookmaker's app.</p>
+              <p class="sum-chance" id="chance"><span>Chance both land</span><mark>about 2 in 5</mark><small>42%</small></p>
+              <p class="sum-note">Check the price in your bookmaker&rsquo;s app before you place it.</p>
+              <p class="sum-care">18+ · Betting involves risk.</p>
             </div>
           </div>
         </div>
