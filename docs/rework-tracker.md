@@ -1614,6 +1614,7 @@ for/against notes. Design: `docs/superpowers/specs/2026-11-09-pick-evidence-desi
 - *Picks:* unchanged. Everything is read after the picks are made; nothing in the engine, the worker or the stored
   records changes.
 - *Step 1 (pure module):* `data_platform/pick_evidence.py` with 48 tests.
+- *Step 2 and 3 (9 Nov):* the history reader and service (10 tests) and the website wiring behind `SPIX_PICK_EVIDENCE` (3 tests; pinned off in the tests). Still to do before "ready": a full suite run past the known worktree error (the first run stopped there with `-x`, 2,044 passed), the pinned golden check (it showed diffs on the first try, likely the pins, not this change, which runs only in the website), and a real-data on/off comparison on 8200.
 
 ## Findings that shape later steps
 
