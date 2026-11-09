@@ -122,6 +122,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Not selected for now: C2 stakes, C3 derby, L1 lineup strength, L2 player load | Revisit at Part B (L1, L2) or after A6 | Owner chose market, strength/form, discipline/set pieces + C1 |
 | Recommendation layer: Most likely and Value lists per match, with a typical price (D50) | Now (D52, approved 3 Nov, D53); design `docs/superpowers/specs/2026-11-03-recommendation-layer-design.md`; plan `docs/superpowers/plans/2026-11-03-recommendation-layer.md` (8 tasks; mockups are task 3, after the data block). Tasks 1–2 (the data block behind `SPIX_RECOMMENDATIONS`, off) merged 3 Nov, D56; task 3 look chosen (version B, D63); tasks 4–5 (match page, board card, slip) merged 4 Nov, D59, D60, shown only when the switch is on. Task 6 replaced by the owner dashboard (D67, merged 4 Nov, no migration); task 7 dropped. Live 4 Nov (D68). Open: the methodology copy (draft kept for the owner's sign-off); the "Worth it at" fix (D68, owner 4 Nov) waits for the merge and a website restart | Uses stage 4's market chances from stored reads; no engine switch, so the stage 4 measurement is untouched |
 | Pick notes (one line for, one against) on every Most likely and Value pick: into `recommendations.v1` behind an off switch, then the frontend on 8100 (D75) | Frontend on 8100 after the merge; live when the owner adds `SPIX_PICK_NOTES=on` | Fixed wording chosen and built behind `SPIX_PICK_NOTES` (off) 5 Nov; the owner chose layout B, built on the frontend 5 Nov (D76); the owner then rejected the wording (the two lines can contradict each other), so the display is on hold until notes explained from the data behind the pick are agreed, and the switch stays off. Replaced 9 Nov by pick evidence (D82 data, merged behind `SPIX_PICK_EVIDENCE`, off; D83 display, on the frontend branch): live when the owner adds `SPIX_PICK_EVIDENCE=on` and the website is restarted |
+| Remove the sample match (D84): `Scripts/web_app/static/preview/pick-evidence-card.json`, the D84 helpers and methods in `app.js`, `.preview-note` in `style.css`, `Scripts/tests/test_preview_match_web.js`, and a new cache tag | Frontend, once club matches are back (from 20 Nov) and the owner no longer needs it | It shows the pick evidence during the international break; only `/app?preview=evidence` opens it |
 | Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | Needs the bet builder and the recommendation lists first |
 | Website and Discord link: one-tap sharing of a bet to Discord, Discord posts linking back to the match (D50) | A7, when the bot moves to the new engine | The bot still runs the old engine |
 | Building bets inside Discord; community selections (D50) | After A7 | Owner: for later |
@@ -1700,6 +1701,26 @@ hour), labelled as a sample. `?preview=off` ends it; without the link nobody see
   12 matches), `?preview=off` clears it and a plain visit never shows it; phone and desktop, light and dark, no
   sideways scroll. Cache tags `preview-20261109a` (style.css, app.js).
 - *Afterwards:* the link can stay unused or the file and the few lines can be removed once club matches return.
+
+**D85 — Cobalt night: the dark theme's greys take cobalt's hue (9 Nov; frontend, owner).** The owner asked which
+dark-mode backgrounds suit the cobalt theme. Measured, the dark greys carried mint cream's tint (hue 163-166, chroma
+0.015, the same as the light canvas), which reads as green at night: the old turf-green theme under a cobalt bar.
+Three options were shown side by side on the real sample match (D84): today's mint night, cobalt night, and the
+taste skill's true black. The owner chose cobalt night: "cobalt night is the best looking one".
+- *What changes (dark theme only):* the grounds, surfaces, rules and grey text keep their lightness and take cobalt's
+  hue (258) at OKLCH chroma 0.005-0.014: `--bg #111316`, `--bg2 #0C0D10`, `--surface #191C1F`, `--surface2 #202327`,
+  `--surface-hover #1E2124`, `--border #303339`, `--border2 #61676F`, `--border-soft #24272B`, `--text2 #C1C5CA`,
+  `--text3 #9B9FA5`, `--chart-muted #6B7076`; the cobalt washes `#1F2938`/`#2A3648`; the main text is mint cream
+  `#F2FFFA`, the light theme's canvas. The cobalt bar, light cobalt, lime cream, amber, red and Away blue are
+  unchanged, and so is the light theme. `theme.js`'s `?logo=old` dark chrome follows the new canvas.
+- *Why not the others:* true black put pure white on black at night and lost the evidence sheet against the dimmed
+  page; navy or slate is ruled out by the taste skill's app-screen rules (style `true-black-flat`, seed 1004214109,
+  whose sheet names a cool near-black as the ground for a product with this temperature).
+- *Checks:* every text grey 5.9:1 or better on every surface (mint cream 18.1:1 on the canvas), control rules 3.0:1,
+  light cobalt 8.7:1, the same lightness steps between ground and cards as before. Before (8000) and after (8100)
+  in dark: landing, board, match page, evidence sheet, slip, Research Area, methodology and the phone match page;
+  no sideways scroll. All 8 JS test files pass. `DESIGN.md` and `docs/brand/color-palette.md` updated. Cache tags
+  `night-20261109a` (style.css, theme.js).
 
 ## Findings that shape later steps
 

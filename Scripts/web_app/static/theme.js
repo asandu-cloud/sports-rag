@@ -18,7 +18,7 @@
 
   // D48, D80: the header is cobalt in both themes; ?logo=old brings back the old header colours.
   const CHROME = { light: '#0246A4', dark: '#0246A4' };
-  const OLD_CHROME = { light: '#F2FFFA', dark: '#0D1511' };
+  const OLD_CHROME = { light: '#F2FFFA', dark: '#111316' };
 
   function syncButtons() {
     const current = effective();

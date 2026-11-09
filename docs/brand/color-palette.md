@@ -14,6 +14,11 @@ yellow highlighter, and mint cream `#F2FFFA` is the light page ground. The dark 
 light cobalt that reads on the dark ground) and the highlighter. The logo files below and the landing preview still
 use the turf green.
 
+Dark theme ground, 9 Nov 2026 (D85, owner): "cobalt night". The old dark greys carried mint cream's green tint, which
+read as the turf-green theme under a cobalt bar. The greys are now near-black with cobalt's own hue at a whisper of
+tint (OKLCH chroma 0.005 to 0.014, never navy or slate), at the same lightness steps as before, and the main text is
+mint cream. Chosen from three options shown side by side (today's mint night, cobalt night, true black).
+
 Website header colours (`--tb-*` in `style.css`, the same in light and dark): bar Cobalt `#0246A4`, border
 `#023A88`, logo and active text Mint cream `#F2FFFA` (8.5:1), other links `#D0DDF2` (6.3:1), button Mint cream with
 Cobalt text. The logo colours are proposals until a design and font are picked; the website
@@ -37,8 +42,8 @@ Approved pairings (contrast ratio, WCAG; 3:1 is the minimum for graphics, 4.5:1 
 |---|---|---|
 | Ink letters, Ink patches | Surface `#FCFEFC` | 17.0 |
 | Turf patches (option) | Surface `#FCFEFC` | 7.3 |
-| Chalk letters, Chalk ball | Dark canvas `#0D1511` | 16.3 |
-| Chalk letters, Chalk ball | Dark surface `#151E1A` | 15.0 |
+| Chalk letters, Chalk ball | Dark canvas `#111316` | 16.4 |
+| Chalk letters, Chalk ball | Dark surface `#191C1F` | 15.0 |
 | White letters and ball | Turf tile `#0E6336` | 7.2 |
 
 ### Ball colour options (round 3, 29 Oct)
@@ -82,17 +87,17 @@ everything in Chalk on dark (the patches knock out to the background).
 
 | Token | Hex | Role |
 |---|---|---|
-| `--bg` | `#0D1511` | Page canvas |
-| `--bg2` | `#090F0C` | Sunk wells, footer |
-| `--surface` | `#151E1A` | Cards, panels |
-| `--surface2` | `#1C2521` | Quiet fills, chips |
-| `--border` | `#2B3631` | Lines |
-| `--border2` | `#5D6A63` | Inputs, controls |
-| `--text` | `#EFF1EC` | Main text |
-| `--text2` | `#C1C6C0` | Secondary text |
-| `--text3` | `#99A19A` | Labels |
+| `--bg` | `#111316` | Page canvas: cobalt night |
+| `--bg2` | `#0C0D10` | Sunk wells, footer |
+| `--surface` | `#191C1F` | Cards, panels |
+| `--surface2` | `#202327` | Quiet fills, chips |
+| `--border` | `#303339` | Lines |
+| `--border2` | `#61676F` | Inputs, controls |
+| `--text` | `#F2FFFA` | Main text: mint cream (18.1:1 on the canvas) |
+| `--text2` | `#C1C5CA` | Secondary text |
+| `--text3` | `#9B9FA5` | Labels |
 | `--accent` | `#88B4F2` | Light cobalt: actions and selection only (cobalt itself reads at 2.1:1 here; this reads at 8.7:1) |
-| `--accent-dim` | `#1E2B30` | Cobalt wash |
+| `--accent-dim` | `#1F2938` | Cobalt wash |
 | `--marker` | `#D5F097` | Lime cream highlighter (one figure) |
 | `--amber` | `#F2B966` | Caution |
 | `--loss` | `#F4928A` | Losses |

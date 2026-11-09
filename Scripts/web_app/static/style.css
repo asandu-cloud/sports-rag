@@ -98,21 +98,23 @@
 }
 
 /* ---- Tokens: Floodlit (dark), only when the visitor chooses it; light cobalt and lime cream since D80 ---- */
+/* D85, cobalt night: the greys are near-black with cobalt's hue at a whisper of tint (OKLCH chroma 0.005-0.014),
+   at the same lightness steps as before; the main text is mint cream, the light theme's ground. */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0D1511; --bg2: #090F0C; --surface: #151E1A; --surface2: #1C2521; --surface-hover: #19231E;
-  --border: #2B3631; --border2: #5D6A63; --border-soft: #202925;
-  --text: #EFF1EC; --text2: #C1C6C0; --text3: #99A19A;
+  --bg: #111316; --bg2: #0C0D10; --surface: #191C1F; --surface2: #202327; --surface-hover: #1E2124;
+  --border: #303339; --border2: #61676F; --border-soft: #24272B;
+  --text: #F2FFFA; --text2: #C1C5CA; --text3: #9B9FA5;
   --accent: #88B4F2; --accent-l: #88B4F2; --accent-hover: #ACCAF6; --on-accent: #08152B;
-  --accent-dim: #1E2B30; --accent-dim2: #283842;
-  --marker: #D5F097; --on-marker: #0D1511;
-  --green: #88B4F2; --green-dim: #1E2B30;
+  --accent-dim: #1F2938; --accent-dim2: #2A3648;
+  --marker: #D5F097; --on-marker: #111316;
+  --green: #88B4F2; --green-dim: #1F2938;
   --amber: #F2B966; --amber-dim: #3A2B16;
   --loss: #F4928A; --loss-dim: #402624;
   --info: #98C3E8; --info-dim: #21303C;
-  --chart-1: #5189D6; --chart-2: #2773C0; --chart-muted: #66736B; --chart-track: #1E2B30;
+  --chart-1: #5189D6; --chart-2: #2773C0; --chart-muted: #6B7076; --chart-track: #1F2938;
   --crest-bg: #EFF1EC;
-  --header-bg: rgba(13, 21, 17, 0.9);
+  --header-bg: rgba(17, 19, 22, 0.9);
   --overlay: rgba(0, 0, 0, 0.6);
   --hover-wash: rgba(239, 241, 236, 0.035);
   --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.25), 0 8px 20px rgba(0, 0, 0, 0.25);
