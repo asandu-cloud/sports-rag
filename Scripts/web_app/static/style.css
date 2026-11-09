@@ -24,60 +24,60 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/* ---- Tokens: Chalk (light) ---- */
+/* ---- Tokens: Chalk (light); cobalt, lime cream and mint cream since D80 ---- */
 :root {
   color-scheme: light;
-  --bg: #F3F7F3;            /* canvas */
-  --bg2: #E7EDE8;           /* sunk wells, footer */
-  --surface: #FCFEFC;       /* cards, panels */
-  --surface2: #ECF2ED;      /* quiet fills, chips */
-  --surface-hover: #F0F5F1;
-  --border: #CFD7D0;
-  --border2: #808981;       /* strong: inputs, controls (3.3:1) */
-  --border-soft: #DEE5DF;
+  --bg: #F2FFFA;            /* canvas: mint cream */
+  --bg2: #E3F1EC;           /* sunk wells, footer */
+  --surface: #FBFFFD;       /* cards, panels */
+  --surface2: #E9F5F0;      /* quiet fills, chips */
+  --surface-hover: #EEF7F4;
+  --border: #CFD7D4;
+  --border2: #808986;       /* strong: inputs, controls (3.6:1) */
+  --border-soft: #DEE5E2;
   --text: #111E17;
   --text2: #404B44;
   --text3: #5D6660;
-  --accent: #0E6336;        /* turf: actions and selection only */
-  --accent-l: #0E6336;      /* turf as text */
-  --accent-hover: #10512D;
-  --on-accent: #FAFDFA;
-  --accent-dim: #DAF1DD;
-  --accent-dim2: #C6E6CB;
-  --marker: #F0E488;        /* floodlight highlighter */
+  --accent: #0246A4;        /* cobalt: actions and selection only */
+  --accent-l: #0246A4;      /* cobalt as text */
+  --accent-hover: #023A88;
+  --on-accent: #F2FFFA;
+  --accent-dim: #DCE5F2;
+  --accent-dim2: #C7D6EB;
+  --marker: #D5F097;        /* lime cream highlighter */
   --on-marker: #111E17;
-  --green: #0E6336;
-  --green-dim: #DAF1DD;
+  --green: #0246A4;         /* legacy name: the positive edge, now cobalt */
+  --green-dim: #DCE5F2;
   --amber: #905100;
   --amber-dim: #FBE9CA;
   --loss: #AA342C;
   --loss-dim: #FFE4E1;
   --info: #2D5F87;
   --info-dim: #E0EDF9;
-  /* Validated chart pair (CVD-checked against this surface) */
-  --chart-1: #0A6D37;
+  /* Chart colours (the chart-1/chart-2 pair was CVD-checked with turf; chart-2 is unused) */
+  --chart-1: #0246A4;
   --chart-2: #4D97DE;
   --chart-muted: #87918A;
-  --chart-track: #DAF1DD;
+  --chart-track: #DCE5F2;
   --crest-bg: #FFFFFF;
-  --header-bg: rgba(243, 247, 243, 0.92);
-  /* Top bar (D48): turf green with white text in both themes; ?logo=old maps these back to the old header. */
-  --tb-bg: #0E6336;
-  --tb-border: #0B5530;
-  --tb-fg: #FAFDFA;
-  --tb-fg2: #D3E9D9;
-  --tb-hover: rgba(250, 253, 250, 0.12);
-  --tb-active-fg: #FAFDFA;
-  --tb-active-bg: rgba(250, 253, 250, 0.18);
-  --tb-btn-bg: #FAFDFA;
-  --tb-btn-fg: #0E6336;
-  --tb-btn-hover: #E3F2E7;
-  --tb-chip-bg: rgba(250, 253, 250, 0.16);
-  --tb-chip-fg: #FAFDFA;
-  --tb-chip-hover: rgba(250, 253, 250, 0.24);
-  --tb-count-bg: #FAFDFA;
-  --tb-count-fg: #0E6336;
-  --tb-focus: #FAFDFA;
+  --header-bg: rgba(242, 255, 250, 0.92);
+  /* Top bar (D48, cobalt since D80): cobalt with mint cream text in both themes; ?logo=old maps these back to the old header. */
+  --tb-bg: #0246A4;
+  --tb-border: #023A88;
+  --tb-fg: #F2FFFA;
+  --tb-fg2: #D0DDF2;
+  --tb-hover: rgba(242, 255, 250, 0.12);
+  --tb-active-fg: #F2FFFA;
+  --tb-active-bg: rgba(242, 255, 250, 0.18);
+  --tb-btn-bg: #F2FFFA;
+  --tb-btn-fg: #0246A4;
+  --tb-btn-hover: #E1EAF6;
+  --tb-chip-bg: rgba(242, 255, 250, 0.16);
+  --tb-chip-fg: #F2FFFA;
+  --tb-chip-hover: rgba(242, 255, 250, 0.24);
+  --tb-count-bg: #F2FFFA;
+  --tb-count-fg: #0246A4;
+  --tb-focus: #F2FFFA;
   --overlay: rgba(17, 30, 23, 0.42);
   --hover-wash: rgba(17, 30, 23, 0.035);
   --shadow-sm: 0 2px 4px rgba(17, 30, 23, 0.05), 0 8px 20px rgba(17, 30, 23, 0.06);
@@ -97,20 +97,20 @@
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* ---- Tokens: Floodlit (dark), only when the visitor chooses it ---- */
+/* ---- Tokens: Floodlit (dark), only when the visitor chooses it; light cobalt and lime cream since D80 ---- */
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #0D1511; --bg2: #090F0C; --surface: #151E1A; --surface2: #1C2521; --surface-hover: #19231E;
   --border: #2B3631; --border2: #5D6A63; --border-soft: #202925;
   --text: #EFF1EC; --text2: #C1C6C0; --text3: #99A19A;
-  --accent: #89CD9B; --accent-l: #89CD9B; --accent-hover: #A1DFB1; --on-accent: #091A11;
-  --accent-dim: #1A3424; --accent-dim2: #20462F;
-  --marker: #E7DB79; --on-marker: #0D1511;
-  --green: #89CD9B; --green-dim: #1A3424;
+  --accent: #88B4F2; --accent-l: #88B4F2; --accent-hover: #ACCAF6; --on-accent: #08152B;
+  --accent-dim: #1E2B30; --accent-dim2: #283842;
+  --marker: #D5F097; --on-marker: #0D1511;
+  --green: #88B4F2; --green-dim: #1E2B30;
   --amber: #F2B966; --amber-dim: #3A2B16;
   --loss: #F4928A; --loss-dim: #402624;
   --info: #98C3E8; --info-dim: #21303C;
-  --chart-1: #47AA62; --chart-2: #2773C0; --chart-muted: #66736B; --chart-track: #1A3424;
+  --chart-1: #5189D6; --chart-2: #2773C0; --chart-muted: #66736B; --chart-track: #1E2B30;
   --crest-bg: #EFF1EC;
   --header-bg: rgba(13, 21, 17, 0.9);
   --overlay: rgba(0, 0, 0, 0.6);
