@@ -23,6 +23,9 @@ on it. The Discord bot still runs the old engine until A7.
 - **Engine stages 1–4 live.** Stage 4 went live 3 Nov: `SPIX_MARKET_ANCHOR=full` and
   `SPIX_SELECTION_POLICY=market_value`, every bookmaker, 2% value threshold, price confirmation at 60 minutes,
   failing closed. Value picks are rare by design: 5 of 18 matches on 3 Nov.
+  - Passed its safety check at the 9 Nov scorecard: 72 picks (3–8 Nov), said 51.0%, won 53.4%, log-loss gap
+    −0.001 against the market, price CLV +2.0%, value at Pinnacle's true close −0.9%. One week shows only that
+    nothing is broken (D26).
 - **Recommendation layer live 4 Nov (D52, approved D53, live D68).**
   - Each match gets Most likely (up to 3) and Value (up to 2) lists, plus "Explore the match": every market with
     Spix's suggestion marked, a line stepper, and Add on any option.
@@ -59,9 +62,9 @@ on it. The Discord bot still runs the old engine until A7.
   - build A5.4 behind an off switch (merged 4 Nov: `SPIX_CARDS_REFERENCE`, off; cards priced from Pinnacle when
     on, D61, D62).
 - **Next dates.**
-  - Mon 9 Nov 08:00: the scorecard checks stage 4.
-  - Tue 10 Nov: A5.4 cards takes this slot (owner, D58), not before the scorecard. Go-live: the owner adds
+  - Tue 10 Nov: A5.4 cards takes this slot (owner, D58); the 9 Nov scorecard cleared it. Go-live: the owner adds
     `SPIX_CARDS_REFERENCE=pinnacle` to `.env`, then the website is restarted.
+  - Mon 16 Nov 08:00: the scorecard checks A5.4 cards.
   - Tue 17 Nov: earliest next stage.
 - **Update this block** in the same commit as the tracker whenever a stage goes live or the current project
   changes.
