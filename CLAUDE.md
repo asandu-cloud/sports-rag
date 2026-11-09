@@ -51,11 +51,13 @@ on it. The Discord bot still runs the old engine until A7.
     off.
   - Pick evidence (D82): merged 9 Nov behind `SPIX_PICK_EVIDENCE` (off). It adds "How Spix reads it" and, for
     each Most likely pick in the domestic leagues, a verdict and past matches at similar odds (the owner's
-    "Easier to read" card). Going live takes the frontend display, then the owner's `.env` line and a website
-    restart.
+    "Easier to read" card). Its display (D83, match page only, a sheet of the matches behind each row) was merged
+    the same evening and shows nothing while the switch is off. Going live: the owner adds
+    `SPIX_PICK_EVIDENCE=on` to `.env`, then the website is restarted. Open for the owner: "How Spix reads it"
+    repeats the chances and goals of the Match Read's figures panel further down.
 - **Cobalt palette live 9 Nov (D80).** Cobalt `#0246A4` replaced the turf green, lime cream `#D5F097` the
   highlighter, and mint cream `#F2FFFA` is the light ground; the dark theme uses a light cobalt `#88B4F2`. Cache
-  tags are `live-20261109a` (style.css, app.js) and `palette-20261109a` (theme.js). Open for the owner: the steel
+  tags are `evidence-20261109a` (style.css, app.js, since D83) and `palette-20261109a` (theme.js). Open for the owner: the steel
   blue of the Away segment and the "preliminary" label now sits close to the cobalt.
 - **OpenAI out of credit since 5 Nov 18:04.** Match Read briefings use the fixed fallback wording. Picks are not
   affected. Topping up is the owner's call. The briefings cost roughly $5–10 a week at the 3–5 Nov pace.
