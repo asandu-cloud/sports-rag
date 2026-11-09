@@ -743,8 +743,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Recovery-only: leave existing referee profiles in place.",
     )
     p.add_argument(
+        "--embed", action="store_true",
+        help="Opt in: also embed the season into Chroma (off by default since D81; nothing reads it).",
+    )
+    p.add_argument(
         "--skip-embedding", action="store_true",
-        help="Recovery-only: do not update current-season Chroma documents.",
+        help="Compatibility flag: embedding is already off by default (D81); wins over --embed.",
     )
     p.add_argument(
         "--skip-training", action="store_true",
