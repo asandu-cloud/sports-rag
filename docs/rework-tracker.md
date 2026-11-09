@@ -1596,6 +1596,41 @@ from a search by meaning, so they do not need Chroma either.
   known worktree-only errors in `test_phase4_baseline_freeze.py`.
 - *Going live:* merge. It applies from the next daily refresh. No restart, migration or `.env` line.
 
+**D82 — Pick evidence on the match card (9 Nov, owner; backend, then frontend).** The owner approved the second
+version of the pick-notes mockup (https://claude.ai/artifact/C732K7mQTdXUxUFQ44wUez): "What should go live is
+everything that is in the new match cards within the artifact. That includes How Spix reads it." It replaces D75's
+for/against notes. Design: `docs/superpowers/specs/2026-11-09-pick-evidence-design.md`; plan:
+`docs/superpowers/plans/2026-11-09-pick-evidence.md`.
+- *What it is:* "How Spix reads it" (a lead sentence, then the chance of each result, goals and corners expected)
+  and, under each Most likely pick, a verdict, one detail line and three rows of past matches at similar odds (each
+  team's 12 league matches with its own win odds closest to tonight's, and the league's 40 matches with home and
+  away odds closest to tonight's), each with how many the pick would have won. A tap opens the matches. Groups are
+  chosen by price alone. The verdict is a rule on the counts (backs at 60%, against under 50%).
+- *Builder's calls:* the mockup's words were Claude's; with the OpenAI account empty, production starts with fixed
+  wording from the same facts, in the same shape (lead at most 14 words, detail at most 25). GPT can take over
+  later. Domestic leagues only (the football-data history has no cups); European cards get the story only. It runs
+  in the website process from a history kept for an hour (football-data 2024/25 and 2025/26, plus this season's
+  finished matches with their final pre-kickoff 1X2 snapshot, since 9 Oct). No new job, table or migration.
+- *Picks:* unchanged. Everything is read after the picks are made; nothing in the engine, the worker or the stored
+  records changes.
+- *Step 1 (pure module):* `data_platform/pick_evidence.py` with 48 tests.
+- *Steps 2 and 3:* the history reader and service (10 tests) and the website wiring behind `SPIX_PICK_EVIDENCE`
+  (3 tests; pinned off in the tests).
+- *Real data (the mockup's four Premier League matches, 7 and 8 Nov, rebuilt with the production code):* every card
+  is otherwise unchanged; counts match the mockup's or differ by one match in a group (the team groups now draw on
+  all ten leagues, and this season's prices come from the final pre-kickoff snapshot instead of the reads). The
+  verdict moved on 3 of 12 picks. Loading the history takes about 1 s once an hour; each card after that is
+  instant. About 15 KB of evidence per card.
+- *Rulings from that check:* "plenty of goals" now needs 3.4 expected in all (at 3.0, all four matches said it);
+  "most goals expected from X" needs one side at 1.5 times the other's; a zero in a record reads "none"; the story's
+  figures are rounded to one decimal.
+- *Checks:* full suite 2,933 passed, 4 skipped, with the 3 known worktree errors. Pinned golden check: no changes
+  across 54 fixtures. (A first run reported changes on all 54, on main as well. The cause was the command, not the
+  code: in zsh, `env $PINS` does not split the string into words, so one bogus variable was set and the other
+  switches took their live `.env` values. Write the switches out on the command line.)
+- *Going live:* merge (nothing changes while the switch is off); the frontend builds the display from the mockup;
+  the owner adds `SPIX_PICK_EVIDENCE=on` to `.env`; the website is restarted.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A

@@ -104,6 +104,19 @@ def _get_pick_notes():
     return _PICK_NOTES
 
 
+_PICK_EVIDENCE = None
+
+
+def _get_pick_evidence():
+    """One pick-evidence service per website process (D82), so the history is loaded once an hour."""
+    global _PICK_EVIDENCE
+    if _PICK_EVIDENCE is None:
+        from data_platform.services.pick_evidence_service import PickEvidence
+
+        _PICK_EVIDENCE = PickEvidence()
+    return _PICK_EVIDENCE
+
+
 def _live_statuses_for(matchday: date, now: datetime, rows: Optional[Sequence[Mapping[str, Any]]] = None) -> Dict[str, Any]:
     """Live status for the day's started matches in every public league, so one request covers the whole board.
     Only called while ``SPIX_LIVE_STATUS`` is on; a schedule failure gives no statuses, never an error page."""
@@ -244,6 +257,10 @@ def _card_from_read(read: Mapping[str, Any]) -> Dict[str, Any]:
 
     if pick_note_service.enabled():
         _get_pick_notes().attach(card, now=_utc_now())
+    from data_platform.services import pick_evidence_service
+
+    if pick_evidence_service.enabled():
+        _get_pick_evidence().attach(card, (read.get("data") or {}).get("canonical_results"), now=_utc_now())
     return card
 
 
