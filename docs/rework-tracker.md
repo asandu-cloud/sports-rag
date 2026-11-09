@@ -1624,10 +1624,10 @@ for/against notes. Design: `docs/superpowers/specs/2026-11-09-pick-evidence-desi
 - *Rulings from that check:* "plenty of goals" now needs 3.4 expected in all (at 3.0, all four matches said it);
   "most goals expected from X" needs one side at 1.5 times the other's; a zero in a record reads "none"; the story's
   figures are rounded to one decimal.
-- *Checks:* full suite 2,933 passed, 4 skipped, with the 3 known worktree errors. The pinned golden check is not
-  clean, on main or on this branch: all 54 fixtures change, and the two outputs are byte for byte the same, so
-  this branch adds nothing to it. It was clean at 16:17 for D81. The cause is not found yet (no unrecorded read is
-  reported; `.env` last changed 14:24, the refresh ran 13:46). Reported to the orchestrator.
+- *Checks:* full suite 2,933 passed, 4 skipped, with the 3 known worktree errors. Pinned golden check: no changes
+  across 54 fixtures. (A first run reported changes on all 54, on main as well. The cause was the command, not the
+  code: in zsh, `env $PINS` does not split the string into words, so one bogus variable was set and the other
+  switches took their live `.env` values. Write the switches out on the command line.)
 - *Going live:* merge (nothing changes while the switch is off); the frontend builds the display from the mockup;
   the owner adds `SPIX_PICK_EVIDENCE=on` to `.env`; the website is restarted.
 
