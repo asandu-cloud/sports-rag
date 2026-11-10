@@ -1823,6 +1823,23 @@ so the gate was shut for about 1 h 45 min (no matches that week). The owner appr
 - *Picks:* unchanged. No schema change, no `.env` line, no restart: the refresh and the measurement job start a
   fresh Python process each run, and the website does not run this code.
 
+**D89 — The home page animation has a light version, and its line's dots sit on the line (10 Nov; frontend,
+owner).** The owner found two faults on the live home page (D87).
+- *The dots were 4 px left of the line* whenever the panel is 640 px wide or less, which is every desktop and laptop
+  (575 px at 1440 and 1920, 552 at 1280). D87's narrower-panel rule moved the labels in and the dots with them, but
+  not the line. The line and the dots now share one centre (`--rail-x`), and the labels move by their own amount
+  (`--rail-pad`). Measured at six widths from 390 to 1920, light and dark: the dots were off by 4 px at the three
+  desktop widths on the live site, and are off by 0 at all of them now. The landing preview never had that rule.
+- *The panel was dark on the light page too.* Its tokens now take the app's own (`--night-2` is `--surface`,
+  `--lit-2` is `--text2`, `--go` is `--accent`, and so on; chart-1 and chart-2 come straight from the app), so it is
+  the app's light match page in the light theme and cobalt night, unchanged, in the dark one. Three colours that were
+  fixed are now set per theme: the dim behind the evidence sheet is the app's `--overlay`; the click ring is cobalt
+  in light (lime cream would vanish on mint cream) and lime cream in dark; the pointer is white with a fixed dark
+  edge in both, like a real pointer (its edge was `--night`, which would turn white in light).
+- *Checks (8100):* a whole light loop on desktop, the still slip, phone light and desktop dark; no script errors, no
+  sideways scroll. All 8 JS test files and the 17 web tests pass. Cache tag: hero-run.css at `hero-20261110b`. No
+  migration, no `.env` line, no restart.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
