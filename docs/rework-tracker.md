@@ -1990,6 +1990,8 @@ name the tab "Research Assistant"". Asked where and who:
   the legacy engine and the Discord bot (`SPIX_PICK_NOTES` is off). Topping up is the owner's call. The
   pick-notes mockup's notes were written by Claude in session from the same facts, instructions and checks
   (artifact C732K7mQTdXUxUFQ44wUez, 9 Nov).
+  *Topped up 10 Nov (owner, orchestrator):* the owner said OpenAI has credit again, before the Research Assistant
+  (D94) went live. Whether briefings carry GPT wording again is checked in the next reads.
   *Chroma, checked 9 Nov (orchestrator):* the daily refresh's best-effort `chroma_embed` stage has ended in WARN
   (exit 1, 15–20 s) on each of the last four runs, after OK on the two before. The refresh's stderr log holds 738
   `insufficient_quota` lines, so Chroma has had no new documents since about 5 Nov. Nothing running reads Chroma:
