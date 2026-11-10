@@ -80,9 +80,10 @@ on it. The Discord bot still runs the old engine until A7.
   "Which one?" card the member was shown that day. `SPIX_STATS_QUESTIONS=on` and `SPIX_STATS_STORE=on` are in
   `.env`; the second adds a best-effort `stats_questions_file` stage (about 20 s) to the daily refresh, before
   `platform_health`. The tab (D93, live 10 Nov) sits after Research Area at `/app#assistant` and shows only while
-  the status says enabled. Since 11 Nov at 00:23 (D95, D96, owner; website restarted, pid 39692), a team's corners
-  or goals answer also shows the team's next match: what Spix expects in it and Spix's pick in that market, or
-  when its read comes out.
+  the status says enabled. Since 11 Nov at 00:23 (D95, D96, owner), a team's corners or goals answer also shows the
+  team's next match: what Spix expects in it and Spix's pick in that market, or when its read comes out. Since
+  00:33 (D97, owner; website restarted, pid 40461), a follow-up's "he" or "they" points to the first name the
+  previous leaders answer listed.
   Open before real users: the privacy line (questions are logged with the account id), and auth and security (the
   owner will discuss them separately). The website listens on the home network only.
 - **No more Chroma updates (D81, owner, 9 Nov).** The daily refresh no longer embeds into Chroma, because nothing
