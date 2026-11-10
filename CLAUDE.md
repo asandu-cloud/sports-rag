@@ -80,7 +80,9 @@ on it. The Discord bot still runs the old engine until A7.
   "Which one?" card the member was shown that day. `SPIX_STATS_QUESTIONS=on` and `SPIX_STATS_STORE=on` are in
   `.env`; the second adds a best-effort `stats_questions_file` stage (about 20 s) to the daily refresh, before
   `platform_health`. The website was restarted for it (pid 29729). The tab (D93, live 10 Nov) sits after Research
-  Area at `/app#assistant` and shows only while the status says enabled.
+  Area at `/app#assistant` and shows only while the status says enabled. Merged, waiting for a restart: a team's
+  corners or goals answer also carries the team's next match and Spix's pick in that market (D95); the frontend
+  builds its display, and the restart goes with it (owner's OK).
   Open before real users: the privacy line (questions are logged with the account id), and auth and security (the
   owner will discuss them separately). The website listens on the home network only.
 - **No more Chroma updates (D81, owner, 9 Nov).** The daily refresh no longer embeds into Chroma, because nothing
