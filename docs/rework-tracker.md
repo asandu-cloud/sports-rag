@@ -1840,6 +1840,26 @@ owner).** The owner found two faults on the live home page (D87).
   sideways scroll. All 8 JS test files and the 17 web tests pass. Cache tag: hero-run.css at `hero-20261110b`. No
   migration, no `.env` line, no restart.
 
+**D90 — Stats questions: a design sketch (10 Nov; backend, owner asked).** The owner's idea: since the stats are in
+SQL, a question box could answer with a query instead of an embedding search. Design:
+`docs/superpowers/specs/2026-11-10-stats-questions-design.md`. Draft, nothing built.
+- *Data checked (gated, read-only):* 32,247 finished matches in the 13 competitions since 2019/20, about 64,500
+  team rows and 916,000 player rows, a referee on all but 15 matches (943 referees under 1,599 spellings).
+- *Main calls:*
+  - Questions never run on `platform.db`. They run on a separate `Index/stats.db` of flat, pre-joined tables, built
+    by the daily refresh as a best-effort stage (exit 1 keeps yesterday's file) and swapped in whole.
+  - The language model only chooses among seven tested question types and fills their checked parameters. The code
+    counts, so the model writes no numbers.
+  - Free-form SQL is for the owner only at first, in the owner dashboard, on `stats.db`, read-only, with a 2-second
+    limit.
+  - Phases: the stats file and the question types (no model), then the owner's trial, then bettors.
+  - Two switches, off by default: `SPIX_STATS_STORE` and `SPIX_STATS_QUESTIONS`. No change to `platform.db`, no
+    migration, no pick changes.
+- *Open with the owner:*
+  - where the box goes first (the match page is recommended);
+  - which language model (OpenAI has had no credit since 5 Nov);
+  - who gets it, and the daily cap.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
