@@ -1858,7 +1858,8 @@ SQL, a question box could answer with a query instead of an embedding search. De
     migration, no pick changes.
 - *The owner's answers (10 Nov):*
   - It is tested first as a fourth tab at the top of the Research Area, not on the match page.
-  - Free members get one question a day. Paid members get 50, which is my default, and the site stops at 2,000 a day.
+  - Free members get one question a day. Paid members get 50 (the owner confirmed it after the cost estimate: "75
+    cents a user is fine"), and the site stops at 2,000 a day.
   - The model is the cheapest GPT model that is enough: `gpt-6-luna` ($0.10 in and $0.50 out per million tokens,
     about $0.0004 a question; OpenAI's pages, 10 Nov). `gpt-5-nano` is cheaper, but it shuts down on 11 Dec 2026.
   - Still open: OpenAI credit, needed from phase 2.

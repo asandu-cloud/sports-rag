@@ -178,7 +178,8 @@ Questions that need free SQL more than once become new fixed question types.
   records the question, the types and parameters chosen, the answer, the model, the time taken and the cost.
 - **Daily limits:**
   - free members get one question a day (owner, 10 Nov);
-  - paid members get 50 a day (my default, a cost guard rather than a product limit; the owner can change it);
+  - paid members get 50 a day, a cost guard rather than a product limit (owner, 10 Nov: "75 cents a user is fine.
+    Lets cap it at 50 a day even though I doubt anyone will even reach that");
   - the whole site stops at 2,000 questions a day (my call, a ceiling on the bill, about 80 cents a day at the
     estimate above).
 
@@ -246,7 +247,7 @@ straight from Spix's match data."), and 18+ and help lines as everywhere.
 - The owner's trial comes before bettors see anything, behind a preview link.
 - The default scope when a question names none: the team's or player's domestic league this season, and every
   competition for a referee.
-- Paid members get 50 questions a day, and the site stops at 2,000 a day.
+- The site stops at 2,000 questions a day.
 - Cards are counted as in the Research Area: a red is one card. Spix's cards picks settle with a red as two
   (`yellow_1_red_2_max_3_per_player`, D54), so a "cards" answer here can differ by one from a cards pick's
   settlement when a red was shown. The card says "yellow and red cards".
