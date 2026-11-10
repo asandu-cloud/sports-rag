@@ -11,7 +11,7 @@
   <meta name="theme-color" content="#0246A4">
   <script>try{var t=localStorage.getItem('spix-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}try{var q=new URLSearchParams(location.search).get('logo');if(q==='old'||q==='new')sessionStorage.setItem('spix-logo',q);if(sessionStorage.getItem('spix-logo')==='old')document.documentElement.dataset.logo='old';}catch(e){}</script>
   <link rel="preload" href="/static/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/static/style.css?v=crest-20261110a">
+  <link rel="stylesheet" href="/static/style.css?v=assistant-20261110a">
   <link rel="stylesheet" href="/static/landing.css?v=hero-20261110a">
   <link rel="stylesheet" href="/static/hero-run.css?v=hero-20261110b">
 </head>
@@ -39,6 +39,7 @@
         <!-- App nav links -->
         <button class="nav-link app-nav hidden" data-view="fixtures" onclick="app.switchTab('fixtures')">Fixtures</button>
         <button class="nav-link app-nav hidden" data-view="research" onclick="app.switchTab('research')">Research Area</button>
+        <button class="nav-link app-nav hidden" data-view="assistant" onclick="app.switchTab('assistant')">Research Assistant</button>
         <button class="nav-link app-nav hidden" data-view="best-bets" onclick="app.switchTab('best-bets')">Best Bets</button>
       </nav>
       <div class="topbar-right">
@@ -273,6 +274,37 @@
         <!-- Research is an isolated UI component; it does not select bets. -->
         <section class="app-view hidden" id="viewResearch" aria-label="Research Area"><spix-research></spix-research></section>
 
+        <!-- Research Assistant (D93): questions about past numbers, answered from the stats file. The tab shows only
+             while /api/research-assistant/status says it is on. -->
+        <section class="app-view hidden" id="viewAssistant" aria-labelledby="assistantTitle">
+          <div class="page-header">
+            <h1 class="page-title" id="assistantTitle">Research Assistant</h1>
+            <p class="page-subtitle">Ask about any team, player or referee. Answers come straight from Spix's match data, from 2019/20 on.</p>
+          </div>
+          <div class="ra-layout">
+            <div class="ra">
+              <form class="ra-ask" id="assistantForm" novalidate></form>
+              <div class="ra-try" id="assistantTry" hidden></div>
+              <p class="sr-only" id="assistantSaid" aria-live="polite"></p>
+              <div class="ra-thread" id="assistantThread"></div>
+            </div>
+            <aside class="ra-side" aria-labelledby="assistantKinds">
+              <h2 id="assistantKinds">What it can count</h2>
+              <ul>
+                <li><b>Team averages</b><span>Goals, corners, cards, shots and more, at home or away</span></li>
+                <li><b>How often</b><span>A team's matches over or under a line</span></li>
+                <li><b>Recent form</b><span>The last few results, with goals and expected goals</span></li>
+                <li><b>Past meetings</b><span>Two clubs head to head, since 2019/20</span></li>
+                <li><b>Referees</b><span>Cards and fouls a match</span></li>
+                <li><b>Players</b><span>Goals, shots, assists, cards and more</span></li>
+                <li><b>Leaders</b><span>The top teams, players or referees in a league</span></li>
+              </ul>
+              <p id="assistantUpto"></p>
+            </aside>
+          </div>
+          <p class="ra-care">Past matches, not predictions. 18+ · Betting involves risk. <a href="https://www.gamcare.org.uk/get-support/" target="_blank" rel="noopener">Get help from GamCare</a></p>
+        </section>
+
         <!-- Best Bets View -->
         <section class="app-view hidden" id="viewBestBets">
           <div class="page-header">
@@ -379,6 +411,7 @@
     <nav class="mobile-menu-nav" aria-label="Matchday sections">
       <button class="mobile-menu-link" type="button" data-view="fixtures" onclick="mobileMenu.go('fixtures')"><span>Fixtures</span><small>Matchday board and Match Reads</small></button>
       <button class="mobile-menu-link" type="button" data-view="research" onclick="mobileMenu.go('research')"><span>Research Area</span><small>Players, teams and referees</small></button>
+      <button class="mobile-menu-link" type="button" data-view="assistant" onclick="mobileMenu.go('assistant')"><span>Research Assistant</span><small>Ask about a team, player or referee</small></button>
       <button class="mobile-menu-link" type="button" data-view="best-bets" onclick="mobileMenu.go('best-bets')"><span>Best Bets</span><small>Up to five of the clearest reads</small></button>
     </nav>
     <button class="mobile-menu-slip" type="button" onclick="mobileMenu.openSlip()" aria-controls="betSlip" aria-expanded="false">
@@ -419,6 +452,6 @@
   <script src="/static/logo.js?v=logo-20261029a"></script><script src="/static/theme.js?v=night-20261109a"></script>
   <script type="module" src="/static/research/research.js?v=crest-20261110a"></script>
   <script src="/static/hero-run.js?v=hero-20261110a"></script>
-  <script src="/static/app.js?v=preview-20261109a"></script>
+  <script src="/static/app.js?v=assistant-20261110a"></script>
 </body>
 </html>
