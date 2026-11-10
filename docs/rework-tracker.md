@@ -126,6 +126,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | Needs the bet builder and the recommendation lists first |
 | Website and Discord link: one-tap sharing of a bet to Discord, Discord posts linking back to the match (D50) | A7, when the bot moves to the new engine | The bot still runs the old engine |
 | Building bets inside Discord; community selections (D50) | After A7 | Owner: for later |
+| OpenAI shuts down `gpt-4o-mini` on 14 Jan 2027 (its deprecations page, checked 10 Nov; the replacement it names is `gpt-6-luna`). Whale chat and the Discord slash commands default to `gpt-4o-mini`, but first read `WHALE_CHAT_MODEL` and `RAG_CHAT_MODEL` from `.env`. Both are set; their values were not read. If either names `gpt-4o-mini`, those Discord features stop on 14 Jan (D91) | A7, or the owner changes the `.env` lines before 14 Jan 2027 | The bot still runs the old engine |
 | Done 3 Nov: `CLAUDE.md` corrected (saved ML R² ≈ 0 and zero ML weight; `elo_signal_weight` never read) and given a "Start here" section: reading order, current status, the stage rule, safety rules, how to work with the owner, how to run things | Done | Keep its status block current with the tracker |
 | Done 17 Oct 16:28: production reads from the document store (`DOCUMENT_STORE=sqlite` in `.env`). The first 6 reads record `DOCUMENT_STORE: sqlite` and their projections equal the previous Chroma read of the same fixture and stage (7 of 7 markets each). Verification before the switch: every refresh stage completed; same 129,801 documents; all 881 recorded engine queries return the same documents in the same order; 341 documents differ only in a last floating-point digit; engine outputs on the 54 golden fixtures identical from both. Fallback: remove the line | Done | Unblocks the OddsPapi true-close capture (D16 rule 3, A1 step 4) |
 | WAL mode for `platform.db` (`PRAGMA journal_mode=WAL`, so readers stop waiting on writers; the cause of the 29 Oct busy evening, see Findings). First check how the daily refresh replaces, copies or backs up the file (WAL keeps recent writes in a `-wal` file beside it), and the 23 Oct refresh failure (rollback journal, 2 s timeout) | After the 2 Nov scorecard (owner, 29 Oct) | Changes how every job writes the 9.5 GB database; not before the scorecard |
@@ -1855,6 +1856,80 @@ of its box in the Research Area's Corners per match board.
   crests and initials are unchanged. All 8 JS test files and 87 web and research tests pass. Cache tags:
   style.css at `crest-20261110a` on all five pages, research.js and research.css at `crest-20261110a`. No
   migration, no `.env` line, no restart.
+
+**D91 — Stats questions: a design sketch (10 Nov; backend, owner asked).** The owner's idea: since the stats are in
+SQL, a question box could answer with a query instead of an embedding search. Design:
+`docs/superpowers/specs/2026-11-10-stats-questions-design.md`. Draft, nothing built.
+- *Data checked (gated, read-only):* 32,247 finished matches in the 13 competitions since 2019/20, about 64,500
+  team rows and 916,000 player rows, a referee on all but 15 matches (943 referees under 1,599 spellings).
+- *Main calls:*
+  - Questions never run on `platform.db`. They run on a separate `Index/stats.db` of flat, pre-joined tables, built
+    by the daily refresh as a best-effort stage (exit 1 keeps yesterday's file) and swapped in whole.
+  - The language model only chooses among seven tested question types and fills their checked parameters. The code
+    counts, so the model writes no numbers.
+  - Free-form SQL is for the owner only at first, in the owner dashboard, on `stats.db`, read-only, with a 2-second
+    limit.
+  - Phases: the stats file and the question types (no model), then the owner's trial, then bettors.
+  - Two switches, off by default: `SPIX_STATS_STORE` and `SPIX_STATS_QUESTIONS`. No change to `platform.db`, no
+    migration, no pick changes.
+- *The owner's answers (10 Nov):*
+  - It is tested first as a fourth tab at the top of the Research Area, not on the match page.
+  - Free members get one question a day. Paid members get 50 (the owner confirmed it after the cost estimate: "75
+    cents a user is fine"), and the site stops at 2,000 a day.
+  - The model is the cheapest GPT model that is enough: `gpt-6-luna` ($0.10 in and $0.50 out per million tokens,
+    about $0.0004 a question; OpenAI's pages, 10 Nov). `gpt-5-nano` is cheaper, but it shuts down on 11 Dec 2026.
+  - Still open: OpenAI credit, needed from phase 2.
+- *Cost per member (estimate, 10 Nov):* about 1 cent a month for a paid member who asks 5 questions a weekend, at
+  most 1.5 cents for a free member, and at most 75 cents for a paid member at the cap every day. The whole site
+  stops at about $1 a day.
+
+**D92 — Stats questions prototype, separate from the website (10 Nov; backend, owner).** The owner approved the D91
+workflow page and asked for a prototype "separately of the website, then we can decide whether to add it". It lives
+in `Scripts/ops/stats_questions/`. It is not wired to the website or to any scheduled job, and changes no picks.
+- *The stats file* (`store.py`): `Index/stats_questions/stats.db`, built by hand with `build()` inside
+  `data_access()`. It makes three reads per season (team rows, player rows, matches) through the Research Area's
+  own queries and count rules (`ResearchRepository`, `normalize_research_row`, `referee_aliases`), each in its own
+  session. The first build on 10 Nov took 18.5 s and made a 128 MB file: 28,988 matches, 57,976 team rows, 650,939
+  player appearances, 420 teams and 719 referees, with data up to 8 Nov. These counts are smaller than D91's
+  because they follow the Research Area: comparable rounds only (no qualifiers or play-offs), and only players who
+  played.
+- *The seven question types* (`questions.py`) check every parameter against fixed lists, count in SQL and word the
+  answer from fixed templates (`stats_answer.v1`). Names match whole words before prefixes, so "Saka" is a Saka
+  and not Sakamoto. A much busier namesake (twice the minutes or matches over this season and last) wins outright,
+  so "Haaland" is Erling Haaland and not M. Haaland of Brann. Otherwise the card asks "Which one?".
+- *Found on real data:*
+  - Anthony Taylor has no matches in 2026/27, so his card says it shows 2025/26.
+  - Tottenham's home corners this season include 19–0 against Palace and 11–1 against Villa. Those are
+    API-Football's own rows, not a mistake in the build.
+- *The model step* (`model.py`): `gpt-6-luna` gets the seven types as strict function tools plus `decline` (asks
+  for a bet / not football numbers / not covered), with `tool_choice="required"`, at most three choices, and
+  `store=False`. Empty choices take the type's defaults. The code counts every answer, and a decline gets a fixed
+  line (a bet request is pointed to the matches page). One follow-up: the page sends the previous question and its
+  choices. About 2,500 tokens go in per question (D91 estimated 2,000), so still about $0.0004. OpenAI errors become
+  a plain kind and status, never their raw text. "No credit" matches both the code `insufficient_quota` and the 9 Nov
+  shape (type `insufficient_quota`, code `credit_balance_exhausted`). `STATS_QUESTIONS_MODEL` can swap the model
+  for the trial.
+- *Bet words are logged, not used as a gate* (my call). Whale chat's `is_betting_request` also flags "what are the
+  odds Saka scores", a fair stats question. So the model decides, and the log keeps the check's answer, for the
+  trial to show whether a gate would help.
+- *Free SQL* (`free_sql.py`, owner only): one statement on the read-only stats file, with an authorizer allowing
+  only SELECT, READ, FUNCTION and RECURSIVE. It stops at 2 s and 500 rows, and shows the SQL beside the rows. In
+  words, the model writes the query (`run_sql` tool, schema in the instructions, about 700 tokens). It can also be
+  typed, with no model.
+- *The log* (`log.py`): `Index/stats_questions/log.db`, beside the stats file. D91 said `Index/stats_questions.db`;
+  one folder keeps both files together (my call). It holds the question, choices, answers, model, time, tokens,
+  cost, the bet-words flag, and the owner's Right/Wrong verdict with a note. The summary counts only questions the
+  model read, since hand checks cannot be misread. The site ceiling (2,000 model questions a day, D91) is checked
+  before each call. The per-member limits wait for accounts: the prototype has one user.
+- *The page* (`__main__.py`, `page.html`): `python -m Scripts.ops.stats_questions serve` on 127.0.0.1:8400
+  (localhost only, as the owner dashboard), with Ask, Choose it yourself (no model, no cost), Free SQL and Log tabs.
+  It uses the live site's cobalt tokens, copied, and the 18+ line. `build`, `ask` and `choose` also run from the
+  command line. Checked in headless Chrome at 1280 px and 390 px, light and dark, on real data, without calling
+  OpenAI.
+- *Checks:* 38 tests (4 on the build, 13 on the question types, 12 on free SQL, the log and the model with a
+  stand-in client, 9 on the server). The full suite has 2,978 passed and the 3 known worktree-only errors in
+  `test_phase4_baseline_freeze.py`. The pinned golden check is unchanged (54 fixtures). No migration, no `.env`
+  line, no restart. The model step needs OpenAI credit, and no paid call has been made.
 
 ## Findings that shape later steps
 

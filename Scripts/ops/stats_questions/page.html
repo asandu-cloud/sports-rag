@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stats questions · Spix prototype</title>
+<!-- Stats questions prototype (tracker D92). The live site's cobalt tokens, copied 10 Nov (style.css, D80/D85), so a
+     front-end change cannot break this page. Served only on 127.0.0.1. -->
+<style>
+@font-face {
+  font-family: 'Archivo'; font-style: normal; font-weight: 100 900; font-stretch: 62% 125%; font-display: swap;
+  src: url('/fonts/archivo-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Archivo'; font-style: normal; font-weight: 100 900; font-stretch: 62% 125%; font-display: swap;
+  src: url('/fonts/archivo-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+:root {
+  color-scheme: light;
+  --bg: #F2FFFA; --bg2: #E3F1EC; --surface: #FBFFFD; --surface2: #E9F5F0;
+  --border: #CFD7D4; --border2: #808986; --border-soft: #DEE5E2;
+  --text: #111E17; --text2: #404B44; --text3: #5D6660;
+  --accent: #0246A4; --accent-hover: #023A88; --on-accent: #F2FFFA; --accent-dim: #DCE5F2;
+  --marker: #D5F097; --on-marker: #111E17;
+  --amber: #905100; --amber-dim: #FBE9CA; --loss: #AA342C; --loss-dim: #FFE4E1;
+  --tb-bg: #0246A4; --tb-fg: #F2FFFA; --tb-fg2: #C7D6EB;
+  --shadow-sm: 0 2px 4px rgba(17, 30, 23, 0.05), 0 8px 20px rgba(17, 30, 23, 0.06);
+  --sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #111316; --bg2: #0C0D10; --surface: #191C1F; --surface2: #202327;
+    --border: #303339; --border2: #61676F; --border-soft: #24272B;
+    --text: #F2FFFA; --text2: #C1C5CA; --text3: #9B9FA5;
+    --accent: #88B4F2; --accent-hover: #ACCAF6; --on-accent: #08152B; --accent-dim: #1F2938;
+    --marker: #D5F097; --on-marker: #111316;
+    --amber: #F2B966; --amber-dim: #3A2B16; --loss: #F4928A; --loss-dim: #402624;
+    --tb-bg: #0246A4; --tb-fg: #F2FFFA; --tb-fg2: #C7D6EB;
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.25), 0 8px 20px rgba(0, 0, 0, 0.25);
+  }
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+body { font-family: var(--sans); line-height: 1.5; background: var(--bg); color: var(--text); min-height: 100vh;
+  display: flex; flex-direction: column; }
+button, input, select, textarea { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.bar { background: var(--tb-bg); color: var(--tb-fg); }
+.bar-in, main, footer { width: 100%; max-width: 880px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
+.bar-in { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; padding-top: 14px; padding-bottom: 14px; }
+.brand { font-weight: 800; font-size: 1.25rem; letter-spacing: -0.01em; }
+.bar-title { font-weight: 600; font-size: 1.05rem; }
+.tag { font-size: 0.8rem; color: var(--tb-fg2); font-stretch: 87%; }
+.status { margin-left: auto; font-size: 0.8rem; color: var(--tb-fg2); }
+
+main { flex: 1; padding-top: 28px; padding-bottom: 56px; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 28px; overflow-x: auto; }
+.tabs button { background: none; border: 0; border-bottom: 3px solid transparent; padding: 10px 14px 9px; cursor: pointer;
+  color: var(--text2); font-weight: 600; white-space: nowrap; }
+.tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+.tabs button:hover { color: var(--text); }
+
+.intro { color: var(--text2); margin-bottom: 18px; max-width: 62ch; }
+.askbox { display: flex; gap: 8px; }
+.askbox input, .field input, .field select, textarea { width: 100%; background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 10px; padding: 12px 14px; }
+.askbox input { font-size: 1.05rem; }
+textarea { font-family: var(--mono); font-size: 0.9rem; min-height: 120px; resize: vertical; }
+.btn { background: var(--accent); color: var(--on-accent); border: 0; border-radius: 10px; padding: 12px 20px;
+  font-weight: 700; cursor: pointer; white-space: nowrap; }
+.btn:hover { background: var(--accent-hover); }
+.btn:disabled { opacity: 0.55; cursor: wait; }
+.quiet { background: var(--surface); color: var(--text); border: 1px solid var(--border2); border-radius: 999px;
+  padding: 6px 14px; cursor: pointer; font-size: 0.875rem; }
+.quiet:hover { border-color: var(--accent); }
+.quiet[aria-pressed="true"] { background: var(--accent-dim); border-color: var(--accent); }
+.askmeta { display: flex; justify-content: space-between; gap: 12px; font-size: 0.8rem; color: var(--text3); margin-top: 6px; min-height: 1.2em; }
+.askmeta button { background: none; border: 0; color: var(--accent); cursor: pointer; font-size: inherit; text-decoration: underline; }
+.examples { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 32px; }
+
+.result { margin-bottom: 28px; }
+.result > .question { font-weight: 600; color: var(--text2); margin-bottom: 10px; }
+.answer { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px 24px;
+  box-shadow: var(--shadow-sm); margin-bottom: 12px; }
+.scope { font-size: 0.85rem; color: var(--text2); margin-bottom: 6px; }
+.headline { font-size: 1.35rem; line-height: 1.3; font-weight: 700; letter-spacing: -0.01em; }
+.answer.quiet-card .headline { font-size: 1.05rem; font-weight: 600; color: var(--text2); }
+.answer.problem .headline { color: var(--loss); }
+.detail { list-style: none; margin-top: 10px; color: var(--text); }
+.detail li + li { margin-top: 2px; }
+.note { display: inline-block; margin-top: 12px; background: var(--amber-dim); color: var(--amber); border-radius: 6px;
+  padding: 3px 9px; font-size: 0.85rem; font-weight: 600; }
+.upto { margin-top: 14px; font-size: 0.8rem; color: var(--text3); }
+.options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+details { margin-top: 14px; }
+summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 0.9rem; }
+.tablewrap { overflow-x: auto; margin-top: 12px; }
+table { border-collapse: collapse; font-size: 0.875rem; font-variant-numeric: tabular-nums; min-width: 100%; }
+th { text-align: left; font-weight: 600; color: var(--text2); border-bottom: 1px solid var(--border); padding: 6px 12px 6px 0; white-space: nowrap; }
+td { border-bottom: 1px solid var(--border-soft); padding: 6px 12px 6px 0; white-space: nowrap; }
+
+.read { font-size: 0.85rem; color: var(--text2); margin-top: 6px; }
+.read code, .chip { font-family: var(--mono); font-size: 0.8rem; background: var(--surface2); border-radius: 6px; padding: 1px 7px; }
+.chips { display: inline-flex; flex-wrap: wrap; gap: 4px 6px; vertical-align: middle; }
+.judge { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; font-size: 0.875rem; color: var(--text2); }
+.judge input { flex: 1; min-width: 180px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 0.875rem; }
+.judge .cost { margin-left: auto; color: var(--text3); font-size: 0.8rem; }
+.judge [data-verdict="right"][aria-pressed="true"] { background: var(--accent-dim); border-color: var(--accent); }
+.judge [data-verdict="wrong"][aria-pressed="true"] { background: var(--loss-dim); border-color: var(--loss); color: var(--loss); }
+.error { background: var(--loss-dim); color: var(--loss); border-radius: 10px; padding: 12px 16px; font-weight: 600; margin-bottom: 20px; }
+
+.form { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px 16px; margin: 18px 0 20px; }
+.field label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text2); margin-bottom: 4px; }
+.field input, .field select { padding: 9px 11px; }
+.field.check { display: flex; align-items: center; gap: 8px; padding-top: 22px; }
+.field.check input { width: auto; }
+.field.check label { margin: 0; }
+.typepick { max-width: 420px; }
+.typehelp { color: var(--text2); font-size: 0.9rem; margin-top: 6px; }
+pre { font-family: var(--mono); font-size: 0.85rem; background: var(--surface2); border-radius: 10px; padding: 12px 14px;
+  overflow-x: auto; white-space: pre-wrap; word-break: break-word; margin-top: 10px; }
+.modes { display: flex; gap: 8px; margin-bottom: 14px; }
+.actions { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
+
+.summary { display: flex; flex-wrap: wrap; gap: 8px 28px; margin-bottom: 22px; }
+.summary div { font-size: 0.85rem; color: var(--text2); }
+.summary b { display: block; font-size: 1.5rem; color: var(--text); font-variant-numeric: tabular-nums; }
+.entry { border-top: 1px solid var(--border); padding: 16px 0; }
+.entry .meta { font-size: 0.8rem; color: var(--text3); }
+.entry .q { font-weight: 600; margin: 2px 0 4px; }
+.entry .a { color: var(--text2); font-size: 0.925rem; }
+.empty { color: var(--text3); }
+
+footer { padding-top: 18px; padding-bottom: 28px; font-size: 0.8rem; color: var(--text3); border-top: 1px solid var(--border-soft); }
+@media (max-width: 560px) {
+  .askbox { flex-direction: column; }
+  .answer { padding: 18px 16px; }
+  .headline { font-size: 1.2rem; }
+  .status { margin-left: 0; width: 100%; }
+  .tabs { gap: 0; }
+  .tabs button { padding: 10px 8px 9px; font-size: 0.9375rem; }
+}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="bar-in">
+    <span class="brand">Spix</span>
+    <span class="bar-title">Stats questions</span>
+    <span class="tag">Prototype · this Mac only</span>
+    <span class="status" id="status">Loading…</span>
+  </div>
+</header>
+<main>
+  <nav class="tabs" role="tablist" aria-label="Modes">
+    <button role="tab" aria-selected="true" data-tab="ask">Ask</button>
+    <button role="tab" aria-selected="false" data-tab="choose">Choose it yourself</button>
+    <button role="tab" aria-selected="false" data-tab="sql">Free SQL</button>
+    <button role="tab" aria-selected="false" data-tab="log">Log</button>
+  </nav>
+
+  <section id="tab-ask" role="tabpanel">
+    <p class="intro">Ask about what has happened: a team's averages, how often its matches went over a line, form, head
+      to head, referees, players and league leaders. The model only chooses which count to run; the numbers come from
+      Spix's data.</p>
+    <form id="ask-form">
+      <label for="q" class="sr">Your question</label>
+      <div class="askbox">
+        <input id="q" maxlength="300" autocomplete="off" placeholder="How often do Brentford's away games go over 9.5 corners?">
+        <button class="btn" id="ask-btn">Ask</button>
+      </div>
+      <div class="askmeta"><span id="followup"></span><span id="count">0 / 300</span></div>
+    </form>
+    <div class="examples" id="examples"></div>
+    <div id="ask-out"></div>
+  </section>
+
+  <section id="tab-choose" role="tabpanel" hidden>
+    <p class="intro">Run a question type by hand, with no model and no cost. Useful to check a count, or to see what the
+      model should have chosen.</p>
+    <form id="choose-form">
+      <div class="field typepick"><label for="ctype">Question type</label><select id="ctype"></select>
+        <p class="typehelp" id="ctype-help"></p></div>
+      <div class="form" id="cfields"></div>
+      <button class="btn">Count it</button>
+    </form>
+    <div id="choose-out" style="margin-top:28px"></div>
+  </section>
+
+  <section id="tab-sql" role="tabpanel" hidden>
+    <p class="intro">Owner only. One read-only query over the stats file: it stops after 2 seconds and shows at most 500
+      rows. In words, the model writes the SQL; it is shown with the rows so you can check it.</p>
+    <div class="modes">
+      <button class="quiet" type="button" data-sqlmode="words" aria-pressed="true">In words</button>
+      <button class="quiet" type="button" data-sqlmode="sql" aria-pressed="false">Write SQL</button>
+    </div>
+    <form id="sql-form">
+      <label for="sqltext" class="sr">Question or SQL</label>
+      <textarea id="sqltext" placeholder="Which referees gave the most red cards in La Liga last season?"></textarea>
+      <div class="actions"><button class="btn">Run</button><span class="askmeta" id="sqlhint">Uses the model (about $0.0001).</span></div>
+    </form>
+    <div id="sql-out" style="margin-top:28px"></div>
+  </section>
+
+  <section id="tab-log" role="tabpanel" hidden>
+    <div class="summary" id="summary"></div>
+    <div id="log-out"></div>
+  </section>
+</main>
+<footer>18+ · Betting involves risk. You can lose your stake. Spix provides analysis and does not accept bets.
+  <a href="https://www.gamcare.org.uk/get-support/" rel="noopener" target="_blank">Gambling support from GamCare</a></footer>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const money = (v) => v == null ? '' : v === 0 ? '$0' : '$' + (v < 0.01 ? v.toFixed(5) : v.toFixed(4));
+const EXAMPLES = [
+  "How often do Brentford's away games go over 9.5 corners?",
+  'How many cards does Anthony Taylor give?',
+  'How often does Saka have 2+ shots on target?',
+  'Which La Liga team wins the most corners?',
+  'How have Spurs been doing lately?',
+  'How do Arsenal v Chelsea games go?',
+];
+const TYPE_NAMES = {team_average: 'Team average', line_record: 'Over or under a line', recent_form: 'Recent form',
+  head_to_head: 'Head to head', referee: 'Referee', player: 'Player', leaders: 'Leaders', decline: 'Declined', sql: 'SQL'};
+const MODE_NAMES = {ask: 'Ask', choose: 'Chosen by hand', sql: 'Typed SQL', sql_ask: 'SQL in words'};
+const ERROR_TEXT = {no_credit: 'The OpenAI account has no credit left, so the model cannot be asked. "Choose it yourself" and typed SQL still work.'};
+let types = null, previous = null, sqlMode = 'words';
+
+async function api(path, body) {
+  const res = await fetch(path, body === undefined ? {} : {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  const data = await res.json().catch(() => ({error: {kind: 'server', message: 'The server did not answer.'}}));
+  return {ok: res.ok, data};
+}
+
+function table(t) {
+  if (!t || !t.rows || !t.rows.length) return '';
+  return `<div class="tablewrap"><table><thead><tr>${t.columns.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead>
+    <tbody>${t.rows.map((r) => `<tr>${r.map((v) => `<td>${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+
+function chips(call) {
+  const params = Object.entries(call.params || {}).map(([k, v]) => `<span class="chip">${esc(k)}=${esc(typeof v === 'string' ? v : JSON.stringify(v))}</span>`);
+  return `<code>${esc(call.type)}</code> <span class="chips">${params.join('')}</span>`;
+}
+
+function card(c, call, index) {
+  const quiet = ['declined', 'which'].includes(c.type), problem = ['invalid', 'not_found'].includes(c.type);
+  const options = c.type === 'which' ? `<div class="options">${(c.options || []).map((o) =>
+    `<button class="quiet" type="button" data-pick="${esc(o.value)}" data-field="${esc(o.field)}" data-index="${index}">${esc(o.label)}</button>`).join('')}</div>` : '';
+  const n = c.matches && c.matches.rows ? c.matches.rows.length : 0;
+  return `<article class="answer${quiet ? ' quiet-card' : ''}${problem ? ' problem' : ''}">
+    ${c.scope ? `<p class="scope">${esc(c.scope)}</p>` : ''}
+    <h2 class="headline">${esc(c.headline)}</h2>
+    ${c.detail && c.detail.length ? `<ul class="detail">${c.detail.map((d) => `<li>${esc(d)}</li>`).join('')}</ul>` : ''}
+    ${table(c.table)}
+    ${c.note ? `<span class="note">${esc(c.note)}</span>` : ''}
+    ${options}
+    ${n ? `<details><summary>The ${n} match${n === 1 ? '' : 'es'} behind it</summary>${table(c.matches)}</details>` : ''}
+    ${c.data_up_to && !quiet && !problem ? `<p class="upto">Data up to ${esc(c.data_up_to)}</p>` : ''}
+    ${call ? `<p class="read">How it read the question: ${chips(call)}</p>` : ''}
+  </article>`;
+}
+
+function judge(out) {
+  if (!out.log_id || !out.model) return '';  // only what the model read can be right or wrong
+  const cost = [out.ms != null ? `${(out.ms / 1000).toFixed(1)} s` : '', money(out.cost_usd)].filter(Boolean).join(' · ');
+  return `<div class="judge" data-id="${out.log_id}">Did it understand?
+    <button class="quiet" type="button" data-verdict="right" aria-pressed="false">Right</button>
+    <button class="quiet" type="button" data-verdict="wrong" aria-pressed="false">Wrong</button>
+    <input type="text" placeholder="Note (optional)" maxlength="500" aria-label="Note">
+    ${cost ? `<span class="cost">${esc(cost)}</span>` : ''}</div>`;
+}
+
+function errorBox(data) {
+  const e = data.error || {};
+  return `<div class="error">${esc(ERROR_TEXT[e.kind] || e.message || 'Something went wrong.')}</div>`;
+}
+
+function renderResult(out, question) {
+  const block = document.createElement('div');
+  block.className = 'result';
+  block.innerHTML = (question ? `<p class="question">${esc(question)}</p>` : '')
+    + out.answers.map((a, i) => card(a, out.calls[i], i)).join('') + judge(out);
+  block.addEventListener('click', async (ev) => {
+    const pick = ev.target.closest('[data-pick]');
+    if (pick) {
+      const call = out.calls[Number(pick.dataset.index)];
+      const params = {...call.params, [pick.dataset.field]: pick.dataset.pick};
+      const res = await api('/api/choose', {type: call.type, params});
+      if (res.ok) { out.answers[Number(pick.dataset.index)] = res.data.answers[0]; out.calls[Number(pick.dataset.index)] = res.data.calls[0];
+        if (previous && previous.calls === out.calls) previous = {question: previous.question, calls: out.calls};
+        block.replaceWith(renderResult(out, question)); }
+      return;
+    }
+    const verdict = ev.target.closest('[data-verdict]');
+    if (verdict) {
+      const row = verdict.closest('.judge');
+      const res = await api('/api/verdict', {id: Number(row.dataset.id), verdict: verdict.dataset.verdict, note: $('input', row).value});
+      if (res.ok) row.querySelectorAll('[data-verdict]').forEach((b) => b.setAttribute('aria-pressed', String(b === verdict)));
+    }
+  });
+  return block;
+}
+
+async function refreshStatus() {
+  const {data} = await api('/api/status');
+  const up = data.stats ? `Data up to ${data.stats.data_up_to_label}` : 'No stats file yet';
+  $('#status').textContent = `${up} · ${data.model} · OpenAI key ${data.openai_key} · ${data.asked_today.toLocaleString()} of ${data.daily_limit.toLocaleString()} today`;
+}
+
+function showFollowup() {
+  $('#followup').innerHTML = previous ? `Follow-up to “${esc(previous.question)}” <button type="button" id="clear-prev">Start fresh</button>` : '';
+}
+
+// -- Ask -----------------------------------------------------------------------------------------------------------
+$('#examples').innerHTML = EXAMPLES.map((e) => `<button class="quiet" type="button">${esc(e)}</button>`).join('');
+$('#examples').addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (b) { $('#q').value = b.textContent; previous = null; showFollowup(); $('#q').focus(); updateCount(); } });
+const updateCount = () => { $('#count').textContent = `${$('#q').value.length} / 300`; };
+$('#q').addEventListener('input', updateCount);
+$('#followup').addEventListener('click', (ev) => { if (ev.target.id === 'clear-prev') { previous = null; showFollowup(); } });
+$('#ask-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const question = $('#q').value.trim();
+  if (!question) return;
+  $('#ask-btn').disabled = true;
+  const res = await api('/api/ask', {question, previous});
+  $('#ask-btn').disabled = false;
+  const out = $('#ask-out');
+  if (!res.ok) { out.insertAdjacentHTML('afterbegin', errorBox(res.data)); return; }
+  out.prepend(renderResult(res.data, res.data.question));
+  previous = {question: res.data.question, calls: res.data.calls};
+  $('#q').value = ''; updateCount(); showFollowup(); refreshStatus();
+});
+
+// -- Choose it yourself --------------------------------------------------------------------------------------------
+const LABELS = {side: 'Side (for, against, match)', venue: 'Venue', competition: 'Competition', season: 'Season (start year)',
+  last: 'Last N matches', line: 'Line', direction: 'Over or under', at_least: 'At least', starts_only: 'Starts only',
+  kind: 'Teams, players or referees', order: 'Order', top: 'How many', team_filter: 'Only with this club'};
+function fieldHtml(name, spec) {
+  const label = LABELS[name] || name.charAt(0).toUpperCase() + name.slice(1);
+  const id = `f-${name}`, def = types.defaults[name];
+  if (spec.type === 'boolean') return `<div class="field check"><input type="checkbox" id="${id}" name="${name}"${def ? ' checked' : ''}><label for="${id}">${esc(label)}</label></div>`;
+  if (name === 'competition') return `<div class="field"><label for="${id}">${label}</label><select id="${id}" name="${name}"><option value="">Default</option><option value="all">All competitions</option>${types.competitions.map((c) => `<option value="${esc(c.code)}">${esc(c.name)}</option>`).join('')}</select></div>`;
+  if (spec.enum) return `<div class="field"><label for="${id}">${esc(label)}</label><select id="${id}" name="${name}">${spec.enum.map((v) => `<option${v === def ? ' selected' : ''}>${esc(v)}</option>`).join('')}</select></div>`;
+  const kind = [].concat(spec.type);
+  const num = kind.includes('integer') || kind.includes('number');
+  return `<div class="field"><label for="${id}">${esc(label)}</label><input id="${id}" name="${name}" ${num ? `type="number" step="${kind.includes('number') ? '0.5' : '1'}"` : 'type="text"'} placeholder="${kind.includes('null') ? 'Default' : ''}"></div>`;
+}
+function drawFields() {
+  const spec = types.types[$('#ctype').value];
+  $('#ctype-help').textContent = spec.description;
+  $('#cfields').innerHTML = Object.entries(spec.params).map(([n, s]) => fieldHtml(n, s)).join('');
+}
+$('#ctype').addEventListener('change', drawFields);
+$('#choose-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const kind = $('#ctype').value, params = {};
+  for (const [name, spec] of Object.entries(types.types[kind].params)) {
+    const el = $(`[name="${name}"]`, $('#cfields'));
+    if (spec.type === 'boolean') params[name] = el.checked;
+    else if (el.value !== '') params[name] = el.type === 'number' ? Number(el.value) : el.value;
+  }
+  const res = await api('/api/choose', {type: kind, params});
+  const out = $('#choose-out');
+  if (!res.ok) { out.insertAdjacentHTML('afterbegin', errorBox(res.data)); return; }
+  out.prepend(renderResult(res.data, null));
+});
+
+// -- Free SQL ------------------------------------------------------------------------------------------------------
+document.querySelectorAll('[data-sqlmode]').forEach((b) => b.addEventListener('click', () => {
+  sqlMode = b.dataset.sqlmode;
+  document.querySelectorAll('[data-sqlmode]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  $('#sqltext').placeholder = sqlMode === 'words' ? 'Which referees gave the most red cards in La Liga last season?'
+    : "SELECT t.name, avg(corners_for) FROM team_matches tm JOIN teams t ON t.id = tm.team_id\nWHERE competition = 'EPL' AND season = 2026 GROUP BY 1 ORDER BY 2 DESC LIMIT 5";
+  $('#sqlhint').textContent = sqlMode === 'words' ? 'Uses the model (about $0.0001).' : 'No model, no cost.';
+}));
+$('#sql-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const text = $('#sqltext').value.trim();
+  if (!text) return;
+  const res = await api('/api/sql', sqlMode === 'words' ? {question: text} : {sql: text});
+  const out = $('#sql-out');
+  if (!res.ok) { out.insertAdjacentHTML('afterbegin', errorBox(res.data)); return; }
+  const r = res.data, block = document.createElement('div');
+  block.className = 'result';
+  const n = r.rows ? r.rows.length : 0;
+  block.innerHTML = `${r.question ? `<p class="question">${esc(r.question)}</p>` : ''}<article class="answer${r.error ? ' problem' : ''}">
+    ${r.title ? `<p class="scope">${esc(r.title)}</p>` : ''}
+    <h2 class="headline">${r.error ? esc(r.error.message) : `${n} row${n === 1 ? '' : 's'}${r.truncated ? ' (cut at 500)' : ''} in ${r.ms} ms`}</h2>
+    <pre>${esc(r.sql)}</pre>${r.error ? '' : table({columns: r.columns, rows: r.rows})}</article>${judge(r)}`;
+  block.addEventListener('click', async (e2) => {
+    const verdict = e2.target.closest('[data-verdict]');
+    if (!verdict) return;
+    const row = verdict.closest('.judge');
+    const res2 = await api('/api/verdict', {id: Number(row.dataset.id), verdict: verdict.dataset.verdict, note: $('input', row).value});
+    if (res2.ok) row.querySelectorAll('[data-verdict]').forEach((b) => b.setAttribute('aria-pressed', String(b === verdict)));
+  });
+  out.prepend(block);
+  refreshStatus();
+});
+
+// -- Log -----------------------------------------------------------------------------------------------------------
+async function drawLog() {
+  const {data} = await api('/api/log');
+  const s = data.summary;
+  $('#summary').innerHTML = `<div><b>${s.questions}</b>questions to the model</div><div><b>${s.right}</b>right</div><div><b>${s.wrong}</b>wrong</div><div><b>${s.unjudged}</b>not judged</div><div><b>${money(s.cost_usd)}</b>spent on the model</div>`;
+  $('#log-out').innerHTML = data.entries.length ? data.entries.map((e) => {
+    const when = new Date(e.asked_at).toLocaleString([], {weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'});
+    const first = (e.answers || [])[0] || {};
+    const said = e.error ? `Error: ${e.error}` : first.headline || (first.rows ? `${first.rows.length} rows` : '');
+    const chosen = (e.calls || []).map((c) => TYPE_NAMES[c.type] || c.type).join(', ');
+    const verdict = e.verdict ? ` · marked ${e.verdict}${e.note ? `: “${esc(e.note)}”` : ''}` : '';
+    return `<div class="entry"><p class="meta">${esc(when)} · ${esc(MODE_NAMES[e.mode] || e.mode)}${chosen ? ` · ${esc(chosen)}` : ''}${e.cost_usd != null ? ` · ${money(e.cost_usd)}` : ''}${e.flagged_bet ? ' · bet words' : ''}${verdict}</p>
+      ${e.question ? `<p class="q">${esc(e.question)}</p>` : ''}<p class="a">${esc(said)}</p></div>`;
+  }).join('') : '<p class="empty">No questions yet.</p>';
+}
+
+// -- Tabs ----------------------------------------------------------------------------------------------------------
+document.querySelectorAll('[data-tab]').forEach((tab) => tab.addEventListener('click', () => {
+  document.querySelectorAll('[data-tab]').forEach((t) => t.setAttribute('aria-selected', String(t === tab)));
+  document.querySelectorAll('[role="tabpanel"]').forEach((p) => { p.hidden = p.id !== `tab-${tab.dataset.tab}`; });
+  if (tab.dataset.tab === 'log') drawLog();
+}));
+
+(async () => {
+  refreshStatus();
+  const res = await api('/api/types');
+  if (!res.ok) { $('#choose-out').innerHTML = errorBox(res.data); return; }
+  types = res.data;
+  $('#ctype').innerHTML = Object.keys(types.types).map((k) => `<option value="${k}">${esc(TYPE_NAMES[k] || k)}</option>`).join('');
+  drawFields();
+})();
+</script>
+</body>
+</html>
