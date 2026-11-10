@@ -170,3 +170,14 @@ def test_a_single_count_is_worded_in_the_singular(conn, tmp_path):
         "Bukayo Saka: 1 goal in 4 matches")  # the owner's "Madueke: 1 goals in 7 matches", 10 Nov
     assert ask(conn, "player", player="Saka", stat="shots_on_target", last=1)["headline"].startswith(
         "Bukayo Saka: 2 shots on target in 1 match,")
+
+
+def test_a_team_answer_names_its_team_and_stat_and_whether_it_counts_this_season(conn):
+    """The Research Assistant adds the team's next match from these (D95)."""
+    card = ask(conn, "team_average", team="Brentford", stat="corners", side="for", venue="away")
+    assert card["subject"] == {"team_id": 1, "team": "Brentford", "stat": "corners", "current": True}
+    line = ask(conn, "line_record", team="Brentford", stat="goals", side="match", line=2.5)
+    assert line["subject"] == {"team_id": 1, "team": "Brentford", "stat": "goals", "current": True}
+    assert ask(conn, "team_average", team="Brentford", stat="corners", season=2025)["subject"]["current"] is False
+    assert ask(conn, "team_average", team="Brentford", stat="corners", last=5)["subject"]["current"] is True
+    assert "subject" not in ask(conn, "recent_form", team="Brentford")

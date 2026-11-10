@@ -1,13 +1,15 @@
 """Read the stored schedule without loading outcomes, prices or predictions."""
 
 from datetime import date, datetime, timedelta, timezone
-from typing import Sequence
+from typing import Optional, Sequence
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import aliased
 
 from ..db import retry_database_busy, session_scope
 from ..models import Competition, Fixture, Team
+
+UNPLAYED = ("NS", "TBD")  # not started, or kickoff time still to be set
 
 
 class FixtureScheduleRepository:
@@ -50,3 +52,34 @@ class FixtureScheduleRepository:
             }
             for event_id, league, kickoff, status, home_name, away_name, home_logo, away_logo in rows
         ]
+
+    @retry_database_busy
+    def next_for_team(self, team_id: int, *, leagues: Sequence[str], now: datetime) -> Optional[dict]:
+        """The team's earliest unplayed fixture in ``leagues`` after ``now``, for the Research Assistant (D95);
+        a postponed or cancelled one is skipped. Schedule metadata only, as above."""
+        home, away = aliased(Team), aliased(Team)
+        statement = (
+            select(Fixture.api_football_id, Competition.code, Fixture.kickoff_utc, Fixture.home_team_id,
+                   home.name, away.name)
+            .join(Competition, Competition.id == Fixture.competition_id)
+            .join(home, home.id == Fixture.home_team_id)
+            .join(away, away.id == Fixture.away_team_id)
+            .where(
+                Competition.code.in_(leagues),
+                or_(Fixture.home_team_id == team_id, Fixture.away_team_id == team_id),
+                Fixture.kickoff_utc > now,
+                Fixture.status.in_(UNPLAYED),
+            )
+            .order_by(Fixture.kickoff_utc, Fixture.api_football_id)
+            .limit(1)
+        )
+        with self._factory() as session:
+            row = session.execute(statement).first()
+        if row is None:
+            return None
+        event_id, league, kickoff, home_id, home_name, away_name = row
+        venue = "home" if home_id == team_id else "away"
+        return {"event_id": str(event_id), "league": league, "home_team": home_name, "away_team": away_name,
+                "kickoff": (kickoff.replace(tzinfo=timezone.utc) if kickoff.tzinfo is None
+                            else kickoff.astimezone(timezone.utc)).isoformat(),
+                "venue": venue, "opponent": away_name if venue == "home" else home_name}

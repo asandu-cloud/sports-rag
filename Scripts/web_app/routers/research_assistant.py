@@ -3,9 +3,11 @@
 The model only chooses one of the seven question types (``Scripts/ops/stats_questions``); the code counts the answer on
 the read-only stats file, never platform.db. A free account gets 1 answered question a day and a paid one 50 (owner,
 10 Nov); the whole site stops at 2,000. Every question goes in the owner's log with what it cost, which members never
-see.
+see. A team's corners or goals answer also carries the team's next match from its Match Read (D95), read the way the
+match page reads it.
 """
 import json
+import logging
 import os
 from typing import Any, Dict, Optional
 
@@ -14,7 +16,9 @@ from pydantic import BaseModel, Field, field_validator
 
 from Scripts.ops.stats_questions import log, model, questions, store
 from web_app.auth import TIER_HIERARCHY, get_current_user
+from web_app.routers import match_reads
 
+logger = logging.getLogger("web_app.research_assistant")
 router = APIRouter(prefix="/api/research-assistant", tags=["research-assistant"])
 STATS_PATH = store.DEFAULT_PATH
 LOG_PATH = log.DEFAULT_PATH
@@ -81,6 +85,45 @@ def _data_up_to():
         conn.close()
 
 
+def next_fixture(team_id):
+    """The team's next fixture in a league Spix reads, from the stored schedule."""
+    return match_reads._get_fixture_schedule_repository().next_for_team(
+        team_id, leagues=match_reads.PUBLIC_MATCH_READ_LEAGUES, now=match_reads._utc_now())
+
+
+def next_read(event_id):
+    """The card the match page shows for the fixture and the read's canonical results, or None while the fixture
+    has no Match Read. A read the board withholds (stale, or kicked off) raises, so the answer shows nothing."""
+    from data_platform.services.match_read_cards import build_match_read_card
+    try:
+        _, read, _ = match_reads._actionable_reads(event_id)
+    except HTTPException as exc:
+        if exc.status_code == 404:
+            return None
+        raise
+    return build_match_read_card(read), (read.get("data") or {}).get("canonical_results")
+
+
+def _with_next_match(cards):
+    """Adds ``next_match`` to each team answer that counts this season, in place (D95). No model call; any failure
+    leaves the answer as it was."""
+    from data_platform.config import load_match_read_worker_settings
+    from data_platform.services import next_match
+    for card in cards or []:
+        subject = card.get("subject") if isinstance(card, dict) else None
+        if not isinstance(subject, dict) or not subject.get("current"):
+            continue
+        try:
+            found = next_match.find(subject["team_id"], subject["stat"], next_fixture=next_fixture,
+                                    load_read=next_read, now=match_reads._utc_now(),
+                                    outlook_hours=load_match_read_worker_settings().outlook_hours)
+        except Exception as exc:  # the answer must never fail for its next match
+            logger.warning("Next match skipped for team %s (%s)", subject.get("team_id"), type(exc).__name__)
+            continue
+        if found:
+            card["next_match"] = found
+
+
 @router.get("/status")
 def status(user: Optional[Dict[str, Any]] = Depends(get_current_user)):
     """Whether the tab shows, and for a member how many questions are left today."""
@@ -121,6 +164,7 @@ def ask(body: AskBody, user: Optional[Dict[str, Any]] = Depends(get_current_user
             _refuse(503, "unavailable", UNAVAILABLE)
         finally:
             stats.close()
+        _with_next_match(out["answers"])
         log.record(conn, mode="ask", question=out["question"], calls=out["calls"], answers=out["answers"],
                    model=out["model"], ms=out["ms"], usage=out["usage"], cost_usd=out["cost_usd"],
                    flagged_bet=out["flagged_bet"], user_id=member["id"], plan=kind, source="website")
@@ -160,6 +204,7 @@ def choose(body: ChooseBody, user: Optional[Dict[str, Any]] = Depends(get_curren
             card = questions.answer(stats, body.type, body.params)
         finally:
             stats.close()
+        _with_next_match([card])
         calls = [{"type": body.type, "params": body.params}]
         log.record(conn, mode="choose", calls=calls, answers=[card], user_id=member["id"], plan=plan(member),
                    source="website")
