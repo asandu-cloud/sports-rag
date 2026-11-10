@@ -192,11 +192,6 @@ def run_measurement_cycle(*, dry_run=False, kinds=("closing", "settlement")):
         with data_access():
             return MeasurementCycle().run_once(kinds=kinds)
     except RefreshBusy as exc:
-        report = {"status": "refresh_deferred", "errors": 0, "provider_attempts": 0,
-                  "reason": str(exc)}
-        # Operational heartbeat only; no prediction/result writes while blocked.
-        runtime = MeasurementRuntime()
-        now = datetime.now(timezone.utc)
-        run_id = runtime.start_run(now)
-        runtime.finish_run(run_id, report, now)
-        return report
+        # No writes at all while blocked: the run record it once wrote here took the write lock under the refresh's
+        # fixture updates and failed the refresh (D88). The deferral shows in the job's log.
+        return {"status": "refresh_deferred", "errors": 0, "provider_attempts": 0, "reason": str(exc)}

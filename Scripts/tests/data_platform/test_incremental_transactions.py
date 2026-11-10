@@ -114,3 +114,97 @@ def test_before_the_events_table_exists_the_refresh_skips_events(settings, engin
         result = incremental_refresh(session, client=_client(unexpected), codes=["EPL"], years=[2025],
                                      short_transactions=True)
         assert result["error_count"] == 0 and result["event_rows"] == 0 and result["player_stats_rows"] == 1
+
+
+def _holder(settings):
+    """A second connection to the test file, as another process (the measurement heartbeat, 10 Nov) would be."""
+    import sqlite3
+    return sqlite3.connect(settings.database_url.removeprefix("sqlite:///"), timeout=2.0, isolation_level=None)
+
+
+def test_a_fixture_update_that_meets_another_writer_lets_it_finish_and_retries(settings, engine, session_factory,
+                                                                               monkeypatch):
+    """D88: another process held the write lock as the sync updated a fixture. SQLite refuses at once there, without
+    its busy wait, because the sync's transaction already reads; every later fixture failed the same way."""
+    from data_platform.sync import pipeline
+    from data_platform.models import Fixture
+    with session_factory() as session:
+        pipeline.incremental_refresh(session, client=_client(_events_response), codes=["EPL"], years=[2025],
+                                     short_transactions=True)
+        before = session.scalar(select(Fixture)).last_fetched_at
+    other, waits = _holder(settings), []
+
+    def wait(seconds):
+        waits.append(seconds)
+        other.execute("COMMIT")  # the other writer finishes; it can only once the sync has let go of its read lock
+
+    class Busy:
+        def fixtures(self, **_):
+            other.execute("BEGIN IMMEDIATE")
+            return [_api_fixture_row()]
+    monkeypatch.setattr(pipeline.time, "sleep", wait)
+    try:
+        with session_factory() as session:
+            result = pipeline.incremental_refresh(session, client=Busy(), codes=["EPL"], years=[2025],
+                                                  short_transactions=True)
+        assert result["error_count"] == 0 and result["fixtures_seen"] == 1
+        assert waits == [0.1]
+        with session_factory() as session:
+            assert session.scalar(select(Fixture)).last_fetched_at > before
+    finally:
+        if other.in_transaction:
+            other.execute("ROLLBACK")
+        other.close()
+
+
+def test_a_lock_that_outlasts_the_retries_fails_the_fixture_without_keeping_the_read_lock(settings, engine,
+                                                                                         session_factory, monkeypatch):
+    import pytest
+    from sqlalchemy.exc import OperationalError
+    from data_platform.sync import pipeline
+    from data_platform.models import Competition, Season
+    with session_factory() as session:
+        pipeline.incremental_refresh(session, client=_client(_events_response), codes=["EPL"], years=[2025],
+                                     short_transactions=True)
+    other, waits = _holder(settings), []
+    monkeypatch.setattr(pipeline.time, "sleep", waits.append)
+    try:
+        other.execute("BEGIN IMMEDIATE")
+        with session_factory() as session:
+            competition, season = session.scalar(select(Competition)), session.scalar(select(Season))
+            with pytest.raises(OperationalError, match="database is locked"):
+                pipeline._upsert_fixture(session, api_row=_api_fixture_row(), competition=competition,
+                                         season=season, short_transactions=True)
+            assert waits == pytest.approx([0.1, 0.2, 0.3])
+            assert not session.in_transaction()
+        other.execute("COMMIT")  # at once: no read lock is left behind (it would wait 2 s and fail otherwise)
+    finally:
+        if other.in_transaction:
+            other.execute("ROLLBACK")
+        other.close()
+
+
+def test_without_short_transactions_a_lock_is_not_retried(settings, engine, session_factory, monkeypatch):
+    """Ending the transaction would discard the run's earlier writes, so only the refresh's short transactions retry."""
+    import pytest
+    from sqlalchemy.exc import OperationalError
+    from data_platform.sync import pipeline
+    from data_platform.models import Competition, Season
+    with session_factory() as session:
+        pipeline.incremental_refresh(session, client=_client(_events_response), codes=["EPL"], years=[2025],
+                                     short_transactions=True)
+    other, waits = _holder(settings), []
+    monkeypatch.setattr(pipeline.time, "sleep", waits.append)
+    try:
+        other.execute("BEGIN IMMEDIATE")
+        with session_factory() as session:
+            competition, season = session.scalar(select(Competition)), session.scalar(select(Season))
+            with pytest.raises(OperationalError, match="database is locked"):
+                pipeline._upsert_fixture(session, api_row=_api_fixture_row(), competition=competition,
+                                         season=season, short_transactions=False)
+            assert waits == [] and session.in_transaction()
+            session.rollback()
+    finally:
+        if other.in_transaction:
+            other.execute("ROLLBACK")
+        other.close()
