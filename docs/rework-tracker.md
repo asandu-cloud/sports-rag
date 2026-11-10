@@ -1840,6 +1840,22 @@ owner).** The owner found two faults on the live home page (D87).
   sideways scroll. All 8 JS test files and the 17 web tests pass. Cache tag: hero-run.css at `hero-20261110b`. No
   migration, no `.env` line, no restart.
 
+**D90 — Tall team crests stay inside their boxes (10 Nov; frontend, owner).** The owner saw Tottenham's crest run out
+of its box in the Research Area's Corners per match board.
+- *Cause:* the crest boxes (`.avatar` in the Research Area, `.match-card-emblem` on match cards) are one-cell grids
+  with the image at 100% height. The cell's row was sized from the image, so a crest taller than it is wide stretched
+  the row beyond the box. Tottenham's crest is 82 × 150: drawn at 34 × 55 in a 34 px leader row, 64 × 104 in the
+  64 px team page header, and 28 × 46 on a 28 px match card, where `overflow: hidden` hid the problem by cutting off
+  the crest's lower part. Square and wide crests never stretched it, so only Tottenham showed it.
+- *Fix:* both boxes get `grid-template: minmax(0, 1fr) / minmax(0, 1fr)`, one cell the size of the box, so
+  `object-fit: contain` fits the whole crest in.
+- *Checks:* a browser check of all three places with Tottenham's crest fails on the live site (8000) and passes on
+  this branch (8100), image and box the same size. A sweep of every avatar in Players, Teams and Referees and every
+  emblem on the preview board finds Tottenham as the only mismatch live, and none on this branch; photos, other
+  crests and initials are unchanged. All 8 JS test files and 87 web and research tests pass. Cache tags:
+  style.css at `crest-20261110a` on all five pages, research.js and research.css at `crest-20261110a`. No
+  migration, no `.env` line, no restart.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
