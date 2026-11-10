@@ -1937,6 +1937,39 @@ in `Scripts/ops/stats_questions/`. It is not wired to the website or to any sche
   "invalid" card ("The stat is missing."). The model path could not hit it, because its tools require every value.
   1 new test, 39 in all.
 
+**D93 — The Research Assistant tab on the website (10 Nov; frontend, owner).** Built from D94's owner request and
+the design's "The website tab" section, after mockups on real answers (empty, answers, visitor, limit; desktop,
+phone, dark).
+- *Where:* the top bar (Fixtures · Research Area · Research Assistant · Best Bets) and the phone menu ("Ask about a
+  team, player or referee"), at `/app#assistant`. The tab shows only while `/status` says the assistant is on
+  (`html[data-assistant="on"]`), so it goes away if `SPIX_STATS_QUESTIONS` is turned off.
+- *What it shows:*
+  - one question box (300 characters) with the questions left today;
+  - five example questions that only fill the box, so asking stays the member's own step;
+  - each answer under its question, with "Read as:" in words, never the raw parameters (a picked name shows its
+    label, not its `#id`);
+  - each card's scope, headline, details, table and note (a small-sample note in amber), with "The N matches
+    behind this" closed until opened;
+  - "Which one?" names as buttons that send the pick to `/choose`, and a betting question pointing to Fixtures;
+  - "What it can count" beside it on wide screens and below it on phones, then "Past matches, not predictions",
+    18+ and GamCare at the foot.
+- *Who:* visitors see "Sign in to ask the Research Assistant. Free accounts can ask one question a day." and Log in.
+  At a member's limit the box greys out and says so. At the site's limit it shows the API's own message. A
+  follow-up sends the last question and its calls as `previous`. Answers live in the page only: a reload or a
+  sign-out clears them.
+- *Found while checking:* the examples stayed on screen when a limit turned the box off. They now show only while
+  the box can be typed in.
+- *Checks (8100):* the page's API calls were answered in the browser from real answers, counted from the read-only
+  stats file, so no question reached OpenAI or the log.
+  - The visitor view used the real status call.
+  - States checked: visitor, empty, six answers with a "Which one?" pick, member limit, site limit, phone, dark,
+    the phone menu, switched off. No script errors and no sideways scroll.
+  - New `test_research_assistant_web.js`, on real answers in `Scripts/tests/fixtures/research_assistant_answers.json`.
+    All 9 JS test files and 35 web tests pass.
+  - Cache tags: style.css and app.js at `assistant-20261110a` on all five pages.
+  - No migration, no `.env` line, no restart (static files).
+- *Still open:* the privacy line (open items). Both switches are on, so members see the tab as soon as this is merged.
+
 **D94 — The Research Assistant on the live website (10 Nov; backend, owner).** The owner, after trying the D92
 prototype: "i like it. works well. lets add it as a separate tab to the production website. the one at port 8000.
 name the tab "Research Assistant"". Asked where and who:

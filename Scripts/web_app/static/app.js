@@ -635,6 +635,116 @@ function liveBoardGroups(fixtures) {
   return { inPlay: sorted.filter(f => !FINISHED_CODES.has(f.liveShort)), finished: sorted.filter(f => FINISHED_CODES.has(f.liveShort)) };
 }
 
+// ----- Research Assistant (D93): answers about past numbers from the stats file (stats_answer.v1, D94) -----
+const ASSISTANT_COMPETITIONS = {
+  EPL: 'Premier League', LaLiga: 'La Liga', SerieA: 'Serie A', Bundesliga: 'Bundesliga', Ligue1: 'Ligue 1',
+  UCL: 'Champions League', UEL: 'Europa League', UECL: 'Conference League', Championship: 'Championship',
+  SuperLig: 'Süper Lig', Eredivisie: 'Eredivisie', PrimeiraLiga: 'Primeira Liga', all: 'all competitions',
+};
+const ASSISTANT_STATS = { xg: 'expected goals', fouls_drawn: 'fouls won' };
+const ASSISTANT_EXAMPLES = [
+  'How many corners do Brentford get away from home?', "How often do Brentford's away games go over 9.5 corners?",
+  'How have Spurs been doing lately?', 'How many cards does Anthony Taylor give?', 'Which La Liga team wins the most corners?',
+];
+const ASSISTANT_TROUBLE = 'Spix could not read that question. Please try again.';
+
+// How the question was read, in words: the call's parameters, never shown raw. A name picked from a "Which one?"
+// card arrives as "#id"; `picked` maps each such id to the label the member chose.
+function assistantReadAs(call, picked = {}) {
+  if (!call?.params) return '';
+  const p = call.params;
+  const name = value => (String(value ?? '').startsWith('#') ? picked[value] : value) || null;
+  const stat = p.stat ? ASSISTANT_STATS[p.stat] || String(p.stat).replaceAll('_', ' ') : null;
+  const side = { against: 'against', match: 'in the match' }[p.side];
+  const bits = {
+    team_average: () => [name(p.team), stat && (side ? `${stat} ${side}` : stat)],
+    line_record: () => [name(p.team), stat && `${p.direction || 'over'} ${p.line} ${stat}${side ? ` ${side}` : ''}`],
+    recent_form: () => [name(p.team), 'recent form'],
+    head_to_head: () => [name(p.team) && name(p.opponent) && `${name(p.team)} v ${name(p.opponent)}`, 'past meetings'],
+    referee: () => [name(p.referee), stat, p.team_filter && `with ${name(p.team_filter)}`, p.line != null && `over ${p.line}`],
+    player: () => [name(p.player), stat, p.at_least && `${p.at_least}+ a match`, p.starts_only && 'starts only'],
+    leaders: () => [ASSISTANT_COMPETITIONS[p.competition] || p.competition,
+      { team: 'teams', player: 'players', referee: 'referees' }[p.kind], stat && `${p.order === 'fewest' ? 'fewest' : 'most'} ${stat}`],
+  }[call.type];
+  if (!bits) return '';
+  const words = bits();
+  words.push({ home: 'at home', away: 'away' }[p.venue]);
+  if (call.type !== 'leaders' && p.competition) words.push(ASSISTANT_COMPETITIONS[p.competition] || p.competition);
+  if (Number.isInteger(p.season)) words.push(`${p.season}/${String(p.season + 1).slice(2)}`);
+  if (p.last) words.push(`last ${p.last} matches`);
+  return words.filter(Boolean).join(' · ');
+}
+
+// A pick from a "Which one?" card: the card's own call, unchanged except the picked field.
+function assistantChoice(call, option) {
+  return { type: call.type, params: { ...call.params, [option.field]: option.value } };
+}
+
+// The API words its refusals ({"detail": {"kind", "message"}}); anything else gets one plain line.
+function assistantError(body, status) {
+  if (status === 0) return { kind: 'offline', message: 'Spix could not be reached. Check your connection and try again.' };
+  const detail = body?.detail;
+  if (detail && typeof detail.message === 'string') return { kind: detail.kind || 'error', message: detail.message };
+  return { kind: 'error', message: ASSISTANT_TROUBLE };
+}
+
+function assistantTable(table) {
+  if (!table?.columns?.length) return '';
+  const numeric = value => value === '' || value == null || typeof value === 'number' || /^-?\d+(\.\d+)?%?$/.test(String(value));
+  const right = table.columns.map((_, i) => table.rows.every(row => numeric(row[i])));
+  const cell = (tag, value, i) => `<${tag}${right[i] ? ' class="n"' : ''}>${esc(value ?? '')}</${tag}>`;
+  return `<div class="ra-table-wrap"><table class="ra-table"><thead><tr>${table.columns.map((c, i) => cell('th', c, i)).join('')}</tr></thead>`
+    + `<tbody>${table.rows.map(row => `<tr>${row.map((v, i) => cell('td', v, i)).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+
+// One stats_answer.v1 card. `entry` and `card` say where a "Which one?" card sits, so a pick can find its call.
+function renderAssistantCard(answer, { open = false, entry = 0, card = 0 } = {}) {
+  const quiet = ['declined', 'invalid', 'not_found', 'which'].includes(answer.type);
+  const count = answer.matches?.rows?.length || 0;
+  const more = count ? `<details class="ra-more"${open ? ' open' : ''}><summary>${ICONS.chevron}${count === 1 ? 'The match behind this' : `The ${count} matches behind this`}</summary>${assistantTable(answer.matches)}</details>` : '';
+  const note = answer.note ? `<p class="ra-note${/^Small sample/.test(answer.note) ? ' warn' : ''}">${esc(answer.note)}</p>` : '';
+  const options = answer.type === 'which' && answer.options?.length
+    ? `<div class="ra-options">${answer.options.map((o, i) => `<button type="button" class="ra-chip" data-ra-pick="${entry}:${card}:${i}">${esc(o.label)}</button>`).join('')}</div>` : '';
+  const fixtures = answer.type === 'declined' ? '<button type="button" class="ra-link" data-ra-fixtures>Go to Fixtures</button>' : '';
+  return `<div class="ra-card${quiet ? ' quiet' : ''}">${answer.scope ? `<p class="ra-scope">${esc(answer.scope)}</p>` : ''}`
+    + `<p class="ra-headline">${esc(answer.headline)}</p>${fixtures}`
+    + `${answer.detail?.length ? `<div class="ra-detail">${answer.detail.map(d => `<p>${esc(d)}</p>`).join('')}</div>` : ''}`
+    + `${assistantTable(answer.table)}${note}${options}${more}`
+    + `${answer.data_up_to && !quiet ? `<p class="ra-upto">Data up to ${esc(answer.data_up_to)}</p>` : ''}</div>`;
+}
+
+// A question and its answers. `entry.picked` maps each picked "#id" to its label.
+function renderAssistantResult(entry, index) {
+  const read = (entry.calls || []).map(call => assistantReadAs(call, entry.picked)).filter(Boolean);
+  return `<article class="ra-result"><p class="ra-q">${esc(entry.question)}</p>`
+    + `${read.length ? `<p class="ra-read">Read as: ${esc(read.join('; '))}</p>` : ''}`
+    + (entry.answers || []).map((answer, card) => renderAssistantCard(answer, { entry: index, card })).join('') + '</article>';
+}
+
+// The question box for the API's status: a sign-in prompt for visitors, the box with what is left today for members,
+// and the box switched off at the daily limit. `error` is the API's refusal, if it sent one.
+function renderAssistantAsk(status, error = null, busy = false) {
+  if (!status?.enabled) return '<p class="ra-off">The Research Assistant is not available right now.</p>';
+  if (!status.signed_in) {
+    return '<div class="ra-gate"><p class="ra-gate-lead">Sign in to ask the Research Assistant.</p>'
+      + '<p class="ra-gate-sub">Free accounts can ask one question a day.</p>'
+      + '<button type="button" class="ra-login" data-ra-login>Log in</button></div>';
+  }
+  const limit = Number(status.daily_limit) || 0;
+  const remaining = Math.max(0, Number(status.remaining) || 0);
+  const stopped = error && ['member_limit', 'site_limit'].includes(error.kind);
+  const off = stopped || remaining === 0;
+  const stop = stopped ? error.message
+    : remaining === 0 ? `You have asked ${pluralise(limit, 'question')} today, the most for your account. You can ask again tomorrow.` : '';
+  const search = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+  return `<label class="sr-only" for="raQuestion">Your question</label>`
+    + `<div class="ra-field${off ? ' off' : ''}">${search}<input id="raQuestion" name="question" maxlength="300" autocomplete="off" enterkeyhint="send" placeholder="Ask about a team, player or referee"${off ? ' disabled' : ''}${busy ? ' readonly' : ''}>`
+    + `<button class="ra-send" type="submit"${off || busy ? ' disabled' : ''}>${busy ? 'Reading…' : 'Ask'}</button></div>`
+    + (stop ? `<p class="ra-stop" role="status">${esc(stop)}</p>`
+      : `<div class="ra-help"><span>${remaining} of ${pluralise(limit, 'question')} left today</span><span>Up to 300 characters</span></div>`
+        + (error ? `<p class="ra-error" role="alert">${esc(error.message)}</p>` : ''));
+}
+
 // ----- End of pure render helpers -----
 
 function showToast(msg, type = 'info') {
@@ -814,17 +924,17 @@ const router = {
     auth._updateUI();
     const ready = page === 'app' ? (tab === 'research'
       ? customElements.whenDefined('spix-research').then(() => document.querySelector('spix-research').showRoute(next.researchRoute || 'players'))
-      : appModule.init()) : Promise.resolve();
+      : tab === 'assistant' ? window.spixAssistant.show() : appModule.init()) : Promise.resolve();
     if (tab === 'research') appModule.researchRoute = next.researchRoute || 'players';
     appModule.currentTab = tab;
-    const viewId = { fixtures: 'viewFixtures', 'best-bets': 'viewBestBets', research: 'viewResearch', match: 'viewMatch' }[tab];
+    const viewId = { fixtures: 'viewFixtures', 'best-bets': 'viewBestBets', research: 'viewResearch', assistant: 'viewAssistant', match: 'viewMatch' }[tab];
     document.querySelectorAll('.app-view').forEach(el => el.classList.toggle('hidden', el.id !== viewId));
     document.querySelectorAll('[data-view]').forEach(el => {
       const active = el.dataset.view === tab;
       el.classList.toggle('active', active);
       if (active) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
     });
-    const url = page === 'app' ? '/app' + (tab === 'best-bets' ? '#best-bets' : tab === 'research' ? '#research/' + next.researchRoute : '') : '/';
+    const url = page === 'app' ? '/app' + (tab === 'best-bets' ? '#best-bets' : tab === 'research' ? '#research/' + next.researchRoute : tab === 'assistant' ? '#assistant' : '') : '/';
     if (!restored) history[previous ? 'pushState' : 'replaceState'](next, '', url + (previous ? '' : location.search));
     const view = document.getElementById(page === 'app' ? viewId : 'landingPage');
     ui.enter(view, restored ? -1 : 1);
@@ -933,6 +1043,7 @@ const auth = {
     const onLanding = document.body.dataset.page !== 'app';
     if (loginBtn) loginBtn.classList.toggle('hidden', !onLanding || Boolean(this._user));
     if (badge) badge.classList.toggle('hidden', !onLanding || !this._user);
+    window.spixAssistant?.onAuth(); // D93: the Research Assistant asks again when someone signs in or out
     if (!this._user) return;
     if (avatar) {
       if (this._user.avatar_url) {
@@ -1256,6 +1367,143 @@ const mobileMenu = {
 };
 // Leaving phone width with the menu open would strand a hidden dialog.
 mobileMenu.phone.addEventListener('change', event => { if (!event.matches) mobileMenu.close(); });
+
+// ----- Research Assistant (D93) -----
+// The tab shows only while /api/research-assistant/status says it is on. Answers stay on the page, newest first,
+// until it is reloaded; the last one goes along with the next question, so a follow-up like "and at home?" works.
+const assistant = {
+  status: null,
+  entries: [],
+  previous: null,
+  error: null,
+  busy: false,
+  _signedIn: null,
+  _sequence: 0,
+
+  _headers(json = false) {
+    const headers = json ? { 'Content-Type': 'application/json' } : {};
+    const token = auth.getToken();
+    if (token) headers.Authorization = 'Bearer ' + token;
+    return headers;
+  },
+
+  async _post(path, body) {
+    try {
+      const response = await fetch(`/api/research-assistant/${path}`, { method: 'POST', headers: this._headers(true), body: JSON.stringify(body) });
+      return { response, data: await response.json().catch(() => null) };
+    } catch (e) {
+      return { response: { ok: false, status: 0 }, data: null };
+    }
+  },
+
+  async refresh() {
+    const token = ++this._sequence;
+    this._signedIn = auth.isLoggedIn();
+    let status = { enabled: false };
+    try {
+      const response = await fetch('/api/research-assistant/status', { headers: this._headers() });
+      if (response.ok) status = await response.json();
+    } catch (e) { /* the tab stays hidden */ }
+    if (token !== this._sequence) return;
+    this.status = status;
+    if (!status.signed_in) { this.entries = []; this.previous = null; }
+    document.documentElement.dataset.assistant = status.enabled ? 'on' : 'off';
+    this.render();
+  },
+
+  // Called whenever the page's sign-in state is redrawn: ask again only when it changed.
+  onAuth() {
+    if (this._signedIn !== null && auth.isLoggedIn() !== this._signedIn) this.refresh();
+  },
+
+  show() {
+    this.error = null;
+    this.render();
+    return this.refresh();
+  },
+
+  async ask(question) {
+    question = question.trim();
+    if (!question || this.busy) return;
+    this.busy = true;
+    this.error = null;
+    this.render(question);
+    const { response, data } = await this._post('ask', { question, previous: this.previous });
+    this.busy = false;
+    if (response.ok && data) {
+      this.entries.unshift({ question: data.question, calls: data.calls || [], answers: data.answers || [], picked: {} });
+      this.previous = { question: data.question, calls: data.calls || [] };
+      if (this.status && Number.isFinite(data.remaining)) this.status.remaining = data.remaining;
+      this.render('', data.answers?.[0]?.headline);
+      return;
+    }
+    this.error = assistantError(data, response.status);
+    if (response.status === 401) return this.refresh();
+    this.render(question);
+  },
+
+  async choose(entryIndex, cardIndex, optionIndex) {
+    const entry = this.entries[entryIndex];
+    const option = entry?.answers[cardIndex]?.options?.[optionIndex];
+    const shown = entry?.calls[cardIndex];
+    if (!option || !shown || this.busy) return;
+    this.busy = true;
+    this.error = null;
+    this.render();
+    const { response, data } = await this._post('choose', assistantChoice(shown, option));
+    this.busy = false;
+    if (response.ok && data?.answers?.length) {
+      entry.answers.splice(cardIndex, 1, ...data.answers);
+      entry.calls.splice(cardIndex, 1, ...(data.calls || []));
+      entry.picked = { ...entry.picked, [option.value]: option.label };
+      if (entryIndex === 0) this.previous = { question: entry.question, calls: entry.calls };
+      this.render('', data.answers[0].headline);
+      return;
+    }
+    this.error = assistantError(data, response.status);
+    if (response.status === 401) return this.refresh();
+    this.render();
+  },
+
+  // `draft` is put back in the box; `said` is read out to screen readers once an answer arrives.
+  render(draft = null, said = '') {
+    const form = document.getElementById('assistantForm');
+    if (!form) return;
+    const kept = draft ?? document.getElementById('raQuestion')?.value ?? '';
+    form.innerHTML = renderAssistantAsk(this.status, this.error, this.busy);
+    const input = document.getElementById('raQuestion');
+    if (input) input.value = kept;
+    // Examples only fill the box, so they show only while there is a box to fill (not at a limit).
+    document.getElementById('assistantTry').hidden = !(input && !input.disabled && !this.entries.length);
+    document.getElementById('assistantThread').innerHTML = this.entries.map(renderAssistantResult).join('');
+    document.getElementById('assistantUpto').textContent = this.status?.data_up_to ? `Data up to ${this.status.data_up_to}` : '';
+    if (said) document.getElementById('assistantSaid').textContent = said;
+  },
+
+  bind() {
+    const view = document.getElementById('viewAssistant');
+    document.getElementById('assistantTry').innerHTML = '<span>Try</span>'
+      + ASSISTANT_EXAMPLES.map(q => `<button type="button" class="ra-chip" data-ra-example>${esc(q)}</button>`).join('');
+    view.addEventListener('submit', event => {
+      event.preventDefault();
+      this.ask(document.getElementById('raQuestion')?.value || '');
+    });
+    view.addEventListener('click', event => {
+      const target = event.target.closest('[data-ra-pick], [data-ra-example], [data-ra-fixtures], [data-ra-login]');
+      if (!target) return;
+      if (target.hasAttribute('data-ra-pick')) this.choose(...target.dataset.raPick.split(':').map(Number));
+      else if (target.hasAttribute('data-ra-example')) {
+        // An example fills the box; asking stays the member's own step.
+        const input = document.getElementById('raQuestion');
+        if (input && !input.disabled) { input.value = target.textContent; input.focus(); }
+      } else if (target.hasAttribute('data-ra-fixtures')) app.switchTab('fixtures');
+      else auth.showLoginModal();
+    });
+  },
+};
+window.spixAssistant = assistant;
+assistant.bind();
+assistant.refresh();
 
 document.getElementById('slipStake').addEventListener('input', () => slip._calcPayout());
 slip._render();
@@ -2618,7 +2866,7 @@ const initialPath = window.location.pathname.replace(/\/+$/, '') || '/';
 const initialAnchor = initialPath === '/app' ? '' : location.hash;
 appModule._previewOn(); // D84: remember ?preview= before the first page change drops the query
 router.go(initialPath === '/app' ? 'app' : 'landing',
-  location.hash.startsWith('#research') ? 'research' : location.hash === '#best-bets' ? 'best-bets' : 'fixtures', null,
+  location.hash.startsWith('#research') ? 'research' : location.hash === '#best-bets' ? 'best-bets' : location.hash === '#assistant' ? 'assistant' : 'fixtures', null,
   location.hash.startsWith('#research/') ? location.hash.slice('#research/'.length) : 'players');
 
 if (initialAnchor && document.getElementById(initialAnchor.slice(1))) {

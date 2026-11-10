@@ -1,0 +1,486 @@
+{
+ "note": "Real stats_answer.v1 answers (10 Nov 2026) from the backend question code over the stats file; the calls are the ones the model would choose. For Scripts/tests/test_research_assistant_web.js.",
+ "line_record": {
+  "question": "How often do Brentford's away games go over 9.5 corners?",
+  "calls": [
+   {
+    "type": "line_record",
+    "params": {
+     "team": "Brentford",
+     "stat": "corners",
+     "side": "match",
+     "line": 9.5,
+     "direction": "over",
+     "venue": "away"
+    }
+   }
+  ],
+  "answers": [
+   {
+    "version": "stats_answer.v1",
+    "type": "line_record",
+    "scope": "Brentford away · Premier League 2026/27 · 5 matches",
+    "headline": "Over 9.5 corners in 3 of 5 matches.",
+    "detail": [
+     "Average 7.8.",
+     "Premier League: over 9.5 in 47 of 100 matches."
+    ],
+    "table": null,
+    "matches": {
+     "columns": [
+      "Date",
+      "Opponent",
+      "Venue",
+      "Score",
+      "Corners in the match",
+      "Over 9.5"
+     ],
+     "rows": [
+      [
+       "8 Nov 2026",
+       "Brighton",
+       "A",
+       "0–2",
+       "10",
+       "yes"
+      ],
+      [
+       "25 Oct 2026",
+       "Hull City",
+       "A",
+       "1–1",
+       "11",
+       "yes"
+      ],
+      [
+       "10 Oct 2026",
+       "Aston Villa",
+       "A",
+       "2–2",
+       "4",
+       ""
+      ],
+      [
+       "12 Sep 2026",
+       "Bournemouth",
+       "A",
+       "2–2",
+       "3",
+       ""
+      ],
+      [
+       "30 Aug 2026",
+       "Leeds",
+       "A",
+       "1–1",
+       "11",
+       "yes"
+      ]
+     ]
+    },
+    "note": null,
+    "data_up_to": "Sun 8 Nov 2026"
+   }
+  ]
+ },
+ "team_average": {
+  "question": "How many corners do Brentford get away from home?",
+  "calls": [
+   {
+    "type": "team_average",
+    "params": {
+     "team": "Brentford",
+     "stat": "corners",
+     "side": "for",
+     "venue": "away"
+    }
+   }
+  ],
+  "answers": [
+   {
+    "version": "stats_answer.v1",
+    "type": "team_average",
+    "scope": "Brentford away · Premier League 2026/27 · 5 matches",
+    "headline": "Brentford averaged 3.6 corners won a match away from home.",
+    "detail": [
+     "Premier League average for away sides: 4.5."
+    ],
+    "table": {
+     "columns": [
+      "",
+      "For",
+      "Against",
+      "In the match"
+     ],
+     "rows": [
+      [
+       "Average a match",
+       "3.6",
+       "4.2",
+       "7.8"
+      ]
+     ]
+    },
+    "matches": {
+     "columns": [
+      "Date",
+      "Opponent",
+      "Venue",
+      "Score",
+      "Corners won"
+     ],
+     "rows": [
+      [
+       "8 Nov 2026",
+       "Brighton",
+       "A",
+       "0–2",
+       "3"
+      ],
+      [
+       "25 Oct 2026",
+       "Hull City",
+       "A",
+       "1–1",
+       "6"
+      ],
+      [
+       "10 Oct 2026",
+       "Aston Villa",
+       "A",
+       "2–2",
+       "2"
+      ],
+      [
+       "12 Sep 2026",
+       "Bournemouth",
+       "A",
+       "2–2",
+       "1"
+      ],
+      [
+       "30 Aug 2026",
+       "Leeds",
+       "A",
+       "1–1",
+       "6"
+      ]
+     ]
+    },
+    "note": null,
+    "data_up_to": "Sun 8 Nov 2026"
+   }
+  ]
+ },
+ "leaders": {
+  "question": "Which La Liga team wins the most corners?",
+  "calls": [
+   {
+    "type": "leaders",
+    "params": {
+     "kind": "team",
+     "stat": "corners",
+     "competition": "LaLiga"
+    }
+   }
+  ],
+  "answers": [
+   {
+    "version": "stats_answer.v1",
+    "type": "leaders",
+    "scope": "La Liga 2026/27 · teams",
+    "headline": "Most corners won a match, La Liga 2026/27: Villarreal 7.4, Real Sociedad 6.7, Barcelona 6.5.",
+    "detail": [],
+    "table": {
+     "columns": [
+      "#",
+      "Name",
+      "Corners won a match",
+      "Matches"
+     ],
+     "rows": [
+      [
+       1,
+       "Villarreal",
+       "7.4",
+       12
+      ],
+      [
+       2,
+       "Real Sociedad",
+       "6.7",
+       12
+      ],
+      [
+       3,
+       "Barcelona",
+       "6.5",
+       12
+      ],
+      [
+       4,
+       "Real Madrid",
+       "6.2",
+       12
+      ],
+      [
+       5,
+       "Athletic Club",
+       "5.7",
+       11
+      ]
+     ]
+    },
+    "matches": null,
+    "note": "Teams with at least 3 matches.",
+    "data_up_to": "Sun 8 Nov 2026"
+   }
+  ]
+ },
+ "which": {
+  "question": "How many goals has Silva scored?",
+  "calls": [
+   {
+    "type": "player",
+    "params": {
+     "player": "Silva",
+     "stat": "goals"
+    }
+   }
+  ],
+  "answers": [
+   {
+    "version": "stats_answer.v1",
+    "type": "which",
+    "scope": null,
+    "headline": "Which player do you mean by “Silva”?",
+    "detail": [],
+    "table": null,
+    "matches": null,
+    "note": null,
+    "data_up_to": "Sun 8 Nov 2026",
+    "options": [
+     {
+      "label": "Rui Silva (Sporting CP)",
+      "value": "#8335",
+      "field": "player"
+     },
+     {
+      "label": "Bernardo Silva (Real Madrid)",
+      "value": "#33",
+      "field": "player"
+     },
+     {
+      "label": "António Silva (Bournemouth)",
+      "value": "#2587",
+      "field": "player"
+     },
+     {
+      "label": "Juan Santos da Silva (Göztepe)",
+      "value": "#5707",
+      "field": "player"
+     },
+     {
+      "label": "Gabriel Silva (SC Braga)",
+      "value": "#8191",
+      "field": "player"
+     },
+     {
+      "label": "André Silva (FC Porto)",
+      "value": "#604",
+      "field": "player"
+     }
+    ]
+   }
+  ]
+ },
+ "declined": {
+  "question": "What should I bet on tonight?",
+  "calls": [],
+  "answers": [
+   {
+    "version": "stats_answer.v1",
+    "type": "declined",
+    "scope": null,
+    "headline": "Spix's picks are on the matches page, each with the chance behind it. Here you can ask what has happened, for example how often Brentford's away games went over 9.5 corners.",
+    "detail": [],
+    "table": null,
+    "matches": null,
+    "note": null,
+    "data_up_to": "Sun 8 Nov 2026",
+    "reason": "asks_for_a_bet"
+   }
+  ]
+ },
+ "two_answers": {
+  "question": "Corners for and against Brentford at home and away",
+  "calls": [
+   {
+    "type": "team_average",
+    "params": {
+     "team": "Brentford",
+     "stat": "corners",
+     "side": "for",
+     "venue": "home"
+    }
+   },
+   {
+    "type": "team_average",
+    "params": {
+     "team": "Brentford",
+     "stat": "corners",
+     "side": "against",
+     "venue": "home"
+    }
+   }
+  ],
+  "answers": [
+   {
+    "version": "stats_answer.v1",
+    "type": "team_average",
+    "scope": "Brentford at home · Premier League 2026/27 · 5 matches",
+    "headline": "Brentford averaged 4.2 corners won a match at home.",
+    "detail": [
+     "Premier League average for home sides: 5.0."
+    ],
+    "table": {
+     "columns": [
+      "",
+      "For",
+      "Against",
+      "In the match"
+     ],
+     "rows": [
+      [
+       "Average a match",
+       "4.2",
+       "6.2",
+       "10.4"
+      ]
+     ]
+    },
+    "matches": {
+     "columns": [
+      "Date",
+      "Opponent",
+      "Venue",
+      "Score",
+      "Corners won"
+     ],
+     "rows": [
+      [
+       "31 Oct 2026",
+       "Nottingham Forest",
+       "H",
+       "2–0",
+       "3"
+      ],
+      [
+       "17 Oct 2026",
+       "Liverpool",
+       "H",
+       "1–2",
+       "3"
+      ],
+      [
+       "18 Sep 2026",
+       "Chelsea",
+       "H",
+       "3–0",
+       "4"
+      ],
+      [
+       "5 Sep 2026",
+       "Sunderland",
+       "H",
+       "1–1",
+       "4"
+      ],
+      [
+       "22 Aug 2026",
+       "Tottenham",
+       "H",
+       "3–0",
+       "7"
+      ]
+     ]
+    },
+    "note": null,
+    "data_up_to": "Sun 8 Nov 2026"
+   },
+   {
+    "version": "stats_answer.v1",
+    "type": "team_average",
+    "scope": "Brentford at home · Premier League 2026/27 · 5 matches",
+    "headline": "Brentford averaged 6.2 corners conceded a match at home.",
+    "detail": [
+     "Premier League average for home sides: 4.5."
+    ],
+    "table": {
+     "columns": [
+      "",
+      "For",
+      "Against",
+      "In the match"
+     ],
+     "rows": [
+      [
+       "Average a match",
+       "4.2",
+       "6.2",
+       "10.4"
+      ]
+     ]
+    },
+    "matches": {
+     "columns": [
+      "Date",
+      "Opponent",
+      "Venue",
+      "Score",
+      "Corners conceded"
+     ],
+     "rows": [
+      [
+       "31 Oct 2026",
+       "Nottingham Forest",
+       "H",
+       "2–0",
+       "4"
+      ],
+      [
+       "17 Oct 2026",
+       "Liverpool",
+       "H",
+       "1–2",
+       "9"
+      ],
+      [
+       "18 Sep 2026",
+       "Chelsea",
+       "H",
+       "3–0",
+       "12"
+      ],
+      [
+       "5 Sep 2026",
+       "Sunderland",
+       "H",
+       "1–1",
+       "3"
+      ],
+      [
+       "22 Aug 2026",
+       "Tottenham",
+       "H",
+       "3–0",
+       "3"
+      ]
+     ]
+    },
+    "note": null,
+    "data_up_to": "Sun 8 Nov 2026"
+   }
+  ]
+ }
+}
