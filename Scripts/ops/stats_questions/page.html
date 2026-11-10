@@ -419,7 +419,7 @@ async function drawLog() {
     const said = e.error ? `Error: ${e.error}` : first.headline || (first.rows ? `${first.rows.length} rows` : '');
     const chosen = (e.calls || []).map((c) => TYPE_NAMES[c.type] || c.type).join(', ');
     const verdict = e.verdict ? ` · marked ${e.verdict}${e.note ? `: “${esc(e.note)}”` : ''}` : '';
-    return `<div class="entry"><p class="meta">${esc(when)} · ${esc(MODE_NAMES[e.mode] || e.mode)}${chosen ? ` · ${esc(chosen)}` : ''}${e.cost_usd != null ? ` · ${money(e.cost_usd)}` : ''}${e.flagged_bet ? ' · bet words' : ''}${verdict}</p>
+    return `<div class="entry"><p class="meta">${esc(when)} · ${esc(MODE_NAMES[e.mode] || e.mode)}${e.source === 'website' ? ` · website (${esc(e.plan || 'member')})` : ''}${chosen ? ` · ${esc(chosen)}` : ''}${e.cost_usd != null ? ` · ${money(e.cost_usd)}` : ''}${e.flagged_bet ? ' · bet words' : ''}${verdict}</p>
       ${e.question ? `<p class="q">${esc(e.question)}</p>` : ''}<p class="a">${esc(said)}</p></div>`;
   }).join('') : '<p class="empty">No questions yet.</p>';
 }

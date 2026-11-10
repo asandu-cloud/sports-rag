@@ -37,6 +37,10 @@ PLAYER_STATS = {"goals": "goals", "assists": "assists", "shots": "shots", "shots
                 "yellow_cards": "yellow cards", "red_cards": "red cards", "tackles": "tackles",
                 "interceptions": "interceptions", "passes": "passes", "pass_accuracy": "pass accuracy",
                 "rating": "rating"}
+PLAYER_ONE = {"goals": "goal", "assists": "assist", "shots": "shot", "shots_on_target": "shot on target",
+              "fouls_committed": "foul committed", "fouls_drawn": "foul won", "cards": "card (yellow and red)",
+              "yellow_cards": "yellow card", "red_cards": "red card", "tackles": "tackle",
+              "interceptions": "interception", "passes": "pass"}  # the noun for a total of exactly 1
 AVERAGED = {"rating", "pass_accuracy"}
 REFEREE_STATS = {"cards": "cards (yellow and red)", "yellow_cards": "yellow cards", "red_cards": "red cards",
                  "fouls": "fouls"}
@@ -173,7 +177,7 @@ def _day(iso):
     return f"{d.day} {d:%b %Y}"
 
 
-def _data_up_to(conn):
+def data_up_to(conn):
     row = conn.execute("SELECT value FROM build WHERE key = 'data_up_to'").fetchone()
     if not row or not row[0]:
         return None
@@ -185,7 +189,7 @@ def _card(conn, kind, headline, *, scope=None, detail=(), table=None, matches=No
     if note is None and n is not None and 0 < n < SMALL_SAMPLE:
         note = f"Small sample: only {plural(n, 'match')}."
     return {"version": VERSION, "type": kind, "scope": scope, "headline": headline, "detail": list(detail),
-            "table": table, "matches": matches, "note": note, "data_up_to": _data_up_to(conn), **extra}
+            "table": table, "matches": matches, "note": note, "data_up_to": data_up_to(conn), **extra}
 
 
 # -- names --------------------------------------------------------------------------------------------------------
@@ -439,7 +443,8 @@ def recent_form(conn, p):
     w, d, l = (results.count(x) for x in "WDL")
     headline = (f"{team['name']}'s last {len(rows)}: {plural(w, 'win')}, {plural(d, 'draw')}, "
                 f"{plural(l, 'defeat')}.")
-    detail = [f"Scored {sum(r['goals_for'] or 0 for r in rows)}, conceded {sum(r['goals_against'] or 0 for r in rows)}."]
+    scored, conceded = (sum(r[k] or 0 for r in rows) for k in ("goals_for", "goals_against"))
+    detail = [f"Scored {scored}, conceded {conceded}."]
     if all(r["xg_for"] is not None and r["xg_against"] is not None for r in rows):
         detail.append(f"Expected goals: {sum(r['xg_for'] for r in rows):.1f} for, "
                       f"{sum(r['xg_against'] for r in rows):.1f} against.")
@@ -559,8 +564,9 @@ def player(conn, p):
     else:
         total = sum(values)
         per90 = total * 90 / minutes if minutes else 0
-        headline = (f"{who['name']}: {_num(total)} {noun} in {plural(len(rows), 'match')}, {_fmt(total / len(rows))} "
-                    f"a match ({_fmt(per90)} per 90 minutes).")
+        counted = PLAYER_ONE.get(stat, noun) if total == 1 else noun
+        headline = (f"{who['name']}: {_num(total)} {counted} in {plural(len(rows), 'match')}, "
+                    f"{_fmt(total / len(rows))} a match ({_fmt(per90)} per 90 minutes).")
     matches = {"columns": ["Date", "Opponent", "Minutes", "Started", noun.capitalize()],
                "rows": [[_day(r["kickoff"]), r["opponent"], r["minutes"], "yes" if r["started"] else "",
                          _val(r[stat], stat)] for r in rows]}

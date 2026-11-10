@@ -145,6 +145,20 @@ def test_a_follow_up_sees_the_previous_question_and_its_choices(conn):
     assert sent.endswith("Question: and at home?")
 
 
+def test_a_previous_question_carries_only_known_short_choices_into_the_prompt(conn):
+    previous = {"question": "q" * 5000, "calls": [
+        {"type": "team_average", "params": {"team": "Brentford", "stat": "corners", "pad": "y" * 200_000,
+                                            "venue": {"nested": "x"}, "season": 2025}},
+        {"type": "drop_table", "params": {"team": "x"}},
+        {"type": "decline", "params": {"reason": "asks_for_a_bet", "extra": "z"}},
+        {"type": "player", "params": {"player": "n" * 500, "stat": "goals"}}]}
+    fake = FakeClient([("team_average", strict_args("team_average", team="Brentford", stat="corners"))])
+    model.ask(conn, "and at home?", previous=previous, client=fake, today=TODAY)
+    sent = fake.sent[0]["input"]
+    assert "pad" not in sent and "nested" not in sent and "drop_table" not in sent and "extra" not in sent
+    assert '"season": 2025' in sent and '"reason": "asks_for_a_bet"' in sent and "n" * 500 not in sent
+    assert len(sent) < 1500
+
 def test_long_or_empty_questions_and_a_missing_key_never_reach_the_model(conn, monkeypatch):
     fake = FakeClient()
     for text, kind in (("x" * 301, "too_long"), ("   ", "empty")):
@@ -185,3 +199,24 @@ def test_free_sql_mode_asks_the_model_for_one_query_over_the_stats_file(conn):
     assert out["sql"] == "SELECT name FROM teams LIMIT 1" and out["title"] == "One team"
     assert [t["name"] for t in fake.sent[0]["tools"]] == ["run_sql"]
     assert "CREATE TABLE team_matches" in fake.sent[0]["instructions"] and out["cost_usd"] > 0
+
+
+def test_the_log_counts_each_members_answered_questions_and_keeps_older_logs(tmp_path):
+    path = tmp_path / "log.db"
+    old = sqlite3.connect(path)  # a log from before members (10 Nov), without the member columns
+    old.execute("CREATE TABLE questions (id INTEGER PRIMARY KEY, asked_at TEXT NOT NULL, mode TEXT NOT NULL, "
+                "question TEXT, calls TEXT, answers TEXT, model TEXT, ms INTEGER, usage TEXT, cost_usd REAL, "
+                "error TEXT, flagged_bet INTEGER, verdict TEXT, note TEXT)")
+    old.execute("INSERT INTO questions (asked_at, mode, question) VALUES ('2026-11-10T08:00:00Z', 'ask', 'local')")
+    old.commit(); old.close()
+    db = log.connect(path)
+    now = datetime(2026, 11, 10, 9, tzinfo=timezone.utc)
+    log.record(db, mode="ask", question="a", user_id=7, plan="free", source="website", now=now)
+    log.record(db, mode="ask", question="b", user_id=7, plan="free", source="website", error="unavailable", now=now)
+    log.record(db, mode="ask", question="c", user_id=8, plan="paid", source="website", now=now)
+    log.record(db, mode="choose", user_id=7, source="website", now=now)
+    assert log.asked_today(db, user_id=7, now=now) == 1  # a failed question and a pick do not count against them
+    assert log.asked_today(db, now=now) == 4  # the site's ceiling counts every model question, the old one too
+    entry = log.recent(db)[0]
+    assert (entry["user_id"], entry["plan"], entry["source"]) == (7, None, "website")
+    assert log.recent(db)[-1]["source"] is None

@@ -83,7 +83,7 @@ def _status(app):
         conn = store.connect(app.stats_path)
         try:
             out["stats"] = dict(conn.execute("SELECT key, value FROM build").fetchall())
-            out["stats"]["data_up_to_label"] = questions._data_up_to(conn)
+            out["stats"]["data_up_to_label"] = questions.data_up_to(conn)
         finally:
             conn.close()
     return out

@@ -1,7 +1,8 @@
 """The stats file: flat, pre-joined tables built from platform.db, one short read per season.
 
 Questions only ever open this file, read-only. The build reads the platform database through the Research Area's own
-queries and count rules, so the two never disagree, and swaps the new file in whole.
+queries and count rules, so the two never disagree, and swaps the new file in whole. The platform imports wait for the
+build, so the website can open the file without loading them (D94).
 """
 from __future__ import annotations
 
@@ -12,16 +13,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sqlalchemy import select
-
-from Scripts.data_platform.models import Competition, Fixture, Player, Team
-from Scripts.data_platform.repositories.research import FINISHED, ResearchRepository, comparable_rounds, records
-from Scripts.data_platform.research_stats import normalize_research_row
-from Scripts.data_platform.services.refresh_coordination import data_access
-from Scripts.data_platform.services.research_profiles import add_known, referee_aliases, starter
-from Scripts.ops.odds_archive import ROOT
-
-DEFAULT_PATH = ROOT / "Index" / "stats_questions" / "stats.db"
+DEFAULT_PATH = Path(__file__).resolve().parents[3] / "Index" / "stats_questions" / "stats.db"
 # stats-file name -> research row field. Each team stat is stored for the team and against it (the opponent's).
 TEAM_FIELDS = {"corners": "corners", "shots": "shots_total", "shots_on_target": "shots_on", "xg": "expected_goals",
                "fouls": "fouls_committed", "offsides": "offsides", "saves": "goalkeeper_saves",
@@ -78,6 +70,8 @@ def _slug(raw: str) -> str:
 
 
 def _team_row(row, scope):
+    from Scripts.data_platform.research_stats import normalize_research_row
+    from Scripts.data_platform.services.research_profiles import add_known
     row = normalize_research_row("team", row)
     out = {"fixture_id": row["fixture_id"], "team_id": row["team_id"], "opponent_id": row["opponent_team_id"],
            "is_home": int(bool(row["is_home"])), "competition": scope["code"], "season": scope["year"],
@@ -94,6 +88,8 @@ def _team_row(row, scope):
 
 
 def _player_row(row, scope):
+    from Scripts.data_platform.research_stats import normalize_research_row
+    from Scripts.data_platform.services.research_profiles import add_known, starter
     row = normalize_research_row("player", row)
     out = {"fixture_id": row["fixture_id"], "player_id": row["player_id"], "team_id": row["team_id"],
            "competition": scope["code"], "season": scope["year"], "kickoff": _iso(row["kickoff_utc"]),
@@ -111,9 +107,18 @@ def _insert(conn, table, rows):
                          [tuple(r[c] for c in cols) for r in rows])
 
 
-def build(target: Path = DEFAULT_PATH, *, session_factory=None, gate=data_access, clock=time.perf_counter) -> dict:
+def build(target: Path = DEFAULT_PATH, *, session_factory=None, gate=None, clock=time.perf_counter) -> dict:
     """Write a new stats file beside ``target`` and swap it in. One read per season and table, each in its own
-    session, so no read holds the platform database for long (writers wait at most 2 s, D88)."""
+    session, so no read holds the platform database for long (writers wait at most 2 s, D88). ``gate`` defaults to
+    ``data_access``."""
+    from sqlalchemy import select
+
+    from Scripts.data_platform.models import Competition, Fixture, Player, Team
+    from Scripts.data_platform.repositories.research import (FINISHED, ResearchRepository, comparable_rounds,
+                                                             records)
+    from Scripts.data_platform.services.refresh_coordination import data_access
+    from Scripts.data_platform.services.research_profiles import referee_aliases
+    gate = gate or data_access
     started = clock()
     repo = ResearchRepository(session_factory) if session_factory else ResearchRepository()
     target = Path(target)
