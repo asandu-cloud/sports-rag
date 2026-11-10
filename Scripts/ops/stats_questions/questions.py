@@ -597,16 +597,18 @@ def leaders(conn, p):
     if kind == "team":
         expr = _team_expr(stat, p["side"])
         venue = "" if p["venue"] == "all" else f" AND tm.is_home = {int(p['venue'] == 'home')}"
-        rows = conn.execute(f"SELECT t.name, avg({expr}) AS v, count(*) AS n FROM team_matches tm JOIN teams t ON "
-                            f"t.id = tm.team_id WHERE {expr} IS NOT NULL{scope_where.format(a='tm')}{venue} GROUP BY "
-                            f"tm.team_id HAVING n >= {TEAM_MATCHES} ORDER BY v {desc} LIMIT ?",
+        rows = conn.execute(f"SELECT t.name, t.name AS plain, avg({expr}) AS v, count(*) AS n FROM team_matches tm "
+                            f"JOIN teams t ON t.id = tm.team_id WHERE {expr} IS NOT NULL"
+                            f"{scope_where.format(a='tm')}{venue} GROUP BY tm.team_id HAVING n >= {TEAM_MATCHES} "
+                            f"ORDER BY v {desc} LIMIT ?",
                             [*scope_args, top]).fetchall()
         label = TEAM_STATS[stat][{"for": 1, "against": 2, "match": 3}[p["side"]]] or stat
         unit, count_name, note = " a match", "Matches", f"Teams with at least {TEAM_MATCHES} matches."
     elif kind == "player":
         value = f"avg(pm.{stat})" if stat in AVERAGED else f"sum(pm.{stat}) * 90.0 / sum(pm.minutes)"
-        rows = conn.execute(f"SELECT p.name || coalesce(' (' || t.name || ')', '') AS name, {value} AS v, "
-                            f"sum(pm.minutes) AS n FROM player_matches pm JOIN players p ON p.id = pm.player_id "
+        rows = conn.execute(f"SELECT p.name || coalesce(' (' || t.name || ')', '') AS name, p.name AS plain, "
+                            f"{value} AS v, sum(pm.minutes) AS n FROM player_matches pm JOIN players p ON "
+                            f"p.id = pm.player_id "
                             f"LEFT JOIN teams t ON t.id = p.team_id WHERE pm.{stat} IS NOT NULL"
                             f"{scope_where.format(a='pm')} GROUP BY pm.player_id HAVING n >= {PLAYER_MINUTES} "
                             f"ORDER BY v {desc} LIMIT ?", [*scope_args, top]).fetchall()
@@ -615,10 +617,10 @@ def leaders(conn, p):
         count_name, note = "Minutes", f"Players with at least {PLAYER_MINUTES} minutes."
     else:
         expr = f"(tm.{stat}_for + tm.{stat}_against)"
-        rows = conn.execute(f"SELECT r.name, avg({expr}) AS v, count(*) AS n FROM matches m JOIN team_matches tm ON "
-                            f"tm.fixture_id = m.fixture_id AND tm.is_home = 1 JOIN referees r ON r.referee_key = "
-                            f"m.referee_key WHERE {expr} IS NOT NULL{scope_where.format(a='m')} GROUP BY "
-                            f"m.referee_key HAVING n >= {REFEREE_MATCHES} ORDER BY v {desc} LIMIT ?",
+        rows = conn.execute(f"SELECT r.name, r.name AS plain, avg({expr}) AS v, count(*) AS n FROM matches m "
+                            f"JOIN team_matches tm ON tm.fixture_id = m.fixture_id AND tm.is_home = 1 JOIN referees r "
+                            f"ON r.referee_key = m.referee_key WHERE {expr} IS NOT NULL{scope_where.format(a='m')} "
+                            f"GROUP BY m.referee_key HAVING n >= {REFEREE_MATCHES} ORDER BY v {desc} LIMIT ?",
                             [*scope_args, top]).fetchall()
         label, unit = REFEREE_STATS[stat], " a match"
         count_name, note = "Matches", f"Referees with at least {REFEREE_MATCHES} matches."
@@ -630,7 +632,8 @@ def leaders(conn, p):
                 + ", ".join(f"{name} {v}" for name, v, _ in shown[:3]) + ".")
     table = {"columns": ["#", "Name", (label + unit).capitalize(), count_name],
              "rows": [[i + 1, name, v, n] for i, (name, v, n) in enumerate(shown)]}
-    return _card(conn, "leaders", headline, scope=scope, table=table, note=note)
+    # The names alone, without a player's club, so a follow-up's "he" or "they" can point back (model._previous).
+    return _card(conn, "leaders", headline, scope=scope, table=table, note=note, named=[r["plain"] for r in rows])
 
 
 RUN = {"team_average": team_average, "line_record": line_record, "recent_form": recent_form,

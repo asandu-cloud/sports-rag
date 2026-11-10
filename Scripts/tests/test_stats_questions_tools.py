@@ -145,6 +145,29 @@ def test_a_follow_up_sees_the_previous_question_and_its_choices(conn):
     assert sent.endswith("Question: and at home?")
 
 
+def test_a_follow_up_after_a_leaders_answer_sees_the_names_it_listed(conn):
+    """Owner, 11 Nov: "and how many cards does he give?" after the referee fouls table repeated that table. The model
+    saw no name for "he"; the names are now recounted from the previous choices and sent with them."""
+    previous = {"question": "what referee gives the most cards per match in the premier league",
+                "calls": [{"type": "leaders", "params": {"kind": "referee", "stat": "cards", "competition": "EPL",
+                                                         "order": "most", "top": 1}}]}
+    fake = FakeClient([("referee", strict_args("referee", referee="Anthony Taylor", stat="fouls"))])
+    model.ask(conn, "and how many fouls does he give?", previous=previous, client=fake, today=TODAY)
+    sent = fake.sent[0]
+    assert "Names in its answer, in order: Anthony Taylor." in sent["input"]
+    assert sent["input"].endswith("Question: and how many fouls does he give?")
+    assert '"He", "they"' in sent["instructions"] and "referee type" in sent["instructions"]
+
+
+def test_only_a_leaders_answer_adds_names_and_a_leaders_choice_that_fails_adds_none(conn):
+    previous = {"question": "x", "calls": [
+        {"type": "team_average", "params": {"team": "Brentford", "stat": "corners"}},
+        {"type": "leaders", "params": {"kind": "referee", "stat": "corners", "competition": "EPL"}}]}
+    fake = FakeClient([("team_average", strict_args("team_average", team="Brentford", stat="corners"))])
+    model.ask(conn, "and at home?", previous=previous, client=fake, today=TODAY)
+    assert "Names in its answer" not in fake.sent[0]["input"]  # corners is not a referee stat: an invalid card
+
+
 def test_a_previous_question_carries_only_known_short_choices_into_the_prompt(conn):
     previous = {"question": "q" * 5000, "calls": [
         {"type": "team_average", "params": {"team": "Brentford", "stat": "corners", "pad": "y" * 200_000,

@@ -126,6 +126,21 @@ def test_leaders_rank_teams_with_enough_matches(conn):
     assert fewest["table"]["rows"][0][1] != "Brentford"
 
 
+def test_leaders_name_who_they_list_so_a_follow_up_can_point_back(conn, tmp_path):
+    referees = ask(conn, "leaders", kind="referee", stat="cards", competition="EPL", top=1)
+    assert referees["named"] == ["Anthony Taylor"]
+    teams = ask(conn, "leaders", kind="team", stat="corners", side="for", competition="EPL")
+    assert teams["named"] == [row[1] for row in teams["table"]["rows"]] and teams["named"][0] == "Brentford"
+    db = sqlite3.connect(tmp_path / "stats.db")  # two more full matches put Saka over the 450 minutes
+    for fid in (104, 105):
+        db.execute("INSERT INTO player_matches (fixture_id, player_id, team_id, competition, season, kickoff, "
+                   "started, position, minutes, shots_on_target) VALUES (?, 10, 3, 'EPL', 2026, ?, 1, 'F', 90, 1)",
+                   (fid, (START + timedelta(days=fid)).isoformat()))
+    db.commit(); db.close()
+    players = ask(conn, "leaders", kind="player", stat="shots_on_target", competition="EPL")
+    assert players["table"]["rows"][0][1] == "Bukayo Saka (Arsenal)" and players["named"] == ["Bukayo Saka"]
+
+
 def test_choices_outside_the_fixed_lists_are_refused(conn):
     assert ask(conn, "team_average", team="Brentford", stat="tackles")["type"] == "invalid"
     assert ask(conn, "line_record", team="Brentford", stat="possession", line=50.5)["type"] == "invalid"
