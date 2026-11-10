@@ -68,6 +68,14 @@ on it. The Discord bot still runs the old engine until A7.
   (`hero-20261110a`).
 - **OpenAI out of credit since 5 Nov 18:04.** Match Read briefings use the fixed fallback wording. Picks are not
   affected. Topping up is the owner's call. The briefings cost roughly $5–10 a week at the 3–5 Nov pace.
+  OpenAI shuts down `gpt-4o-mini` on 14 Jan 2027: Whale chat and the Discord slash commands fall back to it when
+  `WHALE_CHAT_MODEL` or `RAG_CHAT_MODEL` is empty (both are set; their values are the owner's to check, D91).
+- **Stats questions prototype (D91 design, D92 build, merged 10 Nov).** A local page where a bettor's question about
+  past numbers is turned by gpt-6-luna into one of seven tested question types, and code counts the answer. The owner
+  also gets read-only free SQL. Separate from the website and the jobs (owner): start it with
+  `python -m Scripts.ops.stats_questions serve` (http://127.0.0.1:8400/). It reads its own stats file
+  (`Index/stats_questions/stats.db`, rebuilt by hand with `build`, gated, outside refresh hours) and needs OpenAI
+  credit for the model step.
 - **No more Chroma updates (D81, owner, 9 Nov).** The daily refresh no longer embeds into Chroma, because nothing
   running reads it; `refresh-season --embed` brings the step back. `Index/chroma` (19 GB) stays until A7.
   Confirmed on the 10 Nov refresh.
