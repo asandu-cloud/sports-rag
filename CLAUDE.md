@@ -61,8 +61,9 @@ on it. The Discord bot still runs the old engine until A7.
   and mint cream text. Cache tags are `night-20261109a` (style.css, theme.js) and `preview-20261109a` (app.js). Open for the owner: the steel
   blue of the Away segment and the "preliminary" label now sits close to the cobalt.
 - **Home page hero live 10 Nov (D87).** The website's home page shows the landing preview's hero animation
-  (Arsenal v Chelsea, labelled Example) in place of the "Illustrative example" card. Files: `hero-run.css`,
-  `hero-run.js`, tags `hero-20261110a`.
+  (Arsenal v Chelsea, labelled Example) in place of the "Illustrative example" card. Since D89 it is light on
+  the light page and dark in the dark theme. Files: `hero-run.css` (tag `hero-20261110b`) and `hero-run.js`
+  (`hero-20261110a`).
 - **OpenAI out of credit since 5 Nov 18:04.** Match Read briefings use the fixed fallback wording. Picks are not
   affected. Topping up is the owner's call. The briefings cost roughly $5–10 a week at the 3–5 Nov pace.
 - **No more Chroma updates (D81, owner, 9 Nov).** The daily refresh no longer embeds into Chroma, because nothing
