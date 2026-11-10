@@ -14,13 +14,16 @@ Two modes share the same primitives:
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional
 
 from sqlalchemy import inspect, select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
+from ..db import database_busy
 from ..models import Fixture, SyncRun
 from .apifootball import ApiFootballClient, COMPETITIONS, CompetitionSpec, iter_competitions
 from .upserts import (
@@ -35,6 +38,8 @@ from .upserts import (
 )
 
 logger = logging.getLogger(__name__)
+LOCK_RETRIES = 3  # a fixture's upsert is tried again this often while another process holds the write lock (D88)
+LOCK_WAIT = 0.1  # seconds, times the retry's number
 
 
 # ---------------------------------------------------------------------------
@@ -270,6 +275,30 @@ def bootstrap_season(
 # ---------------------------------------------------------------------------
 
 
+def _upsert_fixture(session: Session, *, api_row, competition, season, short_transactions: bool):
+    """One fixture's upsert in its own savepoint.
+
+    The savepoint's reads hold SQLite's read lock. When another process holds the write lock, SQLite refuses the
+    update at once instead of waiting, since waiting could deadlock, and the kept read lock stops the other writer
+    from finishing, so every later fixture failed the same way (10 Nov, D88). With short transactions nothing
+    uncommitted is lost by ending the transaction: that releases the read lock, the other writer finishes, and the
+    fixture is tried again after a short wait.
+    """
+    for attempt in range(LOCK_RETRIES + 1):
+        try:
+            with session.begin_nested():
+                result = upsert_fixture_from_api_row(session, api_row=api_row, competition=competition, season=season)
+                session.flush()
+            return result
+        except OperationalError as exc:
+            if not short_transactions or not database_busy(exc):
+                raise
+            session.rollback()
+            if attempt == LOCK_RETRIES:
+                raise
+            time.sleep(LOCK_WAIT * (attempt + 1))
+
+
 def _watermark_from_date(session: Session, *, code: str, year: int, lookback_days: int) -> str:
     scope = f"fixtures:{code}:{year}"
     row = get_watermark(session, scope)
@@ -345,12 +374,9 @@ def incremental_refresh(
 
                 for api_row in fixtures_payload:
                     try:
-                        with session.begin_nested():
-                            fixture, changed = upsert_fixture_from_api_row(
-                                session, api_row=api_row, competition=competition, season=season
-                            )
-                            session.flush()
-                    except Exception as exc:  # pragma: no cover - malformed row
+                        fixture, changed = _upsert_fixture(session, api_row=api_row, competition=competition,
+                                                           season=season, short_transactions=short_transactions)
+                    except Exception as exc:  # a malformed row, or a lock that outlasted the retries
                         stats.errors.append({"stage": "fixture_upsert", "error": str(exc)})
                         continue
                     if not changed:

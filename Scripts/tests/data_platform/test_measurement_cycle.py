@@ -262,7 +262,8 @@ def test_refresh_runs_prospective_settlement_hook_only_after_success(store, monk
     assert len(calls) == 1
 
 
-def test_refresh_blocker_is_visible_and_never_fetches_or_grades(store, monkeypatch):
+def test_refresh_blocker_writes_nothing_and_never_fetches_or_grades(store, monkeypatch):
+    """D88: the run record it once wrote while blocked took the write lock under the refresh's fixture updates."""
     from data_platform.services.measurement_cycle import run_measurement_cycle
     import data_platform.services.refresh_coordination as coordination
     runtime = MeasurementRuntime(store[0]._factory)
@@ -271,10 +272,13 @@ def test_refresh_blocker_is_visible_and_never_fetches_or_grades(store, monkeypat
     def blocked():
         raise coordination.RefreshBusy("Full refresh incomplete; rerun refresh-season")
     monkeypatch.setattr(coordination, "data_access", blocked)
+    with store[0]._factory() as session:
+        runs = session.scalar(select(func.count(SyncRun.id)))
     result = run_measurement_cycle()
     assert result["status"] == "refresh_deferred" and result["provider_attempts"] == 0
-    assert runtime.status()["status"] == "warn"
-    assert "refresh-season" in runtime.status()["recent_runs"][0]["report"]["reason"]
+    assert "refresh-season" in result["reason"]
+    with store[0]._factory() as session:
+        assert session.scalar(select(func.count(SyncRun.id))) == runs
     assert store[0].get_unresolved()[0]["settlement"] is None
 
 

@@ -1772,6 +1772,53 @@ matchday board" button stay as they were.
   reduced motion; no script errors and no sideways scroll. All 8 JS test files and the 17 web tests pass. The 12
   sample rows in the evidence sheet are still for the owner to confirm (D86).
 
+**D88 — The daily refresh no longer fails when the measurement job writes during it (10 Nov, owner; backend).** The
+10 Nov 13:15 refresh failed in `platform_incremental_sync`: 8 fixture updates ("database is locked", `UPDATE fixtures
+SET last_fetched_at`) within 20 ms, none of them waiting. The 14:15 retry passed, and the refresh finished at 15:01,
+so the gate was shut for about 1 h 45 min (no matches that week). The owner approved both fixes: "Yes, both fixes".
+- *Cause:* the prediction-measurement job (every minute) found the refresh holding the gate and still wrote a
+  "refresh_deferred" run record to `sync_runs`. That was a write outside the gate, in the code since 25 Sep. The
+  sync puts each fixture in a savepoint (`session.begin_nested()`). With pysqlite, that starts a transaction whose
+  reads hold SQLite's read lock, so when the update needed the write lock the heartbeat held, SQLite refused at once
+  instead of waiting, because waiting could deadlock. The failed fixture's `continue` kept that read lock, so the
+  heartbeat could not commit, and every remaining fixture of that competition failed the same way until the
+  competition's commit.
+- *Evidence:* `sync_runs`, read inside the gate after the refresh: each burst started 6–80 ms after a heartbeat
+  record:
+  - 10 Nov: record 27735 at 11:15:08.264 UTC; failed updates .344–.365.
+  - 4 Nov: record 23524 at 05:15:28.247; 20 failed updates, .253–.314.
+  - 27 Oct: record 19393 at 05:45:34.828; 20 failed updates, .869–.911.
+
+  On a scratch SQLite file, the same savepoint, read and update fail in 0.001 s while another connection holds the
+  write lock. Without the savepoint they wait and succeed, and a reader alone only makes them wait. Ruled out:
+  - the website and the 8100 staging site, which only read `platform.db`;
+  - the owner dashboard, which opens it read-only and inside the gate;
+  - pick evidence (`read_gate`, reads only);
+  - the Match Read worker, which writes nothing while blocked.
+- *Fix (a), the sync:* `pipeline._upsert_fixture`. On a lock error with short transactions (the daily refresh), it
+  ends the transaction, which releases the read lock so the other writer can finish, waits 0.1, 0.2 or 0.3 s and
+  tries the fixture again, up to 3 times. Nothing uncommitted is lost, since each fixture commits on its own. A
+  lock that outlasts the retries is a fixture error as before, but no read lock is kept. Without short transactions
+  nothing is retried, since ending the transaction would discard the run's earlier writes. `db.database_busy` is
+  the lock check, now shared with `retry_database_busy`.
+- *Fix (b), the measurement job:* no write at all while the refresh holds the gate. The deferral still shows in
+  its log (`prediction-measurement.stdout.log`), as the Match Read worker's does.
+  - What read those records was checked. Its Telegram alerts work from the run's own result, which skips deferred
+    runs and is unchanged. The refresh alerts use their files. The scorecard and the true close read only the
+    control row.
+  - Only `MeasurementRuntime.status()` (the health report and `measurement-status`) sees the change: during a
+    refresh longer than 5 minutes it reports the job as stale rather than deferred. Both give "warn", as before, and
+    no alert reads it.
+- *Not changed:* the detail stages (statistics, players, events), whose failures already re-fetch the match next
+  run; the bootstrap. The 19 and 26 Oct failures were a different kind: a commit that failed after the full 2 s
+  wait, which is what a long read does (23 Oct finding). Their cause is still not established.
+- *Checks:* 3 new tests on a scratch SQLite file (another connection holds the write lock: the sync lets it finish
+  and retries; a lock that outlasts the retries fails the fixture without keeping the read lock; no retry without
+  short transactions). The measurement test now checks that nothing is written while blocked. Full suite 2,940
+  passed, 4 skipped, plus the 3 known worktree errors. The pinned golden check is unchanged across 54 fixtures.
+- *Picks:* unchanged. No schema change, no `.env` line, no restart: the refresh and the measurement job start a
+  fresh Python process each run, and the website does not run this code.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
@@ -2052,8 +2099,11 @@ matchday board" button stay as they were.
   (the Mac's brief dark wakes) and seven "database is locked" fixture updates (43 s of process time in 59 minutes).
   Nothing reran it, so the gate stayed shut (no Match Reads, no measurement, no true close) for 8 h 22 min on 26 Oct (rerun 16:26,
   done 17:15) and 18 h 27 min on 27–28 Oct (rerun 01:02, done 01:44). Neither alert reached Discord
-  (`notification_delivered: False`, no webhook). What held the lock is not established; both failures ran while the
-  Mac slept. Built (`services/refresh_retry.py`, `refresh-season --if-due`): the job fires at a quarter past every
+  (`notification_delivered: False`, no webhook). Both failures ran while the Mac slept. What held the lock was
+  established on 10 Nov (D88) for 27 Oct: the prediction-measurement job's "refresh_deferred" run record, written at
+  05:45:34.828 UTC, 41 ms before the 20 failed fixture updates in that run's report. The 26 Oct failure is a
+  different kind: a commit that failed after the full 2 s wait, which is what a long read does (23 Oct). Its cause
+  is still not established. Built (`services/refresh_retry.py`, `refresh-season --if-due`): the job fires at a quarter past every
   hour; from 07:15 local it runs when no run has started since 07:15 that day or the last full refresh did not
   complete; an hour is skipped, and not counted, when the Mac is on battery with its lid shut or API-Football's host
   does not resolve; at most 6 started runs a day; nothing before 07:15; the gate is unchanged. Installed 28 Oct 01:45

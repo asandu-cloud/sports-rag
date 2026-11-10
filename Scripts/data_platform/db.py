@@ -71,6 +71,12 @@ def session_scope(settings: Optional[Settings] = None) -> Iterator[Session]:
         session.close()
 
 
+def database_busy(exc: OperationalError) -> bool:
+    """True when SQLite refused because another connection holds a lock."""
+    message = str(exc.orig).lower()
+    return any(value in message for value in ("database is locked", "database table is locked", "database is busy"))
+
+
 def retry_database_busy(function):
     """Retry a complete short DB operation, never an API/model call.
 
@@ -83,10 +89,7 @@ def retry_database_busy(function):
             try:
                 return function(*args, **kwargs)
             except OperationalError as exc:
-                message = str(exc.orig).lower()
-                if attempt == 2 or not any(value in message for value in (
-                    "database is locked", "database table is locked", "database is busy",
-                )):
+                if attempt == 2 or not database_busy(exc):
                     raise
                 time.sleep(0.1 * (attempt + 1))
     return wrapped
