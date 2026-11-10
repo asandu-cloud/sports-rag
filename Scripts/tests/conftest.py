@@ -24,6 +24,6 @@ for _name in ("REFRESH_ALERT_TELEGRAM_TOKEN", "REFRESH_ALERT_TELEGRAM_CHAT_ID", 
 # The website's display switches start off too, whatever is live; SPIX_LIVE_STATUS on would let a board test ask
 # API-Football. A test that needs one sets it.
 for _name in ("SPIX_RECOMMENDATIONS", "SPIX_BEFORE_KICKOFF", "SPIX_LIVE_STATUS", "SPIX_PICK_NOTES",
-              "SPIX_PICK_EVIDENCE"):
+              "SPIX_PICK_EVIDENCE", "SPIX_STATS_QUESTIONS", "SPIX_STATS_STORE"):
     os.environ[_name] = ""
 os.environ["SPIX_OPS_ALERT_DIR"] = tempfile.mkdtemp(prefix="spix-ops-alerts-")

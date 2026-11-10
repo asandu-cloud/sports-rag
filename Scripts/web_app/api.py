@@ -159,6 +159,15 @@ try:
 except Exception as _research_exc:
     log.warning("Research router not mounted: %s", _research_exc)
 
+# The Research Assistant (D94) answers only while SPIX_STATS_QUESTIONS is on; off, its status says so and the rest is
+# a 404. It reads the stats file and its own question log, never platform.db.
+try:
+    from web_app.routers.research_assistant import router as research_assistant_router
+    app.include_router(research_assistant_router)
+    log.info("Research Assistant router mounted at /api/research-assistant/*")
+except Exception as _research_assistant_exc:
+    log.warning("Research Assistant router not mounted: %s", _research_assistant_exc)
+
 # The public track-record endpoints use the immutable publication cohort by
 # default.  Mount them in the main website process rather than leaving the
 # standalone module disconnected from the product API.

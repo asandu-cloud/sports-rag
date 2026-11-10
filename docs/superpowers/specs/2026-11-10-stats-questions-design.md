@@ -1,8 +1,9 @@
 # Stats questions: design
 
-Date: 10 Nov 2026. Status: **draft; the owner answered where it goes, the free members' limit and the model
-(10 Nov, end of this file)**. Tracker: D91 (renumbered from D90 at the merge of 10 Nov; the frontend
-took D90 first).
+Date: 10 Nov 2026. Status: **the prototype was built (D92). On 10 Nov the owner asked for it on the live website as
+its own tab, "Research Assistant", for signed-in members: see "The website tab" (D94), which overrides "Where it
+lives" and the phases below.** Tracker: D91 (renumbered from D90 at the merge of 10 Nov; the frontend took D90
+first).
 Branch: `backend`. Nothing is built before the owner approves. An implementation plan follows, one per phase, with
 superpowers:writing-plans.
 
@@ -24,8 +25,8 @@ remove.
 
 ## Where it lives
 
-A fourth tab at the top of the Research Area, next to Players, Teams and Referees (owner, 10 Nov). It is tested
-there first, as its own part of the Research Area.
+~~A fourth tab at the top of the Research Area, next to Players, Teams and Referees (owner, 10 Nov).~~ Replaced the
+same day: its own tab in the website's top bar, "Research Assistant" (see "The website tab").
 
 ## The picture (my guess, for the owner to correct)
 
@@ -273,3 +274,66 @@ straight from Spix's match data."), and 18+ and help lines as everywhere.
    (section 3).
 
 Still open: topping up OpenAI's credit, which is needed from phase 2. Phase 1 needs no model.
+
+## The website tab (owner, 10 Nov; D94)
+
+The owner tried the prototype on 10 Nov: "i like it. works well. lets add it as a separate tab to the production
+website. the one at port 8000. name the tab "Research Assistant"". Asked where and who:
+
+- **Where:** its own tab in the top bar, after the Research Area: Fixtures · Research Area · Research Assistant · Best
+  Bets.
+- **Who:** signed-in members. A free account gets 1 answered question a day, a paid one 50, and the whole site stops
+  at 2,000 (about 40 to 80 cents a day). Visitors see the tab with a sign-in prompt. This skips the owner-only trial
+  of phase 2; the owner's questions on the local page were the trial.
+- **Paid** means a paid tier (starter, pro, elite) with an active or trial subscription. Cancelled or unpaid (past
+  due) counts as free. This is my call, from the site's own fields; the two-tier price (D50) changes nothing here.
+- **A day** runs from midnight UTC (midnight in the UK in winter). A question that fails, is empty or is too long does
+  not use up a member's question. A pick from a "Which one?" card is free too.
+
+### The data the tab reads (backend, `Scripts/web_app/routers/research_assistant.py`)
+
+All three answer only while `SPIX_STATS_QUESTIONS=on`. Errors come as `{"detail": {"kind", "message"}}`, with a
+message fit to show.
+
+- `GET /api/research-assistant/status` (sign-in optional): `{"enabled": false}` while the switch is off, so the tab
+  stays hidden. Otherwise `{"enabled": true, "signed_in", "data_up_to"}`, plus for a member `"plan"` (`free` or
+  `paid`), `"daily_limit"`, `"asked_today"` and `"remaining"`. `data_up_to` is a label such as "Sun 8 Nov 2026", or
+  null when there is no stats file.
+- `POST /api/research-assistant/ask` with `{"question", "previous"}`: `question` up to 300 characters; `previous` is
+  the last answer's `{"question", "calls"}`, for one follow-up ("and at home?"). Returns `{"question", "calls",
+  "answers", "remaining"}`. Each answer is a `stats_answer.v1` card. Errors: 401 `sign_in`, 400 `empty` or
+  `too_long`, 429 `member_limit` or `site_limit`, 503 `unavailable` (no stats file, or the model failed; the reason
+  stays in the owner's log).
+- `POST /api/research-assistant/choose` with `{"type", "params"}`: only a pick from a "Which one?" card, so one value
+  must be the option's `"#id"`. Build it from the answer's call: its `params`, with the option's `field` set to its
+  `value`. Returns `{"calls", "answers"}`. Uses no model and no question. Errors: 401 `sign_in`, 400 `not_a_pick`.
+
+**A card** (`stats_answer.v1`): `type` is one of the seven question types, or `which`, `declined`, `invalid` or
+`not_found`. It has `scope` (what was counted; null on the last four), `headline` (one sentence), `detail` (lines),
+`table` and `matches` (each `{"columns", "rows"}` or null; `matches` are the matches behind the count, shown on
+request), `note` (the small-sample note or a leaders' rule), `data_up_to`, and for `which` an `options` list of
+`{"label", "value", "field"}`. `calls[i]` is what the model chose for `answers[i]`: `{"type", "params"}`, so the tab
+can say how it read the question.
+
+### What the tab shows (frontend; mockups on real answers first)
+
+- A question box (300 characters), a few example questions, and the questions left today.
+- The answer cards as on the local page: scope, headline, detail, the table, the matches on request, the note and
+  "Data up to". "Which one?" cards offer their names as buttons, which call `choose`.
+- How it read the question, in words (for example "Brentford · corners · away · Premier League"), not the raw
+  parameters.
+- Visitors: the tab and a sign-in prompt. At the limit: the API's message.
+- Not on the website: free SQL, the question log, the Right/Wrong verdicts and any cost. They stay on the owner's
+  local page (port 8400), whose log also lists the website's questions.
+- Copy: past counts, never chances; "statistical models", never "AI"; no tipster words; nothing that pushes anyone to
+  ask or bet more; 18+ and the help line, as elsewhere on the site.
+
+### Switches and going live
+
+- `SPIX_STATS_STORE=on`: the daily refresh rebuilds the stats file just before its health check (about 20 s, best
+  effort: a failure is a warning, and the website keeps yesterday's file).
+- `SPIX_STATS_QUESTIONS=on`: the website's Research Assistant. A website restart is needed after the merge and after
+  the switch.
+- **Privacy** (the owner's call on the wording): questions are sent to OpenAI to be read (`store=False`, so OpenAI is
+  asked not to keep them), and the owner's log keeps each question with the member's id. The privacy page should say
+  so before members use it.

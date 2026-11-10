@@ -9,9 +9,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-from Scripts.ops.stats_questions.store import DEFAULT_PATH as STATS_PATH
-
-DEFAULT_PATH = STATS_PATH.with_name("log.db")
+DEFAULT_PATH = Path(__file__).resolve().parents[3] / "Index" / "stats_questions" / "log.db"  # beside stats.db
 MODEL_MODES = ("ask", "sql_ask")  # the modes that call the model, and so count towards the daily ceiling
 VERDICTS = ("right", "wrong")
 JSON_FIELDS = ("calls", "answers", "usage")
@@ -22,6 +20,8 @@ CREATE TABLE IF NOT EXISTS questions (
   model TEXT, ms INTEGER, usage TEXT, cost_usd REAL, error TEXT, flagged_bet INTEGER, verdict TEXT, note TEXT);
 CREATE INDEX IF NOT EXISTS questions_day ON questions (asked_at);
 """
+# Added for the website's members (D94): who asked, on which plan, and from where ("website"; empty on this Mac).
+MEMBER_COLUMNS = {"user_id": "INTEGER", "plan": "TEXT", "source": "TEXT"}
 
 
 def _iso(moment: datetime) -> str:
@@ -34,14 +34,20 @@ def connect(path: Path = DEFAULT_PATH) -> sqlite3.Connection:
     conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    have = {row[1] for row in conn.execute("PRAGMA table_info(questions)")}
+    with conn:
+        for name, kind in MEMBER_COLUMNS.items():
+            if name not in have:
+                conn.execute(f"ALTER TABLE questions ADD COLUMN {name} {kind}")
     return conn
 
 
 def record(conn, *, mode, question=None, calls=None, answers=None, model=None, ms=None, usage=None, cost_usd=None,
-           error=None, flagged_bet=None, now=None) -> int:
+           error=None, flagged_bet=None, user_id=None, plan=None, source=None, now=None) -> int:
     row = {"asked_at": _iso(now or datetime.now(timezone.utc)), "mode": mode, "question": question,
            "calls": calls, "answers": answers, "model": model, "ms": ms, "usage": usage, "cost_usd": cost_usd,
-           "error": error, "flagged_bet": None if flagged_bet is None else int(flagged_bet)}
+           "error": error, "flagged_bet": None if flagged_bet is None else int(flagged_bet), "user_id": user_id,
+           "plan": plan, "source": source}
     for field in JSON_FIELDS:
         row[field] = None if row[field] is None else json.dumps(row[field], ensure_ascii=False)
     with conn:
@@ -69,8 +75,13 @@ def recent(conn, limit: int = 50) -> list[dict]:
     return out
 
 
-def asked_today(conn, *, now=None) -> int:
-    """Model questions since midnight UTC, for the site's daily ceiling."""
+def asked_today(conn, *, user_id=None, now=None) -> int:
+    """Model questions since midnight UTC: every one, for the site's daily ceiling, or one member's answered ones,
+    for their daily limit (a failed question does not use it up)."""
     day = _iso(now or datetime.now(timezone.utc))[:10]
-    return conn.execute(f"SELECT count(*) FROM questions WHERE asked_at >= ? AND mode IN "
-                        f"({', '.join('?' * len(MODEL_MODES))})", (day, *MODEL_MODES)).fetchone()[0]
+    sql = (f"SELECT count(*) FROM questions WHERE asked_at >= ? AND mode IN ({', '.join('?' * len(MODEL_MODES))})")
+    args = [day, *MODEL_MODES]
+    if user_id is not None:
+        sql += " AND user_id = ? AND error IS NULL"
+        args.append(user_id)
+    return conn.execute(sql, args).fetchone()[0]

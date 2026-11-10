@@ -249,6 +249,16 @@ def build_refresh_plan(
             accepted_exit_codes=(0, 1),
         ))
 
+    if os.environ.get("SPIX_STATS_STORE", "").strip().lower() == "on":
+        # The Research Assistant's stats file (D94), rebuilt whole from the refreshed data and swapped in. A failure
+        # is a warning: the website keeps answering from yesterday's file.
+        plan.append(RefreshStage(
+            name="stats_questions_file",
+            description="Best effort: rebuild the Research Assistant's stats file.",
+            command=(py, "-m", "Scripts.ops.stats_questions", "build"),
+            accepted_exit_codes=(0, 1),
+        ))
+
     # A health warning (exit 1) is significant and recorded, but an old
     # watermark outside the selected competition must not disguise a successful
     # refresh.  Exit 2 is a real health error and stops the run.

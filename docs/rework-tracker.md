@@ -126,6 +126,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | Needs the bet builder and the recommendation lists first |
 | Website and Discord link: one-tap sharing of a bet to Discord, Discord posts linking back to the match (D50) | A7, when the bot moves to the new engine | The bot still runs the old engine |
 | Building bets inside Discord; community selections (D50) | After A7 | Owner: for later |
+| The privacy page should say that Research Assistant questions are sent to OpenAI to be read (asked not to keep them, `store=False`) and that Spix keeps each question with the member's id in `Index/stats_questions/log.db` (D94). The owner words it; `privacy.html` is the frontend's | Before `SPIX_STATS_QUESTIONS=on` | The owner's call on public copy |
 | OpenAI shuts down `gpt-4o-mini` on 14 Jan 2027 (its deprecations page, checked 10 Nov; the replacement it names is `gpt-6-luna`). Whale chat and the Discord slash commands default to `gpt-4o-mini`, but first read `WHALE_CHAT_MODEL` and `RAG_CHAT_MODEL` from `.env`. Both are set; their values were not read. If either names `gpt-4o-mini`, those Discord features stop on 14 Jan (D91) | A7, or the owner changes the `.env` lines before 14 Jan 2027 | The bot still runs the old engine |
 | Done 3 Nov: `CLAUDE.md` corrected (saved ML R² ≈ 0 and zero ML weight; `elo_signal_weight` never read) and given a "Start here" section: reading order, current status, the stage rule, safety rules, how to work with the owner, how to run things | Done | Keep its status block current with the tracker |
 | Done 17 Oct 16:28: production reads from the document store (`DOCUMENT_STORE=sqlite` in `.env`). The first 6 reads record `DOCUMENT_STORE: sqlite` and their projections equal the previous Chroma read of the same fixture and stage (7 of 7 markets each). Verification before the switch: every refresh stage completed; same 129,801 documents; all 881 recorded engine queries return the same documents in the same order; 341 documents differ only in a last floating-point digit; engine outputs on the 54 golden fixtures identical from both. Fallback: remove the line | Done | Unblocks the OddsPapi true-close capture (D16 rule 3, A1 step 4) |
@@ -1935,6 +1936,36 @@ in `Scripts/ops/stats_questions/`. It is not wired to the website or to any sche
   command) raised `KeyError` instead of returning a card. A value with no default that cannot be empty now gives an
   "invalid" card ("The stat is missing."). The model path could not hit it, because its tools require every value.
   1 new test, 39 in all.
+
+**D94 — The Research Assistant on the live website (10 Nov; backend, owner).** The owner, after trying the D92
+prototype: "i like it. works well. lets add it as a separate tab to the production website. the one at port 8000.
+name the tab "Research Assistant"". Asked where and who:
+- *Owner's choices:* its own tab in the top bar (Fixtures · Research Area · Research Assistant · Best Bets), not the
+  Research Area's fourth button of D91. Signed-in members only: 1 answered question a day on a free account, 50 on a
+  paid one, and 2,000 for the whole site. This skips D91's owner-only trial; the owner's questions on the local page
+  were the trial. The design's new section, "The website tab", has the data format the frontend builds on.
+- *Backend, built here:*
+  - `Scripts/web_app/routers/research_assistant.py` (`/api/research-assistant/status`, `/ask`, `/choose`), mounted in
+    `api.py` and answering only while `SPIX_STATS_QUESTIONS=on`. Members never see cost or tokens. A failed question
+    says "unavailable", logs the real reason, and does not use up the member's question. `choose` takes only a pick
+    from a "Which one?" card (a `#id`), so it cannot stand in for a question.
+  - "Paid" means a paid tier with an active or trial subscription; cancelled or past due counts as free (my call,
+    from the site's `tier` and `status`).
+  - The log gains `user_id`, `plan` and `source` (added in place to the existing `log.db`). A member's count is their
+    answered questions since midnight UTC. The local page's Log marks website questions.
+  - `SPIX_STATS_STORE=on` adds a best-effort `stats_questions_file` stage to the daily refresh, just before its
+    health check. It runs inside the refresh's own data gate (the inherited lock), so it never waits on it.
+  - The stats file's module now loads the platform code only when it builds, so the website opens the file without
+    it.
+  - Fixed "1 goals in 7 matches", from the owner's Madueke question: a total of 1 now takes the singular.
+- *Found in the owner's log:* the model read both of the owner's questions as meant. It pointed "I want to bet cards
+  on the arsenal chelsea game" to the matches page, and found Noni Madueke from "Madueke". About 2,050 tokens in
+  ($0.00021), then $0.00006 with the instructions cached, so cheaper than D92's estimate.
+- *Frontend, to build:* the tab, from the design's section, with mockups on real answers first.
+- *Before going live:* the privacy line (open items), two `.env` lines (`SPIX_STATS_STORE=on`,
+  `SPIX_STATS_QUESTIONS=on`) and a website restart. All are the owner's.
+- *Checks:* 14 new tests (12 on the website API, 1 on the refresh plan, 1 on the log's member counts) and 1 on the
+  singular wording.
 
 ## Findings that shape later steps
 

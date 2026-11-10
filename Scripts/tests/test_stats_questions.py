@@ -160,3 +160,13 @@ def test_a_choice_missing_its_stat_or_name_is_refused_not_raised(conn):
         card = questions.answer(conn, qtype, params)
         assert card["type"] == "invalid" and "missing" in card["headline"], (qtype, card["headline"])
     assert questions.answer(conn, "team_average", {"team": "Arsenal"})["headline"] == "The stat is missing."
+
+
+def test_a_single_count_is_worded_in_the_singular(conn, tmp_path):
+    db = sqlite3.connect(tmp_path / "stats.db")
+    db.execute("UPDATE player_matches SET goals = CASE fixture_id WHEN 103 THEN 1 ELSE 0 END")
+    db.commit(); db.close()
+    assert ask(conn, "player", player="Saka", stat="goals")["headline"].startswith(
+        "Bukayo Saka: 1 goal in 4 matches")  # the owner's "Madueke: 1 goals in 7 matches", 10 Nov
+    assert ask(conn, "player", player="Saka", stat="shots_on_target", last=1)["headline"].startswith(
+        "Bukayo Saka: 2 shots on target in 1 match,")

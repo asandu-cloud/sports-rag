@@ -209,6 +209,18 @@ def test_embedding_into_chroma_is_opt_in_and_comes_back_whole():
     assert embed.accepted_exit_codes == (0, 1)
 
 
+def test_the_research_assistants_stats_file_is_rebuilt_at_the_end_only_while_its_switch_is_on(monkeypatch):
+    from data_platform.season_refresh import build_refresh_plan, resolve_competitions
+
+    names = [stage.name for stage in build_refresh_plan(season=2026, competitions=resolve_competitions(None))]
+    assert "stats_questions_file" not in names
+    monkeypatch.setenv("SPIX_STATS_STORE", "on")
+    plan = build_refresh_plan(season=2026, competitions=resolve_competitions(None), embed=True)
+    assert [stage.name for stage in plan][-3:] == ["chroma_embed", "stats_questions_file", "platform_health"]
+    stage = plan[-2]
+    assert stage.command[1:] == ("-m", "Scripts.ops.stats_questions", "build")
+    assert stage.accepted_exit_codes == (0, 1)  # best effort: yesterday's file stays if the build fails
+
 def _dry_run_stages(*flags):
     from data_platform.cli import build_parser
     from data_platform.season_refresh import run_refresh_season
