@@ -26,6 +26,12 @@ def site(conn, tmp_path, monkeypatch):
             raise model.ModelError("no_credit", 402, "The OpenAI account has no credit left.")
         if len(question) > 300:
             raise model.ModelError("too_long", 400, "Questions are limited to 300 characters.")
+        if "Gabriel" in question:
+            params = {"player": "Gabriel", "stat": "shots_on_target"}
+            return {"question": question, "calls": [{"type": "player", "params": params}],
+                    "answers": [questions.answer(stats, "player", params)], "model": "gpt-6-luna",
+                    "usage": {"input_tokens": 2050, "cached_tokens": 0, "output_tokens": 40}, "cost_usd": 0.000225,
+                    "ms": 900, "flagged_bet": False}
         return {"question": question, "calls": [{"type": "recent_form", "params": {"team": "Brentford", "last": 3}}],
                 "answers": [questions.answer(stats, "recent_form", {"team": "Brentford", "last": 3})],
                 "model": "gpt-6-luna", "usage": {"input_tokens": 2050, "cached_tokens": 0, "output_tokens": 40},
@@ -107,17 +113,42 @@ def test_the_site_stops_at_its_daily_ceiling(site, monkeypatch):
     assert response.status_code == 429 and response.json()["detail"]["kind"] == "site_limit" and len(site.asked) == 1
 
 
-def test_a_pick_from_a_which_card_runs_without_the_model_and_other_choices_are_refused(site):
-    pick = site.post("/api/research-assistant/choose", json={
-        "type": "player", "params": {"player": "#10", "stat": "shots_on_target"}})
-    assert pick.status_code == 200 and pick.json()["answers"][0]["scope"].startswith("Bukayo Saka")
-    other = site.post("/api/research-assistant/choose", json={
-        "type": "player", "params": {"player": "Saka", "stat": "shots_on_target"}})
-    assert other.status_code == 400 and other.json()["detail"]["kind"] == "not_a_pick"
-    assert site.asked == [] and site.get("/api/research-assistant/status").json()["remaining"] == 1
+def choose(site, kind, params):
+    return site.post("/api/research-assistant/choose", json={"type": kind, "params": params})
+
+
+def test_a_pick_answers_only_a_which_card_the_member_was_shown_today(site):
+    site.who["user"] = PAID
+    card = ask(site, "How often does Gabriel hit the target?").json()["answers"][0]
+    assert card["type"] == "which"
+    option = next(o for o in card["options"] if o["label"].startswith("Gabriel Magalhães"))
+    pick = choose(site, "player", {"player": option["value"], "stat": "shots_on_target"})
+    assert pick.status_code == 200 and pick.json()["answers"][0]["scope"].startswith("Gabriel Magalhães")
+    assert len(site.asked) == 1 and site.get("/api/research-assistant/status").json()["remaining"] == 49
+    refused = [
+        {"player": "#10", "stat": "shots_on_target"},  # a real "#id", but not one the card offered
+        {"player": option["value"], "stat": "goals"},  # the card's name with another question
+        {"player": option["value"], "stat": "shots_on_target", "at_least": 2},
+    ]
+    for params in refused:
+        response = choose(site, "player", params)
+        assert response.status_code == 400 and response.json()["detail"]["kind"] == "not_a_pick", params
+    assert choose(site, "team_average", {"team": "#3", "stat": "corners"}).status_code == 400
+    site.who["user"] = FREE  # another member cannot use this member's card
+    assert choose(site, "player", {"player": option["value"], "stat": "shots_on_target"}).status_code == 400
     site.who["user"] = None
-    assert site.post("/api/research-assistant/choose", json={
-        "type": "player", "params": {"player": "#10", "stat": "goals"}}).status_code == 401
+    assert choose(site, "player", {"player": option["value"], "stat": "shots_on_target"}).status_code == 401
+
+
+def test_a_free_member_cannot_get_answers_from_picks_alone(site):
+    for _ in range(3):  # the orchestrator's check, 10 Nov
+        assert choose(site, "team_average", {"team": "#42", "stat": "corners"}).status_code == 400
+
+
+def test_an_oversized_previous_question_is_refused_before_the_model(site):
+    previous = {"question": "Brentford form", "calls": [{"type": "recent_form", "params": {"pad": "y" * 200_000}}]}
+    response = ask(site, previous=previous)
+    assert response.status_code == 422 and site.asked == []
 
 
 def test_without_a_stats_file_questions_are_unavailable(site, tmp_path, monkeypatch):

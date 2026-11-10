@@ -300,13 +300,15 @@ message fit to show.
   `paid`), `"daily_limit"`, `"asked_today"` and `"remaining"`. `data_up_to` is a label such as "Sun 8 Nov 2026", or
   null when there is no stats file.
 - `POST /api/research-assistant/ask` with `{"question", "previous"}`: `question` up to 300 characters; `previous` is
-  the last answer's `{"question", "calls"}`, for one follow-up ("and at home?"). Returns `{"question", "calls",
+  the last answer's `{"question", "calls"}`, for one follow-up ("and at home?"), refused with 422 over 4,000
+  characters; the model sees only its known choices with short values. Returns `{"question", "calls",
   "answers", "remaining"}`. Each answer is a `stats_answer.v1` card. Errors: 401 `sign_in`, 400 `empty` or
   `too_long`, 429 `member_limit` or `site_limit`, 503 `unavailable` (no stats file, or the model failed; the reason
   stays in the owner's log).
-- `POST /api/research-assistant/choose` with `{"type", "params"}`: only a pick from a "Which one?" card, so one value
-  must be the option's `"#id"`. Build it from the answer's call: its `params`, with the option's `field` set to its
-  `value`. Returns `{"calls", "answers"}`. Uses no model and no question. Errors: 401 `sign_in`, 400 `not_a_pick`.
+- `POST /api/research-assistant/choose` with `{"type", "params"}`: only a pick from a "Which one?" card this member
+  was shown today. Build it from that answer's call: its `params`, unchanged, with the option's `field` set to its
+  `value` (a `"#id"`). Anything else is refused. Returns `{"calls", "answers"}`. Uses no model and no question.
+  Errors: 401 `sign_in`, 400 `not_a_pick`.
 
 **A card** (`stats_answer.v1`): `type` is one of the seven question types, or `which`, `declined`, `invalid` or
 `not_found`. It has `scope` (what was counted; null on the last four), `headline` (one sentence), `detail` (lines),

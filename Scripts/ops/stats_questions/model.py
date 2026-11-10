@@ -19,6 +19,7 @@ from Scripts.ops.stats_questions import questions
 MODEL = "gpt-6-luna"
 PRICES = {"gpt-6-luna": (0.10, 0.01, 0.50)}  # $ per million tokens: in, cached in, out (OpenAI, 10 Nov 2026)
 MAX_CHARS, MAX_SQL_CHARS, MAX_CALLS, MAX_OUTPUT = 300, 1000, 3, 1000
+MAX_VALUE_CHARS, MAX_PREVIOUS_CHARS = 100, 1000  # one follow-up's previous choices
 REASONING = "low"
 NO_CREDIT = {"insufficient_quota", "credit_balance_exhausted"}  # OpenAI's type and code when the credit is spent
 
@@ -151,13 +152,28 @@ def _text(question: str, limit: int) -> str:
     return question
 
 
+def _short(value) -> bool:
+    return isinstance(value, (bool, int, float)) or (isinstance(value, str) and len(value) <= MAX_VALUE_CHARS)
+
+
 def _previous(previous) -> str:
+    """The previous question and its choices, for one follow-up. Only the types' own parameter names with short plain
+    values pass, and the whole is capped, so a crafted "previous" cannot inflate a paid prompt."""
     if not isinstance(previous, dict) or not isinstance(previous.get("question"), str):
         return ""
-    calls = [{"type": c.get("type"), "params": c.get("params") or {}} for c in previous.get("calls") or []
-             if isinstance(c, dict) and (c.get("type") in questions.TYPES or c.get("type") == "decline")]
+    calls, given = [], previous.get("calls") if isinstance(previous.get("calls"), list) else []
+    for call in given[:MAX_CALLS]:
+        kind = call.get("type") if isinstance(call, dict) else None
+        allowed = questions.TYPES[kind]["params"] if kind in questions.TYPES else (
+            DECLINE_TOOL["parameters"]["properties"] if kind == "decline" else None)
+        if allowed is None:
+            continue
+        params = call.get("params") if isinstance(call.get("params"), dict) else {}
+        calls.append({"type": kind, "params": {k: v for k, v in params.items() if k in allowed and _short(v)}})
+    while calls and len(json.dumps(calls, ensure_ascii=False)) > MAX_PREVIOUS_CHARS:
+        calls.pop()
     return (f"Previous question: {' '.join(previous['question'].split())[:MAX_CHARS]}\n"
-            f"Choices made for it: {json.dumps(calls[:MAX_CALLS], ensure_ascii=False)}\n\n")
+            f"Choices made for it: {json.dumps(calls, ensure_ascii=False)}\n\n")
 
 
 def _function_calls(response) -> list:

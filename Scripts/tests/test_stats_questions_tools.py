@@ -145,6 +145,20 @@ def test_a_follow_up_sees_the_previous_question_and_its_choices(conn):
     assert sent.endswith("Question: and at home?")
 
 
+def test_a_previous_question_carries_only_known_short_choices_into_the_prompt(conn):
+    previous = {"question": "q" * 5000, "calls": [
+        {"type": "team_average", "params": {"team": "Brentford", "stat": "corners", "pad": "y" * 200_000,
+                                            "venue": {"nested": "x"}, "season": 2025}},
+        {"type": "drop_table", "params": {"team": "x"}},
+        {"type": "decline", "params": {"reason": "asks_for_a_bet", "extra": "z"}},
+        {"type": "player", "params": {"player": "n" * 500, "stat": "goals"}}]}
+    fake = FakeClient([("team_average", strict_args("team_average", team="Brentford", stat="corners"))])
+    model.ask(conn, "and at home?", previous=previous, client=fake, today=TODAY)
+    sent = fake.sent[0]["input"]
+    assert "pad" not in sent and "nested" not in sent and "drop_table" not in sent and "extra" not in sent
+    assert '"season": 2025' in sent and '"reason": "asks_for_a_bet"' in sent and "n" * 500 not in sent
+    assert len(sent) < 1500
+
 def test_long_or_empty_questions_and_a_missing_key_never_reach_the_model(conn, monkeypatch):
     fake = FakeClient()
     for text, kind in (("x" * 301, "too_long"), ("   ", "empty")):

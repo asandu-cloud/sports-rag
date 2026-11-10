@@ -5,11 +5,12 @@ the read-only stats file, never platform.db. A free account gets 1 answered ques
 10 Nov); the whole site stops at 2,000. Every question goes in the owner's log with what it cost, which members never
 see.
 """
+import json
 import os
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from Scripts.ops.stats_questions import log, model, questions, store
 from web_app.auth import TIER_HIERARCHY, get_current_user
@@ -21,12 +22,20 @@ SITE_DAILY_LIMIT = 2000
 DAILY_LIMITS = {"free": 1, "paid": 50}
 PAID_STATUSES = {"active", "trial"}
 UNAVAILABLE = "The Research Assistant is unavailable right now. Please try again later."
+MAX_PREVIOUS_JSON = 4000  # the model step keeps far less (model.MAX_PREVIOUS_CHARS); this refuses the absurd early
 ask_model = model.ask
 
 
 class AskBody(BaseModel):
     question: str = Field(max_length=2000)
     previous: Optional[Dict[str, Any]] = None
+
+    @field_validator("previous")
+    @classmethod
+    def _small(cls, value):
+        if value is not None and len(json.dumps(value, default=str)) > MAX_PREVIOUS_JSON:
+            raise ValueError("previous is too large")
+        return value
 
 
 class ChooseBody(BaseModel):
@@ -121,20 +130,37 @@ def ask(body: AskBody, user: Optional[Dict[str, Any]] = Depends(get_current_user
     return {"question": out["question"], "calls": out["calls"], "answers": out["answers"], "remaining": remaining}
 
 
+def _offered(entries, kind, params) -> bool:
+    """Whether one of today's "Which one?" cards offered exactly this pick: the same question type and choices, with
+    the card's field set to one of its options."""
+    for entry in entries:
+        for call, card in zip(entry.get("calls") or [], entry.get("answers") or []):
+            if card.get("type") != "which" or call.get("type") != kind:
+                continue
+            for option in card.get("options") or []:
+                field = option.get("field")
+                rest = {k: v for k, v in params.items() if k != field}
+                if params.get(field) == option.get("value") and rest == {
+                        k: v for k, v in (call.get("params") or {}).items() if k != field}:
+                    return True
+    return False
+
+
 @router.post("/choose")
 def choose(body: ChooseBody, user: Optional[Dict[str, Any]] = Depends(get_current_user)):
-    """A pick from a "Which one?" card (a name given as "#id"). No model, and it does not use up a question."""
+    """A pick from a "Which one?" card this member was shown today. No model, and it does not use up a question;
+    anything else is refused, so picks cannot stand in for questions (the orchestrator's check, 10 Nov)."""
     member = _member(user)
-    if not any(isinstance(v, str) and v.startswith("#") for v in body.params.values()):
-        _refuse(400, "not_a_pick", "Pick one of the names on the card.")
-    stats = _stats()
-    try:
-        card = questions.answer(stats, body.type, body.params)
-    finally:
-        stats.close()
-    calls = [{"type": body.type, "params": body.params}]
     conn = log.connect(LOG_PATH)
     try:
+        if not _offered(log.shown_today(conn, user_id=member["id"]), body.type, body.params):
+            _refuse(400, "not_a_pick", "Pick one of the names on the card.")
+        stats = _stats()
+        try:
+            card = questions.answer(stats, body.type, body.params)
+        finally:
+            stats.close()
+        calls = [{"type": body.type, "params": body.params}]
         log.record(conn, mode="choose", calls=calls, answers=[card], user_id=member["id"], plan=plan(member),
                    source="website")
     finally:

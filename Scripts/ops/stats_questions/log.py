@@ -75,6 +75,19 @@ def recent(conn, limit: int = 50) -> list[dict]:
     return out
 
 
+def shown_today(conn, *, user_id, now=None) -> list[dict]:
+    """One member's entries since midnight UTC, newest first: what they were shown today."""
+    day = _iso(now or datetime.now(timezone.utc))[:10]
+    out = []
+    for row in conn.execute("SELECT * FROM questions WHERE asked_at >= ? AND user_id = ? ORDER BY id DESC",
+                            (day, user_id)):
+        entry = dict(row)
+        for field in JSON_FIELDS:
+            entry[field] = None if entry[field] is None else json.loads(entry[field])
+        out.append(entry)
+    return out
+
+
 def asked_today(conn, *, user_id=None, now=None) -> int:
     """Model questions since midnight UTC: every one, for the site's daily ceiling, or one member's answered ones,
     for their daily limit (a failed question does not use it up)."""

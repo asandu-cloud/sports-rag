@@ -1966,6 +1966,17 @@ name the tab "Research Assistant"". Asked where and who:
   `SPIX_STATS_QUESTIONS=on`) and a website restart. All are the owner's.
 - *Checks:* 14 new tests (12 on the website API, 1 on the refresh plan, 1 on the log's member counts) and 1 on the
   singular wording.
+- *Held at review (orchestrator, 10 Nov), fixed the same evening:*
+  - `/choose` took any `"#id"`, so a free account could get unlimited answers by calling it directly. It now
+    answers only a pick from a "Which one?" card this member was shown today (`log.shown_today`): the same type and
+    choices, with the card's field set to one of its options.
+  - `previous` had no size limit (a crafted one put 200,093 characters into the prompt). The API now refuses one
+    over 4,000 characters of JSON (422). The model step keeps only the types' own parameter names with plain values
+    up to 100 characters, and caps the choices at 1,000 characters.
+  - Left as is: the member limit is checked before the call and recorded after, so parallel requests could go a few
+    over.
+  - The orchestrator found both switches already on in `.env` (saved 19:45), so the merge needs the owner's yes.
+  - 4 new tests.
 
 ## Findings that shape later steps
 
