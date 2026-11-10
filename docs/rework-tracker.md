@@ -126,6 +126,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | Needs the bet builder and the recommendation lists first |
 | Website and Discord link: one-tap sharing of a bet to Discord, Discord posts linking back to the match (D50) | A7, when the bot moves to the new engine | The bot still runs the old engine |
 | Building bets inside Discord; community selections (D50) | After A7 | Owner: for later |
+| OpenAI shuts down `gpt-4o-mini` on 14 Jan 2027 (its deprecations page, checked 10 Nov; the replacement it names is `gpt-6-luna`). Whale chat and the Discord slash commands default to `gpt-4o-mini`, but first read `WHALE_CHAT_MODEL` and `RAG_CHAT_MODEL` from `.env`. Both are set; their values were not read. If either names `gpt-4o-mini`, those Discord features stop on 14 Jan (D90) | A7, or the owner changes the `.env` lines before 14 Jan 2027 | The bot still runs the old engine |
 | Done 3 Nov: `CLAUDE.md` corrected (saved ML R² ≈ 0 and zero ML weight; `elo_signal_weight` never read) and given a "Start here" section: reading order, current status, the stage rule, safety rules, how to work with the owner, how to run things | Done | Keep its status block current with the tracker |
 | Done 17 Oct 16:28: production reads from the document store (`DOCUMENT_STORE=sqlite` in `.env`). The first 6 reads record `DOCUMENT_STORE: sqlite` and their projections equal the previous Chroma read of the same fixture and stage (7 of 7 markets each). Verification before the switch: every refresh stage completed; same 129,801 documents; all 881 recorded engine queries return the same documents in the same order; 341 documents differ only in a last floating-point digit; engine outputs on the 54 golden fixtures identical from both. Fallback: remove the line | Done | Unblocks the OddsPapi true-close capture (D16 rule 3, A1 step 4) |
 | WAL mode for `platform.db` (`PRAGMA journal_mode=WAL`, so readers stop waiting on writers; the cause of the 29 Oct busy evening, see Findings). First check how the daily refresh replaces, copies or backs up the file (WAL keeps recent writes in a `-wal` file beside it), and the 23 Oct refresh failure (rollback journal, 2 s timeout) | After the 2 Nov scorecard (owner, 29 Oct) | Changes how every job writes the 9.5 GB database; not before the scorecard |
@@ -1855,10 +1856,12 @@ SQL, a question box could answer with a query instead of an embedding search. De
   - Phases: the stats file and the question types (no model), then the owner's trial, then bettors.
   - Two switches, off by default: `SPIX_STATS_STORE` and `SPIX_STATS_QUESTIONS`. No change to `platform.db`, no
     migration, no pick changes.
-- *Open with the owner:*
-  - where the box goes first (the match page is recommended);
-  - which language model (OpenAI has had no credit since 5 Nov);
-  - who gets it, and the daily cap.
+- *The owner's answers (10 Nov):*
+  - It is tested first as a fourth tab at the top of the Research Area, not on the match page.
+  - Free members get one question a day. Paid members get 50, which is my default, and the site stops at 2,000 a day.
+  - The model is the cheapest GPT model that is enough: `gpt-6-luna` ($0.10 in and $0.50 out per million tokens,
+    about $0.0004 a question; OpenAI's pages, 10 Nov). `gpt-5-nano` is cheaper, but it shuts down on 11 Dec 2026.
+  - Still open: OpenAI credit, needed from phase 2.
 
 ## Findings that shape later steps
 

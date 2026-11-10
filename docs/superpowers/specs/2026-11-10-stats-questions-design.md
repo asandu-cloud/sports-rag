@@ -1,6 +1,7 @@
 # Stats questions: design
 
-Date: 10 Nov 2026. Status: **draft sketch, three questions open with the owner** (end of this file). Tracker: D90.
+Date: 10 Nov 2026. Status: **draft; the owner answered where it goes, the free members' limit and the model
+(10 Nov, end of this file)**. Tracker: D90.
 Branch: `backend`. Nothing is built before the owner approves. An implementation plan follows, one per phase, with
 superpowers:writing-plans.
 
@@ -20,10 +21,16 @@ detail on request". Today the Research Area shows fixed profiles. A bettor with 
 Brentford's away games go over 9.5 corners?") has to work it out from tables, which is the homework Spix exists to
 remove.
 
+## Where it lives
+
+A fourth tab at the top of the Research Area, next to Players, Teams and Referees (owner, 10 Nov). It is tested
+there first, as its own part of the Research Area.
+
 ## The picture (my guess, for the owner to correct)
 
-Sunday, the match page for Brentford v Spurs. The bettor likes Over 9.5 corners but wants to check first. They type
-"how often do brentford away games go over 9.5 corners". About two seconds later the page shows:
+Sunday. The bettor is looking at Brentford v Spurs and likes Over 9.5 corners but wants to check first. They open
+the Research Area's question tab and type "how often do brentford away games go over 9.5 corners". About two
+seconds later the tab shows:
 
 > **Brentford away, Premier League 2026/27, 6 matches**
 > Over 9.5 corners in 4 of 6. Average 10.3 corners a match; the league's average is 9.8.
@@ -114,16 +121,32 @@ The model reads the question and picks one to three question types with their pa
 then checks each parameter against its fixed list or a real id, runs the query and builds the answer. The model
 writes no numbers at all.
 
-- **On a match page**, the model is told the match: both teams, the referee, the competition. "Home", "away", "this
-  ref" and "their striker" then resolve without guessing.
+- **No match is given**, because the tab sits in the Research Area. When the question names no competition or
+  season, a team's question counts its domestic league this season, a player's counts their club's league this season,
+  and a referee's counts every competition this season. The scope line says which, and the bettor can ask again
+  with another.
 - **Names** go through the existing Research search (teams, players, referees with their aliases). If a name matches
   more than one, the card asks which one.
 - **One follow-up.** The last question's choices are kept, so "and at home?" works.
 - **Questions it cannot answer** get one line on what it can answer.
-- **"What should I bet?"** points to the match's own recommendations, using Whale chat's existing betting-request
+- **"What should I bet?"** points to Spix's recommendations on the matches page, using Whale chat's existing betting-request
   check (`whale_chat_policy.py`) as the starting point.
 - **Prompt tricks do little harm.** Whatever the question says, the model can only ask for the allowed queries
   with checked parameters. Questions are limited to 300 characters.
+
+**The model: `gpt-6-luna`** (owner asked for the cheapest GPT model that is enough, 10 Nov). From OpenAI's pages on
+10 Nov:
+- It is OpenAI's own pick for "focused, high-volume tasks", supports function calling, and lets the builder turn
+  reasoning off or low.
+- Price per million tokens: $0.10 in ($0.01 when the repeated instructions are cached) and $0.50 out.
+- Only `gpt-5-nano` is cheaper ($0.05 and $0.40), and OpenAI shuts it down on 11 Dec 2026. `gpt-4o-mini`, which
+  Whale chat's code defaults to, shuts down on 14 Jan 2027; its named replacement is `gpt-6-luna`. No shutdown is
+  listed for `gpt-6-luna`.
+- Estimated cost: about 2,000 tokens in (instructions and the seven question types) and up to 300 out per question,
+  so about $0.0004 a question, or about 40 cents per 1,000. The trial measures the real figure.
+- If it falls short of 9 in 10 in the trial, the next step up is `gpt-6.1-terra` ($1 and $5, about ten times the
+  cost, still well under a cent a question).
+- It needs OpenAI credit, which has been empty since 5 Nov. Topping up is the owner's call.
 
 ### 4. The answer card
 
@@ -153,7 +176,15 @@ Questions that need free SQL more than once become new fixed question types.
 
 - **A log of every question** in its own small file, `Index/stats_questions.db`, never in `platform.db`. Each entry
   records the question, the types and parameters chosen, the answer, the model, the time taken and the cost.
-- **A daily cap per member** keeps the cost bounded (number to be set by the owner).
+- **Daily limits:**
+  - free members get one question a day (owner, 10 Nov);
+  - paid members get 50 a day (my default, a cost guard rather than a product limit; the owner can change it);
+  - the whole site stops at 2,000 questions a day (my call, a ceiling on the bill, about 80 cents a day at the
+    estimate above).
+
+  The free and paid split works once the two tiers are in the code (an open item before launch). Until then only
+  the owner uses it.
+- **Questions need an account**, free or paid, so the limits can be counted.
 - **The owner reviews a sample** of the log in the trial: right type, right names, right scope.
 
 ### 7. Switches and the stage rule
@@ -167,16 +198,19 @@ stays unchanged.
 1. **The stats file and the question types**, backend only, no language model. The seven types as plain functions
    with tests. Their numbers are checked against the Research Area for the same team, player or referee. Nothing
    visible changes.
-2. **The owner's trial**, in the owner dashboard: the question box with the model choosing, plus free SQL. One to
-   two weeks of the owner's own questions. It passes at 9 in 10 understood and no wrong numbers.
-3. **Bettors**: an endpoint on the website behind `SPIX_STATS_QUESTIONS`. The frontend builds the box, with mockups
-   on real matches first (the UI rules).
+2. **The owner's trial, in the Research Area's new tab.** The backend adds the endpoint behind
+   `SPIX_STATS_QUESTIONS`. The frontend builds the tab, with mockups on real answers first (the UI rules). During
+   the trial the tab shows only through a preview link (as `?preview=evidence` did, D84), and the endpoint answers
+   only the owner. Free SQL sits in the owner dashboard (local, port 8300). The trial runs for one to two weeks of
+   the owner's own questions, and it passes at 9 in 10 understood with no wrong numbers.
+3. **Bettors**: the tab is shown to everyone signed in, with the daily limits.
 4. **Later, if wanted**: free SQL for bettors, if phase 2 shows it is accurate; price history from
    `football_data.sqlite3`; Whale chat on the same types at A7.
 
 ## Identity check (section 9)
 
-1. **Easier Sunday:** yes. The answer to a homework question comes in one line, on the page they are already on.
+1. **Easier Sunday:** yes. The answer to a homework question comes in one line, next to the profiles they would
+   otherwise read through.
 2. **Still their bet:** yes. It gives facts, not picks.
 3. **No betting maths:** yes. It speaks in counts and averages, with no probabilities and no fair prices.
 4. **Honest:** yes. The numbers come straight from the data, every card says what it counted, small samples are
@@ -184,8 +218,8 @@ stays unchanged.
 5. **Pushes to bet more:** no. It answers only what was asked, never suggests a bet, and never invites another
    question.
 
-Public copy follows the rules: no "AI" (for example "Ask about this match. Answers come straight from Spix's match
-data."), and 18+ and help lines as everywhere.
+Public copy follows the rules: no "AI" (for example "Ask a question about any team, player or referee. Answers come
+straight from Spix's match data."), and 18+ and help lines as everywhere.
 
 ## What it reuses
 
@@ -199,9 +233,11 @@ data."), and 18+ and help lines as everywhere.
 
 - A separate stats file, built inside the refresh, never questions on `platform.db`.
 - The model chooses, the code counts. Numbers never come from the model.
-- Free SQL for the owner only at first.
-- The owner's trial comes before bettors see anything.
-- Leagues default to the match's own competition. Other competitions are counted only when the question asks.
+- Free SQL for the owner only at first, in the owner dashboard.
+- The owner's trial comes before bettors see anything, behind a preview link.
+- The default scope when a question names none: the team's or player's domestic league this season, and every
+  competition for a referee.
+- Paid members get 50 questions a day, and the site stops at 2,000 a day.
 - Cards are counted as in the Research Area: a red is one card. Spix's cards picks settle with a red as two
   (`yellow_1_red_2_max_3_per_player`, D54), so a "cards" answer here can differ by one from a cards pick's
   settlement when a red was shown. The card says "yellow and red cards".
@@ -215,13 +251,14 @@ data."), and 18+ and help lines as everywhere.
 - Indexes in `stats.db`.
 - How long questions stay in the log.
 - How a name with several matches is shown.
+- How the endpoint knows the owner during the trial.
 
-## Questions for the owner
+## The owner's answers (10 Nov)
 
-1. **Where does the box go first:** on each match page, answering about that match, or in the Research Area, for
-   any team, player or referee? Recommendation: the match page. That is where the Sunday bettor is when the
-   question comes up, and knowing the match makes names easy to read.
-2. **Which language model:** top up OpenAI (Whale chat's code already calls it, and it has had no credit since
-   5 Nov), or move to Claude (a new key)? Phase 1 needs neither.
-3. **Who gets it:** paid members only, or a few questions a day for free members too? And how many a day for paid
-   members?
+1. **Where:** "i would first test it as a separate part of research area, so a 4th thing to press on at the top
+   essentially". I had suggested the match page; the Research Area it is.
+2. **Free members:** "lets do one question a day for a free member".
+3. **Model:** the owner asked which is "the cheapest gpt model that would be enough". The answer is `gpt-6-luna`
+   (section 3).
+
+Still open: topping up OpenAI's credit, which is needed from phase 2. Phase 1 needs no model.
