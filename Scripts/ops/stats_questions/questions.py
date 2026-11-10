@@ -656,3 +656,20 @@ def answer(conn, kind: str, params: dict) -> dict:
         options = [{"label": r["name"] + (f" ({r['club']})" if r.get("club") else ""), "value": f"#{r['id']}",
                     "field": exc.field} for r in exc.rows]
         return _card(conn, "which", f"Which {exc.kind} do you mean by “{exc.query}”?", options=options)
+
+
+# -- questions the types cannot answer ----------------------------------------------------------------------------
+
+CAN_ANSWER = ("a team's averages, how often its matches went over a line, recent form, head to head, a referee's "
+              "cards, a player's numbers and league leaders, from 2019/20 on")
+DECLINE = {
+    "asks_for_a_bet": "Spix's picks are on the matches page, each with the chance behind it. Here you can ask what "
+                      "has happened, for example how often Brentford's away games went over 9.5 corners.",
+    "not_football_stats": f"This tab answers questions about past football numbers: {CAN_ANSWER}.",
+    "not_covered": f"Spix can't count that yet. It can count {CAN_ANSWER}.",
+}
+
+
+def declined(conn, reason: str) -> dict:
+    reason = reason if reason in DECLINE else "not_covered"
+    return _card(conn, "declined", DECLINE[reason], reason=reason)

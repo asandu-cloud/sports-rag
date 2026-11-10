@@ -1901,8 +1901,35 @@ in `Scripts/ops/stats_questions/`. It is not wired to the website or to any sche
   - Anthony Taylor has no matches in 2026/27, so his card says it shows 2025/26.
   - Tottenham's home corners this season include 19–0 against Palace and 11–1 against Villa. Those are
     API-Football's own rows, not a mistake in the build.
-- *Checks:* 17 tests (4 on the build from a scratch platform database, 13 on the question types). No migration, no
-  `.env` line, no restart.
+- *The model step* (`model.py`): `gpt-6-luna` gets the seven types as strict function tools plus `decline` (asks
+  for a bet / not football numbers / not covered), with `tool_choice="required"`, at most three choices, and
+  `store=False`. Empty choices take the type's defaults. The code counts every answer, and a decline gets a fixed
+  line (a bet request is pointed to the matches page). One follow-up: the page sends the previous question and its
+  choices. About 2,500 tokens go in per question (D91 estimated 2,000), so still about $0.0004. OpenAI errors become
+  a plain kind and status, never their raw text. "No credit" matches both the code `insufficient_quota` and the 9 Nov
+  shape (type `insufficient_quota`, code `credit_balance_exhausted`). `STATS_QUESTIONS_MODEL` can swap the model
+  for the trial.
+- *Bet words are logged, not used as a gate* (my call). Whale chat's `is_betting_request` also flags "what are the
+  odds Saka scores", a fair stats question. So the model decides, and the log keeps the check's answer, for the
+  trial to show whether a gate would help.
+- *Free SQL* (`free_sql.py`, owner only): one statement on the read-only stats file, with an authorizer allowing
+  only SELECT, READ, FUNCTION and RECURSIVE. It stops at 2 s and 500 rows, and shows the SQL beside the rows. In
+  words, the model writes the query (`run_sql` tool, schema in the instructions, about 700 tokens). It can also be
+  typed, with no model.
+- *The log* (`log.py`): `Index/stats_questions/log.db`, beside the stats file. D91 said `Index/stats_questions.db`;
+  one folder keeps both files together (my call). It holds the question, choices, answers, model, time, tokens,
+  cost, the bet-words flag, and the owner's Right/Wrong verdict with a note. The summary counts only questions the
+  model read, since hand checks cannot be misread. The site ceiling (2,000 model questions a day, D91) is checked
+  before each call. The per-member limits wait for accounts: the prototype has one user.
+- *The page* (`__main__.py`, `page.html`): `python -m Scripts.ops.stats_questions serve` on 127.0.0.1:8400
+  (localhost only, as the owner dashboard), with Ask, Choose it yourself (no model, no cost), Free SQL and Log tabs.
+  It uses the live site's cobalt tokens, copied, and the 18+ line. `build`, `ask` and `choose` also run from the
+  command line. Checked in headless Chrome at 1280 px and 390 px, light and dark, on real data, without calling
+  OpenAI.
+- *Checks:* 38 tests (4 on the build, 13 on the question types, 12 on free SQL, the log and the model with a
+  stand-in client, 9 on the server). The full suite has 2,978 passed and the 3 known worktree-only errors in
+  `test_phase4_baseline_freeze.py`. The pinned golden check is unchanged (54 fixtures). No migration, no `.env`
+  line, no restart. The model step needs OpenAI credit, and no paid call has been made.
 
 ## Findings that shape later steps
 
