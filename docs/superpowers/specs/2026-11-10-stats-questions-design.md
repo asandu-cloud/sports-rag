@@ -184,6 +184,15 @@ Questions that need free SQL more than once become new fixed question types.
 
   The free and paid split works once the two tiers are in the code (an open item before launch). Until then only
   the owner uses it.
+- **Cost per member** (owner asked, 10 Nov), at a cautious $0.0005 a question. The input estimate is checked
+  against Whale chat's 15 tools, which come to about 1,500 tokens with a 630-token prompt.
+  - A free member at the limit every day: 30 questions, about 1.5 cents a month.
+  - A paid member asking 5 questions a weekend: about 1 cent a month.
+  - A paid member asking 5 a day: about 7.5 cents a month.
+  - A paid member at the 50-a-day cap every day: about 75 cents a month, 3% of the 25 euros.
+
+  Nothing else grows with members: the questions use no API-Football requests, and the stats file is built once a
+  day on the Mac.
 - **Questions need an account**, free or paid, so the limits can be counted.
 - **The owner reviews a sample** of the log in the trial: right type, right names, right scope.
 

@@ -1862,6 +1862,9 @@ SQL, a question box could answer with a query instead of an embedding search. De
   - The model is the cheapest GPT model that is enough: `gpt-6-luna` ($0.10 in and $0.50 out per million tokens,
     about $0.0004 a question; OpenAI's pages, 10 Nov). `gpt-5-nano` is cheaper, but it shuts down on 11 Dec 2026.
   - Still open: OpenAI credit, needed from phase 2.
+- *Cost per member (estimate, 10 Nov):* about 1 cent a month for a paid member who asks 5 questions a weekend, at
+  most 1.5 cents for a free member, and at most 75 cents for a paid member at the cap every day. The whole site
+  stops at about $1 a day.
 
 ## Findings that shape later steps
 
