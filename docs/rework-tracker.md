@@ -1753,6 +1753,25 @@ untouched.
   pass. First-screen options shown side by side: A cobalt night with the lime cream button (built), B with a mint
   cream button, C on a cobalt field.
 
+**D87 — The website's home page shows the D86 animation instead of the illustrative example (10 Nov; frontend,
+owner).** The owner asked for the landing preview's animation on the production home page, in place of the
+"Illustrative example" card (Arsenal v Chelsea, "No bet"). The headline, the line under it and the "Explore the
+matchday board" button stay as they were.
+- *What it is:* the same panel, scenes and figures as D86 (Research Area, match page, evidence sheet, Add, bet slip,
+  "Example" label, 18+ line), always in the cobalt night colours, on the light and the dark home page alike. The old
+  card's "not a live recommendation" line is replaced by the panel's "Example" label.
+- *How it is kept apart from the app:* `hero-run.css` scopes every rule and colour under `.hero-run` and sizes the
+  panel by its own width (container queries at 640, 520 and 340 px), so nothing reaches the app. `hero-run.js` uses
+  IDs starting `hr-`. The home page and the board share one page, so the panel can start hidden: it measures again
+  when its size changes and starts the first time it is seen. Reduced motion shows the finished slip, still.
+- *Layout:* below 980 px the hero stacks, so the panel gets the full width. `landing.css` loses the old example's
+  rules (no other page used them).
+- *Cache tags:* `hero-20261110a` (landing.css, hero-run.css, hero-run.js). No migration, no `.env` line; the files
+  are read from disk and the page is not cached, so the merge should need no restart.
+- *Checks (8100):* desktop (panel 575 px) and phone loops; /app first, then Home starts the loop; light and dark;
+  reduced motion; no script errors and no sideways scroll. All 8 JS test files and the 17 web tests pass. The 12
+  sample rows in the evidence sheet are still for the owner to confirm (D86).
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
