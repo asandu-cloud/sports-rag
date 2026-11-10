@@ -19,7 +19,7 @@ Much of the rest of this file describes the **legacy** engine (`rag_cli_v2.py`, 
 (`market_service.py`, `line_selection.py`, `market_goal_model.py`), staged behind switches (below). The website runs
 on it. The Discord bot still runs the old engine until A7.
 
-### Current status (as of 9 Nov 2026; the tracker is newer if it disagrees)
+### Current status (as of 10 Nov 2026; the tracker is newer if it disagrees)
 - **Engine stages 1–4 live.** Stage 4 went live 3 Nov: `SPIX_MARKET_ANCHOR=full` and
   `SPIX_SELECTION_POLICY=market_value`, every bookmaker, 2% value threshold, price confirmation at 60 minutes,
   failing closed. Value picks are rare by design: 5 of 18 matches on 3 Nov.
@@ -60,6 +60,9 @@ on it. The Discord bot still runs the old engine until A7.
   9 Nov evening the dark theme is "cobalt night" (D85): near-black greys with a faint cobalt tint (`--bg #111316`)
   and mint cream text. Cache tags are `night-20261109a` (style.css, theme.js) and `preview-20261109a` (app.js). Open for the owner: the steel
   blue of the Away segment and the "preliminary" label now sits close to the cobalt.
+- **Home page hero live 10 Nov (D87).** The website's home page shows the landing preview's hero animation
+  (Arsenal v Chelsea, labelled Example) in place of the "Illustrative example" card. Files: `hero-run.css`,
+  `hero-run.js`, tags `hero-20261110a`.
 - **OpenAI out of credit since 5 Nov 18:04.** Match Read briefings use the fixed fallback wording. Picks are not
   affected. Topping up is the owner's call. The briefings cost roughly $5–10 a week at the 3–5 Nov pace.
 - **No more Chroma updates (D81, owner, 9 Nov).** The daily refresh no longer embeds into Chroma, because nothing
