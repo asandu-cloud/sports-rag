@@ -19,7 +19,7 @@ Much of the rest of this file describes the **legacy** engine (`rag_cli_v2.py`, 
 (`market_service.py`, `line_selection.py`, `market_goal_model.py`), staged behind switches (below). The website runs
 on it. The Discord bot still runs the old engine until A7.
 
-### Current status (as of 10 Nov 2026; the tracker is newer if it disagrees)
+### Current status (as of 11 Nov 2026; the tracker is newer if it disagrees)
 - **Engine stages 1–4 live.** Stage 4 went live 3 Nov: `SPIX_MARKET_ANCHOR=full` and
   `SPIX_SELECTION_POLICY=market_value`, every bookmaker, 2% value threshold, price confirmation at 60 minutes,
   failing closed. Value picks are rare by design: 5 of 18 matches on 3 Nov.
@@ -58,7 +58,7 @@ on it. The Discord bot still runs the old engine until A7.
 - **Cobalt palette live 9 Nov (D80).** Cobalt `#0246A4` replaced the turf green, lime cream `#D5F097` the
   highlighter, and mint cream `#F2FFFA` is the light ground; the dark theme uses a light cobalt `#88B4F2`. Since
   9 Nov evening the dark theme is "cobalt night" (D85): near-black greys with a faint cobalt tint (`--bg #111316`)
-  and mint cream text. Cache tags are `assistant-20261110a` (style.css, app.js; D93), `crest-20261110a`
+  and mint cream text. Cache tags are `nextmatch-20261110a` (style.css, app.js; D96), `crest-20261110a`
   (research.js, research.css; D90, 10 Nov: tall crests such as Tottenham's stay inside their boxes) and
   `night-20261109a` (theme.js). Open for the owner: the steel blue of the Away segment and the "preliminary" label now sits close to
   the cobalt.
@@ -79,10 +79,10 @@ on it. The Discord bot still runs the old engine until A7.
   for signed-in members: free accounts 1 answered question a day, paid 50, the site 2,000. A pick answers only a
   "Which one?" card the member was shown that day. `SPIX_STATS_QUESTIONS=on` and `SPIX_STATS_STORE=on` are in
   `.env`; the second adds a best-effort `stats_questions_file` stage (about 20 s) to the daily refresh, before
-  `platform_health`. The website was restarted for it (pid 29729). The tab (D93, live 10 Nov) sits after Research
-  Area at `/app#assistant` and shows only while the status says enabled. Merged, waiting for a restart: a team's
-  corners or goals answer also carries the team's next match and Spix's pick in that market (D95); the frontend
-  builds its display, and the restart goes with it (owner's OK).
+  `platform_health`. The tab (D93, live 10 Nov) sits after Research Area at `/app#assistant` and shows only while
+  the status says enabled. Since 11 Nov at 00:23 (D95, D96, owner; website restarted, pid 39692), a team's corners
+  or goals answer also shows the team's next match: what Spix expects in it and Spix's pick in that market, or
+  when its read comes out.
   Open before real users: the privacy line (questions are logged with the account id), and auth and security (the
   owner will discuss them separately). The website listens on the home network only.
 - **No more Chroma updates (D81, owner, 9 Nov).** The daily refresh no longer embeds into Chroma, because nothing

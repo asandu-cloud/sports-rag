@@ -1,0 +1,568 @@
+{
+ "_note": "Real Research Assistant answers with the team's next match (D95), for the D96 display.  Read case: Brentford's answers as they looked before Brighton v Brentford kicked off on Sun 8 Nov, counted by the merged question code on a scratch copy of the stats file without anything from 8 Nov on, each with the next_match the backend's own entry() builds from the real Match Read card of that game (its corners projection, 9.46, as in the backend's test). Waiting case: today's real data, with Brentford's real next match (Everton at home, Mon 23 Nov) as it reads on 10 Nov. No model, no log, no write to the shared files.",
+ "corners": {
+  "question": "How many corners do Brentford get away from home?",
+  "calls": [
+   {
+    "type": "team_average",
+    "params": {
+     "team": "Brentford",
+     "stat": "corners",
+     "side": "for",
+     "venue": "away"
+    }
+   }
+  ],
+  "answers": [
+   {
+    "version": "stats_answer.v1",
+    "type": "team_average",
+    "scope": "Brentford away · Premier League 2026/27 · 4 matches",
+    "headline": "Brentford averaged 3.8 corners won a match away from home.",
+    "detail": [
+     "Premier League average for away sides: 4.5."
+    ],
+    "table": {
+     "columns": [
+      "",
+      "For",
+      "Against",
+      "In the match"
+     ],
+     "rows": [
+      [
+       "Average a match",
+       "3.8",
+       "3.5",
+       "7.2"
+      ]
+     ]
+    },
+    "matches": {
+     "columns": [
+      "Date",
+      "Opponent",
+      "Venue",
+      "Score",
+      "Corners won"
+     ],
+     "rows": [
+      [
+       "25 Oct 2026",
+       "Hull City",
+       "A",
+       "1–1",
+       "6"
+      ],
+      [
+       "10 Oct 2026",
+       "Aston Villa",
+       "A",
+       "2–2",
+       "2"
+      ],
+      [
+       "12 Sep 2026",
+       "Bournemouth",
+       "A",
+       "2–2",
+       "1"
+      ],
+      [
+       "30 Aug 2026",
+       "Leeds",
+       "A",
+       "1–1",
+       "6"
+      ]
+     ]
+    },
+    "note": "Small sample: only 4 matches.",
+    "data_up_to": "Sat 7 Nov 2026",
+    "subject": {
+     "team_id": 16,
+     "team": "Brentford",
+     "stat": "corners",
+     "current": true
+    },
+    "next_match": {
+     "fixture": {
+      "event_id": "1557458",
+      "league": "EPL",
+      "home_team": "Brighton",
+      "away_team": "Brentford",
+      "kickoff": "2026-11-08T14:00:00+00:00"
+     },
+     "venue": "away",
+     "opponent": "Brighton",
+     "market": "corners",
+     "status": "read",
+     "label": "Spix expects v Brighton, Sun 8 Nov",
+     "expected": {
+      "for": null,
+      "against": null,
+      "match": 9.5
+     },
+     "pick": {
+      "label": "Over 8.5 corners",
+      "side": "over",
+      "line": 8.5,
+      "chance": 0.7038430366506472,
+      "typical_price": 1.36
+     },
+     "note": null,
+     "prices_as_of": "2026-11-08T13:56:26"
+    }
+   }
+  ]
+ },
+ "goals": {
+  "question": "How many goals do Brentford score away from home?",
+  "calls": [
+   {
+    "type": "team_average",
+    "params": {
+     "team": "Brentford",
+     "stat": "goals",
+     "side": "for",
+     "venue": "away"
+    }
+   }
+  ],
+  "answers": [
+   {
+    "version": "stats_answer.v1",
+    "type": "team_average",
+    "scope": "Brentford away · Premier League 2026/27 · 4 matches",
+    "headline": "Brentford averaged 1.5 goals scored a match away from home.",
+    "detail": [
+     "Premier League average for away sides: 1.2."
+    ],
+    "table": {
+     "columns": [
+      "",
+      "For",
+      "Against",
+      "In the match"
+     ],
+     "rows": [
+      [
+       "Average a match",
+       "1.5",
+       "1.5",
+       "3.0"
+      ]
+     ]
+    },
+    "matches": {
+     "columns": [
+      "Date",
+      "Opponent",
+      "Venue",
+      "Score",
+      "Goals scored"
+     ],
+     "rows": [
+      [
+       "25 Oct 2026",
+       "Hull City",
+       "A",
+       "1–1",
+       "1"
+      ],
+      [
+       "10 Oct 2026",
+       "Aston Villa",
+       "A",
+       "2–2",
+       "2"
+      ],
+      [
+       "12 Sep 2026",
+       "Bournemouth",
+       "A",
+       "2–2",
+       "2"
+      ],
+      [
+       "30 Aug 2026",
+       "Leeds",
+       "A",
+       "1–1",
+       "1"
+      ]
+     ]
+    },
+    "note": "Small sample: only 4 matches.",
+    "data_up_to": "Sat 7 Nov 2026",
+    "subject": {
+     "team_id": 16,
+     "team": "Brentford",
+     "stat": "goals",
+     "current": true
+    },
+    "next_match": {
+     "fixture": {
+      "event_id": "1557458",
+      "league": "EPL",
+      "home_team": "Brighton",
+      "away_team": "Brentford",
+      "kickoff": "2026-11-08T14:00:00+00:00"
+     },
+     "venue": "away",
+     "opponent": "Brighton",
+     "market": "goals",
+     "status": "read",
+     "label": "Spix expects v Brighton, Sun 8 Nov",
+     "expected": {
+      "for": 1.3,
+      "against": 1.9,
+      "match": 3.1
+     },
+     "pick": {
+      "label": "Over 2.5 goals",
+      "side": "over",
+      "line": 2.5,
+      "chance": 0.6116340234104829,
+      "typical_price": 1.57
+     },
+     "note": null,
+     "prices_as_of": "2026-11-08T13:56:26"
+    }
+   }
+  ]
+ },
+ "line": {
+  "question": "How often do Brentford's away games go over 7.5 corners?",
+  "calls": [
+   {
+    "type": "line_record",
+    "params": {
+     "team": "Brentford",
+     "stat": "corners",
+     "side": "match",
+     "line": 7.5,
+     "direction": "over",
+     "venue": "away"
+    }
+   }
+  ],
+  "answers": [
+   {
+    "version": "stats_answer.v1",
+    "type": "line_record",
+    "scope": "Brentford away · Premier League 2026/27 · 4 matches",
+    "headline": "Over 7.5 corners in 2 of 4 matches.",
+    "detail": [
+     "Average 7.2.",
+     "Premier League: over 7.5 in 69 of 95 matches."
+    ],
+    "table": null,
+    "matches": {
+     "columns": [
+      "Date",
+      "Opponent",
+      "Venue",
+      "Score",
+      "Corners in the match",
+      "Over 7.5"
+     ],
+     "rows": [
+      [
+       "25 Oct 2026",
+       "Hull City",
+       "A",
+       "1–1",
+       "11",
+       "yes"
+      ],
+      [
+       "10 Oct 2026",
+       "Aston Villa",
+       "A",
+       "2–2",
+       "4",
+       ""
+      ],
+      [
+       "12 Sep 2026",
+       "Bournemouth",
+       "A",
+       "2–2",
+       "3",
+       ""
+      ],
+      [
+       "30 Aug 2026",
+       "Leeds",
+       "A",
+       "1–1",
+       "11",
+       "yes"
+      ]
+     ]
+    },
+    "note": "Small sample: only 4 matches.",
+    "data_up_to": "Sat 7 Nov 2026",
+    "subject": {
+     "team_id": 16,
+     "team": "Brentford",
+     "stat": "corners",
+     "current": true
+    },
+    "next_match": {
+     "fixture": {
+      "event_id": "1557458",
+      "league": "EPL",
+      "home_team": "Brighton",
+      "away_team": "Brentford",
+      "kickoff": "2026-11-08T14:00:00+00:00"
+     },
+     "venue": "away",
+     "opponent": "Brighton",
+     "market": "corners",
+     "status": "read",
+     "label": "Spix expects v Brighton, Sun 8 Nov",
+     "expected": {
+      "for": null,
+      "against": null,
+      "match": 9.5
+     },
+     "pick": {
+      "label": "Over 8.5 corners",
+      "side": "over",
+      "line": 8.5,
+      "chance": 0.7038430366506472,
+      "typical_price": 1.36
+     },
+     "note": null,
+     "prices_as_of": "2026-11-08T13:56:26"
+    }
+   }
+  ]
+ },
+ "no_pick": {
+  "question": "How many corners do Brentford get away from home?",
+  "calls": [
+   {
+    "type": "team_average",
+    "params": {
+     "team": "Brentford",
+     "stat": "corners",
+     "side": "for",
+     "venue": "away"
+    }
+   }
+  ],
+  "answers": [
+   {
+    "version": "stats_answer.v1",
+    "type": "team_average",
+    "scope": "Brentford away · Premier League 2026/27 · 4 matches",
+    "headline": "Brentford averaged 3.8 corners won a match away from home.",
+    "detail": [
+     "Premier League average for away sides: 4.5."
+    ],
+    "table": {
+     "columns": [
+      "",
+      "For",
+      "Against",
+      "In the match"
+     ],
+     "rows": [
+      [
+       "Average a match",
+       "3.8",
+       "3.5",
+       "7.2"
+      ]
+     ]
+    },
+    "matches": {
+     "columns": [
+      "Date",
+      "Opponent",
+      "Venue",
+      "Score",
+      "Corners won"
+     ],
+     "rows": [
+      [
+       "25 Oct 2026",
+       "Hull City",
+       "A",
+       "1–1",
+       "6"
+      ],
+      [
+       "10 Oct 2026",
+       "Aston Villa",
+       "A",
+       "2–2",
+       "2"
+      ],
+      [
+       "12 Sep 2026",
+       "Bournemouth",
+       "A",
+       "2–2",
+       "1"
+      ],
+      [
+       "30 Aug 2026",
+       "Leeds",
+       "A",
+       "1–1",
+       "6"
+      ]
+     ]
+    },
+    "note": "Small sample: only 4 matches.",
+    "data_up_to": "Sat 7 Nov 2026",
+    "subject": {
+     "team_id": 16,
+     "team": "Brentford",
+     "stat": "corners",
+     "current": true
+    },
+    "next_match": {
+     "fixture": {
+      "event_id": "1557458",
+      "league": "EPL",
+      "home_team": "Brighton",
+      "away_team": "Brentford",
+      "kickoff": "2026-11-08T14:00:00+00:00"
+     },
+     "venue": "away",
+     "opponent": "Brighton",
+     "market": "corners",
+     "status": "read",
+     "label": "Spix expects v Brighton, Sun 8 Nov",
+     "expected": {
+      "for": null,
+      "against": null,
+      "match": 9.5
+     },
+     "pick": null,
+     "note": "No pick from Spix in corners for that match.",
+     "prices_as_of": "2026-11-08T13:56:26"
+    }
+   }
+  ],
+  "_note": "The pick taken away from the real card, as in the backend's test: no real match lacks one."
+ },
+ "waiting": {
+  "question": "How many corners do Brentford get away from home?",
+  "calls": [
+   {
+    "type": "team_average",
+    "params": {
+     "team": "Brentford",
+     "stat": "corners",
+     "side": "for",
+     "venue": "away"
+    }
+   }
+  ],
+  "answers": [
+   {
+    "version": "stats_answer.v1",
+    "type": "team_average",
+    "scope": "Brentford away · Premier League 2026/27 · 5 matches",
+    "headline": "Brentford averaged 3.6 corners won a match away from home.",
+    "detail": [
+     "Premier League average for away sides: 4.5."
+    ],
+    "table": {
+     "columns": [
+      "",
+      "For",
+      "Against",
+      "In the match"
+     ],
+     "rows": [
+      [
+       "Average a match",
+       "3.6",
+       "4.2",
+       "7.8"
+      ]
+     ]
+    },
+    "matches": {
+     "columns": [
+      "Date",
+      "Opponent",
+      "Venue",
+      "Score",
+      "Corners won"
+     ],
+     "rows": [
+      [
+       "8 Nov 2026",
+       "Brighton",
+       "A",
+       "0–2",
+       "3"
+      ],
+      [
+       "25 Oct 2026",
+       "Hull City",
+       "A",
+       "1–1",
+       "6"
+      ],
+      [
+       "10 Oct 2026",
+       "Aston Villa",
+       "A",
+       "2–2",
+       "2"
+      ],
+      [
+       "12 Sep 2026",
+       "Bournemouth",
+       "A",
+       "2–2",
+       "1"
+      ],
+      [
+       "30 Aug 2026",
+       "Leeds",
+       "A",
+       "1–1",
+       "6"
+      ]
+     ]
+    },
+    "note": null,
+    "data_up_to": "Sun 8 Nov 2026",
+    "subject": {
+     "team_id": 16,
+     "team": "Brentford",
+     "stat": "corners",
+     "current": true
+    },
+    "next_match": {
+     "fixture": {
+      "event_id": "1557469",
+      "league": "EPL",
+      "home_team": "Brentford",
+      "away_team": "Everton",
+      "kickoff": "2026-11-23T20:00:00+00:00"
+     },
+     "venue": "home",
+     "opponent": "Everton",
+     "market": "corners",
+     "status": "waiting",
+     "label": null,
+     "expected": null,
+     "pick": null,
+     "note": "Spix's read of Brentford v Everton (Mon 23 Nov) comes out from Thu 19 Nov.",
+     "prices_as_of": null
+    }
+   }
+  ]
+ }
+}
