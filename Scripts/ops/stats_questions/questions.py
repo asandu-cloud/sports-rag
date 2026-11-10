@@ -339,6 +339,13 @@ def _team_setup(conn, p, stat):
     return team, comp, comp_name, season, label
 
 
+def _subject(conn, team, stat, p, comp, season):
+    """Which team and stat a team answer is about, and whether it counts this season (the last N matches always
+    do): the Research Assistant adds the team's next match from it (D95)."""
+    current = bool(p.get("last")) or season == _current(conn, comp)
+    return {"team_id": team["id"], "team": team["name"], "stat": stat, "current": current}
+
+
 def _match_rows(rows, value_stat, title):
     return {"columns": ["Date", "Opponent", "Venue", "Score", title[:1].upper() + title[1:]],
             "rows": [[_day(r["kickoff"]), r["opponent"], "H" if r["is_home"] else "A",
@@ -377,7 +384,8 @@ def team_average(conn, p):
             table = {"columns": ["", "For", "Against", "In the match"],
                      "rows": [["Average a match", _fmt(f), _fmt(a), _fmt(f + a)]]}
     return _card(conn, "team_average", headline, scope=scope, detail=detail, table=table,
-                 matches=_match_rows(rows, stat, label), n=len(rows))
+                 matches=_match_rows(rows, stat, label), n=len(rows),
+                 subject=_subject(conn, team, stat, p, comp, season))
 
 
 def line_record(conn, p):
@@ -413,7 +421,8 @@ def line_record(conn, p):
     matches["columns"].append(f"{word.capitalize()} {line:g}")
     for row, r in zip(matches["rows"], rows):
         row.append("yes" if hit(r["value"]) else "")
-    return _card(conn, "line_record", headline, scope=scope, detail=detail, matches=matches, n=len(rows))
+    return _card(conn, "line_record", headline, scope=scope, detail=detail, matches=matches, n=len(rows),
+                 subject=_subject(conn, team, stat, p, comp, season))
 
 
 def _result(r):

@@ -1,0 +1,277 @@
+{
+ "_note": "Trimmed from the real Match Read card of Brighton v Brentford, 8 Nov 2026 (D95 tests).",
+ "fixture": {
+  "event_id": "1557458",
+  "league": "EPL",
+  "home_team": "Brighton",
+  "away_team": "Brentford",
+  "kickoff": "2026-11-08T14:00:00Z"
+ },
+ "status": "no_bet",
+ "metrics": {
+  "projected_total_goals": 3.139,
+  "team_goals": {
+   "home": 1.8638,
+   "away": 1.2751
+  },
+  "result_probabilities": {
+   "home": 0.5054,
+   "draw": 0.2418,
+   "away": 0.2528
+  }
+ },
+ "recommendations": {
+  "version": "recommendations.v1",
+  "prices_as_of": "2026-11-08T13:56:26",
+  "most_likely": [
+   {
+    "market": "spreads",
+    "side": "away",
+    "line": 1.5,
+    "label": "Brentford +1.5",
+    "chance": 0.7274342545621151,
+    "typical_price": 1.34,
+    "long_shot": false,
+    "why": "Spix expects Brighton about 1.9 goals and Brentford about 1.3.",
+    "evidence": {
+     "verdict": "All three groups agree.",
+     "detail": "Brentford won 4, drew 1 and lost 7 of their 12 matches at similar odds. Brentford +2.5 is safer but pays only 1.11.",
+     "groups": [
+      {
+       "key": "home",
+       "won": 10,
+       "of": 12,
+       "means": "Brighton did not win by more than 1",
+       "results": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        true,
+        true,
+        true,
+        false,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "away",
+       "won": 9,
+       "of": 12,
+       "means": "Brentford did not lose by more than 1",
+       "results": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        true,
+        false,
+        false,
+        true,
+        true,
+        true
+       ]
+      },
+      {
+       "key": "league",
+       "won": 28,
+       "of": 40,
+       "means": "the away side did not lose by more than 1",
+       "results": [
+        false,
+        true,
+        true,
+        false,
+        true,
+        true,
+        true,
+        false,
+        true,
+        false,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        true,
+        true,
+        false,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false
+       ]
+      }
+     ]
+    }
+   }
+  ],
+  "value": [],
+  "markets": [
+   {
+    "market": "moneyline",
+    "suggestion": {
+     "market": "moneyline",
+     "side": "home",
+     "line": null,
+     "label": "Brighton to win",
+     "chance": 0.5054406038978291,
+     "typical_price": 1.92,
+     "long_shot": false
+    },
+    "options": [
+     {
+      "market": "moneyline",
+      "side": "home",
+      "line": null,
+      "label": "Brighton to win",
+      "chance": 0.5054406038978291,
+      "typical_price": 1.92,
+      "long_shot": false
+     },
+     {
+      "market": "moneyline",
+      "side": "draw",
+      "line": null,
+      "label": "Draw",
+      "chance": 0.24175220585111976,
+      "typical_price": 3.9,
+      "long_shot": true
+     },
+     {
+      "market": "moneyline",
+      "side": "away",
+      "line": null,
+      "label": "Brentford to win",
+      "chance": 0.2528071902510512,
+      "typical_price": 3.75,
+      "long_shot": false
+     }
+    ]
+   },
+   {
+    "market": "goals",
+    "suggestion": {
+     "market": "goals",
+     "side": "over",
+     "line": 2.5,
+     "label": "Over 2.5 goals",
+     "chance": 0.6116340234104829,
+     "typical_price": 1.57,
+     "long_shot": false
+    },
+    "options": [
+     {
+      "market": "goals",
+      "side": "over",
+      "line": 0.5,
+      "label": "Over 0.5 goals",
+      "chance": 0.9642828077579803,
+      "typical_price": 1.03,
+      "long_shot": false
+     },
+     {
+      "market": "goals",
+      "side": "under",
+      "line": 0.5,
+      "label": "Under 0.5 goals",
+      "chance": 0.035717192242019906,
+      "typical_price": 12.3,
+      "long_shot": true
+     },
+     {
+      "market": "goals",
+      "side": "over",
+      "line": 1.5,
+      "label": "Over 1.5 goals",
+      "chance": 0.8452263934256647,
+      "typical_price": 1.16,
+      "long_shot": false
+     },
+     {
+      "market": "goals",
+      "side": "under",
+      "line": 1.5,
+      "label": "Under 1.5 goals",
+      "chance": 0.15477360657433525,
+      "typical_price": 4.84,
+      "long_shot": true
+     }
+    ]
+   },
+   {
+    "market": "corners",
+    "suggestion": {
+     "market": "corners",
+     "side": "over",
+     "line": 8.5,
+     "label": "Over 8.5 corners",
+     "chance": 0.7038430366506472,
+     "typical_price": 1.36,
+     "long_shot": false
+    },
+    "options": [
+     {
+      "market": "corners",
+      "side": "over",
+      "line": 4.5,
+      "label": "Over 4.5 corners",
+      "chance": 0.9784209150372971,
+      "typical_price": 1.02,
+      "long_shot": false
+     },
+     {
+      "market": "corners",
+      "side": "under",
+      "line": 4.5,
+      "label": "Under 4.5 corners",
+      "chance": 0.021579084962702902,
+      "typical_price": 17.0,
+      "long_shot": true
+     },
+     {
+      "market": "corners",
+      "side": "over",
+      "line": 5.5,
+      "label": "Over 5.5 corners",
+      "chance": 0.9581912422487027,
+      "typical_price": 1.03,
+      "long_shot": false
+     },
+     {
+      "market": "corners",
+      "side": "under",
+      "line": 5.5,
+      "label": "Under 5.5 corners",
+      "chance": 0.0418087577512973,
+      "typical_price": 9.0,
+      "long_shot": true
+     }
+    ]
+   }
+  ]
+ }
+}

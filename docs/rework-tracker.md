@@ -2011,6 +2011,31 @@ name the tab "Research Assistant"". Asked where and who:
   - The orchestrator found both switches already on in `.env` (saved 19:45), so the merge needs the owner's yes.
   - 4 new tests.
 
+**D95 — The team's next match in Research Assistant answers (10 Nov; backend, owner).** The owner: "Can we also add
+something like Brentford average 3.6 corners AND they are predicted to get "n" this match?" A bettor asks to judge a
+line from their betting app, and Spix already has a pick for that market in the team's next match.
+- *Owner's choices:* of four subtle mockups on real data (artifact 8VvYQo5NhZimpjRGjSixAu), option B: one more row in
+  the answer's table ("Spix expects v Brighton, Sun 8 Nov … 9.5") and one line under it with Spix's pick in the lime
+  marker. No line ladder ("clutters the page"), so a question about a line gets the same pick, not that line's chance.
+  Straight to the production website (owner: "lets go ahead and introduce it into the production website").
+- *Backend, built here:* `team_average` and `line_record` cards gain `subject` (team id, name, stat, this season or
+  not). `data_platform/services/next_match.py` builds `next_match` from the card the match page shows (its "Corners
+  expected" or "Goals expected" and the market's suggestion in `recommendations.v1`), and
+  `FixtureScheduleRepository.next_for_team` finds the team's next unplayed fixture in a league Spix reads. The website
+  router adds it to `/ask` and `/choose` answers, through the match page's own actionable check, and the owner's log
+  keeps it. Corners and goals only: cards and shots on target stay out of the picks (D61).
+- *My calls:* the next match whatever its venue; before its read, a note saying when the read comes out (96 hours
+  before kickoff); "No pick from Spix in corners for that match." when the market has none; no switch of its own,
+  since it only shows a pick that is already public and the tab is behind `SPIX_STATS_QUESTIONS`.
+- *Checked on real data* (gated, read-only reads): Brentford's next match today gives "Spix's read of Brentford v
+  Everton (Mon 23 Nov) comes out from Thu 19 Nov." The 8 Nov read of Brighton v Brentford, rebuilt, gives 9.5
+  corners expected and Over 8.5 corners (70%, 1.36), and goals 1.3 for, 1.9 against, 3.1 in the match, Over 2.5
+  goals (61%, 1.57): the match page's figures.
+- *Found:* 8 Nov 2026 was a Sunday; the first mockups said "Sat 8 Nov" (corrected on the canvas).
+- *Frontend, to build:* the row and the pick line, from the design's new section "The team's next match".
+- *Checks:* 12 new tests (6 on the service, 1 on the schedule query, 4 on the website API, 1 on the cards' subject).
+  No migration, no `.env` line; a website restart after the merge.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A

@@ -339,3 +339,60 @@ can say how it read the question.
 - **Privacy** (the owner's call on the wording): questions are sent to OpenAI to be read (`store=False`, so OpenAI is
   asked not to keep them), and the owner's log keeps each question with the member's id. The privacy page should say
   so before members use it.
+
+## The team's next match (owner, 10 Nov; D95)
+
+The owner: a bettor uses the Research Assistant to judge a line they see in their betting app ("he sees the over 7.5
+corners in his betting app and wants to see what Brentford usually have in their games when they play away"). Spix
+already has a pick for that market in the team's next match, so the answer shows it, small. Of four mockups on real
+data (artifact 8VvYQo5NhZimpjRGjSixAu, page "Subtle options"), the owner chose **B, a row in the table**, with the
+pick highlighted in the lime marker, and turned down a line ladder ("clutters the page").
+
+- **When.** A `team_average` or `line_record` answer about **corners or goals** that counts this season (or the last N
+  matches). Cards and shots on target stay out, as they stay out of the picks (D61). A question about a line gets the
+  same row and pick: never the asked line's own chance (owner).
+- **Which match.** The team's next unplayed fixture in a league Spix reads (`PUBLIC_MATCH_READ_LEAGUES`), whatever the
+  venue the question asked about, from the stored schedule (`FixtureScheduleRepository.next_for_team`).
+- **Which figures.** The card the match page shows for it, read the same way (`match_reads._actionable_reads`, so a
+  read the board withholds shows nothing): "Corners expected" or "Goals expected", and the market's suggestion in the
+  `recommendations.v1` block. Nothing is worked out afresh. Spix prices the whole match's corners only, so a corners
+  row has a match figure and dashes for the team and its opponent; a goals row has all three.
+- **Before the read.** Reads appear up to 96 hours before kickoff (`MATCH_READ_OUTLOOK_HOURS`). Until then the answer
+  carries a note in place of the row: "Spix's read of Brentford v Everton (Mon 23 Nov) comes out from Thu 19 Nov."
+- **No model call, nothing extra to pay, no pick changes.** A failure leaves the answer as it was.
+
+### The data (backend, `stats_answer.v1`)
+
+`team_average` and `line_record` cards gain `subject`: `{"team_id", "team", "stat", "current"}` (the platform's team
+id; `current` is false for a past season). The website adds `next_match` to such a card when there is one
+(`Scripts/data_platform/services/next_match.py`):
+
+```json
+"next_match": {
+  "fixture": {"event_id": "1557458", "league": "EPL", "home_team": "Brighton", "away_team": "Brentford",
+              "kickoff": "2026-11-08T14:00:00+00:00"},
+  "venue": "away", "opponent": "Brighton", "market": "corners",
+  "status": "read",
+  "label": "Spix expects v Brighton, Sun 8 Nov",
+  "expected": {"for": null, "against": null, "match": 9.5},
+  "pick": {"label": "Over 8.5 corners", "side": "over", "line": 8.5, "chance": 0.704, "typical_price": 1.36},
+  "note": null,
+  "prices_as_of": "2026-11-08T13:56:26"
+}
+```
+
+- `status` is `read` or `waiting`. While waiting, `label`, `expected`, `pick` and `prices_as_of` are null and `note`
+  says when the read comes out (or "isn't out yet" inside the 96 hours).
+- `pick` is null when Spix has no pick in that market; `note` then says "No pick from Spix in corners for that match."
+- `expected` is to one decimal; `for` is the asked team, `against` its opponent. It can be null if the card lacks
+  the figure.
+- Dates are UK dates. `prices_as_of` is UTC without an offset, as in `recommendations.v1`.
+
+### What it shows (frontend)
+
+Option B: one more row in the card's For / Against / In the match table, `label` then the three `expected` figures
+(a dash for null, the figures in plain bold ink), and under the table one line: "Spix's pick for that match:
+**Over 8.5 corners** (lime marker), about 2 in 3, at 1.36." with a link to the match page. The marker is the answer's
+one marked figure (DESIGN.md's One Highlighter Rule); cobalt stays on links. A `line_record` card has no such table, so
+its row is the same sentence-sized line under its details (the frontend's call). A `waiting` entry shows only its
+note, in grey, under the table.

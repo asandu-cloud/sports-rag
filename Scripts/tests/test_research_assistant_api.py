@@ -1,6 +1,9 @@
 """The Research Assistant on the website (tracker D94): signed-in members only, 1 answered question a day on a free
 account and 50 on a paid one, 2,000 for the whole site, behind ``SPIX_STATS_QUESTIONS``. The model is a stand-in: no
 test makes a paid call."""
+import json
+from pathlib import Path
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -10,6 +13,9 @@ from Scripts.tests.test_stats_questions import conn  # noqa: F401  (the shared s
 from web_app.routers import research_assistant as ra
 
 FREE = {"id": 7, "tier": "free", "status": "active"}
+NEXT_CARD = json.loads((Path(__file__).resolve().parent / "fixtures" / "next_match_card.json").read_text())
+NEXT_FIXTURE = {"event_id": "1557458", "league": "EPL", "home_team": "Brighton", "away_team": "Brentford",
+                "kickoff": "2026-11-08T14:00:00+00:00", "venue": "away", "opponent": "Brighton"}
 PAID = {"id": 8, "tier": "pro", "status": "active"}
 
 
@@ -26,24 +32,36 @@ def site(conn, tmp_path, monkeypatch):
             raise model.ModelError("no_credit", 402, "The OpenAI account has no credit left.")
         if len(question) > 300:
             raise model.ModelError("too_long", 400, "Questions are limited to 300 characters.")
-        if "Gabriel" in question:
-            params = {"player": "Gabriel", "stat": "shots_on_target"}
-            return {"question": question, "calls": [{"type": "player", "params": params}],
-                    "answers": [questions.answer(stats, "player", params)], "model": "gpt-6-luna",
-                    "usage": {"input_tokens": 2050, "cached_tokens": 0, "output_tokens": 40}, "cost_usd": 0.000225,
-                    "ms": 900, "flagged_bet": False}
+        for word, kind, params in (("Gabriel", "player", {"player": "Gabriel", "stat": "shots_on_target"}),
+                                   ("Manchester", "team_average", {"team": "Manchester", "stat": "corners"}),
+                                   ("corners", "team_average", {"team": "Brentford", "stat": "corners",
+                                                                "venue": "away"})):
+            if word in question:
+                return {"question": question, "calls": [{"type": kind, "params": params}],
+                        "answers": [questions.answer(stats, kind, params)], "model": "gpt-6-luna",
+                        "usage": {"input_tokens": 2050, "cached_tokens": 0, "output_tokens": 40},
+                        "cost_usd": 0.000225, "ms": 900, "flagged_bet": False}
         return {"question": question, "calls": [{"type": "recent_form", "params": {"team": "Brentford", "last": 3}}],
                 "answers": [questions.answer(stats, "recent_form", {"team": "Brentford", "last": 3})],
                 "model": "gpt-6-luna", "usage": {"input_tokens": 2050, "cached_tokens": 0, "output_tokens": 40},
                 "cost_usd": 0.000225, "ms": 900, "flagged_bet": False}
 
     monkeypatch.setattr(ra, "ask_model", fake_ask)
+    looked = []  # the team's next match (D95): the stored schedule and the match page's card, stood in for here
+
+    def next_fixture(team_id):
+        looked.append(team_id)
+        return dict(NEXT_FIXTURE)
+
+    monkeypatch.setattr(ra, "next_fixture", next_fixture)
+    monkeypatch.setattr(ra, "next_read", lambda event_id: (NEXT_CARD, [{"market": {"group": "corners"},
+                                                                       "projection": {"value": 9.46}}]))
     app = FastAPI()
     app.include_router(ra.router)
     who = {"user": FREE}
     app.dependency_overrides[ra.get_current_user] = lambda: who["user"]
     client = TestClient(app)
-    client.who, client.asked, client.log_path = who, asked, tmp_path / "log.db"
+    client.who, client.asked, client.log_path, client.looked = who, asked, tmp_path / "log.db", looked
     return client
 
 
@@ -156,3 +174,37 @@ def test_without_a_stats_file_questions_are_unavailable(site, tmp_path, monkeypa
     assert site.get("/api/research-assistant/status").json()["data_up_to"] is None
     response = ask(site)
     assert response.status_code == 503 and response.json()["detail"]["kind"] == "unavailable" and site.asked == []
+
+
+def test_a_corners_answer_carries_the_teams_next_match_and_the_log_keeps_it(site):
+    card = ask(site, "How many corners do Brentford get away?").json()["answers"][0]
+    nxt = card["next_match"]
+    assert site.looked == [1] and card["subject"]["team"] == "Brentford"
+    assert (nxt["status"], nxt["label"], nxt["expected"]) == (
+        "read", "Spix expects v Brighton, Sun 8 Nov", {"for": None, "against": None, "match": 9.5})
+    assert (nxt["pick"]["label"], nxt["pick"]["typical_price"]) == ("Over 8.5 corners", 1.36)
+    assert log.recent(log.connect(site.log_path))[0]["answers"][0]["next_match"] == nxt
+
+
+def test_a_form_question_gets_no_next_match(site):
+    card = ask(site).json()["answers"][0]
+    assert card["type"] == "recent_form" and "next_match" not in card and site.looked == []
+
+
+def test_the_next_match_never_breaks_an_answer(site, monkeypatch):
+    def broken(team_id):
+        raise RuntimeError("database is locked")
+    monkeypatch.setattr(ra, "next_fixture", broken)
+    response = ask(site, "How many corners do Brentford get away?")
+    card = response.json()["answers"][0]
+    assert response.status_code == 200 and card["type"] == "team_average" and "next_match" not in card
+
+
+def test_a_pick_from_a_which_card_gets_the_next_match_too(site):
+    site.who["user"] = PAID
+    card = ask(site, "How many corners do Manchester get?").json()["answers"][0]
+    assert card["type"] == "which" and "next_match" not in card
+    option = next(o for o in card["options"] if o["label"] == "Manchester City")
+    pick = choose(site, "team_average", {"team": option["value"], "stat": "corners"}).json()["answers"][0]
+    assert pick["subject"]["team"] == "Manchester City" and pick["next_match"]["pick"]["label"] == "Over 8.5 corners"
+    assert site.looked == [5]
