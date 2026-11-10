@@ -58,8 +58,10 @@ on it. The Discord bot still runs the old engine until A7.
 - **Cobalt palette live 9 Nov (D80).** Cobalt `#0246A4` replaced the turf green, lime cream `#D5F097` the
   highlighter, and mint cream `#F2FFFA` is the light ground; the dark theme uses a light cobalt `#88B4F2`. Since
   9 Nov evening the dark theme is "cobalt night" (D85): near-black greys with a faint cobalt tint (`--bg #111316`)
-  and mint cream text. Cache tags are `night-20261109a` (style.css, theme.js) and `preview-20261109a` (app.js). Open for the owner: the steel
-  blue of the Away segment and the "preliminary" label now sits close to the cobalt.
+  and mint cream text. Cache tags are `crest-20261110a` (style.css, research.js, research.css; D90, 10 Nov: tall
+  crests such as Tottenham's stay inside their boxes), `night-20261109a` (theme.js) and `preview-20261109a`
+  (app.js). Open for the owner: the steel blue of the Away segment and the "preliminary" label now sits close to
+  the cobalt.
 - **Home page hero live 10 Nov (D87).** The website's home page shows the landing preview's hero animation
   (Arsenal v Chelsea, labelled Example) in place of the "Illustrative example" card. Since D89 it is light on
   the light page and dark in the dark theme. Files: `hero-run.css` (tag `hero-20261110b`) and `hero-run.js`

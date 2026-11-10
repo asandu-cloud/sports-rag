@@ -1,7 +1,8 @@
 # Stats questions: design
 
 Date: 10 Nov 2026. Status: **draft; the owner answered where it goes, the free members' limit and the model
-(10 Nov, end of this file)**. Tracker: D90.
+(10 Nov, end of this file)**. Tracker: D91 (renumbered from D90 at the merge of 10 Nov; the frontend
+took D90 first).
 Branch: `backend`. Nothing is built before the owner approves. An implementation plan follows, one per phase, with
 superpowers:writing-plans.
 

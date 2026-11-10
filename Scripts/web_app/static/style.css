@@ -679,6 +679,7 @@ html[data-logo="old"] .logo-word { display: none; }
 }
 .match-card-emblem {
   display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr); /* one cell the size of the box, so a tall crest cannot stretch it */
   width: 28px; height: 28px;
   border-radius: 50%;
   background: var(--crest-bg);

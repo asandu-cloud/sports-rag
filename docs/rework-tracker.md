@@ -126,7 +126,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Two tiers in the code and in Stripe, replacing Rookie, Tipster and Whale (D50) | Before launch, with Stripe euro pricing and VAT | Needs the bet builder and the recommendation lists first |
 | Website and Discord link: one-tap sharing of a bet to Discord, Discord posts linking back to the match (D50) | A7, when the bot moves to the new engine | The bot still runs the old engine |
 | Building bets inside Discord; community selections (D50) | After A7 | Owner: for later |
-| OpenAI shuts down `gpt-4o-mini` on 14 Jan 2027 (its deprecations page, checked 10 Nov; the replacement it names is `gpt-6-luna`). Whale chat and the Discord slash commands default to `gpt-4o-mini`, but first read `WHALE_CHAT_MODEL` and `RAG_CHAT_MODEL` from `.env`. Both are set; their values were not read. If either names `gpt-4o-mini`, those Discord features stop on 14 Jan (D90) | A7, or the owner changes the `.env` lines before 14 Jan 2027 | The bot still runs the old engine |
+| OpenAI shuts down `gpt-4o-mini` on 14 Jan 2027 (its deprecations page, checked 10 Nov; the replacement it names is `gpt-6-luna`). Whale chat and the Discord slash commands default to `gpt-4o-mini`, but first read `WHALE_CHAT_MODEL` and `RAG_CHAT_MODEL` from `.env`. Both are set; their values were not read. If either names `gpt-4o-mini`, those Discord features stop on 14 Jan (D91) | A7, or the owner changes the `.env` lines before 14 Jan 2027 | The bot still runs the old engine |
 | Done 3 Nov: `CLAUDE.md` corrected (saved ML R² ≈ 0 and zero ML weight; `elo_signal_weight` never read) and given a "Start here" section: reading order, current status, the stage rule, safety rules, how to work with the owner, how to run things | Done | Keep its status block current with the tracker |
 | Done 17 Oct 16:28: production reads from the document store (`DOCUMENT_STORE=sqlite` in `.env`). The first 6 reads record `DOCUMENT_STORE: sqlite` and their projections equal the previous Chroma read of the same fixture and stage (7 of 7 markets each). Verification before the switch: every refresh stage completed; same 129,801 documents; all 881 recorded engine queries return the same documents in the same order; 341 documents differ only in a last floating-point digit; engine outputs on the 54 golden fixtures identical from both. Fallback: remove the line | Done | Unblocks the OddsPapi true-close capture (D16 rule 3, A1 step 4) |
 | WAL mode for `platform.db` (`PRAGMA journal_mode=WAL`, so readers stop waiting on writers; the cause of the 29 Oct busy evening, see Findings). First check how the daily refresh replaces, copies or backs up the file (WAL keeps recent writes in a `-wal` file beside it), and the 23 Oct refresh failure (rollback journal, 2 s timeout) | After the 2 Nov scorecard (owner, 29 Oct) | Changes how every job writes the 9.5 GB database; not before the scorecard |
@@ -1841,7 +1841,23 @@ owner).** The owner found two faults on the live home page (D87).
   sideways scroll. All 8 JS test files and the 17 web tests pass. Cache tag: hero-run.css at `hero-20261110b`. No
   migration, no `.env` line, no restart.
 
-**D90 — Stats questions: a design sketch (10 Nov; backend, owner asked).** The owner's idea: since the stats are in
+**D90 — Tall team crests stay inside their boxes (10 Nov; frontend, owner).** The owner saw Tottenham's crest run out
+of its box in the Research Area's Corners per match board.
+- *Cause:* the crest boxes (`.avatar` in the Research Area, `.match-card-emblem` on match cards) are one-cell grids
+  with the image at 100% height. The cell's row was sized from the image, so a crest taller than it is wide stretched
+  the row beyond the box. Tottenham's crest is 82 × 150: drawn at 34 × 55 in a 34 px leader row, 64 × 104 in the
+  64 px team page header, and 28 × 46 on a 28 px match card, where `overflow: hidden` hid the problem by cutting off
+  the crest's lower part. Square and wide crests never stretched it, so only Tottenham showed it.
+- *Fix:* both boxes get `grid-template: minmax(0, 1fr) / minmax(0, 1fr)`, one cell the size of the box, so
+  `object-fit: contain` fits the whole crest in.
+- *Checks:* a browser check of all three places with Tottenham's crest fails on the live site (8000) and passes on
+  this branch (8100), image and box the same size. A sweep of every avatar in Players, Teams and Referees and every
+  emblem on the preview board finds Tottenham as the only mismatch live, and none on this branch; photos, other
+  crests and initials are unchanged. All 8 JS test files and 87 web and research tests pass. Cache tags:
+  style.css at `crest-20261110a` on all five pages, research.js and research.css at `crest-20261110a`. No
+  migration, no `.env` line, no restart.
+
+**D91 — Stats questions: a design sketch (10 Nov; backend, owner asked).** The owner's idea: since the stats are in
 SQL, a question box could answer with a query instead of an embedding search. Design:
 `docs/superpowers/specs/2026-11-10-stats-questions-design.md`. Draft, nothing built.
 - *Data checked (gated, read-only):* 32,247 finished matches in the 13 competitions since 2019/20, about 64,500
