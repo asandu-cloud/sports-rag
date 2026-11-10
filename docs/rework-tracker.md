@@ -2036,6 +2036,27 @@ line from their betting app, and Spix already has a pick for that market in the 
 - *Checks:* 12 new tests (6 on the service, 1 on the schedule query, 4 on the website API, 1 on the cards' subject).
   No migration, no `.env` line; a website restart after the merge.
 
+**D97 — A follow-up's "he" after a leaders answer (11 Nov; backend, owner).** The owner asked "what referee gives the
+most fouls per match in the premier league" (Chris Kavanagh, 26.9), then "and how many cards does he give?", and got
+the fouls table again: "Giving fouls again instead of cards." The log shows the model copied the previous choice
+unchanged (leaders, referee, fouls).
+- *Cause:* a follow-up sends the model the previous question and its choices, never its answer, so "he" had no name
+  to point to. With nothing to point at, it kept the old choice whole, stat included.
+- *Fix:* a leaders answer now carries `named`, the names it lists (a player without the club). For a follow-up,
+  the code reruns the previous leaders choices on the stats file and adds "Names in its answer, in order: Chris
+  Kavanagh." (at most 5) to the prompt. Two rules are added: "and cards?" changes the stat, and "he", "they" or
+  "that team" mean a listed name, asked with its own type (a referee's cards take the referee type).
+- *My calls:* names are recounted rather than sent by the page, so the page needs no change and cannot inject
+  them; after a stats refresh between the two questions, the list can differ from the one shown (rare, harmless).
+- *Checked:* on the real stats file, the owner's follow-up now builds a prompt naming Chris Kavanagh. Six real
+  gpt-6-luna calls (owner's yes, $0.0006 in all) all chose right. "And how many cards does he give?" gave Chris
+  Kavanagh's cards, 4.9 a match, both after a fresh first question and with the logged one. "And how many do
+  they get away from home?" after the corners table gave Tottenham away. "How often does he get 2 or more?" after
+  the shots on target table gave Erling Haaland, 2+ in 6 of 10. "And at home?" after Brentford's corners still
+  gave Brentford at home.
+- *Checks:* 3 new tests. Full suite 3012 passed, golden unchanged. No migration, no `.env` line; a website restart
+  after the merge.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
