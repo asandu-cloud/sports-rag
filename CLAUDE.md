@@ -67,6 +67,10 @@ on it. The Discord bot still runs the old engine until A7.
   affected. Topping up is the owner's call. The briefings cost roughly $5–10 a week at the 3–5 Nov pace.
 - **No more Chroma updates (D81, owner, 9 Nov).** The daily refresh no longer embeds into Chroma, because nothing
   running reads it; `refresh-season --embed` brings the step back. `Index/chroma` (19 GB) stays until A7.
+  Confirmed on the 10 Nov refresh.
+- **Refresh lock fix (D88, owner, 10 Nov).** The refresh failures of 27 Oct, 4 Nov and 10 Nov 13:15 were the
+  measurement job's heartbeat write landing under the sync's fixture updates. The sync now ends a fixture's
+  transaction on a lock and retries up to 3 times, and measurement writes nothing while the refresh holds the gate.
 - **Cards work that does not change picks (D54):**
   - add the events to the refresh and backfill them from 20 Sep (done 4 Nov: migration 0010, 554 matches
     backfilled, the refresh saves events from now on, D64);

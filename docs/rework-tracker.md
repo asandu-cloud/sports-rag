@@ -1599,7 +1599,7 @@ from a search by meaning, so they do not need Chroma either.
 - *Confirmed 10 Nov (orchestrator):* the 14:15 retry ran the seven stages with no `chroma_embed`, loaded with
   `--vector-backend sqlite`, and succeeded at 15:01 (only `platform_health` warned, as on 9 Nov). The 13:15 run
   before it had failed in `platform_incremental_sync` on "database is locked" (8 fixture updates at 13:15:08),
-  unrelated to D81. The backend is finding what held the lock.
+  unrelated to D81. The cause was the measurement job's heartbeat write; fixed by D88.
 
 **D82 — Pick evidence on the match card (9 Nov, owner; backend, then frontend).** The owner approved the second
 version of the pick-notes mockup (https://claude.ai/artifact/C732K7mQTdXUxUFQ44wUez): "What should go live is
