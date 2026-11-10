@@ -58,9 +58,9 @@ on it. The Discord bot still runs the old engine until A7.
 - **Cobalt palette live 9 Nov (D80).** Cobalt `#0246A4` replaced the turf green, lime cream `#D5F097` the
   highlighter, and mint cream `#F2FFFA` is the light ground; the dark theme uses a light cobalt `#88B4F2`. Since
   9 Nov evening the dark theme is "cobalt night" (D85): near-black greys with a faint cobalt tint (`--bg #111316`)
-  and mint cream text. Cache tags are `crest-20261110a` (style.css, research.js, research.css; D90, 10 Nov: tall
-  crests such as Tottenham's stay inside their boxes), `night-20261109a` (theme.js) and `preview-20261109a`
-  (app.js). Open for the owner: the steel blue of the Away segment and the "preliminary" label now sits close to
+  and mint cream text. Cache tags are `assistant-20261110a` (style.css, app.js; D93), `crest-20261110a`
+  (research.js, research.css; D90, 10 Nov: tall crests such as Tottenham's stay inside their boxes) and
+  `night-20261109a` (theme.js). Open for the owner: the steel blue of the Away segment and the "preliminary" label now sits close to
   the cobalt.
 - **Home page hero live 10 Nov (D87).** The website's home page shows the landing preview's hero animation
   (Arsenal v Chelsea, labelled Example) in place of the "Illustrative example" card. Since D89 it is light on
@@ -79,7 +79,8 @@ on it. The Discord bot still runs the old engine until A7.
   for signed-in members: free accounts 1 answered question a day, paid 50, the site 2,000. A pick answers only a
   "Which one?" card the member was shown that day. `SPIX_STATS_QUESTIONS=on` and `SPIX_STATS_STORE=on` are in
   `.env`; the second adds a best-effort `stats_questions_file` stage (about 20 s) to the daily refresh, before
-  `platform_health`. The website was restarted for it (pid 29729). There is no tab yet: the frontend is building it.
+  `platform_health`. The website was restarted for it (pid 29729). The tab (D93, live 10 Nov) sits after Research
+  Area at `/app#assistant` and shows only while the status says enabled.
   Open before real users: the privacy line (questions are logged with the account id), and auth and security (the
   owner will discuss them separately). The website listens on the home network only.
 - **No more Chroma updates (D81, owner, 9 Nov).** The daily refresh no longer embeds into Chroma, because nothing
