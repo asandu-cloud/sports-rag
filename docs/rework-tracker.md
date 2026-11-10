@@ -2036,6 +2036,39 @@ line from their betting app, and Spix already has a pick for that market in the 
 - *Checks:* 12 new tests (6 on the service, 1 on the schedule query, 4 on the website API, 1 on the cards' subject).
   No migration, no `.env` line; a website restart after the merge.
 
+**D96 — The team's next match on the Research Assistant's cards (10 Nov; frontend, owner).** D95's display, built
+from the owner's choice on the canvas (option B, "A row in the table").
+- *What it shows:*
+  - `team_average`: one more row in the For / Against / In the match table, the `label` then Spix's figures. A
+    missing figure is a grey dash (corners have only the match's), and only the match figure is bold. No colour.
+  - Under the table: "Spix's pick for that match: **Over 8.5 corners**, about 2 in 3, at 1.36." The pick sits in the
+    lime marker, as the answer's one marked thing. A "Match page" link follows.
+  - `line_record` has no such table: "Spix expects **9.5** corners v Brighton, Sun 8 Nov." sits above the same pick
+    line. It never shows the chance of the line that was asked (owner).
+  - No pick: the backend's note in grey, still with the link. Before the read is out: only the note, in grey.
+  - The footer adds "Spix's figures for Brighton v Brentford as of Sun 8 Nov, 13:56", in the viewer's clock like
+    the board's prices.
+  - No `next_match`: the card is as before.
+- *The link:* the match page opens on the match's day of the board, then the match. The board showed only the
+  selected day, so `openFixture` picks the day first. A match the board cannot show (another league chosen, or past
+  its week) leaves the board open on that day.
+- *Real data:*
+  - Brentford's answers as they looked before Brighton v Brentford (8 Nov) were counted by the merged question code
+    on a scratch copy of the stats file with nothing from 8 Nov on (deleted after use). They match the canvas: 4
+    matches, 3.8 / 3.5 / 7.2, over 7.5 in 2 of 4.
+  - Each answer has the `next_match` the backend's `entry()` builds from the real card.
+  - The waiting case is today's real one: Brentford v Everton, read from Thu 19 Nov.
+  - Kept in `Scripts/tests/fixtures/research_assistant_next_match.json`. Its no-pick case takes the pick away, as
+    the backend's test does.
+- *Checks (8100):* the page's API calls were answered in the browser from those answers, so nothing reached OpenAI or
+  the log.
+  - Views: desktop light and dark, phone light and dark, waiting and no pick. No script errors, no sideways scroll,
+    and no table wider than its card (the row's label wraps on a phone).
+  - "Match page" opened Brighton v Brentford, from the saved card `?preview=evidence` puts on today's board.
+  - New `test_research_assistant_next_web.js`. All 10 JS test files and 45 web and next-match tests pass.
+  - Cache tags: style.css and app.js at `nextmatch-20261110a` on all five pages.
+  - No migration, no `.env` line. It goes live with D95's restart (static files; the field comes with the restart).
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
