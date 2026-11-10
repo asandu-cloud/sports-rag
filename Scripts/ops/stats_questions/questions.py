@@ -629,6 +629,8 @@ def _check(kind, params):
     for name, value in p.items():
         spec = TYPES[kind]["params"][name]
         if value is None:
+            if "null" not in spec["type"]:  # a name or a stat with no default: nothing to count without it
+                raise Invalid(f"The {name.replace('_', ' ')} is missing.")
             continue
         if "enum" in spec and value not in spec["enum"]:
             raise Invalid(f"“{value}” is not one of the choices for {name}.")

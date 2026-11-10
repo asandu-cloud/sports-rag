@@ -1930,6 +1930,11 @@ in `Scripts/ops/stats_questions/`. It is not wired to the website or to any sche
   stand-in client, 9 on the server). The full suite has 2,978 passed and the 3 known worktree-only errors in
   `test_phase4_baseline_freeze.py`. The pinned golden check is unchanged (54 fixtures). No migration, no `.env`
   line, no restart. The model step needs OpenAI credit, and no paid call has been made.
+- *Follow-up (10 Nov, after the merge; found by the orchestrator's review):* a hand-typed choice missing its stat or
+  name (`{"type": "team_average", "params": {"team": "Arsenal"}}` through Choose it yourself or the `choose`
+  command) raised `KeyError` instead of returning a card. A value with no default that cannot be empty now gives an
+  "invalid" card ("The stat is missing."). The model path could not hit it, because its tools require every value.
+  1 new test, 39 in all.
 
 ## Findings that shape later steps
 
