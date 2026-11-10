@@ -1759,6 +1759,16 @@ html:not([data-assistant="on"]) [data-view="assistant"] { display: none !importa
 .ra-options .ra-chip { color: var(--text); font-weight: 500; }
 .ra-link { display: inline-flex; align-items: center; min-height: 44px; margin-top: 4px; color: var(--accent-l); font-size: 15px; font-weight: 600; }
 .ra-link:hover { color: var(--accent-hover); }
+/* The team's next match (D96): a row in the table with no colour, then the pick in the one highlighter. */
+.ra-table .ra-dash { color: var(--text3); }
+.ra-table .ra-strong { font-weight: 700; }
+.ra-table .ra-label { min-width: 9em; white-space: normal; }
+.ra-next { margin-top: 10px; color: var(--text2); font-size: 14px; }
+.ra-next.quiet { color: var(--text3); }
+.ra-next b { color: var(--text); font-weight: 700; }
+.ra-mark { padding: 0 0.22em; border-radius: 2px; background: var(--marker); color: var(--on-marker); font-weight: 700; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.ra-inline { color: var(--accent-l); font-weight: 600; }
+.ra-inline:hover { color: var(--accent-hover); text-decoration: underline; }
 
 .ra-gate { margin-top: 4px; padding: 24px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
 .ra-gate-lead { font-size: 18px; font-weight: 700; }

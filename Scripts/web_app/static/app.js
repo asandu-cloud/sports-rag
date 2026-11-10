@@ -137,10 +137,15 @@ function recsMarketName(market) {
 }
 
 // The block's prices_as_of is UTC without an offset; it is shown in the viewer's time.
-function recsClock(iso) {
-  if (!iso) return '';
+function utcStamp(iso) {
+  if (!iso) return null;
   const stamp = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`);
-  if (Number.isNaN(stamp.getTime())) return '';
+  return Number.isNaN(stamp.getTime()) ? null : stamp;
+}
+
+function recsClock(iso) {
+  const stamp = utcStamp(iso);
+  if (!stamp) return '';
   const pad = n => String(n).padStart(2, '0');
   return `${pad(stamp.getHours())}:${pad(stamp.getMinutes())}`;
 }
@@ -688,13 +693,80 @@ function assistantError(body, status) {
   return { kind: 'error', message: ASSISTANT_TROUBLE };
 }
 
-function assistantTable(table) {
+// `extra` is one more row, already drawn (the team's next match).
+function assistantTable(table, extra = '') {
   if (!table?.columns?.length) return '';
   const numeric = value => value === '' || value == null || typeof value === 'number' || /^-?\d+(\.\d+)?%?$/.test(String(value));
   const right = table.columns.map((_, i) => table.rows.every(row => numeric(row[i])));
   const cell = (tag, value, i) => `<${tag}${right[i] ? ' class="n"' : ''}>${esc(value ?? '')}</${tag}>`;
   return `<div class="ra-table-wrap"><table class="ra-table"><thead><tr>${table.columns.map((c, i) => cell('th', c, i)).join('')}</tr></thead>`
-    + `<tbody>${table.rows.map(row => `<tr>${row.map((v, i) => cell('td', v, i)).join('')}</tr>`).join('')}</tbody></table></div>`;
+    + `<tbody>${table.rows.map(row => `<tr>${row.map((v, i) => cell('td', v, i)).join('')}</tr>`).join('')}${extra}</tbody></table></div>`;
+}
+
+// The team's next match under a corners or goals answer (D95; the owner's option B, D96): what Spix expects in it as
+// one more row of the For / Against / In the match table, and Spix's pick for it under the table, in the marker.
+// Spix prices only the whole match's corners, so a corners row has a dash for each side.
+const ASSISTANT_NEXT_COLUMNS = { For: 'for', Against: 'against', 'In the match': 'match' };
+
+function assistantNextFigure(value) {
+  const figure = Number(value);
+  return value != null && Number.isFinite(figure) ? figure.toFixed(1) : '';
+}
+
+// '' when the read is not out, has no figures, or the table has no "In the match" column to line them up with.
+function assistantNextRow(next, table) {
+  const columns = table?.columns || [];
+  if (next?.status !== 'read' || !next.expected || !columns.includes('In the match')) return '';
+  return '<tr>' + columns.map((column, i) => {
+    if (i === 0) return `<td class="ra-label">${esc(next.label)}</td>`;
+    const key = ASSISTANT_NEXT_COLUMNS[column];
+    const figure = key ? assistantNextFigure(next.expected[key]) : '';
+    if (!figure) return '<td class="n ra-dash">–</td>';
+    return `<td class="n${key === 'match' ? ' ra-strong' : ''}">${figure}</td>`;
+  }).join('') + '</tr>';
+}
+
+// A card without such a table (a line question) says the match figure in a line of its own.
+function assistantNextLine(next) {
+  const figure = next?.status === 'read' ? assistantNextFigure(next.expected?.match) : '';
+  if (!figure) return '';
+  const unit = RECS_UNITS[next.market] || '';
+  const label = String(next.label || '');
+  const said = label.startsWith('Spix expects ')
+    ? `Spix expects <b>${figure}</b>${esc(unit)} ${esc(label.slice('Spix expects '.length))}.`
+    : `${esc(label)}: <b>${figure}</b>${esc(unit)}.`;
+  return `<p class="ra-next">${said}</p>`;
+}
+
+// Spix's pick with a link to the match page; the note in grey when there is no pick, or the read is not out yet.
+function assistantNextPick(next) {
+  if (!next?.fixture) return '';
+  if (next.status !== 'read') return next.note ? `<p class="ra-next quiet">${esc(next.note)}</p>` : '';
+  const link = next.fixture.event_id == null ? ''
+    : ` <button type="button" class="ra-inline" data-ra-match="${esc(next.fixture.event_id)}" data-ra-kickoff="${esc(next.fixture.kickoff)}">Match page</button>`;
+  const pick = next.pick;
+  if (!pick?.label) return next.note ? `<p class="ra-next quiet">${esc(next.note)}${link}</p>` : '';
+  const chance = pick.chance == null || !Number.isFinite(Number(pick.chance)) ? ''
+    : `, ${pick.chance < 0.25 ? 'a long shot, ' : ''}${chanceWords(pick.chance)}`;
+  const price = recsPrice(pick.typical_price);
+  return `<p class="ra-next">Spix's pick for that match: <mark class="ra-mark">${esc(pick.label)}</mark>${chance}${price ? `, at ${price}` : ''}.${link}</p>`;
+}
+
+// When Spix's figures for the match were taken, for the card's footer.
+function assistantNextAsOf(next) {
+  const stamp = next?.status === 'read' && next.fixture ? utcStamp(next.prices_as_of) : null;
+  if (!stamp) return '';
+  const day = stamp.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  return `Spix's figures for ${next.fixture.home_team} v ${next.fixture.away_team} as of ${day}, ${recsClock(next.prices_as_of)}`;
+}
+
+// The board's day (0 is today, up to 6) of a kickoff, or null when it is not on the board's week.
+function boardDayOffset(kickoff, now = new Date()) {
+  const start = new Date(kickoff);
+  if (Number.isNaN(start.getTime())) return null;
+  const day = moment => Date.UTC(moment.getFullYear(), moment.getMonth(), moment.getDate());
+  const offset = Math.round((day(start) - day(now)) / 86400000);
+  return offset >= 0 && offset < 7 ? offset : null;
 }
 
 // One stats_answer.v1 card. `entry` and `card` say where a "Which one?" card sits, so a pick can find its call.
@@ -706,11 +778,15 @@ function renderAssistantCard(answer, { open = false, entry = 0, card = 0 } = {})
   const options = answer.type === 'which' && answer.options?.length
     ? `<div class="ra-options">${answer.options.map((o, i) => `<button type="button" class="ra-chip" data-ra-pick="${entry}:${card}:${i}">${esc(o.label)}</button>`).join('')}</div>` : '';
   const fixtures = answer.type === 'declined' ? '<button type="button" class="ra-link" data-ra-fixtures>Go to Fixtures</button>' : '';
+  const next = answer.next_match;
+  const nextRow = assistantNextRow(next, answer.table);
+  const nextLines = (nextRow ? '' : assistantNextLine(next)) + assistantNextPick(next);
+  const asOf = assistantNextAsOf(next);
   return `<div class="ra-card${quiet ? ' quiet' : ''}">${answer.scope ? `<p class="ra-scope">${esc(answer.scope)}</p>` : ''}`
     + `<p class="ra-headline">${esc(answer.headline)}</p>${fixtures}`
     + `${answer.detail?.length ? `<div class="ra-detail">${answer.detail.map(d => `<p>${esc(d)}</p>`).join('')}</div>` : ''}`
-    + `${assistantTable(answer.table)}${note}${options}${more}`
-    + `${answer.data_up_to && !quiet ? `<p class="ra-upto">Data up to ${esc(answer.data_up_to)}</p>` : ''}</div>`;
+    + `${assistantTable(answer.table, nextRow)}${nextLines}${note}${options}${more}`
+    + `${answer.data_up_to && !quiet ? `<p class="ra-upto">Data up to ${esc(answer.data_up_to)}${asOf ? ` · ${esc(asOf)}` : ''}</p>` : ''}</div>`;
 }
 
 // A question and its answers. `entry.picked` maps each picked "#id" to its label.
@@ -1489,9 +1565,10 @@ const assistant = {
       this.ask(document.getElementById('raQuestion')?.value || '');
     });
     view.addEventListener('click', event => {
-      const target = event.target.closest('[data-ra-pick], [data-ra-example], [data-ra-fixtures], [data-ra-login]');
+      const target = event.target.closest('[data-ra-pick], [data-ra-example], [data-ra-fixtures], [data-ra-match], [data-ra-login]');
       if (!target) return;
       if (target.hasAttribute('data-ra-pick')) this.choose(...target.dataset.raPick.split(':').map(Number));
+      else if (target.hasAttribute('data-ra-match')) app.openFixture(target.dataset.raMatch, target.dataset.raKickoff);
       else if (target.hasAttribute('data-ra-example')) {
         // An example fills the box; asking stays the member's own step.
         const input = document.getElementById('raQuestion');
@@ -1663,7 +1740,17 @@ const appModule = {
       btn.classList.toggle('active', Number(btn.dataset.dateOffset) === offset);
       btn.setAttribute('aria-pressed', String(Number(btn.dataset.dateOffset) === offset));
     });
-    this._loadMatchday();
+    return this._loadMatchday();
+  },
+
+  // Opens a match page from outside the board (the Research Assistant's next match, D96): the match's day first,
+  // then the match. A match the board cannot show (another league chosen, or past its week) leaves the board open.
+  async openFixture(eventId, kickoff) {
+    this.switchTab('fixtures');
+    await this.init();
+    const offset = boardDayOffset(kickoff);
+    if (offset !== null) await this._setActiveDate(offset);
+    this._showMatch(eventId);
   },
 
   _buildLeagueFilters() {
