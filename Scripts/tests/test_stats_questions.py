@@ -152,3 +152,11 @@ def test_a_referee_without_matches_this_season_says_which_season_it_shows(conn):
     card = ask(conn, "referee", referee="Other Ref", stat="cards")
     assert card["scope"] == "Other Ref · All competitions · 2025/26 · 1 match"
     assert card["detail"][0] == "Other Ref has no matches in 2026/27 in Spix's data, so this is 2025/26."
+
+
+def test_a_choice_missing_its_stat_or_name_is_refused_not_raised(conn):
+    for qtype, params in (("team_average", {"team": "Arsenal"}), ("line_record", {"stat": "corners", "line": 9.5}),
+                          ("player", {"stat": "goals"}), ("leaders", {"stat": "corners", "competition": "EPL"})):
+        card = questions.answer(conn, qtype, params)
+        assert card["type"] == "invalid" and "missing" in card["headline"], (qtype, card["headline"])
+    assert questions.answer(conn, "team_average", {"team": "Arsenal"})["headline"] == "The stat is missing."
