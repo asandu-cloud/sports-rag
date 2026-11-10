@@ -1883,6 +1883,27 @@ SQL, a question box could answer with a query instead of an embedding search. De
   most 1.5 cents for a free member, and at most 75 cents for a paid member at the cap every day. The whole site
   stops at about $1 a day.
 
+**D92 — Stats questions prototype, separate from the website (10 Nov; backend, owner).** The owner approved the D91
+workflow page and asked for a prototype "separately of the website, then we can decide whether to add it". It lives
+in `Scripts/ops/stats_questions/`. It is not wired to the website or to any scheduled job, and changes no picks.
+- *The stats file* (`store.py`): `Index/stats_questions/stats.db`, built by hand with `build()` inside
+  `data_access()`. It makes three reads per season (team rows, player rows, matches) through the Research Area's
+  own queries and count rules (`ResearchRepository`, `normalize_research_row`, `referee_aliases`), each in its own
+  session. The first build on 10 Nov took 18.5 s and made a 128 MB file: 28,988 matches, 57,976 team rows, 650,939
+  player appearances, 420 teams and 719 referees, with data up to 8 Nov. These counts are smaller than D91's
+  because they follow the Research Area: comparable rounds only (no qualifiers or play-offs), and only players who
+  played.
+- *The seven question types* (`questions.py`) check every parameter against fixed lists, count in SQL and word the
+  answer from fixed templates (`stats_answer.v1`). Names match whole words before prefixes, so "Saka" is a Saka
+  and not Sakamoto. A much busier namesake (twice the minutes or matches over this season and last) wins outright,
+  so "Haaland" is Erling Haaland and not M. Haaland of Brann. Otherwise the card asks "Which one?".
+- *Found on real data:*
+  - Anthony Taylor has no matches in 2026/27, so his card says it shows 2025/26.
+  - Tottenham's home corners this season include 19–0 against Palace and 11–1 against Villa. Those are
+    API-Football's own rows, not a mistake in the build.
+- *Checks:* 17 tests (4 on the build from a scratch platform database, 13 on the question types). No migration, no
+  `.env` line, no restart.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
