@@ -2090,6 +2090,54 @@ unchanged (leaders, referee, fouls).
 - *Checks:* 3 new tests. Full suite 3012 passed, golden unchanged. No migration, no `.env` line; a website restart
   after the merge.
 
+**D98 — The home page's first section becomes Spix's read of a match (11 Nov; frontend, owner).** The owner asked
+for a home page in the style of a drinks brand's hero, with the text overlapping, built with the taste skill as a
+static page first. On seeing it: "this is great, lets implement this into the production website", in place of the
+first section (D87's "A clearer view of matchday" and the Arsenal v Chelsea animation).
+- *What it shows:*
+  - "EVERY MATCH, / READ FOR YOU", heavy then light.
+  - Three tilted packs float over the end of the headline, with a shadow under them.
+  - The packs are Spix's real read of Brighton v Brentford (Sun 8 Nov, prices as of 13:56): Goals, Over 2.5, about 3
+    in 5, 1.57; Corners, Over 8.5, about 2 in 3, 1.36; Result, Brighton to win, about 1 in 2, 1.92. Each has the
+    cobalt band, the pick in the marker, both crests, what Spix expects and the kickoff.
+  - One line under the headline: "Spix reads each match with statistical models and shows the likeliest picks, each
+    with its chance and a typical price. You build the bet." Then "See the matches" (to the board) and a round play
+    badge.
+  - The play badge steps the Corners pack through that match's real lines, 6.5 to 11.5, with each chance in words and
+    each price, then back to Over 8.5 in the marker.
+  - The caption says it is an example and when the prices were taken: "Browse without an account · 18+ · Betting
+    involves risk. Get help from GamCare".
+- *My calls:*
+  - The site's cobalt top bar stays; the concept's own nav and its "Now on Spix" bar are left out (same jobs, and the
+    Research Assistant needs an account).
+  - The section sits on `--bg2` in the light theme so the light packs stand off it; in the dark theme it is the page.
+  - Visitors who are signed in see it too, as before: `/` is one page for everyone.
+- *How it is kept apart:*
+  - `home-hero.css` puts every rule under `.home-hero`, and `home-hero.js` uses IDs starting `hh-`.
+  - Sizes follow the content width (container units), so the overlap is the same from 1180 px to wide screens.
+  - The packs keep their own colours in both themes.
+  - The chances are said by the board's own `chanceWords`, so the words match the board.
+  - Below 1000 px the packs sit under the headline and run into its second line. Reduced motion keeps the run but
+    nothing turns, floats or rises.
+- *Files:*
+  - New: `home-hero.css`, `home-hero.js`, and `static/home/` (the two crests from API-Football's image server, and
+    the white wordmark from `docs/brand/logo`).
+  - `hero-run.css` and `hero-run.js` are deleted. `landing.css` loses the old hero's rules but keeps `.landing-primary`,
+    which the methodology page's calculator uses.
+  - Cache tags: `home-20261111a` (landing.css, home-hero.css, home-hero.js).
+- *Checks (8100):*
+  - Desktop 1440, laptop 1180, tablet 768 and phone 390, light and dark: no script errors, no sideways scroll.
+  - The run ends on the pick and is announced. "See the matches" opens the board; Home brings the section back.
+  - Reduced motion holds still.
+  - New `test_home_hero_web.js`: the run's words and prices, the packs' printed chances against `chanceWords`, and the
+    old hero gone. All 9 JS test files pass.
+  - Full Python suite: 3012 passed, 4 skipped, 3 errors. The errors are all in `test_phase4_baseline_freeze.py`, and
+    none comes from this change. In a worktree, `Index` is a link to the main folder's, so the replay's guard resolves
+    `Index/ml_models/model_r2.json` outside the worktree and stops with `non_frozen_data`. The main folder's `Index`
+    is a real folder, so the merge check should not hit it (backend's file, for them to note).
+  - Compare: the checkpoint commit before this one, and before/after screenshots at each width.
+  - No migration, no `.env` line, no restart (static files, page not cached).
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
