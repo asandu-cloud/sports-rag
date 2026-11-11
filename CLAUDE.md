@@ -62,10 +62,10 @@ on it. The Discord bot still runs the old engine until A7.
   (research.js, research.css; D90, 10 Nov: tall crests such as Tottenham's stay inside their boxes) and
   `night-20261109a` (theme.js). Open for the owner: the steel blue of the Away segment and the "preliminary" label now sits close to
   the cobalt.
-- **Home page hero live 10 Nov (D87).** The website's home page shows the landing preview's hero animation
-  (Arsenal v Chelsea, labelled Example) in place of the "Illustrative example" card. Since D89 it is light on
-  the light page and dark in the dark theme. Files: `hero-run.css` (tag `hero-20261110b`) and `hero-run.js`
-  (`hero-20261110a`).
+- **Home page opening live 11 Nov (D98, owner).** "Every match, read for you", with three tilted packs from the
+  real read of Brighton v Brentford (8 Nov, labelled Example) and a play badge that runs the corners line. It
+  replaced D87's Arsenal v Chelsea animation (`hero-run.*`, deleted). Files: `home-hero.css`, `home-hero.js`,
+  `static/home/` and `landing.css`, all at tag `home-20261111a`.
 - **OpenAI credit topped up 10 Nov (owner)**, after running out on 5 Nov 18:04. Match Read briefings go back to the
   model's wording; they cost roughly $5–10 a week at the 3–5 Nov pace. Picks never depended on it.
   OpenAI shuts down `gpt-4o-mini` on 14 Jan 2027: Whale chat and the Discord slash commands fall back to it when
