@@ -1,20 +1,14 @@
-/* The home page's first section (D98): the headline runs behind three packs cut from one saved Match Read.
-   Every rule sits under .home-hero. Sizes follow the content width (cqi), so the overlap is the same on any screen;
-   the packs keep their own colours in both themes, like the product they show. */
+/* The home page's first section (D98, D100): the headline beside three packs cut from one saved Match Read.
+   Every rule sits under .home-hero; the landing page's ground is set in landing.css. Sizes follow the content width
+   (cqi), so the layout is the same on any screen; the packs keep their own colours in both themes, like the product
+   they show, and never cover the text. */
 .home-hero {
-  --hh-ground: var(--bg2);          /* one step under the page, so the light packs stand off it */
-  --hh-chip: var(--surface);
-  --hh-chip-hover: var(--bg);
   --hh-floor: rgba(17, 30, 23, 0.26);
   --hh-dark-pack: #191C1F;
-  background: var(--hh-ground);
   padding-top: var(--topbar-h);
   overflow-x: clip;
 }
 :root[data-theme="dark"] .home-hero {
-  --hh-ground: var(--bg);
-  --hh-chip: var(--surface2);
-  --hh-chip-hover: #2A2E33;
   --hh-floor: rgba(0, 0, 0, 0.6);
   --hh-dark-pack: #2A2E33;
 }
@@ -28,7 +22,7 @@
 
 .home-hero h1 {
   position: relative; z-index: 1;
-  font-size: clamp(44px, 11.4cqi, 172px);
+  font-size: clamp(44px, 9.6cqi, 172px);
   font-stretch: 68%;
   line-height: 0.88;
   letter-spacing: -0.015em;
@@ -55,26 +49,6 @@
 .hh-go:hover svg { transform: translateX(3px); }
 .hh-go:active { transform: scale(.97); }
 
-/* The play badge: its words turn around a round button. The ring turns an inner group, so the badge's box stays put. */
-.hh-badge {
-  position: relative; flex: none; overflow: clip;
-  display: grid; place-items: center;
-  width: 140px; height: 140px; border-radius: 999px;
-}
-.hh-ring { position: absolute; inset: 0; width: 100%; height: 100%; }
-.hh-ring g { transform-box: view-box; transform-origin: 74px 74px; animation: hh-turn 24s linear infinite; }
-.hh-ring text { fill: var(--text); font-size: 13.2px; font-weight: 750; font-stretch: 80%; text-transform: uppercase; letter-spacing: .06em; }
-.hh-play {
-  position: relative; display: grid; place-items: center; width: 84px; height: 84px; border-radius: 999px;
-  background: var(--hh-chip); color: var(--text);
-  transition: transform .25s var(--ease), background-color .2s;
-}
-.hh-play:hover { transform: scale(1.06); background: var(--hh-chip-hover); }
-.hh-play:active { transform: scale(.96); }
-.hh-play .hh-wait, .hh-play[aria-pressed="true"] .hh-start { display: none; }
-.hh-play[aria-pressed="true"] .hh-wait { display: block; }
-@keyframes hh-turn { to { rotate: 360deg; } }
-
 .hh-caption {
   position: absolute; right: 0; bottom: 36px; z-index: 3;
   max-width: 64ch; text-align: right; color: var(--text2); font-size: 14px; line-height: 1.5;
@@ -83,7 +57,9 @@
 
 /* ---- The three packs: one real read, three markets ---- */
 .hh-packs {
-  position: absolute; z-index: 2; right: 0; top: clamp(28px, 6vh, 64px);
+  /* where the page margin is too thin for the tilted right pack, it steps in so its corner stays on screen */
+  position: absolute; z-index: 2; right: max(0px, var(--pw) * .14 + 12px - (100vw - 100cqi) / 2);
+  top: calc(clamp(28px, 6vh, 64px) + 40px);
   display: flex; align-items: flex-start;
 }
 .hh-slot { width: var(--pw); }
@@ -158,12 +134,12 @@
 @keyframes hh-drop { from { opacity: 0; translate: 0 -56px; rotate: -6deg; } }
 @keyframes hh-spread { from { opacity: 0; scale: .6 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .hh-ring g, .hh-float { animation: none; }
-  .hh-pack, .hh-go, .hh-go svg, .hh-play { transition: none; }
+  .hh-float { animation: none; }
+  .hh-pack, .hh-go, .hh-go svg { transition: none; }
   .hh-pack:hover { translate: none; }
 }
 
-/* ---- Tablet and phone: the packs sit under the headline and still run into its second line ---- */
+/* ---- Tablet and phone: the packs sit under the headline, clear of it ---- */
 @media (max-width: 1000px) {
   .hh-inner {
     --pw: min(25.5cqi, 200px);
@@ -173,18 +149,15 @@
   .home-hero h1 { grid-row: 1; grid-column: 1 / -1; font-size: clamp(44px, 16.4cqi, 132px); }
   .hh-packs {
     grid-row: 2; grid-column: 1 / -1; justify-self: center;
-    position: relative; right: auto; top: auto; margin-top: calc(var(--pw) * -.2);
+    position: relative; right: auto; top: auto; margin-top: calc(var(--pw) * .2);
   }
   .hh-floor { top: calc(var(--pw) * 2.36); }
   .hh-lede { grid-row: 3; grid-column: 1; margin-top: calc(var(--pw) * .36); max-width: 30ch; }
   .hh-actions { grid-row: 3; grid-column: 2; margin-top: calc(var(--pw) * .36); gap: 16px; }
-  .hh-badge { width: 116px; height: 116px; }
-  .hh-play { width: 64px; height: 64px; }
   .hh-caption { grid-row: 4; grid-column: 1 / -1; position: static; margin-top: 28px; text-align: left; }
 }
 @media (max-width: 760px) {
   .hh-inner { --pw: min(31.5cqi, 150px); grid-template-columns: minmax(0, 1fr); padding-top: 32px; }
-  .hh-packs { margin-top: calc(var(--pw) * -.12); }
   .hh-lede { max-width: none; font-size: 18px; }
   .hh-actions { grid-row: 4; grid-column: 1; margin-top: 24px; justify-content: space-between; }
   .hh-go { padding: 0 22px; }

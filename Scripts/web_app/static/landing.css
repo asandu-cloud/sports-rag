@@ -1,5 +1,9 @@
 /* Public pages: landing and info pages. Palette and type tokens live in style.css. */
 .landing-shell { width: min(var(--max-w), 100% - 2 * var(--gutter)); margin-inline: auto; }
+/* D100: the whole landing page sits on the first section's ground, one step under the canvas so the light packs
+   and cards stand off it; in the dark theme that is the page itself. */
+#landingPage { background: var(--bg2); }
+:root[data-theme="dark"] #landingPage { background: var(--bg); }
 
 /* -- The first section (D98) lives in home-hero.css. The methodology page's calculator keeps this button. -- */
 .landing-primary {
@@ -18,7 +22,6 @@
 
 /* -- Sections -- */
 .landing-benefits { padding-block: 48px 56px; border-top: 1px solid var(--border); }
-.home-hero + .landing-benefits { border-top: 0; }
 .landing-benefits h2, .landing-membership h2, .landing-faq h2 {
   font-size: clamp(2.25rem, 4.2vw, 3.25rem);
   font-weight: 800;
