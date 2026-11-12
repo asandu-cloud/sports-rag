@@ -112,6 +112,11 @@ assert.equal(wins.homeWinsRecord({ week: WEEK, record: [{ ...RECORD[1], void: 1 
 assert.equal(wins.homeWinsRecord({ week: WEEK, record: [{ ...RECORD[1], picks: 1, won: 1, void: 0, expected_wins: 0.6 }] }, h),
   'Every pick counts, losses too. From 4 to 8 Nov Spix made <b>1 Value pick</b> and expected about 1 to win. <b>1 did</b>.');
 assert.equal(wins.homeWinsRecord({ week: WEEK, record: [] }, h), '');
+// A list with no graded picks that week comes back with picks 0 and said null (backend, 12 Nov): it is left out.
+assert.equal(wins.homeWinsRecord({ week: WEEK, record: [{ list: 'most_likely', picks: 0, won: 0, lost: 0, void: 0, said: null,
+  expected_wins: 0, happened: null }, RECORD[1]] }, h),
+  'Every pick counts, losses too. From 4 to 8 Nov Spix made <b>10 Value picks</b> and expected about 4 or 5 to win.'
+  + ' <b>3 did</b>, and 2 were void (stake back).');
 
 // The section shows only with a real feed and enough wins to fill the reel without looking like more than there were.
 assert.equal(wins.HOME_WINS_MIN, 6);
@@ -120,6 +125,9 @@ assert.equal(wins.homeWinsReady({ version: 'home_wins.v1', week: WEEK, wins: man
 assert.equal(wins.homeWinsReady({ version: 'home_wins.v2', week: WEEK, wins: many(12), record: RECORD }), false);
 assert.equal(wins.homeWinsReady({ version: 'home_wins.v1', week: WEEK, wins: null, record: RECORD }), false);
 assert.equal(wins.homeWinsReady(null), false);
+// No file yet: the backend's empty feed. A feed without its week is never shown either.
+assert.equal(wins.homeWinsReady({ version: 'home_wins.v1', week: null, record: [], wins: [] }), false);
+assert.equal(wins.homeWinsReady({ version: 'home_wins.v1', week: null, wins: many(12), record: RECORD }), false);
 
 // The reel: the set twice in one track, so moving it left by half loops without a seam. Only the first set is read
 // out; the second is hidden and out of the tab order.
