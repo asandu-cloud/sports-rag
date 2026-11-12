@@ -131,7 +131,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Done 3 Nov: `CLAUDE.md` corrected (saved ML R² ≈ 0 and zero ML weight; `elo_signal_weight` never read) and given a "Start here" section: reading order, current status, the stage rule, safety rules, how to work with the owner, how to run things | Done | Keep its status block current with the tracker |
 | Done 17 Oct 16:28: production reads from the document store (`DOCUMENT_STORE=sqlite` in `.env`). The first 6 reads record `DOCUMENT_STORE: sqlite` and their projections equal the previous Chroma read of the same fixture and stage (7 of 7 markets each). Verification before the switch: every refresh stage completed; same 129,801 documents; all 881 recorded engine queries return the same documents in the same order; 341 documents differ only in a last floating-point digit; engine outputs on the 54 golden fixtures identical from both. Fallback: remove the line | Done | Unblocks the OddsPapi true-close capture (D16 rule 3, A1 step 4) |
 | WAL mode for `platform.db` (`PRAGMA journal_mode=WAL`, so readers stop waiting on writers; the cause of the 29 Oct busy evening, see Findings). First check how the daily refresh replaces, copies or backs up the file (WAL keeps recent writes in a `-wal` file beside it), and the 23 Oct refresh failure (rollback journal, 2 s timeout) | After the 2 Nov scorecard (owner, 29 Oct) | Changes how every job writes the 9.5 GB database; not before the scorecard |
-| Wins reel on the home page (D101): frontend a4a20b5 and on, hidden until `GET /api/home/wins` (`home_wins.v1`, backend 386eb01) is live | The orchestrator merges both, then the website restarts (owner's go-ahead) | Built 12 Nov on both branches |
+| Done 12 Nov 20:03: wins reel on the home page (D99, D101). Both branches merged, the file filled, and the website restarted (owner's go-ahead) | Done | The daily refresh's `home_wins_file` stage keeps it current |
 
 ## Decisions and deviations from the report
 
@@ -2320,6 +2320,10 @@ happened. The owner's order was cards first (three options, with real data), the
     section's top line that every landing section has.
   - Compare: the checkpoint commit f8c2cd2, and the screenshots at each width.
   - No migration, no `.env` line, no restart.
+- *Live 12 Nov at 20:03 (owner, orchestrator).*
+  - Merged: D101 (5d1cacf, 9674bb9) and D99 (609a8dc).
+  - `home-wins` was run once by hand: 4 to 8 Nov, 12 wins (Most likely 249 of 354, Value 3 of 10).
+  - Website restarted (pid 66529). `/api/home/wins` serves the file, and the page's own script accepts it.
 
 ## Findings that shape later steps
 

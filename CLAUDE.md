@@ -66,8 +66,18 @@ on it. The Discord bot still runs the old engine until A7.
   real read of Brighton v Brentford (8 Nov, labelled Example). It replaced D87's Arsenal v Chelsea animation
   (`hero-run.*`, deleted). Since 12 Nov (D100, owner's version A) the whole landing page sits on the hero's ground,
   the play wheel is gone, the corners card runs through its lines by itself, and the cards clear the headline. The
-  intro sentence is the owner's own wording (12 Nov). Files: `home-hero.css`, `home-hero.js`, `static/home/` and
-  `landing.css`, all at tag `home-20261112b`.
+  intro sentence is the owner's own wording (12 Nov). Files: `home-hero.css`, `home-hero.js` and `static/home/`, at
+  tag `home-20261112b`.
+- **Wins reel on the home page live 12 Nov at 20:03 (D99, D101, owner; website restarted, pid 66529).** It sits
+  under "Useful before you decide": last full week's best wins as the board showed them at kickoff, at most 12, one
+  per match. The week's whole record sits beside them, losses included, with 18+, GamCare and a Pause button.
+  - The data: the daily refresh's best-effort `home_wins_file` stage (while `SPIX_RECOMMENDATIONS` is on) writes
+    `Index/home_wins.json`, which the public `GET /api/home/wins` serves. To fill it by hand, run
+    `python -m Scripts.data_platform home-wins`.
+  - The section hides with no file or fewer than 6 wins. It shows 4–8 Nov until Mon 23 Nov.
+  - Files: `home-wins.css`, `home-wins.js` and `landing.css`, at tag `wins-20261112a`.
+  - Open for the owner: only 10 of the 61 Value publications for 4–8 Nov were still on the site at kickoff, but
+    the owner dashboard counts all 61 (D99).
 - **OpenAI credit topped up 10 Nov (owner)**, after running out on 5 Nov 18:04. Match Read briefings go back to the
   model's wording; they cost roughly $5–10 a week at the 3–5 Nov pace. Picks never depended on it.
   OpenAI shuts down `gpt-4o-mini` on 14 Jan 2027: Whale chat and the Discord slash commands fall back to it when
