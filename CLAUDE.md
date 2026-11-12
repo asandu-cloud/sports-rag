@@ -19,7 +19,7 @@ Much of the rest of this file describes the **legacy** engine (`rag_cli_v2.py`, 
 (`market_service.py`, `line_selection.py`, `market_goal_model.py`), staged behind switches (below). The website runs
 on it. The Discord bot still runs the old engine until A7.
 
-### Current status (as of 11 Nov 2026; the tracker is newer if it disagrees)
+### Current status (as of 12 Nov 2026; the tracker is newer if it disagrees)
 - **Engine stages 1–4 live.** Stage 4 went live 3 Nov: `SPIX_MARKET_ANCHOR=full` and
   `SPIX_SELECTION_POLICY=market_value`, every bookmaker, 2% value threshold, price confirmation at 60 minutes,
   failing closed. Value picks are rare by design: 5 of 18 matches on 3 Nov.
@@ -63,9 +63,11 @@ on it. The Discord bot still runs the old engine until A7.
   `night-20261109a` (theme.js). Open for the owner: the steel blue of the Away segment and the "preliminary" label now sits close to
   the cobalt.
 - **Home page opening live 11 Nov (D98, owner).** "Every match, read for you", with three tilted packs from the
-  real read of Brighton v Brentford (8 Nov, labelled Example) and a play badge that runs the corners line. It
-  replaced D87's Arsenal v Chelsea animation (`hero-run.*`, deleted). Files: `home-hero.css`, `home-hero.js`,
-  `static/home/` and `landing.css`, all at tag `home-20261111a`.
+  real read of Brighton v Brentford (8 Nov, labelled Example). It replaced D87's Arsenal v Chelsea animation
+  (`hero-run.*`, deleted). Since 12 Nov (D100, owner's version A) the whole landing page sits on the hero's ground,
+  the play wheel is gone, the corners card runs through its lines by itself, and the cards clear the headline. The
+  intro sentence is the owner's own wording (12 Nov). Files: `home-hero.css`, `home-hero.js`, `static/home/` and
+  `landing.css`, all at tag `home-20261112b`.
 - **OpenAI credit topped up 10 Nov (owner)**, after running out on 5 Nov 18:04. Match Read briefings go back to the
   model's wording; they cost roughly $5–10 a week at the 3–5 Nov pace. Picks never depended on it.
   OpenAI shuts down `gpt-4o-mini` on 14 Jan 2027: Whale chat and the Discord slash commands fall back to it when
@@ -92,6 +94,7 @@ on it. The Discord bot still runs the old engine until A7.
 - **Refresh lock fix (D88, owner, 10 Nov).** The refresh failures of 27 Oct, 4 Nov and 10 Nov 13:15 were the
   measurement job's heartbeat write landing under the sync's fixture updates. The sync now ends a fixture's
   transaction on a lock and retries up to 3 times, and measurement writes nothing while the refresh holds the gate.
+  Confirmed on the 11 and 12 Nov refreshes: both synced with no errors.
 - **Cards work that does not change picks (D54):**
   - add the events to the refresh and backfill them from 20 Sep (done 4 Nov: migration 0010, 554 matches
     backfilled, the refresh saves events from now on, D64);
