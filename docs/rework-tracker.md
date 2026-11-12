@@ -1794,6 +1794,9 @@ so the gate was shut for about 1 h 45 min (no matches that week). The owner appr
   - 10 Nov: record 27735 at 11:15:08.264 UTC; failed updates .344–.365.
   - 4 Nov: record 23524 at 05:15:28.247; 20 failed updates, .253–.314.
   - 27 Oct: record 19393 at 05:45:34.828; 20 failed updates, .869–.911.
+- *Confirmed 12 Nov (orchestrator):* the 11 and 12 Nov refreshes synced with `error_count` 0 (sync runs 28529 and
+  28730), and the log has no lock errors after the 10 Nov failure. D94's `stats_questions_file` stage passed both
+  days (94 s, 75 s).
 
   On a scratch SQLite file, the same savepoint, read and update fail in 0.001 s while another connection holds the
   write lock. Without the savepoint they wait and succeed, and a reader alone only makes them wait. Ruled out:
