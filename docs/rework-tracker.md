@@ -2215,6 +2215,34 @@ the backend prepares the data. Design: `docs/superpowers/specs/2026-11-12-home-w
   not the same as "what a visitor saw at kickoff". Nothing changed; the owner decides whether the dashboard should
   show both.
 - *No code yet* (owner). No migration, no `.env` line.
+- *Built 12 Nov* (the frontend reports the owner agreed the cards and the motion; the frontend's part is D101):
+  - `Scripts/data_platform/services/home_wins.py` builds `home_wins.v1` from the board's own before-kickoff
+    record. The board's D70 code now hands over the read it showed at kickoff (`_shown_at_kickoff`), so the board
+    and the reel share one rule. Cards are built without pick notes or evidence. Scores and corners come from
+    `platform.db`, one short read inside the gate, and each day's reads are taken under their own gate hold.
+  - `python -m Scripts.data_platform home-wins` writes `Index/home_wins.json`. The daily refresh runs it as the
+    best-effort stage `home_wins_file`, before `platform_health`, while `SPIX_RECOMMENDATIONS` is on (no lists on
+    the board, no wins to show), so no new `.env` line is needed. It took 32 s on the real data.
+  - `GET /api/home/wins` (public; `Scripts/web_app/routers/home.py`) serves the file and never reads
+    `platform.db`. With no file, or a broken one, it returns an empty reel, and the page hides the section.
+  - *My calls in the build:*
+    - "The week" is the latest *full* Monday-to-Sunday week (London). Otherwise a Monday-night match would start a
+      new week of one or two wins, and the section would hide until the weekend. During the 20–22 Nov weekend the
+      reel still shows 4–8 Nov, and from Mon 23 Nov it shows 16–22 Nov. It looks back at most 26 weeks, never
+      before go-live, and `week.from`/`to` are the first and last days with a graded pick.
+    - A half won counts with the wins and a half lost with the losses; a push is void, as the owner dashboard
+      shows them. Only a full win with a typical price goes on the reel. A Value pick on a whole line (Under 10
+      corners) has no typical price on the card, so it stays in the record only.
+    - An option in both lists counts as the Value pick it also was. `result` reads "1 goal", "7 goals" or
+      "13 corners".
+  - *Checked on the real data (4–8 Nov):* the same 12 wins in the same order as the agreed sample. Value is
+    unchanged (10 picks, 3 won, 5 lost, 2 void). Most likely has 354 picks and 249 won: one more than the sample,
+    Auxerre v Paris FC (7 Nov), Under 11.5 corners, given 74%, with 6 corners. The board showed it at kickoff, but
+    the owner dashboard has no graded row for it, and the sample was graded from the dashboard.
+  - Tests: `Scripts/tests/data_platform/test_home_wins.py` (26), and the refresh plan test. Golden check
+    unchanged. No migration, no `.env` line. The website needs a restart for the new endpoint, after the merge.
+    Until the first refresh after the merge, the endpoint returns an empty reel. Running the command once fills
+    it straight away.
 
 ## Findings that shape later steps
 

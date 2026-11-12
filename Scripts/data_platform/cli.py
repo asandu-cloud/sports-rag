@@ -43,6 +43,10 @@ Entry points
     Atomically replace descriptive research peer ranks from canonical data.
     Omitting both filters rebuilds every stored competition and season.
 
+``home-wins [--out PATH]``
+    Rebuild the home page's wins reel (``Index/home_wins.json``): last full week's best wins as the board showed
+    them at kickoff, with the week's whole record. Read only; the daily refresh runs it at the end.
+
 ``migrate-users [--sqlite-path ...] [--dry-run]``
     Copy users / subscription_events / referrals from
     ``Index/predictions.db`` into the canonical tables.
@@ -98,6 +102,25 @@ def cmd_research_build(args) -> int:
 
     result = ResearchProfileService().build(season=args.season, competition=args.competition)
     print(json.dumps(result, indent=2))
+    return 0
+
+
+def cmd_home_wins(args) -> int:
+    from .services import home_wins
+    from .services.refresh_coordination import RefreshBusy
+
+    try:
+        reel = home_wins.build(args.out or home_wins.DEFAULT_PATH)
+    except RefreshBusy as exc:
+        print(f"[home-wins] {exc} The home page keeps its last reel.")
+        return 1
+    if not reel.get("week"):
+        print("[home-wins] No full week with graded picks since the lists went live: the reel is empty.")
+        return 0
+    start, end = (date.fromisoformat(reel["week"][key]) for key in ("from", "to"))
+    days = f"{start.day} to {end.day} {end:%b}" if start.month == end.month else f"{start:%-d %b} to {end:%-d %b}"
+    record = ", ".join(f"{row['list']} won {row['won']} of {row['picks']}" for row in reel["record"])
+    print(f"[home-wins] {days}: {len(reel['wins'])} wins on the reel ({record}).")
     return 0
 
 
@@ -675,6 +698,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--season", type=int, help="Starting year; omit for all stored seasons")
     p.add_argument("--competition", help="Competition code; referee ranks still use all competitions")
     p.set_defaults(func=cmd_research_build)
+
+    p = sub.add_parser("home-wins", help="Rebuild the home page's wins reel file (read only)")
+    _add_common_args(p)
+    p.add_argument("--out", type=Path, help="Where to write it; default Index/home_wins.json")
+    p.set_defaults(func=cmd_home_wins)
 
     p = sub.add_parser("bootstrap", help="Full backfill for one or more competition/season pairs")
     _add_common_args(p)

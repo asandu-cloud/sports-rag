@@ -27,8 +27,13 @@ wins, from which record, in which format.
   - for a Value pick, the same option's typical price in the card's markets.
 
   Keep one pick per match, break ties by kickoff, and show at most 12.
-- **The week** is the latest Monday-to-Sunday week (London time) with a graded pick. In a break with no matches, the
-  reel keeps the last week that had them.
+- **The week** is the latest full Monday-to-Sunday week (London time) with a graded pick. In a break with no
+  matches, the reel keeps the last week that had them. "Full" (decided in the build): otherwise a Monday-night
+  match would start a week of one or two wins, and the section would hide until the weekend. `week.from` and
+  `week.to` are the first and last days with a graded pick.
+- **Half results** (a quarter or whole line on a Value pick): a half won counts with the wins and a half lost with
+  the losses; a push is void, as the owner dashboard shows them. Only a full win with a typical price goes on the
+  reel.
 - **The record line** covers both lists, as shown at kickoff that week: picks, won, lost, void, the average chance,
   the expected wins (the chances added up) and the share that came in. The frontend asked for Value in it (12 Nov):
   a 4.10 Value winner next to a Most likely-only record would read as selective. For small samples the expected
@@ -60,15 +65,17 @@ wins, from which record, in which format.
 - In the site's chance words, 69% reads "about 2 in 3" (there is no "7 in 10" step).
 - The frontend may still ask for other fields while it designs.
 
-## How it will be built (after the design is approved)
+## How it is built (12 Nov, after the owner agreed the design)
 
-- `Scripts/data_platform/services/home_wins.py` builds the block. It uses the board's before-kickoff path for the
-  week's days and public leagues, plus the fixtures' final scores and corners. It reads `platform.db` only, never
-  the owner dashboard's file, so the site does not depend on a local tool.
-- Rebuilding the week's reads is too slow for a page request (about 120 matches). So it will run once a day as a
-  best-effort stage of the refresh, like `stats_questions_file`, writing `Index/home_wins.json`. A public endpoint,
-  `GET /api/home/wins`, will serve that file.
-- No migration, and no change to picks or to the engine switches.
+- `Scripts/data_platform/services/home_wins.py` builds the block. It uses the board's before-kickoff path
+  (`_shown_at_kickoff` in the match reads router) for the week's days and public leagues, plus the fixtures' final
+  scores and corners. It reads `platform.db` only, never the owner dashboard's file, so the site does not depend on
+  a local tool.
+- Rebuilding the week's reads is too slow for a page request (about 120 matches, 32 s). So
+  `python -m Scripts.data_platform home-wins` runs once a day as the best-effort refresh stage `home_wins_file`
+  (while `SPIX_RECOMMENDATIONS` is on), writing `Index/home_wins.json`. The public endpoint `GET /api/home/wins`
+  serves that file, or an empty reel when there is none.
+- No migration, no `.env` line, and no change to picks or to the engine switches.
 
 ## Real data used for the sketches (4–8 Nov)
 

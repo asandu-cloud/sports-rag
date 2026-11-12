@@ -318,12 +318,30 @@ def _effective_cards(
 
 
 def _before_kickoff(reads: Sequence[Mapping[str, Any]], *, now: datetime) -> List[Dict[str, Any]]:
-    """Each started match's picks as the board showed them at kickoff (D70).
+    """Each started match's picks as the board showed them at kickoff (D70)."""
+    from data_platform.services import before_kickoff
+
+    entries = []
+    for read, read_at in _shown_at_kickoff(reads, now=now):
+        try:
+            card = _card_from_read(read)
+        except ValueError as exc:
+            logger.warning("Skipping unreadable Match Read fixture %s: %s",
+                           (read.get("fixture") or {}).get("event_id"), exc)
+            continue
+        item = before_kickoff.entry(card, read_at=read_at)
+        if item is not None:
+            entries.append(item)
+    return _by_kickoff(entries)
+
+
+def _shown_at_kickoff(reads: Sequence[Mapping[str, Any]], *, now: datetime) -> List[tuple]:
+    """Each started match's read as the board showed it at kickoff, with when it was read (D70; the home page's
+    wins reel, D99, builds its cards from the same reads).
 
     Only reads evaluated before kickoff count, and the effective one among them must have passed the release
     check a second before kickoff: what a visitor could see then, never a read made or refreshed afterwards.
     """
-    from data_platform.services import before_kickoff
     from data_platform.services.match_read_release import assess_match_read_release
 
     observations = _latest_successful_observations(reads)
@@ -333,8 +351,8 @@ def _before_kickoff(reads: Sequence[Mapping[str, Any]], *, now: datetime) -> Lis
         fixture_id = str(fixture.get("event_id") or "").strip()
         if fixture_id:
             by_fixture.setdefault(fixture_id, []).append(read)
-    entries = []
-    for fixture_id, fixture_reads in by_fixture.items():
+    shown = []
+    for fixture_reads in by_fixture.values():
         kickoff = _timestamp_rank((fixture_reads[0].get("fixture") or {}).get("kickoff"))
         if kickoff == float("-inf") or kickoff > now.timestamp():
             continue
@@ -350,16 +368,9 @@ def _before_kickoff(reads: Sequence[Mapping[str, Any]], *, now: datetime) -> Lis
             effective, now=datetime.fromtimestamp(kickoff - 1, tz=timezone.utc), observed_at=observed)
         if not assessment.eligible:
             continue
-        try:
-            card = _card_from_read(effective)
-        except ValueError as exc:
-            logger.warning("Skipping unreadable Match Read fixture %s: %s", fixture_id, exc)
-            continue
         read_at = assessment.freshness_checked_at or assessment.evaluated_at
-        item = before_kickoff.entry(card, read_at=read_at.isoformat().replace("+00:00", "Z") if read_at else None)
-        if item is not None:
-            entries.append(item)
-    return _by_kickoff(entries)
+        shown.append((effective, read_at.isoformat().replace("+00:00", "Z") if read_at else None))
+    return shown
 
 
 def _evaluated_at(read: Mapping[str, Any]) -> Any:
