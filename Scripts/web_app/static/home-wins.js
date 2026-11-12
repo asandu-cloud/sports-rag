@@ -88,7 +88,8 @@ function homeWinsCard(w, h) {
 
 // Only a real feed with enough wins is shown.
 function homeWinsReady(data) {
-  return !!data && data.version === 'home_wins.v1' && Array.isArray(data.wins) && data.wins.length >= HOME_WINS_MIN;
+  return !!data && data.version === 'home_wins.v1' && !!data.week && Array.isArray(data.wins)
+    && data.wins.length >= HOME_WINS_MIN;
 }
 
 // The reel's track: the set twice, so moving it left by exactly one set (half the track) loops without a seam. A
