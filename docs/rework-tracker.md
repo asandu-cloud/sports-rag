@@ -2188,6 +2188,31 @@ owner).** The owner liked D98's hero and asked for four things:
   - Compare: the checkpoint commit 13e9647, and screenshots of live D98, A and B at each width.
   - No migration, no `.env` line, no restart.
 
+**D99 — Home page wins reel: which wins, and the data (12 Nov; backend, owner).** The owner asked for a slow, endless
+reel of last week's best real wins on the home page, with cards like the match cards ("Infinite Horizontal
+Marquee", staggered heights, rotations of about ±5°, a truly seamless loop). The order: sketch the cards first, then
+the motion, and code nothing for production until a design is agreed. The frontend designs it with the taste skill;
+the backend prepares the data. Design: `docs/superpowers/specs/2026-11-12-home-wins-reel-design.md`.
+- *Owner's choices:* the highest typical prices that came in, from both lists, one per match, about 12 cards; and a
+  "said vs happened" line beside the reel, so the losses are not hidden (identity.md section 7).
+- *My calls:*
+  - only picks the site still showed at kickoff (D70's record), from the lists' go-live on 4 Nov at 19:50;
+  - won means full time on 90 minutes;
+  - Value wins are priced by the same option's typical price on the card;
+  - the week is the latest Monday-to-Sunday with a graded pick, kept through a break;
+  - the record line covers Most likely only;
+  - it will be a daily best-effort refresh stage writing `Index/home_wins.json`, served by `GET /api/home/wins`,
+    built from `platform.db` and not the owner dashboard's file.
+- *Real data (4–8 Nov):* 118 matches had picks at kickoff. Most likely: 353 picks, 248 won, said 69.0%, happened
+  70.3%. The 12 highest-priced wins run from 4.10 (Value, Over 5.5 goals, Cambuur 2–5 PSV, given 23%) to 1.56. The
+  sample went to the frontend in the proposed `home_wins.v1` shape.
+- *Finding:* of 61 Value publications for those matches, only 10 were still on the site at kickoff. Later reads
+  dropped the rest when the price moved: Valencia v Real Madrid had three Value picks published between 3 and 6 Nov
+  and none at kickoff. The owner dashboard's Value record (D79) counts every publication, so its Value figures are
+  not the same as "what a visitor saw at kickoff". Nothing changed; the owner decides whether the dashboard should
+  show both.
+- *No code yet* (owner). No migration, no `.env` line.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
