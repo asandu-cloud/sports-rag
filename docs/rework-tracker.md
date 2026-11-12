@@ -2138,6 +2138,52 @@ first section (D87's "A clearer view of matchday" and the Arsenal v Chelsea anim
   - Compare: the checkpoint commit before this one, and before/after screenshots at each width.
   - No migration, no `.env` line, no restart (static files, page not cached).
 
+**D100 — The landing page takes one ground, the play wheel goes, and the cards clear the headline (12 Nov; frontend,
+owner).** The owner liked D98's hero and asked for four things:
+1. the rest of the landing page on the hero's colour;
+2. no "See how Spix reads" wheel, with the corners card running by itself;
+3. the cards lower, never covering the text, especially on phones;
+4. on desktop, two versions to choose from: a smaller headline, or the same headline with the cards further right
+   and down. The cards' size and design stay as they are.
+- *What changed:*
+  - The whole landing page (`#landingPage`) sits on the hero's ground: `--bg2` in the light theme, the page's `--bg`
+    in the dark. The hero has no background of its own. The line between the hero and the next section is back, since
+    no colour change separates them now.
+  - The play badge, its ring and its spoken status are gone. The corners card runs through 6.5 to 11.5 and back to
+    Over 8.5 by itself: 0.8 s a line, 1.1 s before the pick, then the pick held for 4 s. It first runs 2.5 s after it
+    comes on screen, and it runs only while it is on screen, the tab is open and no pointer rests on it. With reduced
+    motion it stays on the pick. Each card is now one picture with its label (`role="img"`), so a screen reader never
+    hears a line mid-run.
+  - Version A (the default): the headline is 9.6 container units instead of 11.4 (123 px instead of 146 px at 1440),
+    and the cards sit 40 px lower.
+  - Version B (`?hero=b`, desktop only): the headline keeps its size. The cards move right into the page margin by up
+    to 40 px, and down by 160 px, plus 2.5 px for every pixel of margin they could not use. On short screens the section
+    grows to hold them. The caption moves under the button.
+  - Tablet and phone (both versions): the cards sit a fifth of a card below the headline instead of overlapping it.
+  - Where the margin is too thin for the tilted right card (1000 to 1300 px), the cards step in, so its corner is no
+    longer cut by the window edge, as it was in D98.
+- *Measured on 8100* (each card's tilted outline against the ink of each headline line, at the top of the float and
+  also lifted straight, as on hover or mid-run; the smallest gap at any of 1920, 1440, 1366, 1280, 1180, 1024, 768,
+  390 and 360 px):
+  - A: 21 px on desktop, 15 px on tablet, 8 px on phone.
+  - B: 10 px on desktop.
+  - Live D98 overlapped by 68 px on desktop, 53 px on tablet and 21 px on phone.
+- *Open for the owner:* A or B. Once one is chosen, the other and the `?hero=b` switch come out. B on a 1366 × 768
+  laptop pushes the cards' lower half below the first screen.
+- *Files:* `home-hero.css`, `home-hero.js`, `index.html`, `landing.css` and `test_home_hero_web.js`. Cache tags are now
+  `home-20261112a`.
+- *Checks:*
+  - No script errors and no sideways scroll, at desktop 1440, 1366 and 1180, tablet 768 and phone 390, in light and
+    dark, in both versions.
+  - `test_home_hero_web.js` now covers the loop with fake timers (two runs in a row, the beats, stop and restart, one
+    timer at a time) and `?hero=b`. It also calls the page's own timers the way a browser does: an "Illegal
+    invocation" in the first build was caught there. All 11 JS test files pass.
+  - Full Python suite: 3012 passed, 4 skipped, and the 3 known worktree `Index`-link errors in
+    `test_phase4_baseline_freeze.py` (D98).
+  - The taste lint passes `home-hero.css`. `landing.css` has the same 8 flags as before, all in the older sections.
+  - Compare: the checkpoint commit 13e9647, and screenshots of live D98, A and B at each width.
+  - No migration, no `.env` line, no restart.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
