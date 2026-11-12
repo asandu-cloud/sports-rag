@@ -22,7 +22,7 @@
 
 /* -- Sections -- */
 .landing-benefits { padding-block: 48px 56px; border-top: 1px solid var(--border); }
-.landing-benefits h2, .landing-membership h2, .landing-faq h2 {
+.landing-benefits h2, .home-wins h2, .landing-membership h2, .landing-faq h2 {
   font-size: clamp(2.25rem, 4.2vw, 3.25rem);
   font-weight: 800;
   font-stretch: var(--display-stretch);

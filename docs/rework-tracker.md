@@ -131,6 +131,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Done 3 Nov: `CLAUDE.md` corrected (saved ML R² ≈ 0 and zero ML weight; `elo_signal_weight` never read) and given a "Start here" section: reading order, current status, the stage rule, safety rules, how to work with the owner, how to run things | Done | Keep its status block current with the tracker |
 | Done 17 Oct 16:28: production reads from the document store (`DOCUMENT_STORE=sqlite` in `.env`). The first 6 reads record `DOCUMENT_STORE: sqlite` and their projections equal the previous Chroma read of the same fixture and stage (7 of 7 markets each). Verification before the switch: every refresh stage completed; same 129,801 documents; all 881 recorded engine queries return the same documents in the same order; 341 documents differ only in a last floating-point digit; engine outputs on the 54 golden fixtures identical from both. Fallback: remove the line | Done | Unblocks the OddsPapi true-close capture (D16 rule 3, A1 step 4) |
 | WAL mode for `platform.db` (`PRAGMA journal_mode=WAL`, so readers stop waiting on writers; the cause of the 29 Oct busy evening, see Findings). First check how the daily refresh replaces, copies or backs up the file (WAL keeps recent writes in a `-wal` file beside it), and the 23 Oct refresh failure (rollback journal, 2 s timeout) | After the 2 Nov scorecard (owner, 29 Oct) | Changes how every job writes the 9.5 GB database; not before the scorecard |
+| Wins reel on the home page (D101): frontend a4a20b5 and on, hidden until `GET /api/home/wins` (`home_wins.v1`, backend 386eb01) is live | The orchestrator merges both, then the website restarts (owner's go-ahead) | Built 12 Nov on both branches |
 
 ## Decisions and deviations from the report
 
@@ -2243,6 +2244,82 @@ the backend prepares the data. Design: `docs/superpowers/specs/2026-11-12-home-w
     unchanged. No migration, no `.env` line. The website needs a restart for the new endpoint, after the merge.
     Until the first refresh after the merge, the endpoint returns an empty reel. Running the command once fills
     it straight away.
+
+**D101 — The wins reel on the home page (12 Nov; frontend, owner).** The backend relayed the owner's request: last
+week's best real wins as a slow, endless reel on the home page, with one plain line on what Spix said against what
+happened. The owner's order was cards first (three options, with real data), then the motion, then code.
+- *The owner's choices:*
+  - The cards: option A, the hero's pack: "lets do option A. but remove the blue bar with the spix logo from the
+    top".
+  - The motion prototype: "Design looks great. Lets add it to the homepage under the "useful before you decide"
+    part of the page."
+  - They did not pick between Glide and Glide-and-float, or a speed, so the prototype's defaults stand: Glide, at
+    28 px a second.
+- *What it shows:*
+  - The heading "Picks that came in, 4 to 8 Nov", with the dates taken from the feed's week.
+  - The cards. The backend picks about 12: the highest typical prices that came in, from both lists, one per match.
+    - Each card shows the list and the match, the market's name, the marked pick, the score between the crests,
+      what happened ("7 goals"), the chance in the site's words, one typical price, the day and the league.
+    - Under 25%, the chance reads "a long shot". No bookmaker is named.
+    - A Value pick is the dark card.
+  - Beside it, every pick of that week, losses included:
+    - Most likely, with its chance and what happened: 354 picks, said about 2 in 3 (69%), and 249 came in (70%).
+      These are the real builder's figures; the first sample missed one pick (Auxerre v Paris FC, Under 11.5
+      corners, which came in).
+    - Value, in counts only: 10 picks, about 4 or 5 expected to win, 3 came in and 2 were void.
+  - Under the reel: 18+, "Past results are no guide to the next match", the GamCare line, and a Pause button.
+- *How it moves:*
+  - The cards glide right to left at 28 px a second on any screen: one lap takes about 115 s on desktop and 99 s on a
+    phone.
+  - The set is drawn twice and moved left by half the track, so the join never shows.
+  - Each card keeps the tilt (−5° to 5°) and the height (±18 px) seeded from its match id.
+  - With a mouse, resting the pointer on the reel holds it and straightens the card under it. The button pauses and
+    plays the reel. Off screen, it rests.
+  - With reduced motion, the cards sit in a still row to scroll, each one once, and the button goes.
+- *When it shows:*
+  - Only when `GET /api/home/wins` returns `home_wins.v1` with at least 6 wins. Otherwise, or without script, the
+    section stays hidden.
+  - The heading sits beside the record on desktop, and above it below 1000 px.
+  - With fewer than 12 wins, the cards repeat inside each set so the loop still fills a wide screen. Screen readers
+    skip the repeats.
+- *Calls the frontend made:*
+  - the 6-win floor: a shorter list, looped, would look like more wins than there were;
+  - the 18+ line under the reel, which the prototype did not have;
+  - a Pause button whose label changes (Pause, then Play), without `aria-pressed`.
+- *The feed:* the backend built `GET /api/home/wins` on its branch (386eb01, 12 Nov). It is public and has the
+  sample's shape.
+  - It covers the latest full Mon–Sun London week with graded picks. On 20–22 Nov it still shows 4–8 Nov; from
+    Mon 23 Nov it shows 16–22 Nov. This way a Monday-night match never starts a week with 1 or 2 wins.
+  - Before the first file, it sends `week: null` with no wins, so the section stays hidden. A list with no graded
+    picks that week has picks 0 and is left out of the record line.
+  - The file is written by the daily refresh, or by hand with `python -m Scripts.data_platform home-wins`.
+  - Live after both branches merge and the website restarts. Before then, the section stays hidden on the site.
+- *Files:*
+  - new: `home-wins.css`, `home-wins.js` and `test_home_wins_web.js`;
+  - changed: `index.html`, and `landing.css` (the heading rule is shared with the other sections).
+  - Cache tag: `wins-20261112a` for `landing.css`, `home-wins.css` and `home-wins.js`.
+- *Checks.* Run on 8100, with the backend's 4–8 Nov sample served in place of the endpoint:
+  - No script errors and no sideways scroll at 1920, 1440, 1366, 768 and 390 px, in light and dark. Every crest and
+    the font load.
+  - The join is off by 0.03 px, and the speed is 28 px a second. One set is half the track: 3216 px on desktop and
+    2760 px on a phone. The copy is `aria-hidden` and inert.
+  - Pause holds the reel (0 drift) and Play restarts it. The pointer holds it too.
+  - Reduced motion: nothing runs, 12 cards show, the row scrolls, and there is no button.
+  - Without the feed (8100 today): the section stays hidden, with no errors.
+  - The new `test_home_wins_web.js` covers:
+    - the cards, their words and escaping, and the copy rules;
+    - the seeds, the week and the record;
+    - the 6-win floor, the track and its repeats, and the speed;
+    - the page's markup.
+    All 12 JS test files pass.
+  - Checked again with the backend's real 4–8 Nov file: same results, with the record at 354 and 249. The test now
+    also covers the empty feed, a feed with no week, and a list with no picks.
+  - Full Python suite: 3012 passed and 4 skipped, with the 3 known worktree `Index`-link errors in
+    `test_phase4_baseline_freeze.py` (D98).
+  - The taste lint passes `home-wins.css` and `home-wins.js`. Two lines are marked: the cards' shadow, and the
+    section's top line that every landing section has.
+  - Compare: the checkpoint commit f8c2cd2, and the screenshots at each width.
+  - No migration, no `.env` line, no restart.
 
 ## Findings that shape later steps
 
