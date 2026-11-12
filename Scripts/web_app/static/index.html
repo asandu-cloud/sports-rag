@@ -12,8 +12,9 @@
   <script>try{var t=localStorage.getItem('spix-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}try{var q=new URLSearchParams(location.search).get('logo');if(q==='old'||q==='new')sessionStorage.setItem('spix-logo',q);if(sessionStorage.getItem('spix-logo')==='old')document.documentElement.dataset.logo='old';}catch(e){}</script>
   <link rel="preload" href="/static/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/style.css?v=nextmatch-20261110a">
-  <link rel="stylesheet" href="/static/landing.css?v=home-20261112b">
+  <link rel="stylesheet" href="/static/landing.css?v=wins-20261112a">
   <link rel="stylesheet" href="/static/home-hero.css?v=home-20261112b">
+  <link rel="stylesheet" href="/static/home-wins.css?v=wins-20261112a">
 </head>
 <body>
 
@@ -148,6 +149,17 @@
       <div><h3>Know when to pass</h3><p>A Match Read can end with no bet. A projection is a starting point, not a promise of a winning selection.</p></div>
     </div>
     <a class="landing-text-link" href="/static/methodology.html">How the analysis works <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+  </section>
+  <section class="home-wins" id="homeWins" aria-labelledby="homeWinsTitle" hidden>
+    <div class="landing-shell hw-head">
+      <h2 id="homeWinsTitle">Picks that came in</h2>
+      <p class="hw-record"></p>
+    </div>
+    <div class="hw-reel"><div class="hw-track"></div></div>
+    <div class="landing-shell hw-foot">
+      <p class="hw-note"><strong>18+</strong> Past results are no guide to the next match. <a href="https://www.gamcare.org.uk/get-support/" target="_blank" rel="noopener">Gambling support from GamCare</a></p>
+      <button type="button" class="hw-pause" id="homeWinsPause"><svg viewBox="0 0 14 14" aria-hidden="true"><rect x="2" y="1" width="3.5" height="12" rx="1" fill="currentColor"/><rect x="8.5" y="1" width="3.5" height="12" rx="1" fill="currentColor"/></svg><span>Pause</span></button>
+    </div>
   </section>
   <section class="landing-membership landing-shell" id="pricing" aria-labelledby="membershipTitle">
     <div><h2 id="membershipTitle">One membership.<br>A simpler choice.</h2><p>We’re preparing a single Spix membership. Explore the current board while the subscription details are finalised.</p></div>
@@ -372,5 +384,6 @@
   <script type="module" src="/static/research/research.js?v=crest-20261110a"></script>
   <script src="/static/app.js?v=nextmatch-20261110a"></script>
   <script src="/static/home-hero.js?v=home-20261112b"></script>
+  <script src="/static/home-wins.js?v=wins-20261112a"></script>
 </body>
 </html>
