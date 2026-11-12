@@ -52,15 +52,7 @@ function homeHeroLoop(view, words, timers = { set: (fn, ms) => setTimeout(fn, ms
   };
 }
 
-// D100: the owner compares two desktop layouts; ?hero=b shows the second. Remove once one is chosen.
-function homeHeroVariant(search) {
-  return new URLSearchParams(search).get('hero') === 'b' ? 'b' : null;
-}
-
 if (typeof document !== 'undefined') {
-  const section = document.querySelector('.home-hero');
-  const variant = homeHeroVariant(location.search);
-  if (section && variant) section.dataset.hero = variant;
   const pack = document.getElementById('hh-corners');
   const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   // It runs only while the card is on screen, the tab is open and no pointer rests on it; reduced motion keeps the pick.

@@ -2168,15 +2168,16 @@ owner).** The owner liked D98's hero and asked for four things:
   - A: 21 px on desktop, 15 px on tablet, 8 px on phone.
   - B: 10 px on desktop.
   - Live D98 overlapped by 68 px on desktop, 53 px on tablet and 21 px on phone.
-- *Open for the owner:* A or B. Once one is chosen, the other and the `?hero=b` switch come out. B on a 1366 × 768
-  laptop pushes the cards' lower half below the first screen.
+- *The owner's choice (12 Nov):* "version a for sure". B's rules and the `?hero=b` switch are taken out (02447aa
+  has them, to bring back for a look); the old link now shows A. Against B: on a 1366 × 768 laptop it pushed the
+  cards' lower half below the first screen.
 - *Files:* `home-hero.css`, `home-hero.js`, `index.html`, `landing.css` and `test_home_hero_web.js`. Cache tags are now
-  `home-20261112a`.
+  `home-20261112b`.
 - *Checks:*
   - No script errors and no sideways scroll, at desktop 1440, 1366 and 1180, tablet 768 and phone 390, in light and
     dark, in both versions.
   - `test_home_hero_web.js` now covers the loop with fake timers (two runs in a row, the beats, stop and restart, one
-    timer at a time) and `?hero=b`. It also calls the page's own timers the way a browser does: an "Illegal
+    timer at a time), and that B is gone. It also calls the page's own timers the way a browser does: an "Illegal
     invocation" in the first build was caught there. All 11 JS test files pass.
   - Full Python suite: 3012 passed, 4 skipped, and the 3 known worktree `Index`-link errors in
     `test_phase4_baseline_freeze.py` (D98).

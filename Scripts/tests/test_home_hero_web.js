@@ -1,5 +1,5 @@
-// The home page's first section (D98): three packs from one saved Match Read (Brighton v Brentford, 8 Nov) and the
-// play badge that runs the corners pack through its real lines. The words on the packs and in the run come from the
+// The home page's first section (D98, D100): three packs from one saved Match Read (Brighton v Brentford, 8 Nov),
+// the corners pack running through its real lines by itself. The words on the packs and in the run come from the
 // site's own chance-words rule, and the run ends on Spix's pick. No browser or network.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -12,7 +12,7 @@ assert.ok(helpersStart >= 0 && helpersEnd > helpersStart);
 const { chanceWords } = Function('esc', app.slice(helpersStart, helpersEnd) + 'return { chanceWords };')(String);
 // The hero's script, with no page: only its data, its pure step builder and its loop.
 const hero = Function('document', fs.readFileSync(path.join(STATIC, 'home-hero.js'), 'utf8')
-  + 'return { HOME_HERO_LINES, HOME_HERO_PICK, homeHeroSteps, homeHeroLoop, homeHeroVariant };')(undefined);
+  + 'return { HOME_HERO_LINES, HOME_HERO_PICK, homeHeroSteps, homeHeroLoop };')(undefined);
 const page = fs.readFileSync(path.join(STATIC, 'index.html'), 'utf8');
 
 // The run: every line from 6.5 to 11.5 with its chance in words and its typical price, then back to the pick.
@@ -97,10 +97,8 @@ const pageLoop = heroInBrowser.homeHeroLoop({ pack: el(), pick: el(), chance: el
 pageLoop.start(2500);
 pageLoop.stop();
 
-// The two desktop versions for the owner to compare (D100): ?hero=b, anything else is version A.
-assert.equal(hero.homeHeroVariant('?hero=b'), 'b');
-assert.equal(hero.homeHeroVariant('?hero=a'), null);
-assert.equal(hero.homeHeroVariant('?preview=evidence&hero=b'), 'b');
-assert.equal(hero.homeHeroVariant(''), null);
+// The owner chose version A (D100): the smaller headline is the only layout, and the ?hero=b switch is gone.
+assert.doesNotMatch(fs.readFileSync(path.join(STATIC, 'home-hero.js'), 'utf8'), /hero=b|homeHeroVariant|dataset\.hero/);
+assert.doesNotMatch(fs.readFileSync(path.join(STATIC, 'home-hero.css'), 'utf8'), /data-hero|Version B/);
 
 console.log('home hero web tests passed');

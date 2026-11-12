@@ -139,26 +139,6 @@
   .hh-pack:hover { translate: none; }
 }
 
-/* ---- Version B (D100, ?hero=b, for the owner to compare): the headline keeps its D98 size and the packs move right
-   as far as the margin allows, and down to clear it; the less room on the right, the further down. The caption goes
-   under the button, out of their way. Desktop only. ---- */
-@media (min-width: 1001px) {
-  .home-hero[data-hero="b"] .hh-inner {
-    /* The packs are placed absolutely, so on short screens the section grows to hold them: the same sums as below,
-       from the window's width (the content width and one pack's width, estimated). */
-    --hh-cw: min(var(--max-w), 100vw - 2 * var(--gutter));
-    min-height: max(calc(100svh - var(--topbar-h)), calc(clamp(28px, 6vh, 64px) + 160px
-      + (40px - clamp(0px, (100vw - var(--hh-cw)) / 2 - var(--hh-cw) * .021 - 12px, 40px)) * 2.5 + var(--hh-cw) * .39 + 32px));
-  }
-  .home-hero[data-hero="b"] h1 { font-size: clamp(44px, 11.4cqi, 172px); }
-  .home-hero[data-hero="b"] .hh-packs {
-    --hh-room: clamp(-16px, (100vw - 100cqi) / 2 - var(--pw) * .14 - 12px, 40px);
-    right: calc(-1 * var(--hh-room));
-    top: calc(clamp(28px, 6vh, 64px) + 160px + (40px - max(0px, var(--hh-room))) * 2.5);
-  }
-  .home-hero[data-hero="b"] .hh-caption { position: static; margin-top: 48px; text-align: left; }
-}
-
 /* ---- Tablet and phone: the packs sit under the headline, clear of it ---- */
 @media (max-width: 1000px) {
   .hh-inner {
