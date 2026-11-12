@@ -2200,11 +2200,14 @@ the backend prepares the data. Design: `docs/superpowers/specs/2026-11-12-home-w
   - won means full time on 90 minutes;
   - Value wins are priced by the same option's typical price on the card;
   - the week is the latest Monday-to-Sunday with a graded pick, kept through a break;
-  - the record line covers Most likely only;
+  - the record line covers both lists, with picks, won, lost, void, the average chance, expected wins and the share
+    that came in (Value added at the frontend's request, so a Value winner never sits next to a Most likely-only
+    record);
   - it will be a daily best-effort refresh stage writing `Index/home_wins.json`, served by `GET /api/home/wins`,
     built from `platform.db` and not the owner dashboard's file.
 - *Real data (4–8 Nov):* 118 matches had picks at kickoff. Most likely: 353 picks, 248 won, said 69.0%, happened
-  70.3%. The 12 highest-priced wins run from 4.10 (Value, Over 5.5 goals, Cambuur 2–5 PSV, given 23%) to 1.56. The
+  70.3%. Value: 10 picks still on the site at kickoff, 3 won, 5 lost, 2 void, about 4.5 expected. The 12
+  highest-priced wins run from 4.10 (Value, Over 5.5 goals, Cambuur 2–5 PSV, given 23%) to 1.56. The
   sample went to the frontend in the proposed `home_wins.v1` shape.
 - *Finding:* of 61 Value publications for those matches, only 10 were still on the site at kickoff. Later reads
   dropped the rest when the price moved: Valencia v Real Madrid had three Value picks published between 3 and 6 Nov
