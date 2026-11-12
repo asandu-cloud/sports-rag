@@ -168,6 +168,14 @@ try:
 except Exception as _research_assistant_exc:
     log.warning("Research Assistant router not mounted: %s", _research_assistant_exc)
 
+# The home page's wins reel (D99) reads only the file the daily refresh writes, never platform.db.
+try:
+    from web_app.routers.home import router as home_router
+    app.include_router(home_router)
+    log.info("Home router mounted at /api/home/*")
+except Exception as _home_exc:
+    log.warning("Home router not mounted: %s", _home_exc)
+
 # The public track-record endpoints use the immutable publication cohort by
 # default.  Mount them in the main website process rather than leaving the
 # standalone module disconnected from the product API.

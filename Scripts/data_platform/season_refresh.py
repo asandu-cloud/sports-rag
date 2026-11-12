@@ -259,6 +259,16 @@ def build_refresh_plan(
             accepted_exit_codes=(0, 1),
         ))
 
+    if os.environ.get("SPIX_RECOMMENDATIONS", "").strip().lower() == "on":
+        # The home page's wins reel (D99): last full week's wins as the board showed them at kickoff, from the
+        # refreshed scores. Only while the board shows its lists. A failure is a warning: the page keeps yesterday's.
+        plan.append(RefreshStage(
+            name="home_wins_file",
+            description="Best effort: rebuild the home page's wins reel.",
+            command=(py, "-m", "Scripts.data_platform", "home-wins"),
+            accepted_exit_codes=(0, 1),
+        ))
+
     # A health warning (exit 1) is significant and recorded, but an old
     # watermark outside the selected competition must not disguise a successful
     # refresh.  Exit 2 is a real health error and stops the run.

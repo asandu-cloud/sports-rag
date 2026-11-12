@@ -2189,6 +2189,62 @@ owner).** The owner liked D98's hero and asked for four things:
   - Compare: the checkpoint commit 13e9647, and screenshots of live D98, A and B at each width.
   - No migration, no `.env` line, no restart.
 
+**D99 — Home page wins reel: which wins, and the data (12 Nov; backend, owner).** The owner asked for a slow, endless
+reel of last week's best real wins on the home page, with cards like the match cards ("Infinite Horizontal
+Marquee", staggered heights, rotations of about ±5°, a truly seamless loop). The order: sketch the cards first, then
+the motion, and code nothing for production until a design is agreed. The frontend designs it with the taste skill;
+the backend prepares the data. Design: `docs/superpowers/specs/2026-11-12-home-wins-reel-design.md`.
+- *Owner's choices:* the highest typical prices that came in, from both lists, one per match, about 12 cards; and a
+  "said vs happened" line beside the reel, so the losses are not hidden (identity.md section 7).
+- *My calls:*
+  - only picks the site still showed at kickoff (D70's record), from the lists' go-live on 4 Nov at 19:50;
+  - won means full time on 90 minutes;
+  - Value wins are priced by the same option's typical price on the card;
+  - the week is the latest Monday-to-Sunday with a graded pick, kept through a break;
+  - the record line covers both lists, with picks, won, lost, void, the average chance, expected wins and the share
+    that came in (Value added at the frontend's request, so a Value winner never sits next to a Most likely-only
+    record);
+  - it will be a daily best-effort refresh stage writing `Index/home_wins.json`, served by `GET /api/home/wins`,
+    built from `platform.db` and not the owner dashboard's file.
+- *Real data (4–8 Nov):* 118 matches had picks at kickoff. Most likely: 353 picks, 248 won, said 69.0%, happened
+  70.3%. Value: 10 picks still on the site at kickoff, 3 won, 5 lost, 2 void, about 4.5 expected. The 12
+  highest-priced wins run from 4.10 (Value, Over 5.5 goals, Cambuur 2–5 PSV, given 23%) to 1.56. The
+  sample went to the frontend in the proposed `home_wins.v1` shape.
+- *Finding:* of 61 Value publications for those matches, only 10 were still on the site at kickoff. Later reads
+  dropped the rest when the price moved: Valencia v Real Madrid had three Value picks published between 3 and 6 Nov
+  and none at kickoff. The owner dashboard's Value record (D79) counts every publication, so its Value figures are
+  not the same as "what a visitor saw at kickoff". Nothing changed; the owner decides whether the dashboard should
+  show both.
+- *No code yet* (owner). No migration, no `.env` line.
+- *Built 12 Nov* (the frontend reports the owner agreed the cards and the motion; the frontend's part is D101):
+  - `Scripts/data_platform/services/home_wins.py` builds `home_wins.v1` from the board's own before-kickoff
+    record. The board's D70 code now hands over the read it showed at kickoff (`_shown_at_kickoff`), so the board
+    and the reel share one rule. Cards are built without pick notes or evidence. Scores and corners come from
+    `platform.db`, one short read inside the gate, and each day's reads are taken under their own gate hold.
+  - `python -m Scripts.data_platform home-wins` writes `Index/home_wins.json`. The daily refresh runs it as the
+    best-effort stage `home_wins_file`, before `platform_health`, while `SPIX_RECOMMENDATIONS` is on (no lists on
+    the board, no wins to show), so no new `.env` line is needed. It took 32 s on the real data.
+  - `GET /api/home/wins` (public; `Scripts/web_app/routers/home.py`) serves the file and never reads
+    `platform.db`. With no file, or a broken one, it returns an empty reel, and the page hides the section.
+  - *My calls in the build:*
+    - "The week" is the latest *full* Monday-to-Sunday week (London). Otherwise a Monday-night match would start a
+      new week of one or two wins, and the section would hide until the weekend. During the 20–22 Nov weekend the
+      reel still shows 4–8 Nov, and from Mon 23 Nov it shows 16–22 Nov. It looks back at most 26 weeks, never
+      before go-live, and `week.from`/`to` are the first and last days with a graded pick.
+    - A half won counts with the wins and a half lost with the losses; a push is void, as the owner dashboard
+      shows them. Only a full win with a typical price goes on the reel. A Value pick on a whole line (Under 10
+      corners) has no typical price on the card, so it stays in the record only.
+    - An option in both lists counts as the Value pick it also was. `result` reads "1 goal", "7 goals" or
+      "13 corners".
+  - *Checked on the real data (4–8 Nov):* the same 12 wins in the same order as the agreed sample. Value is
+    unchanged (10 picks, 3 won, 5 lost, 2 void). Most likely has 354 picks and 249 won: one more than the sample,
+    Auxerre v Paris FC (7 Nov), Under 11.5 corners, given 74%, with 6 corners. The board showed it at kickoff, but
+    the owner dashboard has no graded row for it, and the sample was graded from the dashboard.
+  - Tests: `Scripts/tests/data_platform/test_home_wins.py` (26), and the refresh plan test. Golden check
+    unchanged. No migration, no `.env` line. The website needs a restart for the new endpoint, after the merge.
+    Until the first refresh after the merge, the endpoint returns an empty reel. Running the command once fills
+    it straight away.
+
 **D101 — The wins reel on the home page (12 Nov; frontend, owner).** The backend relayed the owner's request: last
 week's best real wins as a slow, endless reel on the home page, with one plain line on what Spix said against what
 happened. The owner's order was cards first (three options, with real data), then the motion, then code.

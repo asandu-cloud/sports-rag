@@ -221,6 +221,21 @@ def test_the_research_assistants_stats_file_is_rebuilt_at_the_end_only_while_its
     assert stage.command[1:] == ("-m", "Scripts.ops.stats_questions", "build")
     assert stage.accepted_exit_codes == (0, 1)  # best effort: yesterday's file stays if the build fails
 
+
+def test_the_home_pages_wins_file_is_rebuilt_at_the_end_while_the_board_shows_its_lists(monkeypatch):
+    from data_platform.season_refresh import build_refresh_plan, resolve_competitions
+
+    monkeypatch.delenv("SPIX_RECOMMENDATIONS", raising=False)
+    names = [stage.name for stage in build_refresh_plan(season=2026, competitions=resolve_competitions(None))]
+    assert "home_wins_file" not in names  # no Most likely or Value lists on the board, no wins to show
+    monkeypatch.setenv("SPIX_RECOMMENDATIONS", "on")
+    monkeypatch.setenv("SPIX_STATS_STORE", "on")
+    plan = build_refresh_plan(season=2026, competitions=resolve_competitions(None))
+    assert [stage.name for stage in plan][-3:] == ["stats_questions_file", "home_wins_file", "platform_health"]
+    stage = plan[-2]
+    assert stage.command[1:] == ("-m", "Scripts.data_platform", "home-wins")
+    assert stage.accepted_exit_codes == (0, 1)  # best effort: the home page keeps yesterday's reel
+
 def _dry_run_stages(*flags):
     from data_platform.cli import build_parser
     from data_platform.season_refresh import run_refresh_season
