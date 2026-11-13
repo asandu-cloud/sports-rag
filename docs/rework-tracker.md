@@ -2363,6 +2363,23 @@ footnote down, leaving a large empty space under the button.
     52 px, 14" MacBook Pro 123 px, 1080p monitor 202 px, 16" MacBook Pro 242 px, 1440p monitor 529 px.
 - *The owner's choice:* cap the section's height, so it still fills a laptop screen but stops after its content on
   taller ones (the frontend's recommendation; the other option was centring the content in a full-screen section).
+- *The change:* `.hh-inner` takes `min-height: min(calc(100svh - var(--topbar-h)), 820px)`. Windows up to 880 px
+  tall (the 13" and 14" MacBooks) are unchanged. A taller window gets an 880 px opening, and the next section starts
+  on the first screen. Tablets and phones are unchanged: below 1000 px the section has no minimum height.
+- *Files:* `home-hero.css`, `index.html` (`home-hero.css` is now at `home-20261113a`; `home-hero.js` stays at
+  `home-20261112b`) and `test_home_hero_web.js`.
+- *Checks.* Run on 8100 against the live site on 8000; the empty space above the footnote, before and after:
+  - 13" MacBook Air (1440 × 789): 52 px, unchanged.
+  - 14" MacBook Pro (1512 × 870): 123 px, unchanged.
+  - 16" MacBook Pro (1728 × 1005): 242 px, now 117 px.
+  - 1080p monitor (1920 × 960): 202 px, now 122 px.
+  - 1440p monitor (2560 × 1300): 529 px, now 109 px.
+  - Zoomed out to 50% (2553 × 1343): 572 px, now 109 px.
+  - Tablet (768) and phone (390): unchanged.
+  - Nothing overlaps the footnote (the packs' shadow included). No script errors and no sideways scroll at any size.
+  - All 12 JS test files pass. No Python test reads these files. The taste lint passes `home-hero.css`.
+  - Compare: the checkpoint commit 9c15d37, and the before and after screenshots.
+  - No migration, no `.env` line and no restart.
 
 ## Findings that shape later steps
 
