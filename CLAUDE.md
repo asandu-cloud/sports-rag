@@ -75,7 +75,7 @@ on it. The Discord bot still runs the old engine until A7.
     `Index/home_wins.json`, which the public `GET /api/home/wins` serves. To fill it by hand, run
     `python -m Scripts.data_platform home-wins`.
   - The section hides with no file or fewer than 6 wins. It shows 4–8 Nov until Mon 23 Nov.
-  - Files: `home-wins.css`, `home-wins.js` and `landing.css`, at tag `wins-20261112a`.
+  - Files: `home-wins.js` and `landing.css` at tag `wins-20261112a`, and `home-wins.css` at `wins-20261113a` (D102, 13 Nov: the heading sits in the middle of the record).
   - Open for the owner: only 10 of the 61 Value publications for 4–8 Nov were still on the site at kickoff, but
     the owner dashboard counts all 61 (D99).
 - **OpenAI credit topped up 10 Nov (owner)**, after running out on 5 Nov 18:04. Match Read briefings go back to the
