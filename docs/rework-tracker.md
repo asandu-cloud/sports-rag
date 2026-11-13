@@ -2346,6 +2346,24 @@ middle".
   - Compare: the commit before this one (b57d132) and the screenshots of each version.
   - No migration, no `.env` line and no restart: the page and its files are read from disk on each request.
 
+**D104 — The home page's opening section no longer grows with tall windows (13 Nov; frontend, owner).** The owner
+reported that after several reloads, the opening section ("Every match, read for you") grew taller and pushed its
+footnote down, leaving a large empty space under the button.
+- *Diagnosis:*
+  - The section is always exactly one screen tall (`min-height: calc(100svh - var(--topbar-h))` on `.hh-inner`).
+    The headline, text and button sit at its top, and the footnote is pinned to its bottom edge. So every extra pixel
+    of window height becomes empty space above the footnote.
+  - Reloads change nothing: six reloads at a fixed window size, one after scrolling down, gave the same height every
+    time.
+  - The owner's two screenshots match a 1493 × 809 page and a 2553 × 1343 page to the pixel (headline, button and
+    footnote). The second is 2553 pixels wide, wider than the owner's 1920 external monitor, so it was taken on the
+    MacBook's Retina screen. Its page is drawn at one screen pixel per page pixel, which on that screen means Chrome
+    was zoomed out to 50%. Chrome keeps a site's zoom across reloads.
+  - Visitors with tall windows see the same at normal zoom. The empty space above the footnote: 13" MacBook Air
+    52 px, 14" MacBook Pro 123 px, 1080p monitor 202 px, 16" MacBook Pro 242 px, 1440p monitor 529 px.
+- *The owner's choice:* cap the section's height, so it still fills a laptop screen but stops after its content on
+  taller ones (the frontend's recommendation; the other option was centring the content in a full-screen section).
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
