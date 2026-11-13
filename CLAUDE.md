@@ -66,8 +66,9 @@ on it. The Discord bot still runs the old engine until A7.
   real read of Brighton v Brentford (8 Nov, labelled Example). It replaced D87's Arsenal v Chelsea animation
   (`hero-run.*`, deleted). Since 12 Nov (D100, owner's version A) the whole landing page sits on the hero's ground,
   the play wheel is gone, the corners card runs through its lines by itself, and the cards clear the headline. The
-  intro sentence is the owner's own wording (12 Nov). Files: `home-hero.css`, `home-hero.js` and `static/home/`, at
-  tag `home-20261112b`.
+  intro sentence is the owner's own wording (12 Nov). Since 13 Nov (D104, owner) the opening fills one screen only up
+  to an 880 px window, so the footnote stays close on tall windows. Files: `home-hero.js` and `static/home/` at tag
+  `home-20261112b`, and `home-hero.css` at `home-20261113a`.
 - **Wins reel on the home page live 12 Nov at 20:03 (D99, D101, owner; website restarted, pid 66529).** It sits
   under "Useful before you decide": last full week's best wins as the board showed them at kickoff, at most 12, one
   per match. The week's whole record sits beside them, losses included, with 18+, GamCare and a Pause button.
