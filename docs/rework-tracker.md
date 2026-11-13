@@ -2369,6 +2369,50 @@ middle".
   - Compare: the commit before this one (b57d132) and the screenshots of each version.
   - No migration, no `.env` line and no restart: the page and its files are read from disk on each request.
 
+**D103 — Late-goal study: how often another goal comes after 75' (13 Nov; backend, owner via the orchestrator).**
+Step 1 of a possible side project: in-play "one more goal" alerts after the 75th minute, for the owner's Telegram or
+the owner's own betting. The owner sent a Bet Formula video ("75 minute strategy"): at 75', take matches whose "one
+more goal" price is under 1.80, then wait for the price to drift and bet half at 1.80 and half at 3.00 if there is
+still no goal. The video picks its matches with a secret filter tuned on 7 matches after the results were known, and
+admits the rule on its own loses money. Steps: (1) this study, (2) paper trading with live prices, (3) a verdict after
+several hundred qualifying bets. Only step 1 is approved. Measurement only: no money, no public picks, nothing on the
+site, no API calls, no database writes, no switches.
+- *Plan (before building).*
+  - *Data, all already on disk.* The goal and red card events of about 23,000 matches in the 13 competitions:
+    - 2021/22 to 2025/26 and Aug–Sep 2026, from the staged player-history download of 30 Sep
+      (`Index/history_staging/player-stats-2021-2026/platform.db`, opened read-only);
+    - 20 Sep to 8 Nov 2026, from the refresh's events in `platform.db`.
+
+    Final scores, teams and kickoffs come from `platform.db` in one gated read. A goal counts for the team the event
+    lists: that rebuilds the stored score of 21,244 of 21,253 staged matches with goals, own goals included. A match
+    whose goals do not add up to its score is left out and counted.
+  - *Minutes.* The minute the data shows. A goal shown at 75' came before the clock reached 75:00, so "after 75'"
+    means shown at 76' or later, stoppage time included. Extra time is left out (settled on 90 minutes).
+    - Since 2025/26 the provider logs most stoppage goals as a plain 90' (976 at 90' against 118 at 89'). So 90' and
+      stoppage time are one bucket. Only 2021–2024, which record the added minute, split that bucket.
+  - *Pre-match goal expectation.* Our read at kickoff (D70 record) where there is one: its goals projection. Otherwise
+    the closing over/under 2.5 price from football-data (Pinnacle, or the market average), without the margin, turned
+    into an expected total with a Poisson. The European cups and 2026/27 matches without a read have neither.
+  - *What it reports.*
+    1. The rate of another goal after 75', 77', 80' and 85', with 95% intervals.
+    2. That rate split by:
+       - the score at 75' (level, one apart, two or more);
+       - goals so far;
+       - the expectation band;
+       - league;
+       - a red card before 75'.
+    3. The fair-price clock: the chance of another goal minute by minute from 75'. When a match priced under 1.80 at
+       75' reaches a fair 1.80 and a fair 3.00, and how often each bet would fire.
+    4. Whether the pre-match expectation tells a lively finish from a dead one: what it predicts against what
+       happened, by band, with intervals.
+    5. The live engine's timing table (`GOAL_TIME_DISTRIBUTION`, 22% of goals in 75–90) against our goals.
+    6. How many matches each split holds, and the error bars that step 3 would face.
+
+    It also takes a first look at the in-play prices in `Index/live.db` (82 matches, 4–12 Apr 2026), labelled as a
+    small sample. Its snapshots without a matching score are skipped: either the score was stale or the pre-match
+    fallback was used.
+  - *Files.* `Scripts/ops/late_goal_study.py` with tests, and the output in `Research/late-goal-study-2026-11-13/`.
+
 **D104 — The home page's opening section no longer grows with tall windows (13 Nov; frontend, owner).** The owner
 reported that after several reloads, the opening section ("Every match, read for you") grew taller and pushed its
 footnote down, leaving a large empty space under the button.
