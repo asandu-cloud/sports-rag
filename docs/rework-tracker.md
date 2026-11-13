@@ -2348,6 +2348,62 @@ happened. The owner's order was cards first (three options, with real data), the
   - `home-wins` was run once by hand: 4 to 8 Nov, 12 wins (Most likely 249 of 354, Value 3 of 10).
   - Website restarted (pid 66529). `/api/home/wins` serves the file, and the page's own script accepts it.
 
+**D102 — The wins reel's heading sits in the middle of the record (13 Nov; frontend, owner).** On a wide screen,
+"Picks that came in, 4 to 8 Nov" sat level with the bottom of the record beside it. The owner asked to compare two
+heading positions, moving it only up or down and leaving everything else where it was: level with the top of the
+record, or in its middle. Both were rendered on the live page with the real feed. The owner chose: "yea lets do
+middle".
+- *The change:* the heading row centres its two items (`align-items: center` in place of `end`). The record is the
+  taller of the two, so it stays put, and the heading moves up: by 40 px at 52 px type, and by 20–25 px at the
+  smaller sizes near 1000 px, where the heading takes two lines. Below 1000 px the heading already sits above the
+  record, so tablets and phones do not change.
+- *Files:* `home-wins.css`, `index.html` (its tag is now `wins-20261113a`; `landing.css` and `home-wins.js` stay at
+  `wins-20261112a`) and `test_home_wins_web.js`.
+- *Checks.* Run on 8100 with the real 4–8 Nov feed, against the live site on 8000:
+  - The middle of the heading's text sits within half a pixel of the record's middle at 1920, 1440, 1280, 1100 and
+    1001 px, in light and dark.
+  - The record, the reel and the section's height did not move at any width. At 768 and 390 px nothing moved.
+  - No script errors and no sideways scroll.
+  - All 12 JS test files pass, and so do the 40 home-wins and refresh Python tests. The taste lint passes
+    `home-wins.css`.
+  - Compare: the commit before this one (b57d132) and the screenshots of each version.
+  - No migration, no `.env` line and no restart: the page and its files are read from disk on each request.
+
+**D104 — The home page's opening section no longer grows with tall windows (13 Nov; frontend, owner).** The owner
+reported that after several reloads, the opening section ("Every match, read for you") grew taller and pushed its
+footnote down, leaving a large empty space under the button.
+- *Diagnosis:*
+  - The section is always exactly one screen tall (`min-height: calc(100svh - var(--topbar-h))` on `.hh-inner`).
+    The headline, text and button sit at its top, and the footnote is pinned to its bottom edge. So every extra pixel
+    of window height becomes empty space above the footnote.
+  - Reloads change nothing: six reloads at a fixed window size, one after scrolling down, gave the same height every
+    time.
+  - The owner's two screenshots match a 1493 × 809 page and a 2553 × 1343 page to the pixel (headline, button and
+    footnote). The second is 2553 pixels wide, wider than the owner's 1920 external monitor, so it was taken on the
+    MacBook's Retina screen. Its page is drawn at one screen pixel per page pixel, which on that screen means Chrome
+    was zoomed out to 50%. Chrome keeps a site's zoom across reloads.
+  - Visitors with tall windows see the same at normal zoom. The empty space above the footnote: 13" MacBook Air
+    52 px, 14" MacBook Pro 123 px, 1080p monitor 202 px, 16" MacBook Pro 242 px, 1440p monitor 529 px.
+- *The owner's choice:* cap the section's height, so it still fills a laptop screen but stops after its content on
+  taller ones (the frontend's recommendation; the other option was centring the content in a full-screen section).
+- *The change:* `.hh-inner` takes `min-height: min(calc(100svh - var(--topbar-h)), 820px)`. Windows up to 880 px
+  tall (the 13" and 14" MacBooks) are unchanged. A taller window gets an 880 px opening, and the next section starts
+  on the first screen. Tablets and phones are unchanged: below 1000 px the section has no minimum height.
+- *Files:* `home-hero.css`, `index.html` (`home-hero.css` is now at `home-20261113a`; `home-hero.js` stays at
+  `home-20261112b`) and `test_home_hero_web.js`.
+- *Checks.* Run on 8100 against the live site on 8000; the empty space above the footnote, before and after:
+  - 13" MacBook Air (1440 × 789): 52 px, unchanged.
+  - 14" MacBook Pro (1512 × 870): 123 px, unchanged.
+  - 16" MacBook Pro (1728 × 1005): 242 px, now 117 px.
+  - 1080p monitor (1920 × 960): 202 px, now 122 px.
+  - 1440p monitor (2560 × 1300): 529 px, now 109 px.
+  - Zoomed out to 50% (2553 × 1343): 572 px, now 109 px.
+  - Tablet (768) and phone (390): unchanged.
+  - Nothing overlaps the footnote (the packs' shadow included). No script errors and no sideways scroll at any size.
+  - All 12 JS test files pass. No Python test reads these files. The taste lint passes `home-hero.css`.
+  - Compare: the checkpoint commit 9c15d37, and the before and after screenshots.
+  - No migration, no `.env` line and no restart.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A

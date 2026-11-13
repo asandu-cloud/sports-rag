@@ -66,8 +66,9 @@ on it. The Discord bot still runs the old engine until A7.
   real read of Brighton v Brentford (8 Nov, labelled Example). It replaced D87's Arsenal v Chelsea animation
   (`hero-run.*`, deleted). Since 12 Nov (D100, owner's version A) the whole landing page sits on the hero's ground,
   the play wheel is gone, the corners card runs through its lines by itself, and the cards clear the headline. The
-  intro sentence is the owner's own wording (12 Nov). Files: `home-hero.css`, `home-hero.js` and `static/home/`, at
-  tag `home-20261112b`.
+  intro sentence is the owner's own wording (12 Nov). Since 13 Nov (D104, owner) the opening fills one screen only up
+  to an 880 px window, so the footnote stays close on tall windows. Files: `home-hero.js` and `static/home/` at tag
+  `home-20261112b`, and `home-hero.css` at `home-20261113a`.
 - **Wins reel on the home page live 12 Nov at 20:03 (D99, D101, owner; website restarted, pid 66529).** It sits
   under "Useful before you decide": last full week's best wins as the board showed them at kickoff, at most 12, one
   per match. The week's whole record sits beside them, losses included, with 18+, GamCare and a Pause button.
@@ -75,7 +76,8 @@ on it. The Discord bot still runs the old engine until A7.
     `Index/home_wins.json`, which the public `GET /api/home/wins` serves. To fill it by hand, run
     `python -m Scripts.data_platform home-wins`.
   - The section hides with no file or fewer than 6 wins. It shows 4–8 Nov until Mon 23 Nov.
-  - Files: `home-wins.css`, `home-wins.js` and `landing.css`, at tag `wins-20261112a`.
+  - Files: `home-wins.js` and `landing.css` at tag `wins-20261112a`, and `home-wins.css` at `wins-20261113a`
+    (D102, 13 Nov: the heading sits in the middle of the record).
   - Open for the owner: only 10 of the 61 Value publications for 4–8 Nov were still on the site at kickoff, but
     the owner dashboard counts all 61 (D99).
 - **OpenAI credit topped up 10 Nov (owner)**, after running out on 5 Nov 18:04. Match Read briefings go back to the

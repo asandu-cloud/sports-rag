@@ -16,7 +16,8 @@
   --pw: 15cqi;                      /* one pack's width; the spacing around the packs follows it */
   container-type: inline-size;
   position: relative;
-  min-height: calc(100svh - var(--topbar-h));
+  /* one screen on a laptop; on a taller window it stops after its content, so the footnote stays close (D104) */
+  min-height: min(calc(100svh - var(--topbar-h)), 820px);
   padding-block: clamp(56px, 12vh, 128px) 40px;
 }
 

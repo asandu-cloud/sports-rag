@@ -101,4 +101,10 @@ pageLoop.stop();
 assert.doesNotMatch(fs.readFileSync(path.join(STATIC, 'home-hero.js'), 'utf8'), /hero=b|homeHeroVariant|dataset\.hero/);
 assert.doesNotMatch(fs.readFileSync(path.join(STATIC, 'home-hero.css'), 'utf8'), /data-hero|Version B/);
 
+// It fills a laptop screen but stops after its content on a taller window, so the footnote stays close (D104).
+assert.match(fs.readFileSync(path.join(STATIC, 'home-hero.css'), 'utf8'),
+  /\.hh-inner \{[^}]*min-height: min\(calc\(100svh - var\(--topbar-h\)\), 820px\);/);
+assert.match(page, /<link rel="stylesheet" href="\/static\/home-hero\.css\?v=home-20261113a">/);
+assert.match(page, /<script src="\/static\/home-hero\.js\?v=home-20261112b"><\/script>/);
+
 console.log('home hero web tests passed');
