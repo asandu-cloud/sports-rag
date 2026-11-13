@@ -2501,7 +2501,8 @@ site, no API calls, no database writes, no switches.
       requests. That is about 3 days of the spare 2,500–3,000 a day.
     - The missing piece is in-play prices, which only step 2 can collect.
   - *Checks.*
-    - 29 new tests in `test_late_goal_study.py`.
+    - 29 new tests in `test_late_goal_study.py`. The full suite: 3,068 passed, plus the 3 known errors in
+      `test_phase4_baseline_freeze.py`.
     - Nothing was written to any database, no API was called and no switch changed. No migration, `.env` line or
       restart is needed.
     - Step 2 waits for the owner.
