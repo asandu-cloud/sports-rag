@@ -166,8 +166,11 @@ assert.match(section, /<button type="button" class="hw-pause" id="homeWinsPause"
 assert.doesNotMatch(section, /aria-pressed/);
 assert.match(section, /18\+/);
 assert.match(section, /href="https:\/\/www\.gamcare\.org\.uk\/get-support\/"/);
-assert.match(page, /<link rel="stylesheet" href="\/static\/home-wins\.css\?v=wins-20261112a">/);
+assert.match(page, /<link rel="stylesheet" href="\/static\/home-wins\.css\?v=wins-20261113a">/);
 assert.match(page, /<script src="\/static\/home-wins\.js\?v=wins-20261112a"><\/script>/);
+// On a wide screen the heading sits in the middle of the record beside it (owner, 13 Nov: "lets do middle").
+const css = fs.readFileSync(path.join(STATIC, 'home-wins.css'), 'utf8');
+assert.match(css, /\.hw-head \{[^}]*align-items: center;/);
 // The feed is read from the backend's endpoint; nothing is written.
 const script = fs.readFileSync(path.join(STATIC, 'home-wins.js'), 'utf8');
 assert.match(script, /fetch\('\/api\/home\/wins'/);
