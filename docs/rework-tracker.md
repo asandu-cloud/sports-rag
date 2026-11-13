@@ -2412,6 +2412,99 @@ site, no API calls, no database writes, no switches.
     small sample. Its snapshots without a matching score are skipped: either the score was stale or the pre-match
     fallback was used.
   - *Files.* `Scripts/ops/late_goal_study.py` with tests, and the output in `Research/late-goal-study-2026-11-13/`.
+- *Results (13 Nov).* 23,123 matches, from 2021/22 to 8 Nov 2026. 17 were left out because their goals did not add up
+  to the score.
+  - *How often another goal comes, stoppage time included:*
+    - after 75': 48.7% (48.1–49.3%), so an average match's fair "one more goal" price at 75' is about 2.05;
+    - after 77': 45.3%;
+    - after 80': 39.8%;
+    - after 85': 29.5%.
+  - *Splits after 75'.*
+    - Score: level 47.0%, one apart 48.8%, two or more 50.1%.
+    - Goals so far: 45% with none, 52% with four or more.
+    - Pre-match expectation: 43% under 2.3 goals, 56% at 3.1 or more.
+    - A red card before 75': 52% with one, 48% without.
+    - League: the Championship lowest at 44%, the Bundesliga and Eredivisie highest at 54%.
+    - Season: 47–50% from 2021 to 2025, and 53% (50–55%) so far in 2026/27. The 2026/27 season has also had more
+      goals: 3.1 a match in the refresh's 695 matches since 20 Sep, against 2.8 in 2024/25 and 2025/26.
+
+    The best groups only reach 55–57% (level or one apart, with 3.1 or more goals expected). That is a fair price of
+    about 1.75–1.82.
+  - *The clock (17,178 matches from 2021–2024, which record the added minute).*
+    - A quiet spell does not make a goal due. With no goal since 75', the chance of one after 80' is 40%, and after
+      85' it is 29%: the same as across all matches. So when the price drifts out, it is drifting to the right price.
+    - When a match reaches a fair 1.80 and a fair 3.00 with no goal, by its fair price at 75' (with how often each
+      bet fires):
+
+      | Fair price at 75' | Reaches 1.80 | Reaches 3.00 |
+      |---|---|---|
+      | 1.40 | 83' (fires in 62% of such matches) | 90' (41%) |
+      | 1.60 | 79' (83%) | 88' (55%) |
+      | 1.70 | 77' (92%) | 87' (60%) |
+    - A Poisson on the pooled clock comes within 1.5 points of what happened.
+  - *The pre-match expectation.* For 17,327 domestic matches it is the market's closing total; for 495 it is our
+    read.
+    - By fifths, from 43% to 56% of matches had another goal, 1–2.5 points above what the expectation implied. The top
+      fifth minus the bottom is +13.3 points (+11.0 to +15.6).
+    - So it does tell a lively finish from a dead one, modestly. But the bookmakers price that in already: for most of
+      these matches it is their own number.
+    - Our 495 reads are too few to judge. Most of them come from before the full market anchor (next point).
+  - *Finding: before 3 Nov, cards showed the old model's expected goals, which ran low for European cup matches.*
+    - All 356 reads at kickoff before the full market anchor (3 Nov) carried only the model's projection. The card
+      shows the market-anchored total where a read has one, else this projection (`match_read_metrics`).
+    - 22 European cup cards in Sep–Oct showed under 2.0 expected goals, the lowest 1.17. Across the 170 European
+      reads, the reads expected 2.7 goals a match and 3.3 came.
+    - Since 3 Nov every card at kickoff has had the anchored total (142 of 142), so nothing shown now is affected.
+  - *The live engine's timing table.*
+    - It is close for 76'–90': 22.7% of our goals (22.4–23.0%), against its 22.0%.
+    - But it assumes nothing is left at 90'. In fact 6.5% of goals come in second-half stoppage time, and 17% of
+      matches still have a goal after 90'.
+    - Elsewhere:
+      - 1'–15': 12.9% of our goals, against its 14.5%;
+      - 31'–45' with stoppage: 17.7%, against 16.0%;
+      - 61'–75': 16.2%, against 17.5%.
+
+    The live engine is not in use. Fix this before any late-goal alert relies on it.
+  - *In-play first look* (`Index/live.db`: 82 matches, 4–12 Apr 2026). One feed, with snapshots about every 2 minutes
+    at best. Pre-match fallbacks and stale scores were skipped.
+    - 62 matches had a price at 75', with a median of 1.91.
+    - 16 of them (26%) were under 1.80, with a median of 1.62:
+      - 14 drifted to 1.80 with no goal, and 11 to 3.00 (the clock says 83% and 55%);
+      - 6 had another goal, against about 60% their prices implied (interval 18–61%).
+    - Across all 62: 42% (30–54%), against 51%.
+    - Far too few to judge, and no sign of an edge. One price looks wrong: 1.08 at 76'.
+  - *Does "under 1.80 at 75'" have anything to it on its own? No.*
+    - At fair prices, waiting for the drift buys the same break-even bet at a longer price with less time left: it
+      wins 55.6% at 1.80 and 33.3% at 3.00. The bookmaker's margin then makes it lose, as the video admits.
+    - To win, a filter would need matches where the late goal is more likely than the price says. Nothing in the
+      history points to one: the chance moves only a little with the score or the goals so far, and a quiet spell
+      changes nothing. The pre-match total is the market's own number. Testing a filter against real prices needs
+      step 2.
+  - *Step 3's error bars* (95%, on the return per bet):
+    - at 1.80: ±17.5 points over 100 bets, ±10.1 over 300, ±5.5 over 1,000;
+    - at 3.00: ±27.7, ±16.0 and ±8.8.
+
+    So a few hundred bets can only show an edge of 10 points or more. A 5-point edge needs about 1,200 bets at 1.80,
+    and a 3-point edge about 3,400. About 100 matches a week, with roughly a quarter under 1.80 at 75', give about 20
+    first bets a week. At that rate 300 bets take about 15 match weeks.
+  - *Step 2's cost.*
+    - Account-wide use since the plan became 7,500 a day (31 Oct) was 3,000–5,500 on match days: Wed 4 Nov 5,496, and
+      Sat 7 Nov 4,743 with the Mac asleep that morning.
+    - The busiest days of 2025/26 had about 50 matches.
+    - Polling each match once a minute from 70' to the final whistle is about 30 calls a match, so 1,500 on such a day.
+      That fits, but on a day like 4 Nov it leaves only about 500 spare.
+    - Pricing every match once at 75' and polling only those under 1.80 costs about 300–400 a day.
+    - Not checked: API-Football may answer `/odds/live` for every live match in one call (the fixture filter may be
+      optional). That would bring it to about one call a minute. Confirming it needs one live call.
+  - *More history.* Not needed for these questions: the overall rate is already known to within a point.
+    - The 2019/20 and 2020/21 seasons (8,325 matches, the second played mostly without crowds) would cost 8,325
+      requests. That is about 3 days of the spare 2,500–3,000 a day.
+    - The missing piece is in-play prices, which only step 2 can collect.
+  - *Checks.*
+    - 29 new tests in `test_late_goal_study.py`.
+    - Nothing was written to any database, no API was called and no switch changed. No migration, `.env` line or
+      restart is needed.
+    - Step 2 waits for the owner.
 
 **D104 — The home page's opening section no longer grows with tall windows (13 Nov; frontend, owner).** The owner
 reported that after several reloads, the opening section ("Every match, read for you") grew taller and pushed its
