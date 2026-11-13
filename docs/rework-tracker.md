@@ -2325,6 +2325,27 @@ happened. The owner's order was cards first (three options, with real data), the
   - `home-wins` was run once by hand: 4 to 8 Nov, 12 wins (Most likely 249 of 354, Value 3 of 10).
   - Website restarted (pid 66529). `/api/home/wins` serves the file, and the page's own script accepts it.
 
+**D102 — The wins reel's heading sits in the middle of the record (13 Nov; frontend, owner).** On a wide screen,
+"Picks that came in, 4 to 8 Nov" sat level with the bottom of the record beside it. The owner asked to compare two
+heading positions, moving it only up or down and leaving everything else where it was: level with the top of the
+record, or in its middle. Both were rendered on the live page with the real feed. The owner chose: "yea lets do
+middle".
+- *The change:* the heading row centres its two items (`align-items: center` in place of `end`). The record is the
+  taller of the two, so it stays put, and the heading moves up: by 40 px at 52 px type, and by 20–25 px at the
+  smaller sizes near 1000 px, where the heading takes two lines. Below 1000 px the heading already sits above the
+  record, so tablets and phones do not change.
+- *Files:* `home-wins.css`, `index.html` (its tag is now `wins-20261113a`; `landing.css` and `home-wins.js` stay at
+  `wins-20261112a`) and `test_home_wins_web.js`.
+- *Checks.* Run on 8100 with the real 4–8 Nov feed, against the live site on 8000:
+  - The middle of the heading's text sits within half a pixel of the record's middle at 1920, 1440, 1280, 1100 and
+    1001 px, in light and dark.
+  - The record, the reel and the section's height did not move at any width. At 768 and 390 px nothing moved.
+  - No script errors and no sideways scroll.
+  - All 12 JS test files pass, and so do the 40 home-wins and refresh Python tests. The taste lint passes
+    `home-wins.css`.
+  - Compare: the commit before this one (b57d132) and the screenshots of each version.
+  - No migration, no `.env` line and no restart: the page and its files are read from disk on each request.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A

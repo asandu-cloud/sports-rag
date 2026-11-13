@@ -12,7 +12,8 @@
   --hw-dark-card: #2A2E33;
   --hw-float: 0 .2em .5em rgba(0, 0, 0, .3), 0 1.4em 2.6em rgba(0, 0, 0, .45);
 }
-.hw-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 46ch); gap: 24px 72px; align-items: end; }
+/* Side by side, the heading sits in the middle of the record (owner, 13 Nov); the record is the taller, so it stays put. */
+.hw-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 46ch); gap: 24px 72px; align-items: center; }
 .hw-record { font-size: 17px; line-height: 1.55; color: var(--text); }
 .hw-record b { font-weight: 700; }
 
