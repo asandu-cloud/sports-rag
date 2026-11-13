@@ -79,7 +79,9 @@ on it. The Discord bot still runs the old engine until A7.
   - Files: `home-wins.js` and `landing.css` at tag `wins-20261112a`, and `home-wins.css` at `wins-20261113a`
     (D102, 13 Nov: the heading sits in the middle of the record).
   - Open for the owner: only 10 of the 61 Value publications for 4–8 Nov were still on the site at kickoff, but
-    the owner dashboard counts all 61 (D99).
+    the owner dashboard counts all 61 (D99). A later read took the rest off: 23 lost the 2% edge, 17 failed the
+    price check, 9 met another rule, and 2 fell to the Mac's sleep. 1 of the 42 published over 6 hours before
+    kickoff lasted, against 9 of the 19 published later.
 - **OpenAI credit topped up 10 Nov (owner)**, after running out on 5 Nov 18:04. Match Read briefings go back to the
   model's wording; they cost roughly $5–10 a week at the 3–5 Nov pace. Picks never depended on it.
   OpenAI shuts down `gpt-4o-mini` on 14 Jan 2027: Whale chat and the Discord slash commands fall back to it when
@@ -121,6 +123,8 @@ on it. The Discord bot still runs the old engine until A7.
   - No club matches from 9 to 19 Nov (international break). Cards picks start with the 20–22 Nov weekend, once
     cards prices appear (about 18–19 Nov). Then check that new reads record `pinnacle`, and ask the backend for
     checks 4–7 (tracker, 9 Nov). The Mon 16 Nov scorecard has no new matches.
+  - Keep the Mac on mains with the lid open, above all on 20–22 Nov. On 7 and 8 Nov it slept through both
+    mornings (lid closed, on battery), so 21 of 139 matches had no card at kickoff (D99).
   - Mon 23 Nov 08:00: the first scorecard to judge cards.
   - Tue 24 Nov: earliest next stage (owner, 9 Nov: 17 Nov would share cards' first weekend).
 - **Update this block** in the same commit as the tracker whenever a stage goes live or the current project
