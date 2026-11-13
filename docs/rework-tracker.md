@@ -2215,6 +2215,29 @@ the backend prepares the data. Design: `docs/superpowers/specs/2026-11-12-home-w
   and none at kickoff. The owner dashboard's Value record (D79) counts every publication, so its Value figures are
   not the same as "what a visitor saw at kickoff". Nothing changed; the owner decides whether the dashboard should
   show both.
+- *Why the other 51 came off (13 Nov; the owner asked, checked read by read).* Each match is re-read about every 6–7
+  hours (a median of 12 reads before kickoff), and each read checks a Value pick again from scratch. The read that
+  took each pick off said:
+  - 23: the edge fell under the 2% bar, because the price got shorter or Spix's chance changed (the price check
+    caught 10 of these);
+  - 17: the price check could not confirm the price, so the pick failed closed: OddsPapi had not seen the bookmaker
+    in the last 60 minutes (9, D45), the bookmaker had suspended the line (6), or OddsPapi does not carry it (2);
+  - 9: another rule said no: the chance was too thin for the line (5, four of them handicaps), or the market's best
+    line had only one side priced (4);
+  - 2 were still picked, but their last read was over the 120-minute limit at kickoff, so the board showed no card
+    (Brest v Lyon, Freiburg v Union Berlin; next point).
+
+  Timing: 1 of the 42 Value picks published more than 6 hours before kickoff lasted, and 9 of the 19 published
+  later did. This corrects the finding above: a moving price explains about half, not all.
+- *Finding: the Mac slept on both weekend mornings (13 Nov).* The lid was closed, on battery:
+  - Sat 7 Nov, 05:59–12:44 UTC, in the middle of the daily refresh, which held the data until 13:31;
+  - Sun 8 Nov, 02:38–13:48 and 14:53–16:26 UTC; the refresh ran 14:15–16:45.
+
+  No match was re-read in those hours, and the board stops showing a read over 120 minutes old. So 21 of the 139
+  matches with reads from 4 Nov 19:50 to 8 Nov had no card at kickoff: 7 on Saturday (Leeds v Tottenham among
+  them) and 14 on Sunday (Manchester United v Aston Villa; Napoli v Lazio, read last at 02:15, so hidden from about
+  04:15). The reel's record leaves them out, as the board showed nothing. A normal refresh (45–60 minutes on the
+  other days) does not do this. The fix is the standing rule: mains power, lid open.
 - *No code yet* (owner). No migration, no `.env` line.
 - *Built 12 Nov* (the frontend reports the owner agreed the cards and the motion; the frontend's part is D101):
   - `Scripts/data_platform/services/home_wins.py` builds `home_wins.v1` from the board's own before-kickoff
