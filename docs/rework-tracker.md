@@ -2576,10 +2576,22 @@ reel repetitive: "the same ones keep showing up".
   - All 12 JS test files pass.
   - Compare: the checkpoint commit 5fded7d.
   - No migration, no `.env` line and no restart.
-- *Open:*
-  - The backend is building a real 30-win sample for the owner's screenshots.
-  - The backend has asked the owner to confirm `MAX_WINS = 30` before it commits, since the owner had told it "no
-    code changes for now" earlier on 14 Nov.
+- *The backend's part:* the owner confirmed 30 to the backend, and `MAX_WINS = 30` is on the backend branch (4451810,
+  D106).
+- *Checked with the backend's real 30-win 4–8 Nov sample.* The sample has:
+  - 30 wins, one per match, priced 4.10 down to 1.50: 27 Most likely and 3 Value;
+  - by market: 12 goals, 7 handicap, 6 both teams to score, 4 corners and 1 result;
+  - ten leagues, with names on the site for all of them (Jupiler Pro League included).
+
+  It was served in place of the endpoint on 8100:
+  - Six loads gave six different first cards. No two neighbours shared a market (one pair shared a league), and
+    there were no script errors.
+  - One lap is 287 s on desktop, so a card comes back about every 4 min 47 s instead of every 2 minutes. The join is
+    off by 0.03 px and the speed is 28 px a second. There is no sideways scroll.
+  - Reduced motion: still, 30 cards, the row scrolls.
+- *Go-live:* the live file moves from 12 to 30 at the first rebuild after the backend's merge. That is the daily
+  refresh, or `python -m Scripts.data_platform home-wins` by hand. Until then the mix and the random start work on the
+  12.
 
 ## Findings that shape later steps
 
