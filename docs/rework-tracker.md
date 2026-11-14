@@ -2542,6 +2542,21 @@ footnote down, leaving a large empty space under the button.
   - Compare: the checkpoint commit 9c15d37, and the before and after screenshots.
   - No migration, no `.env` line and no restart.
 
+**D105 — A wider spread of wins on the home page reel (14 Nov; frontend and backend, owner).** The owner found the
+reel repetitive: "the same ones keep showing up".
+- *Why:*
+  - The feed holds 12 wins, the dearest win of 12 matches (`MAX_WINS = 12`, D99). The reel loops them, so on desktop
+    a card comes back about every 2 minutes.
+  - They are in price order. Four of the 4–8 Nov twelve are "Both teams to score", and three of those sit together.
+  - The week had far more to show: 249 Most likely and 3 Value picks came in, from at least 83 matches.
+- *The owner's choice:* 30 wins ("yes, lets do 30 weins"), with the frontend's two proposals:
+  - the order spread so the same market or league does not sit together;
+  - a different starting card on each visit.
+- *Split:*
+  - The backend raises `MAX_WINS` to 30 on its branch (asked 14 Nov). Same rule otherwise: each match's dearest
+    win, highest price first.
+  - The frontend reorders and rotates the cards in the page. `home_wins.v1` does not change.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
