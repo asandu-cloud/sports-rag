@@ -6,7 +6,7 @@ week's whole record beside them, losses included (identity.md section 7). Design
 - **The week:** the latest full Monday-to-Sunday week (London) with a graded pick, so a break keeps the last one.
 - **Graded** on the full-time score as the scorecard does: a half won counts with the wins, a half lost with the
   losses, a push is void; extra time, a missing score or missing corners wait.
-- **A win on the reel** is a full win with a typical price: each match's dearest, highest first, at most 12.
+- **A win on the reel** is a full win with a typical price: each match's dearest, highest first, at most 30.
 
 Rebuilding a week's reads is too slow for a page request, so the daily refresh writes ``Index/home_wins.json``
 (``python -m Scripts.data_platform home-wins``) and the website serves that file.
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 VERSION = "home_wins.v1"
 LIVE_FROM = datetime(2026, 11, 4, 19, 50, tzinfo=timezone.utc)  # D68: the lists went on the site
-MAX_WINS = 12
+MAX_WINS = 30  # D106: 30 so the looping reel repeats less often (owner, 14 Nov)
 MAX_WEEKS = 26  # how far back a break may reach
 LONDON = ZoneInfo("Europe/London")
 DEFAULT_PATH = Path(__file__).resolve().parents[3] / "Index" / "home_wins.json"

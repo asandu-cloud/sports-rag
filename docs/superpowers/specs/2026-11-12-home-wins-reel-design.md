@@ -8,7 +8,8 @@ wins, from which record, in which format.
 ## The owner's choices (12 Nov)
 
 - **Which wins:** the highest typical prices that came in, from both lists (Most likely and Value), one per match,
-  about 12 cards.
+  about 12 cards. Raised to 30 on 14 Nov (owner, D106): with 12, the looping reel showed the same card again every
+  2 minutes or so on a desktop.
 - **Honesty:** one plain "said vs happened" line beside the reel, because a reel of wins alone is selective and
   identity.md section 7 says every pick is measured, losses included. For example: "Every pick counts, losses too.
   From 4 to 8 Nov Spix gave its Most likely picks about 7 in 10, and 7 in 10 came in."
@@ -26,7 +27,7 @@ wins, from which record, in which format.
   - for a Most likely pick, its own typical price;
   - for a Value pick, the same option's typical price in the card's markets.
 
-  Keep one pick per match, break ties by kickoff, and show at most 12.
+  Keep one pick per match, break ties by kickoff, and show at most 30 (12 until 14 Nov, D106).
 - **The week** is the latest full Monday-to-Sunday week (London time) with a graded pick. In a break with no
   matches, the reel keeps the last week that had them. "Full" (decided in the build): otherwise a Monday-night
   match would start a week of one or two wins, and the section would hide until the weekend. `week.from` and
@@ -84,5 +85,7 @@ wins, from which record, in which format.
 - Value: 10 picks were still showing at kickoff, of 61 Value publications for those matches. Of the 10, 3 won,
   5 lost and 2 were void, against about 4.5 expected wins. The 3 wins were Over 5.5 goals at Cambuur v PSV
   (7 goals), Over 9.5 corners at Villarreal v Getafe (13), and Under 3.5 goals at Cagliari v Frosinone (1).
-- The 12 cards, highest price first, start at 4.10 (that Value win, given 23%) and end at 1.56.
+- The 12 cards, highest price first, start at 4.10 (that Value win, given 23%) and end at 1.56. With 30 (14 Nov),
+  they end at 1.50: 27 Most likely and 3 Value wins, from 12 goals, 7 handicap, 6 both-teams-to-score, 4 corners and
+  1 result picks.
 - The sample file is passed to the frontend.
