@@ -2556,6 +2556,30 @@ reel repetitive: "the same ones keep showing up".
   - The backend raises `MAX_WINS` to 30 on its branch (asked 14 Nov). Same rule otherwise: each match's dearest
     win, highest price first.
   - The frontend reorders and rotates the cards in the page. `home_wins.v1` does not change.
+- *The frontend's part* (`home-wins.js`; it works with any number of wins, so it can go live before the backend's):
+  - `homeWinsMix` orders the cards. Each next card is from a different market than the one before it, taken from the
+    market with the most cards left. A different league wins where it can, and otherwise the dearest. The first
+    card's market wins a tie, so it runs out before the loop comes back round to it.
+  - `homeWinsTurn` starts the loop at a random card on each visit. Turning a loop keeps every card's neighbours.
+  - The real 4–8 Nov twelve, which come in price order with three "Both teams to score" together, now read: Both
+    teams to score, Goals, Both teams to score, Goals, Handicap, Goals, Both teams to score, Goals, Corners, Both
+    teams to score, Handicap, Goals. No two neighbours share a market or a league.
+  - A stress test of 5,971 random weeks (6 to 30 wins, 1 to 6 markets, the largest market at most half the cards):
+    no two neighbouring markets alike in any of them, the join of the loop included. About 2.6% of neighbours share a
+    league.
+- *Files:* `home-wins.js` (now at `wins-20261114a`), `index.html` and `test_home_wins_web.js`.
+- *Checks, on 8100 with the real 4–8 Nov feed (12 wins):*
+  - Six loads gave five different first cards. None had two neighbours with the same market or league, and none had
+    script errors.
+  - The join is off by 0.03 px, the speed is still 28 px a second, and there is no sideways scroll.
+  - Reduced motion: still, 12 cards, the row scrolls.
+  - All 12 JS test files pass.
+  - Compare: the checkpoint commit 5fded7d.
+  - No migration, no `.env` line and no restart.
+- *Open:*
+  - The backend is building a real 30-win sample for the owner's screenshots.
+  - The backend has asked the owner to confirm `MAX_WINS = 30` before it commits, since the owner had told it "no
+    code changes for now" earlier on 14 Nov.
 
 ## Findings that shape later steps
 

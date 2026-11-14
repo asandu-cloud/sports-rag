@@ -92,6 +92,35 @@ function homeWinsReady(data) {
     && data.wins.length >= HOME_WINS_MIN;
 }
 
+// The order on the reel (D105). The feed comes dearest first, so similar picks bunch up. Each next card is from a
+// different market than the one before it, taken from the market with the most cards left (so the last cards do not
+// pile up), from a different league where it can be, and otherwise the dearest. The reel loops, so the first card's
+// market wins a tie and runs out before the end, clear of the first card. The feed is left as it was.
+function homeWinsMix(wins) {
+  const left = [...wins];
+  const out = [];
+  const count = market => left.filter(w => w.pick.market === market).length + (out[0]?.pick.market === market ? 0.5 : 0);
+  while (left.length) {
+    const prev = out[out.length - 1];
+    const key = w => [prev && w.pick.market === prev.pick.market ? 0 : 1, count(w.pick.market),
+      prev && w.fixture.league === prev.fixture.league ? 0 : 1];
+    let best = 0;
+    for (let i = 1; i < left.length; i++) {
+      const a = key(left[i]), b = key(left[best]);
+      const j = a.findIndex((v, k) => v !== b[k]);
+      if (j >= 0 && a[j] > b[j]) best = i;
+    }
+    out.push(left.splice(best, 1)[0]);
+  }
+  return out;
+}
+
+// The loop turned to start at another card. Every card keeps its neighbours, since the reel loops.
+function homeWinsTurn(list, start) {
+  const k = ((start % list.length) + list.length) % list.length;
+  return [...list.slice(k), ...list.slice(0, k)];
+}
+
 // The reel's track: the set twice, so moving it left by exactly one set (half the track) loops without a seam. A
 // short week repeats inside each set until it fills one; the repeats, and the whole second set, are not read out.
 function homeWinsTrack(wins, h) {
@@ -120,7 +149,8 @@ function homeWinsShow(section, data) {
   const track = section.querySelector('.hw-track');
   section.querySelector('h2').textContent = `Picks that came in, ${homeWinsWeek(data.week)}`;
   section.querySelector('.hw-record').innerHTML = homeWinsRecord(data, h);
-  track.innerHTML = homeWinsTrack(data.wins, h);
+  // A different starting card on each visit (D105).
+  track.innerHTML = homeWinsTrack(homeWinsTurn(homeWinsMix(data.wins), Math.floor(Math.random() * data.wins.length)), h);
   section.hidden = false;
 
   const pace = () => track.style.setProperty('--dur', homeWinsDuration(track.firstElementChild.getBoundingClientRect().width));
