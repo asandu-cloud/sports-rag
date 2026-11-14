@@ -109,13 +109,6 @@ on it. The Discord bot still runs the old engine until A7.
   measurement job's heartbeat write landing under the sync's fixture updates. The sync now ends a fixture's
   transaction on a lock and retries up to 3 times, and measurement writes nothing while the refresh holds the gate.
   Confirmed on the 11 and 12 Nov refreshes: both synced with no errors.
-- **Late-goal study, step 1 of a side idea (D103, owner, 13 Nov).** It covers in-play "one more goal" alerts after
-  75' (from a Bet Formula video), for the owner's Telegram or own betting. It is read-only:
-  `python -m Scripts.ops.late_goal_study --out Research/late-goal-study-<date>`.
-  - Across 23,123 matches, 49% had another goal after 75'. The best groups reach 55–57%, a fair price of about 1.8.
-  - A quiet spell doesn't make a goal due, so "under 1.80 at 75'" has no edge on its own.
-  - The live engine's timing table ignores stoppage time (6.5% of goals); fix it before any alert relies on it.
-  - Step 2 (paper trading with live prices, about 300–1,500 calls a match day) waits for the owner.
 - **Cards work that does not change picks (D54):**
   - add the events to the refresh and backfill them from 20 Sep (done 4 Nov: migration 0010, 554 matches
     backfilled, the refresh saves events from now on, D64);
