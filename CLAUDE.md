@@ -132,8 +132,17 @@ on it. The Discord bot still runs the old engine until A7.
   - Code started 15 Nov (owner lifted the freeze). Tasks 1–2 are merged: the history loader and the margins of our
     saved reads (`Scripts/data_platform/game_read/`, read-only, nothing live imports it). Nothing in the plan changes
     a published pick. Progress: the plan's table.
-  - Open (task 2): only 254 domestic matches had a read shown at kickoff from 5 Sep to 14 Nov, against 694 finished
-    matches with saved reads on 6 Nov. The cause is not checked yet; it matters for phase 3.
+- **Cards missing at kickoff (D108, 15 Nov).** From 5 Sep to 14 Nov, 327 of 798 finished domestic matches had a card
+  at kickoff: 35% before 4 Nov, 80% from 4 Nov.
+  - 166 had no read at all, almost all from before the website worker started on 9 Sep.
+  - 301 had a card over 120 minutes old at kickoff. In the 2 hours before kickoff:
+    - the worker did not run, because the Mac was asleep (123);
+    - it stood down behind a failed refresh's gate (83; D88 fixed the main cause);
+    - it stood down while a late daily refresh was still running (41);
+    - other reasons (54).
+  - The release check hid only 4.
+  - Open for the owner: hold a missed refresh until no domestic match kicks off in the next 2–3 hours. Neither that
+    nor keeping the Mac awake changes a pick.
 - **Next dates.**
   - No club matches from 9 to 19 Nov (international break). Cards picks start with the 20–22 Nov weekend, once
     cards prices appear (about 18–19 Nov). Then check that new reads record `pinnacle`, and ask the backend for
