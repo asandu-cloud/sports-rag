@@ -28,8 +28,8 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
 
 | Task | What it builds | Status | Start commit | Done commit | Tests |
 |---|---|---|---|---|---|
-| 1 | History loader | Done 15 Nov | cfc881e | the "Done game-read task 1" commit | 11 new, all pass; suite 3,079 passed + the 3 known errors |
-| 2 | Margins of our saved reads | Not started | | | |
+| 1 | History loader | Done 15 Nov | cfc881e | eed3af6 | 11 new, all pass; suite 3,079 passed + the 3 known errors |
+| 2 | Margins of our saved reads | Done 15 Nov | cce0817 | the "Done game-read task 2" commit | 5 new, all pass; suite 3,084 passed + the 3 known errors |
 | 3 | The rebuilt Most likely pool | Not started | | | |
 | 4 | Today's rules and the engine's rules | Not started | | | |
 | 5 | Forecasts, walk-forward runner, zero and control lines | Not started | | | |
@@ -153,20 +153,20 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
   - `export(days, *, now, gate=None) -> dict`: one `data_access()` hold per day, reads shown at kickoff through
     the board's `_shown_at_kickoff`, as `Scripts/ops/late_goal_study.load_read_expectations` does.
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
   - `test_booksum_adds_the_two_sides_of_each_line`: options Over 2.5 at 1.90 and Under 2.5 at 1.95 give
     `booksums(...)[("goals", 2.5)] == pytest.approx(1/1.90 + 1/1.95)`; a handicap pair is keyed by the home line.
   - `test_measure_takes_the_median_per_line_and_counts_reads`.
   - `test_booksum_falls_back_to_the_market_then_to_105`.
-- [ ] **Step 2: Run them.** Expected: FAIL, module missing.
-- [ ] **Step 3: Implement** the four functions and a command,
+- [x] **Step 2: Run them.** Expected: FAIL, module missing.
+- [x] **Step 3: Implement** the four functions and a command,
   `python -m Scripts.data_platform.game_read.margins --since 2026-09-05`, that writes `margins.json` with
   `measured_on`, `days` and `n` per key.
-- [ ] **Step 4: Run them.** Expected: PASS.
-- [ ] **Step 5: Measure on the real reads.** Check `pgrep -f refresh-season` finds nothing, then run the export
+- [x] **Step 4: Run them.** Expected: PASS.
+- [x] **Step 5: Measure on the real reads.** Check `pgrep -f refresh-season` finds nothing, then run the export
   from the repo root with `PYTHONPATH=.`. Expected: `margins.json` with goals 0.5–4.5, spreads half lines and btts,
   each `n` > 100. Read the table: booksums between 1.02 and 1.15.
-- [ ] **Step 6: Commit** `margins.py`, `margins.json`, the test, and a tracker line with the table's range.
+- [x] **Step 6: Commit** `margins.py`, `margins.json`, the test, and a tracker line with the table's range.
 
 ### Task 3: The rebuilt Most likely pool
 
