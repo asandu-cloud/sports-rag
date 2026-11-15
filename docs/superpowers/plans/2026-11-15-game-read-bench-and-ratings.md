@@ -13,13 +13,35 @@ each model day by day (predict a day's matches, then learn their results), and s
 `Scripts/ops/game_read_bench.py` runs it and writes reports to `Research/game-read-bench-<date>/`. Nothing in the
 live site imports the package; no engine switch, no published pick changes.
 
-**Tech Stack:** Python 3.11, numpy 2.3.3, scipy 1.17.0, scikit-learn 1.8.0 (all installed; no new dependency),
-sqlite3, pytest.
+**Tech Stack:** Python 3.13.3 (the shared `.venv`), numpy 2.3.3, scipy 1.17.0, scikit-learn 1.8.0 (all installed;
+no new dependency), sqlite3, pytest.
 
 **Spec:** `docs/superpowers/specs/2026-11-06-game-read-engine-design.md` (approved 15 Nov, tracker D77).
 
-**Start condition:** code starts only when the owner lifts the code freeze of 14 Nov ("NO CODE CHANGES FOR NOW")
-after reading this plan. Task 14 also needs the owner's yes after its terms check.
+**Start condition:** the owner lifted the code freeze of 14 Nov on 15 Nov and asked for Task 1. Task 14 also needs
+the owner's yes after its terms check.
+
+## Progress
+
+Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To undo a task:
+`git revert <its done commit>`.
+
+| Task | What it builds | Status | Start commit | Done commit | Tests |
+|---|---|---|---|---|---|
+| 1 | History loader | Done 15 Nov | cfc881e | the "Done game-read task 1" commit | 11 new, all pass; suite 3,079 passed + the 3 known errors |
+| 2 | Margins of our saved reads | Not started | | | |
+| 3 | The rebuilt Most likely pool | Not started | | | |
+| 4 | Today's rules and the engine's rules | Not started | | | |
+| 5 | Forecasts, walk-forward runner, zero and control lines | Not started | | | |
+| 6 | The scores | Not started | | | |
+| 7 | Bench command, report, Opportunities, locked-run guard | Not started | | | |
+| 8 | Elo (model 1) | Not started | | | |
+| 9 | Pi-ratings (model 2) | Not started | | | |
+| 10 | Dixon–Coles with time decay (model 3) | Not started | | | |
+| 11 | Drifting ratings (model 4) | Not started | | | |
+| 12 | The average of the models | Not started | | | |
+| 13 | Phase 1 runs and the first report to the owner | Not started | | | |
+| 14 | ClubElo yardstick (only with the owner's yes) | Not started | | | |
 
 ## Global Constraints
 
@@ -88,7 +110,7 @@ after reading this plan. Task 14 also needs the owner's yes after its terms chec
     `suspect`. Used only for the check in spec point 3.
 - `OUT_DB` and `DIVISIONS` come from `Scripts.ops.football_data_import`.
 
-- [ ] **Step 1: Write the failing tests.** Build a tiny database in `tmp_path` with the importer's `SCHEMA` and a
+- [x] **Step 1: Write the failing tests.** Build a tiny database in `tmp_path` with the importer's `SCHEMA` and a
   few rows (one 2018 match with `BetBrain average` prices, one 2020 match with `Market average` and
   `Market maximum`, one 2020 match without handicap prices, one Championship and one Premier League match of the
   same team, one match with no score).
@@ -103,13 +125,13 @@ after reading this plan. Task 14 also needs the owner's yes after its terms chec
   - `test_the_database_is_opened_read_only`: `load_matches` on the test file leaves its modification time
     unchanged, and a write through the module's connection raises `sqlite3.OperationalError`.
   - `test_named_prices_leave_out_averages_and_suspect_rows`.
-- [ ] **Step 2: Run them.** `.venv/bin/python -m pytest Scripts/tests/data_platform/test_game_read_history.py -v`
+- [x] **Step 2: Run them.** `.venv/bin/python -m pytest Scripts/tests/data_platform/test_game_read_history.py -v`
   Expected: FAIL, `ModuleNotFoundError: Scripts.data_platform.game_read.history`.
-- [ ] **Step 3: Implement `history.py`.** One read-only connection; one query for matches, one for the six price
+- [x] **Step 3: Implement `history.py`.** One read-only connection; one query for matches, one for the six price
   sources (`Market average`, `Market maximum`, `BetBrain average`, `BetBrain maximum`, both phases), pivoted in
   Python. Before 2019/20 the best price is `BetBrain maximum`.
-- [ ] **Step 4: Run them.** Expected: PASS.
-- [ ] **Step 5: Commit** `history.py`, `__init__.py`, the test, and a tracker line: "D77 build, task 1: history
+- [x] **Step 4: Run them.** Expected: PASS.
+- [x] **Step 5: Commit** `history.py`, `__init__.py`, the test, and a tracker line: "D77 build, task 1: history
   loader".
 
 ### Task 2: Margins of our saved reads
