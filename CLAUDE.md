@@ -70,14 +70,16 @@ on it. The Discord bot still runs the old engine until A7.
   to an 880 px window, so the footnote stays close on tall windows. Files: `home-hero.js` and `static/home/` at tag
   `home-20261112b`, and `home-hero.css` at `home-20261113a`.
 - **Wins reel on the home page live 12 Nov at 20:03 (D99, D101, owner; website restarted, pid 66529).** It sits
-  under "Useful before you decide": last full week's best wins as the board showed them at kickoff, at most 12, one
-  per match. The week's whole record sits beside them, losses included, with 18+, GamCare and a Pause button.
+  under "Useful before you decide": last full week's best wins as the board showed them at kickoff, at most 30, one
+  per match (12 until 15 Nov, D106). The week's whole record sits beside them, losses included, with 18+, GamCare and
+  a Pause button. Since 15 Nov (D105) the page mixes the cards so no two neighbours share a market, and each visit
+  starts at a random card.
   - The data: the daily refresh's best-effort `home_wins_file` stage (while `SPIX_RECOMMENDATIONS` is on) writes
     `Index/home_wins.json`, which the public `GET /api/home/wins` serves. To fill it by hand, run
     `python -m Scripts.data_platform home-wins`.
   - The section hides with no file or fewer than 6 wins. It shows 4–8 Nov until Mon 23 Nov.
-  - Files: `home-wins.js` and `landing.css` at tag `wins-20261112a`, and `home-wins.css` at `wins-20261113a`
-    (D102, 13 Nov: the heading sits in the middle of the record).
+  - Files: `landing.css` at tag `wins-20261112a`, `home-wins.css` at `wins-20261113a` (D102, 13 Nov: the heading
+    sits in the middle of the record), and `home-wins.js` at `wins-20261114a` (D105).
   - Open for the owner: only 10 of the 61 Value publications for 4–8 Nov were still on the site at kickoff, but
     the owner dashboard counts all 61 (D99). A later read took the rest off: 23 lost the 2% edge, 17 failed the
     price check, 9 met another rule, and 2 fell to the Mac's sleep. 1 of the 42 published over 6 hours before
