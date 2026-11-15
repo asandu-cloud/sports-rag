@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-11-04 (A5.4 cards merged behind its switch, live Tue 10 Nov, D58, D62; match events live with a backfill from 20 Sep, D64; recommendation layer live with `SPIX_RECOMMENDATIONS=on`, D68; owner dashboard, D67)
+Last updated: 2026-11-15 (the game-read engine's design approved and its plan for phases 0–1, A4 closed as a stage of its own, D77). Earlier: 2026-11-04 (A5.4 cards merged behind its switch, live Tue 10 Nov, D58, D62; match events live with a backfill from 20 Sep, D64; recommendation layer live with `SPIX_RECOMMENDATIONS=on`, D68; owner dashboard, D67)
 
 ## Status
 
@@ -15,9 +15,9 @@ Last updated: 2026-11-04 (A5.4 cards merged behind its switch, live Tue 10 Nov, 
 | A1 Measurement | **Done 20 Oct** (step 4 closed: equal weights kept, true close live, D39, D40) | see below |
 | A2 Canonical features | A2a live since 17 Oct 16:28 (`DOCUMENT_STORE=sqlite`; D11); A2b after A6 (D13) | 7af457b |
 | A3 Market anchor and honest uncertainty | Started 16 Oct under D16 (research and shadow only) | see A3 table |
-| A4 Calibration | A4.1 dataset done 16 Oct (25,527 graded candidates, 160 fixtures; grading matches settlement on all 1,918 overlapping picks). A4.2 method study done 16 Oct: no calibrator adopted yet (D28), rerun weekly; live as A3.7 stage 5, not before Tue 10 Nov (D29) | 197dc73; see D28 |
+| A4 Calibration | A4.1 dataset done 16 Oct (25,527 graded candidates, 160 fixtures; grading matches settlement on all 1,918 overlapping picks). A4.2 method study done 16 Oct: no calibrator adopted yet (D28), rerun weekly; live as A3.7 stage 5, not before Tue 10 Nov (D29). **Closed as a stage of its own 15 Nov (owner, D77)**: no calibrator passed in corners or cards, and the markets where one helped are priced from the market; the weekly reruns stop once the game-read bench runs | 197dc73; see D28 |
 | A5 Selection policy | Research started 16 Oct (D30): A5.1 done (Spix's disagreement with the market is almost all error); A5.2 done (pricing against the market wins, D31); A5.3 part 1 done 20 Oct (half the best prices were not on offer at the read, D39); price confirmation built 23 Oct, off until stage 4 (D42); exchange commission dropped, the feed has no exchange prices (D43); confidence labels built 23 Oct behind `SPIX_CONFIDENCE_LABELS`, all low until a spread cut-off passes (D44); stage 4 replay with confirmation 24 Oct (Findings); the goal-market selection rule ships with stage 4 (D33), the rest at stage 6, earliest Tue 17 Nov | see D30, D31, D33 |
-| A6–A8, Part B | Not started; A6 prep done 24 Oct (penaltyblog checked, not used: ratings fitted in-house, Findings) | 43b4431 |
+| A6–A8, Part B | A6 is now the game-read engine (D77): design approved 15 Nov, plan for phases 0–1 written (`docs/superpowers/plans/2026-11-15-game-read-bench-and-ratings.md`); code waits for the owner. A6 prep done 24 Oct (penaltyblog checked, not used: ratings fitted in-house, Findings). A7, A8 and Part B not started | 43b4431 |
 | Market expansion (D25) | Planned after A5 | see D25 |
 
 ### A1 (order changed 15 Oct, see D6)
@@ -107,7 +107,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | If A5.4 prices corners and cards against the market too, A4's calibrators (stage 5) lose their purpose except where no two-sided price exists. Stage 1 replay (17 Oct): Spix's corner picks lose ~2% at the close under either variance; A5.2's market rule kept +4.2% on corners. Candidate to join the stage 4 bundle (owner) | Decide with A5.4 (D31) | Calibrators fit Spix's own probability |
 | A5.4: build the chosen policy behind a switch (`line_selection`, `match_read_compiler`, `confidence_from_edge`), golden preview; proposal in D31. Cards from Pinnacle's fair price: plan `docs/superpowers/plans/2026-11-03-cards-work.md` (D58, revised D61: Pinnacle re-checked at price confirmation, no referee guardrail on Pinnacle-priced lines, cards left out of the recommendation layer's Value list). Built 3 Nov on the backend branch (plan task 2): switch `SPIX_CARDS_REFERENCE` (`off` | `pinnacle`, default off; merge checks pin it to off with the others); on, each cards line takes Pinnacle's own fair price, a line Pinnacle does not price on both sides is never picked, the referee guardrail is skipped for those picks, and the anchor record says `reference: pinnacle`. **Ready for Tue 10 Nov, switch off (D62).** Plan task 3 (3 Nov): price confirmation also reads Pinnacle's own price now for such a pick, in the same free history request; the pick needs Pinnacle seen within 60 min, both sides listed, and 2% value against Pinnacle's current fair price, which becomes the published chance; otherwise no bet (`reference_not_recent`, `reference_not_listed`, `reference_moved`) | A5; cards live Tue 10 Nov if ready (D58), the rest at A3.7 stage 6, earliest Tue 17 Nov | Gate (report): published picks' calibration error ≤ 3 pts and closing line value at least neutral over 4+ live matchweeks |
 | Rerun the A5.1 study (`python -m Scripts.ops.disagreement_study --out Research/disagreement-<date>`) as weeks accrue | A5, with each A5 step | Rerun 23 Oct on two weeks (`Research/disagreement-2026-10-23/`, 32,855 lines, 295 fixtures): see the finding of 23 Oct on corners. Rerun 28 Oct (`Research/disagreement-2026-10-28/`, 44,196 lines, 393 fixtures): corners again carry information (c +0.38, +0.08 to +0.63); no other market's interval excludes zero |
-| Rerun the A4.2 study weekly (`python -m Scripts.ops.calibration_study --out Research/calibration-<date>`); calibrator decision with ≥3 weeks of audited fixtures | A4, decision at A3.7 stage 5 (not before Tue 10 Nov, D29) | Not adopted 16 Oct: one audited week, no market passes the gate (D28). Rerun 23 Oct (`Research/calibration-2026-10-23/`, up to 238 fixtures): Platt passes the gate on goals (−5.77%) and Asian handicap (−3.41%), which leave A4's scope at stage 4 (M1, D29); not on corners (+0.21%) or cards (+0.00%), the markets A4 keeps; BTTS not adopted (389 rows). Fixed corner dispersions still no worse than the floors on counts. Rerun 28 Oct (`Research/calibration-2026-10-28/`, up to 336 fixtures): no market passes; Platt on goals −3.78% (−0.0433 to +0.0031) and the handicap −2.47% (−0.0286 to +0.0011) no longer clear zero, corners +0.14%, cards −0.60%, BTTS −6.40% (542 rows, interval includes zero); Spix's log loss is above the market's in every market. Rerun 3 Nov (`Research/calibration-2026-11-03/`, up to 439 fixtures, D54 c): only the handicap passes (Platt −3.24%, −0.0316 to −0.0056), but stage 4 prices the handicap from the market, so it has no use there; in the markets A4 still owns no calibrator passes: corners +0.11% (−0.0060 to +0.0066), cards −0.61% (−0.0126 to +0.0068); goals −3.22% and BTTS −4.71% include zero. Stage 5 has nothing to ship. The market is ahead of Spix in all five markets (every interval above zero). Cards rerun 3 Nov with the bookmakers' count (D54 b; `Research/calibration-2026-11-03-cards-rule/`, 4,748 rows, 416 fixtures): the market's own cards error falls from 3.2 to 2.6 pts (slope 1.21 to 1.14), as expected when grading by the rule the bookmakers price; Spix's rises from 5.7 to 8.6 (slope 0.94 to 0.89); Spix − market log loss +0.0123 to +0.0569. Platt on cards −1.32% (−0.0207 to +0.0075): still no calibrator |
+| Rerun the A4.2 study weekly (`python -m Scripts.ops.calibration_study --out Research/calibration-<date>`); calibrator decision with ≥3 weeks of audited fixtures | A4, decision at A3.7 stage 5 (not before Tue 10 Nov, D29). Stops once the game-read bench runs: A4 closed as a stage of its own (D77) | Not adopted 16 Oct: one audited week, no market passes the gate (D28). Rerun 23 Oct (`Research/calibration-2026-10-23/`, up to 238 fixtures): Platt passes the gate on goals (−5.77%) and Asian handicap (−3.41%), which leave A4's scope at stage 4 (M1, D29); not on corners (+0.21%) or cards (+0.00%), the markets A4 keeps; BTTS not adopted (389 rows). Fixed corner dispersions still no worse than the floors on counts. Rerun 28 Oct (`Research/calibration-2026-10-28/`, up to 336 fixtures): no market passes; Platt on goals −3.78% (−0.0433 to +0.0031) and the handicap −2.47% (−0.0286 to +0.0011) no longer clear zero, corners +0.14%, cards −0.60%, BTTS −6.40% (542 rows, interval includes zero); Spix's log loss is above the market's in every market. Rerun 3 Nov (`Research/calibration-2026-11-03/`, up to 439 fixtures, D54 c): only the handicap passes (Platt −3.24%, −0.0316 to −0.0056), but stage 4 prices the handicap from the market, so it has no use there; in the markets A4 still owns no calibrator passes: corners +0.11% (−0.0060 to +0.0066), cards −0.61% (−0.0126 to +0.0068); goals −3.22% and BTTS −4.71% include zero. Stage 5 has nothing to ship. The market is ahead of Spix in all five markets (every interval above zero). Cards rerun 3 Nov with the bookmakers' count (D54 b; `Research/calibration-2026-11-03-cards-rule/`, 4,748 rows, 416 fixtures): the market's own cards error falls from 3.2 to 2.6 pts (slope 1.21 to 1.14), as expected when grading by the rule the bookmakers price; Spix's rises from 5.7 to 8.6 (slope 0.94 to 0.89); Spix − market log loss +0.0123 to +0.0569. Platt on cards −1.32% (−0.0207 to +0.0075): still no calibrator |
 | Qualify the card settlement definition (yellow + red vs bookmakers' bookings rules, second yellows) before calibrating or scoring cards | Studies done 3 Nov (D54 b): `calibration_data.fixture_outcomes` grades cards as published picks settle (player statistics, yellow 1, red 2, at most 3, FT only; incomplete statistics ungraded), so every study rerun recomputes past rows. The `/fixtures/events` refresh: built 3 Nov (cards plan task 6), into a new table `fixture_match_events` (migration 0010). The refresh asks for one more request per finished match. It skips events until `init-db` creates the table after the merge, and an events failure keeps that match's statistics and fetches it again next run. The backfill: built 3 Nov (task 7), `python -m Scripts.data_platform backfill-events --since 2026-09-20 [--limit N] [--dry-run]`: finished matches with no events, oldest first, one request each, under the writer gate. Rehearsed on a copy 4 Nov (D64): 20 matches, reds agree with the statistics in all 20. The full run after the merge waits for the owner's go, with the dry-run count and the day's remaining requests (D58, D61, D64) | Published picks already settled this way; on the old grading (yellow + red) the market's card slope was 1.40 in D28 and 1.21 on the 3 Nov data; 1.14 on the same data with the new count |
 | Cards and goals variance floors (no qualified dispersion yet) | A6 | Cards outside research qualification; goals use the score matrix |
 | Market expansion wave 1: team goal totals, double chance, draw no bet (D25) | After A5 | No new modelling; anchored by M1 |
@@ -2614,6 +2614,44 @@ each visit at a random card.
   - 26 home-wins tests pass.
   - The full suite: 3,068 passed, plus the 3 known errors in `test_phase4_baseline_freeze.py`.
   - No migration, no `.env` line and no restart: the endpoint reads the file on each request.
+
+**D77 — The game-read engine: design approved, and the plan for phases 0–1 (drafted 6 Nov; owner 14–15 Nov;
+backend).** The number was held since 7 Nov (D78).
+- *What it is:* Spix's own engine, built from fitted models and tested day by day on 14 seasons of football-data
+  history before it chooses anything. It is the report's A6 and A6c, widened (Elo, pi-ratings, Dixon–Coles with
+  time decay, drifting ratings, then the D12 variables, boosted trees, a Bayesian model and an average). Design:
+  `docs/superpowers/specs/2026-11-06-game-read-engine-design.md`.
+- *The owner's answers (14 Nov):*
+  - when Spix backs none of a match's options, Most likely still shows up to 3, Spix-backed first (a);
+  - start with the 10 domestic leagues; the cups keep today's rule until phase 3.
+- *The owner's direction (14 Nov):* "less bets but more value".
+  - Most likely still leads the product, as `docs/identity.md` asks.
+  - The same bench now also scores Value against today's rule: return at the price when the pick is made, and
+    closing line value.
+  - Every report ends with an Opportunities section: patterns no model in the design uses, found on the tuning
+    seasons only, followed only through the same bench and the owner's choice.
+- *A4 calibration is closed as a stage of its own (owner, 15 Nov).* The weekly A4.2 reruns stop once the bench runs.
+- *Finding while planning (15 Nov).*
+  - football-data has one line per market, so at most one option per market clears 50%.
+  - Under (a), today's rule and the engine's would then pick the same lists, and the picks score would read zero
+    whatever the engine does.
+  - So the bench rebuilds the live pool from M1: goals 0.5–4.5, handicaps −2.5 to +2.5 and both teams to score.
+    Lines with no history are priced from the margins of our saved reads.
+  - A control line (M1 with Dixon–Coles's low-score correction) must be beaten on those derived lines, so a model
+    cannot pass just by fixing Poisson's known error on low scores.
+- *The market on the history.*
+  - The market's chance is the power method on football-data's average price, in every market. The handicap and
+    over/under 2.5 name only Bet365 and Pinnacle in most seasons, and Pinnacle is suspect from 2025/26.
+  - The scoring seasons (2019/20 onward) have average prices before kickoff and at the close in all three markets:
+    14,352 tuning and 10,704 locked matches with a handicap price. Of these, 3,344 and 2,523 have a main handicap
+    on a half line.
+- *Plan:* `docs/superpowers/plans/2026-11-15-game-read-bench-and-ratings.md`, 14 tasks:
+  - the bench (tasks 1–7);
+  - Elo, pi-ratings, Dixon–Coles with decay, drifting ratings and their average (8–12);
+  - the phase 1 runs, one locked run and the first report to the owner (13);
+  - the ClubElo yardstick, only with the owner's yes after its terms are checked (14).
+- *When:* code waits for the owner to lift the code freeze of 14 Nov. Nothing in the plan changes a published
+  pick, and the golden check must stay unchanged. The first report comes about two weeks after code starts.
 
 ## Findings that shape later steps
 
