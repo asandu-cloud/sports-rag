@@ -1,0 +1,143 @@
+{
+ "version": "game-read-margins.v1",
+ "measured_on": "2026-11-15",
+ "leagues": [
+  "EPL",
+  "Championship",
+  "LaLiga",
+  "SerieA",
+  "Bundesliga",
+  "Ligue1",
+  "Eredivisie",
+  "PrimeiraLiga",
+  "BelgianProLeague",
+  "SuperLig"
+ ],
+ "days": {
+  "from": "2026-09-05",
+  "to": "2026-11-14",
+  "count": 71
+ },
+ "lines": [
+  {
+   "market": "btts",
+   "line": null,
+   "booksum": 1.0776,
+   "n": 254
+  },
+  {
+   "market": "goals",
+   "line": 0.5,
+   "booksum": 1.0519,
+   "n": 244
+  },
+  {
+   "market": "goals",
+   "line": 1.5,
+   "booksum": 1.0674,
+   "n": 254
+  },
+  {
+   "market": "goals",
+   "line": 2.5,
+   "booksum": 1.0571,
+   "n": 254
+  },
+  {
+   "market": "goals",
+   "line": 3.5,
+   "booksum": 1.0603,
+   "n": 254
+  },
+  {
+   "market": "goals",
+   "line": 4.5,
+   "booksum": 1.0668,
+   "n": 254
+  },
+  {
+   "market": "goals",
+   "line": 5.5,
+   "booksum": 1.0633,
+   "n": 254
+  },
+  {
+   "market": "goals",
+   "line": 6.5,
+   "booksum": 1.046,
+   "n": 229
+  },
+  {
+   "market": "goals",
+   "line": 7.5,
+   "booksum": 1.0449,
+   "n": 100
+  },
+  {
+   "market": "goals",
+   "line": 8.5,
+   "booksum": 1.0449,
+   "n": 14
+  },
+  {
+   "market": "goals",
+   "line": 9.5,
+   "booksum": 1.0377,
+   "n": 1
+  },
+  {
+   "market": "spreads",
+   "line": -4.5,
+   "booksum": 1.0844,
+   "n": 2
+  },
+  {
+   "market": "spreads",
+   "line": -3.5,
+   "booksum": 1.0739,
+   "n": 19
+  },
+  {
+   "market": "spreads",
+   "line": -2.5,
+   "booksum": 1.075,
+   "n": 80
+  },
+  {
+   "market": "spreads",
+   "line": -1.5,
+   "booksum": 1.0686,
+   "n": 179
+  },
+  {
+   "market": "spreads",
+   "line": -0.5,
+   "booksum": 1.0512,
+   "n": 221
+  },
+  {
+   "market": "spreads",
+   "line": 0.5,
+   "booksum": 1.0524,
+   "n": 196
+  },
+  {
+   "market": "spreads",
+   "line": 1.5,
+   "booksum": 1.0695,
+   "n": 129
+  },
+  {
+   "market": "spreads",
+   "line": 2.5,
+   "booksum": 1.0753,
+   "n": 39
+  },
+  {
+   "market": "spreads",
+   "line": 3.5,
+   "booksum": 1.0747,
+   "n": 8
+  }
+ ]
+}

@@ -2668,6 +2668,23 @@ backend).** The number was held since 7 Nov (D78).
       - 334 teams.
     - Tests: 11 new, all pass. The full suite: 3,079 passed, plus the 3 known errors in
       `test_phase4_baseline_freeze.py`. No live code changed.
+  - **Task 2 done (15 Nov): the margins of our saved reads** (`Scripts/data_platform/game_read/margins.py`, table in
+    `margins.json`).
+    - Each line's booksum is the sum of `1 / typical price` over its two sides, with the typical price the live list
+      uses. The table keeps the median over the reads the board showed at kickoff (D70), in the 10 domestic leagues.
+    - It was measured on 5 Sep–14 Nov through the database gate, one hold a day, outside the refresh, in 73 s.
+      There were 254 reads.
+    - The margins run from 3.8% to 8.4%:
+      - goals 0.5–4.5: 1.052–1.067;
+      - both teams to score: 1.078;
+      - handicaps ±0.5: 1.051–1.052, ±1.5: 1.069–1.070, ±2.5: 1.075.
+    - *Ruling:* handicap ±2.5 rests on 80 and 39 reads, against the plan's 100. It is kept, because its margin
+      agrees with ±3.5 and sits just above ±1.5. If wrong, the typical price on those lines is off by well under
+      1%, which matters only near the 1.30 floor.
+    - *Finding:* only 254 domestic matches had a read shown at kickoff from 5 Sep to 14 Nov. The design counted 694
+      finished matches with saved reads on 6 Nov, 157 of them in the cups. The reason has not been checked yet.
+      Phase 3, which scores the other markets on the saved reads, must decide which reads count.
+    - Tests: 5 new, all pass. The full suite: 3,084 passed, plus the 3 known errors. No live code changed.
 
 ## Findings that shape later steps
 
