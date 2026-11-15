@@ -28,7 +28,7 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
 
 | Task | What it builds | Status | Start commit | Done commit | Tests |
 |---|---|---|---|---|---|
-| 1 | History loader | In progress | | | |
+| 1 | History loader | Done 15 Nov | cfc881e | the "Done game-read task 1" commit | 11 new, all pass; suite 3,079 passed + the 3 known errors |
 | 2 | Margins of our saved reads | Not started | | | |
 | 3 | The rebuilt Most likely pool | Not started | | | |
 | 4 | Today's rules and the engine's rules | Not started | | | |
@@ -110,7 +110,7 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
     `suspect`. Used only for the check in spec point 3.
 - `OUT_DB` and `DIVISIONS` come from `Scripts.ops.football_data_import`.
 
-- [ ] **Step 1: Write the failing tests.** Build a tiny database in `tmp_path` with the importer's `SCHEMA` and a
+- [x] **Step 1: Write the failing tests.** Build a tiny database in `tmp_path` with the importer's `SCHEMA` and a
   few rows (one 2018 match with `BetBrain average` prices, one 2020 match with `Market average` and
   `Market maximum`, one 2020 match without handicap prices, one Championship and one Premier League match of the
   same team, one match with no score).
@@ -125,13 +125,13 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
   - `test_the_database_is_opened_read_only`: `load_matches` on the test file leaves its modification time
     unchanged, and a write through the module's connection raises `sqlite3.OperationalError`.
   - `test_named_prices_leave_out_averages_and_suspect_rows`.
-- [ ] **Step 2: Run them.** `.venv/bin/python -m pytest Scripts/tests/data_platform/test_game_read_history.py -v`
+- [x] **Step 2: Run them.** `.venv/bin/python -m pytest Scripts/tests/data_platform/test_game_read_history.py -v`
   Expected: FAIL, `ModuleNotFoundError: Scripts.data_platform.game_read.history`.
-- [ ] **Step 3: Implement `history.py`.** One read-only connection; one query for matches, one for the six price
+- [x] **Step 3: Implement `history.py`.** One read-only connection; one query for matches, one for the six price
   sources (`Market average`, `Market maximum`, `BetBrain average`, `BetBrain maximum`, both phases), pivoted in
   Python. Before 2019/20 the best price is `BetBrain maximum`.
-- [ ] **Step 4: Run them.** Expected: PASS.
-- [ ] **Step 5: Commit** `history.py`, `__init__.py`, the test, and a tracker line: "D77 build, task 1: history
+- [x] **Step 4: Run them.** Expected: PASS.
+- [x] **Step 5: Commit** `history.py`, `__init__.py`, the test, and a tracker line: "D77 build, task 1: history
   loader".
 
 ### Task 2: Margins of our saved reads

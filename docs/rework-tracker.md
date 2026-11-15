@@ -2656,6 +2656,18 @@ backend).** The number was held since 7 Nov (D78).
   - Each task gets a start commit and a done commit with plain names (the owner's rule, now in CLAUDE.md under
     "Large builds").
   - The plan's progress table shows each task's status, commits and tests.
+  - **Task 1 done (15 Nov): the history loader** (`Scripts/data_platform/game_read/history.py`).
+    - It reads every football-data match with a score, read-only, with average and best prices before kickoff and
+      at the close: football-data's own from 2019/20, BetBrain's before.
+    - The market's chance is the power method on the average price.
+    - On the real file it loads 49,714 matches in 2.3 s:
+      - warm-up 24,620, tuning 14,383, locked 10,711;
+      - handicap prices on 14,352 tuning and 10,704 locked matches, with 3,344 and 2,523 on a half line;
+      - closing prices on every scored season, and none in the warm-up seasons (football-data has no closing
+        averages before 2019/20, and nothing is scored there);
+      - 334 teams.
+    - Tests: 11 new, all pass. The full suite: 3,079 passed, plus the 3 known errors in
+      `test_phase4_baseline_freeze.py`. No live code changed.
 
 ## Findings that shape later steps
 
