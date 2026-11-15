@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-11-15 (the game-read engine's design approved and its plan for phases 0–1, A4 closed as a stage of its own, D77). Earlier: 2026-11-04 (A5.4 cards merged behind its switch, live Tue 10 Nov, D58, D62; match events live with a backfill from 20 Sep, D64; recommendation layer live with `SPIX_RECOMMENDATIONS=on`, D68; owner dashboard, D67)
+Last updated: 2026-11-15 (why cards were missing at kickoff, D108; the game-read engine's design approved and its plan for phases 0–1, A4 closed as a stage of its own, D77). Earlier: 2026-11-04 (A5.4 cards merged behind its switch, live Tue 10 Nov, D58, D62; match events live with a backfill from 20 Sep, D64; recommendation layer live with `SPIX_RECOMMENDATIONS=on`, D68; owner dashboard, D67)
 
 ## Status
 
@@ -57,7 +57,8 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Unit-bet slip link to the legacy `predictions.db` | A7 | Lives in the Discord legacy tracker A7 replaces |
 | Phase 6 shadow controller (`com.bettingrag.phase6-shadow`, hourly, runs `Research/phase6-shadow-logo-2026-10-07/controller.py`): fails on every run since A0 changed a file it fingerprints (`alembic/env.py`, 02fa536, 15 Oct): "Operational prediction input changed; review a new release"; the last 148 runs failed, so its diagnostic window (to 20 Oct) lost its last days. Owner: retire it, or move it into `Scripts/` and re-release | Owner, now | Its window ended 20 Oct |
 | Done: tag `pre-rework` is on GitHub at cf00af8 (checked 21 Oct with `git ls-remote`) | Done | |
-| Keep the Mac awake for scheduled jobs: the daily refresh runs under `caffeinate -i -s` since 17 Oct (it cannot idle-sleep mid-run); still open, a daily scheduled wake before 07:15 (`sudo pmset repeat wakeorpoweron MTWRFSU 07:05:00`), mains power, or a server. On 17 Oct the Mac slept on battery until ~11:48, waking for 2–3 s every ~17 min: the 07:15 refresh ran only in those slices and finished at 12:25 (stage times normal). While asleep the Match Read worker, measurement worker and odds archive do not run either, which matters for this weekend's near-kickoff captures (A1 step 4 freshness rerun, Mon 19 Oct). Again on 20 Oct: on battery, no daily wake scheduled (`pmset -g sched`), the Mac slept 07:00–11:00 with brief wakes and the refresh took 4 h 35 min (04:21–08:56 UTC; 19 Oct: 1 h 3 min). 21 Oct: 6 h 43 min (04:17–11:00 UTC), still no daily wake scheduled. 26 and 27 Oct: the refresh failed on a sleeping Mac both mornings and nothing reran it, so the gate stayed shut 8 h 22 min and 18 h 27 min (no Match Reads, no measurement) until rerun by hand; since 28 Oct the job retries hourly (`--if-due`, see Findings) | Owner (wake, mains); Telegram alerts set up 28 Oct | Operational risk to every scheduled job |
+| Keep the Mac awake for scheduled jobs: the daily refresh runs under `caffeinate -i -s` since 17 Oct (it cannot idle-sleep mid-run); still open, a daily scheduled wake before 07:15 (`sudo pmset repeat wakeorpoweron MTWRFSU 07:05:00`), mains power, or a server. On 17 Oct the Mac slept on battery until ~11:48, waking for 2–3 s every ~17 min: the 07:15 refresh ran only in those slices and finished at 12:25 (stage times normal). While asleep the Match Read worker, measurement worker and odds archive do not run either, which matters for this weekend's near-kickoff captures (A1 step 4 freshness rerun, Mon 19 Oct). Again on 20 Oct: on battery, no daily wake scheduled (`pmset -g sched`), the Mac slept 07:00–11:00 with brief wakes and the refresh took 4 h 35 min (04:21–08:56 UTC; 19 Oct: 1 h 3 min). 21 Oct: 6 h 43 min (04:17–11:00 UTC), still no daily wake scheduled. 26 and 27 Oct: the refresh failed on a sleeping Mac both mornings and nothing reran it, so the gate stayed shut 8 h 22 min and 18 h 27 min (no Match Reads, no measurement) until rerun by hand; since 28 Oct the job retries hourly (`--if-due`, see Findings). 15 Nov: still no daily wake scheduled; from 5 Sep to 14 Nov, 123 cards went off the board because the worker did not run in the 2 hours before kickoff (D108) | Owner (wake, mains); Telegram alerts set up 28 Oct | Operational risk to every scheduled job |
+| Cards hidden at kickoff by a late refresh (D108): the worker stands down while the daily refresh runs, and on a sleeping Mac the 07:15 refresh stretches into match hours (7 Nov until about 15:20 local; 8 Nov 16:15–18:41 local). 41 cards went off the board this way, 5 Sep–14 Nov, 12 of them in the week of 2–8 Nov. Options: hold a missed refresh until no domestic match kicks off in the next 2–3 hours, or keep the worker checking prices near kickoff during the refresh | Owner (whether, and which); then backend, with a design | Changes the jobs, not the picks |
 | Closed 20 Oct: no bookmaker weights; the median stays (owner, D40) | Done | Power margin removal still becomes the default at stage 2 (D17) |
 | **Done 2 Nov.** Make power the default margin-removal method in measurement (`reference_price`, closing consensus, publication reference, scorecard). Owner, 20 Oct: keep proportional through stages 1–3 so every stage is judged on the same yardstick; switch at the Mon 2 Nov scorecard and recompute the history from the stored per-book prices | Built 28 Oct (`reference_price.MEASUREMENT_METHOD`, `refair`, scorecard `--method`; see Findings); switch Mon 2 Nov after the scorecard | Refit anything fitted on v1 |
 | Closed 20 Oct: no weighted reference (D40); the scorecard adds the true close instead (D39) | Done | |
@@ -2673,7 +2674,8 @@ backend).** The number was held since 7 Nov (D78).
     - Each line's booksum is the sum of `1 / typical price` over its two sides, with the typical price the live list
       uses. The table keeps the median over the reads the board showed at kickoff (D70), in the 10 domestic leagues.
     - It was measured on 5 Sep–14 Nov through the database gate, one hold a day, outside the refresh, in 73 s.
-      There were 254 reads.
+      There were 327 reads, 254 of them with both prices on over/under 2.5 (corrected 15 Nov; first written as 254
+      reads, D108).
     - The margins run from 3.8% to 8.4%:
       - goals 0.5–4.5: 1.052–1.067;
       - both teams to score: 1.078;
@@ -2681,10 +2683,41 @@ backend).** The number was held since 7 Nov (D78).
     - *Ruling:* handicap ±2.5 rests on 80 and 39 reads, against the plan's 100. It is kept, because its margin
       agrees with ±3.5 and sits just above ±1.5. If wrong, the typical price on those lines is off by well under
       1%, which matters only near the 1.30 floor.
-    - *Finding:* only 254 domestic matches had a read shown at kickoff from 5 Sep to 14 Nov. The design counted 694
-      finished matches with saved reads on 6 Nov, 157 of them in the cups. The reason has not been checked yet.
-      Phase 3, which scores the other markets on the saved reads, must decide which reads count.
+    - *Finding:* only 327 of 798 finished domestic matches had a read shown at kickoff from 5 Sep to 14 Nov. The
+      cause was checked on 15 Nov (D108): mostly the Mac asleep and the refresh's gate. Phase 3, which scores the
+      other markets on the saved reads, must decide which reads count, including the 73 shown reads with no
+      over/under 2.5 prices.
     - Tests: 5 new, all pass. The full suite: 3,084 passed, plus the 3 known errors. No live code changed.
+
+**D108 — Why cards were missing at kickoff (15 Nov; backend, read-only).** The orchestrator asked why so few
+domestic matches had a card on the board at kickoff (D77, task 2). Checked on the 10 domestic leagues, 5 Sep–14 Nov,
+with the board's own before-kickoff rule (D70), the worker's check ledger and its run log. Nothing was changed.
+- 798 finished matches; 327 had a card shown at kickoff (41%).
+  - Before 4 Nov: 248 of 699 (35%). From 4 Nov: 79 of 99 (80%).
+  - By league: from 25% (Ligue 1) to 49% (Bundesliga, Championship).
+  - The design's 694 finished matches with saved reads on 6 Nov agrees: by 14 Nov, 824 in all leagues, 192 of them
+    in the cups.
+- 166 had no saved read at all. 164 of them fall in the weeks of 31 Aug and 7 Sep, before the automatic website
+  worker started (9 Sep; its log starts 14 Sep). 4 more had saved reads that were never released to the website.
+- 301 had a card that was over 120 minutes old at kickoff, so it went off the board before kickoff (median age
+  20 hours). In the 2 hours before kickoff:
+  - 123: the worker did not run at all. It runs every 10 minutes while the Mac is awake, so the Mac was asleep or
+    off.
+  - 83: the worker ran but stood down, because a failed refresh had left the gate shut (4–19 Oct and 26–31 Oct).
+    The refresh lock fix (D88, 10 Nov) addressed the main cause of the failed refreshes.
+  - 41: the worker stood down because the daily refresh was still running. On a sleeping Mac the 07:15 refresh runs
+    in slices and stretches into match hours. On 7 Nov it started at 07:18 local and ran until about 15:20; on
+    8 Nov it started at 16:15 local, after the Mac woke, and ran 2 h 26 min, over the 16:15 and 16:30 UTC kickoffs.
+  - 6: another worker run held the lease.
+  - 45: the worker ran but did not get a fresh check of that match in time. Seen among them: checks that waited
+    for line-ups, and API-Football not returning the fixture for its date. Not split further.
+  - 3: before the worker's log starts.
+  - In the week of 2–8 Nov, the 21 hidden cards were 8 with the Mac asleep, 12 with the refresh running and 1 other.
+- The live board uses the same 120-minute rule when a member looks, so for these matches a member saw no card in
+  the last minutes before kickoff.
+- Still no daily wake is scheduled (`pmset -g sched`, 15 Nov). Two fixes are the owner's call; neither changes a
+  pick: the daily wake with mains power and the lid open (open item, Mac awake), and stopping a late refresh from
+  blocking match hours (new open item).
 
 ## Findings that shape later steps
 
