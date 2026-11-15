@@ -2542,6 +2542,57 @@ footnote down, leaving a large empty space under the button.
   - Compare: the checkpoint commit 9c15d37, and the before and after screenshots.
   - No migration, no `.env` line and no restart.
 
+**D105 — A wider spread of wins on the home page reel (14 Nov; frontend and backend, owner).** The owner found the
+reel repetitive: "the same ones keep showing up".
+- *Why:*
+  - The feed holds 12 wins, the dearest win of 12 matches (`MAX_WINS = 12`, D99). The reel loops them, so on desktop
+    a card comes back about every 2 minutes.
+  - They are in price order. Four of the 4–8 Nov twelve are "Both teams to score", and three of those sit together.
+  - The week had far more to show: 249 Most likely and 3 Value picks came in, from at least 83 matches.
+- *The owner's choice:* 30 wins ("yes, lets do 30 weins"), with the frontend's two proposals:
+  - the order spread so the same market or league does not sit together;
+  - a different starting card on each visit.
+- *Split:*
+  - The backend raises `MAX_WINS` to 30 on its branch (asked 14 Nov). Same rule otherwise: each match's dearest
+    win, highest price first.
+  - The frontend reorders and rotates the cards in the page. `home_wins.v1` does not change.
+- *The frontend's part* (`home-wins.js`; it works with any number of wins, so it can go live before the backend's):
+  - `homeWinsMix` orders the cards. Each next card is from a different market than the one before it, taken from the
+    market with the most cards left. A different league wins where it can, and otherwise the dearest. The first
+    card's market wins a tie, so it runs out before the loop comes back round to it.
+  - `homeWinsTurn` starts the loop at a random card on each visit. Turning a loop keeps every card's neighbours.
+  - The real 4–8 Nov twelve, which come in price order with three "Both teams to score" together, now read: Both
+    teams to score, Goals, Both teams to score, Goals, Handicap, Goals, Both teams to score, Goals, Corners, Both
+    teams to score, Handicap, Goals. No two neighbours share a market or a league.
+  - A stress test of 5,971 random weeks (6 to 30 wins, 1 to 6 markets, the largest market at most half the cards):
+    no two neighbouring markets alike in any of them, the join of the loop included. About 2.6% of neighbours share a
+    league.
+- *Files:* `home-wins.js` (now at `wins-20261114a`), `index.html` and `test_home_wins_web.js`.
+- *Checks, on 8100 with the real 4–8 Nov feed (12 wins):*
+  - Six loads gave five different first cards. None had two neighbours with the same market or league, and none had
+    script errors.
+  - The join is off by 0.03 px, the speed is still 28 px a second, and there is no sideways scroll.
+  - Reduced motion: still, 12 cards, the row scrolls.
+  - All 12 JS test files pass.
+  - Compare: the checkpoint commit 5fded7d.
+  - No migration, no `.env` line and no restart.
+- *The backend's part:* the owner confirmed 30 to the backend, and `MAX_WINS = 30` is on the backend branch (4451810,
+  D106).
+- *Checked with the backend's real 30-win 4–8 Nov sample.* The sample has:
+  - 30 wins, one per match, priced 4.10 down to 1.50: 27 Most likely and 3 Value;
+  - by market: 12 goals, 7 handicap, 6 both teams to score, 4 corners and 1 result;
+  - ten leagues, with names on the site for all of them (Jupiler Pro League included).
+
+  It was served in place of the endpoint on 8100:
+  - Six loads gave six different first cards. No two neighbours shared a market (one pair shared a league), and
+    there were no script errors.
+  - One lap is 287 s on desktop, so a card comes back about every 4 min 47 s instead of every 2 minutes. The join is
+    off by 0.03 px and the speed is 28 px a second. There is no sideways scroll.
+  - Reduced motion: still, 30 cards, the row scrolls.
+- *Go-live:* the live file moves from 12 to 30 at the first rebuild after the backend's merge. That is the daily
+  refresh, or `python -m Scripts.data_platform home-wins` by hand. Until then the mix and the random start work on the
+  12.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A

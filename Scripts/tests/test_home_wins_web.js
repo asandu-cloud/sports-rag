@@ -13,7 +13,7 @@ const { chanceWords, chancePercent, RECS_MARKETS } = Function('esc', app.slice(h
 // The reel's script, with no page: only its pure builders.
 const wins = Function('document', fs.readFileSync(path.join(STATIC, 'home-wins.js'), 'utf8')
   + 'return { HOME_WINS_SPEED, HOME_WINS_MIN, HOME_WINS_FILL, homeWinsSeed, homeWinsWeek, homeWinsAbout, homeWinsRecord,'
-  + ' homeWinsCard, homeWinsReady, homeWinsTrack, homeWinsDuration };')(undefined);
+  + ' homeWinsCard, homeWinsReady, homeWinsTrack, homeWinsDuration, homeWinsMix, homeWinsTurn };')(undefined);
 const page = fs.readFileSync(path.join(STATIC, 'index.html'), 'utf8');
 
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -148,8 +148,34 @@ const seven = wins.homeWinsTrack(many(7), h);
 assert.deepEqual(sets(seven).map(slots), [12, 12], 'both sets the same length, so the loop still has no seam');
 assert.equal((sets(seven)[0].match(/<li class="hw-slot" aria-hidden="true" inert/g) || []).length, 5);
 assert.equal((sets(seven)[0].match(/role="img"/g) || []).length, 12);
-// A constant speed on any screen: one set's width over 28 px a second.
+// A full week of 30 wins fills each set with no repeats (D105).
+assert.deepEqual(sets(wins.homeWinsTrack(many(30), h)).map(slots), [30, 30]);
+assert.doesNotMatch(sets(wins.homeWinsTrack(many(30), h))[0], /aria-hidden/);
+
+// The order (D105). The feed comes dearest first, so similar picks bunch up: the real 4–8 Nov twelve, in feed order.
+const REAL = [['1552219', 'goals', 'Eredivisie'], ['1570448', 'spreads', 'LaLiga'], ['1570452', 'corners', 'LaLiga'],
+  ['1550188', 'goals', 'SerieA'], ['1563251', 'btts', 'Championship'], ['1570450', 'btts', 'LaLiga'], ['1635656', 'btts', 'UCL'],
+  ['1636219', 'btts', 'UEL'], ['1636337', 'goals', 'UEL'], ['1636229', 'goals', 'UEL'], ['1636339', 'goals', 'UEL'],
+  ['1636478', 'spreads', 'UECL']].map(([id, market, league]) => ({ fixture: { event_id: id, league }, pick: { market } }));
+const mixed = wins.homeWinsMix(REAL);
+assert.deepEqual(mixed.map(w => w.fixture.event_id).sort(), REAL.map(w => w.fixture.event_id).sort(), 'every win once');
+// No two neighbours share a market, the last and the first included, because the reel loops.
+mixed.forEach((w, i) => assert.notEqual(w.pick.market, mixed[(i + 1) % mixed.length].pick.market, `cards ${i} and ${i + 1}`));
+assert.notDeepEqual(REAL.map(w => w.pick.market), mixed.map(w => w.pick.market));
+// With a choice of market, a different league wins over a higher price.
+const pick = (id, market, league) => ({ fixture: { event_id: id, league }, pick: { market } });
+assert.deepEqual(wins.homeWinsMix([pick('a', 'btts', 'LaLiga'), pick('b', 'goals', 'LaLiga'), pick('c', 'goals', 'UEL'),
+  pick('d', 'btts', 'UEL')]).map(w => w.fixture.event_id), ['a', 'c', 'd', 'b']);
+// The feed itself is left as it was.
+assert.equal(REAL[1].fixture.event_id, '1570448');
+// A different starting card each visit: the loop is turned, so every card keeps its neighbours.
+assert.deepEqual(wins.homeWinsTurn(['a', 'b', 'c', 'd'], 2), ['c', 'd', 'a', 'b']);
+assert.deepEqual(wins.homeWinsTurn(['a', 'b', 'c', 'd'], 0), ['a', 'b', 'c', 'd']);
+assert.deepEqual(wins.homeWinsTurn(['a', 'b', 'c', 'd'], 4), ['a', 'b', 'c', 'd']);
+
+// A constant speed on any screen: one set's width over 28 px a second. 30 cards take about 5 minutes on desktop.
 assert.equal(wins.HOME_WINS_SPEED, 28);
+assert.equal(wins.homeWinsDuration(30 * 268), '287.1s');
 assert.equal(wins.homeWinsDuration(3216), '114.9s');
 assert.equal(wins.homeWinsDuration(2760), '98.6s');
 
@@ -167,11 +193,13 @@ assert.doesNotMatch(section, /aria-pressed/);
 assert.match(section, /18\+/);
 assert.match(section, /href="https:\/\/www\.gamcare\.org\.uk\/get-support\/"/);
 assert.match(page, /<link rel="stylesheet" href="\/static\/home-wins\.css\?v=wins-20261113a">/);
-assert.match(page, /<script src="\/static\/home-wins\.js\?v=wins-20261112a"><\/script>/);
+assert.match(page, /<script src="\/static\/home-wins\.js\?v=wins-20261114a"><\/script>/);
 // On a wide screen the heading sits in the middle of the record beside it (owner, 13 Nov: "lets do middle").
 const css = fs.readFileSync(path.join(STATIC, 'home-wins.css'), 'utf8');
 assert.match(css, /\.hw-head \{[^}]*align-items: center;/);
 // The feed is read from the backend's endpoint; nothing is written.
 const script = fs.readFileSync(path.join(STATIC, 'home-wins.js'), 'utf8');
 assert.match(script, /fetch\('\/api\/home\/wins'/);
+// The page mixes the order and starts the loop at a random card.
+assert.match(script, /homeWinsTrack\(homeWinsTurn\(homeWinsMix\(data\.wins\), Math\.floor\(Math\.random\(\) \* data\.wins\.length\)\), h\)/);
 assert.doesNotMatch(script, /method:\s*'(POST|PUT|DELETE)'/);
