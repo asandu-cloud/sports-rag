@@ -28,7 +28,7 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
 
 | Task | What it builds | Status | Start commit | Done commit | Tests |
 |---|---|---|---|---|---|
-| 1 | History loader | Not started | | | |
+| 1 | History loader | In progress | | | |
 | 2 | Margins of our saved reads | Not started | | | |
 | 3 | The rebuilt Most likely pool | Not started | | | |
 | 4 | Today's rules and the engine's rules | Not started | | | |
