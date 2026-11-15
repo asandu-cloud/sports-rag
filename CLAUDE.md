@@ -121,6 +121,15 @@ on it. The Discord bot still runs the old engine until A7.
     D61, D62).
 - **Cards stage (A5.4) live 9 Nov at 18:51**, a day ahead of its Tue 10 Nov slot (owner): `SPIX_CARDS_REFERENCE=pinnacle`.
   No club match is played before 20 Nov, so no pick changed early.
+- **Next engine step: the game-read engine (A6, D77).** The owner approved the design on 14–15 Nov:
+  `docs/superpowers/specs/2026-11-06-game-read-engine-design.md`. The plan for phases 0–1 (the bench and the ratings,
+  14 tasks) is `docs/superpowers/plans/2026-11-15-game-read-bench-and-ratings.md`.
+  - It is fitted models tested day by day on 14 seasons of history before they choose anything, starting with the 10
+    domestic leagues.
+  - Most likely still shows up to 3, Spix-backed first. Value is scored on the same bench, and every report ends
+    with an Opportunities section.
+  - A4 calibration is closed as a stage of its own; its weekly reruns stop once the bench runs.
+  - Code waits for the owner's go-ahead, and nothing in the plan changes a published pick.
 - **Next dates.**
   - No club matches from 9 to 19 Nov (international break). Cards picks start with the 20–22 Nov weekend, once
     cards prices appear (about 18–19 Nov). Then check that new reads record `pinnacle`, and ask the backend for
