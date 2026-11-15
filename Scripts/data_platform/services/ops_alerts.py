@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from collections import Counter
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 import fcntl
 import functools
 import json
@@ -33,6 +33,8 @@ TRUE_CLOSE_FAILURES = 3      # runs hourly
 RELEASE_EVERY = timedelta(hours=1)
 ODDSPAPI_LOW = 50            # requests left on the account
 REFRESH_TRIES = 6            # refresh_retry.MAX_ATTEMPTS
+HELD = "held for match time"  # refresh_retry.HELD
+HELD_LATE = time(22, 0)      # a hold still on from here is news: the last kickoffs of a usual evening have started
 CONFIRMATION_FAULTS = frozenset({"fixture_list_error", "market_list_error", "history_error", "fixture_not_matched",
                                  "no_oddspapi_key"})
 CONFIRMATION_MIN_FAULTS = 5
@@ -238,7 +240,16 @@ def refresh_gave_up(*, now=None):
 
 @_safe
 def refresh_skipped(reason, *, gate_shut=None, now=None):
-    """``refresh-season --if-due`` decided not to run: only the day's limit with the gate shut is news."""
+    """``refresh-season --if-due`` decided not to run: only the day's limit with the gate shut is news, and a hold for
+    match time still on late in the evening (D109), once a day."""
+    if HELD in str(reason):
+        now = _local(now)
+        if now.time() >= HELD_LATE:
+            once("refresh-held", now.date().isoformat(),
+                 f"Spix · the daily refresh is still {HELD} at {now:%H:%M}: "
+                 f"{str(reason).split(f'{HELD}: ', 1)[-1]}. It starts at the first hourly try with no match close, "
+                 "and from 23:00 whatever the kickoffs. Keep the Mac awake until it has run.")
+        return
     if not str(reason).startswith("attempt limit"):
         return
     if gate_shut is None:
