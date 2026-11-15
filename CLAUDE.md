@@ -129,7 +129,9 @@ on it. The Discord bot still runs the old engine until A7.
   - Most likely still shows up to 3, Spix-backed first. Value is scored on the same bench, and every report ends
     with an Opportunities section.
   - A4 calibration is closed as a stage of its own; its weekly reruns stop once the bench runs.
-  - Code waits for the owner's go-ahead, and nothing in the plan changes a published pick.
+  - Code started 15 Nov (owner lifted the freeze). Task 1, the history loader, is merged
+    (`Scripts/data_platform/game_read/`, read-only, nothing live imports it). Nothing in the plan changes a published
+    pick. Progress: the plan's table.
 - **Next dates.**
   - No club matches from 9 to 19 Nov (international break). Cards picks start with the 20–22 Nov weekend, once
     cards prices appear (about 18–19 Nov). Then check that new reads record `pinnacle`, and ask the backend for
