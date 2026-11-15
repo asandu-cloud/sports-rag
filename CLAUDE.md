@@ -141,8 +141,13 @@ on it. The Discord bot still runs the old engine until A7.
     - it stood down while a late daily refresh was still running (41);
     - other reasons (54).
   - The release check hid only 4.
-  - Open for the owner: hold a missed refresh until no domestic match kicks off in the next 2–3 hours. Neither that
-    nor keeping the Mac awake changes a pick.
+  - Since 15 Nov (D109, owner) a late daily refresh waits for match time (`services/refresh_retry.py`).
+    - From 08:15 local, a due run waits while a covered match kicks off within its likely run time plus the
+      worker's 120-minute final window. It starts at the first clear hourly try, and from 23:00 whatever the
+      kickoffs.
+    - One Telegram alert comes if it is still waiting at 22:00.
+    - The 07:15 run and retries after a failure are never held, and it changes no pick.
+    - The rest needs the Mac awake: plugged in, lid open.
 - **Next dates.**
   - No club matches from 9 to 19 Nov (international break). Cards picks start with the 20–22 Nov weekend, once
     cards prices appear (about 18–19 Nov). Then check that new reads record `pinnacle`, and ask the backend for
