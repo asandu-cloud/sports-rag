@@ -28,8 +28,8 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
 
 | Task | What it builds | Status | Start commit | Done commit | Tests |
 |---|---|---|---|---|---|
-| 1 | History loader | Done 15 Nov | cfc881e | the "Done game-read task 1" commit | 11 new, all pass; suite 3,079 passed + the 3 known errors |
-| 2 | Margins of our saved reads | Not started | | | |
+| 1 | History loader | Done 15 Nov | cfc881e | eed3af6 | 11 new, all pass; suite 3,079 passed + the 3 known errors |
+| 2 | Margins of our saved reads | In progress | | | |
 | 3 | The rebuilt Most likely pool | Not started | | | |
 | 4 | Today's rules and the engine's rules | Not started | | | |
 | 5 | Forecasts, walk-forward runner, zero and control lines | Not started | | | |
