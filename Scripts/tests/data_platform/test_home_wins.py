@@ -50,25 +50,25 @@ def test_a_pick_settles_on_the_full_time_score_as_the_scorecard_grades_it(pick, 
     assert home_wins.grade(pick, facts) == outcome
 
 
-def test_the_reel_keeps_each_matchs_highest_priced_win_highest_first_and_at_most_twelve():
+def test_the_reel_keeps_each_matchs_highest_priced_win_highest_first_and_at_most_thirty():
     cards, facts = [], {}
-    for i in range(14):
+    for i in range(32):
         event = str(1000 + i)
         cards.append(card(event, f"2026-11-0{5 + i % 3}T15:00:00Z", most_likely=[
             option("goals", "over", 1.5, 0.8, 1.20 + i / 100), option("btts", "yes", None, 0.55, 1.50 + i / 100)]))
         facts[event] = ft(2, 1)
     reel = home_wins.block(cards, facts, monday=date(2026, 11, 2))
-    assert len(reel["wins"]) == home_wins.MAX_WINS == 12
-    assert [w["fixture"]["event_id"] for w in reel["wins"]] == [str(1013 - i) for i in range(12)]
+    assert len(reel["wins"]) == home_wins.MAX_WINS == 30
+    assert [w["fixture"]["event_id"] for w in reel["wins"]] == [str(1031 - i) for i in range(30)]
     assert {w["pick"]["market"] for w in reel["wins"]} == {"btts"}  # the dearer of each match's two wins
     first = reel["wins"][0]
     assert first == {
-        "fixture": {"event_id": "1013", "league": "EPL", "home_team": "Home 1013", "away_team": "Away 1013",
+        "fixture": {"event_id": "1031", "league": "EPL", "home_team": "Home 1031", "away_team": "Away 1031",
                     "kickoff": "2026-11-06T15:00:00Z"},
-        "visuals": {"home_team_logo": "1013-h.png", "away_team_logo": None},
+        "visuals": {"home_team_logo": "1031-h.png", "away_team_logo": None},
         "score": {"home": 2, "away": 1}, "list": "most_likely",
         "pick": {"label": "yes None btts", "market": "btts", "side": "yes", "line": None, "chance": 0.55,
-                 "typical_price": 1.50 + 13 / 100},
+                 "typical_price": 1.50 + 31 / 100},
         "result": None}
 
 

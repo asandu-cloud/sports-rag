@@ -2593,6 +2593,28 @@ reel repetitive: "the same ones keep showing up".
   refresh, or `python -m Scripts.data_platform home-wins` by hand. Until then the mix and the random start work on the
   12.
 
+**D106 — The wins reel holds 30 wins, not 12 (14 Nov; backend, owner).** The frontend relayed the owner's request:
+the reel loops its cards, so with 12 the same card came back every 2 minutes or so on a desktop. The owner: "yes go
+ahead with 30 wins". The frontend's part is D105: it mixes the order so no two neighbours share a market, and starts
+each visit at a random card.
+- *The change:* `home_wins.MAX_WINS` goes from 12 to 30. The rule is otherwise the same: each match's dearest win,
+  highest price first. `home_wins.v1` is unchanged. A quiet week shows what it has, and the site hides the section
+  below 6 wins.
+- *Real data, 4–8 Nov:* 30 wins, from 4.10 down to 1.50:
+  - 27 Most likely wins and 3 Value wins;
+  - by market: 12 goals, 7 handicap, 6 both teams to score, 4 corners and 1 result.
+
+  The week's record beside the reel is unchanged by the cap: Most likely 354 picks, 249 won; Value 10 picks, 3 won,
+  5 lost, 2 void. The sample file was built in the session scratchpad for the frontend's screenshots.
+  `Index/home_wins.json` was not written by hand. It changes at the first daily refresh after the merge, or with
+  `python -m Scripts.data_platform home-wins`.
+- *Files:* `services/home_wins.py`, `test_home_wins.py` (the cap test now builds 32 matches), and the reel's design
+  note.
+- *Checks:*
+  - 26 home-wins tests pass.
+  - The full suite: 3,068 passed, plus the 3 known errors in `test_phase4_baseline_freeze.py`.
+  - No migration, no `.env` line and no restart: the endpoint reads the file on each request.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
