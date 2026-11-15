@@ -2652,6 +2652,10 @@ backend).** The number was held since 7 Nov (D78).
   - the ClubElo yardstick, only with the owner's yes after its terms are checked (14).
 - *When:* code waits for the owner to lift the code freeze of 14 Nov. Nothing in the plan changes a published
   pick, and the golden check must stay unchanged. The first report comes about two weeks after code starts.
+- *Build (from 15 Nov):* the owner lifted the code freeze and asked for Task 1.
+  - Each task gets a start commit and a done commit with plain names (the owner's rule, now in CLAUDE.md under
+    "Large builds").
+  - The plan's progress table shows each task's status, commits and tests.
 
 ## Findings that shape later steps
 

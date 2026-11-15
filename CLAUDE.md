@@ -208,6 +208,22 @@ restarted.
   - never stage `Output/`, `Index/`, `Research/`, `.impeccable/`, `.superpowers/`, `.claude/`, `.taste-skill/`
     or uncommitted files you did not write;
   - if on `main`, keep commits small and revertible.
+- **Large builds** (owner, 15 Nov): a plan with several tasks, or work that runs over days.
+  - **A start commit and a done commit for every task.** The start commit marks the task "In progress" in the
+    plan's progress table, so the point to go back to is clear. The done commit holds the task's code, its tests,
+    the progress row marked "Done" with the test result, and the tracker line.
+  - **Commit names in plain words, with the same pattern every time**, so `git log --grep "<work> task"` lists the
+    build:
+    - `Start <work> task N: <what the task builds>`, e.g. "Start game-read task 1: history loader";
+    - `Done <work> task N: <what now works> (<tests>, <D-number>)`, e.g. "Done game-read task 1: history loader
+      reads football-data matches and prices (9 tests, D77)";
+    - a fix inside a task: `Fix <work> task N: <what was wrong>`.
+  - **One task per pair of commits**, never two tasks in one. Any task can then be undone alone with
+    `git revert <its done commit>`, which keeps the history. Never rewrite pushed or merged history.
+  - **Progress is kept in three places:**
+    - the plan's progress table (status, commits, test result per task);
+    - the tracker line in each done commit;
+    - the local ledger in `.superpowers/sdd/<plan>/progress.md` (git-ignored).
 - **Scratch files** go in the session scratchpad, not `/tmp` or the repo.
 
 ### Running things
