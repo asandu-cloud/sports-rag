@@ -1053,7 +1053,10 @@ def main(argv: Optional[List[str]] = None) -> int:
             return 1
         finally:
             if started is not None:  # after the gate is released, so "done" means cards can resume
-                ops_alerts.refresh_finished(ok=ok, seconds=time.monotonic() - started, attempt=attempt)
+                seconds = time.monotonic() - started
+                ops_alerts.refresh_finished(ok=ok, seconds=seconds, attempt=attempt)
+                from .services import refresh_retry
+                refresh_retry.record_run(seconds / 60, ok=ok)  # a late run's hold reads the likely run time (D109)
     if args.command in {"match-reads", "publish-match-reads"} and not getattr(args, "dry_run", False):
         from .services.refresh_coordination import data_access, RefreshBusy
         try:

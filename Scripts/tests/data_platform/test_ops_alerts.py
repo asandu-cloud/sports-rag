@@ -335,3 +335,20 @@ def test_a_skipped_refresh_is_reported_with_its_reason(settings, engine, monkeyp
     monkeypatch.setattr(refresh_retry, "check_due", lambda: (False, "attempt limit reached today (6 of 6)"))
     monkeypatch.setattr(ops_alerts, "refresh_skipped", skipped.append)
     assert cli.main([]) == 0 and skipped == ["attempt limit reached today (6 of 6)"]
+
+
+def test_a_refresh_held_for_match_time_is_quiet_until_late_evening_then_says_so_once_a_day(sent):
+    # D109: a late refresh waits while a match is close. Only a hold still on at 22:00 is news: the Mac must stay
+    # awake until the refresh has run.
+    from data_platform.services import refresh_retry
+    reason = f"today's refresh has not run, but {refresh_retry.HELD}: PrimeiraLiga kicks off at 23:15"
+    ops_alerts.refresh_skipped(reason, gate_shut=False, now=at(15, 15))
+    ops_alerts.refresh_skipped(reason, gate_shut=False, now=at(21, 15))
+    assert sent == []
+    ops_alerts.refresh_skipped(reason, gate_shut=False, now=at(22, 15))
+    ops_alerts.refresh_skipped(reason, gate_shut=False, now=at(22, 45))
+    assert len(sent) == 1 and not sent[0][1]
+    assert "still held for match time at 22:15" in sent[0][0] and "PrimeiraLiga kicks off at 23:15" in sent[0][0]
+    assert ops_alerts.HELD == refresh_retry.HELD
+    ops_alerts.refresh_skipped(reason, gate_shut=False, now=at(22, 15, day=29))
+    assert len(sent) == 2

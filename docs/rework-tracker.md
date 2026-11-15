@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-11-15 (why cards were missing at kickoff, D108; the game-read engine's design approved and its plan for phases 0–1, A4 closed as a stage of its own, D77). Earlier: 2026-11-04 (A5.4 cards merged behind its switch, live Tue 10 Nov, D58, D62; match events live with a backfill from 20 Sep, D64; recommendation layer live with `SPIX_RECOMMENDATIONS=on`, D68; owner dashboard, D67)
+Last updated: 2026-11-15 (a late daily refresh waits for match time, D109; why cards were missing at kickoff, D108; the game-read engine's design approved and its plan for phases 0–1, A4 closed as a stage of its own, D77). Earlier: 2026-11-04 (A5.4 cards merged behind its switch, live Tue 10 Nov, D58, D62; match events live with a backfill from 20 Sep, D64; recommendation layer live with `SPIX_RECOMMENDATIONS=on`, D68; owner dashboard, D67)
 
 ## Status
 
@@ -58,7 +58,7 @@ Things found along the way that must not be lost. Each names where it gets done.
 | Phase 6 shadow controller (`com.bettingrag.phase6-shadow`, hourly, runs `Research/phase6-shadow-logo-2026-10-07/controller.py`): fails on every run since A0 changed a file it fingerprints (`alembic/env.py`, 02fa536, 15 Oct): "Operational prediction input changed; review a new release"; the last 148 runs failed, so its diagnostic window (to 20 Oct) lost its last days. Owner: retire it, or move it into `Scripts/` and re-release | Owner, now | Its window ended 20 Oct |
 | Done: tag `pre-rework` is on GitHub at cf00af8 (checked 21 Oct with `git ls-remote`) | Done | |
 | Keep the Mac awake for scheduled jobs: the daily refresh runs under `caffeinate -i -s` since 17 Oct (it cannot idle-sleep mid-run); still open, a daily scheduled wake before 07:15 (`sudo pmset repeat wakeorpoweron MTWRFSU 07:05:00`), mains power, or a server. On 17 Oct the Mac slept on battery until ~11:48, waking for 2–3 s every ~17 min: the 07:15 refresh ran only in those slices and finished at 12:25 (stage times normal). While asleep the Match Read worker, measurement worker and odds archive do not run either, which matters for this weekend's near-kickoff captures (A1 step 4 freshness rerun, Mon 19 Oct). Again on 20 Oct: on battery, no daily wake scheduled (`pmset -g sched`), the Mac slept 07:00–11:00 with brief wakes and the refresh took 4 h 35 min (04:21–08:56 UTC; 19 Oct: 1 h 3 min). 21 Oct: 6 h 43 min (04:17–11:00 UTC), still no daily wake scheduled. 26 and 27 Oct: the refresh failed on a sleeping Mac both mornings and nothing reran it, so the gate stayed shut 8 h 22 min and 18 h 27 min (no Match Reads, no measurement) until rerun by hand; since 28 Oct the job retries hourly (`--if-due`, see Findings). 15 Nov: still no daily wake scheduled; from 5 Sep to 14 Nov, 123 cards went off the board because the worker did not run in the 2 hours before kickoff (D108) | Owner (wake, mains); Telegram alerts set up 28 Oct | Operational risk to every scheduled job |
-| Cards hidden at kickoff by a late refresh (D108): the worker stands down while the daily refresh runs, and on a sleeping Mac the 07:15 refresh stretches into match hours (7 Nov until about 15:20 local; 8 Nov 16:15–18:41 local). 41 cards went off the board this way, 5 Sep–14 Nov, 12 of them in the week of 2–8 Nov. Options: hold a missed refresh until no domestic match kicks off in the next 2–3 hours, or keep the worker checking prices near kickoff during the refresh | Owner (whether, and which); then backend, with a design | Changes the jobs, not the picks |
+| Cards hidden at kickoff by a late refresh (D108): the worker stands down while the daily refresh runs, and on a sleeping Mac the 07:15 refresh stretches into match hours (7 Nov until about 15:20 local; 8 Nov 16:15–18:41 local). 41 cards went off the board this way, 5 Sep–14 Nov, 12 of them in the week of 2–8 Nov. Options: hold a missed refresh until no domestic match kicks off in the next 2–3 hours, or keep the worker checking prices near kickoff during the refresh | Built 15 Nov (D109): a late refresh waits for match time; live when merged. A morning run stretched by a sleeping Mac still needs the daily wake | Changes the jobs, not the picks |
 | Closed 20 Oct: no bookmaker weights; the median stays (owner, D40) | Done | Power margin removal still becomes the default at stage 2 (D17) |
 | **Done 2 Nov.** Make power the default margin-removal method in measurement (`reference_price`, closing consensus, publication reference, scorecard). Owner, 20 Oct: keep proportional through stages 1–3 so every stage is judged on the same yardstick; switch at the Mon 2 Nov scorecard and recompute the history from the stored per-book prices | Built 28 Oct (`reference_price.MEASUREMENT_METHOD`, `refair`, scorecard `--method`; see Findings); switch Mon 2 Nov after the scorecard | Refit anything fitted on v1 |
 | Closed 20 Oct: no weighted reference (D40); the scorecard adds the true close instead (D39) | Done | |
@@ -2718,6 +2718,37 @@ with the board's own before-kickoff rule (D70), the worker's check ledger and it
 - Still no daily wake is scheduled (`pmset -g sched`, 15 Nov). Two fixes are the owner's call; neither changes a
   pick: the daily wake with mains power and the lid open (open item, Mac awake), and stopping a late refresh from
   blocking match hours (new open item).
+
+**D109 — A late daily refresh waits for match time (15 Nov; backend, owner via the orchestrator).** Built on the
+backend branch; it goes live when merged, because the refresh job runs from main. It changes no picks.
+- The rule (`services/refresh_retry.py`):
+  - From an hour after 07:15, a due refresh waits while a match the worker covers (the 13 leagues, domestic and
+    the cups) kicks off before the refresh's likely end plus the worker's final window. That window is the 2 hours
+    before kickoff when the worker checks every 10 minutes and the board drops a card older than 2 hours.
+  - It starts at the first hourly try clear of those matches, and from 23:00 it starts whatever the kickoffs, so no
+    day is skipped. A waiting try is not counted against the 6 tries a day.
+  - The normal 07:15 run is never held, nor a retry after a failure: with the gate shut the worker makes no cards at
+    all until a refresh completes, so waiting would only make that longer.
+  - *Likely run time:* the upper quartile of the last 14 completed runs, kept between 60 and 180 minutes, and 120
+    minutes until 5 runs are on record. Each completed run now records its time beside the tries. Completed runs on
+    2–15 Nov took about 45 minutes with the Mac awake, 97 and 150 after a weekend, and hours on a sleeping Mac; the
+    upper quartile of those 14 is 110 minutes.
+  - *Why 2 hours:* it is exactly the worker's final window and the board's age limit. Earlier than that, a card
+    stays on the board up to 12 hours old, so a refresh then hides nothing.
+  - *Kickoffs* come from the worker's own schedule reader, inside `data_access()`, only when a hold can apply. If
+    they cannot be read, the refresh is not held.
+  - *Alert:* a hold is quiet, except one alert a day if it is still on at 22:00 (the last kickoffs of a usual
+    evening have started by then), asking to keep the Mac awake until the refresh has run.
+- Replay on the real days (the refresh log's hourly tries, its run times, the real kickoffs, D108's cards):
+  - From 28 Oct, when the hourly retry began, to 15 Nov it changes one day. On Sun 8 Nov the 16:15 refresh would
+    have waited until 23:15 (the last holder: Primeira Liga at 22:30), keeping the 6 domestic cards that run hid
+    and losing none. The 22:00 alert would have fired once. Every other day it starts when it did.
+  - It cannot help when the morning run itself stretches on a sleeping Mac. On Sat 7 Nov the 07:18 run lasted until
+    15:31 and hid 6 cards. From 5 to 25 Oct most morning runs took 3 to 11 hours. Those need the Mac awake.
+  - So of D108's 41 cards hidden while the refresh ran, the hold would have kept 6.
+- Tests: 15 new (the hold, the run-time record, the reader, the alert, the command), all pass. The full suite:
+  3,099 passed, plus the 3 known errors in `test_phase4_baseline_freeze.py`. On the live database the reader found
+  84 kickoffs in the next 8 days and no hold now.
 
 ## Findings that shape later steps
 

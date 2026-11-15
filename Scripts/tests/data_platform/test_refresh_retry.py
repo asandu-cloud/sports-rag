@@ -132,3 +132,142 @@ def test_withdrawing_removes_only_the_latest_attempt(tmp_path):
     path.write_text(json.dumps({"attempts": [at(7).isoformat(), at(8).isoformat()]}))
     rr.withdraw_attempt(attempts_path=path)
     assert rr._load(path) == [at(7)]
+
+
+# Held for match time (D109, 15 Nov) -----------------------------------------------------------------------------
+# A late refresh (the Mac slept through 07:15) waits while a match it would run into is close, so the worker keeps
+# checking cards in each match's last two hours. 7 Nov: the 07:18 refresh ran until about 15:20 over the midday
+# kickoffs; 8 Nov: the 16:15 refresh ran over the 16:15 and 16:30 UTC kickoffs (D108).
+
+def ko(hour, minute=0, league="EPL", day=28):
+    return league, datetime(2026, 10, day, hour, minute, tzinfo=TZ)
+
+
+def never_read(*_):
+    raise AssertionError("kickoffs read although no hold can apply")
+
+
+def hold(now, kickoffs, *, gate_shut=False, runs=(60,) * 5):
+    return rr.refresh_hold(now, gate_shut=gate_shut, runs=list(runs), window_minutes=120,
+                           kickoffs=kickoffs if callable(kickoffs) else lambda *_: kickoffs)
+
+
+def first_start(kickoffs, *, runs=(60,) * 5):
+    """The first hourly tick from 09:15 at which a late refresh starts."""
+    return next(hour for hour in range(9, 24) if hold(at(hour), kickoffs, runs=runs) is None)
+
+
+def test_a_late_refresh_with_no_match_close_runs_and_counts(tmp_path):
+    path = tmp_path / "attempts.json"
+    due, reason = rr.check_due(at(10), gate_shut=False, attempts_path=path, stay_awake=lambda: True,
+                               reachable=lambda: True, kickoffs=lambda *_: [ko(16)], window_minutes=120)
+    assert due and reason == "today's refresh has not run"
+    assert rr._load(path) == [at(10)]
+
+
+def test_a_late_refresh_waits_when_a_match_kicks_off_soon_and_does_not_count(tmp_path):
+    path = tmp_path / "attempts.json"
+    due, reason = rr.check_due(at(10), gate_shut=False, attempts_path=path, stay_awake=lambda: True,
+                               reachable=lambda: True, kickoffs=lambda *_: [ko(13, 30, "Ligue1")], window_minutes=120)
+    assert not due and rr.HELD in reason and "Ligue1 kicks off at 13:30" in reason
+    assert rr._load(path) == []
+
+
+def test_the_morning_run_and_a_retry_after_a_failure_are_never_held():
+    assert hold(at(7), never_read) is None
+    assert hold(at(8, 14), never_read) is None  # still the normal run's hour
+    assert hold(at(10), never_read, gate_shut=True) is None  # no cards at all until a refresh completes
+    assert hold(at(8), [ko(9)]) is not None
+
+
+def test_a_match_in_its_last_two_hours_holds_only_until_the_run_would_end_before_them():
+    # A 60-minute run started at 10:15 ends 11:15; a 13:15 kickoff's last two hours start then.
+    assert hold(at(10), [ko(13, 15)]) is not None
+    assert hold(at(10), [ko(13, 16)]) is None
+    assert hold(at(10), [ko(10, 0)]) is None  # already kicked off
+
+
+def test_a_busy_day_takes_the_first_real_gap():
+    assert first_start([ko(12), ko(14, 30), ko(21)]) == 15
+
+
+def test_a_day_held_until_the_last_kickoff_runs_after_it():
+    assert first_start([ko(hour) for hour in range(12, 23, 2)]) == 22
+
+
+def test_the_last_start_of_the_day_runs_whatever_the_kickoffs():
+    assert hold(at(22), [ko(23, 30, "PrimeiraLiga")]) is not None
+    assert hold(at(23), [ko(23, 30, "PrimeiraLiga")]) is None
+
+
+def test_kickoffs_that_cannot_be_read_never_hold_the_refresh(tmp_path):
+    from data_platform.services.refresh_coordination import RefreshBusy
+
+    def busy(*_):
+        raise RefreshBusy("Data refresh or fixture generation is active; retry on the next tick.")
+    due, _ = rr.check_due(at(10), gate_shut=False, attempts_path=tmp_path / "attempts.json",
+                          stay_awake=lambda: True, reachable=lambda: True, kickoffs=busy, window_minutes=120)
+    assert due
+
+
+def test_the_likely_run_time_is_the_upper_quartile_of_recent_runs_between_one_and_three_hours():
+    assert rr.likely_minutes([50] * 4) == rr.RUN_DEFAULT == 120  # too few runs on record
+    assert rr.likely_minutes([40] * 14) == 60
+    assert rr.likely_minutes([400] * 14) == 180
+    # The completed runs of 2-15 Nov: about 45 minutes awake, longer after a weekend, hours on a sleeping Mac.
+    recent = [52, 44, 49, 59, 49, 493, 150, 50, 46, 47, 46, 56, 97, 317]
+    assert 100 <= rr.likely_minutes(recent) <= 120
+    assert rr.likely_minutes([600] * 10 + recent) == rr.likely_minutes(recent)  # only the last 14 count
+
+
+def test_a_longer_likely_run_looks_further_ahead():
+    # From 10:15, a 60-minute run looks to 13:15 and a 150-minute one to 14:45.
+    assert hold(at(10), [ko(14, 30)], runs=[60] * 5) is None
+    assert hold(at(10), [ko(14, 30)], runs=[150] * 5) is not None
+
+
+def test_completed_runs_are_kept_beside_the_attempts_and_failed_ones_are_not(tmp_path):
+    path = tmp_path / "attempts.json"
+    awake = dict(stay_awake=lambda: True, reachable=lambda: True)
+    rr.check_due(at(7), gate_shut=False, attempts_path=path, **awake)
+    rr.record_run(47.5, ok=True, now=at(8), attempts_path=path)
+    rr.record_run(3, ok=False, now=at(8), attempts_path=path)
+    rr.check_due(at(9), gate_shut=True, attempts_path=path, **awake)
+    rr.withdraw_attempt(attempts_path=path)
+    assert rr._load(path) == [at(7)]
+    assert rr._runs(path) == [47.5]
+
+
+def test_the_kickoffs_are_the_workers_schedule_read_inside_the_gate(settings, monkeypatch):
+    from contextlib import contextmanager
+    from types import SimpleNamespace as Row
+    from data_platform.services import match_read_cycle, refresh_coordination
+    gate, asked = [], []
+
+    @contextmanager
+    def data_access(**kwargs):
+        gate.append(kwargs)
+        yield
+
+    def loader(*, now, until, leagues):
+        asked.append((now, until, tuple(leagues)))
+        return [Row(league="UCL", kickoff_utc=datetime(2026, 10, 28, 19, tzinfo=timezone.utc))]
+    monkeypatch.setattr(refresh_coordination, "data_access", data_access)
+    monkeypatch.setattr(match_read_cycle, "_load_upcoming_platform_fixtures", loader)
+    monkeypatch.delenv("MATCH_READ_WORKER_LEAGUES", raising=False)
+    found = rr.upcoming_kickoffs(at(10), at(14))
+    assert found == [("UCL", datetime(2026, 10, 28, 19, tzinfo=timezone.utc))]
+    assert gate == [{}] and asked[0][:2] == (at(10), at(14))
+    assert {"EPL", "Championship", "UCL", "UECL"} <= set(asked[0][2])
+
+
+def test_a_completed_refresh_records_how_long_it_took(tmp_path, settings, engine, monkeypatch):
+    monkeypatch.setattr(rr, "upcoming_kickoffs", lambda *_: [])
+    run_if_due(tmp_path, monkeypatch)
+    assert len(rr._runs(tmp_path / "attempts.json")) == 1
+
+
+def test_a_failed_refresh_records_no_run_time(tmp_path, settings, engine, monkeypatch):
+    monkeypatch.setattr(rr, "upcoming_kickoffs", lambda *_: [])
+    run_if_due(tmp_path, monkeypatch, result=1)
+    assert rr._runs(tmp_path / "attempts.json") == []
