@@ -307,7 +307,7 @@ from B1/B2 when the player's next match is open), `index.html`; extend `test_res
 | 4. Referee this season first, ranks from one season | Done | 9172a3e.. | ranks + all *_web.js pass |
 | 5. Next matches: rail, bar, sheet (B1) | Done | 7ebf9c2.. | upcoming + all *_web.js pass |
 | 6. Match view shell (B2) | Done | 17bf72c.. | match + all *_web.js pass |
-| 7. Cards section and Add | Not started | | |
+| 7. Cards section and Add | In progress | | |
 | 8. Shots on target section | Not started | | |
 | 9. Goals, Corners, Result, Head to head, Team news | Not started | | |
 | 10. Finish: real data, look, review | Not started | | |
