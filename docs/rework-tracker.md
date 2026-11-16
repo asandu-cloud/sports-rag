@@ -2819,6 +2819,33 @@ backend).** The number was held since 7 Nov (D78).
         - Promoted teams (116, first 10 matches): +0.3 points [−1.9, +2.6], so no mispricing found.
     - Tests: 6 new, all pass. The full suite: 3,175 passed, plus the 3 known errors. Golden unchanged; no live code
       changed.
+  - **Task 8 done (16 Nov): Elo, model 1** (`Scripts/data_platform/game_read/models/elo.py`,
+    `game_read/ordered.py`; `elo` in the bench).
+    - *How it works:*
+      - one rating per team, from 1500; a bigger win moves it more;
+      - home advantage per league, learned as it goes;
+      - each summer, ratings are pulled towards the league mean;
+      - win, draw or lose, and the goal difference, come from the rating gap through ordered logits, refitted
+        each season.
+    - *Ruling (newcomers):* a team new to a league starts at the mean of the bottom 3 of last season's table (the
+      teams it replaces). A team coming down from the Premier League starts at the Championship's top 3. Who went
+      up or down is known before a season starts, so this uses no future result.
+    - *Ruling:* the summer step reads each team's rating as its season ended. The Championship starts a week
+      earlier, and a relegated team's new Championship level must not leak into the Premier League's mean.
+    - *Tuned on the tuning seasons by result log loss:* k 15, carry 0.9. The grid was k 10–40 and carry 0.6–1.0,
+      and it is flat within 0.0003 around k 12–20, carry 0.8–1.0. The home step (1) and the new-team offset (0)
+      are set, not tuned.
+    - *Tuning seasons, 14,383 matches* (`Research/game-read-bench-2026-11-16-elo/`). It fails every score, as a
+      results-only rating should against the market:
+      - accuracy: result log loss 0.0157 worse than the market's [0.0126, 0.0185]; handicap 0.0144 worse;
+      - blend: c = −0.07, so it adds nothing to the market;
+      - Most likely: −0.33 per 100 against today's lists [−0.61, −0.04] ranked by edge, and −0.31 ranked by
+        blended chance; derived lines −0.39 against the control's −0.02;
+      - Value at the average price: 11,748 picks, −6.2% return, closing line value −6.6%;
+      - closing check: closing prices move away from its picks (−0.05 points).
+    - It runs in about 1 s for the whole history.
+    - Tests: 8 new, all pass. The full suite: 3,183 passed, plus the 3 known errors. Golden unchanged; no live code
+      changed.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
