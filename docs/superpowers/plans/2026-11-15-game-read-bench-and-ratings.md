@@ -34,7 +34,7 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
 | 4 | Today's rules and the engine's rules | Done 16 Nov | 02ab071 | d87493a | 12 new, all pass; suite 3,151 passed + the 3 known errors |
 | 5 | Forecasts, walk-forward runner, zero and control lines | Done 16 Nov | fb94888 | a2a93ed | 8 new, all pass; suite 3,159 passed + the 3 known errors |
 | 6 | The scores | Done 16 Nov | c6966dd | 9fbec27 | 10 new + 1 in task 4's, all pass; suite 3,169 passed + the 3 known errors |
-| 7 | Bench command, report, Opportunities, locked-run guard | In progress | the "Start game-read task 7" commit | | |
+| 7 | Bench command, report, Opportunities, locked-run guard | Done 16 Nov | 7c94626 | the "Done game-read task 7" commit | 6 new, all pass; suite 3,175 passed + the 3 known errors; first tuning run 16 Nov |
 | 8 | Elo (model 1) | Not started | | | |
 | 9 | Pi-ratings (model 2) | Not started | | | |
 | 10 | Dixon–Coles with time decay (model 3) | Not started | | | |

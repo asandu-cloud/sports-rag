@@ -2782,6 +2782,43 @@ backend).** The number was held since 7 Nov (D78).
     - Run time: about 3 minutes for the first model (building the pools), then about 10 s for each further model.
     - Tests: 10 new, 1 added to task 4's, all pass. The full suite: 3,169 passed, plus the 3 known errors. Golden
       unchanged; no live code changed.
+  - **Task 7 done (16 Nov): the bench command, the report, Opportunities and the locked-run guard**
+    (`Scripts/ops/game_read_bench.py`, `game_read/report.py`, `game_read/opportunities.py`).
+    - *The command:*
+      `python -m Scripts.ops.game_read_bench run --models market,control --block tuning --out Research/game-read-bench-<date>`.
+      - It writes `summary.json` and `report.md`.
+      - Every run scores the zero line first. If the zero line is not zero, the run stops with exit code 2 and
+        writes nothing.
+    - *The locked-run guard:*
+      - a locked run must be named (`--confirm-locked`);
+      - it refuses bench code that is not committed;
+      - every locked run is appended to `Research/game-read-bench/locked-runs.jsonl`.
+    - *Ruling:* the "by blended chance" rule uses a two-way blend fitted on every option that clears the Most likely
+      floors in the tuning seasons. That is the population the rule ranks.
+    - *Ruling:* in Opportunities, a return at the average price counts as a lead only above zero. A loss there is
+      the bookmaker's margin.
+    - **First run, tuning seasons, 16 Nov** (`Research/game-read-bench-2026-11-16/`, 341 s): the zero line passed,
+      and 14,383 matches were scored.
+      - *Today's Most likely lists:* 43,057 picks; 0.60 more wins per 100 than the market's chances said.
+      - *Today's Value rule:*
+        - no picks at the average price;
+        - at the best price, 2,750 picks, +3.0% return, closing line value +4.0% [3.6, 4.5]. This is the stale
+          best price of D39.
+      - *The control line on derived lines,* engine minus today: −0.02 per 100 ranked by edge, +0.04 ranked by
+        blended chance. That is the bar a model must clear there. On all lines: −0.11 [−0.44, +0.23] and −0.08
+        [−0.27, +0.12].
+      - *The average price against the named books' median:* a largest gap of 0.35–0.39 points on average, with a
+        95th percentile of 0.69–0.77 (2019–2022). So the average price is a fair stand-in for the market (spec
+        point 3).
+      - *Opportunities:* 31 of 104 groups leave out zero (about 5 would by chance). The groups overlap, so this is
+        not 31 separate findings.
+        - Draws shorten into the close: +0.11 points [0.08, 0.15], and home wins drift out by −0.11.
+        - The largest moves are in Belgium: home −0.64, away +0.61.
+        - All of these are tiny against a margin of about 5%. Nothing to follow alone.
+        - Price bands: the market's chances match how often outcomes won in every band.
+        - Promoted teams (116, first 10 matches): +0.3 points [−1.9, +2.6], so no mispricing found.
+    - Tests: 6 new, all pass. The full suite: 3,175 passed, plus the 3 known errors. Golden unchanged; no live code
+      changed.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their

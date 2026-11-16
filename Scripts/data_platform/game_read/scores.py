@@ -164,7 +164,7 @@ def _pool(match: Match, phase: str = "pre") -> tuple:
 
 @lru_cache(maxsize=40_000)
 def _closing(match: Match) -> dict:
-    return {pools.option_key(option): option["chance"] for option in _pool(match, "close")}
+    return {pools.option_key(option): option["chance"] for option in pools.build_pool(match, phase="close")}
 
 
 def closing_chance(match: Match, option: Mapping) -> Optional[float]:
@@ -188,6 +188,23 @@ def _lists(match: Match, forecast: Forecast, strength) -> tuple:
     options = _pool(match)
     return (rules.todays_most_likely(options),
             rules.engine_most_likely(options, _engine(options, forecast), strength=strength))
+
+
+def option_blend(rows: Sequence) -> Optional[dict]:
+    """The two-way blend behind the "by blended chance" ranking rule: the market's and the model's chance that an
+    option wins, fitted (``blend.fit``) on every option of the rows that clears the Most likely floors. None when
+    the model scores none of them."""
+    market, model, outcomes = [], [], []
+    for match, forecast in rows:
+        for option in _pool(match):
+            if option["chance"] < rules.MIN_CHANCE or option["typical_price"] < rules.MIN_PRICE:
+                continue
+            found = chance(forecast, option)
+            if found is not None:
+                market.append([option["chance"], 1 - option["chance"]])
+                model.append([found, 1 - found])
+                outcomes.append(0 if recommendations.wins(option, match.home_goals, match.away_goals) else 1)
+    return blend.fit(market, model, outcomes) if outcomes else None
 
 
 def _tally(picks, match: Match) -> list:
