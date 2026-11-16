@@ -58,8 +58,8 @@ on it. The Discord bot still runs the old engine until A7.
 - **Cobalt palette live 9 Nov (D80).** Cobalt `#0246A4` replaced the turf green, lime cream `#D5F097` the
   highlighter, and mint cream `#F2FFFA` is the light ground; the dark theme uses a light cobalt `#88B4F2`. Since
   9 Nov evening the dark theme is "cobalt night" (D85): near-black greys with a faint cobalt tint (`--bg #111316`)
-  and mint cream text. Cache tags are `nextmatch-20261110a` (style.css; D96), `research-20261116g` (app.js; D107),
-  `research-20261116p` (the research files; D107, D111) and `night-20261109a` (theme.js). Open for the owner: the steel blue of the Away segment and the "preliminary" label now sits close to
+  and mint cream text. Cache tags are `nextmatch-20261110a` (style.css; D96), `loaders-20261116c` (app.js; D112),
+  `research-20261116r` (the research files; D107, D111, D112), `loaders-20261116a`/`d` (loaders.js/.css; D112) and `night-20261109a` (theme.js). Open for the owner: the steel blue of the Away segment and the "preliminary" label now sits close to
   the cobalt.
 - **Home page opening live 11 Nov (D98, owner).** "Every match, read for you", with three tilted packs from the
   real read of Brighton v Brentford (8 Nov, labelled Example). It replaced D87's Arsenal v Chelsea animation
@@ -117,6 +117,9 @@ on it. The Discord bot still runs the old engine until A7.
     corners and result keep "Spix leans this way".
   - A match that has kicked off shows its status instead of a read; a read kept after kickoff is headed "How Spix
     read it before kickoff" and takes no Add.
+- **Loading screens live 16 Nov (D112, owner).** Six loaders: a ball drop over the app's first load, card outlines
+  on the board, a price board on Best Bets, and pitch lines, last 10 and a rolling ball in the Research Area.
+  Nothing shows under 300 ms; the 90 s board refresh never draws one; reduced motion gets still frames.
 - **No more Chroma updates (D81, owner, 9 Nov).** The daily refresh no longer embeds into Chroma, because nothing
   running reads it; `refresh-season --embed` brings the step back. `Index/chroma` (19 GB) stays until A7.
   Confirmed on the 10 Nov refresh.
