@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-11-15 (a late daily refresh waits for match time, D109; why cards were missing at kickoff, D108; the game-read engine's design approved and its plan for phases 0–1, A4 closed as a stage of its own, D77). Earlier: 2026-11-04 (A5.4 cards merged behind its switch, live Tue 10 Nov, D58, D62; match events live with a backfill from 20 Sep, D64; recommendation layer live with `SPIX_RECOMMENDATIONS=on`, D68; owner dashboard, D67)
+Last updated: 2026-11-16 (research endpoints for the Research Area overhaul, plan, D110). Earlier: 2026-11-15 (a late daily refresh waits for match time, D109; why cards were missing at kickoff, D108; the game-read engine's design approved and its plan for phases 0–1, A4 closed as a stage of its own, D77). Earlier: 2026-11-04 (A5.4 cards merged behind its switch, live Tue 10 Nov, D58, D62; match events live with a backfill from 20 Sep, D64; recommendation layer live with `SPIX_RECOMMENDATIONS=on`, D68; owner dashboard, D67)
 
 ## Status
 
@@ -2841,6 +2841,72 @@ backend branch; it goes live when merged, because the refresh job runs from main
 - Tests: 15 new (the hold, the run-time record, the reader, the alert, the command), all pass. The full suite:
   3,099 passed, plus the 3 known errors in `test_phase4_baseline_freeze.py`. On the live database the reader found
   84 kickoffs in the next 8 days and no hold now.
+
+**D110 — Research endpoints for the Research Area overhaul (16 Nov; backend, owner).** The frontend's overhaul
+(D107, approved 16 Nov) needs the backend's data: a team's and a referee's next matches (B1), one match's research
+view (B2) and this season's provisional ranks for players under 900 minutes (B5). The owner put them before
+game-read task 3. Plan: `docs/superpowers/plans/2026-11-16-research-endpoints.md` (5 tasks, a start and a done
+commit each). Read-only, behind the refresh gate (503 while the refresh holds it), no pick changes, no schema change.
+Agreed with the frontend: no player shots-on-target prices. The only ones kept are Bet365's, in the odds archive's
+raw responses, under full player names, and one bookmaker breaks the two-bookmaker rule behind every typical price.
+`lineups` may be null.
+- Task 1 (16 Nov): `GET /api/research/teams/{id}/upcoming?limit=3` and `GET /api/research/referees/{key}/upcoming?limit=1`
+  (`research-upcoming.v1`, `services/research_upcoming.py`). Unplayed matches in every competition, kickoff order,
+  each with its read's state (`ready`, `preliminary`, or `waiting` with the time it can first come out) and Spix's
+  expected goals, corners and cards from the read's own figures. A withheld (stale) read counts as waiting. A
+  referee spelled in a way the alias table has not seen yet still counts under his key. 6 tests; the full suite
+  3,105 passed, plus the 3 known errors.
+- Task 2 (16 Nov): `GET /api/research/matches/{event_id}` (`research-match.v1`, `services/research_match.py`): the
+  match as one B1 match plus its status, and Spix's read: result chances, team goals, both teams to score,
+  expected corners and cards, and every half line of cards, goals and corners with both sides' fair chance and
+  typical price. Lines need at least 2 bookmakers on both sides, the recommendation layer's rule; the goals and
+  corners lines equal its options. Cards lines never carry a suggestion (D61). The recommendations block's markets
+  are passed through for Add. `lineups` is null: a read keeps only whether line-ups were confirmed, not the
+  players. 5 tests, on reads built in the stored shape; the full suite 3,110 passed, plus the 3 known errors.
+  On 12 real reads of 7–9 Nov: goals and corners lines in every one, cards lines (2.5–5.5) in the 6 whose league
+  has 2 or more bookmakers pricing cards. One of them (Atlético Madrid v Barcelona) is kept, trimmed, as a test.
+- Task 3 (16 Nov): each team in the match view. Its last 10 finished matches in every competition (cards, corners,
+  goals and shots on target for and against; a missing statistics row leaves them unknown, never 0). The 5 players
+  with the most cards this season. Up to 8 likely starters (most starts in the last 5, no goalkeepers), each with
+  their last 10 appearances. Shots on target conceded a match in its domestic league and its rank there (1 = the
+  fewest). On the live database Chelsea v Leeds (21 Nov) takes 0.39 s; Chelsea concede 5.2 a match, 17th of 20.
+  4 tests; the full suite 3,114 passed, plus the 3 known errors.
+- B3, checked on the live database (16 Nov):
+  - *Chelsea's ranks:* the research ranks and the referee-name table were last built by hand on 8 Oct
+    (`research-build`); nothing rebuilds them. Chelsea has no stored 2026/27 rank (10 EPL matches played now), and
+    every team that has played since 8 Oct reads "stale or missing".
+  - *Anthony Taylor:* not a name split. Both his spellings share one key, and the database has no match under any
+    Taylor spelling after 24 May 2026, in any competition; all 100 finished EPL 2026/27 matches name a referee. His
+    page is right. Separately, 100 of the 781 referee spellings seen this season are missing from the name table
+    for the same reason as the ranks, so their matches reach no referee page or search.
+  - The owner chose a daily rebuild (16 Nov): this season's ranks and the referee names become a best-effort
+    refresh stage (plan task 5), tested on a copy of the database first. B5 moves to task 6.
+- Task 4 (16 Nov): the match view's referee, head to head and data basis. The named referee's matches and cards a
+  match this season in every competition, under any of his spellings; the match's competition's average; his last
+  10 matches' cards. Null until he is named. Up to 6 meetings from 2023/24, newest first, with score, goals, cards
+  and corners. `data_basis.latest_finished_kickoff` is the newest finished match the view used. A referee's key is
+  now computed from any one of his names (`research_profiles.raw_referee_key`, the build's own rule), so a request
+  no longer runs the name dedup or prints its log line. On the live database the whole view takes 0.2–0.4 s warm
+  (Atlético v Barcelona: Javier Alberola Rojas, 7 matches, 4.9 cards a match against LaLiga's 4.7). 5 tests; the
+  full suite 3,120 passed, plus the 3 known errors; the golden check shows no changes across 54 fixtures.
+- Task 5 (16 Nov, B3): the daily refresh gains a best-effort `research_ranks` stage,
+  `research-build --season <this season>`, after the documents and before the stats file, the wins reel and the
+  health check. `research-build` now runs under the writer gate: inside the refresh it shares the refresh's gate,
+  and by hand during a refresh it stops at once (exit 1, last ranks kept). Rehearsed on an APFS clone of the
+  database (taken under a read lock, deleted after): 1.3 s for 14 season scopes, 9,327 rank rows and 1,698 referee
+  spellings. Afterwards Chelsea, Leeds and Barcelona read ranked (before: stale or missing), and no 2026/27
+  referee spelling is missing from the table (before: 100 of 781). Live once merged, from the next daily refresh;
+  no `.env` line, no pick changes. 3 tests; the full suite 3,123 passed, plus the 3 known errors; the golden check
+  shows no changes across 54 fixtures.
+- Task 6 (16 Nov, B5): a player under 900 minutes is placed among the ranked players of the same position,
+  competition and season (`ranking.provisional: true`, `peer_count` = peers + 1, `ranked` stays false, last season's
+  ranks kept). The headline carries `provisional` too. A floor of 10 ranked peers (my call): on a rebuilt clone
+  of the database, the Premier League had 1 ranked midfielder and no ranked forwards this season, so without it
+  Cole Palmer (888 minutes) read "1st of 2, more than 75% of Premier League midfielders". Last season's full Premier
+  League had 61–134 ranked players per outfield position. Ranked players have no floor yet. They sit in the same
+  tiny groups early in a season (that one midfielder reads "more than 50% of Premier League midfielders"), and
+  the daily rebuild (task 5) shows them every day: the owner's call. 4 tests; the full suite 3,127 passed, plus the
+  3 known errors; the golden check shows no changes across 54 fixtures.
 
 ## Findings that shape later steps
 

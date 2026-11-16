@@ -1,7 +1,7 @@
 """Narrow canonical SQLAlchemy queries for research; no CSVs or provider calls."""
 from decimal import Decimal
 
-from sqlalchemy import and_, case, delete, func, insert, or_, select
+from sqlalchemy import and_, case, delete, func, insert, literal, or_, select
 from sqlalchemy.orm import aliased
 
 from ..db import session_scope
@@ -13,6 +13,7 @@ from ..research_stats import (PLAYER_COUNT_FIELDS, PLAYER_MEASUREMENT_FIELDS,
                               RANK_BUILD_PREFIX)
 
 FINISHED = ("FT", "AET", "PEN")
+UNPLAYED = ("NS", "TBD")  # as the fixture schedule's reader
 COMPETITION_PHASE = ("domestic leagues: regular season only; continental cups: league/group stage and "
                      "knockouts, excluding preliminary, qualifying and pre-group play-off rounds")
 
@@ -203,6 +204,157 @@ class ResearchRepository:
                     comparable_rounds())
         return records(session, q.group_by(p.player_id, Player.name))
 
+    @staticmethod
+    def _schedule_query():
+        """One fixture's schedule, competition and both teams' details; no score or statistics."""
+        f, home, away = Fixture, aliased(Team), aliased(Team)
+        q = select(f.id.label("fixture_id"), f.api_football_id, f.kickoff_utc, f.status, f.referee, f.season_id,
+                   Season.year.label("season_year"), f.competition_id, Competition.code.label("competition_code"),
+                   Competition.name.label("competition_name"),
+                   f.home_team_id, home.name.label("home_name"), home.short_code.label("home_short_code"),
+                   home.logo_url.label("home_logo_url"), f.away_team_id, away.name.label("away_name"),
+                   away.short_code.label("away_short_code"), away.logo_url.label("away_logo_url"))
+        q = q.join(Competition, Competition.id == f.competition_id).join(Season, Season.id == f.season_id)
+        return q.join(home, home.id == f.home_team_id).join(away, away.id == f.away_team_id)
+
+    def team_recent(self, session, team_id, *, before, limit):
+        """The team's last ``limit`` finished matches before ``before`` in every competition and round, oldest
+        first, in ``team_rows``' shape plus the competition and the opponent's details (D110, B2)."""
+        t, f, opp, opponent = FixtureTeamStats, Fixture, aliased(FixtureTeamStats), aliased(Team)
+        is_home = f.home_team_id == team_id
+        opponent_id = case((is_home, f.away_team_id), else_=f.home_team_id)
+        q = select(literal(team_id).label("team_id"), is_home.label("is_home"), opponent_id.label("opponent_team_id"),
+                   *[getattr(t, c) for c in TEAM_FIELDS],
+                   *[getattr(opp, c).label("opponent_" + c) for c in TEAM_FIELDS],
+                   f.id.label("fixture_id"), f.api_football_id, f.kickoff_utc, f.status, f.home_team_id,
+                   f.away_team_id, f.home_goals, f.away_goals, Competition.code.label("competition_code"),
+                   Competition.name.label("competition_name"), opponent.name.label("opponent_name"),
+                   opponent.short_code.label("opponent_short_code"),
+                   opponent.logo_url.label("opponent_logo_url")).select_from(f)
+        q = q.join(Competition, Competition.id == f.competition_id).join(opponent, opponent.id == opponent_id)
+        q = q.outerjoin(t, and_(t.fixture_id == f.id, t.team_id == team_id))
+        q = q.outerjoin(opp, and_(opp.fixture_id == f.id, opp.team_id == opponent_id))
+        q = q.where(or_(f.home_team_id == team_id, f.away_team_id == team_id), f.status.in_(FINISHED),
+                    f.kickoff_utc < before)
+        return records(session, q.order_by(f.kickoff_utc.desc(), f.id.desc()).limit(limit))[::-1]
+
+    def booked(self, session, team_id, *, year, before, limit):
+        """The team's players with the most cards (yellow plus red) in season ``year``, every competition."""
+        p, f = FixturePlayerStats, Fixture
+        yellow, red = func.sum(func.coalesce(p.yellow_cards, 0)), func.sum(func.coalesce(p.red_cards, 0))
+        q = select(p.player_id, Player.name, yellow.label("yellow"), red.label("red"),
+                   func.count().label("appearances")).select_from(p)
+        q = q.join(Player, Player.id == p.player_id).join(f, f.id == p.fixture_id)
+        q = q.join(Season, Season.id == f.season_id)
+        q = q.where(p.team_id == team_id, p.minutes > 0, f.status.in_(FINISHED), Season.year == year,
+                    f.kickoff_utc < before)
+        q = q.group_by(p.player_id, Player.name).having(yellow + red > 0)
+        return records(session, q.order_by((yellow + red).desc(), func.count(), Player.name, p.player_id).limit(limit))
+
+    def squad_rows(self, session, team_id, *, before, matches):
+        """Every player row of the team's last ``matches`` finished matches before ``before``."""
+        f, p = Fixture, FixturePlayerStats
+        last = (select(f.id).where(or_(f.home_team_id == team_id, f.away_team_id == team_id),
+                                   f.status.in_(FINISHED), f.kickoff_utc < before)
+                .order_by(f.kickoff_utc.desc(), f.id.desc()).limit(matches))
+        q = select(p.player_id, Player.name, p.position, p.minutes, p.substitute).join(Player, Player.id == p.player_id)
+        return records(session, q.where(p.team_id == team_id, p.fixture_id.in_(last.scalar_subquery())))
+
+    def appearances(self, session, player_ids, *, before, limit):
+        """Each player's last ``limit`` played matches before ``before`` (any team), oldest first, with the opponent."""
+        if not player_ids:
+            return []
+        p, f, home, away = FixturePlayerStats, Fixture, aliased(Team), aliased(Team)
+        number = func.row_number().over(partition_by=p.player_id,
+                                        order_by=(f.kickoff_utc.desc(), f.id.desc())).label("row_number")
+        q = select(p.player_id, p.team_id, p.minutes, p.substitute, p.shots_on, f.kickoff_utc, f.home_team_id,
+                   home.name.label("home_name"), away.name.label("away_name"), number).select_from(p)
+        q = q.join(f, f.id == p.fixture_id).join(home, home.id == f.home_team_id).join(away, away.id == f.away_team_id)
+        q = q.where(p.player_id.in_(list(player_ids)), p.minutes > 0, f.status.in_(FINISHED), f.kickoff_utc < before,
+                    or_(p.team_id == f.home_team_id, p.team_id == f.away_team_id))
+        ranked = q.subquery()
+        rows = records(session, select(*[c for c in ranked.c if c.name != "row_number"]).where(
+            ranked.c.row_number <= limit).order_by(ranked.c.player_id, ranked.c.kickoff_utc))
+        return rows
+
+    @staticmethod
+    def _match_stats_query():
+        """Finished fixtures with both sides' statistics (``referee_rows``' shape), names and competition."""
+        f, home, away = Fixture, aliased(FixtureTeamStats), aliased(FixtureTeamStats)
+        home_team, away_team = aliased(Team), aliased(Team)
+        q = select(f.id.label("fixture_id"), f.api_football_id, f.referee, f.kickoff_utc, f.status, f.home_team_id,
+                   f.away_team_id, f.home_goals, f.away_goals, Season.year, Competition.code.label("competition"),
+                   Competition.name.label("competition_name"), home_team.name.label("home_name"),
+                   away_team.name.label("away_name"),
+                   *[getattr(home, c).label("home_stats_" + c) for c in TEAM_FIELDS],
+                   *[getattr(away, c).label("away_stats_" + c) for c in TEAM_FIELDS]).select_from(f)
+        q = q.join(Season, Season.id == f.season_id).join(Competition, Competition.id == f.competition_id)
+        q = q.join(home_team, home_team.id == f.home_team_id).join(away_team, away_team.id == f.away_team_id)
+        q = q.outerjoin(home, and_(home.fixture_id == f.id, home.team_id == f.home_team_id))
+        q = q.outerjoin(away, and_(away.fixture_id == f.id, away.team_id == f.away_team_id))
+        return q.where(f.status.in_(FINISHED))
+
+    def season_referee_names(self, session, *, year):
+        """Every raw referee name of season ``year``'s fixtures, all competitions."""
+        q = select(Fixture.referee).join(Season, Season.id == Fixture.season_id)
+        return list(session.scalars(q.where(Season.year == year, Fixture.referee.is_not(None)).distinct()))
+
+    def referee_recent(self, session, aliases, *, before, limit):
+        """The referee's last ``limit`` finished matches before ``before`` under any of ``aliases``, oldest first."""
+        f = Fixture
+        q = self._match_stats_query().where(f.referee.in_(list(aliases)), f.kickoff_utc < before)
+        return records(session, q.order_by(f.kickoff_utc.desc(), f.id.desc()).limit(limit))[::-1]
+
+    def season_matches(self, session, season_id, *, before):
+        """Every finished match of one competition season before ``before``."""
+        return records(session, self._match_stats_query().where(Fixture.season_id == season_id,
+                                                                Fixture.kickoff_utc < before))
+
+    def h2h(self, session, team_a, team_b, *, since_year, before, limit):
+        """The two teams' last ``limit`` meetings before ``before`` from season ``since_year``, newest first."""
+        f = Fixture
+        q = self._match_stats_query().where(
+            or_(and_(f.home_team_id == team_a, f.away_team_id == team_b),
+                and_(f.home_team_id == team_b, f.away_team_id == team_a)),
+            Season.year >= since_year, f.kickoff_utc < before)
+        return records(session, q.order_by(f.kickoff_utc.desc(), f.id.desc()).limit(limit))
+
+    def domestic_season(self, session, team_id, *, year):
+        """The team's domestic league season in ``year`` (the one it played most in), or None."""
+        f = Fixture
+        q = select(Season.id.label("season_id"), Competition.code, Competition.name).select_from(f)
+        q = q.join(Season, Season.id == f.season_id).join(Competition, Competition.id == f.competition_id)
+        q = q.where(or_(f.home_team_id == team_id, f.away_team_id == team_id), Season.year == year,
+                    Competition.competition_type == "domestic_league")
+        q = q.group_by(Season.id, Competition.code, Competition.name).order_by(func.count().desc(), Competition.code)
+        rows = records(session, q.limit(1))
+        return rows[0] if rows else None
+
+    def fixture(self, session, event_id):
+        """One fixture by its API-Football id, in any status (D110, B2), or None."""
+        rows = records(session, self._schedule_query().where(Fixture.api_football_id == event_id))
+        return rows[0] if rows else None
+
+    def upcoming(self, session, *, now, limit, team_id=None, referees=None):
+        """Unplayed fixtures after ``now`` in every competition, kickoff order: a team's, or those of the given raw
+        referee names (D110, B1). Schedule and team details only."""
+        f = Fixture
+        q = self._schedule_query().where(f.status.in_(UNPLAYED), f.kickoff_utc > now)
+        if team_id is not None:
+            q = q.where(or_(f.home_team_id == team_id, f.away_team_id == team_id))
+        if referees is not None:
+            q = q.where(f.referee.in_(referees))
+        return records(session, q.order_by(f.kickoff_utc, f.api_football_id).limit(limit))
+
+    def upcoming_referee_names(self, session, *, now):
+        return list(session.scalars(select(Fixture.referee).where(
+            Fixture.status.in_(UNPLAYED), Fixture.kickoff_utc > now, Fixture.referee.is_not(None)).distinct()))
+
+    def alias_rows(self, session, *, raw_names=(), keys=()):
+        a = ResearchRefereeAlias
+        return records(session, select(a.raw_name, a.name, a.referee_key).where(
+            or_(a.raw_name.in_(list(raw_names)), a.referee_key.in_(list(keys)))))
+
     def referee_names(self, session):
         return list(session.scalars(select(Fixture.referee).where(Fixture.referee.is_not(None)).distinct().order_by(Fixture.referee)))
 
@@ -212,6 +364,17 @@ class ResearchRepository:
             ResearchPeerStat.scope_key == scope_key, ResearchPeerStat.subject_type == kind,
             ResearchPeerStat.subject_key == str(key)))
         return build, rows
+
+    def peer_values(self, session, scope_key, kind, peer_group, *, exclude):
+        """Every ranked peer's value per metric in one built scope and peer group, without ``exclude``."""
+        p = ResearchPeerStat
+        rows = session.execute(select(p.metric, p.value).where(
+            p.scope_key == scope_key, p.subject_type == kind, p.peer_group == peer_group,
+            p.subject_key != str(exclude)))
+        out = {}
+        for metric, value in rows:
+            out.setdefault(metric, []).append(value)
+        return out
 
     def replace(self, session, builds, rows, aliases):
         """Caller commits once: failures retain the previous complete build scope."""

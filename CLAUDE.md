@@ -104,6 +104,19 @@ on it. The Discord bot still runs the old engine until A7.
   previous leaders answer listed.
   Open before real users: the privacy line (questions are logged with the account id), and auth and security (the
   owner will discuss them separately). The website listens on the home network only.
+- **Research Area overhaul (D107 frontend, D110 backend; owner, 16 Nov).**
+  - The backend's part went live 16 Nov at 15:05 (website restarted, pid 29701). It adds three public, read-only
+    routes, each behind `read_gate()` (503 while the refresh writes):
+    - `/api/research/teams/{id}/upcoming`;
+    - `/api/research/referees/{key}/upcoming`;
+    - `/api/research/matches/{event_id}`.
+  - Players under 900 minutes get provisional ranks among at least 10 ranked peers.
+  - The daily refresh now rebuilds this season's ranks and referee names (best-effort stage `research_ranks`). They
+    had last been built by hand on 8 Oct.
+  - The frontend's pages (D107) go in after the frontend checks them against these routes on 8100.
+  - Owner, 16 Nov: the cards lines' tag reads "More likely", not "Spix leans this way" (cards carry no Spix
+    suggestion, D61).
+  - Open for the owner: should ranked players get the same 10-peer floor? Early-season groups are tiny.
 - **No more Chroma updates (D81, owner, 9 Nov).** The daily refresh no longer embeds into Chroma, because nothing
   running reads it; `refresh-season --embed` brings the step back. `Index/chroma` (19 GB) stays until A7.
   Confirmed on the 10 Nov refresh.
