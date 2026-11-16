@@ -56,7 +56,7 @@ task N: …", "Done game-read phase 2 task N: … (<tests>, D77)", "Fix game-rea
 
 | Task | What it builds | Status | Start commit | Done commit | Tests |
 |---|---|---|---|---|---|
-| 1 | The fresh block (2026/27) and its guard | Not started | | | |
+| 1 | The fresh block (2026/27) and its guard | In progress | | | |
 | 2 | Match statistics: export and loader | Not started | | | |
 | 3 | Shot ratings (S3) into models 3–4, through the ablation gate | Not started | | | |
 | 4 | Rest (C1) into models 3–4, through the ablation gate | Not started | | | |
