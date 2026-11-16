@@ -169,6 +169,8 @@
 .research-home .chip[aria-pressed=true]{background:var(--text);border-color:var(--text);color:var(--bg);font-weight:650}
 .recent{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;font-size:12px;color:var(--text3)}
 .recent>span{margin-right:4px}
+.recent .clear-recent{min-height:36px;padding:6px 8px;border:0;background:none;color:var(--text3);font-size:12px;text-decoration:underline;text-underline-offset:3px}
+.recent .clear-recent:hover{color:var(--accent-l)}
 .league-chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0;margin-top:-6px}
 .league-chips::-webkit-scrollbar{display:none}
 .home-block{display:grid;gap:12px;min-width:0}
