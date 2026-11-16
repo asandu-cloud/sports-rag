@@ -301,7 +301,7 @@ from B1/B2 when the player's next match is open), `index.html`; extend `test_res
 | Task | Status | Commits | Tests |
 |---|---|---|---|
 | 1. Lines, hits and clearer numbers | Done | cf8a499.. | insight 1/1 file, all asserts |
-| 2. Team page answer first | Not started | | |
+| 2. Team page answer first | In progress | | |
 | 3. Stat view answer first | Not started | | |
 | 4. Referee this season first, ranks from one season | Not started | | |
 | 5. Next matches: rail, bar, sheet (B1) | Not started | | |
