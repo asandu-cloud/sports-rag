@@ -32,7 +32,8 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
 | 3 | B2: each team's last 10, booked, shooters and what it allows | Done 16 Nov | 5b28ddd | 662ca89 | 4 new, all pass; suite 3,114 passed + the 3 known errors |
 | 4 | B2: the referee, head to head and data basis | Done 16 Nov | 6a83be6 | d7d7da9 | 5 new, all pass; suite 3,120 passed + the 3 known errors; golden unchanged |
 | 5 | B3: this season's ranks and referee names rebuilt by the daily refresh | Done 16 Nov | ae9cc06 | ba6eb02 | 3 new, all pass; copy rehearsal 1.3 s; suite 3,123 passed + the 3 known errors; golden unchanged |
-| 6 | B5: provisional ranks under 900 minutes | Done 16 Nov | 6ba180e | the "Done research-endpoints task 6" commit | 4 new, all pass; floor of 10 ranked peers; suite 3,127 passed + the 3 known errors; golden unchanged |
+| 6 | B5: provisional ranks under 900 minutes | Done 16 Nov | 6ba180e | 0c8e675 | 4 new, all pass; floor of 10 ranked peers; suite 3,127 passed + the 3 known errors; golden unchanged |
+| 7 | The 10-peer floor for every rank (owner, 16 Nov) | In progress | the "Start research-endpoints task 7" commit | | |
 
 ## Global Constraints
 
@@ -230,3 +231,31 @@ referee spellings reach no referee page.
 - [ ] **Step 4: Run the full suite and the golden check.** Expected: PASS, golden unchanged.
 - [ ] **Step 5: Done commit**, then tell the owner and the orchestrator: what changed, the tests, no migration,
   no `.env` line, and that the website needs a restart to serve the routes.
+
+### Task 7: the 10-peer floor for every rank (owner, 16 Nov)
+
+Added 16 Nov: the owner, through the orchestrator, extends task 6's floor to fully ranked players: no rank until at
+least 10 in the group qualify; below that, the raw numbers only. Applied to teams and referees as well, per number.
+
+**Files:**
+- Modify: `Scripts/data_platform/research_stats.py` (`MIN_RANKED_PEERS = 10`)
+- Modify: `Scripts/data_platform/services/research_profiles.py` (`_ranking`; the service takes `min_ranked_peers`)
+- Modify: `Scripts/data_platform/repositories/research.py` (`available_scopes` counts a scope ranked only at the floor)
+- Modify: `Scripts/data_platform/services/research_home.py` (a weekend referee's percentile only at the floor)
+- Test: `Scripts/tests/data_platform/test_research_profiles.py`, `Scripts/tests/data_platform/test_research_home.py`
+
+**Interfaces:**
+- Produces: a stored rank shows only when its own `peer_count` is 10 or more; a metric under that has `rank`,
+  `percentile`, `peer_count` and `league_average` null. A profile whose metrics all fall under it reads
+  `ranked: false`, `reason: "too_few_ranked_peers"`. Every `ranking` gains `ranked_peers` (the largest group behind
+  its ranks or provisional ranks, else null) and `minimum_ranked_peers: 10`.
+
+- [ ] **Step 1: Write the failing tests** — `test_ranks_show_only_among_ten_or_more`,
+  `test_a_number_with_fewer_than_ten_ranked_keeps_its_value_without_a_rank`,
+  `test_available_scopes_count_a_scope_ranked_only_at_the_floor`,
+  `test_a_weekend_referees_percentile_needs_ten_ranked_referees`; small-group fixtures keep testing the rank
+  arithmetic with `min_ranked_peers=1`.
+- [ ] **Step 2: Run them** — Expected: FAIL.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run the full suite and the golden check.** Expected: PASS, golden unchanged.
+- [ ] **Step 5: Done commit**, then tell the orchestrator what the profile returns below the floor.
