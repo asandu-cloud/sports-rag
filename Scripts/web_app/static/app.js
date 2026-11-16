@@ -1689,6 +1689,7 @@ const appModule = {
       this._installMatchReadPolling();
       this.initialized = true;
       this._initialLoad = this._loadMatchday();
+      window.spixCover?.(this._initialLoad, {label: "Getting today's matches ready", logo: document.querySelector('.logo-word')?.outerHTML || ''});
     }
     return this._initialLoad;
   },
@@ -2338,7 +2339,9 @@ const appModule = {
     // A single filtered league (or the Live tab) lays its cards out in rows on desktop (style.css).
     container.classList.toggle('is-single-league', this.activeLeague !== 'all');
     if (state.loading) {
-      container.innerHTML = '<div class="empty-state"><p>Preparing the matchday board…</p><span class="empty-state-hint">Loading the fixture schedule and published Match Reads.</span></div>';
+      container.innerHTML = window.spixLoader?.('card', {label: 'Preparing the matchday board', cards: 3,
+        steps: ['Loading the fixture schedule', 'Loading the published Match Reads', 'Preparing the matchday board']})
+        ?? '<div class="empty-state"><p>Preparing the matchday board…</p><span class="empty-state-hint">Loading the fixture schedule and published Match Reads.</span></div>';
       return;
     }
     if (state.error) {
@@ -2895,7 +2898,8 @@ const appModule = {
     const container = document.getElementById('bestBetsContainer');
     if (!container) return;
     if (state.loading) {
-      container.innerHTML = '<div class="empty-state"><p>Ranking the clearest matchday opportunities…</p></div>';
+      container.innerHTML = window.spixLoader?.('prices', {label: 'Ranking the clearest matchday opportunities'})
+        ?? '<div class="empty-state"><p>Ranking the clearest matchday opportunities…</p></div>';
       return;
     }
     if (state.error) {
