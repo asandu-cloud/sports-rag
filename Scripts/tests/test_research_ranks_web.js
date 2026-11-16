@@ -85,5 +85,14 @@ const fixture = name => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixture
   assert.equal(h.headlineLead(null, palmer.ranking), '');
   assert.equal(h.headlineLead({text: 'x'}, palmer.ranking), '', 'no figure, no headline');
 
+  // The floor per number (backend b880e5f): in a ranked profile a number with fewer than 10 ranked on it comes with
+  // a null rank and percentile, and its row shows plain while the others keep their position.
+  const thin = structuredClone(taylor);
+  Object.assign(thin.metrics.reds, {rank: null, percentile: null, peer_count: null, comparison_text: null, rank_phrase: null});
+  const thinCard = h.rankCard(thin, 'referees', defs);
+  assert.ok(thinCard.includes(`<button class="rank plain" type="button" data-stat="${data.rankMetrics.referees.reds[1]}"`), 'reds shows plain');
+  assert.equal((thinCard.match(/class="dot"/g) || []).length, (h.rankCard(taylor, 'referees', defs).match(/class="dot"/g) || []).length - 1);
+  assert.doesNotMatch(text(thinCard), /NaN|undefined|null/);
+
   console.log('test_research_ranks_web: ok');
 })().catch(error => { console.error(error); process.exit(1); });

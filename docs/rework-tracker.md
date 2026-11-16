@@ -2802,6 +2802,10 @@ test bets (Over 2.5 cards in Chelsea's next match; a player's shots on target) t
     Leeds in all seven markets, Atletico v Viking (Champions League) and Atletico v Barcelona (played): 36 screenshots
     at 1440 light and 390 dark, no sideways scroll, no "NaN" or "undefined", no console errors. It found the two
     fixes above (a played match's wording, the chart labels). Static files only; no migration, no .env line.
+  - Backend b880e5f (not merged) took the proposed names: too_few_peers, qualified_peers, minimum_peers, headline null.
+    It also applies the floor per number in ranked profiles (rank and percentile null when fewer than 10 are ranked on
+    it). The rank card already shows such a row plain; a test now pins it. The research home's Strict/Lenient tag
+    already drops with a null percentile. No served file changed.
 
 **D108 — Why cards were missing at kickoff (15 Nov; backend, read-only).** The orchestrator asked why so few
 domestic matches had a card on the board at kickoff (D77, task 2). Checked on the 10 domestic leagues, 5 Sep–14 Nov,
