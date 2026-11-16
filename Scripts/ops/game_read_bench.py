@@ -22,6 +22,7 @@ import sys
 import time
 
 from Scripts.data_platform.game_read import history, opportunities, report, rules, scores, walkforward
+from Scripts.data_platform.game_read.models import average
 from Scripts.data_platform.game_read.models.dixon_coles import DixonColes
 from Scripts.data_platform.game_read.models.drifting import Drifting
 from Scripts.data_platform.game_read.models.elo import Elo
@@ -32,8 +33,9 @@ ROOT = Path(__file__).resolve().parents[2]
 LEDGER = ROOT / "Research" / "game-read-bench" / "locked-runs.jsonl"
 BENCH_CODE = ("Scripts/data_platform/game_read", "Scripts/ops/game_read_bench.py")
 REFERENCES = ("market", "control")
-MODELS = {"market": MarketCopy, "control": MarketControl, "elo": Elo, "pi": PiRatings,
-          "dc": DixonColes, "drift": Drifting}  # Task 12 adds the average
+MODELS = {"market": MarketCopy, "control": MarketControl, "elo": Elo, "pi": PiRatings, "dc": DixonColes,
+          "drift": Drifting}
+AVERAGE = "average"  # built from its members' rows in the run, with weights fitted on the tuning seasons only
 ZERO_BLEND = 1e-6
 
 
@@ -107,8 +109,10 @@ def run(args) -> int:
         print(f"The bench code has uncommitted changes; a locked run needs committed code:\n{changes}",
               file=sys.stderr)
         return 2
-    names = [*REFERENCES, *(name for name in args.models if name not in REFERENCES)]
-    unknown = [name for name in names if name not in MODELS]
+    names = [*REFERENCES, *(name for name in args.models if name not in (*REFERENCES, AVERAGE))]
+    if AVERAGE in args.models:
+        names += [*(name for name in average.MEMBERS if name not in names), AVERAGE]
+    unknown = [name for name in names if name not in MODELS and name != AVERAGE]
     if unknown:
         print(f"Unknown models: {', '.join(unknown)} (known: {', '.join(MODELS)})", file=sys.stderr)
         return 2
@@ -116,12 +120,22 @@ def run(args) -> int:
     started, clock = datetime.now(timezone.utc), time.perf_counter()
     matches = _load(args.leagues)
     until = None if locked else history.LOCKED_FROM - 1
-    results, zero = {}, None
+    results, zero, members = {}, None, {}
     for name in names:
-        rows = walkforward.run(MODELS[name](), matches, score_from=history.TUNING_FROM, until=until)
+        if name == AVERAGE:
+            weights = average.fit_all({member: [row for row in members[member]
+                                                if history.block(row[0].season) == "tuning"]
+                                       for member in average.MEMBERS})
+            rows = average.combine_rows({member: members[member] for member in average.MEMBERS}, weights)
+        else:
+            rows = walkforward.run(MODELS[name](), matches, score_from=history.TUNING_FROM, until=until)
+            if name in average.MEMBERS:
+                members[name] = rows
         tuning = [row for row in rows if history.block(row[0].season) == "tuning"]
         scored = [row for row in rows if history.block(row[0].season) == args.block]
         results[name] = _score(scored, tuning)
+        if name == AVERAGE:
+            results[name]["weights"] = weights
         if name == "market":
             zero = zero_line(results[name])
             if not zero["passed"]:

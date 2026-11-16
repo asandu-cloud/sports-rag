@@ -2934,6 +2934,35 @@ backend).** The number was held since 7 Nov (D78).
       - closing check: +0.01 [−0.04, +0.04].
     - Tests: 3 new, all pass. The full suite: 3,195 passed, plus the 3 known errors. Golden unchanged; no live code
       changed.
+  - **Task 12 done (16 Nov): the average of the models, model 9, first version**
+    (`Scripts/data_platform/game_read/models/average.py`; `average` in the bench).
+    - *How it works:* a weighted average of the members on the log scale. The weights are never below zero, sum to
+      1, and are fitted by maximum likelihood on the tuning seasons, separately for three parts:
+      - the result;
+      - the goal difference, which gives every handicap;
+      - the score matrix, which gives every goal line and both teams to score.
+      A member without a score matrix (Elo, pi) takes no part in the third.
+    - The bench builds it from its members' rows in the same run, so the members are not run twice. Its weights see
+      only tuning rows, even in a locked run (tested).
+    - *Ruling:* the spec's model 9 averages "the models that pass". None of the four rating models passes, so this
+      first version takes all four (elo, pi, dc, drift) and lets the weights decide. Asking for `average` runs and
+      reports its members too.
+    - *Weights on the tuning seasons:*
+      - result: Elo 0.47, pi 0.05, Dixon–Coles 0.33, drifting 0.15;
+      - goal difference: Elo 0.32, pi 0.00, Dixon–Coles 0.30, drifting 0.37;
+      - score matrix: Dixon–Coles 0.45, drifting 0.55.
+    - *Tuning seasons, 14,383 matches* (`Research/game-read-bench-2026-11-16-average/`). It fails every score.
+      These scores are in-sample, because the weights were fitted on the same seasons; its fair test is the locked
+      run in task 13.
+      - accuracy: result 0.0134 worse than the market's [0.0107, 0.0160], the best of all the models (best single
+        model: Elo, 0.0157); handicap 0.0106 worse; over 2.5 0.0077 worse;
+      - blend: c below zero on all three markets;
+      - Most likely: −0.48 per 100 against today's lists [−0.95, −0.00] ranked by edge, and −0.46 ranked by
+        blended chance;
+      - Value at the average price: 17,212 picks, −7.1% return;
+      - closing check: −0.01 [−0.05, +0.03].
+    - Tests: 4 new (3 for the average, 1 for the bench), all pass. The full suite: 3,199 passed, plus the 3 known
+      errors. Golden unchanged; no live code changed.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
