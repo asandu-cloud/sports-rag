@@ -20,9 +20,12 @@ EXPECTED = ("goals", "corners", "cards")
 Read = Tuple[Mapping[str, Any], Any]  # the match page's card and the read's canonical results
 
 
-def _figure(metrics: Mapping[str, Any], label: str) -> Optional[float]:
-    value = (metrics.get(label) or {}).get("projected")
+def one_decimal(value) -> Optional[float]:
     return round(value, 1) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+
+
+def _figure(metrics: Mapping[str, Any], label: str) -> Optional[float]:
+    return one_decimal((metrics.get(label) or {}).get("projected"))
 
 
 def _time(value) -> Optional[str]:
@@ -63,28 +66,41 @@ def referee_refs(raw_names: Iterable[str], alias_rows: Sequence[Mapping[str, Any
     return out
 
 
+def refs_for(repo, session, raw_names) -> Dict[str, dict]:
+    """``referee_refs`` for raw names, with the alias rows of those names and of their computed keys."""
+    raw_names = sorted({n for n in raw_names if n})
+    keys = [row["referee_key"] for row in referee_aliases(raw_names)]
+    return referee_refs(raw_names, repo.alias_rows(session, raw_names=raw_names, keys=keys))
+
+
+def kickoff_utc(row) -> datetime:
+    kickoff = row["kickoff_utc"]
+    return kickoff.replace(tzinfo=kickoff.tzinfo or timezone.utc)
+
+
+def match_entry(row, refs, *, load_read, now, outlook_hours, team_id=None) -> dict:
+    """One match of the schema from a ``ResearchRepository._schedule_query`` row; ``venue`` is ``team_id``'s side."""
+    kickoff, event_id = kickoff_utc(row), str(row["api_football_id"])
+    side = {k: {"id": row[f"{k}_team_id"], "name": row[f"{k}_name"], "short_code": row[f"{k}_short_code"],
+                "logo_url": row[f"{k}_logo_url"]} for k in ("home", "away")}
+    return {"event_id": event_id, "fixture_id": row["fixture_id"], "kickoff": iso(kickoff),
+            "competition": {"code": row["competition_code"], "name": row["competition_name"]},
+            **side, "venue": None if team_id is None else "home" if row["home_team_id"] == team_id else "away",
+            "referee": refs.get(row["referee"]),
+            "read": read_summary(event_id, kickoff, load_read=load_read, now=now, outlook_hours=outlook_hours)}
+
+
 class ResearchUpcomingService:
     def __init__(self, repo, *, load_read: Callable[[str], Optional[Read]], now: Callable[[], datetime],
                  outlook_hours: int):
         self.repo, self.load_read, self.now, self.outlook_hours = repo, load_read, now, outlook_hours
 
     def _refs(self, session, raw_names) -> Dict[str, dict]:
-        raw_names = sorted({n for n in raw_names if n})
-        keys = [row["referee_key"] for row in referee_aliases(raw_names)]
-        return referee_refs(raw_names, self.repo.alias_rows(session, raw_names=raw_names, keys=keys))
+        return refs_for(self.repo, session, raw_names)
 
     def _match(self, row, refs, now, team_id=None) -> dict:
-        kickoff = row["kickoff_utc"]
-        kickoff = kickoff.replace(tzinfo=kickoff.tzinfo or timezone.utc)
-        event_id = str(row["api_football_id"])
-        side = {k: {"id": row[f"{k}_team_id"], "name": row[f"{k}_name"], "short_code": row[f"{k}_short_code"],
-                    "logo_url": row[f"{k}_logo_url"]} for k in ("home", "away")}
-        return {"event_id": event_id, "fixture_id": row["fixture_id"], "kickoff": iso(kickoff),
-                "competition": {"code": row["competition_code"], "name": row["competition_name"]},
-                **side, "venue": None if team_id is None else "home" if row["home_team_id"] == team_id else "away",
-                "referee": refs.get(row["referee"]),
-                "read": read_summary(event_id, kickoff, load_read=self.load_read, now=now,
-                                     outlook_hours=self.outlook_hours)}
+        return match_entry(row, refs, load_read=self.load_read, now=now, outlook_hours=self.outlook_hours,
+                           team_id=team_id)
 
     def team(self, team_id: int, *, limit: int) -> dict:
         now = self.now()

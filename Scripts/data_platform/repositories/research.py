@@ -204,18 +204,29 @@ class ResearchRepository:
                     comparable_rounds())
         return records(session, q.group_by(p.player_id, Player.name))
 
-    def upcoming(self, session, *, now, limit, team_id=None, referees=None):
-        """Unplayed fixtures after ``now`` in every competition, kickoff order: a team's, or those of the given raw
-        referee names (D110, B1). Schedule and team details only."""
+    @staticmethod
+    def _schedule_query():
+        """One fixture's schedule, competition and both teams' details; no score or statistics."""
         f, home, away = Fixture, aliased(Team), aliased(Team)
-        q = select(f.id.label("fixture_id"), f.api_football_id, f.kickoff_utc, f.referee,
-                   Competition.code.label("competition_code"), Competition.name.label("competition_name"),
+        q = select(f.id.label("fixture_id"), f.api_football_id, f.kickoff_utc, f.status, f.referee, f.season_id,
+                   f.competition_id, Competition.code.label("competition_code"),
+                   Competition.name.label("competition_name"),
                    f.home_team_id, home.name.label("home_name"), home.short_code.label("home_short_code"),
                    home.logo_url.label("home_logo_url"), f.away_team_id, away.name.label("away_name"),
                    away.short_code.label("away_short_code"), away.logo_url.label("away_logo_url"))
         q = q.join(Competition, Competition.id == f.competition_id)
-        q = q.join(home, home.id == f.home_team_id).join(away, away.id == f.away_team_id)
-        q = q.where(f.status.in_(UNPLAYED), f.kickoff_utc > now)
+        return q.join(home, home.id == f.home_team_id).join(away, away.id == f.away_team_id)
+
+    def fixture(self, session, event_id):
+        """One fixture by its API-Football id, in any status (D110, B2), or None."""
+        rows = records(session, self._schedule_query().where(Fixture.api_football_id == event_id))
+        return rows[0] if rows else None
+
+    def upcoming(self, session, *, now, limit, team_id=None, referees=None):
+        """Unplayed fixtures after ``now`` in every competition, kickoff order: a team's, or those of the given raw
+        referee names (D110, B1). Schedule and team details only."""
+        f = Fixture
+        q = self._schedule_query().where(f.status.in_(UNPLAYED), f.kickoff_utc > now)
         if team_id is not None:
             q = q.where(or_(f.home_team_id == team_id, f.away_team_id == team_id))
         if referees is not None:

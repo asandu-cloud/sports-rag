@@ -2764,6 +2764,13 @@ raw responses, under full player names, and one bookmaker breaks the two-bookmak
   expected goals, corners and cards from the read's own figures. A withheld (stale) read counts as waiting. A
   referee spelled in a way the alias table has not seen yet still counts under his key. 6 tests; the full suite
   3,105 passed, plus the 3 known errors.
+- Task 2 (16 Nov): `GET /api/research/matches/{event_id}` (`research-match.v1`, `services/research_match.py`): the
+  match as one B1 match plus its status, and Spix's read: result chances, team goals, both teams to score,
+  expected corners and cards, and every half line of cards, goals and corners with both sides' fair chance and
+  typical price. Lines need at least 2 bookmakers on both sides, the recommendation layer's rule; the goals and
+  corners lines equal its options. Cards lines never carry a suggestion (D61). The recommendations block's markets
+  are passed through for Add. `lineups` is null: a read keeps only whether line-ups were confirmed, not the
+  players. 5 tests, on reads built in the stored shape; the full suite 3,110 passed, plus the 3 known errors.
 
 ## Findings that shape later steps
 

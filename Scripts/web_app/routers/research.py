@@ -62,6 +62,15 @@ def _get_upcoming_service():
                                    outlook_hours=load_match_read_worker_settings().outlook_hours)
 
 
+def _get_match_service():
+    from data_platform.config import load_match_read_worker_settings
+    from data_platform.repositories.research import ResearchRepository
+    from data_platform.services.research_match import ResearchMatchService
+    from web_app.routers import match_reads
+    return ResearchMatchService(ResearchRepository(), load_read=_load_read, now=match_reads._utc_now,
+                                outlook_hours=load_match_read_worker_settings().outlook_hours)
+
+
 def _get_home_service():
     return ResearchHomeService()
 
@@ -108,3 +117,9 @@ def team_upcoming(team_id: SubjectID, limit: Limit = 3):
 def referee_upcoming(referee_key: RefereeKey, limit: Limit = 1):
     """The referee's next appointments, once named (D110, B1)."""
     return _gated(lambda: _get_upcoming_service().referee(referee_key, limit=limit))
+
+
+@router.get("/matches/{event_id}")
+def match(event_id: Annotated[str, Path(pattern=r"^\d{1,12}$")]):
+    """One match for the research view: the fixture, Spix's read and its lines, and the past numbers (D110, B2)."""
+    return _gated(lambda: _get_match_service().match(event_id))
