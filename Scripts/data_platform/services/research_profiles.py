@@ -21,6 +21,9 @@ from ..repositories.research import COMPETITION_PHASE, ResearchRepository
 from ..research_stats import COUNT_NULL_POLICY, RANK_BUILD_PREFIX, normalize_research_row
 
 PLAYER_MINUTES = 900
+# Provisional ranks (D110, B5) need this many ranked peers in the position: early in a season a group can hold one
+# or two players (16 Nov: the Premier League had 1 ranked midfielder), and a place among them says nothing.
+PROVISIONAL_MIN_PEERS = 10
 REFEREE_MATCHES = 15
 # Teams need enough stats-observed matches to be ranked. After the comparable-round
 # filter every main-stage side has at least six (a Conference League league stage);
@@ -278,6 +281,22 @@ def scope_key(scope, referee=False):
     return f"referee:{scope['year']}" if referee else f"competition:{scope['competition_id']}:{scope['year']}"
 
 
+def referee_key(name):
+    """A referee's stable key from a normalized name: first initial and surname. The name dedup only merges names
+    sharing both, so any of a referee's names gives his key, before or after a full name arrives."""
+    parts = name.split()
+    # Signature, not longest display name, keeps URLs stable when full names arrive.
+    signature = parts[0].rstrip(".")[:1] + " " + parts[-1] if len(parts) > 1 else name
+    slug = re.sub(r"[^\w]+", "-", signature, flags=re.UNICODE).strip("-")
+    return slug[:110] + "-" + sha256(signature.encode()).hexdigest()[:8]
+
+
+def raw_referee_key(raw):
+    """``referee_key`` of a raw fixture name ("Michael Oliver, England"), or None for an empty one."""
+    name = _normalize_ref_name(raw)
+    return referee_key(name) if name else None
+
+
 def referee_aliases(raw_names):
     normalized = sorted({n for raw in raw_names if (n := _normalize_ref_name(raw))})
     empty = {n: dict(name=n, leagues=set(), cards=0, fouls=0, yellows=0, reds=0, matches=0) for n in normalized}
@@ -288,13 +307,21 @@ def referee_aliases(raw_names):
         if not normalized_name:
             continue
         name = remap[normalized_name]
-        parts = name.split()
-        # Signature, not longest display name, keeps URLs stable when full names arrive.
-        signature = parts[0].rstrip(".")[:1] + " " + parts[-1] if len(parts) > 1 else name
-        slug = re.sub(r"[^\w]+", "-", signature, flags=re.UNICODE).strip("-")
-        key = slug[:110] + "-" + sha256(signature.encode()).hexdigest()[:8]
-        result.append({"raw_name": raw, "referee_key": key, "name": name.title()})
+        result.append({"raw_name": raw, "referee_key": referee_key(name), "name": name.title()})
     return result
+
+
+def table_rank(ordered, value, higher_is_more):
+    """1 = the most for "higher is more" metrics and the fewest otherwise; level values share the better rank."""
+    return (len(ordered) - bisect_right(ordered, value) if higher_is_more else bisect_left(ordered, value)) + 1
+
+
+def provisional_rank(data, peer_values):
+    """A player under the minutes threshold placed among the scope's ranked peers (D110, B5): the rank and midrank
+    percentile ``rank_rows`` would give with the player added, so ``peer_count`` is the peers plus one."""
+    values = [*peer_values, data["value"]]
+    return {"rank": table_rank(sorted(values), data["value"], data["higher_is_more"]),
+            "percentile": percentiles(values)[-1], "peer_count": len(values)}
 
 
 def rank_rows(kind, summaries, scope, build):
@@ -314,7 +341,7 @@ def rank_rows(kind, summaries, scope, build):
         avg = sum(m["value"] * m["coverage"]["observed_matches"] for _, _, m in peers) / observed if observed else None
         for (key, summary, data), pct in zip(peers, percentiles(values)):
             value = data["value"]
-            rank = (len(values) - bisect_right(ordered, value) if data["higher_is_more"] else bisect_left(ordered, value)) + 1
+            rank = table_rank(ordered, value, data["higher_is_more"])
             result.append({**build, "subject_type": kind, "subject_key": str(key), "peer_group": group,
                            "metric": name, "value": value, "percentile": pct, "rank": rank,
                            "peer_count": len(peers), "league_average": avg if kind == "team" else None,
@@ -365,7 +392,7 @@ def metric_comparison(kind, name, data, scope, group):
     return result
 
 
-def headline(kind, subject, scope, metrics, group):
+def headline(kind, subject, scope, metrics, group, provisional=False):
     priorities = PLAYER_PRIORITIES.get(group, PRIORITIES["player"]) if kind == "player" else PRIORITIES[kind]
     # A zero is never the lead: "0.00 assists per 90" says nothing about a goalkeeper.
     candidates = [(name, metrics[name]) for name in priorities
@@ -382,7 +409,7 @@ def headline(kind, subject, scope, metrics, group):
             "percentile": data["percentile"] if kind != "team" else None,
             "rank": data["rank"], "peer_count": data["peer_count"],
             **{k: v for k, v in comparison.items() if k != "comparison_text"},
-            "partial_observations": partial, "text": text}
+            "partial_observations": partial, "provisional": provisional, "text": text}
 
 
 class ResearchProfileService:
@@ -457,7 +484,16 @@ class ResearchProfileService:
         if ranked:
             for name, row in matching.items():
                 metrics[name].update({k: row[k] for k in ("rank", "percentile", "peer_count", "league_average")})
-        return {"ranked": ranked, "reason": reason, "peer_group": summary["peer_group"],
+        provisional = False
+        if (kind == "player" and reason == "below_minutes_threshold" and summary["matches"]
+                and build and build.build_id.startswith(RANK_BUILD_PREFIX)):
+            peers = self.repo.peer_values(session, build.scope_key, kind, summary["peer_group"], exclude=key)
+            for name, data in metrics.items():
+                if (len(peers.get(name, ())) >= PROVISIONAL_MIN_PEERS and data["value"] is not None
+                        and math.isfinite(data["value"])):
+                    data.update(provisional_rank(data, peers[name]))
+                    provisional = True
+        return {"ranked": ranked, "provisional": provisional, "reason": reason, "peer_group": summary["peer_group"],
                 "sample_minutes": summary["minutes"], "sample_matches": summary["matches"],
                 "minimum_minutes": PLAYER_MINUTES if kind == "player" else None,
                 "minimum_matches": {"referee": REFEREE_MATCHES, "team": TEAM_MATCHES}.get(kind, 1)}, metrics, build
@@ -485,7 +521,7 @@ class ResearchProfileService:
         result = {"schema_version": "research-profile.v1", "subject": {"type": kind, **subject},
                   "competition": competition, "season": season, "totals": summary["totals"],
                   "metrics": metrics, "ranking": ranking, "frequencies": summary["frequencies"],
-                  "headline": headline(kind, subject, scope, metrics, summary["peer_group"]),
+                  "headline": headline(kind, subject, scope, metrics, summary["peer_group"], ranking["provisional"]),
                   "data_basis": {"source": "canonical_database", "matches": summary["matches"],
                                  "minutes": summary["minutes"], "competition": competition, "season": season,
                                  "finished_matches": summary.get("finished_matches", summary["matches"]),

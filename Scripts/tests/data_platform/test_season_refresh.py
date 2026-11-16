@@ -33,6 +33,7 @@ def test_default_plan_refreshes_every_public_domestic_league_in_both_active_path
         "canonical_feature_snapshots",
         "canonical_kb_enqueue",
         "canonical_kb_refresh",
+        "research_ranks",
         "platform_health",
     ]
 
@@ -79,6 +80,7 @@ def test_new_league_plan_uses_canonical_features_not_legacy_output_scripts():
         "canonical_feature_snapshots",
         "canonical_kb_enqueue",
         "canonical_kb_refresh",
+        "research_ranks",
         "platform_health",
     ]
     assert all(stage.name != "legacy_model_refresh" for stage in plan)
@@ -235,6 +237,25 @@ def test_the_home_pages_wins_file_is_rebuilt_at_the_end_while_the_board_shows_it
     stage = plan[-2]
     assert stage.command[1:] == ("-m", "Scripts.data_platform", "home-wins")
     assert stage.accepted_exit_codes == (0, 1)  # best effort: the home page keeps yesterday's reel
+
+
+def test_refresh_plan_rebuilds_this_seasons_research_ranks_best_effort(monkeypatch):
+    from data_platform.season_refresh import build_refresh_plan, resolve_competitions
+
+    monkeypatch.setenv("SPIX_RECOMMENDATIONS", "on")
+    monkeypatch.setenv("SPIX_STATS_STORE", "on")
+    plan = build_refresh_plan(season=2026, competitions=resolve_competitions(None))
+    names = [stage.name for stage in plan]
+    # After the synced data and its documents, before the files and the health check (D110, owner, 16 Nov)
+    assert names.index("research_ranks") > names.index("canonical_kb_refresh")
+    assert names[-4:] == ["research_ranks", "stats_questions_file", "home_wins_file", "platform_health"]
+    stage = plan[-4]
+    assert stage.command[1:] == ("-m", "Scripts.data_platform", "research-build", "--season", "2026")
+    assert stage.accepted_exit_codes == (0, 1)  # best effort: the Research Area keeps its last ranks
+    embedded = [stage.name for stage in build_refresh_plan(season=2026, competitions=resolve_competitions(None),
+                                                           embed=True)]
+    assert embedded[-5:-3] == ["research_ranks", "chroma_embed"]
+
 
 def _dry_run_stages(*flags):
     from data_platform.cli import build_parser

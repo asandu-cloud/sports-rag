@@ -236,6 +236,15 @@ def build_refresh_plan(
                      "--vector-backend", "sqlite+chroma" if embed else "sqlite"),
         ))
 
+    # The Research Area's ranks and referee names for this season (D110, owner, 16 Nov), rebuilt whole from the
+    # synced matches and swapped in one transaction. A failure is a warning: the pages keep the last build's ranks.
+    plan.append(RefreshStage(
+        name="research_ranks",
+        description="Best effort: rebuild this season's research ranks and referee names.",
+        command=(py, "-m", "Scripts.data_platform", "research-build", "--season", str(season)),
+        accepted_exit_codes=(0, 1),
+    ))
+
     if embed and legacy_codes:
         # Opt-in since D81 (owner, 9 Nov): nothing running reads Chroma, so the daily refresh
         # writes the SQLite document store only. Predictions read that store; Chroma served
