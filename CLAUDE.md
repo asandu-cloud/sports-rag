@@ -116,7 +116,8 @@ on it. The Discord bot still runs the old engine until A7.
   - The frontend's pages (D107) go in after the frontend checks them against these routes on 8100.
   - Owner, 16 Nov: the cards lines' tag reads "More likely", not "Spix leans this way" (cards carry no Spix
     suggestion, D61).
-  - Open for the owner: should ranked players get the same 10-peer floor? Early-season groups are tiny.
+  - Owner, 16 Nov: ranked players get the same 10-peer floor (no rank until 10 players in the group qualify). The
+    backend is building it.
 - **No more Chroma updates (D81, owner, 9 Nov).** The daily refresh no longer embeds into Chroma, because nothing
   running reads it; `refresh-season --embed` brings the step back. `Index/chroma` (19 GB) stays until A7.
   Confirmed on the 10 Nov refresh.
