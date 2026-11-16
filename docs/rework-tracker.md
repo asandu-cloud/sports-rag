@@ -3010,6 +3010,19 @@ backend).** The number was held since 7 Nov (D78).
   - **Task 14 dropped (owner, 16 Nov): the ClubElo yardstick.** Past results alone do not beat the market (task
     13), so comparing our Elo with ClubElo's cannot change the conclusion. No download was made. The owner asked
     for the phase 2 plan next.
+  - **Phase 2 plan written (16 Nov), waiting for the owner:** `docs/superpowers/plans/2026-11-16-game-read-phase-2.md`,
+    9 tasks:
+    - shot ratings (S3), then rest (C1), into models 3–4 through the ablation gate;
+    - the lean-away blend (model 5b);
+    - boosted trees on the market's error (model 6), and on the outcome (model 7);
+    - the average of what passes;
+    - the runs and the report.
+    - *Finding:* our xG exists only from 2023/24, so S2 cannot be tuned without the locked seasons; the plan asks
+      the owner to leave it out.
+    - *Locked seasons:* phase 2's frozen versions get one locked run. Because phase 1's locked results are known,
+      a new fresh block, the 2026/27 season so far, is the last check. The lean-away lead, found on the locked
+      seasons, must show on tuning and on the fresh block instead.
+    - Three decisions for the owner: S2, how the 2026/27 CSVs are fetched, and the fresh block.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
