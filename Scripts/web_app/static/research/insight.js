@@ -156,6 +156,9 @@ export function headlineLead(h, ranking = {}) {
   return `<p class="lead">${text}</p>${early}`;
 }
 
+// The backend's reasons for ranks it holds back while it rebuilds them; any other reason it may add says only "no
+// ranks yet". too_few_peers: the owner's 10-peer floor (16 Nov).
+const REBUILDING = ['ranks_not_built', 'ranks_stale_or_missing', 'rank_policy_changed_rebuild_required'];
 export function rankCard(d, kind, {rankMetrics, rankGroups}) {
   const r = d.ranking, ranked = !!(r.ranked || r.provisional);
   const defs = rankMetrics[kind], groups = rankGroups[kind], scope = scopeOf(kind, d);
@@ -195,7 +198,9 @@ export function rankCard(d, kind, {rankMetrics, rankGroups}) {
     const why = r.reason === 'below_minutes_threshold' ? `Ranked from ${whole(r.minimum_minutes)} minutes · ${whole(r.sample_minutes)} so far`
       : r.reason === 'below_matches_threshold' ? `Ranked from ${r.minimum_matches} matches · ${r.sample_matches} so far`
       : r.reason === 'unknown_position' ? 'No position recorded, so no fair group to rank against'
-      : `Ranks for ${d.season.label} are being rebuilt`;
+      : r.reason === 'too_few_peers' ? `Ranked once ${r.minimum_peers ?? 10} ${peerLabel || 'players in the group'} qualify${Number.isFinite(r.qualified_peers) ? ` · ${whole(r.qualified_peers)} so far` : ''}`
+      : REBUILDING.includes(r.reason) ? `Ranks for ${d.season.label} are being rebuilt`
+      : `No ranks for ${d.season.label} yet`;
     status = `<p class="quiet-line"><span class="quiet">${escape(why)}</span>${prevLink}</p>`;
   }
   const note = !ranked ? 'Select a row to see it match by match.'

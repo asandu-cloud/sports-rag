@@ -41,6 +41,23 @@ const fixture = name => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixture
   assert.doesNotMatch(teamCard, /class="dot"/);
   assert.match(text(teamCard), /Ranks for 2026\/27 are being rebuilt/);
 
+  // The owner's 10-peer floor (16 Nov): a player over the minutes threshold in a group with fewer than 10 qualified
+  // players gets plain numbers and how far the group is from ranking (shape proposed to the backend).
+  const floor = {...palmer, ranking: {...palmer.ranking, ranked: false, provisional: false, reason: 'too_few_peers', sample_minutes: 1200, qualified_peers: 7, minimum_peers: 10}};
+  const floorCard = h.rankCard(floor, 'players', defs);
+  assert.doesNotMatch(floorCard, /class="dot"/, 'no position below the floor');
+  assert.match(text(floorCard), /Ranked once 10 Premier League midfielders qualify · 7 so far/);
+  const floorBare = {...floor, ranking: {...floor.ranking, qualified_peers: undefined, minimum_peers: undefined}};
+  assert.match(text(h.rankCard(floorBare, 'players', defs)), /Ranked once 10 Premier League midfielders qualify/);
+  assert.doesNotMatch(text(h.rankCard(floorBare, 'players', defs)), /so far/);
+  // Only the rebuild reasons say "being rebuilt"; a reason the page does not know claims nothing.
+  const unknown = h.rankCard({...palmer, ranking: {...palmer.ranking, reason: 'something_new'}}, 'players', defs);
+  assert.doesNotMatch(text(unknown), /being rebuilt/);
+  assert.match(text(unknown), /No ranks for 2026\/27 yet/);
+  for (const reason of ['ranks_not_built', 'rank_policy_changed_rebuild_required']) {
+    assert.match(text(h.rankCard({...chelsea, ranking: {...chelsea.ranking, reason}}, 'teams', defs)), /Ranks for 2026\/27 are being rebuilt/);
+  }
+
   // Taylor, ranked in 2025/26: the season's cards a match marked, with how he compares, and the line.
   const taylor = fixture('research_referee_taylor.json');
   const answer = h.refereeAnswer(taylor, {current: false, line: 3.5});
