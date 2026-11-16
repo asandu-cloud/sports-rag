@@ -30,8 +30,8 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
 |---|---|---|---|---|---|
 | 1 | History loader | Done 15 Nov | cfc881e | eed3af6 | 11 new, all pass; suite 3,079 passed + the 3 known errors |
 | 2 | Margins of our saved reads | Done 15 Nov | cce0817 | c450daa | 5 new, all pass; suite 3,084 passed + the 3 known errors |
-| 3 | The rebuilt Most likely pool | Done 16 Nov | 14ba2c2 | the "Done game-read task 3" commit | 7 new, all pass; suite 3,139 passed + the 3 known errors |
-| 4 | Today's rules and the engine's rules | Not started | | | |
+| 3 | The rebuilt Most likely pool | Done 16 Nov | 14ba2c2 | 89e0ad2 | 7 new, all pass; suite 3,139 passed + the 3 known errors |
+| 4 | Today's rules and the engine's rules | In progress | the "Start game-read task 4" commit | | |
 | 5 | Forecasts, walk-forward runner, zero and control lines | Not started | | | |
 | 6 | The scores | Not started | | | |
 | 7 | Bench command, report, Opportunities, locked-run guard | Not started | | | |
