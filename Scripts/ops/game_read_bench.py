@@ -23,6 +23,7 @@ import time
 
 from Scripts.data_platform.game_read import history, opportunities, report, rules, scores, walkforward
 from Scripts.data_platform.game_read.models.dixon_coles import DixonColes
+from Scripts.data_platform.game_read.models.drifting import Drifting
 from Scripts.data_platform.game_read.models.elo import Elo
 from Scripts.data_platform.game_read.models.market import MarketControl, MarketCopy
 from Scripts.data_platform.game_read.models.pi_ratings import PiRatings
@@ -32,7 +33,7 @@ LEDGER = ROOT / "Research" / "game-read-bench" / "locked-runs.jsonl"
 BENCH_CODE = ("Scripts/data_platform/game_read", "Scripts/ops/game_read_bench.py")
 REFERENCES = ("market", "control")
 MODELS = {"market": MarketCopy, "control": MarketControl, "elo": Elo, "pi": PiRatings,
-          "dc": DixonColes}  # Tasks 11–12 add more
+          "dc": DixonColes, "drift": Drifting}  # Task 12 adds the average
 ZERO_BLEND = 1e-6
 
 

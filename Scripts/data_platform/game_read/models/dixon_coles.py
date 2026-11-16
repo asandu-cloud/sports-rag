@@ -201,7 +201,7 @@ class DixonColes:
         self._new = {}  # (match id, team) -> in its first season in the division, not coming down
         self._stale = False
 
-    def _is_new(self, match: Match, team: str) -> bool:
+    def is_new(self, match: Match, team: str) -> bool:
         league, season = match.competition, match.season
         last = self._members.get((league, season - 1))
         if not last or team in last:
@@ -214,7 +214,7 @@ class DixonColes:
             home, away, rho = *PRIOR, 0.0
         else:
             home, away = self.fitted.means_for(match.competition, match.home, match.away,
-                                               self._is_new(match, match.home), self._is_new(match, match.away))
+                                               self.is_new(match, match.home), self.is_new(match, match.away))
             rho = self.fitted.rho
         matrix = corrected(home, away, rho)
         return Forecast(result=_result(matrix), score_matrix=matrix)
@@ -233,7 +233,7 @@ class DixonColes:
     def learn(self, matches: Sequence[Match]) -> None:
         for match in matches:
             for team in (match.home, match.away):
-                self._new[(match.id, team)] = self._is_new(match, team)
+                self._new[(match.id, team)] = self.is_new(match, team)
         for match in matches:
             for team in (match.home, match.away):
                 self._members[(match.competition, match.season)].add(team)

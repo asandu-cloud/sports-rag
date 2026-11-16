@@ -2903,6 +2903,37 @@ backend).** The number was held since 7 Nov (D78).
       - closing check: +0.01 [−0.03, +0.04]. Unlike Elo and pi, closing prices do not move away from its picks.
     - Tests: 5 new, all pass. The full suite: 3,192 passed, plus the 3 known errors. Golden unchanged; no live code
       changed.
+  - **Task 11 done (16 Nov): drifting ratings, model 4** (`Scripts/data_platform/game_read/models/drifting.py`;
+    `drift` in the bench).
+    - *How it works:* model 3's structure, but each rating moves at its own pace.
+      - It starts from model 3's fit on the first scored day.
+      - After each match, every rating in a side's expected goals takes one filter step on that side's goals. The
+        ratings are league level, home advantage, attack and defence; a rating with more uncertainty moves more.
+      - Uncertainty grows a little each day, and more at a team's first match of a new season.
+      - The whole tuning run takes about 2 s.
+    - *Ruling (the filter, left to the builder):*
+      - a Kalman step on the log of the expected goals, each rating's uncertainty kept on its own, without the
+        links between ratings;
+      - league level and home advantage are filtered too, so a change in a league's scoring is followed;
+      - rho and the promoted-team shift stay at model 3's values; the shift is added once, at a promoted team's
+        first match in its new division;
+      - a newcomer starts with an uncertainty of 0.0625, about the spread of attack ratings within a league;
+      - `gain` is the uncertainty a rating gains per day.
+    - *Tuned by the sum of the result and over 2.5 log losses:* gain 3e-6 and summer widening 0.01. The grid was
+      gain 1e-6 to 3e-4 and widening 0 to 0.1; it is flat within 0.0003 for gains 1e-6 to 1e-5 with a widening of
+      0.003 to 0.01. The sum is 1.6826, against model 3's 1.6831.
+    - *Finding:* the best settings move ratings mostly over the summer and very little within a season. A
+      faster drift (gain 1e-4 or more) is clearly worse on both markets.
+    - *Tuning seasons, 14,383 matches* (`Research/game-read-bench-2026-11-16-drift/`). It fails every score:
+      - accuracy: result 0.0159 worse than the market's [0.0131, 0.0188], handicap 0.0126 worse, over 2.5 0.0081
+        worse;
+      - blend: c below zero on all three markets;
+      - Most likely: −0.52 per 100 against today's lists [−0.99, −0.05] ranked by edge, and −0.47 ranked by
+        blended chance. That is worse than model 3's −0.20, although its result log loss is slightly better;
+      - Value at the average price: 17,993 picks, −8.3% return;
+      - closing check: +0.01 [−0.04, +0.04].
+    - Tests: 3 new, all pass. The full suite: 3,195 passed, plus the 3 known errors. Golden unchanged; no live code
+      changed.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their

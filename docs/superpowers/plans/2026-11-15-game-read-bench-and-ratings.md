@@ -38,7 +38,7 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
 | 8 | Elo (model 1) | Done 16 Nov | 5647819 | e3e3266 | 8 new, all pass; suite 3,183 passed + the 3 known errors; k 15, carry 0.9 |
 | 9 | Pi-ratings (model 2) | Done 16 Nov | 6cf4cd5 | b004822 | 4 new, all pass; suite 3,187 passed + the 3 known errors; learning 0.05, cross 0.5 |
 | 10 | Dixon–Coles with time decay (model 3) | Done 16 Nov | bf9408c | 7471f94 | 5 new, all pass; suite 3,192 passed + the 3 known errors; half-life 365 days |
-| 11 | Drifting ratings (model 4) | In progress | the "Start game-read task 11" commit | | |
+| 11 | Drifting ratings (model 4) | Done 16 Nov | 3b8eff7 | the "Done game-read task 11" commit | 3 new, all pass; suite 3,195 passed + the 3 known errors; gain 3e-6, summer widening 0.01 |
 | 12 | The average of the models | Not started | | | |
 | 13 | Phase 1 runs and the first report to the owner | Not started | | | |
 | 14 | ClubElo yardstick (only with the owner's yes) | Not started | | | |
