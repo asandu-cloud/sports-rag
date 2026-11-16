@@ -1,8 +1,8 @@
 // Research Area overhaul (D107, task 6): one match's research view, from B2's research-match.v1. The head, How Spix
 // reads it, the markets row, the open market's section (SECTIONS, filled by tasks 7 to 9) and the foot line. Pure
 // functions returning HTML; research.js places them and wires the clicks.
-import {escape, one, LINES, DEFAULT_LINE, passes, hitCount, strip, shortDay} from './insight.js?v=research-20261116k';
-import {crest, whenText, readState, opensDay, possessive} from './upcoming.js?v=research-20261116k';
+import {escape, one, LINES, DEFAULT_LINE, passes, hitCount, strip, shortDay} from './insight.js?v=research-20261116l';
+import {crest, whenText, readState, opensDay, possessive} from './upcoming.js?v=research-20261116l';
 
 export const MARKETS = ['cards', 'sot', 'goals', 'corners', 'result', 'h2h', 'news'];
 export const MARKET_LABELS = {cards: 'Cards', sot: 'Shots on target', goals: 'Goals', corners: 'Corners', result: 'Result',
@@ -97,13 +97,15 @@ function lineRow(market, line) {
   return `<div class="lines"><span>Line</span>${segment('mline', `${MARKET_LABELS[market]} line`, LINES[market].map(v => [v, v]), line)}</div>`;
 }
 
-// One option: its label, Spix's chance and the typical price; "Spix leans this way" over 50%. Add only when the read
-// has the option in a market the slip takes (addLegDetail finds it).
+// One option: its label, Spix's chance and the typical price; the side over 50% is tagged. Cards carry no Spix
+// suggestion (D61), so theirs reads "More likely" (owner, 16 Nov). Add only when the read has the option in a market
+// the slip takes (addLegDetail finds it).
+const LEAN = {cards: 'More likely'};
 function pickCard(match, {label, chance, price, market, side, line}) {
   const lean = chance > 0.5, addable = market && addLegDetail(match, market, side, line);
   const button = addable ? `<button type="button" class="mk-add" data-add="${market}|${side}|${line}" aria-label="Add ${escape(label)} to the slip">Add</button>` : '';
   const parts = [chance == null ? '' : `Spix <b>${pct(chance)}</b>`, price == null ? '' : `typical price <b>${Number(price).toFixed(2)}</b>`].filter(Boolean);
-  return `<div class="mk-pick${lean ? ' lean' : ''}"><span class="mk-pl">${escape(label)}</span>${lean ? ' <span class="mk-lean">Spix leans this way</span>' : ''}<span class="mk-pc">${parts.join(' · ')}</span>${button}</div>`;
+  return `<div class="mk-pick${lean ? ' lean' : ''}"><span class="mk-pl">${escape(label)}</span>${lean ? ` <span class="mk-lean">${LEAN[market] || 'Spix leans this way'}</span>` : ''}<span class="mk-pc">${parts.join(' · ')}</span>${button}</div>`;
 }
 const WAITING = '<p class="mk-note">Spix\'s chances and typical prices show once the read is out.</p>';
 

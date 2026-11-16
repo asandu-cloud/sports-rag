@@ -86,7 +86,9 @@ const fixture = name => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixture
   assert.match(text(cards), /^Cards Spix expects 4 cards Line 2\.5 3\.5 4\.5 5\.5/);
   assert.equal((cards.match(/data-mline="/g) || []).length, 4);
   assert.match(cards, /data-mline="3\.5" aria-pressed="true"/);
-  assert.match(text(cards), /Over 3\.5 cards Spix leans this way Spix 71% · typical price 1\.35/);
+  // Cards carry no Spix suggestion (D61), so the likelier side reads "More likely" (owner, 16 Nov).
+  assert.match(text(cards), /Over 3\.5 cards More likely Spix 71% · typical price 1\.35/);
+  assert.doesNotMatch(cards, /Spix leans this way/);
   assert.match(text(cards), /Under 3\.5 cards Spix 29% · typical price 3\.07/);
   assert.doesNotMatch(cards, /data-add/, 'no Add on cards');
   assert.equal((cards.match(/class="strip"/g) || []).length, 4);
@@ -111,7 +113,7 @@ const fixture = name => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixture
   // Another line recounts the history; a line the read has no price for says so.
   assert.match(text(m.cardsSection(atleti, {line: 2.5})), /No typical price for 2\.5 cards yet\. Spix's chances cover 3\.5, 4\.5 and 5\.5\./);
   assert.match(text(m.cardsSection(atleti, {line: 2.5})), /Atletico Madrid's matches Last 10, every competition 8 of 10/);
-  assert.match(text(m.cardsSection(atleti, {line: 4.5})), /Over 4\.5 cards Spix leans this way Spix 52%/);
+  assert.match(text(m.cardsSection(atleti, {line: 4.5})), /Over 4\.5 cards More likely Spix 52%/);
   assert.match(m.cardsSection(atleti, {}), /data-mline="3\.5" aria-pressed="true"/, '3.5 by default');
 
   // Chelsea v Leeds today: no read, no referee. Three rows, and the referee line.
