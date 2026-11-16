@@ -54,5 +54,15 @@ const fixture = name => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixture
   assert.equal((answer.chart.match(/class="lc-col /g) || []).length, 10);
   assert.match(answer.chart, /Line 3\.5 cards/);
 
+  // The opening line from the API's headline, its figure marked; B5 (backend 0c8e675) flags a provisional rank.
+  const head = {text: '0.6 goals per 90, more than 80% of midfielders', display_value: '0.6', value: 0.62, provisional: false};
+  assert.equal(h.headlineLead(head, palmer.ranking), '<p class="lead"><mark>0.6</mark> goals per 90, more than 80% of midfielders.</p>');
+  const earlyLead = h.headlineLead({...head, provisional: true}, {...palmer.ranking, sample_minutes: 450});
+  assert.match(text(earlyLead), /^0\.6 goals per 90, more than 80% of midfielders\. Early season · 450 minutes so far Rates move a lot with one match\.$/);
+  assert.match(earlyLead, /<p class="quiet-line"><span class="quiet">Early season · 450 minutes so far<\/span>/);
+  assert.doesNotMatch(h.headlineLead({...head, provisional: undefined}, palmer.ranking), /Early season/, 'an older payload has no flag');
+  assert.equal(h.headlineLead(null, palmer.ranking), '');
+  assert.equal(h.headlineLead({text: 'x'}, palmer.ranking), '', 'no figure, no headline');
+
   console.log('test_research_ranks_web: ok');
 })().catch(error => { console.error(error); process.exit(1); });

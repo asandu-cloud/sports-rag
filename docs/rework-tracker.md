@@ -2775,6 +2775,11 @@ test bets (Over 2.5 cards in Chelsea's next match; a player's shots on target) t
     Index link (no Python changed on the branch). Still to do: every research view against the real endpoints on 8100
     once B1 and B2 (backend d7d7da9) are merged into main and here. Static files only: no migration, no .env line; the
     website needs no restart beyond the usual one after a merge.
+  - Task 4 follow-up, 16 Nov: the backend's B5 (0c8e675) gives players under 900 minutes provisional ranks, but
+    only among at least 10 ranked players in their position, and flags `headline.provisional`. The player page's
+    opening line now adds "Early season · N minutes so far. Rates move a lot with one match." under the headline when
+    that flag is true, as the rank card does. Without the flag (today's API) nothing changes. Cache tag
+    research-20261116k.
 
 **D108 — Why cards were missing at kickoff (15 Nov; backend, read-only).** The orchestrator asked why so few
 domestic matches had a card on the board at kickoff (D77, task 2). Checked on the 10 domestic leagues, 5 Sep–14 Nov,

@@ -144,6 +144,18 @@ const whole = n => Number.isFinite(n) ? n.toLocaleString('en-GB') : '–';
 
 // The rank card uses only this page's season. Unranked, it shows the season's values without positions, says how far
 // from the threshold it is, and links to the last season that has ranks; with B5's early ranks it shows them, marked.
+// A profile's opening line from the API's headline, its figure marked. B5: a provisional rank (under the minutes
+// threshold, among at least 10 ranked peers) says so under it, as the rank card does.
+export function headlineLead(h, ranking = {}) {
+  if (!h?.text || !h.display_value) return '';
+  const shown = h.display_value.endsWith('%') ? h.display_value : one(h.value);
+  let text = escape(h.text).replace(escape(h.display_value), `<mark>${escape(shown)}</mark>`);
+  if (!/[.!?]$/.test(h.text)) text += '.';
+  const so = Number.isFinite(ranking?.sample_minutes) ? ` · ${whole(ranking.sample_minutes)} minutes so far` : '';
+  const early = h.provisional === true ? `<p class="quiet-line"><span class="quiet">Early season${so}</span> Rates move a lot with one match.</p>` : '';
+  return `<p class="lead">${text}</p>${early}`;
+}
+
 export function rankCard(d, kind, {rankMetrics, rankGroups}) {
   const r = d.ranking, ranked = !!(r.ranked || r.provisional);
   const defs = rankMetrics[kind], groups = rankGroups[kind], scope = scopeOf(kind, d);

@@ -1,7 +1,7 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116j';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES} from './insight.js?v=research-20261116j';
-import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116j';
-import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261116j';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116k';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead} from './insight.js?v=research-20261116k';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116k';
+import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261116k';
 
 const API = '/api/research';
 
@@ -539,13 +539,8 @@ function mountResearch(root, navigate) {
     return `<div class="p-head">${pic}<div class="p-title"><h2 class="p-name" tabindex="-1">${escape(s.name)}</h2><div class="p-meta">${meta.filter(Boolean).map(m => `<span>${escape(m)}</span>`).join('')}</div>${chips.length ? `<div class="p-chips">${chips.join('')}</div>` : ''}</div>${scopePicker(d)}</div>`;
   }
   function profileLead(d) {
-    const h = d.headline;
-    if (h?.text && h.display_value) {
-      const shown = h.display_value.endsWith('%') ? h.display_value : one(h.value);
-      let text = escape(h.text).replace(escape(h.display_value), `<mark>${escape(shown)}</mark>`);
-      if (!/[.!?]$/.test(h.text)) text += '.';
-      return `<p class="lead">${text}</p>`;
-    }
+    const lead = headlineLead(d.headline, d.ranking);
+    if (lead) return lead;
     const t = d.totals;
     if (state.area === 'players') return `<p class="lead"><mark>${plural(t.goals, 'goal')}</mark> and ${plural(t.shots, 'shot')} in ${plural(t.appearances, 'appearance')} for ${escape(d.subject.club?.name || 'their club')} in ${escape(d.competition?.name || 'this competition')}, ${escape(d.season.label)}.</p>`;
     if (state.area === 'teams') return `<p class="lead">${plural(t.wins, 'win')}, ${plural(t.draws, 'draw')} and ${plural(t.losses, 'loss', 'losses')} from ${plural(t.matches, 'match', 'matches')}, scoring <mark>${whole(t.goals_for)}</mark> and conceding ${whole(t.goals_against)}.</p>`;
@@ -1049,8 +1044,8 @@ class SpixResearch extends HTMLElement {
     const root = this.attachShadow({mode: 'open'});
     root.innerHTML = '<p role="status">Loading Research Area…</p>';
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261116j', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261116j', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261116k', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261116k', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));
