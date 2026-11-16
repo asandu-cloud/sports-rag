@@ -236,7 +236,7 @@ button.who:hover,button.who:focus-visible{background:var(--surface2)}
 .lc{margin-top:16px}
 .lc-plot{position:relative;display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:8px;height:150px;align-items:end;border-bottom:1px solid var(--border)}
 .lc-col{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
-.lc-col b{font-size:13px;margin-bottom:4px}
+.lc-col b{font-size:13px;margin-bottom:4px;position:relative;z-index:1;padding:0 3px;border-radius:3px;background:var(--surface)}
 .lc-col i{display:block;width:70%;max-width:34px;background:var(--accent);border-radius:3px 3px 0 0}
 .lc-col.miss i{background:var(--border)}
 .lc-col.miss b,.lc-col.zero b,.lc-col.none b{color:var(--text3)}

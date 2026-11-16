@@ -53,6 +53,10 @@ const fixture = name => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixture
   assert.equal(text(h.refereeAnswer(taylor, {current: true, line: 4.5}).lead), '4.3 cards a match this season, more than 59% of referees.');
   assert.equal((answer.chart.match(/class="lc-col /g) || []).length, 10);
   assert.match(answer.chart, /Line 3\.5 cards/);
+  // A value at the line's height stays readable: its label sits on the card's ground above the dashed line
+  // (real-data pass, 16 Nov: Oliver's "3" read as struck through at 3.5).
+  const css = fs.readFileSync(path.join(__dirname, '../web_app/static/research/research.css'), 'utf8');
+  assert.match(css, /\.lc-col b\{[^}]*position:relative;z-index:1;[^}]*background:var\(--surface\)/);
 
   // The opening line from the API's headline, its figure marked; B5 (backend 0c8e675) flags a provisional rank.
   const head = {text: '0.6 goals per 90, more than 80% of midfielders', display_value: '0.6', value: 0.62, provisional: false};

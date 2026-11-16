@@ -2789,6 +2789,9 @@ test bets (Over 2.5 cards in Chelsea's next match; a player's shots on target) t
     "In play", "Full time", "Postponed", "Cancelled" or "Abandoned", a plain sentence in place of the read, and
     "shown before kickoff only" in the sections. A read still carried after kickoff (the board's Live tab keeps it)
     is headed "How Spix read it before kickoff" and takes no Add. Cache tag research-20261116m.
+  - Task 4, from the same pass: on a referee's last-10 chart a value at the line's height (Michael Oliver's 3s at
+    3.5) read as struck through by the dashed line. Each value now sits on a small patch of the card's ground above
+    the line. Cache tag research-20261116n.
 
 **D108 — Why cards were missing at kickoff (15 Nov; backend, read-only).** The orchestrator asked why so few
 domestic matches had a card on the board at kickoff (D77, task 2). Checked on the 10 domestic leagues, 5 Sep–14 Nov,
