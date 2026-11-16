@@ -2963,6 +2963,50 @@ backend).** The number was held since 7 Nov (D78).
       - closing check: −0.01 [−0.05, +0.03].
     - Tests: 4 new (3 for the average, 1 for the bench), all pass. The full suite: 3,199 passed, plus the 3 known
       errors. Golden unchanged; no live code changed.
+  - **Task 13 done (16 Nov): phase 1 runs and the first report.** Model versions frozen at 1f665d6. One fix
+    before the freeze: the report now says the average's tuning scores are in-sample (a4081ba).
+    - *Tuning run* of every model at 1f665d6 (`Research/game-read-bench-2026-11-16-phase1/`): the zero line passed
+      on 14,383 matches, and the scores match each task's own run.
+    - *The one locked run:* ledger line 1 of `Research/game-read-bench/locked-runs.jsonl`.
+      - Run at 2026-11-16 19:09 UTC on commit 1f665d6, with market, control, elo, pi, dc, drift and average.
+      - 10,711 matches of 2023–2025 (`Research/game-read-bench-2026-11-16-locked/`). The zero line passed.
+      - It is never to be rerun for these versions; a new version gets its own single locked run.
+    - *Every model fails every score, on both blocks* (verdicts: blend, Most likely and Value all fail):
+
+      | Model | Result log loss vs market, tuning / locked | Most likely vs today, per 100, locked (edge) | Value at the average price, locked |
+      |---|---|---|---|
+      | Elo | +0.0157 / +0.0181 | −0.50 [−0.83, −0.16] | 8,347 picks, −12.0% |
+      | Pi-ratings | +0.0205 / +0.0215 | −0.27 [−0.62, +0.07] | 8,943 picks, −12.4% |
+      | Dixon–Coles | +0.0165 / +0.0232 | −0.39 [−0.91, +0.14] | 13,385 picks, −15.2% |
+      | Drifting | +0.0159 / +0.0185 | −0.48 [−1.02, +0.06] | 12,861 picks, −13.5% |
+      | Average | +0.0134 / +0.0170 | −0.66 [−1.26, −0.06] | 12,294 picks, −14.1% |
+      | Control | +0.0004 / +0.0008 | −0.17 [−0.56, +0.23] | 82 picks, −6.3% |
+
+      - Over 2.5 log loss on the locked seasons: Dixon–Coles +0.0075, drifting +0.0080, average +0.0073.
+      - Closing line value of the engine's Value picks: −7% to −8% for every rating model.
+      - The average's tuning edge over its members (fitted in-sample) mostly holds on the locked seasons: the best
+        result log loss there too (+0.0170, against +0.0181 for Elo, the best single model).
+    - *Model 5 (the market blend) answered for the rating models:* none earns a weight above zero (c from −0.07 to
+      −0.14). The live c of D20/D21 stays at 0. Model 8 (Bayesian) is not built: the spec builds it only if models
+      3–4 add anything to the market, and they do not.
+    - *Finding (a lead for phase 2, no pick change):* on the locked seasons, a blend that leans slightly away from
+      the model beats the market alone for Elo (−0.00024 [−0.00047, −0.00003]), Dixon–Coles (−0.00038 [−0.00062,
+      −0.00013]) and the average (−0.00036 [−0.00064, −0.00008]). Where the market has moved away from what past
+      scores say, it tended to be right and could have moved a little further. The rules count it a fail (c must
+      be above zero), and it is tiny next to the market's log loss of about 0.98. It is worth one test in phase 2:
+      the boosted trees on the market's error (model 6) take the ratings as inputs and can find it if it is real.
+    - *Today's rules on the locked seasons:*
+      - Most likely: 32,132 picks, won 65.3%, +0.87 per 100 above the market's chances;
+      - Value: no picks at the average price; at the best price, 673 picks, −5.0% return, closing line value
+        +4.1% [3.1, 5.1]. On tuning it was +3.0% return and +4.0% closing line value.
+    - *Opportunities (tuning seasons only), as in phase 0:*
+      - draws shorten towards the close (+0.11 points [+0.08, +0.15]);
+      - Belgian home wins drift out (−0.64) and away wins in (+0.61);
+      - promoted teams' first 10 matches: +0.3 points [−1.9, +2.6].
+      Every lead is far smaller than the margin, and no return group stays above zero. Nothing to follow.
+    - *What phase 2 does next* (needs its own plan): D12's variables (xG, shots in the box, rest) enter models 3–4
+      one at a time through the ablation gate; then model 6 (boosted trees on the market's error) and model 7
+      (boosted trees on the outcome); then the average of what passes. Task 14 (ClubElo) waits for the owner's yes.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
