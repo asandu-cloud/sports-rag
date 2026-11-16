@@ -61,3 +61,60 @@ export function labelledColumns(items, {line, label, legend, noun}) {
     <div class="legend"><span><i class="lg-hit"></i>Reached the line</span><span><i class="lg-miss"></i>Did not</span><span><i class="lg-line"></i>${escape(legend)}</span></div>
     <details class="tbl"><summary>Show as table</summary><div class="tbl-wrap"><table><thead><tr><th>Match</th><th>${escape(noun)}</th></tr></thead><tbody>${items.map(it => `<tr><td>${escape(it.title)}</td><td>${it.value == null ? '–' : one(it.value)}</td></tr>`).join('')}</tbody></table></div></details></div>`;
 }
+
+// ----- The team page (task 2) -----
+const WORDS = {cards: {noun: 'cards', heavy: 'card-heavy'}, goals: {noun: 'goals', heavy: 'high-scoring'}, corners: {noun: 'corners', heavy: 'corner-heavy'}};
+const mean = values => { const known = values.filter(v => v != null); return known.length ? known.reduce((a, b) => a + b, 0) / known.length : null; };
+export const shortDay = iso => new Date(iso).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', timeZone: 'Europe/London'});
+const where = row => `${row.venue === 'home' ? 'v' : 'at'} ${row.opponent?.abbreviation || row.opponent?.short_code || row.opponent?.name || '?'}`;
+
+// "Chelsea's matches are card-heavy: 9 of their last 10 had 4 or more cards." The heavy word needs 7 in 10.
+export function teamLead(name, rows, market, line = DEFAULT_LINE[market]) {
+  const {hits, of} = hitCount(rows.map(r => marketTotal(r, market)), line);
+  if (!of) return '';
+  const w = WORDS[market], heavy = hits >= 0.7 * of;
+  return `${escape(name)}'s matches${heavy ? ` are ${w.heavy}` : ''}: <mark>${hits} of their last ${of}</mark> had ${Math.ceil(line)} or more ${w.noun}.`;
+}
+
+export function teamLeadSub(name, rows, market) {
+  const own = mean(rows.map(r => r[`${market}_for`])), other = mean(rows.map(r => r[`${market}_against`]));
+  if (own == null || other == null) return '';
+  if (market === 'cards') return other > own ? `their opponents got most of the cards (${one(other)} a match, ${name} ${one(own)})`
+    : `${name} got most of the cards (${one(own)} a match, their opponents ${one(other)})`;
+  if (market === 'goals') return `${name} scored ${one(own)} a match and conceded ${one(other)}`;
+  return `${name} won ${one(own)} corners a match and conceded ${one(other)}`;
+}
+
+// Last 10 at a glance: the sketch's rows, each a strip of the matches and a written count.
+export function glance(name, rows, market) {
+  const total = rows.map(r => marketTotal(r, market)), own = rows.map(r => r[`${market}_for`]), other = rows.map(r => r[`${market}_against`]);
+  const both = rows.map(r => r.goals_for == null || r.goals_against == null ? null : r.goals_for > 0 && r.goals_against > 0 ? 1 : 0);
+  const list = {
+    cards: [['4+ cards in the match', total, v => v >= 4], ['5+ cards in the match', total, v => v >= 5],
+      [`${name} booked 2+ times`, own, v => v >= 2], ['Opponent booked 3+ times', other, v => v >= 3]],
+    goals: [['3+ goals in the match', total, v => v >= 3], ['Both teams scored', both, v => v === 1], [`${name} scored 2+`, own, v => v >= 2]],
+    corners: [['10+ corners in the match', total, v => v >= 10], [`${name} won 5+ corners`, own, v => v >= 5]]
+  }[market];
+  const labels = rows.map(where);
+  return `<div class="glance">${list.map(([label, values, test]) => {
+    const known = values.filter(v => v != null);
+    return `<div class="g-row"><span class="g-l">${escape(label)}</span><span class="g-s">${strip(values, test, labels)}</span><span class="g-n">${known.filter(test).length} of ${known.length}</span></div>`;
+  }).join('')}</div>`;
+}
+
+// Cards (or goals, corners) by match: the team's and the opponent's stacked, the total written, the line dashed.
+export function stackedColumns(name, rows, market, line = DEFAULT_LINE[market]) {
+  const totals = rows.map(r => marketTotal(r, market));
+  const max = Math.max(line + 1, ...totals.filter(v => v != null)) * 1.12;
+  const cols = rows.map((r, i) => {
+    const a = r[`${market}_for`], b = r[`${market}_against`], t = totals[i];
+    const label = `${r.venue === 'home' ? 'v' : 'at'} ${r.opponent?.name || 'Opponent'}, ${shortDay(r.date)}: ${t == null ? 'not recorded' : `${name} ${a}, ${r.opponent?.name || 'Opponent'} ${b}, ${t} in all`}`;
+    const bars = t == null ? '<b>–</b>' : `<b>${t}</b><i class="opp" style="height:${b / max * 100}%"></i><i class="own" style="height:${a / max * 100}%"></i>`;
+    return `<div class="sc-col" role="img" aria-label="${escape(label)}">${bars}</div>`;
+  }).join('');
+  const x = rows.map(r => `<span>${escape(r.opponent?.abbreviation || r.opponent?.short_code || '?')}<small>${r.venue === 'home' ? 'H' : 'A'}</small></span>`).join('');
+  const own = mean(rows.map(r => r[`${market}_for`])), other = mean(rows.map(r => r[`${market}_against`]));
+  return `<div class="sc" style="--n:${rows.length}"><div class="sc-plot">${cols}<div class="sc-line" style="bottom:${line / max * 100}%"></div></div><div class="sc-x">${x}</div></div>
+    <div class="legend sc-legend"><span><i class="own"></i>${escape(name)} ${one(own)} a match</span><span><i class="opp"></i>Opponents ${one(other)} a match</span><span><i class="lg-line"></i>Line ${line} ${WORDS[market].noun}</span></div>
+    <p class="card-note">The number above each column is the match total.</p>`;
+}

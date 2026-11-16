@@ -1,5 +1,5 @@
 import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116a';
-import {one} from './insight.js?v=research-20261116a';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns} from './insight.js?v=research-20261116b';
 
 const API = '/api/research';
 
@@ -338,13 +338,34 @@ function mountResearch(root, navigate) {
     const kind = state.area;
     const pair = (a, b) => a && b ? `<div class="grid-2">${a}${b}</div>` : (a || b || '');
     const stack = (...cards) => { const list = cards.filter(Boolean); return list.length > 1 ? `<div class="stack">${list.join('')}</div>` : list[0] || ''; };
+    if (kind === 'teams') return profileHead(d) + `<div id="teamAnswer">${teamAnswer(d)}</div>` + teamFolds(d) + dataFoot(d);
     const top = profileHead(d) + profileLead(d) + seasonLine(d) + rankNotice(d);
     let body;
     if (kind === 'players') body = pair(rankCard(d), stack(howOftenCard(d), minutesCard(d))) + pair(lastTenCard(d), funnelCard(d));
-    else if (kind === 'teams') body = pair(rankCard(d), stack(howOftenCard(d), leadersCard(d))) + pair(lastTenCard(d), homeAwayCard(d));
     else body = pair(rankCard(d), stack(howOftenCard(d), competitionCard(d))) + lastTenCard(d);
     return top + body + advancedBlock(d) + dataFoot(d);
   }
+  // The team page answers first (D107): a lead from the last 10, the sketch's glance rows and the match totals by
+  // match, for the market the bettor last chose. The older cards fold away underneath.
+  const MARKET_CHIPS = [['cards', 'Cards'], ['goals', 'Goals'], ['corners', 'Corners']];
+  const CHART_TITLE = {cards: ['Cards by match', 'Who got them'], goals: ['Goals by match', 'Scored and conceded'], corners: ['Corners by match', 'Won and conceded']};
+  state.teamMarket = MARKET_CHIPS.some(([key]) => key === store.get('spix-research-market')) ? store.get('spix-research-market') : 'cards';
+  function teamAnswer(d) {
+    const rows = lastTen(d).map(fromProfileRow), name = d.subject.name, m = state.teamMarket;
+    if (!rows.length) return '';
+    const sub = [`${d.competition?.name || ''} ${d.season.label}`.trim(), `last ${plural(rows.length, 'match', 'matches')}`, teamLeadSub(name, rows, m)].filter(Boolean).join(' · ');
+    const chips = MARKET_CHIPS.map(([key, label]) => `<button type="button" class="mchip" data-tm="${key}" aria-pressed="${key === m}">${label}</button>`).join('');
+    const [title, small] = CHART_TITLE[m];
+    return `<p class="lead">${teamLead(name, rows, m)}</p><p class="lead-sub">${escape(sub)}</p>
+      <section class="card"><div class="card-h"><h3>Last ${rows.length} at a glance</h3><small>Newest on the right · filled = it happened</small></div>
+      <div class="mchips" role="group" aria-label="Market">${chips}</div>${glance(name, rows, m)}</section>
+      <section class="card"><div class="card-h"><h3>${title}</h3><small>${small}, last ${rows.length}</small></div>${stackedColumns(name, rows, m)}</section>`;
+  }
+  function teamFolds(d) {
+    const fold = (title, note, html) => html ? `<details class="fold"><summary><span>${title} <small>· ${note}</small></span><span class="fold-go" aria-hidden="true">›</span></summary>${html}</details>` : '';
+    return `<div class="folds">${fold('Against the league', 'ranks, this season', rankNotice(d) + rankCard(d))}${fold('Home and away', 'per match', homeAwayCard(d))}${fold('Squad leaders', 'goals, shots, bookings', leadersCard(d))}${fold('Chances by match', 'expected goals', lastTenCard(d))}${fold('Season totals', 'this competition', seasonLine(d) + advancedBlock(d).replace('<details class="adv" open>', '<details class="adv">'))}</div>`;
+  }
+
   function scopePicker(d) {
     const scopes = d.available_scopes || [];
     if (scopes.length < 2) return `<span class="scope-single">${escape(d.season.label)}${d.competition ? ' · ' + escape(d.competition.name) : ''}</span>`;
@@ -834,6 +855,8 @@ function mountResearch(root, navigate) {
     if (rank) return go(state.area, state.id, rank.dataset.scope, rank.dataset.stat);
     const leader = event.target.closest('[data-player]');
     if (leader) return go('players', leader.dataset.player, leader.dataset.scope);
+    const market = event.target.closest('[data-tm]');
+    if (market) { state.teamMarket = market.dataset.tm; store.set('spix-research-market', state.teamMarket); $('teamAnswer').innerHTML = teamAnswer(state.profile); return $('teamAnswer').querySelector(`[data-tm="${state.teamMarket}"]`)?.focus({preventScroll: true}); }
     if (event.target.closest('[data-retry]')) fromRoute([state.area, state.id, state.scope].filter(Boolean).join('/'));
   });
   $('profileBody').addEventListener('change', event => {
@@ -885,8 +908,8 @@ class SpixResearch extends HTMLElement {
     const root = this.attachShadow({mode: 'open'});
     root.innerHTML = '<p role="status">Loading Research Area…</p>';
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261116a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261116a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261116b', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261116b', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));

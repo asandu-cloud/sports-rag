@@ -103,7 +103,8 @@ Create `Scripts/tests/test_research_team_web.js`.
 
 **Interfaces:**
 - Consumes: Task 1's `fromProfileRow`, `marketTotal`, `hitCount`, `hitSquares`, `labelledColumns`, `LINES`.
-- Produces (`insight.js`): `teamLead(name, rows, market, line) -> html` and `stackedCards(rows, {line, name}) -> html`;
+- Produces (`insight.js`): `teamLead(name, rows, market, line) -> html`, `teamLeadSub(name, rows, market) -> string`,
+  `glance(name, rows, market) -> html` (the sketch's rows) and `stackedColumns(name, rows, market, line) -> html`;
   `research.js` state `state.teamMarket` (`cards|goals|corners`) and `state.lines` (per market), kept in
   `localStorage` key `spix-research-lines` (best effort).
 
@@ -301,7 +302,7 @@ from B1/B2 when the player's next match is open), `index.html`; extend `test_res
 | Task | Status | Commits | Tests |
 |---|---|---|---|
 | 1. Lines, hits and clearer numbers | Done | cf8a499.. | insight 1/1 file, all asserts |
-| 2. Team page answer first | In progress | | |
+| 2. Team page answer first | Done | 6d163c8.. | team + insight, all *_web.js pass |
 | 3. Stat view answer first | Not started | | |
 | 4. Referee this season first, ranks from one season | Not started | | |
 | 5. Next matches: rail, bar, sheet (B1) | Not started | | |

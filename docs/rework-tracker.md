@@ -2712,6 +2712,11 @@ test bets (Over 2.5 cards in Chelsea's next match; a player's shots on target) t
     box, and one foot line ("Past matches are records, not a forecast… 18+ · GamCare") in place of three disclaimers.
     Backend reply the same day: player shots-on-target prices are Bet365 alone, matched by name, so they stay out
     (no price column or tile).
+  - Task 2, 16 Nov: the team page answers first, as in the sketch. A lead from the last 10 for the market last chosen
+    ("Chelsea's matches are card-heavy: 9 of their last 10 had 4 or more cards", the heavy word only from 7 in 10),
+    who got the cards (opponents 3.4 a match, Chelsea 2.1), "Last 10 at a glance" (Cards, Goals, Corners: the sketch's
+    rows of squares with "N of 10"), and the match totals by match with both sides stacked and the line dashed. Ranks,
+    home and away, squad leaders, chances and season totals fold away underneath. The market is kept per browser.
 
 **D108 — Why cards were missing at kickoff (15 Nov; backend, read-only).** The orchestrator asked why so few
 domestic matches had a card on the board at kickoff (D77, task 2). Checked on the 10 domestic leagues, 5 Sep–14 Nov,
