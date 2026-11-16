@@ -30,8 +30,8 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
 | 1 | B1: a team's and a referee's next matches | Done 16 Nov | 6d7bf08 | 6b9db1e | 6 new, all pass; suite 3,105 passed + the 3 known errors |
 | 2 | B2: the match, Spix's read and its lines | Done 16 Nov | 956cfd8 | 7be8b84 | 5 new, all pass; suite 3,110 passed + the 3 known errors |
 | 3 | B2: each team's last 10, booked, shooters and what it allows | Done 16 Nov | 5b28ddd | 662ca89 | 4 new, all pass; suite 3,114 passed + the 3 known errors |
-| 4 | B2: the referee, head to head and data basis | Done 16 Nov | 6a83be6 | the "Done research-endpoints task 4" commit | 5 new, all pass; suite 3,120 passed + the 3 known errors; golden unchanged |
-| 5 | B3: this season's ranks and referee names rebuilt by the daily refresh | Not started | | | |
+| 4 | B2: the referee, head to head and data basis | Done 16 Nov | 6a83be6 | d7d7da9 | 5 new, all pass; suite 3,120 passed + the 3 known errors; golden unchanged |
+| 5 | B3: this season's ranks and referee names rebuilt by the daily refresh | In progress | the "Start research-endpoints task 5" commit | | |
 | 6 | B5: provisional ranks under 900 minutes | Not started | | | |
 
 ## Global Constraints
