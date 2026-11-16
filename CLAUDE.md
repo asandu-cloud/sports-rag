@@ -142,11 +142,15 @@ on it. The Discord bot still runs the old engine until A7.
   - Most likely still shows up to 3, Spix-backed first. Value is scored on the same bench, and every report ends
     with an Opportunities section.
   - A4 calibration is closed as a stage of its own; its weekly reruns stop once the bench runs.
-  - Code started 15 Nov (owner lifted the freeze). Tasks 1–7 are merged (phase 0, the bench, 16 Nov): the history loader,
-    the margins of our saved reads, and the test bench (`Scripts/data_platform/game_read/`,
-    `Scripts/ops/game_read_bench.py`; read-only, nothing live imports it). First tuning run: the zero line passed on
-    14,383 matches; nothing to follow in Opportunities. Nothing in the plan changes
-    a published pick. Progress: the plan's table.
+  - Code started 15 Nov (owner lifted the freeze). Phases 0–1 (tasks 1–13) are merged, 16 Nov: the history loader,
+    the bench (`Scripts/ops/game_read_bench.py`), Elo, pi-ratings, Dixon–Coles, drifting ratings and their average
+    (`Scripts/data_platform/game_read/`; read-only, nothing live imports it). Nothing in the plan changes a
+    published pick. Progress: the plan's table.
+  - The one locked run (16 Nov, 1f665d6, 2023–2025, 10,711 matches; never rerun for these versions): every rating
+    model fails every score, as on the tuning seasons. None beats the market or earns a blend weight above zero.
+    Report: `Research/game-read-bench-2026-11-16-locked/report.md`.
+  - Open for the owner: task 14 (the ClubElo yardstick, a download of about 2,000 requests after a terms check), and
+    phase 2 (xG and other variables, then boosted trees on the market's error), which needs its own plan.
 - **Cards missing at kickoff (D108, 15 Nov).** From 5 Sep to 14 Nov, 327 of 798 finished domestic matches had a card
   at kickoff: 35% before 4 Nov, 80% from 4 Nov.
   - 166 had no read at all, almost all from before the website worker started on 9 Sep.
