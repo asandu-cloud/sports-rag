@@ -58,8 +58,8 @@ on it. The Discord bot still runs the old engine until A7.
 - **Cobalt palette live 9 Nov (D80).** Cobalt `#0246A4` replaced the turf green, lime cream `#D5F097` the
   highlighter, and mint cream `#F2FFFA` is the light ground; the dark theme uses a light cobalt `#88B4F2`. Since
   9 Nov evening the dark theme is "cobalt night" (D85): near-black greys with a faint cobalt tint (`--bg #111316`)
-  and mint cream text. Cache tags are `nextmatch-20261110a` (style.css; D96), `research-20261116g` (app.js; D107),
-  `research-20261116p` (the research files; D107, D111) and `night-20261109a` (theme.js). Open for the owner: the steel blue of the Away segment and the "preliminary" label now sits close to
+  and mint cream text. Cache tags are `nextmatch-20261110a` (style.css; D96), `loaders-20261116c` (app.js; D112),
+  `research-20261116r` (the research files; D107, D111, D112), `loaders-20261116a`/`d` (loaders.js/.css; D112) and `night-20261109a` (theme.js). Open for the owner: the steel blue of the Away segment and the "preliminary" label now sits close to
   the cobalt.
 - **Home page opening live 11 Nov (D98, owner).** "Every match, read for you", with three tilted packs from the
   real read of Brighton v Brentford (8 Nov, labelled Example). It replaced D87's Arsenal v Chelsea animation
@@ -117,6 +117,9 @@ on it. The Discord bot still runs the old engine until A7.
     corners and result keep "Spix leans this way".
   - A match that has kicked off shows its status instead of a read; a read kept after kickoff is headed "How Spix
     read it before kickoff" and takes no Add.
+- **Loading screens live 16 Nov (D112, owner).** Six loaders: a ball drop over the app's first load, card outlines
+  on the board, a price board on Best Bets, and pitch lines, last 10 and a rolling ball in the Research Area.
+  Nothing shows under 300 ms; the 90 s board refresh never draws one; reduced motion gets still frames.
 - **No more Chroma updates (D81, owner, 9 Nov).** The daily refresh no longer embeds into Chroma, because nothing
   running reads it; `refresh-season --embed` brings the step back. `Index/chroma` (19 GB) stays until A7.
   Confirmed on the 10 Nov refresh.
@@ -149,8 +152,12 @@ on it. The Discord bot still runs the old engine until A7.
   - The one locked run (16 Nov, 1f665d6, 2023–2025, 10,711 matches; never rerun for these versions): every rating
     model fails every score, as on the tuning seasons. None beats the market or earns a blend weight above zero.
     Report: `Research/game-read-bench-2026-11-16-locked/report.md`.
-  - Open for the owner: task 14 (the ClubElo yardstick, a download of about 2,000 requests after a terms check), and
-    phase 2 (xG and other variables, then boosted trees on the market's error), which needs its own plan.
+  - Owner, 16 Nov: task 14 (the ClubElo yardstick) is dropped. Phase 2 approved
+    (`docs/superpowers/plans/2026-11-16-game-read-phase-2.md`, 9 tasks, about two weeks, no pick changes):
+    - real xG stays out; a home-made shot xG (inside and outside the box, weights fitted on tuning seasons only)
+      is tested beside shots in the box and on target;
+    - the backend fetches football-data's 10 files for 2026/27;
+    - this season so far is the last check: a model that passes on 2023–2025 must point the same way there.
 - **Cards missing at kickoff (D108, 15 Nov).** From 5 Sep to 14 Nov, 327 of 798 finished domestic matches had a card
   at kickoff: 35% before 4 Nov, 80% from 4 Nov.
   - 166 had no read at all, almost all from before the website worker started on 9 Sep.

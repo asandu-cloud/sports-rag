@@ -1,0 +1,99 @@
+/* The six loading screens (D112): the HTML comes from loaders.js. Theme tokens only, so light and dark both hold.
+   Every loader waits 300 ms before it fades in, so a quick load never flashes. */
+.ld{display:grid;justify-items:center;align-content:center;gap:16px;width:100%;min-height:220px;padding:36px 0;animation:ld-in .2s ease .3s both}
+.ld-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+.ld-art{display:grid;justify-items:center;width:100%;min-width:0}
+.ld-steps{display:grid;justify-items:center;margin:0;font-size:13px;line-height:20px;color:var(--text3);text-align:center}
+.ld-steps span{grid-area:1/1}
+.ld-steps[style*="--n:3"] span{opacity:0;animation:ld-step 5.4s infinite}
+.ld-steps[style*="--n:3"] span:nth-child(2){animation-delay:1.8s}
+.ld-steps[style*="--n:3"] span:nth-child(3){animation-delay:3.6s}
+@keyframes ld-in{from{opacity:0}to{opacity:1}}
+@keyframes ld-step{0%{opacity:0}3%,30%{opacity:1}33.3%,100%{opacity:0}}
+
+/* A. Ball drop: the header's own logo on the header's cobalt, over the whole window on the app's first load. */
+.ld-cover{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));background:var(--tb-bg);color:var(--tb-fg);animation:ld-in .2s ease both}
+.ld-cover.ld-out{animation:ld-out .25s ease forwards}
+.ld-cover .ld{animation:none}
+.ld-ball .ld-steps{color:var(--tb-fg2);font-size:14px}
+.ld-ball svg{display:block;width:min(260px,60vw);height:auto;overflow:visible;color:var(--tb-fg)}
+.ld-ball .spx-drop,.ld-ball .spx-stem{transform-box:fill-box;transform-origin:50% 100%}
+.ld-ball .spx-spin{transform-box:fill-box;transform-origin:50% 50%}
+.ld-ball .spx-drop{animation:ld-drop 1.6s cubic-bezier(.33,0,.67,1) infinite}
+.ld-ball .spx-spin{animation:ld-spin 1.6s linear infinite}
+.ld-ball .spx-stem{animation:ld-squash 1.6s ease-out infinite}
+@keyframes ld-out{to{opacity:0;visibility:hidden}}
+@keyframes ld-drop{0%{transform:translateY(-62px)}34%{transform:translateY(0) scale(1.06,.9)}40%{transform:translateY(0)}58%{transform:translateY(-22px)}74%{transform:translateY(0) scale(1.03,.95)}80%{transform:translateY(0)}88%{transform:translateY(-5px)}96%,100%{transform:translateY(0)}}
+@keyframes ld-spin{to{transform:rotate(360deg)}}
+@keyframes ld-squash{0%,30%{transform:scaleY(1)}36%{transform:scaleY(.9)}44%,70%{transform:scaleY(1)}76%{transform:scaleY(.96)}82%,100%{transform:scaleY(1)}}
+
+/* B. Pitch lines: the markings draw in cobalt, hold, fade, and draw again. */
+.ld-pitch{display:block;justify-self:center;margin-inline:auto;width:min(300px,86%);height:auto}
+.ld-grass{fill:var(--accent-dim);stroke:none}
+.ld-line{fill:none;stroke:var(--accent);stroke-width:.9;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;animation:ld-draw 3.2s cubic-bezier(.65,0,.35,1) infinite;animation-delay:calc(var(--i) * 80ms)}
+.ld-spot{fill:var(--accent);stroke:none;opacity:0;animation:ld-spot 3.2s ease infinite}
+@keyframes ld-draw{0%{stroke-dashoffset:1;opacity:1}45%{stroke-dashoffset:0}82%{stroke-dashoffset:0;opacity:1}96%,100%{stroke-dashoffset:0;opacity:0}}
+@keyframes ld-spot{0%,40%{opacity:0}50%,82%{opacity:1}96%,100%{opacity:0}}
+
+/* C. Last 10: ten columns grow in turn, the line drops in, the columns over it turn cobalt. */
+.ld-chart{position:relative;display:grid;grid-template-columns:repeat(10,minmax(0,1fr));align-items:end;gap:7px;width:min(320px,100%);height:120px;border-bottom:1px solid var(--border)}
+.ld-bar{display:block;height:var(--h);border-radius:3px 3px 0 0;background:var(--chart-muted);transform-origin:50% 100%;transform:scaleY(0);animation:ld-grow 3.4s cubic-bezier(.3,.9,.3,1) infinite;animation-delay:calc(var(--i) * 90ms)}
+.ld-bar.over{animation-name:ld-grow,ld-over}
+.ld-mark{position:absolute;left:0;right:0;bottom:var(--y);border-top:1.5px dashed var(--accent);opacity:0;animation:ld-mark 3.4s ease infinite}
+@keyframes ld-grow{0%{transform:scaleY(0)}30%{transform:scaleY(1)}84%{transform:scaleY(1);opacity:1}96%,100%{transform:scaleY(1);opacity:0}}
+@keyframes ld-over{0%,42%{background:var(--chart-muted)}50%,100%{background:var(--accent)}}
+@keyframes ld-mark{0%,34%{opacity:0}42%,84%{opacity:1}96%,100%{opacity:0}}
+
+/* D. Price board: each digit rolls to its value, the cells settle in turn, the last takes the lime marker. */
+.ld-board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:min(330px,100%)}
+.ld-cell{display:grid;justify-items:center;gap:4px;padding:12px 6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);animation:ld-settle 3.2s ease infinite}
+.ld-cell small{font-size:11px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)}
+.ld-num{display:inline-flex;align-items:flex-end;height:1em;padding:0 .12em;border-radius:3px;font-size:26px;font-weight:750;line-height:1;font-variant-numeric:tabular-nums;color:var(--text)}
+.ld-num i{display:block;height:1em;overflow:hidden;font-style:normal}
+.ld-num i::before{content:"0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9\A 0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9";display:block;white-space:pre;animation:ld-roll 3.2s cubic-bezier(.2,.7,.3,1) infinite}
+.ld-cell:nth-child(2),.ld-cell:nth-child(2) i::before{animation-delay:.3s}
+.ld-cell:nth-child(3),.ld-cell:nth-child(3) i::before{animation-delay:.6s}
+.ld-cell:nth-child(3) .ld-num{animation:ld-pick 3.2s ease .6s infinite}
+@keyframes ld-roll{0%{transform:translateY(0)}45%,100%{transform:translateY(calc(-1em * (10 + var(--d))))}}
+@keyframes ld-settle{0%,40%{border-color:var(--border)}48%,92%{border-color:var(--accent)}100%{border-color:var(--border)}}
+@keyframes ld-pick{0%,46%{background:transparent;color:var(--text)}54%,92%{background:var(--marker);color:var(--on-marker)}100%{background:transparent}}
+
+/* E. Card outline: the board card's shape in quiet fills, a cobalt wash sweeping across. */
+.ld-card .ld-art{display:grid;width:100%;grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr));gap:12px;justify-items:stretch}
+.ld-fixture{display:grid;gap:14px;padding:16px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+.ld-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ld-row .ld-crest+.ld-sk{margin-right:auto}
+.ld-sk{display:block;position:relative;overflow:hidden;width:var(--w,100%);height:12px;border-radius:4px;background:var(--surface2)}
+.ld-sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,var(--accent-dim) 45%,transparent);animation:ld-sweep 1.5s ease-in-out infinite}
+.ld-crest{flex:none;width:26px;height:26px;border-radius:50%}
+.ld-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ld-tiles .ld-sk{height:52px;border-radius:7px}
+@keyframes ld-sweep{to{transform:translateX(100%)}}
+
+/* F. Rolling ball: a football rolls along a touchline and leaves a cobalt trail. */
+.ld-roll .ld-art{gap:14px;width:min(360px,100%)}
+.ld-title{margin:0;font-size:17px;font-weight:750;font-stretch:var(--display-stretch);text-transform:uppercase;text-align:center;color:var(--text)}
+.ld-track{position:relative;display:block;width:100%;height:30px}
+.ld-track::before{content:"";position:absolute;left:0;right:0;bottom:3px;border-top:2px solid var(--border)}
+.ld-trail{position:absolute;left:0;bottom:3px;width:0;height:2px;background:var(--accent);animation:ld-trail 2.6s cubic-bezier(.45,0,.55,1) infinite}
+.ld-rollball{position:absolute;left:0;bottom:4px;width:22px;height:22px;animation:ld-roll-on 2.6s cubic-bezier(.45,0,.55,1) infinite}
+.ld-rollball svg{display:block;width:100%;height:100%;animation:ld-turn 2.6s cubic-bezier(.45,0,.55,1) infinite}
+.ld-ball-skin{fill:var(--tb-fg);stroke:var(--on-marker);stroke-width:1.2}
+.ld-ball-ink{fill:var(--on-marker);stroke:none}
+.ld-ball-seam{fill:none;stroke:var(--on-marker);stroke-width:1.1}
+@keyframes ld-roll-on{0%{left:0;opacity:0}6%{opacity:1}86%{left:calc(100% - 22px);opacity:1}100%{left:calc(100% - 22px);opacity:0}}
+@keyframes ld-trail{0%{width:0;opacity:1}86%{width:100%;opacity:1}100%{width:100%;opacity:0}}
+@keyframes ld-turn{0%{transform:rotate(0)}86%,100%{transform:rotate(1440deg)}}
+
+@media (max-width:600px){.ld{min-height:180px;padding:28px 0}.ld-num{font-size:23px}}
+
+/* Reduced motion: a still frame of each, with the first of its words. */
+@media (prefers-reduced-motion:reduce){
+.ld,.ld *,.ld *::before,.ld *::after{animation:none!important}
+.ld-steps span+span{display:none}
+.ld-steps[style*="--n:3"] span{opacity:1}
+.ld-pitch .ld-line{stroke-dashoffset:0}.ld-pitch .ld-spot{opacity:1}
+.ld-last10 .ld-bar{transform:scaleY(1)}.ld-last10 .ld-bar.over{background:var(--accent)}.ld-last10 .ld-mark{opacity:1}
+.ld-prices .ld-num i::before{transform:translateY(calc(-1em * (10 + var(--d))))}
+.ld-roll .ld-rollball{left:calc(50% - 11px)}.ld-roll .ld-trail{width:50%}
+}

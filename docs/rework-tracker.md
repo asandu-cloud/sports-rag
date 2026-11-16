@@ -3321,6 +3321,37 @@ only (players, teams and referees keep separate lists), the row goes back to the
 to the first of them. The list lives in the browser's own storage, so nothing reaches the server. Cache tag
 `research-20261116p`. 1 new JS test file (17 in all, all pass); checked on 8100 at 1440 and 390, light and dark.
 
+**D112 — Loading screens (16 Nov; frontend, owner).** The site's waits showed a plain "Loading…" line. The owner
+saw six options side by side (https://claude.ai/artifact/De2WiK5ZfHMYDqvaeSuf9S, private) and approved all six:
+A ball drop (the app's first load), B pitch lines (the Research Area's match view), C last 10 (a profile), D price
+board (Best Bets), E card outline (the matchday board), F rolling ball (the Research Area's home and start). Plan:
+`docs/superpowers/plans/2026-11-16-loading-screens.md` (5 tasks). Display only; no pick, data or `.env` change.
+- Task 1 (16 Nov): the kit. `static/loaders.js` (`spixLoader(kind, …)` for the six, `spixCover` for A) and
+  `static/loaders.css`, linked before `app.js` and the Research Area. A loader fades in only after 300 ms, so a quick
+  load shows nothing. Screen readers hear one fixed line; the stepping words are hidden from them. Reduced motion
+  gets a still frame. D's prices are a shape with no team or bookmaker. The cover shows at 300 ms, holds 600 ms,
+  and clears when the load ends or fails, or at 15 s. Nothing uses the kit yet. 1 new JS test file (18 in all, all pass).
+- Task 2 (16 Nov): A covers the window on the app's first board load (`appModule.init()`), with the header's own
+  logo, on its cobalt: "Getting today's matches ready…". A new date, league or the 90 s refresh never brings it
+  back. On 8100 with the API held 2.5 s: drawn at 300 ms, gone once the board arrived, at 1440 and 390, light and
+  dark, no errors. `app.js` at `loaders-20261116b`.
+- Task 3 (16 Nov): the matchday board draws E (three card outlines: "Loading the fixture schedule", "Loading the
+  published Match Reads", "Preparing the matchday board") and Best Bets draws D ("Ranking the clearest matchday
+  opportunities") while a new date or league loads. The 90 s refresh keeps the cards on screen. The old line stays
+  as the fallback. On 8100 with the API held 2.5 s (Fri 20 Nov, Sat 21 Nov): both drawn, then replaced, at 1440 and
+  390, no errors. `app.js` at `loaders-20261116c`.
+- Task 4 (16 Nov): the Research Area draws B on the match view ("Loading the match", "Getting both teams' last 10",
+  "Fetching the head to head", all in that one request), C on a profile and F on its home page and its own start.
+  Its shadow root adopts a copy of the page's `loaders.css` (already loaded), so even its first loader is styled at
+  once; research.css's stroke on every SVG no longer outlines the pitch or the ball. On 8100 with the API held 2.5 s
+  (Chelsea, Chelsea v Leeds, the players' home): drawn, then replaced, at 1440 and 390, no errors. Research files at
+  `research-20261116q`, `loaders.css` at `loaders-20261116d`.
+- Task 5 (16 Nov): the finishing pass on 8100. Reduced motion: still frames with the first line only. At normal
+  speed a warm first load (0.1 s) drew nothing; a cold one (0.5 s) drew the cover, which then held to 0.9 s, as
+  designed. Review (by this session; no reviewer subagent): without the adopted sheet (an older browser, or a
+  failed `loaders.css`) the Research Area's loaders would draw unstyled, so they fall back to the old line there.
+  Research files at `research-20261116r`. 18 JS test files pass; no Python test reads the static files.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
