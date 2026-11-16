@@ -13,6 +13,7 @@ from ..research_stats import (PLAYER_COUNT_FIELDS, PLAYER_MEASUREMENT_FIELDS,
                               RANK_BUILD_PREFIX)
 
 FINISHED = ("FT", "AET", "PEN")
+UNPLAYED = ("NS", "TBD")  # as the fixture schedule's reader
 COMPETITION_PHASE = ("domestic leagues: regular season only; continental cups: league/group stage and "
                      "knockouts, excluding preliminary, qualifying and pre-group play-off rounds")
 
@@ -202,6 +203,33 @@ class ResearchRepository:
         q = q.where(p.team_id == team_id, p.minutes > 0, f.season_id == season_id, f.status.in_(FINISHED),
                     comparable_rounds())
         return records(session, q.group_by(p.player_id, Player.name))
+
+    def upcoming(self, session, *, now, limit, team_id=None, referees=None):
+        """Unplayed fixtures after ``now`` in every competition, kickoff order: a team's, or those of the given raw
+        referee names (D110, B1). Schedule and team details only."""
+        f, home, away = Fixture, aliased(Team), aliased(Team)
+        q = select(f.id.label("fixture_id"), f.api_football_id, f.kickoff_utc, f.referee,
+                   Competition.code.label("competition_code"), Competition.name.label("competition_name"),
+                   f.home_team_id, home.name.label("home_name"), home.short_code.label("home_short_code"),
+                   home.logo_url.label("home_logo_url"), f.away_team_id, away.name.label("away_name"),
+                   away.short_code.label("away_short_code"), away.logo_url.label("away_logo_url"))
+        q = q.join(Competition, Competition.id == f.competition_id)
+        q = q.join(home, home.id == f.home_team_id).join(away, away.id == f.away_team_id)
+        q = q.where(f.status.in_(UNPLAYED), f.kickoff_utc > now)
+        if team_id is not None:
+            q = q.where(or_(f.home_team_id == team_id, f.away_team_id == team_id))
+        if referees is not None:
+            q = q.where(f.referee.in_(referees))
+        return records(session, q.order_by(f.kickoff_utc, f.api_football_id).limit(limit))
+
+    def upcoming_referee_names(self, session, *, now):
+        return list(session.scalars(select(Fixture.referee).where(
+            Fixture.status.in_(UNPLAYED), Fixture.kickoff_utc > now, Fixture.referee.is_not(None)).distinct()))
+
+    def alias_rows(self, session, *, raw_names=(), keys=()):
+        a = ResearchRefereeAlias
+        return records(session, select(a.raw_name, a.name, a.referee_key).where(
+            or_(a.raw_name.in_(list(raw_names)), a.referee_key.in_(list(keys)))))
 
     def referee_names(self, session):
         return list(session.scalars(select(Fixture.referee).where(Fixture.referee.is_not(None)).distinct().order_by(Fixture.referee)))

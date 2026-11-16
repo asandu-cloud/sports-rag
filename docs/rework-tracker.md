@@ -2758,6 +2758,12 @@ commit each). Read-only, behind the refresh gate (503 while the refresh holds it
 Agreed with the frontend: no player shots-on-target prices. The only ones kept are Bet365's, in the odds archive's
 raw responses, under full player names, and one bookmaker breaks the two-bookmaker rule behind every typical price.
 `lineups` may be null.
+- Task 1 (16 Nov): `GET /api/research/teams/{id}/upcoming?limit=3` and `GET /api/research/referees/{key}/upcoming?limit=1`
+  (`research-upcoming.v1`, `services/research_upcoming.py`). Unplayed matches in every competition, kickoff order,
+  each with its read's state (`ready`, `preliminary`, or `waiting` with the time it can first come out) and Spix's
+  expected goals, corners and cards from the read's own figures. A withheld (stale) read counts as waiting. A
+  referee spelled in a way the alias table has not seen yet still counts under his key. 6 tests; the full suite
+  3,105 passed, plus the 3 known errors.
 
 ## Findings that shape later steps
 
