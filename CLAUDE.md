@@ -149,8 +149,8 @@ on it. The Discord bot still runs the old engine until A7.
   - The one locked run (16 Nov, 1f665d6, 2023–2025, 10,711 matches; never rerun for these versions): every rating
     model fails every score, as on the tuning seasons. None beats the market or earns a blend weight above zero.
     Report: `Research/game-read-bench-2026-11-16-locked/report.md`.
-  - Open for the owner: task 14 (the ClubElo yardstick, a download of about 2,000 requests after a terms check), and
-    phase 2 (xG and other variables, then boosted trees on the market's error), which needs its own plan.
+  - Owner, 16 Nov: task 14 (the ClubElo yardstick) is dropped. The backend writes the phase 2 plan (xG and other
+    variables, then boosted trees on the market's error); it comes to the owner before any code.
 - **Cards missing at kickoff (D108, 15 Nov).** From 5 Sep to 14 Nov, 327 of 798 finished domestic matches had a card
   at kickoff: 35% before 4 Nov, 80% from 4 Nov.
   - 166 had no read at all, almost all from before the website worker started on 9 Sep.
