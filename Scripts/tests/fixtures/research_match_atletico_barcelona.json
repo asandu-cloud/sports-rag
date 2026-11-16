@@ -1,0 +1,3106 @@
+{
+ "_note": "Real research-match.v1 body for Atletico Madrid v Barcelona (event 1570443), from the live database on 16 Nov 2026 (backend d7d7da9, D110): a finished match, kept for its 8 Nov read and its named referee.",
+ "schema_version": "research-match.v1",
+ "fixture": {
+  "event_id": "1570443",
+  "fixture_id": 32207,
+  "kickoff": "2026-11-08T20:00:00+00:00",
+  "competition": {
+   "code": "LaLiga",
+   "name": "La Liga"
+  },
+  "home": {
+   "id": 22,
+   "name": "Atletico Madrid",
+   "short_code": "ATM",
+   "logo_url": "https://media.api-sports.io/football/teams/530.png"
+  },
+  "away": {
+   "id": 21,
+   "name": "Barcelona",
+   "short_code": "BAR",
+   "logo_url": "https://media.api-sports.io/football/teams/529.png"
+  },
+  "venue": null,
+  "referee": {
+   "name": "Javier Alberola Rojas",
+   "referee_key": "j-rojas-faae24c2"
+  },
+  "read": {
+   "status": "ready",
+   "read_at": "2026-11-08T19:53:19.145278",
+   "opens_at": null,
+   "expected": {
+    "goals": 3.7,
+    "corners": 8.9,
+    "cards": 4.0
+   }
+  },
+  "status": "FT"
+ },
+ "read": {
+  "status": "ready",
+  "read_at": "2026-11-08T19:53:19.145278",
+  "prices_as_of": "2026-11-08T19:53:14",
+  "result": {
+   "home": 0.268,
+   "draw": 0.212,
+   "away": 0.52
+  },
+  "goals": {
+   "home": 1.6,
+   "away": 2.2,
+   "total": 3.7
+  },
+  "btts_yes": 0.7,
+  "corners_expected": 8.9,
+  "cards_expected": 4.0,
+  "lines": {
+   "cards": [
+    {
+     "line": 3.5,
+     "over": {
+      "chance": 0.7147934955945623,
+      "typical_price": 1.35
+     },
+     "under": {
+      "chance": 0.2852065044054377,
+      "typical_price": 3.07
+     }
+    },
+    {
+     "line": 4.5,
+     "over": {
+      "chance": 0.5161064942125186,
+      "typical_price": 1.82
+     },
+     "under": {
+      "chance": 0.48389350578748125,
+      "typical_price": 1.93
+     }
+    },
+    {
+     "line": 5.5,
+     "over": {
+      "chance": 0.415744798119007,
+      "typical_price": 2.2
+     },
+     "under": {
+      "chance": 0.584255201880993,
+      "typical_price": 1.62
+     }
+    }
+   ],
+   "goals": [
+    {
+     "line": 0.5,
+     "over": {
+      "chance": 0.9801679866300304,
+      "typical_price": 1.02
+     },
+     "under": {
+      "chance": 0.01983201336996966,
+      "typical_price": 14.5
+     }
+    },
+    {
+     "line": 1.5,
+     "over": {
+      "chance": 0.9185501516123034,
+      "typical_price": 1.07
+     },
+     "under": {
+      "chance": 0.08144984838769656,
+      "typical_price": 6.91
+     }
+    },
+    {
+     "line": 2.5,
+     "over": {
+      "chance": 0.7235823130098794,
+      "typical_price": 1.34
+     },
+     "under": {
+      "chance": 0.27641768699012065,
+      "typical_price": 3.2
+     }
+    },
+    {
+     "line": 3.5,
+     "over": {
+      "chance": 0.5133274067176831,
+      "typical_price": 1.88
+     },
+     "under": {
+      "chance": 0.48667259328231693,
+      "typical_price": 1.97
+     }
+    },
+    {
+     "line": 4.5,
+     "over": {
+      "chance": 0.3162895659453475,
+      "typical_price": 2.87
+     },
+     "under": {
+      "chance": 0.6837104340546526,
+      "typical_price": 1.4
+     }
+    },
+    {
+     "line": 5.5,
+     "over": {
+      "chance": 0.15343606966250428,
+      "typical_price": 4.81
+     },
+     "under": {
+      "chance": 0.8465639303374957,
+      "typical_price": 1.15
+     }
+    },
+    {
+     "line": 6.5,
+     "over": {
+      "chance": 0.06460244056853565,
+      "typical_price": 8.4
+     },
+     "under": {
+      "chance": 0.9353975594314643,
+      "typical_price": 1.06
+     }
+    },
+    {
+     "line": 7.5,
+     "over": {
+      "chance": 0.027290552117100228,
+      "typical_price": 15.0
+     },
+     "under": {
+      "chance": 0.9727094478828998,
+      "typical_price": 1.02
+     }
+    },
+    {
+     "line": 8.5,
+     "over": {
+      "chance": 0.013752967509038774,
+      "typical_price": 17.0
+     },
+     "under": {
+      "chance": 0.9862470324909612,
+      "typical_price": 1.01
+     }
+    }
+   ],
+   "corners": [
+    {
+     "line": 4.5,
+     "over": {
+      "chance": 0.9786094323720819,
+      "typical_price": 1.02
+     },
+     "under": {
+      "chance": 0.021390567627918106,
+      "typical_price": 17.0
+     }
+    },
+    {
+     "line": 5.5,
+     "over": {
+      "chance": 0.9581912422487027,
+      "typical_price": 1.03
+     },
+     "under": {
+      "chance": 0.0418087577512973,
+      "typical_price": 9.0
+     }
+    },
+    {
+     "line": 6.5,
+     "over": {
+      "chance": 0.9143985867156363,
+      "typical_price": 1.07
+     },
+     "under": {
+      "chance": 0.08560141328436373,
+      "typical_price": 6.4
+     }
+    },
+    {
+     "line": 7.5,
+     "over": {
+      "chance": 0.8171416837562262,
+      "typical_price": 1.19
+     },
+     "under": {
+      "chance": 0.18285831624377386,
+      "typical_price": 4.13
+     }
+    },
+    {
+     "line": 8.5,
+     "over": {
+      "chance": 0.7018221345269702,
+      "typical_price": 1.37
+     },
+     "under": {
+      "chance": 0.2981778654730298,
+      "typical_price": 2.87
+     }
+    },
+    {
+     "line": 9.5,
+     "over": {
+      "chance": 0.5783441577611154,
+      "typical_price": 1.62
+     },
+     "under": {
+      "chance": 0.4216558422388846,
+      "typical_price": 2.14
+     }
+    },
+    {
+     "line": 10.5,
+     "over": {
+      "chance": 0.4569798128120961,
+      "typical_price": 2.02
+     },
+     "under": {
+      "chance": 0.5430201871879039,
+      "typical_price": 1.72
+     }
+    },
+    {
+     "line": 11.5,
+     "over": {
+      "chance": 0.3373527789086766,
+      "typical_price": 2.57
+     },
+     "under": {
+      "chance": 0.6626472210913233,
+      "typical_price": 1.43
+     }
+    },
+    {
+     "line": 12.5,
+     "over": {
+      "chance": 0.23034012742100113,
+      "typical_price": 3.49
+     },
+     "under": {
+      "chance": 0.7696598725789988,
+      "typical_price": 1.25
+     }
+    },
+    {
+     "line": 13.5,
+     "over": {
+      "chance": 0.14317928105662772,
+      "typical_price": 4.85
+     },
+     "under": {
+      "chance": 0.8568207189433723,
+      "typical_price": 1.13
+     }
+    },
+    {
+     "line": 14.5,
+     "over": {
+      "chance": 0.07504159337890765,
+      "typical_price": 6.68
+     },
+     "under": {
+      "chance": 0.9249584066210923,
+      "typical_price": 1.06
+     }
+    },
+    {
+     "line": 15.5,
+     "over": {
+      "chance": 0.01681119350840128,
+      "typical_price": 11.0
+     },
+     "under": {
+      "chance": 0.9831888064915988,
+      "typical_price": 1.01
+     }
+    }
+   ]
+  },
+  "suggestions": {
+   "cards": null,
+   "goals": {
+    "chance": 0.7235823130098794,
+    "label": "Over 2.5 goals",
+    "line": 2.5,
+    "long_shot": false,
+    "market": "goals",
+    "side": "over",
+    "typical_price": 1.34
+   },
+   "corners": {
+    "chance": 0.7018221345269702,
+    "label": "Over 8.5 corners",
+    "line": 8.5,
+    "long_shot": false,
+    "market": "corners",
+    "side": "over",
+    "typical_price": 1.37
+   }
+  },
+  "markets": [
+   {
+    "market": "moneyline",
+    "options": [
+     {
+      "chance": 0.2679974736657248,
+      "label": "Atletico Madrid to win",
+      "line": null,
+      "long_shot": false,
+      "market": "moneyline",
+      "side": "home",
+      "typical_price": 3.58
+     },
+     {
+      "chance": 0.21203315675623152,
+      "label": "Draw",
+      "line": null,
+      "long_shot": true,
+      "market": "moneyline",
+      "side": "draw",
+      "typical_price": 4.37
+     },
+     {
+      "chance": 0.5199693695780437,
+      "label": "Barcelona to win",
+      "line": null,
+      "long_shot": false,
+      "market": "moneyline",
+      "side": "away",
+      "typical_price": 1.85
+     }
+    ],
+    "suggestion": {
+     "chance": 0.5199693695780437,
+     "label": "Barcelona to win",
+     "line": null,
+     "long_shot": false,
+     "market": "moneyline",
+     "side": "away",
+     "typical_price": 1.85
+    }
+   },
+   {
+    "market": "goals",
+    "options": [
+     {
+      "chance": 0.9801679866300304,
+      "label": "Over 0.5 goals",
+      "line": 0.5,
+      "long_shot": false,
+      "market": "goals",
+      "side": "over",
+      "typical_price": 1.02
+     },
+     {
+      "chance": 0.01983201336996966,
+      "label": "Under 0.5 goals",
+      "line": 0.5,
+      "long_shot": true,
+      "market": "goals",
+      "side": "under",
+      "typical_price": 14.5
+     },
+     {
+      "chance": 0.9185501516123034,
+      "label": "Over 1.5 goals",
+      "line": 1.5,
+      "long_shot": false,
+      "market": "goals",
+      "side": "over",
+      "typical_price": 1.07
+     },
+     {
+      "chance": 0.08144984838769656,
+      "label": "Under 1.5 goals",
+      "line": 1.5,
+      "long_shot": true,
+      "market": "goals",
+      "side": "under",
+      "typical_price": 6.91
+     },
+     {
+      "chance": 0.7235823130098794,
+      "label": "Over 2.5 goals",
+      "line": 2.5,
+      "long_shot": false,
+      "market": "goals",
+      "side": "over",
+      "typical_price": 1.34
+     },
+     {
+      "chance": 0.27641768699012065,
+      "label": "Under 2.5 goals",
+      "line": 2.5,
+      "long_shot": false,
+      "market": "goals",
+      "side": "under",
+      "typical_price": 3.2
+     },
+     {
+      "chance": 0.5133274067176831,
+      "label": "Over 3.5 goals",
+      "line": 3.5,
+      "long_shot": false,
+      "market": "goals",
+      "side": "over",
+      "typical_price": 1.88
+     },
+     {
+      "chance": 0.48667259328231693,
+      "label": "Under 3.5 goals",
+      "line": 3.5,
+      "long_shot": false,
+      "market": "goals",
+      "side": "under",
+      "typical_price": 1.97
+     },
+     {
+      "chance": 0.3162895659453475,
+      "label": "Over 4.5 goals",
+      "line": 4.5,
+      "long_shot": false,
+      "market": "goals",
+      "side": "over",
+      "typical_price": 2.87
+     },
+     {
+      "chance": 0.6837104340546526,
+      "label": "Under 4.5 goals",
+      "line": 4.5,
+      "long_shot": false,
+      "market": "goals",
+      "side": "under",
+      "typical_price": 1.4
+     },
+     {
+      "chance": 0.15343606966250428,
+      "label": "Over 5.5 goals",
+      "line": 5.5,
+      "long_shot": true,
+      "market": "goals",
+      "side": "over",
+      "typical_price": 4.81
+     },
+     {
+      "chance": 0.8465639303374957,
+      "label": "Under 5.5 goals",
+      "line": 5.5,
+      "long_shot": false,
+      "market": "goals",
+      "side": "under",
+      "typical_price": 1.15
+     },
+     {
+      "chance": 0.06460244056853565,
+      "label": "Over 6.5 goals",
+      "line": 6.5,
+      "long_shot": true,
+      "market": "goals",
+      "side": "over",
+      "typical_price": 8.4
+     },
+     {
+      "chance": 0.9353975594314643,
+      "label": "Under 6.5 goals",
+      "line": 6.5,
+      "long_shot": false,
+      "market": "goals",
+      "side": "under",
+      "typical_price": 1.06
+     },
+     {
+      "chance": 0.027290552117100228,
+      "label": "Over 7.5 goals",
+      "line": 7.5,
+      "long_shot": true,
+      "market": "goals",
+      "side": "over",
+      "typical_price": 15.0
+     },
+     {
+      "chance": 0.9727094478828998,
+      "label": "Under 7.5 goals",
+      "line": 7.5,
+      "long_shot": false,
+      "market": "goals",
+      "side": "under",
+      "typical_price": 1.02
+     },
+     {
+      "chance": 0.013752967509038774,
+      "label": "Over 8.5 goals",
+      "line": 8.5,
+      "long_shot": true,
+      "market": "goals",
+      "side": "over",
+      "typical_price": 17.0
+     },
+     {
+      "chance": 0.9862470324909612,
+      "label": "Under 8.5 goals",
+      "line": 8.5,
+      "long_shot": false,
+      "market": "goals",
+      "side": "under",
+      "typical_price": 1.01
+     }
+    ],
+    "suggestion": {
+     "chance": 0.7235823130098794,
+     "label": "Over 2.5 goals",
+     "line": 2.5,
+     "long_shot": false,
+     "market": "goals",
+     "side": "over",
+     "typical_price": 1.34
+    }
+   },
+   {
+    "market": "btts",
+    "options": [
+     {
+      "chance": 0.727108374265498,
+      "label": "Both teams to score",
+      "line": null,
+      "long_shot": false,
+      "market": "btts",
+      "side": "yes",
+      "typical_price": 1.33
+     },
+     {
+      "chance": 0.27289162573450204,
+      "label": "Not both teams to score",
+      "line": null,
+      "long_shot": false,
+      "market": "btts",
+      "side": "no",
+      "typical_price": 3.1
+     }
+    ],
+    "suggestion": {
+     "chance": 0.727108374265498,
+     "label": "Both teams to score",
+     "line": null,
+     "long_shot": false,
+     "market": "btts",
+     "side": "yes",
+     "typical_price": 1.33
+    }
+   },
+   {
+    "market": "spreads",
+    "options": [
+     {
+      "chance": 0.119155026331233,
+      "label": "Atletico Madrid \u22121.5",
+      "line": -1.5,
+      "long_shot": true,
+      "market": "spreads",
+      "side": "home",
+      "typical_price": 6.31
+     },
+     {
+      "chance": 0.880844973668767,
+      "label": "Barcelona +1.5",
+      "line": 1.5,
+      "long_shot": false,
+      "market": "spreads",
+      "side": "away",
+      "typical_price": 1.12
+     },
+     {
+      "chance": 0.2631839021613458,
+      "label": "Atletico Madrid \u22120.5",
+      "line": -0.5,
+      "long_shot": false,
+      "market": "spreads",
+      "side": "home",
+      "typical_price": 3.33
+     },
+     {
+      "chance": 0.7368160978386542,
+      "label": "Barcelona +0.5",
+      "line": 0.5,
+      "long_shot": false,
+      "market": "spreads",
+      "side": "away",
+      "typical_price": 1.33
+     },
+     {
+      "chance": 0.47892686592985667,
+      "label": "Atletico Madrid +0.5",
+      "line": 0.5,
+      "long_shot": false,
+      "market": "spreads",
+      "side": "home",
+      "typical_price": 2.0
+     },
+     {
+      "chance": 0.5210731340701432,
+      "label": "Barcelona \u22120.5",
+      "line": -0.5,
+      "long_shot": false,
+      "market": "spreads",
+      "side": "away",
+      "typical_price": 1.85
+     },
+     {
+      "chance": 0.707923121656731,
+      "label": "Atletico Madrid +1.5",
+      "line": 1.5,
+      "long_shot": false,
+      "market": "spreads",
+      "side": "home",
+      "typical_price": 1.36
+     },
+     {
+      "chance": 0.29207687834326884,
+      "label": "Barcelona \u22121.5",
+      "line": -1.5,
+      "long_shot": false,
+      "market": "spreads",
+      "side": "away",
+      "typical_price": 3.02
+     },
+     {
+      "chance": 0.8711578311397561,
+      "label": "Atletico Madrid +2.5",
+      "line": 2.5,
+      "long_shot": false,
+      "market": "spreads",
+      "side": "home",
+      "typical_price": 1.13
+     },
+     {
+      "chance": 0.1288421688602439,
+      "label": "Barcelona \u22122.5",
+      "line": -2.5,
+      "long_shot": true,
+      "market": "spreads",
+      "side": "away",
+      "typical_price": 5.55
+     }
+    ],
+    "suggestion": {
+     "chance": 0.7368160978386542,
+     "label": "Barcelona +0.5",
+     "line": 0.5,
+     "long_shot": false,
+     "market": "spreads",
+     "side": "away",
+     "typical_price": 1.33
+    }
+   },
+   {
+    "market": "corners",
+    "options": [
+     {
+      "chance": 0.9786094323720819,
+      "label": "Over 4.5 corners",
+      "line": 4.5,
+      "long_shot": false,
+      "market": "corners",
+      "side": "over",
+      "typical_price": 1.02
+     },
+     {
+      "chance": 0.021390567627918106,
+      "label": "Under 4.5 corners",
+      "line": 4.5,
+      "long_shot": true,
+      "market": "corners",
+      "side": "under",
+      "typical_price": 17.0
+     },
+     {
+      "chance": 0.9581912422487027,
+      "label": "Over 5.5 corners",
+      "line": 5.5,
+      "long_shot": false,
+      "market": "corners",
+      "side": "over",
+      "typical_price": 1.03
+     },
+     {
+      "chance": 0.0418087577512973,
+      "label": "Under 5.5 corners",
+      "line": 5.5,
+      "long_shot": true,
+      "market": "corners",
+      "side": "under",
+      "typical_price": 9.0
+     },
+     {
+      "chance": 0.9143985867156363,
+      "label": "Over 6.5 corners",
+      "line": 6.5,
+      "long_shot": false,
+      "market": "corners",
+      "side": "over",
+      "typical_price": 1.07
+     },
+     {
+      "chance": 0.08560141328436373,
+      "label": "Under 6.5 corners",
+      "line": 6.5,
+      "long_shot": true,
+      "market": "corners",
+      "side": "under",
+      "typical_price": 6.4
+     },
+     {
+      "chance": 0.8171416837562262,
+      "label": "Over 7.5 corners",
+      "line": 7.5,
+      "long_shot": false,
+      "market": "corners",
+      "side": "over",
+      "typical_price": 1.19
+     },
+     {
+      "chance": 0.18285831624377386,
+      "label": "Under 7.5 corners",
+      "line": 7.5,
+      "long_shot": true,
+      "market": "corners",
+      "side": "under",
+      "typical_price": 4.13
+     },
+     {
+      "chance": 0.7018221345269702,
+      "label": "Over 8.5 corners",
+      "line": 8.5,
+      "long_shot": false,
+      "market": "corners",
+      "side": "over",
+      "typical_price": 1.37
+     },
+     {
+      "chance": 0.2981778654730298,
+      "label": "Under 8.5 corners",
+      "line": 8.5,
+      "long_shot": false,
+      "market": "corners",
+      "side": "under",
+      "typical_price": 2.87
+     },
+     {
+      "chance": 0.5783441577611154,
+      "label": "Over 9.5 corners",
+      "line": 9.5,
+      "long_shot": false,
+      "market": "corners",
+      "side": "over",
+      "typical_price": 1.62
+     },
+     {
+      "chance": 0.4216558422388846,
+      "label": "Under 9.5 corners",
+      "line": 9.5,
+      "long_shot": false,
+      "market": "corners",
+      "side": "under",
+      "typical_price": 2.14
+     },
+     {
+      "chance": 0.4569798128120961,
+      "label": "Over 10.5 corners",
+      "line": 10.5,
+      "long_shot": false,
+      "market": "corners",
+      "side": "over",
+      "typical_price": 2.02
+     },
+     {
+      "chance": 0.5430201871879039,
+      "label": "Under 10.5 corners",
+      "line": 10.5,
+      "long_shot": false,
+      "market": "corners",
+      "side": "under",
+      "typical_price": 1.72
+     },
+     {
+      "chance": 0.3373527789086766,
+      "label": "Over 11.5 corners",
+      "line": 11.5,
+      "long_shot": false,
+      "market": "corners",
+      "side": "over",
+      "typical_price": 2.57
+     },
+     {
+      "chance": 0.6626472210913233,
+      "label": "Under 11.5 corners",
+      "line": 11.5,
+      "long_shot": false,
+      "market": "corners",
+      "side": "under",
+      "typical_price": 1.43
+     },
+     {
+      "chance": 0.23034012742100113,
+      "label": "Over 12.5 corners",
+      "line": 12.5,
+      "long_shot": true,
+      "market": "corners",
+      "side": "over",
+      "typical_price": 3.49
+     },
+     {
+      "chance": 0.7696598725789988,
+      "label": "Under 12.5 corners",
+      "line": 12.5,
+      "long_shot": false,
+      "market": "corners",
+      "side": "under",
+      "typical_price": 1.25
+     },
+     {
+      "chance": 0.14317928105662772,
+      "label": "Over 13.5 corners",
+      "line": 13.5,
+      "long_shot": true,
+      "market": "corners",
+      "side": "over",
+      "typical_price": 4.85
+     },
+     {
+      "chance": 0.8568207189433723,
+      "label": "Under 13.5 corners",
+      "line": 13.5,
+      "long_shot": false,
+      "market": "corners",
+      "side": "under",
+      "typical_price": 1.13
+     },
+     {
+      "chance": 0.07504159337890765,
+      "label": "Over 14.5 corners",
+      "line": 14.5,
+      "long_shot": true,
+      "market": "corners",
+      "side": "over",
+      "typical_price": 6.68
+     },
+     {
+      "chance": 0.9249584066210923,
+      "label": "Under 14.5 corners",
+      "line": 14.5,
+      "long_shot": false,
+      "market": "corners",
+      "side": "under",
+      "typical_price": 1.06
+     },
+     {
+      "chance": 0.01681119350840128,
+      "label": "Over 15.5 corners",
+      "line": 15.5,
+      "long_shot": true,
+      "market": "corners",
+      "side": "over",
+      "typical_price": 11.0
+     },
+     {
+      "chance": 0.9831888064915988,
+      "label": "Under 15.5 corners",
+      "line": 15.5,
+      "long_shot": false,
+      "market": "corners",
+      "side": "under",
+      "typical_price": 1.01
+     }
+    ],
+    "suggestion": {
+     "chance": 0.7018221345269702,
+     "label": "Over 8.5 corners",
+     "line": 8.5,
+     "long_shot": false,
+     "market": "corners",
+     "side": "over",
+     "typical_price": 1.37
+    }
+   }
+  ]
+ },
+ "teams": {
+  "home": {
+   "team": {
+    "id": 22,
+    "name": "Atletico Madrid",
+    "short_code": "ATM",
+    "logo_url": "https://media.api-sports.io/football/teams/530.png"
+   },
+   "last_matches": [
+    {
+     "event_id": "1570380",
+     "date": "2026-09-13T19:00:00+00:00",
+     "competition": {
+      "code": "LaLiga",
+      "name": "La Liga"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 35,
+      "name": "Real Sociedad",
+      "short_code": "RSO",
+      "logo_url": "https://media.api-sports.io/football/teams/548.png"
+     },
+     "score": {
+      "home": 0,
+      "away": 3
+     },
+     "cards_for": 1,
+     "cards_against": 2,
+     "corners_for": 3,
+     "corners_against": 9,
+     "goals_for": 3,
+     "goals_against": 0,
+     "sot_for": 5,
+     "sot_against": 3
+    },
+    {
+     "event_id": "1570384",
+     "date": "2026-09-16T17:00:00+00:00",
+     "competition": {
+      "code": "LaLiga",
+      "name": "La Liga"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 37,
+      "name": "Osasuna",
+      "short_code": "OSA",
+      "logo_url": "https://media.api-sports.io/football/teams/727.png"
+     },
+     "score": {
+      "home": 4,
+      "away": 0
+     },
+     "cards_for": 1,
+     "cards_against": 2,
+     "corners_for": 8,
+     "corners_against": 0,
+     "goals_for": 4,
+     "goals_against": 0,
+     "sot_for": 11,
+     "sot_against": 1
+    },
+    {
+     "event_id": "1570394",
+     "date": "2026-09-20T14:15:00+00:00",
+     "competition": {
+      "code": "LaLiga",
+      "name": "La Liga"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 30,
+      "name": "Real Madrid",
+      "short_code": "REA",
+      "logo_url": "https://media.api-sports.io/football/teams/541.png"
+     },
+     "score": {
+      "home": 2,
+      "away": 1
+     },
+     "cards_for": 2,
+     "cards_against": 3,
+     "corners_for": 3,
+     "corners_against": 1,
+     "goals_for": 2,
+     "goals_against": 1,
+     "sot_for": 9,
+     "sot_against": 3
+    },
+    {
+     "event_id": "1570403",
+     "date": "2026-10-10T14:15:00+00:00",
+     "competition": {
+      "code": "LaLiga",
+      "name": "La Liga"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 31,
+      "name": "Alaves",
+      "short_code": "ALA",
+      "logo_url": "https://media.api-sports.io/football/teams/542.png"
+     },
+     "score": {
+      "home": 1,
+      "away": 2
+     },
+     "cards_for": 3,
+     "cards_against": 1,
+     "corners_for": 10,
+     "corners_against": 0,
+     "goals_for": 2,
+     "goals_against": 1,
+     "sot_for": 7,
+     "sot_against": 3
+    },
+    {
+     "event_id": "1635623",
+     "date": "2026-10-13T19:00:00+00:00",
+     "competition": {
+      "code": "UCL",
+      "name": "UEFA Champions League"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 1,
+      "name": "Manchester United",
+      "short_code": "MUN",
+      "logo_url": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "score": {
+      "home": 2,
+      "away": 0
+     },
+     "cards_for": 1,
+     "cards_against": 2,
+     "corners_for": 2,
+     "corners_against": 5,
+     "goals_for": 2,
+     "goals_against": 0,
+     "sot_for": 4,
+     "sot_against": 4
+    },
+    {
+     "event_id": "1570416",
+     "date": "2026-10-17T12:00:00+00:00",
+     "competition": {
+      "code": "LaLiga",
+      "name": "La Liga"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 29,
+      "name": "Espanyol",
+      "short_code": "ESP",
+      "logo_url": "https://media.api-sports.io/football/teams/540.png"
+     },
+     "score": {
+      "home": 0,
+      "away": 1
+     },
+     "cards_for": 5,
+     "cards_against": 2,
+     "corners_for": 12,
+     "corners_against": 4,
+     "goals_for": 1,
+     "goals_against": 0,
+     "sot_for": 6,
+     "sot_against": 2
+    },
+    {
+     "event_id": "1635738",
+     "date": "2026-10-20T19:00:00+00:00",
+     "competition": {
+      "code": "UCL",
+      "name": "UEFA Champions League"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 72,
+      "name": "VfB Stuttgart",
+      "short_code": "STU",
+      "logo_url": "https://media.api-sports.io/football/teams/172.png"
+     },
+     "score": {
+      "home": 1,
+      "away": 1
+     },
+     "cards_for": 1,
+     "cards_against": 1,
+     "corners_for": 4,
+     "corners_against": 9,
+     "goals_for": 1,
+     "goals_against": 1,
+     "sot_for": 3,
+     "sot_against": 5
+    },
+    {
+     "event_id": "1570425",
+     "date": "2026-10-24T19:00:00+00:00",
+     "competition": {
+      "code": "LaLiga",
+      "name": "La Liga"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 305,
+      "name": "Deportivo La Coruna",
+      "short_code": "COR",
+      "logo_url": "https://media.api-sports.io/football/teams/544.png"
+     },
+     "score": {
+      "home": 1,
+      "away": 0
+     },
+     "cards_for": 4,
+     "cards_against": 3,
+     "corners_for": 3,
+     "corners_against": 4,
+     "goals_for": 1,
+     "goals_against": 0,
+     "sot_for": 4,
+     "sot_against": 5
+    },
+    {
+     "event_id": "1570439",
+     "date": "2026-10-31T13:00:00+00:00",
+     "competition": {
+      "code": "LaLiga",
+      "name": "La Liga"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 28,
+      "name": "Levante",
+      "short_code": "LEV",
+      "logo_url": "https://media.api-sports.io/football/teams/539.png"
+     },
+     "score": {
+      "home": 0,
+      "away": 2
+     },
+     "cards_for": 0,
+     "cards_against": 0,
+     "corners_for": 3,
+     "corners_against": 5,
+     "goals_for": 2,
+     "goals_against": 0,
+     "sot_for": 5,
+     "sot_against": 4
+    },
+    {
+     "event_id": "1635622",
+     "date": "2026-11-03T20:00:00+00:00",
+     "competition": {
+      "code": "UCL",
+      "name": "UEFA Champions League"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 61,
+      "name": "Bayern M\u00fcnchen",
+      "short_code": "BAY",
+      "logo_url": "https://media.api-sports.io/football/teams/157.png"
+     },
+     "score": {
+      "home": 0,
+      "away": 2
+     },
+     "cards_for": 1,
+     "cards_against": 2,
+     "corners_for": 4,
+     "corners_against": 4,
+     "goals_for": 0,
+     "goals_against": 2,
+     "sot_for": 3,
+     "sot_against": 5
+    }
+   ],
+   "booked": [
+    {
+     "player_id": 930,
+     "name": "Marc Pubill",
+     "yellow": 4,
+     "red": 0,
+     "appearances": 13
+    },
+    {
+     "player_id": 734,
+     "name": "Robin Le Normand",
+     "yellow": 2,
+     "red": 1,
+     "appearances": 11
+    },
+    {
+     "player_id": 2705,
+     "name": "Morten Hjulmand",
+     "yellow": 2,
+     "red": 1,
+     "appearances": 13
+    },
+    {
+     "player_id": 856,
+     "name": "Alex Baena",
+     "yellow": 3,
+     "red": 0,
+     "appearances": 15
+    },
+    {
+     "player_id": 246,
+     "name": "Cristian Romero",
+     "yellow": 2,
+     "red": 0,
+     "appearances": 8
+    }
+   ],
+   "shooters": [
+    {
+     "player_id": 662,
+     "name": "D\u00e1vid Hancko",
+     "position": "D",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-09-13T19:00:00+00:00",
+       "opponent": "Real Sociedad",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-16T17:00:00+00:00",
+       "opponent": "Osasuna",
+       "minutes": 5,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-20T14:15:00+00:00",
+       "opponent": "Real Madrid",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T14:15:00+00:00",
+       "opponent": "Alaves",
+       "minutes": 28,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-13T19:00:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T12:00:00+00:00",
+       "opponent": "Espanyol",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-20T19:00:00+00:00",
+       "opponent": "VfB Stuttgart",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-24T19:00:00+00:00",
+       "opponent": "Deportivo La Coruna",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T13:00:00+00:00",
+       "opponent": "Levante",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-11-03T20:00:00+00:00",
+       "opponent": "Bayern M\u00fcnchen",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 930,
+     "name": "Marc Pubill",
+     "position": "D",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-09-09T19:00:00+00:00",
+       "opponent": "Liverpool",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-13T19:00:00+00:00",
+       "opponent": "Real Sociedad",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-16T17:00:00+00:00",
+       "opponent": "Osasuna",
+       "minutes": 22,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-20T14:15:00+00:00",
+       "opponent": "Real Madrid",
+       "minutes": 45,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-13T19:00:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 30,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T12:00:00+00:00",
+       "opponent": "Espanyol",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-20T19:00:00+00:00",
+       "opponent": "VfB Stuttgart",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-24T19:00:00+00:00",
+       "opponent": "Deportivo La Coruna",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T13:00:00+00:00",
+       "opponent": "Levante",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-11-03T20:00:00+00:00",
+       "opponent": "Bayern M\u00fcnchen",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 1612,
+     "name": "Alejandro Grimaldo",
+     "position": "D",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-09-13T19:00:00+00:00",
+       "opponent": "Real Sociedad",
+       "minutes": 90,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-09-16T17:00:00+00:00",
+       "opponent": "Osasuna",
+       "minutes": 85,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-20T14:15:00+00:00",
+       "opponent": "Real Madrid",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T14:15:00+00:00",
+       "opponent": "Alaves",
+       "minutes": 90,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-10-13T19:00:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T12:00:00+00:00",
+       "opponent": "Espanyol",
+       "minutes": 45,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-20T19:00:00+00:00",
+       "opponent": "VfB Stuttgart",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-24T19:00:00+00:00",
+       "opponent": "Deportivo La Coruna",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T13:00:00+00:00",
+       "opponent": "Levante",
+       "minutes": 90,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-11-03T20:00:00+00:00",
+       "opponent": "Bayern M\u00fcnchen",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 953,
+     "name": "Giuliano Simeone",
+     "position": "M",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-09-13T19:00:00+00:00",
+       "opponent": "Real Sociedad",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-09-16T17:00:00+00:00",
+       "opponent": "Osasuna",
+       "minutes": 22,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-20T14:15:00+00:00",
+       "opponent": "Real Madrid",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T14:15:00+00:00",
+       "opponent": "Alaves",
+       "minutes": 73,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-13T19:00:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 88,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T12:00:00+00:00",
+       "opponent": "Espanyol",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-20T19:00:00+00:00",
+       "opponent": "VfB Stuttgart",
+       "minutes": 87,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-24T19:00:00+00:00",
+       "opponent": "Deportivo La Coruna",
+       "minutes": 45,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T13:00:00+00:00",
+       "opponent": "Levante",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-11-03T20:00:00+00:00",
+       "opponent": "Bayern M\u00fcnchen",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 560,
+     "name": "Marcos Llorente",
+     "position": "D",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-09-13T19:00:00+00:00",
+       "opponent": "Real Sociedad",
+       "minutes": 60,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-16T17:00:00+00:00",
+       "opponent": "Osasuna",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-20T14:15:00+00:00",
+       "opponent": "Real Madrid",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T14:15:00+00:00",
+       "opponent": "Alaves",
+       "minutes": 90,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-10-13T19:00:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T12:00:00+00:00",
+       "opponent": "Espanyol",
+       "minutes": 35,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-20T19:00:00+00:00",
+       "opponent": "VfB Stuttgart",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-24T19:00:00+00:00",
+       "opponent": "Deportivo La Coruna",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T13:00:00+00:00",
+       "opponent": "Levante",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-11-03T20:00:00+00:00",
+       "opponent": "Bayern M\u00fcnchen",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 623,
+     "name": "Juli\u00e1n Alvarez",
+     "position": "F",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-09-05T14:15:00+00:00",
+       "opponent": "Athletic Club",
+       "minutes": 31,
+       "sot": 1,
+       "started": false
+      },
+      {
+       "date": "2026-09-09T19:00:00+00:00",
+       "opponent": "Liverpool",
+       "minutes": 90,
+       "sot": 3,
+       "started": true
+      },
+      {
+       "date": "2026-09-20T14:15:00+00:00",
+       "opponent": "Real Madrid",
+       "minutes": 28,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T14:15:00+00:00",
+       "opponent": "Alaves",
+       "minutes": 45,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-13T19:00:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 71,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T12:00:00+00:00",
+       "opponent": "Espanyol",
+       "minutes": 45,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-20T19:00:00+00:00",
+       "opponent": "VfB Stuttgart",
+       "minutes": 78,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-24T19:00:00+00:00",
+       "opponent": "Deportivo La Coruna",
+       "minutes": 90,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T13:00:00+00:00",
+       "opponent": "Levante",
+       "minutes": 67,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-11-03T20:00:00+00:00",
+       "opponent": "Bayern M\u00fcnchen",
+       "minutes": 75,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 971,
+     "name": "Pablo Barrios",
+     "position": "M",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-08-29T19:30:00+00:00",
+       "opponent": "Sevilla",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-09-05T14:15:00+00:00",
+       "opponent": "Athletic Club",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-09-09T19:00:00+00:00",
+       "opponent": "Liverpool",
+       "minutes": 77,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T14:15:00+00:00",
+       "opponent": "Alaves",
+       "minutes": 57,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-13T19:00:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 60,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T12:00:00+00:00",
+       "opponent": "Espanyol",
+       "minutes": 55,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-20T19:00:00+00:00",
+       "opponent": "VfB Stuttgart",
+       "minutes": 78,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-24T19:00:00+00:00",
+       "opponent": "Deportivo La Coruna",
+       "minutes": 45,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T13:00:00+00:00",
+       "opponent": "Levante",
+       "minutes": 76,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-11-03T20:00:00+00:00",
+       "opponent": "Bayern M\u00fcnchen",
+       "minutes": 75,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 856,
+     "name": "Alex Baena",
+     "position": "M",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-09-13T19:00:00+00:00",
+       "opponent": "Real Sociedad",
+       "minutes": 59,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-16T17:00:00+00:00",
+       "opponent": "Osasuna",
+       "minutes": 90,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-09-20T14:15:00+00:00",
+       "opponent": "Real Madrid",
+       "minutes": 67,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T14:15:00+00:00",
+       "opponent": "Alaves",
+       "minutes": 45,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-13T19:00:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 71,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T12:00:00+00:00",
+       "opponent": "Espanyol",
+       "minutes": 28,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-20T19:00:00+00:00",
+       "opponent": "VfB Stuttgart",
+       "minutes": 69,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-24T19:00:00+00:00",
+       "opponent": "Deportivo La Coruna",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T13:00:00+00:00",
+       "opponent": "Levante",
+       "minutes": 76,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-11-03T20:00:00+00:00",
+       "opponent": "Bayern M\u00fcnchen",
+       "minutes": 59,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    }
+   ],
+   "allowed": {
+    "competition": {
+     "code": "LaLiga",
+     "name": "La Liga"
+    },
+    "per_match": 3.4,
+    "matches": 12,
+    "rank": 3,
+    "peer_count": 20
+   }
+  },
+  "away": {
+   "team": {
+    "id": 21,
+    "name": "Barcelona",
+    "short_code": "BAR",
+    "logo_url": "https://media.api-sports.io/football/teams/529.png"
+   },
+   "last_matches": [
+    {
+     "event_id": "1570376",
+     "date": "2026-09-13T14:15:00+00:00",
+     "competition": {
+      "code": "LaLiga",
+      "name": "La Liga"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 28,
+      "name": "Levante",
+      "short_code": "LEV",
+      "logo_url": "https://media.api-sports.io/football/teams/539.png"
+     },
+     "score": {
+      "home": 2,
+      "away": 4
+     },
+     "cards_for": 1,
+     "cards_against": 1,
+     "corners_for": 5,
+     "corners_against": 3,
+     "goals_for": 4,
+     "goals_against": 2,
+     "sot_for": 6,
+     "sot_against": 7
+    },
+    {
+     "event_id": "1570385",
+     "date": "2026-09-16T19:30:00+00:00",
+     "competition": {
+      "code": "LaLiga",
+      "name": "La Liga"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 304,
+      "name": "Racing Santander",
+      "short_code": "SAN",
+      "logo_url": "https://media.api-sports.io/football/teams/4665.png"
+     },
+     "score": {
+      "home": 7,
+      "away": 2
+     },
+     "cards_for": 3,
+     "cards_against": 2,
+     "corners_for": 18,
+     "corners_against": 0,
+     "goals_for": 7,
+     "goals_against": 2,
+     "sot_for": 9,
+     "sot_against": 3
+    },
+    {
+     "event_id": "1570400",
+     "date": "2026-09-19T19:00:00+00:00",
+     "competition": {
+      "code": "LaLiga",
+      "name": "La Liga"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 26,
+      "name": "Sevilla",
+      "short_code": "SEV",
+      "logo_url": "https://media.api-sports.io/football/teams/536.png"
+     },
+     "score": {
+      "home": 1,
+      "away": 3
+     },
+     "cards_for": 0,
+     "cards_against": 1,
+     "corners_for": 3,
+     "corners_against": 1,
+     "goals_for": 3,
+     "goals_against": 1,
+     "sot_for": 7,
+     "sot_against": 3
+    },
+    {
+     "event_id": "1570404",
+     "date": "2026-10-10T16:30:00+00:00",
+     "competition": {
+      "code": "LaLiga",
+      "name": "La Liga"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 33,
+      "name": "Getafe",
+      "short_code": "GET",
+      "logo_url": "https://media.api-sports.io/football/teams/546.png"
+     },
+     "score": {
+      "home": 3,
+      "away": 0
+     },
+     "cards_for": 2,
+     "cards_against": 4,
+     "corners_for": 9,
+     "corners_against": 2,
+     "goals_for": 3,
+     "goals_against": 0,
+     "sot_for": 8,
+     "sot_against": 1
+    },
+    {
+     "event_id": "1635666",
+     "date": "2026-10-13T19:00:00+00:00",
+     "competition": {
+      "code": "UCL",
+      "name": "UEFA Champions League"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 129,
+      "name": "Galatasaray",
+      "short_code": "GAL",
+      "logo_url": "https://media.api-sports.io/football/teams/645.png"
+     },
+     "score": {
+      "home": 1,
+      "away": 4
+     },
+     "cards_for": 0,
+     "cards_against": 2,
+     "corners_for": 6,
+     "corners_against": 1,
+     "goals_for": 4,
+     "goals_against": 1,
+     "sot_for": 11,
+     "sot_against": 3
+    },
+    {
+     "event_id": "1570413",
+     "date": "2026-10-17T16:30:00+00:00",
+     "competition": {
+      "code": "LaLiga",
+      "name": "La Liga"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 32,
+      "name": "Real Betis",
+      "short_code": "BET",
+      "logo_url": "https://media.api-sports.io/football/teams/543.png"
+     },
+     "score": {
+      "home": 2,
+      "away": 5
+     },
+     "cards_for": 2,
+     "cards_against": 4,
+     "corners_for": 5,
+     "corners_against": 2,
+     "goals_for": 5,
+     "goals_against": 2,
+     "sot_for": 10,
+     "sot_against": 5
+    },
+    {
+     "event_id": "1635702",
+     "date": "2026-10-20T19:00:00+00:00",
+     "competition": {
+      "code": "UCL",
+      "name": "UEFA Champions League"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 85,
+      "name": "Paris Saint Germain",
+      "short_code": "PSG",
+      "logo_url": "https://media.api-sports.io/football/teams/85.png"
+     },
+     "score": {
+      "home": 4,
+      "away": 2
+     },
+     "cards_for": 1,
+     "cards_against": 0,
+     "corners_for": 3,
+     "corners_against": 2,
+     "goals_for": 2,
+     "goals_against": 4,
+     "sot_for": 5,
+     "sot_against": 14
+    },
+    {
+     "event_id": "1570426",
+     "date": "2026-10-25T20:00:00+00:00",
+     "competition": {
+      "code": "LaLiga",
+      "name": "La Liga"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 30,
+      "name": "Real Madrid",
+      "short_code": "REA",
+      "logo_url": "https://media.api-sports.io/football/teams/541.png"
+     },
+     "score": {
+      "home": 1,
+      "away": 2
+     },
+     "cards_for": 3,
+     "cards_against": 3,
+     "corners_for": 6,
+     "corners_against": 6,
+     "goals_for": 1,
+     "goals_against": 2,
+     "sot_for": 6,
+     "sot_against": 5
+    },
+    {
+     "event_id": "1570434",
+     "date": "2026-10-31T20:00:00+00:00",
+     "competition": {
+      "code": "LaLiga",
+      "name": "La Liga"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 31,
+      "name": "Alaves",
+      "short_code": "ALA",
+      "logo_url": "https://media.api-sports.io/football/teams/542.png"
+     },
+     "score": {
+      "home": 6,
+      "away": 1
+     },
+     "cards_for": 2,
+     "cards_against": 3,
+     "corners_for": 4,
+     "corners_against": 3,
+     "goals_for": 6,
+     "goals_against": 1,
+     "sot_for": 7,
+     "sot_against": 3
+    },
+    {
+     "event_id": "1635627",
+     "date": "2026-11-03T20:00:00+00:00",
+     "competition": {
+      "code": "UCL",
+      "name": "UEFA Champions League"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 19,
+      "name": "Aston Villa",
+      "short_code": "AST",
+      "logo_url": "https://media.api-sports.io/football/teams/66.png"
+     },
+     "score": {
+      "home": 3,
+      "away": 0
+     },
+     "cards_for": 1,
+     "cards_against": 3,
+     "corners_for": 4,
+     "corners_against": 8,
+     "goals_for": 3,
+     "goals_against": 0,
+     "sot_for": 8,
+     "sot_against": 1
+    }
+   ],
+   "booked": [
+    {
+     "player_id": 565,
+     "name": "Jo\u00e3o Cancelo",
+     "yellow": 3,
+     "red": 0,
+     "appearances": 12
+    },
+    {
+     "player_id": 980,
+     "name": "Ferm\u00edn L\u00f3pez",
+     "yellow": 3,
+     "red": 0,
+     "appearances": 14
+    },
+    {
+     "player_id": 580,
+     "name": "Dani Olmo",
+     "yellow": 2,
+     "red": 0,
+     "appearances": 12
+    },
+    {
+     "player_id": 1671,
+     "name": "Karim Adeyemi",
+     "yellow": 2,
+     "red": 0,
+     "appearances": 14
+    },
+    {
+     "player_id": 1004,
+     "name": "Lamine Yamal",
+     "yellow": 2,
+     "red": 0,
+     "appearances": 15
+    }
+   ],
+   "shooters": [
+    {
+     "player_id": 1009,
+     "name": "Pau Cubars\u00ed",
+     "position": "D",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-09-06T14:15:00+00:00",
+       "opponent": "Valencia",
+       "minutes": 62,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-09T16:45:00+00:00",
+       "opponent": "Feyenoord",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-13T14:15:00+00:00",
+       "opponent": "Levante",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-19T19:00:00+00:00",
+       "opponent": "Sevilla",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-13T19:00:00+00:00",
+       "opponent": "Galatasaray",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T16:30:00+00:00",
+       "opponent": "Real Betis",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-20T19:00:00+00:00",
+       "opponent": "Paris Saint Germain",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-25T20:00:00+00:00",
+       "opponent": "Real Madrid",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T20:00:00+00:00",
+       "opponent": "Alaves",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-11-03T20:00:00+00:00",
+       "opponent": "Aston Villa",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 1004,
+     "name": "Lamine Yamal",
+     "position": "M",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-09-13T14:15:00+00:00",
+       "opponent": "Levante",
+       "minutes": 66,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-09-16T19:30:00+00:00",
+       "opponent": "Racing Santander",
+       "minutes": 90,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-09-19T19:00:00+00:00",
+       "opponent": "Sevilla",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T16:30:00+00:00",
+       "opponent": "Getafe",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-13T19:00:00+00:00",
+       "opponent": "Galatasaray",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T16:30:00+00:00",
+       "opponent": "Real Betis",
+       "minutes": 70,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-10-20T19:00:00+00:00",
+       "opponent": "Paris Saint Germain",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-25T20:00:00+00:00",
+       "opponent": "Real Madrid",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T20:00:00+00:00",
+       "opponent": "Alaves",
+       "minutes": 74,
+       "sot": 3,
+       "started": true
+      },
+      {
+       "date": "2026-11-03T20:00:00+00:00",
+       "opponent": "Aston Villa",
+       "minutes": 90,
+       "sot": 3,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 980,
+     "name": "Ferm\u00edn L\u00f3pez",
+     "position": "M",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-09-09T16:45:00+00:00",
+       "opponent": "Feyenoord",
+       "minutes": 19,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-09-13T14:15:00+00:00",
+       "opponent": "Levante",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-19T19:00:00+00:00",
+       "opponent": "Sevilla",
+       "minutes": 76,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T16:30:00+00:00",
+       "opponent": "Getafe",
+       "minutes": 29,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-13T19:00:00+00:00",
+       "opponent": "Galatasaray",
+       "minutes": 82,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T16:30:00+00:00",
+       "opponent": "Real Betis",
+       "minutes": 62,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-20T19:00:00+00:00",
+       "opponent": "Paris Saint Germain",
+       "minutes": 63,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-25T20:00:00+00:00",
+       "opponent": "Real Madrid",
+       "minutes": 74,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T20:00:00+00:00",
+       "opponent": "Alaves",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-11-03T20:00:00+00:00",
+       "opponent": "Aston Villa",
+       "minutes": 70,
+       "sot": 2,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 821,
+     "name": "Pedri",
+     "position": "M",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-09-13T14:15:00+00:00",
+       "opponent": "Levante",
+       "minutes": 66,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-16T19:30:00+00:00",
+       "opponent": "Racing Santander",
+       "minutes": 61,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-19T19:00:00+00:00",
+       "opponent": "Sevilla",
+       "minutes": 86,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T16:30:00+00:00",
+       "opponent": "Getafe",
+       "minutes": 29,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-13T19:00:00+00:00",
+       "opponent": "Galatasaray",
+       "minutes": 73,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T16:30:00+00:00",
+       "opponent": "Real Betis",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-20T19:00:00+00:00",
+       "opponent": "Paris Saint Germain",
+       "minutes": 60,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-25T20:00:00+00:00",
+       "opponent": "Real Madrid",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T20:00:00+00:00",
+       "opponent": "Alaves",
+       "minutes": 45,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-11-03T20:00:00+00:00",
+       "opponent": "Aston Villa",
+       "minutes": 70,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 3,
+     "name": "Rodri",
+     "position": "M",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-09-13T14:15:00+00:00",
+       "opponent": "Levante",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-16T19:30:00+00:00",
+       "opponent": "Racing Santander",
+       "minutes": 61,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-19T19:00:00+00:00",
+       "opponent": "Sevilla",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T16:30:00+00:00",
+       "opponent": "Getafe",
+       "minutes": 71,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-13T19:00:00+00:00",
+       "opponent": "Galatasaray",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T16:30:00+00:00",
+       "opponent": "Real Betis",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-20T19:00:00+00:00",
+       "opponent": "Paris Saint Germain",
+       "minutes": 30,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-25T20:00:00+00:00",
+       "opponent": "Real Madrid",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T20:00:00+00:00",
+       "opponent": "Alaves",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-11-03T20:00:00+00:00",
+       "opponent": "Aston Villa",
+       "minutes": 45,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 852,
+     "name": "Gerard Mart\u00edn",
+     "position": "D",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-09-13T14:15:00+00:00",
+       "opponent": "Levante",
+       "minutes": 45,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-16T19:30:00+00:00",
+       "opponent": "Racing Santander",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-19T19:00:00+00:00",
+       "opponent": "Sevilla",
+       "minutes": 31,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T16:30:00+00:00",
+       "opponent": "Getafe",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-13T19:00:00+00:00",
+       "opponent": "Galatasaray",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T16:30:00+00:00",
+       "opponent": "Real Betis",
+       "minutes": 45,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-20T19:00:00+00:00",
+       "opponent": "Paris Saint Germain",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-25T20:00:00+00:00",
+       "opponent": "Real Madrid",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T20:00:00+00:00",
+       "opponent": "Alaves",
+       "minutes": 8,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-11-03T20:00:00+00:00",
+       "opponent": "Aston Villa",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 326,
+     "name": "Anthony Gordon",
+     "position": "F",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-09-09T16:45:00+00:00",
+       "opponent": "Feyenoord",
+       "minutes": 27,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-13T14:15:00+00:00",
+       "opponent": "Levante",
+       "minutes": 67,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-19T19:00:00+00:00",
+       "opponent": "Sevilla",
+       "minutes": 86,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T16:30:00+00:00",
+       "opponent": "Getafe",
+       "minutes": 71,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-10-13T19:00:00+00:00",
+       "opponent": "Galatasaray",
+       "minutes": 59,
+       "sot": 4,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T16:30:00+00:00",
+       "opponent": "Real Betis",
+       "minutes": 28,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-10-20T19:00:00+00:00",
+       "opponent": "Paris Saint Germain",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-25T20:00:00+00:00",
+       "opponent": "Real Madrid",
+       "minutes": 85,
+       "sot": 3,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T20:00:00+00:00",
+       "opponent": "Alaves",
+       "minutes": 16,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-11-03T20:00:00+00:00",
+       "opponent": "Aston Villa",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 585,
+     "name": "Raphinha",
+     "position": "F",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-09-06T14:15:00+00:00",
+       "opponent": "Valencia",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-09-09T16:45:00+00:00",
+       "opponent": "Feyenoord",
+       "minutes": 71,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-09-13T14:15:00+00:00",
+       "opponent": "Levante",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-09-16T19:30:00+00:00",
+       "opponent": "Racing Santander",
+       "minutes": 69,
+       "sot": 4,
+       "started": true
+      },
+      {
+       "date": "2026-09-19T19:00:00+00:00",
+       "opponent": "Sevilla",
+       "minutes": 77,
+       "sot": 3,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T16:30:00+00:00",
+       "opponent": "Real Betis",
+       "minutes": 20,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-20T19:00:00+00:00",
+       "opponent": "Paris Saint Germain",
+       "minutes": 60,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-25T20:00:00+00:00",
+       "opponent": "Real Madrid",
+       "minutes": 86,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T20:00:00+00:00",
+       "opponent": "Alaves",
+       "minutes": 62,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-11-03T20:00:00+00:00",
+       "opponent": "Aston Villa",
+       "minutes": 70,
+       "sot": 2,
+       "started": true
+      }
+     ]
+    }
+   ],
+   "allowed": {
+    "competition": {
+     "code": "LaLiga",
+     "name": "La Liga"
+    },
+    "per_match": 3.3,
+    "matches": 12,
+    "rank": 1,
+    "peer_count": 20
+   }
+  }
+ },
+ "referee": {
+  "name": "Javier Alberola Rojas",
+  "referee_key": "j-rojas-faae24c2",
+  "matches": 7,
+  "cards_per_match": 4.9,
+  "league": {
+   "code": "LaLiga",
+   "name": "La Liga"
+  },
+  "league_matches": 118,
+  "league_cards_per_match": 4.7,
+  "last_matches": [
+   {
+    "date": "2026-01-04T17:30:00+00:00",
+    "competition": {
+     "code": "LaLiga",
+     "name": "La Liga"
+    },
+    "home": "Mallorca",
+    "away": "Girona",
+    "cards": 3
+   },
+   {
+    "date": "2026-01-29T20:00:00+00:00",
+    "competition": {
+     "code": "UEL",
+     "name": "UEFA Europa League"
+    },
+    "home": "VfB Stuttgart",
+    "away": "BSC Young Boys",
+    "cards": 2
+   },
+   {
+    "date": "2026-08-05T18:15:00+00:00",
+    "competition": {
+     "code": "UEL",
+     "name": "UEFA Europa League"
+    },
+    "home": "Ferencvarosi TC",
+    "away": "Gornik Zabrze",
+    "cards": null
+   },
+   {
+    "date": "2026-08-24T19:30:00+00:00",
+    "competition": {
+     "code": "LaLiga",
+     "name": "La Liga"
+    },
+    "home": "Malaga",
+    "away": "Deportivo La Coruna",
+    "cards": 5
+   },
+   {
+    "date": "2026-09-12T12:00:00+00:00",
+    "competition": {
+     "code": "LaLiga",
+     "name": "La Liga"
+    },
+    "home": "Racing Santander",
+    "away": "Alaves",
+    "cards": 6
+   },
+   {
+    "date": "2026-09-17T16:45:00+00:00",
+    "competition": {
+     "code": "UEL",
+     "name": "UEFA Europa League"
+    },
+    "home": "OFI",
+    "away": "1899 Hoffenheim",
+    "cards": 5
+   },
+   {
+    "date": "2026-09-20T12:00:00+00:00",
+    "competition": {
+     "code": "LaLiga",
+     "name": "La Liga"
+    },
+    "home": "Getafe",
+    "away": "Malaga",
+    "cards": 6
+   },
+   {
+    "date": "2026-10-11T12:00:00+00:00",
+    "competition": {
+     "code": "LaLiga",
+     "name": "La Liga"
+    },
+    "home": "Elche",
+    "away": "Celta Vigo",
+    "cards": 4
+   },
+   {
+    "date": "2026-10-20T16:45:00+00:00",
+    "competition": {
+     "code": "UCL",
+     "name": "UEFA Champions League"
+    },
+    "home": "Sabah FA",
+    "away": "Borussia Dortmund",
+    "cards": 4
+   },
+   {
+    "date": "2026-10-25T17:30:00+00:00",
+    "competition": {
+     "code": "LaLiga",
+     "name": "La Liga"
+    },
+    "home": "Real Sociedad",
+    "away": "Levante",
+    "cards": 4
+   }
+  ]
+ },
+ "h2h": [
+  {
+   "event_id": "1534910",
+   "date": "2026-04-14T19:00:00+00:00",
+   "competition": {
+    "code": "UCL",
+    "name": "UEFA Champions League"
+   },
+   "home": {
+    "id": 22,
+    "name": "Atletico Madrid"
+   },
+   "away": {
+    "id": 21,
+    "name": "Barcelona"
+   },
+   "score": {
+    "home": 1,
+    "away": 2
+   },
+   "cards": 2,
+   "corners": 6,
+   "goals": 3
+  },
+  {
+   "event_id": "1534907",
+   "date": "2026-04-08T19:00:00+00:00",
+   "competition": {
+    "code": "UCL",
+    "name": "UEFA Champions League"
+   },
+   "home": {
+    "id": 21,
+    "name": "Barcelona"
+   },
+   "away": {
+    "id": 22,
+    "name": "Atletico Madrid"
+   },
+   "score": {
+    "home": 0,
+    "away": 2
+   },
+   "cards": 6,
+   "corners": 8,
+   "goals": 2
+  },
+  {
+   "event_id": "1391110",
+   "date": "2026-04-04T19:00:00+00:00",
+   "competition": {
+    "code": "LaLiga",
+    "name": "La Liga"
+   },
+   "home": {
+    "id": 22,
+    "name": "Atletico Madrid"
+   },
+   "away": {
+    "id": 21,
+    "name": "Barcelona"
+   },
+   "score": {
+    "home": 1,
+    "away": 2
+   },
+   "cards": 10,
+   "corners": 10,
+   "goals": 3
+  },
+  {
+   "event_id": "1391000",
+   "date": "2025-12-02T20:00:00+00:00",
+   "competition": {
+    "code": "LaLiga",
+    "name": "La Liga"
+   },
+   "home": {
+    "id": 21,
+    "name": "Barcelona"
+   },
+   "away": {
+    "id": 22,
+    "name": "Atletico Madrid"
+   },
+   "score": {
+    "home": 3,
+    "away": 1
+   },
+   "cards": 2,
+   "corners": 9,
+   "goals": 4
+  },
+  {
+   "event_id": "1208737",
+   "date": "2025-03-16T20:00:00+00:00",
+   "competition": {
+    "code": "LaLiga",
+    "name": "La Liga"
+   },
+   "home": {
+    "id": 22,
+    "name": "Atletico Madrid"
+   },
+   "away": {
+    "id": 21,
+    "name": "Barcelona"
+   },
+   "score": {
+    "home": 2,
+    "away": 4
+   },
+   "cards": 4,
+   "corners": 12,
+   "goals": 6
+  },
+  {
+   "event_id": "1208654",
+   "date": "2024-12-21T20:00:00+00:00",
+   "competition": {
+    "code": "LaLiga",
+    "name": "La Liga"
+   },
+   "home": {
+    "id": 21,
+    "name": "Barcelona"
+   },
+   "away": {
+    "id": 22,
+    "name": "Atletico Madrid"
+   },
+   "score": {
+    "home": 1,
+    "away": 2
+   },
+   "cards": 3,
+   "corners": 14,
+   "goals": 3
+  }
+ ],
+ "lineups": null,
+ "data_basis": {
+  "latest_finished_kickoff": "2026-11-03T20:00:00+00:00",
+  "generated_at": "2026-11-16T10:33:19.944210+00:00",
+  "source": "canonical_database",
+  "h2h_since_season": 2023
+ }
+}

@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Research Area sketch</title>
+<link rel="stylesheet" href="sketch.css">
+</head>
+<body>
+<header class="topbar"><div class="topbar-in"><span class="logo">spix</span><nav class="topnav"><a>Fixtures</a><a class="on">Research Area</a><a>Research Assistant</a><a>Best Bets</a></nav></div></header>
+<div class="sketch-note">Sketch with dummy numbers. Nothing on the website has changed.</div>
+<main class="page">
+  <h1 class="page-h1 cond">Research Area</h1>
+  <nav class="area-nav"><a>Players</a><a class="on">Teams</a><a>Referees</a><a>Matches <span class="new">New</span></a></nav>
+  <div class="layout">
+    <div id="main"></div>
+    <aside class="rail" aria-labelledby="railTitle"><h2 id="railTitle" class="cond">Next matches</h2><p class="sub">Chelsea's next three, in every competition</p><div id="railList"></div><p class="rail-note">Spix's read opens with the market you were looking at. Referees appear once they are named.</p></aside>
+  </div>
+  <p class="foot">Statistics describe past matches; Spix's figures are statistical estimates, not promises. 18+ · Gamble responsibly · GamCare 0808 8020 133</p>
+</main>
+<nav class="bottomnav"><a>Fixtures</a><a class="on">Research</a><a>Assistant</a><a>Best bets</a></nav>
+<div id="sheetRoot"></div>
+
+<script>
+const CREST = id => `https://media.api-sports.io/football/teams/${id}.png`;
+const T = {
+  CHE: { name: 'Chelsea', crest: 49 }, LEE: { name: 'Leeds', crest: 63 }, NAP: { name: 'Napoli', crest: 492 }, NEW: { name: 'Newcastle', crest: 34 },
+};
+const crest = (code, size = '') => `<span class="crest ${size}"><img src="${CREST(T[code].crest)}" alt=""></span>`;
+
+// Dummy data, shaped on the real Chelsea and Leeds records (10 Premier League matches each).
+const NEXT = [
+  { id: 'lee', opp: 'LEE', venue: 'v', home: true, day: 'Sat 21 Nov', time: '15:00', comp: 'Premier League', status: ['Read ready', ''], ref: 'Anthony Taylor',
+    figs: [['2.7', 'goals'], ['10.1', 'corners'], ['4.6', 'cards']] },
+  { id: 'nap', opp: 'NAP', venue: 'at', home: false, day: 'Tue 25 Nov', time: '20:00', comp: 'Champions League', status: ['Preliminary', 'pre'], ref: null,
+    figs: [['2.6', 'goals'], ['9.4', 'corners'], ['4.9', 'cards']] },
+  { id: 'new', opp: 'NEW', venue: 'at', home: false, day: 'Sun 29 Nov', time: '16:30', comp: 'Premier League', status: ['Read due Thu', 'wait'], ref: null, figs: null },
+];
+const CARDS = {
+  che: { opp: ['FUL','BRI','ARS','HUL','BRE','BOU','EVE','TOT','MUN','SUN'], ven: ['A','H','A','H','A','H','A','H','H','A'], own: [3,1,4,1,0,0,4,3,1,4], against: [2,3,2,5,2,4,3,3,5,5] },
+  lee: { own: [1,0,3,1,2,4,2,2,2,2], against: [2,4,3,2,3,1,2,1,2,3] },
+  ref: [5,3,6,4,4,7,2,5,4],
+  h2h: [6, 5],
+};
+const total = t => t.own.map((v, i) => v + t.against[i]);
+const SPIX_CARDS = { 2.5: 82, 3.5: 66, 4.5: 49, 5.5: 32 };
+const PRICE_CARDS = { 2.5: [1.22, 4.33], 3.5: [1.53, 2.50], 4.5: [2.00, 1.80], 5.5: [3.00, 1.40] };
+const GOALS = { che: [5,7,3,4,3,6,2,2,2,1], lee: [1,2,2,5,0,3,2,0,2,1], h2h: [3, 2], spix: { 1.5: 74, 2.5: 52, 3.5: 29 }, price: { 1.5: [1.30, 3.50], 2.5: [1.85, 1.95], 3.5: [3.25, 1.33] } };
+const CORNERS = { che: [10,11,8,15,16,8,12,10,15,4], lee: [5,11,13,10,7,7,5,9,8,10], h2h: [9, 12], spix: { 8.5: 70, 9.5: 54, 10.5: 41 }, price: { 8.5: [1.44, 2.62], 9.5: [1.80, 1.95], 10.5: [2.30, 1.57] } };
+const SOT = [
+  { n: 'Pedro Neto', t: 'CHE', pos: 'Winger', min: 84, last: [2,1,0,3,1,2,1,0,2,1], price: [1.57, 3.40] },
+  { n: 'Cole Palmer', t: 'CHE', pos: 'Midfielder', min: 89, last: [2,1,2,0,0,0,1,1,1,1], price: [1.50, 3.10] },
+  { n: 'João Pedro', t: 'CHE', pos: 'Forward', min: 78, last: [1,0,2,1,0,1,0,2,1,0], price: [1.62, 3.60] },
+  { n: 'Morgan Rogers', t: 'CHE', pos: 'Midfielder', min: 74, last: [0,1,1,0,2,0,1,0,1,1], price: [1.85, 4.50] },
+  { n: 'D. Calvert-Lewin', t: 'LEE', pos: 'Forward', min: 81, last: [1,2,0,1,1,0,2,1,1,1], price: [1.80, 4.20] },
+  { n: 'Noah Okafor', t: 'LEE', pos: 'Winger', min: 66, last: [0,1,0,0,1,0,1,0,1,0], price: [2.60, 7.00] },
+  { n: 'Jayden Bogle', t: 'LEE', pos: 'Defender', min: 90, last: [1,0,0,1,0,1,0,0,1,1], price: [2.75, 8.00] },
+];
+const BOOKED = [
+  { n: 'Ethan Ampadu', t: 'LEE', last: [0,1,0,0,1,1,0,1,0,0], fouls: 1.9, price: 3.40 },
+  { n: 'Pedro Neto', t: 'CHE', last: [1,0,0,1,0,0,1,0,0,0], fouls: 1.4, price: 4.00 },
+  { n: 'Morgan Rogers', t: 'CHE', last: [0,0,1,0,0,1,0,0,1,0], fouls: 1.6, price: 4.33 },
+  { n: 'Jayden Bogle', t: 'LEE', last: [0,0,1,0,0,0,1,0,1,0], fouls: 1.2, price: 4.50 },
+];
+
+const state = { view: 'team', match: null, cardLine: 3.5, goalLine: 2.5, cornerLine: 9.5, sotLine: 1, sotTeam: 'both', teamMarket: 'cards', mobile: new URLSearchParams(location.search).get('m') || 'strip', tab: 'overview', sheet: false };
+
+const strip = (vals, test, labels) => `<span class="strip" role="img" aria-label="${vals.filter(test).length} of ${vals.length}">${vals.map((v, i) => `<i class="${v == null ? 'na' : test(v) ? 'y' : ''}" title="${labels ? labels[i] + ': ' : ''}${v}"></i>`).join('')}</span>`;
+const seg = (name, opts, cur, fmt = v => v) => `<span class="seg" role="group">${opts.map(o => `<button data-${name}="${o}" aria-pressed="${o == cur}">${fmt(o)}</button>`).join('')}</span>`;
+const pct = n => `${n}%`;
+const ini = name => name.split(/[\s.]+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2);
+
+function nmCard(m, compact) {
+  const figs = m.figs ? `<div class="nm-figs">${m.figs.map(([v, l]) => `<span><b>${v}</b>${l}</span>`).join('')}<span style="margin-left:auto;align-self:end">Spix expects</span></div>`
+    : `<div class="nm-figs"><span>Spix's read comes out nearer the match. Past numbers are ready now.</span></div>`;
+  return `<button class="nm" data-open="${m.id}" aria-current="${state.match === m.id}">
+    <div class="nm-top"><span><b>${m.day}</b> · ${m.time}</span><span>${m.comp}</span></div>
+    <div class="nm-team">${crest(m.opp)}<span class="cond"><span class="vw">${m.venue}</span> ${T[m.opp].name}</span><small>${m.home ? 'Home' : 'Away'}</small></div>
+    ${figs}
+    <div class="nm-foot"><span>${m.ref ? `Referee ${m.ref}` : 'Referee not named yet'}</span><span class="status ${m.status[1]}">${m.status[0]}</span></div>
+  </button>`;
+}
+
+function teamView() {
+  const cTot = total(CARDS.che);
+  const labels = CARDS.che.opp.map((o, i) => `${CARDS.che.ven[i] === 'H' ? 'v' : 'at'} ${o}`);
+  const max = 10;
+  const mk = state.teamMarket;
+  const rows = {
+    cards: [['4+ cards in the match', cTot, v => v >= 4], ['5+ cards in the match', cTot, v => v >= 5], ['Chelsea booked 2+ times', CARDS.che.own, v => v >= 2], ['Opponent booked 3+ times', CARDS.che.against, v => v >= 3]],
+    goals: [['3+ goals in the match', GOALS.che, v => v >= 3], ['Both teams scored', [1,1,1,1,0,1,1,0,0,0], v => v === 1], ['Chelsea scored 2+', [3,4,1,2,3,5,2,0,2,0], v => v >= 2]],
+    corners: [['10+ corners in the match', CORNERS.che, v => v >= 10], ['Chelsea won 5+ corners', [4,4,3,11,12,1,7,4,8,2], v => v >= 5]],
+  }[mk];
+  const next = NEXT.map(m => nmCard(m)).join('');
+  const mobileNext = state.mobile === 'strip' ? `<div class="mstrip m-only">${next}</div>`
+    : state.mobile === 'tabs' ? `<div class="mtabs m-only"><button data-tab="overview" aria-pressed="${state.tab === 'overview'}">Overview</button><button data-tab="next" aria-pressed="${state.tab === 'next'}">Next matches · 3</button></div>`
+    : `<button class="mbar m-only" data-sheet="1">${crest('LEE')}<span><span class="cond">Next: <span class="vw">v</span> Leeds</span><small>Sat 21 Nov · 15:00 · and 2 more</small></span><span class="go">Open ›</span></button>`;
+  const body = state.mobile === 'tabs' && state.tab === 'next' && matchMedia('(max-width: 860px)').matches
+    ? `<div class="m-only" style="margin-top:4px">${next}</div>`
+    : `<p class="lead">Chelsea's matches are card-heavy: <mark>9 of their last 10</mark> had 4 or more cards.</p>
+    <p class="lead-sub">Premier League 2026/27 · last 10 matches · their opponents got most of the cards (3.4 a match)</p>
+    <section class="card" style="margin-top:20px">
+      <div class="card-h"><h3 class="cond">Last 10 at a glance</h3><small>Newest on the right · filled = it happened</small></div>
+      <div class="chips" style="margin-top:12px">${['cards', 'goals', 'corners'].map(k => `<button class="chip" data-tm="${k}" aria-pressed="${mk === k}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>
+      <div class="glance">${rows.map(([l, v, f]) => `<div><span>${l}</span><span>${strip(v, f, labels)}</span><span class="n">${v.filter(f).length} of 10</span></div>`).join('')}</div>
+    </section>
+    <section class="card">
+      <div class="card-h"><h3 class="cond">Cards by match</h3><small>Who got them, last 10</small></div>
+      <div class="bars" style="position:relative">${cTot.map((v, i) => `<div class="col"><i class="own" style="height:${CARDS.che.own[i] / max * 100}%"></i><i class="opp" style="height:${CARDS.che.against[i] / max * 100}%"></i><b style="bottom:${v / max * 100 + 2}%">${v}</b></div>`).join('')}<div class="ref-line" style="bottom:${3.5 / max * 100}%"></div></div>
+      <div class="xl">${CARDS.che.opp.map((o, i) => `<span>${o}<small>${CARDS.che.ven[i]}</small></span>`).join('')}</div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>Chelsea 2.1 a match</span><span><i style="background:var(--chart-2)"></i>Opponents 3.4 a match</span><span><i style="border-top:1.5px dashed var(--text2);height:0;border-radius:0;vertical-align:3px"></i>Line 3.5 cards</span></div>
+      <p class="note">The number above each bar is the match total. The dashed line follows the line you pick above.</p>
+    </section>
+    <section class="card collapsed"><span>Against the league <small>· 10 ranks, this season only</small></span><span>›</span></section>
+    <section class="card collapsed"><span>Home and away <small>· with the numbers shown</small></span><span>›</span></section>
+    <section class="card collapsed"><span>Players <small>· shots, cards, minutes</small></span><span>›</span></section>`;
+  return `<button class="back">Find another team</button>
+    <div class="t-head">${crest('CHE', 'lg')}<div><h2 class="t-name">Chelsea</h2>
+    <div class="t-meta"><span>Premier League · 5th · 16 pts</span><span class="form"><b class="w">W</b><b class="w">W</b><b>L</b><b class="w">W</b><b>L</b></span></div></div></div>
+    ${mobileNext}${body}`;
+}
+
+function evRow(icon, title, sub, vals, test, avg) {
+  return `<div class="evrow">${icon}<span class="who"><strong>${title}</strong><small>${sub}</small></span>${strip(vals, test)}<span class="hit">${vals.filter(test).length} of ${vals.length}</span><span class="avg"><b>${avg}</b>a match</span></div>`;
+}
+const refIcon = `<span class="ini" style="width:28px;height:28px;font-size:12px">AT</span>`;
+const h2hIcon = `<span class="ini" style="width:28px;height:28px;font-size:12px">H2H</span>`;
+const mean = a => (a.reduce((s, v) => s + v, 0) / a.length).toFixed(1);
+
+function pickPair(market, line, chance, prices, unit) {
+  const over = chance >= 50;
+  return `<div class="verdict">
+    <div class="pick${over ? ' lean' : ''}"><span><span class="p-l">Over ${line} ${unit}</span>${over ? ' <span class="tag">Spix leans this way</span>' : ''}</span><button class="add">Add</button><span class="p-c">Spix <b>${chance}%</b> · typical price <b class="price">${prices[0].toFixed(2)}</b></span></div>
+    <div class="pick${over ? '' : ' lean'}"><span><span class="p-l">Under ${line} ${unit}</span>${over ? '' : ' <span class="tag">Spix leans this way</span>'}</span><button class="add">Add</button><span class="p-c">Spix <b>${100 - chance}%</b> · typical price <b class="price">${prices[1].toFixed(2)}</b></span></div>
+  </div>`;
+}
+
+function matchView() {
+  const m = NEXT[0];
+  const other = state.match !== 'lee' ? `<p class="free-note" style="background:var(--amber-dim);color:var(--amber)">Sketch: only Chelsea v Leeds is drawn. The real page would open ${NEXT.find(x => x.id === state.match).venue} ${T[NEXT.find(x => x.id === state.match).opp].name} here.</p>` : '';
+  const L = state.cardLine, over = v => v > L;
+  const cheT = total(CARDS.che), leeT = total(CARDS.lee);
+  const gL = state.goalLine, cL = state.cornerLine;
+  const sotRows = SOT.filter(p => state.sotTeam === 'both' || p.t === state.sotTeam.toUpperCase());
+  return `${other}<button class="back" data-back="1">Chelsea</button>
+  <div class="mv-head">${crest('CHE', 'md')}<h2 class="mv-title">Chelsea <span class="vw">v</span> Leeds</h2>${crest('LEE', 'md')}</div>
+  <div class="mv-meta"><span>${m.day} · ${m.time}</span><span>Premier League</span><span>Stamford Bridge</span><span>Referee <a>Anthony Taylor</a></span><span class="status">Read ready · 10:40</span></div>
+  <p class="free-note">Free accounts open one match in full each day. This is today's. Every match keeps its summary and past numbers.</p>
+  <section class="read">
+    <p class="cap">How Spix reads it</p>
+    <p class="rlead">Chelsea are favourites, and both sides' matches have been card-heavy.</p>
+    <div class="bal"><i style="flex:58;background:var(--accent)"></i><i style="flex:24;background:var(--border2)"></i><i style="flex:18;background:var(--away)"></i></div>
+    <div class="bal-leg"><span>Chelsea <b>58%</b></span><span>Draw <b>24%</b></span><span>Leeds <b>18%</b></span></div>
+    <div class="figs"><div><b>2.7</b>goals<small>Chelsea 1.8 · Leeds 0.9</small></div><div><b>10.1</b>corners<small>Chelsea 6.2 · Leeds 3.9</small></div><div><b><mark>4.6</mark></b>cards<small>Chelsea 1.9 · Leeds 2.7</small></div><div><b>49%</b>both teams score<small>Spix's chance of yes</small></div></div>
+  </section>
+  <nav class="mkts" aria-label="Markets">${[['cards', 'Cards'], ['sot', 'Shots on target'], ['goals', 'Goals'], ['corners', 'Corners'], ['result', 'Result'], ['h2h', 'Head to head'], ['news', 'Team news']].map(([k, l], i) => `<button data-jump="${k}" aria-pressed="${i === 0}">${l}</button>`).join('')}</nav>
+
+  <section class="mk" id="mk-cards">
+    <div class="mk-h"><h2 class="cond">Cards</h2><p>Spix expects <b>4.6</b> cards</p></div>
+    <div class="lines"><span>Line</span>${seg('cl', [2.5, 3.5, 4.5, 5.5], L)}</div>
+    ${pickPair('cards', L, SPIX_CARDS[L], PRICE_CARDS[L], 'cards')}
+    <div class="ev"><h3>How often their matches went over ${L} cards<small>newest on the right</small></h3><div class="evrows">
+      ${evRow(crest('CHE'), "Chelsea's matches", 'Premier League, last 10', cheT, over, mean(cheT))}
+      ${evRow(crest('LEE'), "Leeds's matches", 'Premier League, last 10', leeT, over, mean(leeT))}
+      ${evRow(refIcon, 'Anthony Taylor', 'Referee, every match this season', CARDS.ref, over, mean(CARDS.ref))}
+      ${evRow(h2hIcon, 'Chelsea v Leeds', 'Meetings since 2023', CARDS.h2h, over, mean(CARDS.h2h))}
+    </div></div>
+    <div class="ev"><h3>Who gets the cards</h3><div class="two">
+      <div class="mini"><div class="mh">${crest('CHE')}Chelsea</div><dl><div><dt>Booked a match</dt><dd>2.1<small>11th of 20</small></dd></div><div><dt>Their opponents booked</dt><dd>3.4<small>most in the league</small></dd></div><div><dt>Fouls a match</dt><dd>9.5<small>4th fewest</small></dd></div></dl></div>
+      <div class="mini"><div class="mh">${crest('LEE')}Leeds</div><dl><div><dt>Booked a match</dt><dd>1.9<small>14th of 20</small></dd></div><div><dt>Their opponents booked</dt><dd>2.3<small>9th of 20</small></dd></div><div><dt>Fouls a match</dt><dd>12.8<small>5th most</small></dd></div></dl></div>
+    </div>
+    <p class="callout"><span>Teams that play Chelsea pick up the cards: 3.4 a match, the most in the league. Leeds commit the 5th most fouls.</span></p></div>
+    <div class="ev"><h3>The referee</h3><div class="two">
+      <div class="mini"><div class="mh">${refIcon}Anthony Taylor</div><dl><div><dt>Cards a match this season</dt><dd>4.4<small>9 matches · league 3.9</small></dd></div><div><dt>Cards a foul</dt><dd>0.21<small>stricter than 70% of referees</small></dd></div><div><dt>His Chelsea match this season</dt><dd>6 cards<small>at Arsenal, 6 Sep</small></dd></div></dl></div>
+      <div class="mini"><div class="mh">Keep in mind</div><dl><div><dt>9 matches is a small sample; one heated game moves his average by about 0.3.</dt><dd></dd></div><div><dt>A yellow counts as 1. Check how your bookmaker counts a red.</dt><dd></dd></div></dl></div>
+    </div></div>
+    <div class="ev"><h3>Players booked most often<small>last 10 each</small></h3>
+      <table class="tbl"><thead><tr><th>Player</th><th>Booked</th><th class="r hide-m">Fouls / 90</th><th class="r">Typical price</th></tr></thead><tbody>
+      ${BOOKED.map(p => `<tr><td><span class="pl">${crest(p.t)}<span><strong>${p.n}</strong><small>${T[p.t].name}</small></span></span></td><td>${strip(p.last, v => v > 0)} <b style="margin-left:6px">${p.last.filter(v => v).length}/10</b></td><td class="r hide-m">${p.fouls.toFixed(1)}</td><td class="r price">${p.price.toFixed(2)}</td></tr>`).join('')}
+      </tbody></table></div>
+  </section>
+  <hr class="mk-sep">
+
+  <section class="mk" id="mk-sot">
+    <div class="mk-h"><h2 class="cond">Shots on target</h2><p>Players who started last time</p></div>
+    <div class="lines"><span>Each player</span>${seg('sl', [1, 2], state.sotLine, v => v + '+')}<span style="margin-left:8px">Team</span>${seg('st', ['both', 'che', 'lee'], state.sotTeam, v => ({ both: 'Both', che: 'Chelsea', lee: 'Leeds' }[v]))}</div>
+    <table class="tbl"><thead><tr><th>Player</th><th>Last 10 appearances</th><th class="r hide-m">Minutes</th><th class="r">Typical price</th></tr></thead><tbody>
+    ${sotRows.map(p => `<tr><td><span class="pl">${crest(p.t)}<span><strong>${p.n}</strong><small>${p.pos}</small></span></span></td><td>${strip(p.last, v => v >= state.sotLine)} <b style="margin-left:6px">${p.last.filter(v => v >= state.sotLine).length}/10</b></td><td class="r hide-m">${p.min}</td><td class="r price">${p.price[state.sotLine - 1].toFixed(2)}</td></tr>`).join('')}
+    </tbody></table>
+    <div class="two" style="margin-top:12px">
+      <div class="mini"><div class="mh">${crest('LEE')}What Leeds allow</div><dl><div><dt>Shots on target faced a match</dt><dd>4.3<small>9th fewest of 20</small></dd></div><div><dt>Away from home</dt><dd>4.6<small>5 matches</small></dd></div></dl></div>
+      <div class="mini"><div class="mh">${crest('CHE')}What Chelsea allow</div><dl><div><dt>Shots on target faced a match</dt><dd>5.2<small>14th of 20</small></dd></div><div><dt>At home</dt><dd>4.8<small>5 matches</small></dd></div></dl></div>
+    </div>
+    <p class="note">Lineups are confirmed about an hour before kickoff; this list updates then. Prices from one bookmaker; shown only where offered.</p>
+  </section>
+  <hr class="mk-sep">
+
+  <section class="mk" id="mk-goals">
+    <div class="mk-h"><h2 class="cond">Goals</h2><p>Spix expects <b>2.7</b> goals</p></div>
+    <div class="lines"><span>Line</span>${seg('gl', [1.5, 2.5, 3.5], gL)}</div>
+    ${pickPair('goals', gL, GOALS.spix[gL], GOALS.price[gL], 'goals')}
+    <div class="ev"><div class="evrows">
+      ${evRow(crest('CHE'), "Chelsea's matches", 'last 10 · xG 1.2 for, 1.1 against', GOALS.che, v => v > gL, mean(GOALS.che))}
+      ${evRow(crest('LEE'), "Leeds's matches", 'last 10 · xG 1.0 for, 1.1 against', GOALS.lee, v => v > gL, mean(GOALS.lee))}
+      ${evRow(h2hIcon, 'Chelsea v Leeds', 'Meetings since 2023', GOALS.h2h, v => v > gL, mean(GOALS.h2h))}
+    </div></div>
+  </section>
+  <hr class="mk-sep">
+
+  <section class="mk" id="mk-corners">
+    <div class="mk-h"><h2 class="cond">Corners</h2><p>Spix expects <b>10.1</b> corners</p></div>
+    <div class="lines"><span>Line</span>${seg('cnl', [8.5, 9.5, 10.5], cL)}</div>
+    ${pickPair('corners', cL, CORNERS.spix[cL], CORNERS.price[cL], 'corners')}
+    <div class="ev"><div class="evrows">
+      ${evRow(crest('CHE'), "Chelsea's matches", 'last 10 · win 5.6, concede 5.3', CORNERS.che, v => v > cL, mean(CORNERS.che))}
+      ${evRow(crest('LEE'), "Leeds's matches", 'last 10 · win 4.3, concede 4.2', CORNERS.lee, v => v > cL, mean(CORNERS.lee))}
+    </div></div>
+  </section>
+  <hr class="mk-sep">
+
+  <section class="mk" id="mk-result">
+    <div class="mk-h"><h2 class="cond">Result</h2><p>Chelsea <b>58%</b> · Draw 24% · Leeds 18%</p></div>
+    <div class="two"><div class="mini"><div class="mh">${crest('CHE')}Chelsea at home</div><dl><div><dt>Won, drew, lost</dt><dd>3 · 1 · 1</dd></div><div><dt>Table</dt><dd>5th · 16 pts</dd></div></dl></div>
+    <div class="mini"><div class="mh">${crest('LEE')}Leeds away</div><dl><div><dt>Won, drew, lost</dt><dd>1 · 3 · 1</dd></div><div><dt>Table</dt><dd>12th · 14 pts</dd></div></dl></div></div>
+  </section>
+  <hr class="mk-sep">
+
+  <section class="mk" id="mk-h2h">
+    <div class="mk-h"><h2 class="cond">Head to head</h2><p>Since 2023</p></div>
+    <ul class="h2h"><li><span>Apr 2026</span><span>Chelsea 2–1 Leeds</span><span>5 cards · 12 corners</span></li><li><span>Dec 2025</span><span>Leeds 1–1 Chelsea</span><span>6 cards · 9 corners</span></li></ul>
+  </section>
+  <hr class="mk-sep">
+
+  <section class="mk" id="mk-news">
+    <div class="mk-h"><h2 class="cond">Team news</h2><p>Injuries and suspensions</p></div>
+    <div class="news"><div class="mini"><div class="mh">${crest('CHE')}Chelsea</div><ul><li><b>Centre-back (example)</b><span>knee · out</span></li><li><b>Midfielder (example)</b><span>doubtful</span></li></ul></div>
+    <div class="mini"><div class="mh">${crest('LEE')}Leeds</div><ul><li><b>Winger (example)</b><span>suspended, 5 yellows</span></li></ul></div></div>
+    <p class="note">New data: the provider's injuries feed. Confirmed lineups land about an hour before kickoff.</p>
+  </section>`;
+}
+
+function render() {
+  const main = document.getElementById('main');
+  main.innerHTML = state.view === 'team' ? teamView() : matchView();
+  document.getElementById('railList').innerHTML = NEXT.map(m => nmCard(m)).join('');
+  document.getElementById('sheetRoot').innerHTML = state.sheet
+    ? `<div class="sheet-bg" data-sheet="0"></div><div class="sheet" role="dialog" aria-label="Next matches"><div class="grab"></div><h2 class="cond" style="font-size:22px">Chelsea's next matches</h2>${NEXT.map(m => nmCard(m)).join('')}</div>` : '';
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('button');
+  if (!t) return;
+  const d = t.dataset;
+  if (d.open) { Object.assign(state, { view: 'match', match: d.open, sheet: false }); render(); scrollTo({ top: 0, behavior: 'instant' }); }
+  else if (d.back) { state.view = 'team'; state.match = null; render(); scrollTo({ top: 0, behavior: 'instant' }); }
+  else if (d.cl) { state.cardLine = +d.cl; render(); }
+  else if (d.gl) { state.goalLine = +d.gl; render(); }
+  else if (d.cnl) { state.cornerLine = +d.cnl; render(); }
+  else if (d.sl) { state.sotLine = +d.sl; render(); }
+  else if (d.st) { state.sotTeam = d.st; render(); }
+  else if (d.tm) { state.teamMarket = d.tm; render(); }
+  else if (d.tab) { state.tab = d.tab; render(); }
+  else if (d.sheet) { state.sheet = d.sheet === '1'; render(); }
+  else if (d.jump) {
+    document.querySelectorAll('.mkts button').forEach(b => b.setAttribute('aria-pressed', String(b === t)));
+    document.getElementById('mk-' + d.jump).scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  else return;
+  if (d.cl || d.gl || d.cnl || d.sl || d.st) {
+    const sec = { cl: 'cards', gl: 'goals', cnl: 'corners', sl: 'sot', st: 'sot' }[Object.keys(d)[0]];
+    document.querySelectorAll('.mkts button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.jump === sec)));
+  }
+});
+document.addEventListener('click', e => { if (e.target.classList?.contains('sheet-bg')) { state.sheet = false; render(); } });
+const start = new URLSearchParams(location.search);
+if (start.get('view') === 'match') { state.view = 'match'; state.match = 'lee'; }
+if (start.get('tab')) state.tab = start.get('tab');
+if (start.get('sheet')) state.sheet = true;
+render();
+if (start.get('at')) requestAnimationFrame(() => document.getElementById('mk-' + start.get('at'))?.scrollIntoView({ block: 'start', behavior: 'instant' }));
+addEventListener('resize', () => { if (state.mobile === 'tabs') render(); });
+</script>
+</body>
+</html>

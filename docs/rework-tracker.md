@@ -2689,6 +2689,124 @@ backend).** The number was held since 7 Nov (D78).
       over/under 2.5 prices.
     - Tests: 5 new, all pass. The full suite: 3,084 passed, plus the 3 known errors. No live code changed.
 
+**D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
+owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
+test bets (Over 2.5 cards in Chelsea's next match; a player's shots on target) took three searches and hid the line.
+- *The owner's call (16 Nov):* the clickable sketch as drawn ("the sketch looks really good… you can get started on
+  implementing the things in the renders"), and option C on the phone, the floating bar, over the strip the frontend
+  recommended.
+- *Design:* `docs/superpowers/specs/2026-11-16-research-area-overhaul-design.md`, with the sketch and its screenshots
+  in `docs/superpowers/specs/assets/2026-11-16-research/`. Plan: `docs/superpowers/plans/2026-11-16-research-area-overhaul.md`
+  (10 tasks, start and done commit each, one tracker line per task under D107).
+- *Split:* the frontend builds the pages; the backend is asked for read-only endpoints: B1 a team's (and a
+  referee's) next matches with the read's state and figures, B2 one match with both teams' last 10, the referee,
+  meetings, players and the read's lines; B3 two checks (Chelsea's 2026/27 ranks "stale or missing"; Anthony Taylor
+  has no 2026/27 matches while Michael Oliver's run to 8 Nov); B4 later, an all-competitions scope; B5 this season's
+  ranks for players under 900 minutes. The rail, the bar and the match view stay hidden while B1 and B2 answer 404.
+- *Not in it:* no paywall (the free and paid split waits for the payments work, D50); no new picks (cards and shots on
+  target stay out of the lists, D61); every Spix figure comes from the match's Match Read.
+- *Build (plan tasks):*
+  - Task 1, 16 Nov: `insight.js` (lines, hits, the sketch's strips, labelled columns) and the number rules on today's
+    pages: one decimal everywhere (the API's two-decimal values included, xG too), values written on every column,
+    home and away numbers at both ends with their side's dot, a grey "Ranks are being rebuilt" note instead of the amber
+    box, and one foot line ("Past matches are records, not a forecast… 18+ · GamCare") in place of three disclaimers.
+    Backend reply the same day: player shots-on-target prices are Bet365 alone, matched by name, so they stay out
+    (no price column or tile).
+  - Task 2, 16 Nov: the team page answers first, as in the sketch. A lead from the last 10 for the market last chosen
+    ("Chelsea's matches are card-heavy: 9 of their last 10 had 4 or more cards", the heavy word only from 7 in 10),
+    who got the cards (opponents 3.4 a match, Chelsea 2.1), "Last 10 at a glance" (Cards, Goals, Corners: the sketch's
+    rows of squares with "N of 10"), and the match totals by match with both sides stacked and the line dashed. Ranks,
+    home and away, squad leaders, chances and season totals fold away underneath. The market is kept per browser.
+  - Task 3, 16 Nov: the match-by-match view answers first. "Explore a threshold" and the season-average tick box are
+    gone; a line picker sits under the answer at all times (a player's 1+, 2+, 3+; a referee's cards 2.5 to 5.5;
+    none for per 90, percentages or xG), and the answer reads "1 or more shots on target in 7 of their last 10"
+    (Palmer's real last 10). Columns that reach the line are cobalt, the rest grey, and every column's value is
+    written (it used to show only on hover). The sub-line gives the competition, the dates and the starts.
+  - Task 4, 16 Nov: ranks come from the page's own season only. A player under the threshold sees this season's
+    values with no dots, "Ranked from 900 minutes · 888 so far" (Palmer) and a link to last season's ranks; once the
+    backend's early ranks arrive (B5) the dots come back under an "Early season" chip. A team whose ranks are missing
+    says so quietly (Chelsea: the backend found on 16 Nov that research ranks were last built by hand on 8 Oct and
+    proposes a daily rebuild). The referee page leads with "4.3 cards a match in 2025/26, more than 59% of referees"
+    and a line picker (2.5 to 5.5) over the last 10 matches; ranks, how often, competitions and season totals fold
+    away. Every chart total is now written above its column without stretching the chart.
+  - Task 5, 16 Nov: next matches, from the backend's B1 (6b9db1e, not merged yet). A team page gets a rail on the
+    right (wider than 860 px): one card per match with the day and time in the viewer's own time, the competition,
+    "v Leeds" or "at Nottingham Forest", the referee once named, the read's state ("Read ready", "Preliminary",
+    "Read due Tue") and, once the read is out, Spix's expected goals, corners and cards. On phones a floating bar
+    ("Next: v Leeds · Sat 21 Nov · and 2 more · Open ›") opens a sheet with the same cards; it sits 8 px above the
+    slip's bar (app.js tells the research page that bar's height) and hides while the slip is open. Players get their
+    club's next match in the head, referees their next appointment. A 503 while the refresh runs hides it all. The
+    spec's rail breakpoint now says 860 px, as the sketch draws it. Cards open #research/matches/{id} (task 6).
+  - Task 6, 16 Nov: the match view's shell, from the backend's B2 (d7d7da9, not merged yet), at
+    #research/matches/{id}/{market}. The head (both crests, "Chelsea v Leeds", day and time, competition, the referee
+    once named, linking to his page, and the read's state), then "How Spix reads it": the favourite ("Chelsea are
+    favourites", or "No clear favourite" within 10 points), the three result chances, goals with each side's share,
+    corners, cards and both teams to score, with the open market's figure marked. Before the read is out it says
+    when it comes out. It opens at the market the bettor was reading (the team page's Cards, Goals or Corners; Shots
+    on target from a player); the back link returns there, and the team's next matches stay on the right with this
+    one marked. A 404 or 503 says so in words. The markets row shows only filled markets (tasks 7 to 9). Test
+    fixtures are the backend's real 16 Nov payloads: Chelsea v Leeds (no read yet) and Atletico v Barcelona (8 Nov).
+  - Task 7, 16 Nov: the match view's Cards section. A line picker (2.5 to 5.5, 3.5 first; the line stays while the
+    bettor moves around), Over and Under with Spix's chance and the typical price from the read (no Add: the slip
+    takes result, goals, both teams to score, handicap and corners, not cards), then how often each team's last 10,
+    the referee's last 10 and the meetings since 2023/24 went over, who picks up the cards (each side's own and their
+    opponents', the biggest named), the referee against the competition this season, and the players booked most this
+    season. B2 counts a yellow and a red as one card each, and the page says to check the bookmaker's rule for reds.
+    Without a referee or a read it says so. app.js now takes a research-add-leg event into the slip the way the match
+    page's Explore options do (used by goals, corners and result in task 9). Cache tag research-20261116g.
+  - Task 8, 16 Nov: the match view's Shots on target. B2's likely starters (by starts in their last 5) with their last
+    10 appearances as squares against 1+ or 2+, "8 of 10", and minutes a match, most hits first; both teams or one.
+    No price column: B2 carries no player prices. Under the table, what each side allows: shots on target faced a match
+    this season and its league rank in words ("the 10th most of 20 in the Premier League", "the fewest of 20 in La
+    Liga"). On a player's Shots, On target or Goals page, "Keep it in context" now adds the next opponent's line from
+    the same figures (deferred from task 3). Cache tag research-20261116h.
+  - Task 9, 16 Nov: the match view's other five markets. Goals (1.5 to 3.5) and Corners (8.5 to 11.5) work like Cards:
+    Spix's chance and typical price for Over and Under, now with Add, and how often each team's last 10 (with what
+    they scored or won and conceded) and the meetings went over. Result: the three chances with prices and Add, each
+    side's last 10 as W, D and L squares, and the home side at home and the away side away. Head to head: who won
+    how many, then each meeting with its score and cards, corners and goals. Team news: B2 has no line-ups yet, so the
+    likely outfield starters with their starts in the last 5, and a line that injuries are not in Spix's data yet.
+    Add goes through app.js's research-add-leg into the slip with Spix's chance, as on the match page (checked in a
+    browser: Over 2.5 goals at 1.34, 72%). Cache tag research-20261116i.
+  - Task 10, 16 Nov (open): the frontend's self-review fixed three things (result chances drawn as numbers only, no
+    "NaN%" when a line has no chance, the shots on target team filter resets on another match; cache tag
+    research-20261116j). All 16 JS test files pass. Python: 3099 passed, 3 errors, all in
+    test_phase4_baseline_freeze: the replay refuses Index/ml_models/model_r2.json reached through this worktree's
+    Index link (no Python changed on the branch). Still to do: every research view against the real endpoints on 8100
+    once B1 and B2 (backend d7d7da9) are merged into main and here. Static files only: no migration, no .env line; the
+    website needs no restart beyond the usual one after a merge.
+  - Task 4 follow-up, 16 Nov: the backend's B5 (0c8e675) gives players under 900 minutes provisional ranks, but
+    only among at least 10 ranked players in their position, and flags `headline.provisional`. The player page's
+    opening line now adds "Early season · N minutes so far. Rates move a lot with one match." under the headline when
+    that flag is true, as the rank card does. Without the flag (today's API) nothing changes. Cache tag
+    research-20261116k.
+  - Task 7 follow-up, 16 Nov (owner): the Cards section's likelier side reads "More likely", not "Spix leans this
+    way", because cards carry no Spix suggestion (D61). Goals, corners and result keep "Spix leans this way". Cache tag
+    research-20261116l.
+  - Task 10 real-data pass, 16 Nov (8100, live API): a match that has kicked off promised a read that will never
+    come. The API drops the read once the board does, so Atletico v Barcelona (played 8 Nov, status FT) said "Read
+    not out yet" and "Spix's read comes out nearer the match". The match view now reads the fixture's status:
+    "In play", "Full time", "Postponed", "Cancelled" or "Abandoned", a plain sentence in place of the read, and
+    "shown before kickoff only" in the sections. A read still carried after kickoff (the board's Live tab keeps it)
+    is headed "How Spix read it before kickoff" and takes no Add. Cache tag research-20261116m.
+  - Task 4, from the same pass: on a referee's last-10 chart a value at the line's height (Michael Oliver's 3s at
+    3.5) read as struck through by the dashed line. Each value now sits on a small patch of the card's ground above
+    the line. Cache tag research-20261116n.
+  - Task 4, the owner's 10-peer floor for ranked players (16 Nov, via the orchestrator): below the floor the rank card
+    shows plain numbers and "Ranked once 10 Premier League midfielders qualify · 7 so far". Built against the shape
+    proposed to the backend (reason too_few_peers, ranking.qualified_peers and minimum_peers); a rename on their
+    side is a one-line follow-up. Only the three rebuild reasons now say "being rebuilt"; any other reason says "No
+    ranks for 2026/27 yet". Cache tag research-20261116o.
+  - Task 10 done, 16 Nov: the real-data pass ran on 8100 against the live API after the D110 merge. It covered
+    Chelsea, Leeds, Coventry (promoted), Palmer and his shots on target, Taylor (2025/26), Oliver (2026/27), Chelsea v
+    Leeds in all seven markets, Atletico v Viking (Champions League) and Atletico v Barcelona (played): 36 screenshots
+    at 1440 light and 390 dark, no sideways scroll, no "NaN" or "undefined", no console errors. It found the two
+    fixes above (a played match's wording, the chart labels). Static files only; no migration, no .env line.
+  - Backend b880e5f (not merged) took the proposed names: too_few_peers, qualified_peers, minimum_peers, headline null.
+    It also applies the floor per number in ranked profiles (rank and percentile null when fewer than 10 are ranked on
+    it). The rank card already shows such a row plain; a test now pins it. The research home's Strict/Lenient tag
+    already drops with a null percentile. No served file changed.
+
 **D108 — Why cards were missing at kickoff (15 Nov; backend, read-only).** The orchestrator asked why so few
 domestic matches had a card on the board at kickoff (D77, task 2). Checked on the 10 domestic leagues, 5 Sep–14 Nov,
 with the board's own before-kickoff rule (D70), the worker's check ledger and its run log. Nothing was changed.

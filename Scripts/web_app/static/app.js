@@ -1273,6 +1273,18 @@ const slip = {
       button.setAttribute('aria-expanded', String(this.open));
     });
     ui.overlay('betSlip', 'slipBackdrop', this.open, () => { if (this.open) this.toggle(); });
+    this.researchBar();
+  },
+
+  // The Research Area's floating next-match bar sits 8 px above the slip's mobile bar (D107): the research element
+  // cannot see that bar through its shadow root, so it is told the bar's height and whether the slip is open.
+  researchBar() {
+    const host = document.querySelector?.('spix-research');
+    if (!host) return;
+    const bar = document.getElementById('slipMobileBar');
+    const shown = bar && getComputedStyle(bar).display !== 'none';
+    host.style.setProperty('--slip-bar-h', shown ? `${bar.offsetHeight}px` : '0px');
+    host.toggleAttribute('data-slip-open', this.open);
   },
 
   add(fixture, pick, odds, market, options = {}) {
@@ -1405,6 +1417,7 @@ const slip = {
     // mobile bar
     const bar = document.getElementById('slipMobileBar');
     if (bar) bar.classList.toggle('hidden', n === 0);
+    this.researchBar();
   },
 
   _calcPayout() {
@@ -2943,6 +2956,16 @@ slip.onChange = () => {
 };
 document.addEventListener('research-navigate', event => {
   router.go('app', 'research', null, event.detail.route);
+});
+window.matchMedia('(max-width: 1100px)').addEventListener('change', () => slip.researchBar());
+// The Research Area's match view adds the read's option the way the match page's Explore options do (D107).
+document.addEventListener('research-add-leg', event => {
+  const { fixture, leg } = event.detail || {};
+  if (!fixture || !leg) return;
+  slip.add(`${fixture.home} vs ${fixture.away}`, leg.label, leg.typical_price ?? null, recsMarketName(leg.market), {
+    fixtureId: String(fixture.event_id),
+    leg: { market: leg.market, side: leg.side, line: leg.line, chance: leg.chance, worth: leg.worth ?? null },
+  });
 });
 
 // ``/app`` is the shareable/direct Matchday Board URL served by FastAPI.

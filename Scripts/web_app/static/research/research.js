@@ -1,4 +1,7 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=real-20261008c';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116o';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead} from './insight.js?v=research-20261116o';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116o';
+import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261116o';
 
 const API = '/api/research';
 
@@ -6,7 +9,9 @@ function mountResearch(root, navigate) {
   const $ = id => root.getElementById(id);
   const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
   const fmt = (value, digits = 1) => Number.isFinite(value) ? value.toLocaleString('en-GB', {maximumFractionDigits: digits}) : 'Unavailable';
-  const fixed = (value, digits = 2) => Number.isFinite(value) ? value.toFixed(digits) : '–';
+  const fixed = value => one(value);
+  // The API's display values carry two decimals; percentages stay whole, everything else gets one decimal.
+  const dv = m => m == null || m.value == null ? null : m.unit === 'percent' ? m.display_value : one(m.value);
   const whole = value => Number.isFinite(value) ? value.toLocaleString('en-GB') : '–';
   const day = iso => new Date(iso).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', timeZone: 'UTC'});
   const dayYear = iso => new Date(iso).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'});
@@ -19,7 +24,7 @@ function mountResearch(root, navigate) {
   let metrics = catalogues.players.metrics, common = catalogues.players.common, initialized = false;
   let searchTimer = 0, searchController = null, routeToken = 0;
   const state = {area: 'players', view: 'search', profileKey: null, profile: null, id: null, scope: null, records: [],
-    stat: null, period: '10', venue: 'all', rate: 'match', thresholdOn: false, threshold: 1, compare: false, selected: null};
+    stat: null, period: '10', venue: 'all', rate: 'match', line: 1, selected: null};
   const current = () => catalogues[state.area];
   const isPlayer = () => state.area === 'players';
   const isReferee = () => state.area === 'referees';
@@ -80,6 +85,7 @@ function mountResearch(root, navigate) {
     $('searchView').hidden = name !== 'search';
     $('profileView').hidden = name !== 'profile';
     $('playerView').hidden = name !== 'chart';
+    $('matchView').hidden = name !== 'match';
     root.host.dataset.profile = String(name !== 'search');
     if (tip()) tip().hidden = true;
   }
@@ -290,11 +296,13 @@ function mountResearch(root, navigate) {
   // ----- Routing -----
   async function fromRoute(route = 'players') {
     const parts = route.split('/').map(part => decodeURIComponent(part));
+    if (parts[0] === 'matches' && parts[1]) return showMatch(parts[1], parts[2]);
     const area = catalogues[parts[0]] ? parts[0] : 'players';
     const id = parts[1] || null, rest = parts.slice(2);
     const scope = rest.find(isScope) || null, stat = rest.find(part => !isScope(part)) || null;
     if (state.area !== area || !initialized) { initialized = true; setArea(area); }
     if (!id) return showSearch();
+    closeSheet(false);
     const token = ++routeToken, key = `${area}/${id}/${scope || ''}`;
     if (state.profileKey !== key) {
       Object.assign(state, {profileKey: key, profile: null, rendered: null, id, scope});
@@ -329,19 +337,173 @@ function mountResearch(root, navigate) {
       $('profileBody').innerHTML = renderProfile(state.profile);
       wireImages($('profileBody')); wireTips($('profileBody'));
       $('profileBody').querySelector('.p-name')?.focus({preventScroll: true});
+      showUpcoming(state.profile);
     }
+  }
+
+  // ----- Next matches (D107 task 5): B1 after the profile. A 404, an error or a 503 while the refresh runs hides
+  // them; the history still shows. Teams get the rail (wide) or the floating bar and its sheet (phone); players
+  // their club's next match and referees their next appointment, in the head.
+  let upcomingToken = 0;
+  async function showUpcoming(d) {
+    const kind = state.area, token = ++upcomingToken;
+    closeSheet(false);
+    $('nextBar').hidden = true; $('nextBar').innerHTML = '';
+    $('profileBody').classList.remove('has-next-bar');
+    const [route, id] = kind === 'players' ? ['teams', d.subject.club?.id] : [kind, state.id];
+    if (id == null) return;
+    const upcoming = await load(`${API}/${route}/${encodeURIComponent(id)}/upcoming?limit=${kind === 'teams' ? 3 : 1}`).catch(() => null);
+    if (token !== upcomingToken || state.rendered !== d) return;
+    state.upcoming = upcoming;
+    if (kind === 'teams') {
+      const rail = railHTML(upcoming), bar = barHTML(upcoming);
+      $('nextRail').innerHTML = rail;
+      $('profileBody').querySelector('.team-layout')?.classList.toggle('has-rail', !!rail);
+      $('nextBar').innerHTML = bar; $('nextBar').hidden = !bar;
+      $('profileBody').classList.toggle('has-next-bar', !!bar);
+      wireImages($('nextRail')); wireImages($('nextBar'));
+    } else {
+      $('headNext').innerHTML = headNext(upcoming?.matches?.[0], kind === 'players' ? 'Next match' : 'Next appointment');
+    }
+  }
+  // D107 task 8: on a shooting statistic, what the club's next opponent allows (B1 finds the match, B2 the figure).
+  const SHOOTING = new Set(['shots', 'shots_on_target', 'goals']);
+  let opponentToken = 0;
+  async function showOpponent() {
+    const token = ++opponentToken, club = state.profile?.subject?.club?.id;
+    $('opponentContext').hidden = true;
+    if (club == null || !SHOOTING.has(state.stat)) return;
+    const next = (await load(`${API}/teams/${encodeURIComponent(club)}/upcoming?limit=1`).catch(() => null))?.matches?.[0];
+    const match = next ? await load(`${API}/matches/${encodeURIComponent(next.event_id)}`).catch(() => null) : null;
+    if (token !== opponentToken) return;
+    const sentence = match ? opponentAllows(match, club) : '';
+    $('opponentInsight').textContent = sentence;
+    $('opponentContext').hidden = !sentence;
+  }
+  // ----- Match view (D107 task 6): B2, one market open at a time; the team's next matches on the right -----
+  const MATCH_MARKET = 'spix-research-match-market';
+  const storedMarket = () => { try { return localStorage.getItem(MATCH_MARKET); } catch (error) { return null; } };
+  async function showMatch(eventId, market) {
+    closeSheet(false);
+    if (!initialized) { initialized = true; setArea('teams'); }
+    const token = ++routeToken;
+    // A market whose section is not built opens the first one that is.
+    const shown = MARKETS.filter(key => SECTIONS[key]), wanted = MARKETS.includes(market) ? market : storedMarket();
+    market = shown.includes(wanted) ? wanted : shown[0];
+    try { localStorage.setItem(MATCH_MARKET, market); } catch (error) { /* a per-browser convenience only */ }
+    view('match');
+    if (state.matchId !== eventId) {
+      Object.assign(state, {matchId: eventId, match: null});
+      matchTeam = 'both'; // "Leeds" names a different side in another match
+      $('matchBody').innerHTML = '<p class="profile-loading" role="status">Loading match…</p>';
+      $('matchRail').innerHTML = '';
+      $('matchView').querySelector('.match-layout').classList.remove('has-rail');
+    }
+    let match;
+    try {
+      match = await load(`${API}/matches/${encodeURIComponent(eventId)}`);
+    } catch (error) {
+      if (token !== routeToken) return;
+      state.matchId = null;
+      $('matchBody').innerHTML = matchError(error.status);
+      return;
+    }
+    if (token !== routeToken) return;
+    const first = state.match !== match, f = match.fixture;
+    state.match = match;
+    if (state.matchFrom?.eventId !== eventId) state.matchFrom = {eventId, route: `teams/${f.home.id}`, label: f.home.name, teamId: f.home.id};
+    state.matchMarket = market;
+    $('matchBody').innerHTML = renderMatch(match, matchViewOf(market));
+    wireImages($('matchBody'));
+    if (first) $('matchTitle')?.focus({preventScroll: true});
+    else $('matchBody').querySelector(`[data-market="${market}"]`)?.focus({preventScroll: true});
+    showMatchRail(eventId, token);
+  }
+  // The line each market was last read at stays while the bettor moves between markets and matches.
+  const matchLines = {};
+  let matchTeam = 'both';
+  const matchViewOf = market => ({market, back: state.matchFrom, line: matchLines[market], team: matchTeam});
+  function redrawSection() {
+    const section = $('matchBody').querySelector('.mk');
+    if (section) { section.innerHTML = SECTIONS[state.matchMarket](state.match, matchViewOf(state.matchMarket)); wireImages(section); }
+  }
+  async function showMatchRail(eventId, token) {
+    const teamId = state.matchFrom?.teamId ?? state.match.fixture.home.id;
+    const upcoming = await load(`${API}/teams/${encodeURIComponent(teamId)}/upcoming?limit=3`).catch(() => null);
+    if (token !== routeToken) return;
+    const rail = railHTML(upcoming, {active: eventId});
+    $('matchRail').innerHTML = rail;
+    $('matchView').querySelector('.match-layout').classList.toggle('has-rail', !!rail);
+    wireImages($('matchRail'));
+  }
+
+  let sheetOpener = null, swipeFrom = null;
+  function openSheet(opener) {
+    const sheet = $('nextSheet');
+    sheet.innerHTML = sheetHTML(state.upcoming);
+    if (!sheet.innerHTML) return;
+    sheet.hidden = false; sheetOpener = opener;
+    wireImages(sheet);
+    document.body.style.overflow = 'hidden';
+    sheet.querySelector('.sheet').focus();
+  }
+  function closeSheet(returnFocus = true) {
+    const sheet = $('nextSheet');
+    if (sheet.hidden) return;
+    sheet.hidden = true; sheet.innerHTML = '';
+    document.body.style.overflow = '';
+    if (returnFocus) sheetOpener?.focus({preventScroll: true});
   }
   function renderProfile(d) {
     const kind = state.area;
     const pair = (a, b) => a && b ? `<div class="grid-2">${a}${b}</div>` : (a || b || '');
     const stack = (...cards) => { const list = cards.filter(Boolean); return list.length > 1 ? `<div class="stack">${list.join('')}</div>` : list[0] || ''; };
-    const top = profileHead(d) + profileLead(d) + seasonLine(d) + rankNotice(d);
+    if (kind === 'teams') return `<div class="team-layout"><div class="team-main">${profileHead(d)}<div id="teamAnswer">${teamAnswer(d)}</div>${teamFolds(d)}${dataFoot(d)}</div><div id="nextRail"></div></div>`;
+    if (kind === 'referees') return profileHead(d) + '<div id="headNext"></div>' + `<div id="refAnswer">${refereeBlock(d)}</div>` + refereeFolds(d) + dataFoot(d);
+    const top = profileHead(d) + '<div id="headNext"></div>' + profileLead(d) + seasonLine(d);
     let body;
     if (kind === 'players') body = pair(rankCard(d), stack(howOftenCard(d), minutesCard(d))) + pair(lastTenCard(d), funnelCard(d));
-    else if (kind === 'teams') body = pair(rankCard(d), stack(howOftenCard(d), leadersCard(d))) + pair(lastTenCard(d), homeAwayCard(d));
-    else body = pair(rankCard(d), stack(howOftenCard(d), competitionCard(d))) + lastTenCard(d);
     return top + body + advancedBlock(d) + dataFoot(d);
   }
+  // The team page answers first (D107): a lead from the last 10, the sketch's glance rows and the match totals by
+  // match, for the market the bettor last chose. The older cards fold away underneath.
+  const MARKET_CHIPS = [['cards', 'Cards'], ['goals', 'Goals'], ['corners', 'Corners']];
+  const CHART_TITLE = {cards: ['Cards by match', 'Who got them'], goals: ['Goals by match', 'Scored and conceded'], corners: ['Corners by match', 'Won and conceded']};
+  state.teamMarket = MARKET_CHIPS.some(([key]) => key === store.get('spix-research-market')) ? store.get('spix-research-market') : 'cards';
+  function teamAnswer(d) {
+    const rows = lastTen(d).map(fromProfileRow), name = d.subject.name, m = state.teamMarket;
+    if (!rows.length) return '';
+    const sub = [`${d.competition?.name || ''} ${d.season.label}`.trim(), `last ${plural(rows.length, 'match', 'matches')}`, teamLeadSub(name, rows, m)].filter(Boolean).join(' · ');
+    const chips = MARKET_CHIPS.map(([key, label]) => `<button type="button" class="mchip" data-tm="${key}" aria-pressed="${key === m}">${label}</button>`).join('');
+    const [title, small] = CHART_TITLE[m];
+    return `<p class="lead">${teamLead(name, rows, m)}</p><p class="lead-sub">${escape(sub)}</p>
+      <section class="card"><div class="card-h"><h3>Last ${rows.length} at a glance</h3><small>Newest on the right · filled = it happened</small></div>
+      <div class="mchips" role="group" aria-label="Market">${chips}</div>${glance(name, rows, m)}</section>
+      <section class="card"><div class="card-h"><h3>${title}</h3><small>${small}, last ${rows.length}</small></div>${stackedColumns(name, rows, m)}</section>`;
+  }
+  function teamFolds(d) {
+    const fold = (title, note, html) => html ? `<details class="fold"><summary><span>${title} <small>· ${note}</small></span><span class="fold-go" aria-hidden="true">›</span></summary>${html}</details>` : '';
+    return `<div class="folds">${fold('Against the league', `ranks, ${d.season.label}`, rankCard(d))}${fold('Home and away', 'per match', homeAwayCard(d))}${fold('Squad leaders', 'goals, shots, bookings', leadersCard(d))}${fold('Chances by match', 'expected goals', lastTenCard(d))}${fold('Season totals', 'this competition', seasonLine(d) + advancedBlock(d).replace('<details class="adv" open>', '<details class="adv">'))}</div>`;
+  }
+
+  // The referee page leads with the season's cards a match and the bettor's line (D107 task 4).
+  const seasonNow = () => { const now = new Date(); return now.getUTCMonth() >= 6 ? now.getUTCFullYear() : now.getUTCFullYear() - 1; };
+  state.refLine = 3.5;
+  function refereeBlock(d) {
+    const a = refereeAnswer(d, {current: d.season.year === seasonNow(), line: state.refLine});
+    const n = Math.min(10, (d.match_log || []).length);
+    if (!n) return a.lead ? `<p class="lead">${a.lead}</p>` : '';
+    const buttons = LINES.cards.map(v => `<button type="button" data-rline="${v}" aria-pressed="${v === state.refLine}">${v}</button>`).join('');
+    return `${a.lead ? `<p class="lead">${a.lead}</p>` : ''}<p class="lead-sub">${escape(a.sub)}</p>
+      <section class="card"><div class="card-h"><h3>Last ${plural(n, 'match', 'matches')}</h3><small>Cards shown, both teams</small></div>
+      <div class="lines"><span>Line</span><div class="segmented" role="group" aria-label="Line">${buttons}</div><span class="line-count">${a.count}</span></div>
+      <div class="ref-chart">${a.chart}</div><p class="card-note">Cards depend on the teams as well as the referee.</p></section>`;
+  }
+  function refereeFolds(d) {
+    const fold = (title, note, html) => html ? `<details class="fold"><summary><span>${title} <small>· ${note}</small></span><span class="fold-go" aria-hidden="true">›</span></summary>${html}</details>` : '';
+    return `<div class="folds">${fold('Against other referees', `ranks, ${d.season.label}`, rankCard(d))}${fold('How often', d.season.label, howOftenCard(d))}${fold('By competition', d.season.label, competitionCard(d))}${fold('Season totals', 'cards, fouls', seasonLine(d) + advancedBlock(d).replace('<details class="adv" open>', '<details class="adv">'))}</div>`;
+  }
+
   function scopePicker(d) {
     const scopes = d.available_scopes || [];
     if (scopes.length < 2) return `<span class="scope-single">${escape(d.season.label)}${d.competition ? ' · ' + escape(d.competition.name) : ''}</span>`;
@@ -377,16 +539,12 @@ function mountResearch(root, navigate) {
     return `<div class="p-head">${pic}<div class="p-title"><h2 class="p-name" tabindex="-1">${escape(s.name)}</h2><div class="p-meta">${meta.filter(Boolean).map(m => `<span>${escape(m)}</span>`).join('')}</div>${chips.length ? `<div class="p-chips">${chips.join('')}</div>` : ''}</div>${scopePicker(d)}</div>`;
   }
   function profileLead(d) {
-    const h = d.headline;
-    if (h?.text && h.display_value) {
-      let text = escape(h.text).replace(escape(h.display_value), `<mark>${escape(h.display_value)}</mark>`);
-      if (!/[.!?]$/.test(h.text)) text += '.';
-      return `<p class="lead">${text}</p>`;
-    }
+    const lead = headlineLead(d.headline, d.ranking);
+    if (lead) return lead;
     const t = d.totals;
     if (state.area === 'players') return `<p class="lead"><mark>${plural(t.goals, 'goal')}</mark> and ${plural(t.shots, 'shot')} in ${plural(t.appearances, 'appearance')} for ${escape(d.subject.club?.name || 'their club')} in ${escape(d.competition?.name || 'this competition')}, ${escape(d.season.label)}.</p>`;
     if (state.area === 'teams') return `<p class="lead">${plural(t.wins, 'win')}, ${plural(t.draws, 'draw')} and ${plural(t.losses, 'loss', 'losses')} from ${plural(t.matches, 'match', 'matches')}, scoring <mark>${whole(t.goals_for)}</mark> and conceding ${whole(t.goals_against)}.</p>`;
-    const cards = d.metrics.cards?.display_value;
+    const cards = dv(d.metrics.cards);
     return cards ? `<p class="lead"><mark>${escape(cards)}</mark> cards per match across ${plural(t.matches, 'match', 'matches')} in ${escape(d.season.label)}.</p>` : '';
   }
   function seasonLine(d) {
@@ -398,75 +556,15 @@ function mountResearch(root, navigate) {
         : [[t.matches, 'Matches'], [t.cards, 'Cards'], [t.yellows, 'Yellows'], [t.reds, 'Reds'], [t.fouls, 'Fouls']];
     return `<div class="season-line">${items.map(([v, label]) => `<div><b>${whole(v)}</b><span>${label}</span></div>`).join('')}</div>`;
   }
-  function rankNotice(d) {
-    const r = d.ranking;
-    if (r.ranked) return '';
-    const prev = d.previous_season?.ranking?.ranked ? ` The ranks below are from ${escape(d.previous_season.season.label)} and are labelled.` : '';
-    let title, text;
-    if (r.reason === 'below_minutes_threshold') {
-      title = 'Not ranked yet';
-      text = `Ranks start once a player reaches ${whole(r.minimum_minutes)} minutes in one competition. ${escape(d.subject.name)} has ${whole(r.sample_minutes)} so far, so per-90 rates would move a lot with one match.${prev}`;
-    } else if (r.reason === 'below_matches_threshold') {
-      title = 'Not ranked yet';
-      text = `Ranks start after ${r.minimum_matches} matches with full statistics. This ${state.area === 'teams' ? 'team' : 'referee'} has ${r.sample_matches} so far, and averages from a few matches move a lot with one result.${prev}`;
-    } else if (r.reason === 'unknown_position') {
-      title = 'No peer group';
-      text = 'The data does not record a position for this player, so there is no fair group to rank them against.';
-    } else {
-      title = 'Ranks are being rebuilt';
-      text = `Rankings for this season will return after the next data refresh.${prev}`;
-    }
-    return `<div class="notice"><b>${title}</b><span>${text}</span></div>`;
-  }
-  function rankSource(d) {
-    if (d.ranking.ranked) return {metrics: d.metrics, ranking: d.ranking, label: null, scope: scopeOf(d)};
-    const p = d.previous_season;
-    if (p?.ranking?.ranked) return {metrics: p.metrics, ranking: p.ranking, label: p.season.label,
-      scope: isReferee() ? String(p.season.year) : `${p.competition.code}-${p.season.year}`};
-    return null;
-  }
-  function rankCard(d) {
-    const src = rankSource(d);
-    if (!src) return '';
-    const kind = state.area, defs = rankMetrics[kind], groups = rankGroups[kind];
-    const order = groups.order[src.ranking.peer_group] || groups.order.all || groups.order.F;
-    const any = Object.values(src.metrics).find(m => m.peer_count);
-    if (!any) return '';
-    const peers = any.peer_count;
-    const title = kind === 'players' ? `Against ${any.peer_label}` : kind === 'teams' ? 'Against the league' : 'Against other referees';
-    const small = [src.label, kind === 'players' ? `${peers} with ${whole(src.ranking.minimum_minutes)}+ minutes` : kind === 'teams' ? `${peers} teams · per match` : `${peers} referees with ${src.ranking.minimum_matches}+ matches`].filter(Boolean).join(' · ');
-    const sections = order.map(name => {
-      const [label, keys] = groups[name];
-      const rows = keys.map(key => rankRow(key, src.metrics[key], defs[key], src)).filter(Boolean).join('');
-      return rows ? `${order.length > 1 ? `<div class="group-label">${label}</div>` : ''}<div class="ranks">${rows}</div>` : '';
-    }).join('');
-    if (!sections) return '';
-    const note = kind === 'teams' ? 'Dots further right mean more. For goals and chances conceded, further left is better.'
-      : `The dot shows where ${kind === 'players' ? 'they sit' : 'this referee sits'}; the tick in the middle is the typical ${kind === 'players' ? (any.peer_label.split(' ').at(-1) || 'player').replace(/s$/, '') : 'referee'}.`;
-    return `<section class="card" aria-labelledby="rankTitle"><div class="card-h"><h3 id="rankTitle">${escape(title)}</h3><small>${escape(small)}</small></div>
-      <div class="scale-key" aria-hidden="true"><span></span><span></span><span><span>Fewer</span><span>More</span></span><span></span></div>${sections}
-      <p class="card-note">${note} Select a row to see it match by match.</p></section>`;
-  }
-  function rankRow(key, m, def, src) {
-    if (!m || !def || m.percentile == null || m.display_value == null) return '';
-    const [label, stat] = def;
-    const text = cap(state.area === 'teams' ? m.rank_phrase : m.comparison_text) || '';
-    const average = state.area === 'teams' && Number.isFinite(m.league_average) ? ` League average ${m.unit === 'percent' ? Math.round(m.league_average) + '%' : fixed(m.league_average)}.` : '';
-    const tipText = `${label}: ${m.display_value}. ${text}.${average}`;
-    return `<button class="rank" type="button" data-stat="${stat}" data-scope="${escape(src.scope)}" data-tip="${escape(tipText)}" aria-label="${escape(tipText)} Opens the match-by-match chart.">
-      <span class="rank-label">${escape(label)}</span><span class="rank-value">${escape(m.display_value)}</span>
-      <span class="track" aria-hidden="true"><span class="fill" style="width:${m.percentile}%"></span><span class="mid"></span><span class="dot" style="left:${m.percentile}%"></span></span>
-      <span class="rank-go" aria-hidden="true">›</span><span class="rank-band">${escape(text)}</span></button>`;
-  }
+  // Ranks from this page's season only (D107 task 4); the card says when it is early or the ranks are missing.
+  const rankCard = d => rankCardFor(d, state.area, {rankMetrics, rankGroups});
   function howOftenCard(d) {
     const rows = Object.entries(d.frequencies || {}).filter(([, v]) => v?.denominator).map(([key, v]) => ({label: frequencyLabels[key] || key, n: v.count, of: v.denominator, pct: Math.round(v.count / v.denominator * 100)}));
     if (!rows.length) return '';
     const of = Math.max(...rows.map(r => r.of));
-    const note = state.area === 'players' ? 'Counts from past matches. They are not a forecast or a probability for the next game.'
-      : state.area === 'teams' ? 'Match totals include both teams. Past matches, not a forecast.' : 'Past appointments, not a forecast. Cards depend on the teams as well as the referee.';
     return `<section class="card"><div class="card-h"><h3>How often</h3><small>In ${isPlayer() ? plural(of, 'appearance') : plural(of, 'match', 'matches')}</small></div>
       <div class="meters">${rows.map(r => `<div class="meter"><span class="meter-label">${escape(r.label)}</span><span class="meter-count"><b>${r.n}</b> of ${r.of} · ${r.pct}%</span><span class="meter-bar" role="img" aria-label="${escape(r.label)}: ${r.n} of ${r.of}"><i style="width:${r.pct}%"></i></span></div>`).join('')}</div>
-      <p class="card-note">${note}</p></section>`;
+      </section>`;
   }
   const niceMax = (value, minimum = 1) => {
     const v = Math.max(minimum, value || 0), step = v <= 4 ? 1 : v <= 8 ? 2 : v <= 20 ? 5 : v <= 50 ? 10 : 30;
@@ -481,9 +579,11 @@ function mountResearch(root, navigate) {
       const missing = segs.every(s => it[s.key] == null);
       const total = segs.reduce((sum, seg) => sum + (it[seg.key] || 0), 0);
       const stack = missing ? '<span class="col-missing">–</span>' : total === 0 ? '<span class="col-zero"></span>' : segs.map(s => it[s.key] > 0 ? `<i style="height:${it[s.key] / max * height}px;background:var(${s.color})"></i>` : '').join('');
-      const goalDots = dots && !missing ? `<span class="goals">${Array.from({length: Math.min(4, dots(it) || 0)}, () => '<i></i>').join('')}</span>` : '';
-      const text = tipFor(it);
-      return `<div class="ccol"><div class="colwrap" tabindex="0" data-tip="${escape(text)}" aria-label="${escape(text)}">${goalDots}<span class="stack-col">${stack}</span></div></div>`;
+      // The total and the goal dots sit above the stack, out of flow, so they never stretch the row.
+      const drawn = segs.filter(seg => it[seg.key] > 0).length, top = total === 0 ? 3 : total / max * height + 2 * Math.max(0, drawn - 1);
+      const goalDots = dots && !missing && dots(it) ? `<span class="goals" style="bottom:${top + 22}px">${Array.from({length: Math.min(4, dots(it))}, () => '<i></i>').join('')}</span>` : '';
+      const text = tipFor(it), written = missing ? '' : `<b class="cv cv-abs" style="bottom:${top + 4}px">${whole(total)}</b>`;
+      return `<div class="ccol"><div class="colwrap" tabindex="0" data-tip="${escape(text)}" aria-label="${escape(text)}">${goalDots}${written}<span class="stack-col">${stack}</span></div></div>`;
     }).join('');
     const gaps = items.some(it => segs.every(seg => it[seg.key] == null)) ? '<span>– No statistics recorded</span>' : '';
     if (gaps) legend = (legend || '') + gaps;
@@ -528,7 +628,7 @@ function mountResearch(root, navigate) {
         <div class="bars" style="height:${h}px;grid-template-columns:repeat(${last.length},minmax(0,1fr))">${ticks.slice(1).map(t => `<span class="gridline" style="bottom:${t / max * 100}%"></span>`).join('')}${cols}</div></div>
         <div class="xlabels" style="grid-template-columns:repeat(${last.length},minmax(0,1fr))">${last.map(m => `<span><b>${escape(m.opponent?.abbreviation || short(m.opponent))}</b>${score(m)}</span>`).join('')}</div>
         <details class="tbl"><summary>Show as table</summary><div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Opponent</th><th>Score</th><th>xG for</th><th>xG against</th></tr></thead><tbody>${last.map(m => `<tr><td>${day(m.date)}</td><td>${escape(opp(m))} (${m.venue === 'home' ? 'H' : 'A'})</td><td>${score(m)}</td><td>${fixed(m.values.xg_for)}</td><td>${fixed(m.values.xg_against)}</td></tr>`).join('')}</tbody></table></div></details></div>`;
-      if (hasXg) chart += `<p class="card-note">Expected goals (xG) estimates the quality of chances. A taller green bar than blue means ${escape(name)} made the better chances.</p>`;
+      if (hasXg) chart += `<p class="card-note">Expected goals (xG) estimates the quality of chances. When ${escape(name)}'s column is the taller of the two, they made the better chances.</p>`;
     } else {
       title = `Last ${plural(last.length, 'match', 'matches')}`; small = 'Cards shown, both teams';
       const items = last.map(m => ({...m, cards: m.values.cards}));
@@ -549,7 +649,7 @@ function mountResearch(root, navigate) {
       <div class="yaxis" style="height:${h}px"><span style="bottom:0%">0</span><span style="bottom:${90 / top * 100}%">90</span></div>
       <div class="bars" style="height:${h}px;grid-template-columns:repeat(${last.length},minmax(0,1fr))"><span class="gridline" style="bottom:${90 / top * 100}%"></span>${last.map(m => {
         const text = `${day(m.date)} ${venueWord(m)} ${opp(m)}: ${m.values.minutes} minutes${m.started === false ? ', came off the bench' : ''}`;
-        return `<div class="ccol"><div class="colwrap" tabindex="0" data-tip="${escape(text)}" aria-label="${escape(text)}"><span class="stack-col"><i style="height:${m.values.minutes / top * h}px;background:var(${m.started === false ? '--chart-muted' : '--chart-1'})"></i></span></div></div>`;
+        return `<div class="ccol"><div class="colwrap" tabindex="0" data-tip="${escape(text)}" aria-label="${escape(text)}"><b class="cv cv-abs" style="bottom:${m.values.minutes / top * h + 3}px">${m.values.minutes}</b><span class="stack-col"><i style="height:${m.values.minutes / top * h}px;background:var(${m.started === false ? '--chart-muted' : '--chart-1'})"></i></span></div></div>`;
       }).join('')}</div></div>
       <div class="legend"><span><i style="background:var(--chart-1)"></i>Started</span><span><i style="background:var(--chart-muted)"></i>Off the bench</span></div></div>`;
     return `<section class="card"><div class="card-h"><h3>Minutes</h3><small>Last ${plural(last.length, 'appearance')}</small></div>${strip}<p class="card-note">${role ? `Started ${role.starts} of ${plural(role.appearances, 'appearance')} this season. ` : ''}Per-90 rates only count minutes on the pitch.</p></section>`;
@@ -572,11 +672,11 @@ function mountResearch(root, navigate) {
     const {max} = niceMax(Math.max(...rows.flatMap(([, h, a]) => [h, a])), 2);
     const row = ([label, h, a]) => {
       const lo = Math.min(h, a), hi = Math.max(h, a), text = `${label}: home ${fixed(h)}, away ${fixed(a)} per match`;
-      return `<div class="dumb-row"><span>${label}</span><span class="dumb-track" role="img" tabindex="0" aria-label="${escape(text)}" data-tip="${escape(text)}"><span class="link" style="left:${lo / max * 100}%;width:${(hi - lo) / max * 100}%"></span><span class="d" style="left:${h / max * 100}%;background:var(--chart-1)"></span><span class="d" style="left:${a / max * 100}%;background:var(--chart-2)"></span></span></div>`;
+      return `<div class="dumb-row"><span>${label}</span><b class="dumb-h"><i style="background:var(--chart-1)"></i>${fixed(h)}</b><span class="dumb-track" role="img" aria-label="${escape(text)}"><span class="link" style="left:${lo / max * 100}%;width:${(hi - lo) / max * 100}%"></span><span class="d" style="left:${h / max * 100}%;background:var(--chart-1)"></span><span class="d" style="left:${a / max * 100}%;background:var(--chart-2)"></span></span><b class="dumb-a">${fixed(a)}<i style="background:var(--chart-2)"></i></b></div>`;
     };
     return `<section class="card"><div class="card-h"><h3>Home and away</h3><small>Per match</small></div>
       <div class="legend"><span><i class="dot" style="background:var(--chart-1)"></i>Home (${ha.home.matches})</span><span><i class="dot" style="background:var(--chart-2)"></i>Away (${ha.away.matches})</span></div>
-      <div class="dumb">${rows.map(row).join('')}</div><p class="card-note">Scale 0 to ${max}. Hover or focus a row for exact values.</p></section>`;
+      <div class="dumb">${rows.map(row).join('')}</div></section>`;
   }
   function leadersCard(d) {
     const L = d.squad_leaders;
@@ -596,23 +696,23 @@ function mountResearch(root, navigate) {
     const compare = metric => metric?.comparison_text ? cap(metric.comparison_text) : '';
     let cells = '';
     if (state.area === 'players') {
-      cells = cell('Shooting accuracy', m.shooting_accuracy_pct?.display_value, compare(m.shooting_accuracy_pct) || 'Share of shots on target')
-        + cell('Shot conversion', m.conversion_pct?.display_value, compare(m.conversion_pct) || 'Share of shots scored')
-        + cell('Duels won', m.duel_win_pct?.display_value, compare(m.duel_win_pct) || 'Share of one-on-one contests won')
-        + cell('Pass accuracy', m.pass_accuracy_pct?.display_value, compare(m.pass_accuracy_pct) || 'Share of passes completed')
+      cells = cell('Shooting accuracy', dv(m.shooting_accuracy_pct), compare(m.shooting_accuracy_pct) || 'Share of shots on target')
+        + cell('Shot conversion', dv(m.conversion_pct), compare(m.conversion_pct) || 'Share of shots scored')
+        + cell('Duels won', dv(m.duel_win_pct), compare(m.duel_win_pct) || 'Share of one-on-one contests won')
+        + cell('Pass accuracy', dv(m.pass_accuracy_pct), compare(m.pass_accuracy_pct) || 'Share of passes completed')
         + cell('Fouls won vs committed', `${whole(t.fouls_won)} / ${whole(t.fouls_committed)}`, 'Season totals')
-        + cell('Average match rating', m.average_rating?.display_value, compare(m.average_rating) || 'Data provider rating, 0 to 10');
+        + cell('Average match rating', dv(m.average_rating), compare(m.average_rating) || 'Data provider rating, 0 to 10');
     } else if (state.area === 'teams') {
       const diff = (a, b) => Number.isFinite(a) && Number.isFinite(b) ? (a - b >= 0 ? '+' : '−') + Math.abs(a - b).toFixed(1) : null;
       cells = cell('Goals minus xG', diff(t.goals_for, t.xg_for), 'Positive means more goals than the chances suggested')
         + cell('Conceded minus xG against', diff(t.goals_against, t.xg_against), 'Negative means fewer goals allowed than the chances suggested')
-        + cell('Possession', m.possession?.display_value, cap(m.possession?.rank_phrase) || 'Average share of the ball')
-        + cell('Shots on target faced', m.shots_on_target_faced?.display_value, cap(m.shots_on_target_faced?.rank_phrase) || 'Per match')
-        + cell('Cards per match', m.cards?.display_value, cap(m.cards?.rank_phrase) || 'Yellow and red');
+        + cell('Possession', dv(m.possession), cap(m.possession?.rank_phrase) || 'Average share of the ball')
+        + cell('Shots on target faced', dv(m.shots_on_target_faced), cap(m.shots_on_target_faced?.rank_phrase) || 'Per match')
+        + cell('Cards per match', dv(m.cards), cap(m.cards?.rank_phrase) || 'Yellow and red');
     } else {
-      cells = cell('Cards per foul', m.cards_per_foul?.display_value, compare(m.cards_per_foul) || 'How readily fouls become cards')
+      cells = cell('Cards per foul', dv(m.cards_per_foul), compare(m.cards_per_foul) || 'How readily fouls become cards')
         + cell('Yellows and reds', `${whole(t.yellows)} / ${whole(t.reds)}`, 'Season totals')
-        + cell('Fouls per match', m.fouls?.display_value, compare(m.fouls));
+        + cell('Fouls per match', dv(m.fouls), compare(m.fouls));
     }
     const open = window.matchMedia('(min-width: 769px)').matches ? ' open' : '';
     return cells ? `<details class="adv"${open}><summary>Advanced <small>Rates, accuracy and context</small></summary><div class="adv-grid">${cells}</div></details>` : '';
@@ -622,7 +722,7 @@ function mountResearch(root, navigate) {
     const excluded = b.excluded_matches ? `, ${plural(b.excluded_matches, 'match', 'matches')} without full statistics left out` : '';
     const scope = isReferee() ? `all competitions in our data, ${escape(d.season.label)}` : `${escape(d.competition?.name)}, ${escape(d.season.label)}`;
     const phase = isReferee() ? '' : ' Domestic leagues count regular-season matches; European cups count the league or group stage and knockouts.';
-    return `<p class="disclaimer">Statistics describe past matches. They are not predictions or recommendations. Data behind this view: ${plural(b.matches ?? 0, 'match', 'matches')}, ${scope}${excluded}.${phase}</p>`;
+    return `<p class="disclaimer">Past matches are records, not a forecast. Data behind this view: ${plural(b.matches ?? 0, 'match', 'matches')}, ${scope}${excluded}.${phase} 18+ · <a href="https://www.gamcare.org.uk/get-support/" target="_blank" rel="noopener">GamCare</a></p>`;
   }
 
   // ----- Match-by-match chart -----
@@ -659,8 +759,8 @@ function mountResearch(root, navigate) {
   };
   function openChart(stat) {
     const entering = state.view !== 'chart';
-    if (entering) Object.assign(state, {period: '10', venue: 'all', rate: 'match', thresholdOn: false, compare: false, selected: null});
-    state.stat = stat; state.threshold = metrics[stat].threshold || 1;
+    if (entering) Object.assign(state, {period: '10', venue: 'all', rate: 'match', selected: null});
+    state.stat = stat; state.line = defaultLine(metrics[stat]);
     if (metrics[stat].noRate) state.rate = 'match';
     view('chart');
     const d = state.profile, s = d.subject;
@@ -722,41 +822,38 @@ function mountResearch(root, navigate) {
     const filtered = Number(state.venue !== 'all') + Number(state.rate !== 'match');
     $('filterCount').hidden = !filtered; $('filterCount').textContent = String(filtered);
     $('rateHelp').textContent = state.rate === 'per90' ? 'Per 90 adjusts for time played. Short appearances can produce large values; averages use total recorded minutes.' : 'Match counts show what actually happened. Missing values are left out, never filled with zero.';
-    $('thresholdToggle').disabled = state.rate === 'per90';
-    $('thresholdToggle').title = state.rate === 'per90' ? 'Switch to match counts to explore a historical threshold.' : '';
-    $('thresholdToggle').setAttribute('aria-pressed', String(state.thresholdOn && state.rate === 'match'));
-    $('thresholdPanel').hidden = !state.thresholdOn || state.rate === 'per90';
-    $('thresholdValue').textContent = `${state.threshold}${metric.percent ? '%' : ''}+`;
-    $('thresholdDown').disabled = state.threshold <= (metric.step || 1);
-    $('thresholdUp').disabled = state.threshold >= (metric.limit || 10);
-    $('compareSeason').checked = state.compare;
+    // The bettor's line, always on screen for counts (D107): per 90, percentages and xG have none.
+    const lines = state.rate === 'match' ? linesFor(metric) : [];
+    if (lines.length && !lines.includes(state.line)) state.line = lines.includes(defaultLine(metric)) ? defaultLine(metric) : lines[0];
+    const lineLabel = v => Number.isInteger(v) ? `${v}+` : String(v);
+    $('lineRow').hidden = !lines.length;
+    $('lineControl').innerHTML = lines.map(v => `<button type="button" data-line="${v}" aria-pressed="${v === state.line}">${lineLabel(v)}</button>`).join('');
+    root.querySelectorAll('.line-legend').forEach(el => { el.hidden = !lines.length; });
+    $('lineLegend').textContent = lines.length ? (Number.isInteger(state.line) ? `${state.line} or more` : `Line ${state.line}`) : '';
     $('statTitle').textContent = metric.title;
     $('statDefinition').textContent = metric.definition;
     let insight;
     if (!eligible.length) insight = 'There isn’t enough recorded data for this view.';
     else if (state.rate === 'per90') insight = `Averaged <strong>${fmt(recent)} ${metric.noun}</strong> per 90 minutes.`;
-    else if (state.thresholdOn) {
-      const count = eligible.filter(r => value(r) >= state.threshold).length;
-      insight = `Recorded ${state.threshold}${metric.percent ? '%' : ''}+ ${metric.noun} in <strong>${count} of ${eligible.length}</strong> ${unit} with data.`;
-    } else if (!isPlayer() || metric.decimals || metric.noRate) insight = `Averaged <strong>${metricValue(recent)} ${metric.noun}</strong> across ${eligible.length} ${unit} with data.`;
-    else {
-      const count = eligible.filter(r => value(r) >= 1).length;
-      insight = `${metric.verb || 'Recorded ' + metric.noun} in <strong>${count} of ${eligible.length}</strong> ${unit} with data.`;
-    }
+    else if (lines.length) insight = statAnswer({noun: metric.noun, line: state.line, ...hitCount(records.map(value), state.line), missing, season: state.period === 'season', unit});
+    else insight = `Averaged <strong>${metricValue(recent)} ${metric.noun}</strong> across ${eligible.length} ${unit} with data.`;
     $('mainInsight').innerHTML = insight;
-    $('sampleContext').textContent = `${periodLabel}${state.venue !== 'all' ? ` · ${state.venue} only` : ''} · ${records.length ? `${dayYear(records[0].date)} – ${dayYear(records.at(-1).date)}` : 'No matches'}${missing ? ` · ${missing} without this statistic` : ''}`;
+    const starts = records.filter(r => r.started).length;
+    $('sampleContext').textContent = [isReferee() ? 'All competitions' : state.profile.competition?.name, periodLabel,
+      records.length ? `${day(records[0].date)} to ${day(records.at(-1).date)}` : 'No matches', state.venue !== 'all' ? `${state.venue} only` : '',
+      isPlayer() && records.length ? (starts === records.length ? 'started every match' : `started ${starts} of ${records.length}`) : '',
+      missing ? `${missing} without this statistic` : ''].filter(Boolean).join(' · ');
     $('chartMeasure').textContent = `${metric.title}${metric.percent ? ' (%)' : state.rate === 'per90' ? ' per 90' : ' per match'}`;
     $('chartEmpty').hidden = eligible.length > 0;
     $('chartBlock').hidden = !eligible.length;
-    const dataMax = Math.max(1, ...eligible.map(value), state.compare && season != null ? season : 0, state.thresholdOn && state.rate === 'match' ? state.threshold : 0);
+    const dataMax = Math.max(1, ...eligible.map(value), lines.length ? state.line : 0);
     const step = dataMax <= 4 ? 1 : dataMax <= 12 ? 2 : dataMax <= 30 ? 5 : dataMax <= 60 ? 10 : 30;
     const max = metric.percent ? 100 : Math.ceil((dataMax + step * .5) / step) * step;
     const ticks = Array.from({length: Math.floor(max / step) + 1}, (_, i) => ({top: 100 - i * step / max * 100, label: fmt(i * step)}));
     $('plotGrid').innerHTML = ticks.map(t => `<div class="grid-line" style="top:${t.top}%"></div>`).join('');
     $('chartAxis').innerHTML = ticks.map(t => `<span style="top:${t.top}%">${t.label}</span>`).join('');
     const refs = [];
-    if (state.compare && season != null) refs.push(`<div class="reference-line average" style="top:${100 - season / max * 100}%"><span class="reference-label">Season ${metricValue(season)}</span></div>`);
-    if (state.thresholdOn && state.rate === 'match') refs.push(`<div class="reference-line" style="top:${100 - state.threshold / max * 100}%"><span class="reference-label">${state.threshold}${metric.percent ? '%' : ''}+</span></div>`);
+    if (lines.length) refs.push(`<div class="reference-line" style="top:${100 - (Number.isInteger(state.line) ? state.line - 0.5 : state.line) / max * 100}%"></div>`);
     $('referenceLines').innerHTML = refs.join('');
     const barWidth = isReferee() ? 76 : 44;
     $('chartColumns').style.setProperty('--bar-width', `${barWidth}px`);
@@ -766,13 +863,15 @@ function mountResearch(root, navigate) {
       const v = value(r), height = v == null ? 0 : v / max * 100;
       const title = `${dayYear(r.date)}, ${isReferee() ? '' : r.venue === 'home' ? 'home to ' : 'away at '}${r.opponent}: ${v == null ? 'statistic unavailable' : `${metricValue(v)} ${nounFor(metric, v)}${state.rate === 'per90' ? ' per 90 minutes' : ''}`}; ${isPlayer() ? (r.minutes == null ? 'minutes unavailable' : `${r.minutes} minutes played`) : resultWord(r)}`;
       const bar = v == null ? '<span class="missing-value">—</span>' : v === 0 ? '<span class="zero-value"></span><span class="bar-value">0</span>' : `<span class="stat-bar"></span><span class="bar-value">${metricValue(v)}</span>`;
-      return `<button class="match-column" data-record="${r.id}" aria-pressed="false" aria-label="${escape(title)}" title="${escape(title)}" style="--bar-height:${height}%"><span class="bar-area" aria-hidden="true">${bar}</span><span class="opponent-label" aria-hidden="true">${escape(r.abbr)}</span><span class="venue-label" aria-hidden="true">${isReferee() ? day(r.date) : r.venue === 'home' ? 'H' : 'A'}</span></button>`;
+      const reached = v == null || !lines.length ? '' : passes(v, state.line) ? ' hit' : ' miss';
+      return `<button class="match-column${reached}" data-record="${r.id}" aria-pressed="false" aria-label="${escape(title)}" title="${escape(title)}" style="--bar-height:${height}%"><span class="bar-area" aria-hidden="true">${bar}</span><span class="opponent-label" aria-hidden="true">${escape(r.abbr)}</span><span class="venue-label" aria-hidden="true">${isReferee() ? day(r.date) : r.venue === 'home' ? 'H' : 'A'}</span></button>`;
     }).join('');
     if (records.length) renderSelected(records.find(r => r.id === state.selected) || records.at(-1));
     if (isPlayer()) {
       const known = records.filter(r => r.minutes != null), full = known.filter(r => r.minutes >= 75).length;
       $('minutesInsight').textContent = known.length ? `Played 75+ minutes in ${full} of ${plural(known.length, 'appearance')} in this view.` : 'No recorded minutes in this view.';
       $('contextFootnote').textContent = 'Short appearances mean fewer opportunities.';
+      showOpponent();
     } else if (state.area === 'teams') {
       const scored = records.filter(r => r.stats.goals_for != null && r.stats.goals_against != null);
       const wins = scored.filter(r => r.stats.goals_for > r.stats.goals_against).length, draws = scored.filter(r => r.stats.goals_for === r.stats.goals_against).length;
@@ -810,6 +909,31 @@ function mountResearch(root, navigate) {
     if (suggestion) { $('playerSearch').value = suggestion.dataset.suggest; search(); $('playerSearch').focus(); }
   });
   $('profileBack').addEventListener('click', () => go(state.area));
+  $('matchView').addEventListener('click', event => {
+    const target = event.target.closest('[data-match-back],[data-market],[data-open-match],[data-referee],[data-mline],[data-mteam],[data-add]');
+    if (!target) return;
+    if (target.matches('[data-match-back]')) return navigate(state.matchFrom?.route || 'teams');
+    if (target.dataset.mline) {
+      matchLines[state.matchMarket] = Number(target.dataset.mline);
+      redrawSection();
+      return $('matchBody').querySelector(`.mk [data-mline="${target.dataset.mline}"]`)?.focus({preventScroll: true});
+    }
+    if (target.dataset.mteam) {
+      matchTeam = target.dataset.mteam;
+      redrawSection();
+      return $('matchBody').querySelector(`.mk [data-mteam="${matchTeam}"]`)?.focus({preventScroll: true});
+    }
+    if (target.dataset.add) {
+      const [market, side, line] = target.dataset.add.split('|');
+      const detail = addLegDetail(state.match, market, side, line === '' || line === 'null' ? null : Number(line));
+      if (detail) root.host.dispatchEvent(new CustomEvent('research-add-leg', {bubbles: true, composed: true, detail}));
+      return;
+    }
+    if (target.dataset.market) return navigate(`matches/${encodeURIComponent(state.matchId)}/${target.dataset.market}`);
+    if (target.dataset.referee) return go('referees', target.dataset.referee);
+    state.matchFrom = {...state.matchFrom, eventId: target.dataset.openMatch};
+    navigate(`matches/${encodeURIComponent(target.dataset.openMatch)}/${state.matchMarket || 'cards'}`);
+  });
   $('researchHome').addEventListener('click', event => {
     const target = event.target.closest('[data-go],[data-league],[data-board],[data-expand],[data-suggest]');
     if (!target) return;
@@ -827,11 +951,47 @@ function mountResearch(root, navigate) {
     event.preventDefault(); next.click();
   });
   $('backSearch').addEventListener('click', () => go(state.area, state.id, state.scope));
+  $('profileView').addEventListener('click', event => {
+    const match = event.target.closest('[data-open-match]');
+    if (match) {
+      // The match view opens at the market the bettor was reading, and its back link returns here.
+      closeSheet(false);
+      const d = state.profile, id = match.dataset.openMatch;
+      state.matchFrom = {eventId: id, route: [state.area, encodeURIComponent(state.id), state.scope].filter(Boolean).join('/'),
+        label: d.subject.name, teamId: state.area === 'teams' ? d.subject.id : state.area === 'players' ? d.subject.club?.id : null};
+      return navigate(`matches/${encodeURIComponent(id)}/${state.area === 'teams' ? state.teamMarket : state.area === 'players' ? 'sot' : 'cards'}`);
+    }
+    const opener = event.target.closest('[data-open-sheet]');
+    if (opener) return openSheet(opener);
+    if (event.target.closest('[data-close-sheet]')) closeSheet();
+  });
+  $('nextSheet').addEventListener('keydown', event => {
+    if (event.key === 'Escape') { event.preventDefault(); return closeSheet(); }
+    if (event.key !== 'Tab') return;
+    const items = [...$('nextSheet').querySelectorAll('.sheet button')], first = items[0], last = items.at(-1);
+    const active = root.activeElement;
+    if (event.shiftKey && (active === first || active?.classList.contains('sheet'))) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && active === last) { event.preventDefault(); first.focus(); }
+  });
+  $('nextSheet').addEventListener('touchstart', event => {
+    const sheet = event.target.closest('.sheet');
+    swipeFrom = sheet && sheet.scrollTop <= 0 ? event.touches[0].clientY : null;
+  }, {passive: true});
+  $('nextSheet').addEventListener('touchend', event => {
+    if (swipeFrom != null && event.changedTouches[0].clientY - swipeFrom > 60) closeSheet();
+    swipeFrom = null;
+  });
   $('profileBody').addEventListener('click', event => {
     const rank = event.target.closest('.rank[data-stat]');
     if (rank) return go(state.area, state.id, rank.dataset.scope, rank.dataset.stat);
     const leader = event.target.closest('[data-player]');
     if (leader) return go('players', leader.dataset.player, leader.dataset.scope);
+    const prevRanks = event.target.closest('.rank-prev');
+    if (prevRanks) return go(state.area, state.id, prevRanks.dataset.scope);
+    const refLine = event.target.closest('[data-rline]');
+    if (refLine) { state.refLine = Number(refLine.dataset.rline); $('refAnswer').innerHTML = refereeBlock(state.profile); return $('refAnswer').querySelector(`[data-rline="${state.refLine}"]`)?.focus({preventScroll: true}); }
+    const market = event.target.closest('[data-tm]');
+    if (market) { state.teamMarket = market.dataset.tm; store.set('spix-research-market', state.teamMarket); $('teamAnswer').innerHTML = teamAnswer(state.profile); return $('teamAnswer').querySelector(`[data-tm="${state.teamMarket}"]`)?.focus({preventScroll: true}); }
     if (event.target.closest('[data-retry]')) fromRoute([state.area, state.id, state.scope].filter(Boolean).join('/'));
   });
   $('profileBody').addEventListener('change', event => {
@@ -854,11 +1014,12 @@ function mountResearch(root, navigate) {
     const button = event.target.closest('button'); if (!button) return;
     state[key] = button.dataset[key]; render();
   });
-  $('thresholdToggle').addEventListener('click', () => { state.thresholdOn = !state.thresholdOn; render(); });
-  $('thresholdDown').addEventListener('click', () => { state.threshold = Math.max(metrics[state.stat].step || 1, state.threshold - (metrics[state.stat].step || 1)); render(); });
-  $('thresholdUp').addEventListener('click', () => { state.threshold = Math.min(metrics[state.stat].limit || 10, state.threshold + (metrics[state.stat].step || 1)); render(); });
-  $('compareSeason').addEventListener('change', event => { state.compare = event.target.checked; render(); });
-  $('resetFilters').addEventListener('click', () => { Object.assign(state, {venue: 'all', period: '10', rate: 'match', thresholdOn: false}); go(state.area, state.id, state.scope, current().defaultStat); render(); });
+  $('lineControl').addEventListener('click', event => {
+    const button = event.target.closest('[data-line]'); if (!button) return;
+    state.line = Number(button.dataset.line); render();
+    $('lineControl').querySelector(`[data-line="${state.line}"]`)?.focus({preventScroll: true});
+  });
+  $('resetFilters').addEventListener('click', () => { Object.assign(state, {venue: 'all', period: '10', rate: 'match'}); go(state.area, state.id, state.scope, current().defaultStat); render(); });
   $('chartColumns').addEventListener('click', event => { const column = event.target.closest('[data-record]'); if (column) renderSelected(state.records.find(r => r.id === column.dataset.record)); });
   $('chartColumns').addEventListener('keydown', event => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
@@ -883,8 +1044,8 @@ class SpixResearch extends HTMLElement {
     const root = this.attachShadow({mode: 'open'});
     root.innerHTML = '<p role="status">Loading Research Area…</p>';
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=real-20261008c', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=crest-20261110a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261116o', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261116o', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));

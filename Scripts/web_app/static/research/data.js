@@ -24,9 +24,9 @@ const teamMetrics = {
   corners_for: stat('Corners', 'Corners won', 'corners', 'Corners won by this team. Team corners are not the same as total match corners.', {threshold: 5}),
   sot_for: stat('On target', 'Shots on target', 'shots on target', 'Attempts on target by this team, not the match total.', {threshold: 4}),
   cards: stat('Cards', 'Cards received', 'cards', 'Yellow and red cards shown to this team. This is not a booking-points total.', {threshold: 2}),
-  xg_for: stat('xG', 'Expected goals (xG)', 'expected goals', 'Expected goals estimates the quality of the chances a team created. 1.0 means chances that would usually produce one goal.', {threshold: 1, decimals: 2}),
+  xg_for: stat('xG', 'Expected goals (xG)', 'expected goals', 'Expected goals estimates the quality of the chances a team created. 1.0 means chances that would usually produce one goal.', {threshold: 1, decimals: 1}),
   goals_against: stat('Conceded', 'Goals conceded', 'goals conceded', `Goals scored by the opponent, taken from the final score. ${EXTRA_TIME}`, {threshold: 1}),
-  xg_against: stat('xG conceded', 'Expected goals conceded', 'expected goals conceded', 'The quality of the chances the opponent created, measured in expected goals.', {threshold: 1, decimals: 2}),
+  xg_against: stat('xG conceded', 'Expected goals conceded', 'expected goals conceded', 'The quality of the chances the opponent created, measured in expected goals.', {threshold: 1, decimals: 1}),
   corners_against: stat('Corners conceded', 'Corners conceded', 'corners conceded', 'Corners won by the opponent in this team’s matches.', {threshold: 5}),
   shots_for: stat('Shots', 'Total shots', 'shots', 'All attempts by this team: on target, off target and blocked.', {threshold: 10, limit: 40}),
   shots_against: stat('Shots faced', 'Shots faced', 'shots faced', 'All attempts by the opponent.', {threshold: 10, limit: 40}),
@@ -39,7 +39,7 @@ const teamMetrics = {
 };
 
 const refereeMetrics = {
-  cards: stat('Cards', 'Cards shown', 'cards', `Yellow and red cards shown to both teams. ${EXTRA_TIME} Not a booking-points total.`, {threshold: 4}),
+  cards: stat('Cards', 'Cards shown', 'cards', `Yellow and red cards shown to both teams. ${EXTRA_TIME} Not a booking-points total.`, {threshold: 3.5, lines: [2.5, 3.5, 4.5, 5.5]}),
   yellows: stat('Yellows', 'Yellow cards shown', 'yellow cards', 'Yellow cards shown to both teams.', {threshold: 4}),
   reds: stat('Reds', 'Red cards shown', 'red cards', 'Red cards shown to both teams, including second yellows.'),
   fouls: stat('Fouls', 'Fouls called', 'fouls', 'Fouls given against both teams. The teams’ style matters as much as the referee.', {threshold: 20, limit: 50}),

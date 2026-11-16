@@ -1,0 +1,1999 @@
+{
+ "_note": "Real research-match.v1 body for Chelsea v Leeds (event 1557470), from the live database on 16 Nov 2026 (backend d7d7da9, D110). No referee named and no read yet: the read comes out Tue 17 Nov.",
+ "schema_version": "research-match.v1",
+ "fixture": {
+  "event_id": "1557470",
+  "fixture_id": 32256,
+  "kickoff": "2026-11-21T15:00:00+00:00",
+  "competition": {
+   "code": "EPL",
+   "name": "Premier League"
+  },
+  "home": {
+   "id": 12,
+   "name": "Chelsea",
+   "short_code": "CHE",
+   "logo_url": "https://media.api-sports.io/football/teams/49.png"
+  },
+  "away": {
+   "id": 17,
+   "name": "Leeds",
+   "short_code": "LEE",
+   "logo_url": "https://media.api-sports.io/football/teams/63.png"
+  },
+  "venue": null,
+  "referee": null,
+  "read": {
+   "status": "waiting",
+   "read_at": null,
+   "opens_at": "2026-11-17T15:00:00+00:00",
+   "expected": null
+  },
+  "status": "NS"
+ },
+ "read": null,
+ "teams": {
+  "home": {
+   "team": {
+    "id": 12,
+    "name": "Chelsea",
+    "short_code": "CHE",
+    "logo_url": "https://media.api-sports.io/football/teams/49.png"
+   },
+   "last_matches": [
+    {
+     "event_id": "1557376",
+     "date": "2026-08-24T19:00:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 4,
+      "name": "Fulham",
+      "short_code": "FUL",
+      "logo_url": "https://media.api-sports.io/football/teams/36.png"
+     },
+     "score": {
+      "home": 2,
+      "away": 3
+     },
+     "cards_for": 3,
+     "cards_against": 2,
+     "corners_for": 4,
+     "corners_against": 6,
+     "goals_for": 3,
+     "goals_against": 2,
+     "sot_for": 6,
+     "sot_against": 6
+    },
+    {
+     "event_id": "1557379",
+     "date": "2026-08-30T13:00:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 14,
+      "name": "Brighton",
+      "short_code": "BRI",
+      "logo_url": "https://media.api-sports.io/football/teams/51.png"
+     },
+     "score": {
+      "home": 4,
+      "away": 3
+     },
+     "cards_for": 1,
+     "cards_against": 3,
+     "corners_for": 4,
+     "corners_against": 7,
+     "goals_for": 4,
+     "goals_against": 3,
+     "sot_for": 6,
+     "sot_against": 6
+    },
+    {
+     "event_id": "1557387",
+     "date": "2026-09-06T15:30:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 7,
+      "name": "Arsenal",
+      "short_code": "ARS",
+      "logo_url": "https://media.api-sports.io/football/teams/42.png"
+     },
+     "score": {
+      "home": 2,
+      "away": 1
+     },
+     "cards_for": 4,
+     "cards_against": 2,
+     "corners_for": 3,
+     "corners_against": 5,
+     "goals_for": 1,
+     "goals_against": 2,
+     "sot_for": 5,
+     "sot_against": 9
+    },
+    {
+     "event_id": "1557399",
+     "date": "2026-09-12T14:00:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 302,
+      "name": "Hull City",
+      "short_code": "HUL",
+      "logo_url": "https://media.api-sports.io/football/teams/64.png"
+     },
+     "score": {
+      "home": 2,
+      "away": 2
+     },
+     "cards_for": 1,
+     "cards_against": 5,
+     "corners_for": 11,
+     "corners_against": 4,
+     "goals_for": 2,
+     "goals_against": 2,
+     "sot_for": 7,
+     "sot_against": 5
+    },
+    {
+     "event_id": "1557408",
+     "date": "2026-09-18T19:00:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 16,
+      "name": "Brentford",
+      "short_code": "BRE",
+      "logo_url": "https://media.api-sports.io/football/teams/55.png"
+     },
+     "score": {
+      "home": 3,
+      "away": 0
+     },
+     "cards_for": 0,
+     "cards_against": 2,
+     "corners_for": 12,
+     "corners_against": 4,
+     "goals_for": 0,
+     "goals_against": 3,
+     "sot_for": 2,
+     "sot_against": 6
+    },
+    {
+     "event_id": "1557419",
+     "date": "2026-10-10T14:00:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 3,
+      "name": "Bournemouth",
+      "short_code": "BOU",
+      "logo_url": "https://media.api-sports.io/football/teams/35.png"
+     },
+     "score": {
+      "home": 5,
+      "away": 1
+     },
+     "cards_for": 0,
+     "cards_against": 4,
+     "corners_for": 1,
+     "corners_against": 7,
+     "goals_for": 5,
+     "goals_against": 1,
+     "sot_for": 6,
+     "sot_against": 4
+    },
+    {
+     "event_id": "1557430",
+     "date": "2026-10-17T11:30:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 9,
+      "name": "Everton",
+      "short_code": "EVE",
+      "logo_url": "https://media.api-sports.io/football/teams/45.png"
+     },
+     "score": {
+      "home": 0,
+      "away": 2
+     },
+     "cards_for": 4,
+     "cards_against": 3,
+     "corners_for": 7,
+     "corners_against": 5,
+     "goals_for": 2,
+     "goals_against": 0,
+     "sot_for": 7,
+     "sot_against": 5
+    },
+    {
+     "event_id": "1557439",
+     "date": "2026-10-24T16:30:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 10,
+      "name": "Tottenham",
+      "short_code": "TOT",
+      "logo_url": "https://media.api-sports.io/football/teams/47.png"
+     },
+     "score": {
+      "home": 0,
+      "away": 2
+     },
+     "cards_for": 3,
+     "cards_against": 3,
+     "corners_for": 4,
+     "corners_against": 6,
+     "goals_for": 0,
+     "goals_against": 2,
+     "sot_for": 4,
+     "sot_against": 4
+    },
+    {
+     "event_id": "1557450",
+     "date": "2026-10-31T12:30:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 1,
+      "name": "Manchester United",
+      "short_code": "MUN",
+      "logo_url": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "score": {
+      "home": 2,
+      "away": 0
+     },
+     "cards_for": 1,
+     "cards_against": 5,
+     "corners_for": 8,
+     "corners_against": 7,
+     "goals_for": 2,
+     "goals_against": 0,
+     "sot_for": 9,
+     "sot_against": 5
+    },
+    {
+     "event_id": "1557466",
+     "date": "2026-11-08T14:00:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 20,
+      "name": "Sunderland",
+      "short_code": "SUN",
+      "logo_url": "https://media.api-sports.io/football/teams/746.png"
+     },
+     "score": {
+      "home": 1,
+      "away": 0
+     },
+     "cards_for": 4,
+     "cards_against": 5,
+     "corners_for": 2,
+     "corners_against": 2,
+     "goals_for": 0,
+     "goals_against": 1,
+     "sot_for": 4,
+     "sot_against": 2
+    }
+   ],
+   "booked": [
+    {
+     "player_id": 337,
+     "name": "Cole Palmer",
+     "yellow": 2,
+     "red": 1,
+     "appearances": 10
+    },
+    {
+     "player_id": 179,
+     "name": "Morgan Rogers",
+     "yellow": 3,
+     "red": 0,
+     "appearances": 10
+    },
+    {
+     "player_id": 79,
+     "name": "Pedro Neto",
+     "yellow": 3,
+     "red": 0,
+     "appearances": 10
+    },
+    {
+     "player_id": 230,
+     "name": "Wesley Fofana",
+     "yellow": 2,
+     "red": 0,
+     "appearances": 6
+    },
+    {
+     "player_id": 2608,
+     "name": "Levi Colwill",
+     "yellow": 2,
+     "red": 0,
+     "appearances": 9
+    }
+   ],
+   "shooters": [
+    {
+     "player_id": 337,
+     "name": "Cole Palmer",
+     "position": "M",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-08-24T19:00:00+00:00",
+       "opponent": "Fulham",
+       "minutes": 83,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-08-30T13:00:00+00:00",
+       "opponent": "Brighton",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-09-06T15:30:00+00:00",
+       "opponent": "Arsenal",
+       "minutes": 90,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-09-12T14:00:00+00:00",
+       "opponent": "Hull City",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-18T19:00:00+00:00",
+       "opponent": "Brentford",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T14:00:00+00:00",
+       "opponent": "Bournemouth",
+       "minutes": 88,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T11:30:00+00:00",
+       "opponent": "Everton",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-24T16:30:00+00:00",
+       "opponent": "Tottenham",
+       "minutes": 80,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T12:30:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 97,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-11-08T14:00:00+00:00",
+       "opponent": "Sunderland",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 179,
+     "name": "Morgan Rogers",
+     "position": "M",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-08-24T19:00:00+00:00",
+       "opponent": "Fulham",
+       "minutes": 82,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-08-30T13:00:00+00:00",
+       "opponent": "Brighton",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-06T15:30:00+00:00",
+       "opponent": "Arsenal",
+       "minutes": 87,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-09-12T14:00:00+00:00",
+       "opponent": "Hull City",
+       "minutes": 90,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-09-18T19:00:00+00:00",
+       "opponent": "Brentford",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T14:00:00+00:00",
+       "opponent": "Bournemouth",
+       "minutes": 84,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T11:30:00+00:00",
+       "opponent": "Everton",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-24T16:30:00+00:00",
+       "opponent": "Tottenham",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T12:30:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-11-08T14:00:00+00:00",
+       "opponent": "Sunderland",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 306,
+     "name": "M. Caicedo",
+     "position": "M",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-05-04T14:00:00+00:00",
+       "opponent": "Nottingham Forest",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-05-09T11:30:00+00:00",
+       "opponent": "Liverpool",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-05-19T19:15:00+00:00",
+       "opponent": "Tottenham",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-05-24T15:00:00+00:00",
+       "opponent": "Sunderland",
+       "minutes": 85,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-08-30T13:00:00+00:00",
+       "opponent": "Brighton",
+       "minutes": 14,
+       "sot": 0,
+       "started": false
+      },
+      {
+       "date": "2026-10-10T14:00:00+00:00",
+       "opponent": "Bournemouth",
+       "minutes": 72,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T11:30:00+00:00",
+       "opponent": "Everton",
+       "minutes": 89,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-24T16:30:00+00:00",
+       "opponent": "Tottenham",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T12:30:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 87,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-11-08T14:00:00+00:00",
+       "opponent": "Sunderland",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 79,
+     "name": "Pedro Neto",
+     "position": "M",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-08-24T19:00:00+00:00",
+       "opponent": "Fulham",
+       "minutes": 14,
+       "sot": 0,
+       "started": false
+      },
+      {
+       "date": "2026-08-30T13:00:00+00:00",
+       "opponent": "Brighton",
+       "minutes": 68,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-09-06T15:30:00+00:00",
+       "opponent": "Arsenal",
+       "minutes": 81,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-12T14:00:00+00:00",
+       "opponent": "Hull City",
+       "minutes": 86,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-09-18T19:00:00+00:00",
+       "opponent": "Brentford",
+       "minutes": 87,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T14:00:00+00:00",
+       "opponent": "Bournemouth",
+       "minutes": 83,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T11:30:00+00:00",
+       "opponent": "Everton",
+       "minutes": 102,
+       "sot": 3,
+       "started": true
+      },
+      {
+       "date": "2026-10-24T16:30:00+00:00",
+       "opponent": "Tottenham",
+       "minutes": 88,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T12:30:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 87,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-11-08T14:00:00+00:00",
+       "opponent": "Sunderland",
+       "minutes": 62,
+       "sot": 1,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 2608,
+     "name": "Levi Colwill",
+     "position": "D",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-05-24T15:00:00+00:00",
+       "opponent": "Sunderland",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-08-24T19:00:00+00:00",
+       "opponent": "Fulham",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-08-30T13:00:00+00:00",
+       "opponent": "Brighton",
+       "minutes": 72,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-12T14:00:00+00:00",
+       "opponent": "Hull City",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-18T19:00:00+00:00",
+       "opponent": "Brentford",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T14:00:00+00:00",
+       "opponent": "Bournemouth",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T11:30:00+00:00",
+       "opponent": "Everton",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-24T16:30:00+00:00",
+       "opponent": "Tottenham",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T12:30:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-11-08T14:00:00+00:00",
+       "opponent": "Sunderland",
+       "minutes": 45,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 1544,
+     "name": "M. Palestra",
+     "position": "D",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-04-27T16:30:00+00:00",
+       "opponent": "Atalanta",
+       "minutes": 34,
+       "sot": 0,
+       "started": false
+      },
+      {
+       "date": "2026-05-03T10:30:00+00:00",
+       "opponent": "Bologna",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-05-09T13:00:00+00:00",
+       "opponent": "Udinese",
+       "minutes": 62,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-05-17T18:45:00+00:00",
+       "opponent": "Torino",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-05-24T18:45:00+00:00",
+       "opponent": "AC Milan",
+       "minutes": 27,
+       "sot": 0,
+       "started": false
+      },
+      {
+       "date": "2026-10-10T14:00:00+00:00",
+       "opponent": "Bournemouth",
+       "minutes": 18,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T11:30:00+00:00",
+       "opponent": "Everton",
+       "minutes": 1,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-24T16:30:00+00:00",
+       "opponent": "Tottenham",
+       "minutes": 25,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T12:30:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 74,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-11-08T14:00:00+00:00",
+       "opponent": "Sunderland",
+       "minutes": 62,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 72,
+     "name": "Danny Welbeck",
+     "position": "F",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-05-17T14:00:00+00:00",
+       "opponent": "Leeds",
+       "minutes": 65,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-05-24T15:00:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 59,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-06T15:30:00+00:00",
+       "opponent": "Arsenal",
+       "minutes": 8,
+       "sot": 0,
+       "started": false
+      },
+      {
+       "date": "2026-09-12T14:00:00+00:00",
+       "opponent": "Hull City",
+       "minutes": 12,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-18T19:00:00+00:00",
+       "opponent": "Brentford",
+       "minutes": 71,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T14:00:00+00:00",
+       "opponent": "Bournemouth",
+       "minutes": 7,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T11:30:00+00:00",
+       "opponent": "Everton",
+       "minutes": 1,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-24T16:30:00+00:00",
+       "opponent": "Tottenham",
+       "minutes": 2,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T12:30:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 3,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-11-08T14:00:00+00:00",
+       "opponent": "Sunderland",
+       "minutes": 28,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 472,
+     "name": "Josh Acheampong",
+     "position": "D",
+     "starts_last_5": 4,
+     "last_10": [
+      {
+       "date": "2026-05-19T19:15:00+00:00",
+       "opponent": "Tottenham",
+       "minutes": 74,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-05-24T15:00:00+00:00",
+       "opponent": "Sunderland",
+       "minutes": 18,
+       "sot": 0,
+       "started": false
+      },
+      {
+       "date": "2026-08-24T19:00:00+00:00",
+       "opponent": "Fulham",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-08-30T13:00:00+00:00",
+       "opponent": "Brighton",
+       "minutes": 22,
+       "sot": 0,
+       "started": false
+      },
+      {
+       "date": "2026-09-06T15:30:00+00:00",
+       "opponent": "Arsenal",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-18T19:00:00+00:00",
+       "opponent": "Brentford",
+       "minutes": 19,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T14:00:00+00:00",
+       "opponent": "Bournemouth",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-17T11:30:00+00:00",
+       "opponent": "Everton",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-24T16:30:00+00:00",
+       "opponent": "Tottenham",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T12:30:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      }
+     ]
+    }
+   ],
+   "allowed": {
+    "competition": {
+     "code": "EPL",
+     "name": "Premier League"
+    },
+    "per_match": 5.2,
+    "matches": 10,
+    "rank": 17,
+    "peer_count": 20
+   }
+  },
+  "away": {
+   "team": {
+    "id": 17,
+    "name": "Leeds",
+    "short_code": "LEE",
+    "logo_url": "https://media.api-sports.io/football/teams/63.png"
+   },
+   "last_matches": [
+    {
+     "event_id": "1557371",
+     "date": "2026-08-22T14:00:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 18,
+      "name": "Nottingham Forest",
+      "short_code": "NOT",
+      "logo_url": "https://media.api-sports.io/football/teams/65.png"
+     },
+     "score": {
+      "home": 0,
+      "away": 1
+     },
+     "cards_for": 1,
+     "cards_against": 2,
+     "corners_for": 2,
+     "corners_against": 3,
+     "goals_for": 1,
+     "goals_against": 0,
+     "sot_for": 3,
+     "sot_against": 2
+    },
+    {
+     "event_id": "1557382",
+     "date": "2026-08-30T13:00:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 16,
+      "name": "Brentford",
+      "short_code": "BRE",
+      "logo_url": "https://media.api-sports.io/football/teams/55.png"
+     },
+     "score": {
+      "home": 1,
+      "away": 1
+     },
+     "cards_for": 0,
+     "cards_against": 4,
+     "corners_for": 5,
+     "corners_against": 6,
+     "goals_for": 1,
+     "goals_against": 1,
+     "sot_for": 2,
+     "sot_against": 5
+    },
+    {
+     "event_id": "1557389",
+     "date": "2026-09-05T14:00:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 14,
+      "name": "Brighton",
+      "short_code": "BRI",
+      "logo_url": "https://media.api-sports.io/football/teams/51.png"
+     },
+     "score": {
+      "home": 1,
+      "away": 1
+     },
+     "cards_for": 3,
+     "cards_against": 3,
+     "corners_for": 6,
+     "corners_against": 7,
+     "goals_for": 1,
+     "goals_against": 1,
+     "sot_for": 5,
+     "sot_against": 5
+    },
+    {
+     "event_id": "1557402",
+     "date": "2026-09-14T19:00:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 2,
+      "name": "Newcastle",
+      "short_code": "NEW",
+      "logo_url": "https://media.api-sports.io/football/teams/34.png"
+     },
+     "score": {
+      "home": 4,
+      "away": 1
+     },
+     "cards_for": 1,
+     "cards_against": 2,
+     "corners_for": 5,
+     "corners_against": 5,
+     "goals_for": 4,
+     "goals_against": 1,
+     "sot_for": 6,
+     "sot_against": 5
+    },
+    {
+     "event_id": "1557412",
+     "date": "2026-09-20T13:00:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 15,
+      "name": "Crystal Palace",
+      "short_code": "CRY",
+      "logo_url": "https://media.api-sports.io/football/teams/52.png"
+     },
+     "score": {
+      "home": 0,
+      "away": 0
+     },
+     "cards_for": 2,
+     "cards_against": 3,
+     "corners_for": 4,
+     "corners_against": 3,
+     "goals_for": 0,
+     "goals_against": 0,
+     "sot_for": 2,
+     "sot_against": 4
+    },
+    {
+     "event_id": "1557417",
+     "date": "2026-10-10T11:30:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 7,
+      "name": "Arsenal",
+      "short_code": "ARS",
+      "logo_url": "https://media.api-sports.io/football/teams/42.png"
+     },
+     "score": {
+      "home": 2,
+      "away": 1
+     },
+     "cards_for": 4,
+     "cards_against": 1,
+     "corners_for": 4,
+     "corners_against": 3,
+     "goals_for": 1,
+     "goals_against": 2,
+     "sot_for": 5,
+     "sot_against": 6
+    },
+    {
+     "event_id": "1557432",
+     "date": "2026-10-18T13:00:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 1,
+      "name": "Manchester United",
+      "short_code": "MUN",
+      "logo_url": "https://media.api-sports.io/football/teams/33.png"
+     },
+     "score": {
+      "home": 1,
+      "away": 1
+     },
+     "cards_for": 2,
+     "cards_against": 2,
+     "corners_for": 2,
+     "corners_against": 3,
+     "goals_for": 1,
+     "goals_against": 1,
+     "sot_for": 5,
+     "sot_against": 3
+    },
+    {
+     "event_id": "1557446",
+     "date": "2026-10-25T16:30:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 20,
+      "name": "Sunderland",
+      "short_code": "SUN",
+      "logo_url": "https://media.api-sports.io/football/teams/746.png"
+     },
+     "score": {
+      "home": 0,
+      "away": 0
+     },
+     "cards_for": 2,
+     "cards_against": 1,
+     "corners_for": 5,
+     "corners_against": 4,
+     "goals_for": 0,
+     "goals_against": 0,
+     "sot_for": 4,
+     "sot_against": 4
+    },
+    {
+     "event_id": "1557448",
+     "date": "2026-10-31T15:00:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "away",
+     "opponent": {
+      "id": 3,
+      "name": "Bournemouth",
+      "short_code": "BOU",
+      "logo_url": "https://media.api-sports.io/football/teams/35.png"
+     },
+     "score": {
+      "home": 2,
+      "away": 0
+     },
+     "cards_for": 2,
+     "cards_against": 2,
+     "corners_for": 4,
+     "corners_against": 4,
+     "goals_for": 0,
+     "goals_against": 2,
+     "sot_for": 1,
+     "sot_against": 5
+    },
+    {
+     "event_id": "1557463",
+     "date": "2026-11-07T12:30:00+00:00",
+     "competition": {
+      "code": "EPL",
+      "name": "Premier League"
+     },
+     "venue": "home",
+     "opponent": {
+      "id": 10,
+      "name": "Tottenham",
+      "short_code": "TOT",
+      "logo_url": "https://media.api-sports.io/football/teams/47.png"
+     },
+     "score": {
+      "home": 1,
+      "away": 0
+     },
+     "cards_for": 2,
+     "cards_against": 3,
+     "corners_for": 6,
+     "corners_against": 4,
+     "goals_for": 1,
+     "goals_against": 0,
+     "sot_for": 4,
+     "sot_against": 4
+    }
+   ],
+   "booked": [
+    {
+     "player_id": 86,
+     "name": "Ethan Ampadu",
+     "yellow": 4,
+     "red": 0,
+     "appearances": 10
+    },
+    {
+     "player_id": 141,
+     "name": "Dominic Calvert-Lewin",
+     "yellow": 3,
+     "red": 0,
+     "appearances": 10
+    },
+    {
+     "player_id": 186,
+     "name": "Jayden Bogle",
+     "yellow": 3,
+     "red": 0,
+     "appearances": 10
+    },
+    {
+     "player_id": 250,
+     "name": "Ao Tanaka",
+     "yellow": 2,
+     "red": 0,
+     "appearances": 9
+    },
+    {
+     "player_id": 156,
+     "name": "S. Longstaff",
+     "yellow": 1,
+     "red": 0,
+     "appearances": 6
+    }
+   ],
+   "shooters": [
+    {
+     "player_id": 86,
+     "name": "Ethan Ampadu",
+     "position": "M",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-08-22T14:00:00+00:00",
+       "opponent": "Nottingham Forest",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-08-30T13:00:00+00:00",
+       "opponent": "Brentford",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-05T14:00:00+00:00",
+       "opponent": "Brighton",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-14T19:00:00+00:00",
+       "opponent": "Newcastle",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-20T13:00:00+00:00",
+       "opponent": "Crystal Palace",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T11:30:00+00:00",
+       "opponent": "Arsenal",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-18T13:00:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-25T16:30:00+00:00",
+       "opponent": "Sunderland",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T15:00:00+00:00",
+       "opponent": "Bournemouth",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-11-07T12:30:00+00:00",
+       "opponent": "Tottenham",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 1452,
+     "name": "Tarik Muharemovi\u0107",
+     "position": "D",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-08-22T14:00:00+00:00",
+       "opponent": "Nottingham Forest",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-08-30T13:00:00+00:00",
+       "opponent": "Brentford",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-05T14:00:00+00:00",
+       "opponent": "Brighton",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-14T19:00:00+00:00",
+       "opponent": "Newcastle",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-20T13:00:00+00:00",
+       "opponent": "Crystal Palace",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T11:30:00+00:00",
+       "opponent": "Arsenal",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-18T13:00:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-25T16:30:00+00:00",
+       "opponent": "Sunderland",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T15:00:00+00:00",
+       "opponent": "Bournemouth",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-11-07T12:30:00+00:00",
+       "opponent": "Tottenham",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 141,
+     "name": "Dominic Calvert-Lewin",
+     "position": "F",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-08-22T14:00:00+00:00",
+       "opponent": "Nottingham Forest",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-08-30T13:00:00+00:00",
+       "opponent": "Brentford",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-09-05T14:00:00+00:00",
+       "opponent": "Brighton",
+       "minutes": 73,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-09-14T19:00:00+00:00",
+       "opponent": "Newcastle",
+       "minutes": 78,
+       "sot": 3,
+       "started": true
+      },
+      {
+       "date": "2026-09-20T13:00:00+00:00",
+       "opponent": "Crystal Palace",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T11:30:00+00:00",
+       "opponent": "Arsenal",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-18T13:00:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-25T16:30:00+00:00",
+       "opponent": "Sunderland",
+       "minutes": 85,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T15:00:00+00:00",
+       "opponent": "Bournemouth",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-11-07T12:30:00+00:00",
+       "opponent": "Tottenham",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 186,
+     "name": "Jayden Bogle",
+     "position": "M",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-08-22T14:00:00+00:00",
+       "opponent": "Nottingham Forest",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-08-30T13:00:00+00:00",
+       "opponent": "Brentford",
+       "minutes": 68,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-05T14:00:00+00:00",
+       "opponent": "Brighton",
+       "minutes": 61,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-09-14T19:00:00+00:00",
+       "opponent": "Newcastle",
+       "minutes": 83,
+       "sot": 2,
+       "started": true
+      },
+      {
+       "date": "2026-09-20T13:00:00+00:00",
+       "opponent": "Crystal Palace",
+       "minutes": 67,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T11:30:00+00:00",
+       "opponent": "Arsenal",
+       "minutes": 86,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-18T13:00:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-25T16:30:00+00:00",
+       "opponent": "Sunderland",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T15:00:00+00:00",
+       "opponent": "Bournemouth",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-11-07T12:30:00+00:00",
+       "opponent": "Tottenham",
+       "minutes": 89,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 211,
+     "name": "James Justin",
+     "position": "D",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-08-22T14:00:00+00:00",
+       "opponent": "Nottingham Forest",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-08-30T13:00:00+00:00",
+       "opponent": "Brentford",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-09-05T14:00:00+00:00",
+       "opponent": "Brighton",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-09-14T19:00:00+00:00",
+       "opponent": "Newcastle",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-20T13:00:00+00:00",
+       "opponent": "Crystal Palace",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T11:30:00+00:00",
+       "opponent": "Arsenal",
+       "minutes": 79,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-18T13:00:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-25T16:30:00+00:00",
+       "opponent": "Sunderland",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T15:00:00+00:00",
+       "opponent": "Bournemouth",
+       "minutes": 84,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-11-07T12:30:00+00:00",
+       "opponent": "Tottenham",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 250,
+     "name": "Ao Tanaka",
+     "position": "M",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-05-24T15:00:00+00:00",
+       "opponent": "West Ham",
+       "minutes": 78,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-08-30T13:00:00+00:00",
+       "opponent": "Brentford",
+       "minutes": 45,
+       "sot": 0,
+       "started": false
+      },
+      {
+       "date": "2026-09-05T14:00:00+00:00",
+       "opponent": "Brighton",
+       "minutes": 73,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-14T19:00:00+00:00",
+       "opponent": "Newcastle",
+       "minutes": 72,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-20T13:00:00+00:00",
+       "opponent": "Crystal Palace",
+       "minutes": 68,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T11:30:00+00:00",
+       "opponent": "Arsenal",
+       "minutes": 71,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-18T13:00:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 81,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-25T16:30:00+00:00",
+       "opponent": "Sunderland",
+       "minutes": 89,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T15:00:00+00:00",
+       "opponent": "Bournemouth",
+       "minutes": 65,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-11-07T12:30:00+00:00",
+       "opponent": "Tottenham",
+       "minutes": 77,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 279,
+     "name": "Gabriel Gudmundsson",
+     "position": "M",
+     "starts_last_5": 5,
+     "last_10": [
+      {
+       "date": "2026-04-18T14:00:00+00:00",
+       "opponent": "Wolves",
+       "minutes": 89,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-04-22T19:00:00+00:00",
+       "opponent": "Bournemouth",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-05T14:00:00+00:00",
+       "opponent": "Brighton",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-14T19:00:00+00:00",
+       "opponent": "Newcastle",
+       "minutes": 72,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-20T13:00:00+00:00",
+       "opponent": "Crystal Palace",
+       "minutes": 89,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T11:30:00+00:00",
+       "opponent": "Arsenal",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-18T13:00:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-25T16:30:00+00:00",
+       "opponent": "Sunderland",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T15:00:00+00:00",
+       "opponent": "Bournemouth",
+       "minutes": 65,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-11-07T12:30:00+00:00",
+       "opponent": "Tottenham",
+       "minutes": 45,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    },
+    {
+     "player_id": 1656,
+     "name": "Nico Elvedi",
+     "position": "D",
+     "starts_last_5": 4,
+     "last_10": [
+      {
+       "date": "2026-05-03T15:30:00+00:00",
+       "opponent": "Borussia Dortmund",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-05-16T13:30:00+00:00",
+       "opponent": "1899 Hoffenheim",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-08-30T13:00:00+00:00",
+       "opponent": "Brentford",
+       "minutes": 56,
+       "sot": 0,
+       "started": false
+      },
+      {
+       "date": "2026-09-05T14:00:00+00:00",
+       "opponent": "Brighton",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-14T19:00:00+00:00",
+       "opponent": "Newcastle",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-09-20T13:00:00+00:00",
+       "opponent": "Crystal Palace",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-10T11:30:00+00:00",
+       "opponent": "Arsenal",
+       "minutes": 86,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-10-18T13:00:00+00:00",
+       "opponent": "Manchester United",
+       "minutes": 90,
+       "sot": 1,
+       "started": true
+      },
+      {
+       "date": "2026-10-31T15:00:00+00:00",
+       "opponent": "Bournemouth",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      },
+      {
+       "date": "2026-11-07T12:30:00+00:00",
+       "opponent": "Tottenham",
+       "minutes": 90,
+       "sot": 0,
+       "started": true
+      }
+     ]
+    }
+   ],
+   "allowed": {
+    "competition": {
+     "code": "EPL",
+     "name": "Premier League"
+    },
+    "per_match": 4.3,
+    "matches": 10,
+    "rank": 11,
+    "peer_count": 20
+   }
+  }
+ },
+ "referee": null,
+ "h2h": [
+  {
+   "event_id": "1379221",
+   "date": "2026-02-10T19:30:00+00:00",
+   "competition": {
+    "code": "EPL",
+    "name": "Premier League"
+   },
+   "home": {
+    "id": 12,
+    "name": "Chelsea"
+   },
+   "away": {
+    "id": 17,
+    "name": "Leeds"
+   },
+   "score": {
+    "home": 2,
+    "away": 2
+   },
+   "cards": 8,
+   "corners": 5,
+   "goals": 4
+  },
+  {
+   "event_id": "1379104",
+   "date": "2025-12-03T20:15:00+00:00",
+   "competition": {
+    "code": "EPL",
+    "name": "Premier League"
+   },
+   "home": {
+    "id": 17,
+    "name": "Leeds"
+   },
+   "away": {
+    "id": 12,
+    "name": "Chelsea"
+   },
+   "score": {
+    "home": 3,
+    "away": 1
+   },
+   "cards": 2,
+   "corners": 6,
+   "goals": 4
+  }
+ ],
+ "lineups": null,
+ "data_basis": {
+  "latest_finished_kickoff": "2026-11-08T14:00:00+00:00",
+  "generated_at": "2026-11-16T10:33:19.642795+00:00",
+  "source": "canonical_database",
+  "h2h_since_season": 2023
+ }
+}
