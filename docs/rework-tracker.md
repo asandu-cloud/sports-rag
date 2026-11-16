@@ -2797,6 +2797,15 @@ raw responses, under full player names, and one bookmaker breaks the two-bookmak
   no longer runs the name dedup or prints its log line. On the live database the whole view takes 0.2–0.4 s warm
   (Atlético v Barcelona: Javier Alberola Rojas, 7 matches, 4.9 cards a match against LaLiga's 4.7). 5 tests; the
   full suite 3,120 passed, plus the 3 known errors; the golden check shows no changes across 54 fixtures.
+- Task 5 (16 Nov, B3): the daily refresh gains a best-effort `research_ranks` stage,
+  `research-build --season <this season>`, after the documents and before the stats file, the wins reel and the
+  health check. `research-build` now runs under the writer gate: inside the refresh it shares the refresh's gate,
+  and by hand during a refresh it stops at once (exit 1, last ranks kept). Rehearsed on an APFS clone of the
+  database (taken under a read lock, deleted after): 1.3 s for 14 season scopes, 9,327 rank rows and 1,698 referee
+  spellings. Afterwards Chelsea, Leeds and Barcelona read ranked (before: stale or missing), and no 2026/27
+  referee spelling is missing from the table (before: 100 of 781). Live once merged, from the next daily refresh;
+  no `.env` line, no pick changes. 3 tests; the full suite 3,123 passed, plus the 3 known errors; the golden check
+  shows no changes across 54 fixtures.
 
 ## Findings that shape later steps
 

@@ -98,9 +98,16 @@ def cmd_init_db(args) -> int:
 
 
 def cmd_research_build(args) -> int:
+    from .services import refresh_coordination
     from .services.research_profiles import ResearchProfileService
 
-    result = ResearchProfileService().build(season=args.season, competition=args.competition)
+    # A writer: inside refresh-season it inherits the refresh's gate; by hand it stops while a refresh runs.
+    try:
+        with refresh_coordination.data_access(writer=True):
+            result = ResearchProfileService().build(season=args.season, competition=args.competition)
+    except refresh_coordination.RefreshBusy as exc:
+        print(f"[research-build] {exc} Research keeps its last ranks.")
+        return 1
     print(json.dumps(result, indent=2))
     return 0
 

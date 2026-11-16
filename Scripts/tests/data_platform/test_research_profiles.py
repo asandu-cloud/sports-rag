@@ -719,3 +719,43 @@ def test_match_log_covers_whole_scope_for_charts(research):
     # Rank-only payloads (previous season) do not carry a match log.
     current = service.profile("player", ids["player"])
     assert "match_log" not in current["previous_season"]
+
+
+def _gate_recorder(events, busy=False):
+    from contextlib import contextmanager
+    from data_platform.services.refresh_coordination import RefreshBusy
+
+    @contextmanager
+    def gate(**kwargs):
+        events.append(("gate", kwargs))
+        if busy:
+            raise RefreshBusy("Data refresh or fixture generation is active; retry on the next tick.")
+        yield
+        events.append("gate closed")
+    return gate
+
+
+def test_research_build_runs_inside_the_writer_gate(monkeypatch, capsys):
+    from data_platform import cli
+    from data_platform.services import refresh_coordination
+    events = []
+    monkeypatch.setattr(refresh_coordination, "data_access", _gate_recorder(events))
+    monkeypatch.setattr(ResearchProfileService, "__init__", lambda self, repo=None: None)
+    monkeypatch.setattr(ResearchProfileService, "build",
+                        lambda self, **kwargs: events.append(("build", kwargs)) or {"peer_rows": 3})
+    args = cli.build_parser().parse_args(["research-build", "--season", "2026"])
+    assert cli.cmd_research_build(args) == 0
+    assert events == [("gate", {"writer": True}), ("build", {"season": 2026, "competition": None}), "gate closed"]
+    assert '"peer_rows": 3' in capsys.readouterr().out
+
+
+def test_research_build_by_hand_waits_for_no_refresh(monkeypatch, capsys):
+    from data_platform import cli
+    from data_platform.services import refresh_coordination
+    events = []
+    monkeypatch.setattr(refresh_coordination, "data_access", _gate_recorder(events, busy=True))
+    monkeypatch.setattr(ResearchProfileService, "build", lambda self, **kwargs: pytest.fail("built during a refresh"))
+    args = cli.build_parser().parse_args(["research-build", "--season", "2026"])
+    assert cli.cmd_research_build(args) == 1
+    assert events == [("gate", {"writer": True})]
+    assert "Research keeps its last ranks" in capsys.readouterr().out
