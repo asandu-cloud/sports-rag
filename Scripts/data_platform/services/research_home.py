@@ -16,7 +16,7 @@ from ..db import session_scope
 from ..models import (Competition, Fixture, FixturePlayerStats, Player, ResearchPeerStat,
                       ResearchProfileBuild, ResearchRefereeAlias, Season, Team)
 from ..repositories.research import FINISHED, ResearchRepository, comparable_rounds
-from ..research_stats import RANK_BUILD_PREFIX, normalize_research_row
+from ..research_stats import MIN_RANKED_PEERS, RANK_BUILD_PREFIX, normalize_research_row
 from .research_profiles import REFEREE_MATCHES, add_known, iso, utcnow
 
 TOP_FIVE = ("EPL", "LaLiga", "SerieA", "Bundesliga", "Ligue1")
@@ -182,6 +182,8 @@ class ResearchHomeService:
                                            ResearchPeerStat.subject_key.in_(keys),
                                            ResearchProfileBuild.build_id.startswith(RANK_BUILD_PREFIX))).all()
             for key, year, value, pct, peers, matches in stats:
+                if peers < MIN_RANKED_PEERS:  # the rate stays; no place among too few referees (D110)
+                    pct = peers = None
                 if key not in rates or year > rates[key]["season_year"]:
                     rates[key] = {"season_year": year, "season_label": season_label(year), "cards_per_match": value,
                                   "percentile": pct, "peer_count": peers, "matches": matches}

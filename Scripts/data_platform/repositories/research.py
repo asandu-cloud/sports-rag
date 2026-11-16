@@ -10,7 +10,7 @@ from ..models import (Competition, Fixture, FixturePlayerStats, FixtureTeamStats
                       ResearchRefereeAlias, Season, Team)
 from ..research_stats import (PLAYER_COUNT_FIELDS, PLAYER_MEASUREMENT_FIELDS,
                               TEAM_COUNT_FIELDS, TEAM_MEASUREMENT_FIELDS, TEAM_OBSERVATION_FIELDS,
-                              RANK_BUILD_PREFIX)
+                              MIN_RANKED_PEERS, RANK_BUILD_PREFIX)
 
 FINISHED = ("FT", "AET", "PEN")
 UNPLAYED = ("NS", "TBD")  # as the fixture schedule's reader
@@ -153,7 +153,7 @@ class ResearchRepository:
         rows = records(session, select(Team.id, Team.name, Team.short_code, Team.logo_url).where(Team.id.in_(ids)))
         return {r["id"]: r for r in rows}
 
-    def available_scopes(self, session, kind, key, aliases=()):
+    def available_scopes(self, session, kind, key, aliases=(), *, min_peers=MIN_RANKED_PEERS):
         f, p = Fixture, FixturePlayerStats
         if kind == "referee":
             home, away = aliased(FixtureTeamStats), aliased(FixtureTeamStats)
@@ -185,7 +185,8 @@ class ResearchRepository:
                                          ResearchPeerStat.sample_minutes).join(
             ResearchProfileBuild, ResearchProfileBuild.scope_key == ResearchPeerStat.scope_key).where(
                 ResearchPeerStat.subject_type == kind, ResearchPeerStat.subject_key == str(key),
-                ResearchProfileBuild.build_id.startswith(RANK_BUILD_PREFIX)).distinct())
+                ResearchProfileBuild.build_id.startswith(RANK_BUILD_PREFIX),
+                ResearchPeerStat.peer_count >= min_peers).distinct())
         ranks = {(r["scope_key"], r["sample_matches"], r["sample_minutes"]) for r in stored}
         for row in rows:
             scope = f"referee:{row['year']}" if kind == "referee" else f"competition:{row['competition_id']}:{row['year']}"

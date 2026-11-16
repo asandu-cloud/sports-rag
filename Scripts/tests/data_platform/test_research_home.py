@@ -131,6 +131,16 @@ def test_referees_weekend_only_named_officials_with_latest_rate(home):
     assert result["leaders"]["boards"] == {}  # fewer than ten ranked officials
 
 
+def test_a_weekend_referees_percentile_needs_ten_ranked_referees(home, session_factory):
+    from sqlalchemy import update
+    service, ids = home
+    with session_factory() as s:
+        s.execute(update(ResearchPeerStat).where(ResearchPeerStat.season_year == 2025).values(peer_count=9))
+    cards = service.home("referees", league="EPL")["weekend"]["fixtures"][0]["referee"]["cards"]
+    assert cards["cards_per_match"] == 4.5 and cards["matches"] == 20  # the raw numbers stay
+    assert cards["percentile"] is None and cards["peer_count"] is None
+
+
 def test_league_filter_groups_and_router(home):
     service, _ = home
     assert service.home("players")["league"] == {"key": "top5", "label": "Top five leagues", "codes": ["EPL"]}

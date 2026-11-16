@@ -2815,6 +2815,22 @@ raw responses, under full player names, and one bookmaker breaks the two-bookmak
   tiny groups early in a season (that one midfielder reads "more than 50% of Premier League midfielders"), and
   the daily rebuild (task 5) shows them every day: the owner's call. 4 tests; the full suite 3,127 passed, plus the
   3 known errors; the golden check shows no changes across 54 fixtures.
+- Task 7 (16 Nov, owner through the orchestrator): the same floor for every rank. A number shows its rank only when
+  at least 10 subjects are ranked on it (`MIN_RANKED_PEERS`, `research_stats.py`). Below that, the number stays
+  and its rank, percentile, peer count and league average are null. A profile with no rank left reads
+  `ranked: false`, `reason: "too_few_peers"`, keeps last season's ranks like a profile short on minutes or
+  matches, and has no headline. Every `ranking` gains `qualified_peers` and `minimum_peers: 10` (the frontend's
+  names). Players, teams and referees alike:
+  - live, 47 of 259 player groups are under 10;
+  - two rate numbers (conversion, shooting accuracy) can sit under 10 inside groups of 40;
+  - referees have no 2026/27 ranks yet, and their first ranked weeks will be small;
+  - no team group is under 10 (95).
+  The season list counts a scope ranked only at the floor. The research home page's weekend referee keeps his
+  card rate but drops the percentile behind "Strict/Lenient" under the floor. On a rebuilt clone: Ethan Ampadu
+  (900 minutes, the one ranked Premier League midfielder) reads too few peers with last season linked, and
+  Chelsea keeps all 10 ranks among 20 teams. 6 tests; small fixtures keep testing the rank arithmetic with the
+  floor set to 1. The full suite 3,132 passed, plus the 3 known errors; the golden check shows no changes across
+  54 fixtures.
 
 ## Findings that shape later steps
 
