@@ -2,13 +2,15 @@
 
     python -m Scripts.ops.game_read_bench run --models market,control --block tuning \\
         --out Research/game-read-bench-<date>
+    python -m Scripts.ops.game_read_bench export-stats   # once, outside refresh hours (phase 2)
 
 Every run scores the zero line (``market``) and the control line (``control``) first. When the zero line does not
 score zero, the bench is wrong: the run stops with exit code 2 and writes nothing.
 
-The locked seasons (2023/24 on) are scored only when the run is named as locked (``--confirm-locked``) and the
-bench code is committed. Every locked run is appended to ``Research/game-read-bench/locked-runs.jsonl`` and goes
-into the tracker: each model version runs on the locked seasons once, and is never rerun after its result is seen.
+The locked seasons (2023/24 to 2025/26) and the fresh block (2026/27 on) are scored only when the run is named
+(``--confirm-locked``) and the bench code is committed. A locked run never sees the fresh block. Every locked or fresh
+run is appended to ``Research/game-read-bench/locked-runs.jsonl`` and goes into the tracker: each model version runs
+on each of them once, and is never rerun after its result is seen.
 Nothing here touches the live site or ``Index/platform.db``; football-data's file is opened read-only.
 """
 from __future__ import annotations
@@ -21,13 +23,14 @@ import subprocess
 import sys
 import time
 
-from Scripts.data_platform.game_read import history, opportunities, report, rules, scores, walkforward
+from Scripts.data_platform.game_read import history, opportunities, report, rules, scores, stats, walkforward
 from Scripts.data_platform.game_read.models import average
 from Scripts.data_platform.game_read.models.dixon_coles import DixonColes
 from Scripts.data_platform.game_read.models.drifting import Drifting
 from Scripts.data_platform.game_read.models.elo import Elo
 from Scripts.data_platform.game_read.models.market import MarketControl, MarketCopy
 from Scripts.data_platform.game_read.models.pi_ratings import PiRatings
+from Scripts.data_platform.services.refresh_coordination import RefreshBusy
 
 ROOT = Path(__file__).resolve().parents[2]
 LEDGER = ROOT / "Research" / "game-read-bench" / "locked-runs.jsonl"
@@ -100,13 +103,13 @@ def _headline(found) -> dict:
 
 
 def run(args) -> int:
-    locked = args.block == "locked"
+    locked = args.block in history.GUARDED
     if locked and not args.confirm_locked:
-        print("A locked run must be named: add --confirm-locked. Each model version runs on the locked seasons "
-              "once.", file=sys.stderr)
+        print(f"A {args.block} run must be named: add --confirm-locked. Each model version runs on the {args.block} "
+              "seasons once.", file=sys.stderr)
         return 2
     if locked and (changes := _bench_code_changes()):
-        print(f"The bench code has uncommitted changes; a locked run needs committed code:\n{changes}",
+        print(f"The bench code has uncommitted changes; a {args.block} run needs committed code:\n{changes}",
               file=sys.stderr)
         return 2
     names = [*REFERENCES, *(name for name in args.models if name not in (*REFERENCES, AVERAGE))]
@@ -119,7 +122,7 @@ def run(args) -> int:
 
     started, clock = datetime.now(timezone.utc), time.perf_counter()
     matches = _load(args.leagues)
-    until = None if locked else history.LOCKED_FROM - 1
+    until = {"tuning": history.LOCKED_FROM - 1, "locked": history.FRESH_FROM - 1}.get(args.block)
     results, zero, members = {}, None, {}
     for name in names:
         if name == AVERAGE:
@@ -155,18 +158,29 @@ def run(args) -> int:
                                             for name, found in results.items()})
                      for rule in ("edge", "blend")},
         "reference": scores.reference_check(scored_matches, _named()),
-        "opportunities": opportunities.scan([m for m in matches if history.block(m.season) != "locked"]),
+        "opportunities": opportunities.scan([m for m in matches if history.block(m.season) not in history.GUARDED]),
     }
     summary["run"]["seconds"] = round(time.perf_counter() - clock)
     report.write(args.out, summary)
     if locked:
         LEDGER.parent.mkdir(parents=True, exist_ok=True)
-        entry = {"time": summary["run"]["time"], "block": "locked", "models": names, "commit": summary["run"]["commit"],
+        entry = {"time": summary["run"]["time"], "block": args.block, "models": names, "commit": summary["run"]["commit"],
                  "leagues": summary["run"]["leagues"], "out": str(args.out),
                  "headline": {name: _headline(found) for name, found in results.items()}}
         with LEDGER.open("a") as ledger:
             ledger.write(json.dumps(entry) + "\n")
     print(f"Wrote {args.out} in {summary['run']['seconds']} s")
+    return 0
+
+
+def export_stats(args) -> int:
+    try:
+        found = stats.export(args.out)
+    except RefreshBusy as busy:
+        print(f"The data refresh holds the database ({busy}); nothing written. Try again after the refresh.",
+              file=sys.stderr)
+        return 2
+    print(json.dumps(found, indent=1))
     return 0
 
 
@@ -176,11 +190,16 @@ def main(argv=None) -> int:
     bench = commands.add_parser("run", help="score models and write the report")
     bench.add_argument("--models", type=lambda text: [n for n in text.split(",") if n], default=list(REFERENCES),
                        help="comma-separated; market and control always run first")
-    bench.add_argument("--block", choices=("tuning", "locked"), required=True)
-    bench.add_argument("--confirm-locked", action="store_true", help="name this run as the one locked run")
+    bench.add_argument("--block", choices=("tuning", "locked", "fresh"), required=True)
+    bench.add_argument("--confirm-locked", action="store_true", help="name this run as the one locked or fresh run")
     bench.add_argument("--leagues", nargs="*", default=None, help="competition names, e.g. EPL LaLiga")
     bench.add_argument("--out", type=Path, required=True)
-    return run(parser.parse_args(argv))
+    bench.set_defaults(command=run)
+    export = commands.add_parser("export-stats", help="export the matches' statistics from our database, once")
+    export.add_argument("--out", type=Path, default=stats.STATS_DB)
+    export.set_defaults(command=export_stats)
+    args = parser.parse_args(argv)
+    return args.command(args)
 
 
 if __name__ == "__main__":

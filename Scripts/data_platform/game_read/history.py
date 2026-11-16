@@ -1,12 +1,15 @@
 """Game-read bench (D77): the football-data history the bench tests on.
 
-Every league match in ``Index/football_data.sqlite3`` with its final score and the market's prices for the result,
+Every league match in ``Index/game_read_history.sqlite3`` with its final score and the market's prices for the result,
 the main Asian handicap and over/under 2.5, before kickoff (collected Friday or Tuesday afternoon) and at the close.
 Only football-data's average and best prices are loaded: its own averages from 2019/20, BetBrain's before (the
 handicap and over/under name only two bookmakers in most seasons, so a median of named books would rest on two).
 The market's chance is the power method on the average price, as on the live site.
 
-The database is opened read-only. A team's key is ``"<country>:<football-data name>"``, so a team promoted from the
+The bench's file is built by ``Scripts.ops.football_data_import`` from ``Research/game-read-bench/raw/`` (links to
+the shared raw CSVs plus the 2026/27 files fetched for the fresh block). It is the shared ``football_data.sqlite3``
+plus 2026/27: every 2012–2025 match and price the bench reads is the same (checked 16 Nov). The shared file is left
+as it is, because the live pick evidence (D82) reads it. The database is opened read-only. A team's key is ``"<country>:<football-data name>"``, so a team promoted from the
 Championship keeps its key in the Premier League.
 """
 from __future__ import annotations
@@ -22,7 +25,11 @@ from typing import Iterable, Literal, Optional, Tuple
 from Scripts.data_platform import devig
 from Scripts.ops.football_data_import import DIVISIONS, OUT_DB
 
+BENCH_DB = OUT_DB.with_name("game_read_history.sqlite3")
+
 TUNING_FROM, LOCKED_FROM = 2019, 2023  # season start years: warm-up before, tuning, then locked
+FRESH_FROM = 2026  # the season under way: a last check, guarded like the locked seasons (phase 2, owner 16 Nov)
+GUARDED = ("locked", "fresh")  # blocks scored only by a named run, once per model version
 MARKET_FROM = 2019  # football-data's own average and maximum start with 2019/20
 SOURCES = {"avg": ("BetBrain average", "Market average"), "max": ("BetBrain maximum", "Market maximum")}
 AGGREGATES = frozenset(name for pair in SOURCES.values() for name in pair)
@@ -59,11 +66,13 @@ class Match:
     close: Prices
 
 
-def connect(path: Path = OUT_DB) -> sqlite3.Connection:
+def connect(path: Path = BENCH_DB) -> sqlite3.Connection:
     return sqlite3.connect(f"file:{Path(path)}?mode=ro", uri=True)
 
 
-def block(season: int) -> Literal["warmup", "tuning", "locked"]:
+def block(season: int) -> Literal["warmup", "tuning", "locked", "fresh"]:
+    if season >= FRESH_FROM:
+        return "fresh"
     return "warmup" if season < TUNING_FROM else "tuning" if season < LOCKED_FROM else "locked"
 
 
@@ -89,7 +98,7 @@ def _prices(rows, season: int) -> Prices:
     return Prices(**found)
 
 
-def load_matches(path: Path = OUT_DB, *, competitions: Optional[Iterable[str]] = None) -> list:
+def load_matches(path: Path = BENCH_DB, *, competitions: Optional[Iterable[str]] = None) -> list:
     """Every match with a final score, ordered by day then id."""
     wanted = set(competitions) if competitions is not None else None
     with closing(connect(path)) as conn:
@@ -131,7 +140,7 @@ def market_over25(prices: Prices) -> Optional[Pair]:
     return _fair(prices.over25_avg)
 
 
-def named_result_prices(path: Path = OUT_DB) -> dict:
+def named_result_prices(path: Path = BENCH_DB) -> dict:
     """Each match's result prices before kickoff from every named bookmaker (no averages or maximums), leaving out
     prices flagged suspect. Only for checking the average price against the named books (design, bench point 3)."""
     quotes = defaultdict(lambda: defaultdict(dict))
