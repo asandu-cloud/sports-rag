@@ -3023,6 +3023,18 @@ backend).** The number was held since 7 Nov (D78).
       a new fresh block, the 2026/27 season so far, is the last check. The lean-away lead, found on the locked
       seasons, must show on tuning and on the fresh block instead.
     - Three decisions for the owner: S2, how the 2026/27 CSVs are fetched, and the fresh block.
+  - **The owner's answers on the phase 2 plan (16 Nov); phase 2 may start.**
+    - *xG:* real xG stays out of phase 2. Instead, a derived shot-location xG is tested in task 3, beside shots in
+      the box and shots on target, behind the same 0.5% gate.
+      - Its per-shot values (inside or outside the box) are fitted on the tuning seasons only, then frozen.
+      - Shots on target are left out of it.
+      - A gated check on 2022/23 (a tuning season) found it tracks real xG at a correlation of 0.74, with the same
+        average.
+      - If it passes, real xG for the top five becomes a terms check for the owner.
+    - *The 2026/27 CSVs:* the backend fetches football-data.co.uk's 10 free files, each in its own new folder, read
+      with `python -I`, once now and once before the final run.
+    - *The fresh block:* the last check, yes.
+    - The plan runs inline (executing-plans), with no subagents.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their

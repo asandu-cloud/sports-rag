@@ -1,7 +1,8 @@
 # Game-read engine, phase 2: statistics and machine learning on top — implementation plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or
-> superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task,
+> inline in one session: no subagents unless the owner asks (CLAUDE.md). Steps use checkbox (`- [ ]`) syntax for
+> tracking.
 
 **Goal:** Test whether richer inputs and machine learning add anything to the market, on the phase 0 bench.
 - D12's variables enter models 3–4 one at a time, through the ablation gate.
@@ -13,7 +14,7 @@
 **Architecture:** Everything stays in the research package `Scripts/data_platform/game_read/` and the bench
 `Scripts/ops/game_read_bench.py`; nothing live imports either, and no published pick changes.
 - Match statistics are read from `Index/platform.db` once, inside the gate, into a local read-only file. They are
-  shots in the box, xG, kickoff times and every fixture we hold, used for rest. The bench never reads
+  shots inside and outside the box, kickoff times and every fixture we hold, used for rest. The bench never reads
   `platform.db`.
 - A fresh block, the 2026/27 season so far, is added to the history behind the same guard as the locked seasons.
 
@@ -22,21 +23,21 @@
 **Spec:** `docs/superpowers/specs/2026-11-06-game-read-engine-design.md` ("Statistics and machine learning on top
 (phase 2)"). Phase 1 results: tracker D77, tasks 8–13.
 
-**Start condition:** the owner reads this plan and answers the three decisions below. No code before that.
+**Start condition:** met. The owner answered the three decisions on 16 Nov (below) and code may start.
 
 **Rough time:** two weeks, to early December (spec, "Phases and timing"). Nothing in it changes a published pick.
 
-## Decisions for the owner
+## The owner's answers (16 Nov)
 
-1. **xG (S2) waits.** Our xG starts with 2023/24 (half of 2022/23 in the top five, none before). So it exists only
-   in the locked seasons and the current one: it cannot be tuned without touching them. *Recommended:* leave S2 out
-   of phase 2. Shots in the box (S3) covers 2019 onward and carries much of the same signal. xG returns either
-   through Understat (top five leagues since 2014; its terms need checking, and that is your call) or once the
-   2026/27 season is complete.
-2. **The 2026/27 CSVs.** The fresh block needs football-data's 10 files for this season (free, public, no
-   account). Either you download them by hand into a new folder, as in October (D2), or you let me fetch them. It
-   is the plan's only network step, done once at the start and once more before the final run.
-3. **The fresh block as the last check** (section "The locked seasons and the fresh block"). *Recommended:* yes.
+1. **xG.** Real xG stays out of phase 2: ours starts with 2023/24, inside the locked seasons. Instead, a derived
+   *shot-location xG* is tested in Task 3, beside shots in the box and shots on target, behind the same 0.5% gate.
+   - It values each shot by where it was taken (inside or outside the box).
+   - Its weights are fitted on the tuning seasons only, then frozen.
+   - Shots on target are left out of it: every goal is a shot on target, so they would partly count the goals.
+   - If it passes, real xG for the top five (Understat or a licence) becomes a terms check for the owner later.
+2. **The 2026/27 CSVs.** I fetch them: football-data.co.uk's 10 free files only, once now (Task 1) and once
+   before the final run (Task 9). Each download goes in its own new folder and is read with `python -I`.
+3. **The fresh block is the last check:** yes.
 
 ## Not in this plan
 
@@ -159,12 +160,14 @@ phase 1 results are known, and the lean-away lead came from them. So:
 
 **Interfaces:**
 - `export(out=Index/game_read_stats.sqlite3)`: one gated, read-only pass over `platform.db`.
-  - For each football-data match linked to a fixture (`fixture_api_id`): each side's shots in the box, xG and
-    kickoff (UTC).
+  - For each football-data match linked to a fixture (`fixture_api_id`): each side's shots inside and outside the
+    box, real xG and kickoff (UTC). Real xG is exported only to report how close the derived xG comes on 2022/23
+    (a tuning season); no model reads it.
   - For every finished fixture we hold, in any competition: kickoff and both teams, by API-Football team id.
   - Refuses while the refresh runs.
 - `@dataclass(frozen=True) class MatchStats`:
-  - `home_box`, `away_box: int | None`;
+  - `home_box`, `away_box: int | None` (shots inside the box);
+  - `home_outside`, `away_outside: int | None` (shots outside the box);
   - `home_target`, `away_target: int | None` (shots on target, from football-data's own columns, 2012 on);
   - `home_xg`, `away_xg: float | None`;
   - `home_rest`, `away_rest: int | None`: whole days since the team's previous fixture in any competition we
@@ -190,20 +193,32 @@ phase 1 results are known, and the lean-away lead came from them. So:
 - Test: `Scripts/tests/data_platform/test_game_read_shots.py`, `test_game_read_scores.py`
 
 **Interfaces:**
-- `ShotRatings(kind="box"|"target", half_life_days=365)` uses Dixon–Coles's machinery on shot counts instead of
-  goals (no rho). It learns after each day and gives each side's expected shots for a match.
+- `ShotRatings(kind="box"|"target"|"xg", half_life_days=365)` uses Dixon–Coles's machinery on a side's shot count
+  (or derived xG) instead of goals (no rho). It learns after each day and gives each side's expected value for a
+  match.
+- The derived shot-location xG of one side in one match is `w_in · inside + w_out · outside`. These are per-shot
+  values, added up like real xG.
+  - `fit_location_xg(stats, matches) -> tuple[float, float]` fits them by Poisson maximum likelihood on goals.
+  - They are fitted once on the tuning seasons (2019–2022, about 29,000 team-matches) and frozen in the constant
+    `LOCATION_XG`, with the date of the fit.
+  - The report states how close they come to real xG on the 2022/23 matches that have it.
+  - A side with no shot counts gets None.
 - `DixonColes(..., variables=(), stats=None)` and `Drifting(..., variables=(), stats=None)`.
   - Each variable adds a term `beta · x` to a side's log goals: `x` is the log of the side's expected shots minus
     its league's mean.
   - The variable is neutral (0) until a team has 5 matches with the statistic.
   - `beta` is fitted with the ratings in model 3; model 4 takes it from model 3's fit at its start.
-  - Names in the bench: `dc+box`, `dc+target`, `drift+box`, `drift+target`.
+  - Names in the bench: `dc+box`, `dc+target`, `dc+xg`, `drift+box`, `drift+target`, `drift+xg`.
 - `scores.ablation(base_rows, variant_rows, market) -> dict`: the variant's log loss minus the base's, in % of the
   base's, with the week-block interval and by league. `scores.gate(ablation) -> bool`: estimate ≤ −0.5, high < 0,
   no league above +2.0.
-- *Ruling:* shots on target is tested beside shots in the box. It covers 2012 on for most leagues, while shots in
-  the box starts in 2019, so the in-box ratings are thin in 2019. D12's budget (three goal inputs) keeps only the
-  better of the two.
+- Three shot variables are tested side by side: shots in the box, shots on target and the derived xG.
+  - Shots on target covers 2012 on for most leagues. Shots in the box and the derived xG start in 2019, so their
+    ratings are thin in 2019.
+  - D12's budget (three goal inputs) keeps only the best of the three that pass.
+- *Ruling:* the derived xG's two weights are fitted on the same tuning seasons the gate scores. The owner chose
+  this. It is two numbers from about 29,000 team-matches, so the in-sample gain is negligible, and the locked and
+  fresh seasons never touch the fit.
 - A variable passes when it clears the gate on the result or on over 2.5, and does not make the other worse (its
   interval must not sit above zero). The report gets an "Ablation" section.
 
@@ -211,11 +226,15 @@ phase 1 results are known, and the lean-away lead came from them. So:
   - `test_a_shot_rating_uses_only_earlier_days`.
   - `test_a_team_with_no_shot_history_is_neutral`.
   - `test_beta_is_recovered_on_simulated_matches`: goals simulated with a known effect of expected shots.
+  - `test_location_xg_recovers_known_per_shot_values`: goals simulated as Poisson with 0.11 a shot inside the box
+    and 0.03 outside.
+  - `test_location_xg_is_none_without_shot_counts`.
   - `test_the_gate_needs_half_a_percent_and_no_league_worse_than_two`.
 - [ ] **Step 2: Run them.** Expected: FAIL.
-- [ ] **Step 3: Implement**; register the four names.
+- [ ] **Step 3: Implement**; fit `LOCATION_XG` on the tuning seasons from the Task 2 export; register the six
+  names.
 - [ ] **Step 4: Run them.** Expected: PASS.
-- [ ] **Step 5: Tuning run** of `dc`, `drift` and the four variants. Record each gate result in the tracker; a
+- [ ] **Step 5: Tuning run** of `dc`, `drift` and the six variants. Record each gate result in the tracker; a
   failure is removed from the next tasks and recorded (D12).
 - [ ] **Step 6: Commit** with a tracker line.
 
