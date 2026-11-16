@@ -2722,6 +2722,13 @@ test bets (Over 2.5 cards in Chelsea's next match; a player's shots on target) t
     none for per 90, percentages or xG), and the answer reads "1 or more shots on target in 7 of their last 10"
     (Palmer's real last 10). Columns that reach the line are cobalt, the rest grey, and every column's value is
     written (it used to show only on hover). The sub-line gives the competition, the dates and the starts.
+  - Task 4, 16 Nov: ranks come from the page's own season only. A player under the threshold sees this season's
+    values with no dots, "Ranked from 900 minutes · 888 so far" (Palmer) and a link to last season's ranks; once the
+    backend's early ranks arrive (B5) the dots come back under an "Early season" chip. A team whose ranks are missing
+    says so quietly (Chelsea: the backend found on 16 Nov that research ranks were last built by hand on 8 Oct and
+    proposes a daily rebuild). The referee page leads with "4.3 cards a match in 2025/26, more than 59% of referees"
+    and a line picker (2.5 to 5.5) over the last 10 matches; ranks, how often, competitions and season totals fold
+    away. Every chart total is now written above its column without stretching the chart.
 
 **D108 — Why cards were missing at kickoff (15 Nov; backend, read-only).** The orchestrator asked why so few
 domestic matches had a card on the board at kickoff (D77, task 2). Checked on the 10 domestic leagues, 5 Sep–14 Nov,

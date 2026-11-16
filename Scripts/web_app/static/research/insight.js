@@ -135,3 +135,77 @@ export function statAnswer({noun, line, hits, of, missing = 0, season = false, u
   const count = season ? `${hits} of ${of} ${unit}` : `${hits} of their last ${of}`;
   return `${escape(what)} in <mark>${count}</mark>${!season && missing ? ' with data' : ''}${season ? ' this season' : ''}.`;
 }
+
+// ----- Ranks from one season, the referee page (task 4) -----
+const cap = text => text ? text[0].toUpperCase() + text.slice(1) : '';
+const shown = m => m == null || m.value == null ? null : m.unit === 'percent' ? m.display_value : one(m.value);
+const scopeOf = (kind, d) => kind === 'referees' ? String(d.season.year) : `${d.competition.code}-${d.season.year}`;
+const whole = n => Number.isFinite(n) ? n.toLocaleString('en-GB') : '–';
+
+// The rank card uses only this page's season. Unranked, it shows the season's values without positions, says how far
+// from the threshold it is, and links to the last season that has ranks; with B5's early ranks it shows them, marked.
+export function rankCard(d, kind, {rankMetrics, rankGroups}) {
+  const r = d.ranking, ranked = !!(r.ranked || r.provisional);
+  const defs = rankMetrics[kind], groups = rankGroups[kind], scope = scopeOf(kind, d);
+  const order = groups.order[r.peer_group] || groups.order.all || groups.order.F;
+  const metrics = Object.values(d.metrics || {});
+  const peerLabel = metrics.find(m => m.peer_label)?.peer_label, peers = metrics.find(m => m.peer_count)?.peer_count;
+  const title = kind === 'players' ? `Against ${peerLabel || 'players in the same position'}` : kind === 'teams' ? 'Against the league' : 'Against other referees';
+  const group = !ranked || !peers ? '' : r.provisional ? `${peers} in the group`
+    : kind === 'players' ? `${peers} with ${whole(r.minimum_minutes)}+ minutes` : kind === 'teams' ? `${peers} teams · per match` : `${peers} referees with ${r.minimum_matches}+ matches`;
+  const row = key => {
+    const m = d.metrics?.[key], def = defs[key], value = shown(m);
+    if (!m || !def || value == null) return '';
+    const [label, stat] = def;
+    if (!ranked || m.percentile == null) {
+      return `<button class="rank plain" type="button" data-stat="${stat}" data-scope="${escape(scope)}" aria-label="${escape(`${label}: ${value}.`)} Opens the match-by-match chart."><span class="rank-label">${escape(label)}</span><span class="rank-value">${escape(value)}</span><span class="rank-go" aria-hidden="true">›</span></button>`;
+    }
+    const phrase = cap(kind === 'teams' ? m.rank_phrase : m.comparison_text) || '';
+    const average = kind === 'teams' && Number.isFinite(m.league_average) ? ` League average ${m.unit === 'percent' ? Math.round(m.league_average) + '%' : one(m.league_average)}.` : '';
+    const tip = `${label}: ${value}. ${phrase}.${average}`;
+    return `<button class="rank" type="button" data-stat="${stat}" data-scope="${escape(scope)}" data-tip="${escape(tip)}" aria-label="${escape(tip)} Opens the match-by-match chart.">
+      <span class="rank-label">${escape(label)}</span><span class="rank-value">${escape(value)}</span>
+      <span class="track" aria-hidden="true"><span class="fill" style="width:${m.percentile}%"></span><span class="mid"></span><span class="dot" style="left:${m.percentile}%"></span></span>
+      <span class="rank-go" aria-hidden="true">›</span><span class="rank-band">${escape(phrase)}</span></button>`;
+  };
+  const sections = order.map(name => {
+    const [label, keys] = groups[name];
+    const rows = keys.map(row).join('');
+    return rows ? `${order.length > 1 ? `<div class="group-label">${label}</div>` : ''}<div class="ranks">${rows}</div>` : '';
+  }).join('');
+  if (!sections) return '';
+  const sample = kind === 'players' ? `${whole(r.sample_minutes)} minutes so far` : `${whole(r.sample_matches)} matches so far`;
+  const prev = d.previous_season;
+  const prevLink = prev?.ranking?.ranked ? ` <button type="button" class="text-button rank-prev" data-scope="${escape(scopeOf(kind, prev))}">${escape(prev.season.label)} ranks ›</button>` : '';
+  let status = '';
+  if (r.provisional) status = `<p class="quiet-line"><span class="quiet">Early season · ${sample}</span> Rates move a lot with one match.</p>`;
+  else if (!r.ranked) {
+    const why = r.reason === 'below_minutes_threshold' ? `Ranked from ${whole(r.minimum_minutes)} minutes · ${whole(r.sample_minutes)} so far`
+      : r.reason === 'below_matches_threshold' ? `Ranked from ${r.minimum_matches} matches · ${r.sample_matches} so far`
+      : r.reason === 'unknown_position' ? 'No position recorded, so no fair group to rank against'
+      : `Ranks for ${d.season.label} are being rebuilt`;
+    status = `<p class="quiet-line"><span class="quiet">${escape(why)}</span>${prevLink}</p>`;
+  }
+  const note = !ranked ? 'Select a row to see it match by match.'
+    : kind === 'teams' ? 'Dots further right mean more. For goals and chances conceded, further left is better. Select a row to see it match by match.'
+    : 'The dot shows where they sit; the tick in the middle is the typical one in the group. Select a row to see it match by match.';
+  return `<section class="card" aria-labelledby="rankTitle"><div class="card-h"><h3 id="rankTitle">${escape(title)}</h3><small>${escape([d.season.label, group].filter(Boolean).join(' · '))}</small></div>${status}
+    ${ranked ? '<div class="scale-key" aria-hidden="true"><span></span><span></span><span><span>Fewer</span><span>More</span></span><span></span></div>' : ''}${sections}
+    <p class="card-note">${note}</p></section>`;
+}
+
+// The referee page leads with the season's cards a match, then the bettor's line over the last 10 matches.
+export function refereeAnswer(d, {current, line}) {
+  const cards = d.metrics?.cards, season = current ? 'this season' : `in ${d.season.label}`;
+  const lead = cards?.value == null ? '' : `<mark>${one(cards.value)} cards</mark> a match ${season}${cards.comparison_text ? `, ${escape(cards.comparison_text)}` : ''}.`;
+  const prev = d.previous_season?.metrics?.cards;
+  const sub = ['All competitions', Number.isFinite(cards?.league_average) ? `league average ${one(cards.league_average)}` : '',
+    `${whole(d.totals?.matches)} matches`, prev?.value != null ? `${d.previous_season.season.label}: ${one(prev.value)} a match` : ''].filter(Boolean).join(' · ');
+  const last = (d.match_log || []).slice(-10);
+  const {hits, of} = hitCount(last.map(m => m.values?.cards ?? null), line);
+  const code = t => t?.short_code || t?.name?.slice(0, 3).toUpperCase() || '?';
+  const items = last.map(m => ({value: m.values?.cards ?? null, top: `${code(m.home)}–\u200b${code(m.away)}`, bottom: shortDay(m.date),
+    title: `${m.home?.name} v ${m.away?.name}, ${shortDay(m.date)}: ${m.values?.cards ?? 'not recorded'}${m.values?.cards == null ? '' : ' cards'}`}));
+  return {lead, sub, count: `Over ${line} in <b>${hits} of ${of}</b>`,
+    chart: labelledColumns(items, {line, label: `Cards shown in each of the last ${items.length} matches`, legend: `Line ${line} cards`, noun: 'Cards'})};
+}
