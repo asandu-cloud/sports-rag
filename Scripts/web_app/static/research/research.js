@@ -1,7 +1,7 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116o';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead} from './insight.js?v=research-20261116o';
-import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116o';
-import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261116o';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116p';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead} from './insight.js?v=research-20261116p';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116p';
+import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261116p';
 
 const API = '/api/research';
 
@@ -191,6 +191,12 @@ function mountResearch(root, navigate) {
     all[state.area] = [{id, name: s.name}, ...(all[state.area] || []).filter(r => r.id !== id)].slice(0, 6);
     store.set('spix-research-recent', all);
   }
+  function clearRecent() {
+    const all = store.get('spix-research-recent', {});
+    delete all[state.area];
+    store.set('spix-research-recent', all);
+    renderHome('[data-suggest]');
+  }
   function showHome() {
     $('searchResults').hidden = true; $('researchHome').hidden = false;
     $('searchHelp').textContent = 'Type at least two letters of a name.';
@@ -199,7 +205,7 @@ function mountResearch(root, navigate) {
   function homeTop() {
     const recent = store.get('spix-research-recent', {})[state.area] || [];
     const row = recent.length
-      ? `<div class="recent"><span>Recently viewed</span>${recent.map(r => `<button type="button" class="chip" data-go="${escape(routeTo(state.area, r.id))}">${escape(r.name)}</button>`).join('')}</div>`
+      ? `<div class="recent"><span>Recently viewed</span>${recent.map(r => `<button type="button" class="chip" data-go="${escape(routeTo(state.area, r.id))}">${escape(r.name)}</button>`).join('')}<button type="button" class="clear-recent" data-clear-recent aria-label="Clear recently viewed ${state.area}">Clear</button></div>`
       : `<div class="recent"><span>Try</span>${current().suggestions.map(s => `<button type="button" class="chip" data-suggest="${escape(s)}">${escape(s)}</button>`).join('')}</div>`;
     return row + `<div class="league-chips" role="group" aria-label="League">${LEAGUES.map(([key, label]) => `<button type="button" class="chip" data-league="${key}" aria-pressed="${key === state.league}">${label}</button>`).join('')}</div>`;
   }
@@ -935,6 +941,7 @@ function mountResearch(root, navigate) {
     navigate(`matches/${encodeURIComponent(target.dataset.openMatch)}/${state.matchMarket || 'cards'}`);
   });
   $('researchHome').addEventListener('click', event => {
+    if (event.target.closest('[data-clear-recent]')) return clearRecent();
     const target = event.target.closest('[data-go],[data-league],[data-board],[data-expand],[data-suggest]');
     if (!target) return;
     const {go: route, league, board, expand, suggest} = target.dataset;
@@ -1044,8 +1051,8 @@ class SpixResearch extends HTMLElement {
     const root = this.attachShadow({mode: 'open'});
     root.innerHTML = '<p role="status">Loading Research Area…</p>';
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261116o', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261116o', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261116p', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261116p', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));

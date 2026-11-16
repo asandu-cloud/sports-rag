@@ -3081,6 +3081,12 @@ raw responses, under full player names, and one bookmaker breaks the two-bookmak
   floor set to 1. The full suite 3,132 passed, plus the 3 known errors; the golden check shows no changes across
   54 fixtures.
 
+**D111 — A Clear button for Recently viewed (16 Nov; frontend, owner).** The Research Area's home page lists the
+last 6 profiles opened on each tab. A quiet "Clear" link now ends that row. It empties the list for the tab in view
+only (players, teams and referees keep separate lists), the row goes back to the "Try" suggestions, and focus moves
+to the first of them. The list lives in the browser's own storage, so nothing reaches the server. Cache tag
+`research-20261116p`. 1 new JS test file (17 in all, all pass); checked on 8100 at 1440 and 390, light and dark.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
