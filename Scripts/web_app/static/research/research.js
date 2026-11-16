@@ -1,7 +1,7 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116i';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES} from './insight.js?v=research-20261116i';
-import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116i';
-import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261116i';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116j';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES} from './insight.js?v=research-20261116j';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116j';
+import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261116j';
 
 const API = '/api/research';
 
@@ -394,6 +394,7 @@ function mountResearch(root, navigate) {
     view('match');
     if (state.matchId !== eventId) {
       Object.assign(state, {matchId: eventId, match: null});
+      matchTeam = 'both'; // "Leeds" names a different side in another match
       $('matchBody').innerHTML = '<p class="profile-loading" role="status">Loading match…</p>';
       $('matchRail').innerHTML = '';
       $('matchView').querySelector('.match-layout').classList.remove('has-rail');
@@ -1048,8 +1049,8 @@ class SpixResearch extends HTMLElement {
     const root = this.attachShadow({mode: 'open'});
     root.innerHTML = '<p role="status">Loading Research Area…</p>';
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261116i', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261116i', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261116j', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261116j', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));

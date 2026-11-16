@@ -1,8 +1,8 @@
 // Research Area overhaul (D107, task 6): one match's research view, from B2's research-match.v1. The head, How Spix
 // reads it, the markets row, the open market's section (SECTIONS, filled by tasks 7 to 9) and the foot line. Pure
 // functions returning HTML; research.js places them and wires the clicks.
-import {escape, one, LINES, DEFAULT_LINE, passes, hitCount, strip, shortDay} from './insight.js?v=research-20261116i';
-import {crest, whenText, readState, opensDay, possessive} from './upcoming.js?v=research-20261116i';
+import {escape, one, LINES, DEFAULT_LINE, passes, hitCount, strip, shortDay} from './insight.js?v=research-20261116j';
+import {crest, whenText, readState, opensDay, possessive} from './upcoming.js?v=research-20261116j';
 
 export const MARKETS = ['cards', 'sot', 'goals', 'corners', 'result', 'h2h', 'news'];
 export const MARKET_LABELS = {cards: 'Cards', sot: 'Shots on target', goals: 'Goals', corners: 'Corners', result: 'Result',
@@ -40,7 +40,7 @@ export function spixReads(match, market) {
     lead = gap >= 0.1 ? `${escape(homeLeads ? home : away)} are favourites.` : 'No clear favourite.';
     const fav = gap >= 0.1 ? (homeLeads ? 'home' : 'away') : null;
     const side = (key, label) => `<span>${escape(label)} <b>${fav === key ? marked('result', pct(res[key])) : pct(res[key])}</b></span>`;
-    balance = `<div class="bal" aria-hidden="true"><i style="flex:${res.home};background:var(--chart-1)"></i><i style="flex:${res.draw};background:var(--border2)"></i><i style="flex:${res.away};background:var(--chart-2)"></i></div>
+    balance = `<div class="bal" aria-hidden="true"><i style="flex:${Number(res.home) || 0};background:var(--chart-1)"></i><i style="flex:${Number(res.draw) || 0};background:var(--border2)"></i><i style="flex:${Number(res.away) || 0};background:var(--chart-2)"></i></div>
       <p class="bal-leg">${side('home', home)}${side('draw', 'Draw')}${side('away', away)}</p>`;
   }
   const figure = (key, value, label, note = '') => value == null ? ''
@@ -102,8 +102,8 @@ function lineRow(market, line) {
 function pickCard(match, {label, chance, price, market, side, line}) {
   const lean = chance > 0.5, addable = market && addLegDetail(match, market, side, line);
   const button = addable ? `<button type="button" class="mk-add" data-add="${market}|${side}|${line}" aria-label="Add ${escape(label)} to the slip">Add</button>` : '';
-  const shown = price == null ? '' : ` · typical price <b>${Number(price).toFixed(2)}</b>`;
-  return `<div class="mk-pick${lean ? ' lean' : ''}"><span class="mk-pl">${escape(label)}</span>${lean ? ' <span class="mk-lean">Spix leans this way</span>' : ''}<span class="mk-pc">Spix <b>${pct(chance)}</b>${shown}</span>${button}</div>`;
+  const parts = [chance == null ? '' : `Spix <b>${pct(chance)}</b>`, price == null ? '' : `typical price <b>${Number(price).toFixed(2)}</b>`].filter(Boolean);
+  return `<div class="mk-pick${lean ? ' lean' : ''}"><span class="mk-pl">${escape(label)}</span>${lean ? ' <span class="mk-lean">Spix leans this way</span>' : ''}<span class="mk-pc">${parts.join(' · ')}</span>${button}</div>`;
 }
 const WAITING = '<p class="mk-note">Spix\'s chances and typical prices show once the read is out.</p>';
 

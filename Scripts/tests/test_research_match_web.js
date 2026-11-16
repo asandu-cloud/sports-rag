@@ -249,5 +249,16 @@ const fixture = name => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixture
   assert.match(text(news), /Line-ups are confirmed about an hour before kickoff\. Injuries and suspensions are not in Spix's data yet\./);
   assert.deepEqual(m.MARKETS.filter(key => m.SECTIONS[key]), m.MARKETS, 'every market has its section');
 
+  // Final review: values from the API never break out of an attribute, and a missing chance is not "NaN%".
+  const hostile = structuredClone(atleti);
+  hostile.read.markets.find(x => x.market === 'moneyline').options[0].side = 'home"><b>x';
+  assert.doesNotMatch(m.resultSection(hostile, {}), /"><b>x/);
+  hostile.read.result.home = '1;background:red';
+  assert.doesNotMatch(m.spixReads(hostile, 'result'), /background:red/);
+  const gap = structuredClone(atleti);
+  gap.read.lines.goals.find(l => l.line === 2.5).under.chance = null;
+  assert.doesNotMatch(text(m.goalsSection(gap, {line: 2.5})), /NaN/);
+  assert.match(text(m.goalsSection(gap, {line: 2.5})), /Under 2\.5 goals typical price 3\.20/);
+
   console.log('test_research_match_web: ok');
 })().catch(error => { console.error(error); process.exit(1); });
