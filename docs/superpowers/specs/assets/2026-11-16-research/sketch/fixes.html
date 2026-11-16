@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Research fixes sketch</title>
+<link rel="stylesheet" href="sketch.css">
+<style>
+.frag { max-width: 900px; margin: 0 auto; padding: 24px; }
+.frag + .frag { border-top: 1px dashed var(--border2); }
+.only .frag { border-top: 0; }
+.ph { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.ph .ini { width: 56px; height: 56px; font-size: 18px; }
+.ph .t-name { font-size: 40px; }
+.nextline { margin-left: auto; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 10px 14px; font-size: 14px; color: var(--text2); }
+.nextline b { color: var(--text); display: block; }
+.nextline .go { color: var(--accent); font-weight: 600; margin-left: 6px; }
+.tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--border); margin-top: 18px; }
+.tabs span { min-height: 44px; display: flex; align-items: center; color: var(--text2); font-size: 14px; border-bottom: 2px solid transparent; }
+.tabs span.on { color: var(--accent); border-color: var(--accent); }
+.ctrl { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+.answer { font-size: 26px; line-height: 1.3; margin-top: 18px; letter-spacing: -.01em; }
+.answer-sub { color: var(--text3); font-size: 13px; margin-top: 4px; }
+.lchart { position: relative; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 10px; height: 170px; align-items: end; margin-top: 18px; border-bottom: 1px solid var(--border); }
+.lchart .c { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
+.lchart .c b { font-size: 13px; margin-bottom: 4px; }
+.lchart .c i { width: 70%; max-width: 34px; background: var(--accent); border-radius: 3px 3px 0 0; }
+.lchart .c.no i { background: var(--border); }
+.lchart .c.no b { color: var(--text3); }
+.lchart .c.zero i { height: 2px !important; background: var(--border2); }
+.lchart .line { position: absolute; left: 0; right: 0; border-top: 1.5px dashed var(--text2); }
+.lx { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 10px; text-align: center; font-size: 12px; margin-top: 6px; color: var(--text2); }
+.lx small { display: block; color: var(--text3); }
+.ctx3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+.ctx3 .mini b { display: block; font-size: 22px; font-stretch: 85%; }
+.ctx3 .mini span { font-size: 13px; color: var(--text2); }
+.quiet { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 4px; background: var(--surface2); color: var(--text3); }
+.rk { display: grid; grid-template-columns: minmax(0, 1fr) 70px minmax(0, 1.3fr); gap: 4px 16px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-soft); }
+.rk strong { font-size: 15px; display: block; }
+.rk small { color: var(--text3); font-size: 13px; }
+.rk .v { font-weight: 700; text-align: right; }
+.trk { position: relative; height: 6px; border-radius: 3px; background: var(--track); }
+.trk i { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--accent); }
+.trk u { position: absolute; left: 50%; top: -4px; height: 14px; border-left: 1.5px solid var(--text3); }
+.dumb { display: grid; grid-template-columns: 150px 44px minmax(0, 1fr) 44px; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border-soft); font-size: 14px; }
+.dumb .h, .dumb .a { font-weight: 700; }
+.dumb .a { text-align: right; }
+.dt { position: relative; height: 2px; background: var(--border-soft); }
+.dt i { position: absolute; top: -6px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; }
+.dt span { position: absolute; top: 0; height: 2px; background: var(--border2); }
+@media (max-width: 700px) { .ctx3 { grid-template-columns: 1fr; } .nextline { margin-left: 0; } .dumb { grid-template-columns: 110px 36px minmax(0, 1fr) 36px; } }
+</style>
+</head>
+<body>
+<div class="sketch-note">Sketch with dummy numbers. Nothing on the website has changed.</div>
+
+<section class="frag" id="player">
+  <button class="back">Cole Palmer's profile</button>
+  <div class="ph"><span class="ini">CP</span><div><h2 class="t-name">Cole Palmer</h2><div class="t-meta">Chelsea · Midfielder · started all 10 · 89 min a match</div></div>
+    <a class="nextline"><span class="crest"><img src="https://media.api-sports.io/football/teams/63.png" alt=""></span><span>Next match<b>v Leeds · Sat 21 Nov, 15:00</b></span><span class="go">Open ›</span></a></div>
+  <div class="tabs"><span>Shots</span><span class="on">On target</span><span>Goals</span><span>Assists</span><span>Booked</span><span>Fouls</span></div>
+  <div class="ctrl"><span class="seg"><button aria-pressed="true">Premier League</button><button aria-pressed="false">All competitions</button></span><span class="seg"><button aria-pressed="false">Last 5</button><button aria-pressed="true">Last 10</button><button aria-pressed="false">Season</button></span></div>
+  <p class="answer">1 or more shots on target in <mark>7 of his last 10</mark>.</p>
+  <p class="answer-sub">Premier League · 24 Aug to 8 Nov · started every match</p>
+  <div class="lines"><span>Line</span><span class="seg"><button aria-pressed="true">1+</button><button aria-pressed="false">2+</button><button aria-pressed="false">3+</button></span></div>
+  <div class="lchart" style="--n:10" id="pchart"></div>
+  <div class="lx" style="--n:10" id="px"></div>
+  <div class="legend"><span><i style="background:var(--accent)"></i>Reached the line</span><span><i style="background:var(--border)"></i>Did not</span><span><i style="border-top:1.5px dashed var(--text2);height:0;border-radius:0;vertical-align:3px"></i>1+ on target</span></div>
+  <div class="ctx3">
+    <div class="mini"><b>89 min</b><span>a match; started all 10, so no short appearances in these numbers</span></div>
+    <div class="mini"><b>4.3</b><span>shots on target Leeds allow a match, 9th fewest of 20</span></div>
+    <div class="mini"><b>1.50</b><span>typical price for 1+ on target v Leeds (one bookmaker)</span></div>
+  </div>
+</section>
+
+<section class="frag" id="referee">
+  <button class="back">Find another referee</button>
+  <div class="ph"><span class="ini">AT</span><div><h2 class="t-name">Anthony Taylor</h2><div class="t-meta">Referee · England · 2026/27, 9 matches</div></div>
+    <a class="nextline"><span class="crest"><img src="https://media.api-sports.io/football/teams/49.png" alt=""></span><span>Next appointment<b>Chelsea v Leeds · Sat 21 Nov</b></span><span class="go">Open ›</span></a></div>
+  <p class="answer"><mark>4.4 cards</mark> a match this season, more than 70% of referees.</p>
+  <p class="answer-sub">Every competition · league average 3.9 · last season 4.3 in 39 matches</p>
+  <div class="lines"><span>Line</span><span class="seg"><button aria-pressed="false">2.5</button><button aria-pressed="true">3.5</button><button aria-pressed="false">4.5</button><button aria-pressed="false">5.5</button></span><span style="margin-left:6px">Over 3.5 in <b>7 of 9</b></span></div>
+  <div class="lchart" style="--n:9" id="rchart"></div>
+  <div class="lx" style="--n:9" id="rx"></div>
+  <p class="note">This season first; last season is one tap away in the season picker. Cards depend on the teams too: open the match to see both.</p>
+</section>
+
+<section class="frag" id="ranks">
+  <div class="card">
+    <div class="card-h"><h3 class="cond">Against Premier League midfielders</h3><small>2026/27 · 134 midfielders</small></div>
+    <p style="margin-top:8px"><span class="quiet">Early season · 888 minutes so far</span> <span class="note" style="margin-left:6px">Rates move a lot with one match.</span></p>
+    <div class="rk"><span><strong>On target per 90</strong><small>more than 88% of midfielders</small></span><span class="v">0.91</span><span class="trk"><u></u><i style="left:88%"></i></span></div>
+    <div class="rk"><span><strong>Shot conversion</strong><small>more than 61%</small></span><span class="v">12%</span><span class="trk"><u></u><i style="left:61%"></i></span></div>
+    <div class="rk"><span><strong>Pass accuracy</strong><small>more than 49%</small></span><span class="v">83%</span><span class="trk"><u></u><i style="left:49%"></i></span></div>
+    <div class="rk"><span><strong>Fouls won per 90</strong><small>more than 80%</small></span><span class="v">1.6</span><span class="trk"><u></u><i style="left:80%"></i></span></div>
+    <p class="note">One season on this page, so the ranks and the numbers below them always agree. <a>Last season's ranks ›</a></p>
+  </div>
+</section>
+
+<section class="frag" id="homeaway">
+  <div class="card">
+    <div class="card-h"><h3 class="cond">Home and away</h3><small>Chelsea, per match</small></div>
+    <div class="legend"><span><i style="background:var(--accent);border-radius:50%"></i>Home (5)</span><span><i style="background:var(--chart-2);border-radius:50%"></i>Away (5)</span></div>
+    <div id="ha"></div>
+    <p class="note">Numbers on both ends, so nothing needs a hover on a phone.</p>
+  </div>
+</section>
+
+<script>
+const only = new URLSearchParams(location.search).get('only');
+if (only) { document.body.classList.add('only'); document.querySelectorAll('.frag').forEach(f => { f.hidden = f.id !== only; }); }
+function lchart(id, xid, vals, labels, line, max) {
+  document.getElementById(id).innerHTML = vals.map(v => `<div class="c ${v >= line ? '' : 'no'} ${v === 0 ? 'zero' : ''}"><b>${v}</b><i style="height:${v / max * 140}px"></i></div>`).join('')
+    + `<div class="line" style="bottom:${(line - .5) / max * 140}px"></div>`;
+  document.getElementById(xid).innerHTML = labels.map(([a, b]) => `<span>${a}<small>${b}</small></span>`).join('');
+}
+lchart('pchart', 'px', [2,1,2,0,0,0,1,1,1,1], [['FUL','A'],['BRI','H'],['ARS','A'],['HUL','H'],['BRE','A'],['BOU','H'],['EVE','A'],['TOT','H'],['MUN','H'],['SUN','A']], 1, 3);
+lchart('rchart', 'rx', [5,3,6,4,4,7,2,5,4], [['ARS–CHE','6 Sep'],['LIV–EVE','13 Sep'],['UCL','17 Sep'],['MCI–BRE','27 Sep'],['TOT–AVL','4 Oct'],['NEW–SUN','18 Oct'],['UEL','23 Oct'],['BOU–WHU','1 Nov'],['LEE–TOT','7 Nov']], 4, 8);
+const rows = [['Goals scored', 2.6, 1.2], ['Goals conceded', 1.6, 1.6], ['Corners won', 6.4, 4.8], ['Corners conceded', 6.2, 4.4], ['Cards', 1.2, 3.0]];
+const max = 8;
+document.getElementById('ha').innerHTML = rows.map(([l, h, a]) => `<div class="dumb"><span>${l}</span><span class="h">${h.toFixed(1)}</span><span class="dt"><span style="left:${Math.min(h, a) / max * 100}%;width:${Math.abs(h - a) / max * 100}%"></span><i style="left:${h / max * 100}%;background:var(--accent)"></i><i style="left:${a / max * 100}%;background:var(--chart-2)"></i></span><span class="a">${a.toFixed(1)}</span></div>`).join('');
+</script>
+</body>
+</html>

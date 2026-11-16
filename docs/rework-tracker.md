@@ -2689,6 +2689,23 @@ backend).** The number was held since 7 Nov (D78).
       over/under 2.5 prices.
     - Tests: 5 new, all pass. The full suite: 3,084 passed, plus the 3 known errors. No live code changed.
 
+**D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
+owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
+test bets (Over 2.5 cards in Chelsea's next match; a player's shots on target) took three searches and hid the line.
+- *The owner's call (16 Nov):* the clickable sketch as drawn ("the sketch looks really good… you can get started on
+  implementing the things in the renders"), and option C on the phone, the floating bar, over the strip the frontend
+  recommended.
+- *Design:* `docs/superpowers/specs/2026-11-16-research-area-overhaul-design.md`, with the sketch and its screenshots
+  in `docs/superpowers/specs/assets/2026-11-16-research/`. Plan: `docs/superpowers/plans/2026-11-16-research-area-overhaul.md`
+  (10 tasks, start and done commit each, one tracker line per task under D107).
+- *Split:* the frontend builds the pages; the backend is asked for read-only endpoints: B1 a team's (and a
+  referee's) next matches with the read's state and figures, B2 one match with both teams' last 10, the referee,
+  meetings, players and the read's lines; B3 two checks (Chelsea's 2026/27 ranks "stale or missing"; Anthony Taylor
+  has no 2026/27 matches while Michael Oliver's run to 8 Nov); B4 later, an all-competitions scope; B5 this season's
+  ranks for players under 900 minutes. The rail, the bar and the match view stay hidden while B1 and B2 answer 404.
+- *Not in it:* no paywall (the free and paid split waits for the payments work, D50); no new picks (cards and shots on
+  target stay out of the lists, D61); every Spix figure comes from the match's Match Read.
+
 **D108 — Why cards were missing at kickoff (15 Nov; backend, read-only).** The orchestrator asked why so few
 domestic matches had a card on the board at kickoff (D77, task 2). Checked on the 10 domestic leagues, 5 Sep–14 Nov,
 with the board's own before-kickoff rule (D70), the worker's check ledger and its run log. Nothing was changed.
