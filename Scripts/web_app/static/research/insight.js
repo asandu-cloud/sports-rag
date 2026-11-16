@@ -118,3 +118,20 @@ export function stackedColumns(name, rows, market, line = DEFAULT_LINE[market]) 
     <div class="legend sc-legend"><span><i class="own"></i>${escape(name)} ${one(own)} a match</span><span><i class="opp"></i>Opponents ${one(other)} a match</span><span><i class="lg-line"></i>Line ${line} ${WORDS[market].noun}</span></div>
     <p class="card-note">The number above each column is the match total.</p>`;
 }
+
+// ----- The match-by-match view (task 3) -----
+// A metric's lines: its own list, else around its threshold; none for percentages and decimals (xG).
+export function linesFor(metric) {
+  if (metric.lines) return metric.lines;
+  if (metric.percent || metric.decimals) return [];
+  const t = metric.threshold || 1, s = metric.step || 1;
+  return [t - s, t, t + s, t + 2 * s].filter(v => v > 0);
+}
+export const defaultLine = metric => metric.threshold ?? linesFor(metric)[0] ?? 1;
+
+// "1 or more shots on target in 7 of their last 10." A half line reads "Over 3.5 cards".
+export function statAnswer({noun, line, hits, of, missing = 0, season = false, unit = 'matches'}) {
+  const what = Number.isInteger(line) ? `${line} or more ${noun}` : `Over ${line} ${noun}`;
+  const count = season ? `${hits} of ${of} ${unit}` : `${hits} of their last ${of}`;
+  return `${escape(what)} in <mark>${count}</mark>${!season && missing ? ' with data' : ''}${season ? ' this season' : ''}.`;
+}

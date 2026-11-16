@@ -2717,6 +2717,11 @@ test bets (Over 2.5 cards in Chelsea's next match; a player's shots on target) t
     who got the cards (opponents 3.4 a match, Chelsea 2.1), "Last 10 at a glance" (Cards, Goals, Corners: the sketch's
     rows of squares with "N of 10"), and the match totals by match with both sides stacked and the line dashed. Ranks,
     home and away, squad leaders, chances and season totals fold away underneath. The market is kept per browser.
+  - Task 3, 16 Nov: the match-by-match view answers first. "Explore a threshold" and the season-average tick box are
+    gone; a line picker sits under the answer at all times (a player's 1+, 2+, 3+; a referee's cards 2.5 to 5.5;
+    none for per 90, percentages or xG), and the answer reads "1 or more shots on target in 7 of their last 10"
+    (Palmer's real last 10). Columns that reach the line are cobalt, the rest grey, and every column's value is
+    written (it used to show only on hover). The sub-line gives the competition, the dates and the starts.
 
 **D108 — Why cards were missing at kickoff (15 Nov; backend, read-only).** The orchestrator asked why so few
 domestic matches had a card on the board at kickoff (D77, task 2). Checked on the 10 domestic leagues, 5 Sep–14 Nov,

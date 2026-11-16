@@ -1,5 +1,5 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116a';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns} from './insight.js?v=research-20261116b';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116c';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer} from './insight.js?v=research-20261116c';
 
 const API = '/api/research';
 
@@ -22,7 +22,7 @@ function mountResearch(root, navigate) {
   let metrics = catalogues.players.metrics, common = catalogues.players.common, initialized = false;
   let searchTimer = 0, searchController = null, routeToken = 0;
   const state = {area: 'players', view: 'search', profileKey: null, profile: null, id: null, scope: null, records: [],
-    stat: null, period: '10', venue: 'all', rate: 'match', thresholdOn: false, threshold: 1, compare: false, selected: null};
+    stat: null, period: '10', venue: 'all', rate: 'match', line: 1, selected: null};
   const current = () => catalogues[state.area];
   const isPlayer = () => state.area === 'players';
   const isReferee = () => state.area === 'referees';
@@ -682,8 +682,8 @@ function mountResearch(root, navigate) {
   };
   function openChart(stat) {
     const entering = state.view !== 'chart';
-    if (entering) Object.assign(state, {period: '10', venue: 'all', rate: 'match', thresholdOn: false, compare: false, selected: null});
-    state.stat = stat; state.threshold = metrics[stat].threshold || 1;
+    if (entering) Object.assign(state, {period: '10', venue: 'all', rate: 'match', selected: null});
+    state.stat = stat; state.line = defaultLine(metrics[stat]);
     if (metrics[stat].noRate) state.rate = 'match';
     view('chart');
     const d = state.profile, s = d.subject;
@@ -745,41 +745,38 @@ function mountResearch(root, navigate) {
     const filtered = Number(state.venue !== 'all') + Number(state.rate !== 'match');
     $('filterCount').hidden = !filtered; $('filterCount').textContent = String(filtered);
     $('rateHelp').textContent = state.rate === 'per90' ? 'Per 90 adjusts for time played. Short appearances can produce large values; averages use total recorded minutes.' : 'Match counts show what actually happened. Missing values are left out, never filled with zero.';
-    $('thresholdToggle').disabled = state.rate === 'per90';
-    $('thresholdToggle').title = state.rate === 'per90' ? 'Switch to match counts to explore a historical threshold.' : '';
-    $('thresholdToggle').setAttribute('aria-pressed', String(state.thresholdOn && state.rate === 'match'));
-    $('thresholdPanel').hidden = !state.thresholdOn || state.rate === 'per90';
-    $('thresholdValue').textContent = `${state.threshold}${metric.percent ? '%' : ''}+`;
-    $('thresholdDown').disabled = state.threshold <= (metric.step || 1);
-    $('thresholdUp').disabled = state.threshold >= (metric.limit || 10);
-    $('compareSeason').checked = state.compare;
+    // The bettor's line, always on screen for counts (D107): per 90, percentages and xG have none.
+    const lines = state.rate === 'match' ? linesFor(metric) : [];
+    if (lines.length && !lines.includes(state.line)) state.line = lines.includes(defaultLine(metric)) ? defaultLine(metric) : lines[0];
+    const lineLabel = v => Number.isInteger(v) ? `${v}+` : String(v);
+    $('lineRow').hidden = !lines.length;
+    $('lineControl').innerHTML = lines.map(v => `<button type="button" data-line="${v}" aria-pressed="${v === state.line}">${lineLabel(v)}</button>`).join('');
+    root.querySelectorAll('.line-legend').forEach(el => { el.hidden = !lines.length; });
+    $('lineLegend').textContent = lines.length ? (Number.isInteger(state.line) ? `${state.line} or more` : `Line ${state.line}`) : '';
     $('statTitle').textContent = metric.title;
     $('statDefinition').textContent = metric.definition;
     let insight;
     if (!eligible.length) insight = 'There isn’t enough recorded data for this view.';
     else if (state.rate === 'per90') insight = `Averaged <strong>${fmt(recent)} ${metric.noun}</strong> per 90 minutes.`;
-    else if (state.thresholdOn) {
-      const count = eligible.filter(r => value(r) >= state.threshold).length;
-      insight = `Recorded ${state.threshold}${metric.percent ? '%' : ''}+ ${metric.noun} in <strong>${count} of ${eligible.length}</strong> ${unit} with data.`;
-    } else if (!isPlayer() || metric.decimals || metric.noRate) insight = `Averaged <strong>${metricValue(recent)} ${metric.noun}</strong> across ${eligible.length} ${unit} with data.`;
-    else {
-      const count = eligible.filter(r => value(r) >= 1).length;
-      insight = `${metric.verb || 'Recorded ' + metric.noun} in <strong>${count} of ${eligible.length}</strong> ${unit} with data.`;
-    }
+    else if (lines.length) insight = statAnswer({noun: metric.noun, line: state.line, ...hitCount(records.map(value), state.line), missing, season: state.period === 'season', unit});
+    else insight = `Averaged <strong>${metricValue(recent)} ${metric.noun}</strong> across ${eligible.length} ${unit} with data.`;
     $('mainInsight').innerHTML = insight;
-    $('sampleContext').textContent = `${periodLabel}${state.venue !== 'all' ? ` · ${state.venue} only` : ''} · ${records.length ? `${dayYear(records[0].date)} – ${dayYear(records.at(-1).date)}` : 'No matches'}${missing ? ` · ${missing} without this statistic` : ''}`;
+    const starts = records.filter(r => r.started).length;
+    $('sampleContext').textContent = [isReferee() ? 'All competitions' : state.profile.competition?.name, periodLabel,
+      records.length ? `${day(records[0].date)} to ${day(records.at(-1).date)}` : 'No matches', state.venue !== 'all' ? `${state.venue} only` : '',
+      isPlayer() && records.length ? (starts === records.length ? 'started every match' : `started ${starts} of ${records.length}`) : '',
+      missing ? `${missing} without this statistic` : ''].filter(Boolean).join(' · ');
     $('chartMeasure').textContent = `${metric.title}${metric.percent ? ' (%)' : state.rate === 'per90' ? ' per 90' : ' per match'}`;
     $('chartEmpty').hidden = eligible.length > 0;
     $('chartBlock').hidden = !eligible.length;
-    const dataMax = Math.max(1, ...eligible.map(value), state.compare && season != null ? season : 0, state.thresholdOn && state.rate === 'match' ? state.threshold : 0);
+    const dataMax = Math.max(1, ...eligible.map(value), lines.length ? state.line : 0);
     const step = dataMax <= 4 ? 1 : dataMax <= 12 ? 2 : dataMax <= 30 ? 5 : dataMax <= 60 ? 10 : 30;
     const max = metric.percent ? 100 : Math.ceil((dataMax + step * .5) / step) * step;
     const ticks = Array.from({length: Math.floor(max / step) + 1}, (_, i) => ({top: 100 - i * step / max * 100, label: fmt(i * step)}));
     $('plotGrid').innerHTML = ticks.map(t => `<div class="grid-line" style="top:${t.top}%"></div>`).join('');
     $('chartAxis').innerHTML = ticks.map(t => `<span style="top:${t.top}%">${t.label}</span>`).join('');
     const refs = [];
-    if (state.compare && season != null) refs.push(`<div class="reference-line average" style="top:${100 - season / max * 100}%"><span class="reference-label">Season ${metricValue(season)}</span></div>`);
-    if (state.thresholdOn && state.rate === 'match') refs.push(`<div class="reference-line" style="top:${100 - state.threshold / max * 100}%"><span class="reference-label">${state.threshold}${metric.percent ? '%' : ''}+</span></div>`);
+    if (lines.length) refs.push(`<div class="reference-line" style="top:${100 - (Number.isInteger(state.line) ? state.line - 0.5 : state.line) / max * 100}%"></div>`);
     $('referenceLines').innerHTML = refs.join('');
     const barWidth = isReferee() ? 76 : 44;
     $('chartColumns').style.setProperty('--bar-width', `${barWidth}px`);
@@ -789,7 +786,8 @@ function mountResearch(root, navigate) {
       const v = value(r), height = v == null ? 0 : v / max * 100;
       const title = `${dayYear(r.date)}, ${isReferee() ? '' : r.venue === 'home' ? 'home to ' : 'away at '}${r.opponent}: ${v == null ? 'statistic unavailable' : `${metricValue(v)} ${nounFor(metric, v)}${state.rate === 'per90' ? ' per 90 minutes' : ''}`}; ${isPlayer() ? (r.minutes == null ? 'minutes unavailable' : `${r.minutes} minutes played`) : resultWord(r)}`;
       const bar = v == null ? '<span class="missing-value">—</span>' : v === 0 ? '<span class="zero-value"></span><span class="bar-value">0</span>' : `<span class="stat-bar"></span><span class="bar-value">${metricValue(v)}</span>`;
-      return `<button class="match-column" data-record="${r.id}" aria-pressed="false" aria-label="${escape(title)}" title="${escape(title)}" style="--bar-height:${height}%"><span class="bar-area" aria-hidden="true">${bar}</span><span class="opponent-label" aria-hidden="true">${escape(r.abbr)}</span><span class="venue-label" aria-hidden="true">${isReferee() ? day(r.date) : r.venue === 'home' ? 'H' : 'A'}</span></button>`;
+      const reached = v == null || !lines.length ? '' : passes(v, state.line) ? ' hit' : ' miss';
+      return `<button class="match-column${reached}" data-record="${r.id}" aria-pressed="false" aria-label="${escape(title)}" title="${escape(title)}" style="--bar-height:${height}%"><span class="bar-area" aria-hidden="true">${bar}</span><span class="opponent-label" aria-hidden="true">${escape(r.abbr)}</span><span class="venue-label" aria-hidden="true">${isReferee() ? day(r.date) : r.venue === 'home' ? 'H' : 'A'}</span></button>`;
     }).join('');
     if (records.length) renderSelected(records.find(r => r.id === state.selected) || records.at(-1));
     if (isPlayer()) {
@@ -879,11 +877,12 @@ function mountResearch(root, navigate) {
     const button = event.target.closest('button'); if (!button) return;
     state[key] = button.dataset[key]; render();
   });
-  $('thresholdToggle').addEventListener('click', () => { state.thresholdOn = !state.thresholdOn; render(); });
-  $('thresholdDown').addEventListener('click', () => { state.threshold = Math.max(metrics[state.stat].step || 1, state.threshold - (metrics[state.stat].step || 1)); render(); });
-  $('thresholdUp').addEventListener('click', () => { state.threshold = Math.min(metrics[state.stat].limit || 10, state.threshold + (metrics[state.stat].step || 1)); render(); });
-  $('compareSeason').addEventListener('change', event => { state.compare = event.target.checked; render(); });
-  $('resetFilters').addEventListener('click', () => { Object.assign(state, {venue: 'all', period: '10', rate: 'match', thresholdOn: false}); go(state.area, state.id, state.scope, current().defaultStat); render(); });
+  $('lineControl').addEventListener('click', event => {
+    const button = event.target.closest('[data-line]'); if (!button) return;
+    state.line = Number(button.dataset.line); render();
+    $('lineControl').querySelector(`[data-line="${state.line}"]`)?.focus({preventScroll: true});
+  });
+  $('resetFilters').addEventListener('click', () => { Object.assign(state, {venue: 'all', period: '10', rate: 'match'}); go(state.area, state.id, state.scope, current().defaultStat); render(); });
   $('chartColumns').addEventListener('click', event => { const column = event.target.closest('[data-record]'); if (column) renderSelected(state.records.find(r => r.id === column.dataset.record)); });
   $('chartColumns').addEventListener('keydown', event => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
@@ -908,8 +907,8 @@ class SpixResearch extends HTMLElement {
     const root = this.attachShadow({mode: 'open'});
     root.innerHTML = '<p role="status">Loading Research Area…</p>';
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261116b', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261116b', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261116c', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261116c', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));

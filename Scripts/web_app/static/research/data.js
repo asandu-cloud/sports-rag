@@ -39,7 +39,7 @@ const teamMetrics = {
 };
 
 const refereeMetrics = {
-  cards: stat('Cards', 'Cards shown', 'cards', `Yellow and red cards shown to both teams. ${EXTRA_TIME} Not a booking-points total.`, {threshold: 4}),
+  cards: stat('Cards', 'Cards shown', 'cards', `Yellow and red cards shown to both teams. ${EXTRA_TIME} Not a booking-points total.`, {threshold: 3.5, lines: [2.5, 3.5, 4.5, 5.5]}),
   yellows: stat('Yellows', 'Yellow cards shown', 'yellow cards', 'Yellow cards shown to both teams.', {threshold: 4}),
   reds: stat('Reds', 'Red cards shown', 'red cards', 'Red cards shown to both teams, including second yellows.'),
   fouls: stat('Fouls', 'Fouls called', 'fouls', 'Fouls given against both teams. The teams’ style matters as much as the referee.', {threshold: 20, limit: 50}),
