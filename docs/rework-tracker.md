@@ -2779,6 +2779,16 @@ raw responses, under full player names, and one bookmaker breaks the two-bookmak
   their last 10 appearances. Shots on target conceded a match in its domestic league and its rank there (1 = the
   fewest). On the live database Chelsea v Leeds (21 Nov) takes 0.39 s; Chelsea concede 5.2 a match, 17th of 20.
   4 tests; the full suite 3,114 passed, plus the 3 known errors.
+- B3, checked on the live database (16 Nov):
+  - *Chelsea's ranks:* the research ranks and the referee-name table were last built by hand on 8 Oct
+    (`research-build`); nothing rebuilds them. Chelsea has no stored 2026/27 rank (10 EPL matches played now), and
+    every team that has played since 8 Oct reads "stale or missing".
+  - *Anthony Taylor:* not a name split. Both his spellings share one key, and the database has no match under any
+    Taylor spelling after 24 May 2026, in any competition; all 100 finished EPL 2026/27 matches name a referee. His
+    page is right. Separately, 100 of the 781 referee spellings seen this season are missing from the name table
+    for the same reason as the ranks, so their matches reach no referee page or search.
+  - The owner chose a daily rebuild (16 Nov): this season's ranks and the referee names become a best-effort
+    refresh stage (plan task 5), tested on a copy of the database first. B5 moves to task 6.
 
 ## Findings that shape later steps
 

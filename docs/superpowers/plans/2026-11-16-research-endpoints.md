@@ -29,9 +29,10 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
 |---|---|---|---|---|---|
 | 1 | B1: a team's and a referee's next matches | Done 16 Nov | 6d7bf08 | 6b9db1e | 6 new, all pass; suite 3,105 passed + the 3 known errors |
 | 2 | B2: the match, Spix's read and its lines | Done 16 Nov | 956cfd8 | 7be8b84 | 5 new, all pass; suite 3,110 passed + the 3 known errors |
-| 3 | B2: each team's last 10, booked, shooters and what it allows | Done 16 Nov | 5b28ddd | the "Done research-endpoints task 3" commit | 4 new, all pass; suite 3,114 passed + the 3 known errors |
+| 3 | B2: each team's last 10, booked, shooters and what it allows | Done 16 Nov | 5b28ddd | 662ca89 | 4 new, all pass; suite 3,114 passed + the 3 known errors |
 | 4 | B2: the referee, head to head and data basis | Not started | | | |
-| 5 | B5: provisional ranks under 900 minutes | Not started | | | |
+| 5 | B3: this season's ranks and referee names rebuilt by the daily refresh | Not started | | | |
+| 6 | B5: provisional ranks under 900 minutes | Not started | | | |
 
 ## Global Constraints
 
@@ -181,7 +182,33 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
   (`.venv/bin/python -m pytest Scripts/tests -q`) and the golden check. Expected: PASS, golden unchanged.
 - [ ] **Step 5: Done commit.**
 
-### Task 5: B5 — provisional ranks under 900 minutes
+### Task 5: B3 — this season's ranks and referee names rebuilt by the daily refresh
+
+Added 16 Nov (owner, after B3): the ranks and the referee-name table were last built by hand on 8 Oct
+(`research-build`), so every team that has played since reads "stale or missing" and 100 of this season's 781
+referee spellings reach no referee page.
+
+**Files:**
+- Modify: `Scripts/data_platform/cli.py` (`cmd_research_build` takes the writer gate)
+- Modify: `Scripts/data_platform/season_refresh.py` (a best-effort `research_ranks` stage)
+- Test: `Scripts/tests/data_platform/test_season_refresh.py`, `Scripts/tests/data_platform/test_research_profiles.py`
+
+- [ ] **Step 1: Write the failing tests** — `test_refresh_plan_rebuilds_this_seasons_research_ranks_best_effort`
+  (the stage `research_ranks` runs `-m Scripts.data_platform research-build --season <season>` after the feature
+  and document stages and before `stats_questions_file`, `home_wins_file` and `platform_health`, with exit codes
+  0 and 1 accepted); `test_research_build_by_hand_waits_for_no_refresh` (`RefreshBusy` from the writer gate →
+  exit 1 and a message; the build is not called).
+- [ ] **Step 2: Run them** — Expected: FAIL.
+- [ ] **Step 3: Implement.** `cmd_research_build` runs the build inside `data_access(writer=True)`: a child of the
+  refresh inherits the gate, a run by hand during the refresh stops at once with exit 1.
+- [ ] **Step 4: Time it on a copy** of `platform.db` (`DATABASE_URL=sqlite:///<copy>` on the command line, the
+  copy in the scratchpad, deleted after): `research-build --season 2026`; record the seconds and the peer rows, and
+  check Chelsea's 2026/27 profile on the copy reads `ranked: true`. Expected: well under the refresh's 2-hour
+  budget.
+- [ ] **Step 5: Run the full suite and the golden check; done commit.** Live once merged (the refresh runs from
+  main); no `.env` line.
+
+### Task 6: B5 — provisional ranks under 900 minutes
 
 **Files:**
 - Modify: `Scripts/data_platform/services/research_profiles.py` (`_ranking`)
