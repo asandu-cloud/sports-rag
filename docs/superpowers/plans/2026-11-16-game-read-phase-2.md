@@ -56,7 +56,7 @@ task N: …", "Done game-read phase 2 task N: … (<tests>, D77)", "Fix game-rea
 
 | Task | What it builds | Status | Start commit | Done commit | Tests |
 |---|---|---|---|---|---|
-| 1 | The fresh block (2026/27) and its guard | In progress | | | |
+| 1 | The fresh block (2026/27) and its guard | Done 16 Nov | b602472 | the "Done game-read phase 2 task 1" commit | 6 new, all pass; suite 3,204 passed + the 3 known errors; 1,084 fresh matches |
 | 2 | Match statistics: export and loader | Not started | | | |
 | 3 | Shot ratings (S3) into models 3–4, through the ablation gate | Not started | | | |
 | 4 | Rest (C1) into models 3–4, through the ablation gate | Not started | | | |
@@ -144,10 +144,16 @@ phase 1 results are known, and the lean-away lead came from them. So:
 - [ ] **Step 3: Implement.**
 - [ ] **Step 4: Run them.** Expected: PASS.
 - [ ] **Step 5: Add the season's data** (after the owner's decision 2).
-  - The 10 CSVs go to a new folder and are checked, then copied to `raw/` as `{DIV}_2627.csv`.
-  - Rebuild to a copy (`--out Index/football_data-next.sqlite3`) inside `data_access()`.
-  - A check script, kept in the scratchpad, confirms that every 2012–2025 match and price row is identical to the
-    current file. Only then is the copy swapped in; on any difference, stop and report.
+  - The 10 CSVs go to a new folder each and are checked, then copied as `{DIV}_2627.csv` into the bench's own raw
+    folder, `Research/game-read-bench/raw/`, beside links to the shared raw CSVs.
+  - The importer builds the bench's own file, `Index/game_read_history.sqlite3`, inside `data_access()`, with
+    `python -I`. The bench reads only that file (`history.BENCH_DB`).
+  - *Ruling (16 Nov):* the shared `Index/football_data.sqlite3` and `Research/football-data/raw/` are left as they
+    are. The live pick evidence (D82) reads the shared file from 2024/25 on, and takes this season from our own
+    database only after the file's last season. A 2026/27 in the shared file would freeze its evidence at the
+    download date.
+  - A check script, kept in the scratchpad, confirms that every 2012–2025 match and price the bench reads is
+    identical to the shared file's, in the same order. On any difference, stop and report.
   - Record the fresh match count in the tracker.
 - [ ] **Step 6: Commit** with a tracker line.
 

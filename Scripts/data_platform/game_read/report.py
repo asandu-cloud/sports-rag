@@ -5,7 +5,8 @@ import json
 from pathlib import Path
 from typing import Mapping
 
-TITLES = {"tuning": "tuning seasons (2019/20–2022/23)", "locked": "locked seasons (2023/24 on)"}
+TITLES = {"tuning": "tuning seasons (2019/20–2022/23)", "locked": "locked seasons (2023/24–2025/26)",
+          "fresh": "fresh block (2026/27 so far)"}
 RULES = {"edge": "Ranked by edge", "blend": "Ranked by blended chance"}
 MARKETS = {"result": "result", "handicap": "handicap", "over25": "over 2.5"}
 LEADS_SHOWN = 15

@@ -56,7 +56,8 @@ def history():
     england, spain = [f"X:E{i}" for i in range(7)], [f"X:L{i}" for i in range(6)]
     return (season(2018, 24, rng, goals, 1, {"EPL": england[:6], "LaLiga": spain})
             + season(2019, 96, rng, goals, 100, {"EPL": england[1:], "LaLiga": spain})  # E6 is new, E0 gone
-            + season(2023, 48, rng, goals, 300, {"EPL": england, "LaLiga": spain}))
+            + season(2023, 48, rng, goals, 300, {"EPL": england, "LaLiga": spain})
+            + season(2026, 16, rng, goals, 400, {"EPL": england, "LaLiga": spain}))
 
 
 @pytest.fixture
@@ -115,9 +116,47 @@ def test_a_broken_zero_line_stops_the_run(stubbed, monkeypatch):
     assert not out.exists()
 
 
+def test_a_fresh_run_must_be_named(stubbed, monkeypatch):
+    out = stubbed / "out"
+    assert bench.main(["run", "--block", "fresh", "--out", str(out)]) == 2
+    assert not out.exists() and not bench.LEDGER.exists()
+    monkeypatch.setattr(bench, "_bench_code_changes", lambda: " M Scripts/data_platform/game_read/pool.py")
+    assert bench.main(["run", "--block", "fresh", "--confirm-locked", "--out", str(out)]) == 2
+    assert not out.exists() and not bench.LEDGER.exists()
+    monkeypatch.setattr(bench, "_bench_code_changes", lambda: "")
+    assert bench.main(["run", "--block", "fresh", "--confirm-locked", "--out", str(out)]) == 0
+    entry = json.loads(bench.LEDGER.read_text().splitlines()[0])
+    assert entry["block"] == "fresh"
+    assert json.loads((out / "summary.json").read_text())["run"]["matches_scored"] == 16  # the 2026 matches only
+
+
+def test_a_locked_run_never_predicts_the_fresh_season(stubbed, monkeypatch):
+    seen = []
+
+    class Watching(MarketCopy):
+        def predict(self, matches):
+            seen.extend(m.season for m in matches)
+            return super().predict(matches)
+
+        def learn(self, matches):
+            seen.extend(m.season for m in matches)
+
+    monkeypatch.setitem(bench.MODELS, "control", Watching)
+    assert bench.main(["run", "--block", "locked", "--confirm-locked", "--out", str(stubbed / "out")]) == 0
+    assert seen and max(seen) == 2023
+    seen.clear()
+    assert bench.main(["run", "--block", "tuning", "--out", str(stubbed / "tuning")]) == 0
+    assert seen and max(seen) == 2019
+
+
+def test_opportunities_never_look_at_fresh_seasons(history):
+    with pytest.raises(ValueError):
+        opportunities.scan([m for m in history if m.season != 2023])
+
+
 def test_opportunities_never_look_at_locked_seasons(history):
     with pytest.raises(ValueError):
-        opportunities.scan(history)
+        opportunities.scan([m for m in history if m.season < 2026])
     found = opportunities.scan([m for m in history if m.season < 2023])
     assert found["drift"]["home win"]["all"]["n"] == 96  # tuning matches only; the warm-up season is not measured
     assert sum(band["n"] for band in found["calibration"].values()) == 96 * 3

@@ -1,7 +1,7 @@
 """Game-read bench (D77): Opportunities, patterns in the history that no model in the design uses.
 
 The owner, 14 Nov: "always look for possibilities during testing". Each pattern comes with its interval (whole
-weeks resampled) and how many matches it rests on. Only the tuning seasons are measured, never the locked ones;
+weeks resampled) and how many matches it rests on. Only the tuning seasons are measured, never the locked or fresh;
 warm-up matches only tell which teams were in a league the season before. A pattern found here changes nothing by
 itself: anything worth following becomes a candidate that goes through the bench and the gate.
 
@@ -19,7 +19,7 @@ from typing import Sequence
 import numpy as np
 
 from Scripts.data_platform.game_read import scores
-from Scripts.data_platform.game_read.history import Match, block, market_result
+from Scripts.data_platform.game_read.history import GUARDED, Match, block, market_result
 from Scripts.data_platform.game_read.pool import option_key
 
 BANDS = ((1.0, 1.5), (1.5, 2.0), (2.0, 3.0), (3.0, 5.0), (5.0, 10.0), (10.0, math.inf))
@@ -135,9 +135,9 @@ def _lead(path, group) -> bool:
 
 def scan(matches: Sequence[Match]) -> dict:
     """Drift, calibration by price band and promoted teams on the tuning seasons, how many groups were measured,
-    and the leads (``_lead``), the largest first. Refuses any locked match."""
-    if any(block(match.season) == "locked" for match in matches):
-        raise ValueError("Opportunities are found on the tuning seasons only; locked matches were passed")
+    and the leads (``_lead``), the largest first. Refuses any locked or fresh match."""
+    if any(block(match.season) in GUARDED for match in matches):
+        raise ValueError("Opportunities are found on the tuning seasons only; locked or fresh matches were passed")
     tuning = [match for match in matches if block(match.season) == "tuning"]
     found = {"drift": _drift(tuning), "calibration": _calibration(tuning), "promoted": _promoted(matches)}
     groups = list(_walk(found))

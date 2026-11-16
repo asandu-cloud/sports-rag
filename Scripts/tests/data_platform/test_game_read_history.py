@@ -134,6 +134,21 @@ def test_block_splits_the_seasons():
     assert history.block(2025) == "locked"
 
 
+def test_the_bench_reads_its_own_history_file_not_the_shared_one():
+    # the shared file feeds the live pick evidence (D82), which must not see the 2026/27 CSVs
+    import inspect
+    from Scripts.ops.football_data_import import OUT_DB
+    assert history.BENCH_DB != OUT_DB and history.BENCH_DB.parent == OUT_DB.parent
+    for function in (history.connect, history.load_matches, history.named_result_prices):
+        assert inspect.signature(function).parameters["path"].default == history.BENCH_DB
+
+
+def test_2026_is_fresh():
+    assert history.FRESH_FROM == 2026
+    assert history.block(2026) == "fresh"
+    assert history.block(2027) == "fresh"
+
+
 def test_the_database_is_opened_read_only(db):
     before = os.stat(db).st_mtime_ns
     history.load_matches(db)

@@ -3035,6 +3035,24 @@ backend).** The number was held since 7 Nov (D78).
       with `python -I`, once now and once before the final run.
     - *The fresh block:* the last check, yes.
     - The plan runs inline (executing-plans), with no subagents.
+  - **Phase 2 task 1 done (16 Nov): the fresh block and its guard.**
+    - Season 2026/27 on is "fresh". A fresh run needs `--confirm-locked` and committed bench code, as a locked run
+      does, and goes in the same ledger with its block. A locked run now stops at 2025/26 and never sees the fresh
+      block, and Opportunities refuse fresh matches.
+    - Football-data's 10 files for 2026/27 were fetched once over HTTPS (16 Nov). Each went in its own new folder
+      and was checked with `python -I`: right header, no formula cells.
+    - 1,084 matches, 7 Aug to 8 Nov, all linked to our fixtures. All 1,084 have average result prices, and 1,083
+      have over 2.5 and the handicap.
+    - The files carry no Pinnacle prices, and add Paddy Power, a second Sky Bet code and xG columns (not used).
+    - *Ruling:* they go in the bench's own file, `Index/game_read_history.sqlite3`, built from
+      `Research/game-read-bench/raw/` (links to the shared CSVs plus the new ones). The shared
+      `football_data.sqlite3` is untouched: the live pick evidence (D82) reads it from 2024/25 on and takes this
+      season from our database only after the file's last season, so a 2026/27 there would freeze its evidence.
+    - *Check:* every 2012–2025 match (49,714) and named price the bench reads is identical to the shared file's,
+      in the same order. Match ids shift, because files load in name order.
+      - In columns the bench doesn't read, 3 newly promoted teams (Bolton, Málaga, La Coruña) now have their team
+        ids on 2012–2018 rows.
+    - 6 new tests; suite 3,204 passed plus the 3 known worktree errors; golden check unchanged.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
