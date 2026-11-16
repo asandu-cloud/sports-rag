@@ -73,6 +73,18 @@ const text = html => html.replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'").replac
   assert.match(app, /if \(!background\) \{[\s\S]{0,200}?this\._renderFixtures\(\{ loading: true \}\);\n      this\._renderBestBets\(\{ loading: true \}\);/, 'only a foreground load');
   assert.match(page, /<script src="\/static\/app\.js\?v=loaders-20261116c"><\/script>/);
 
+  // B, C and F in the Research Area. Its shadow root adopts the page's own loaders.css (already loaded, so the
+  // component's first loader is styled at once); without the kit, the old line.
+  const research = fs.readFileSync(path.join(STATIC, 'research/research.js'), 'utf8');
+  assert.match(research, /\nconst loading = \(kind, label, steps\) => window\.spixLoader\?\.\(kind, \{label, steps\}\) \?\? `<p class="profile-loading" role="status">\$\{label\}…<\/p>`;\n/);
+  assert.match(research, /\nfunction kitSheet\(\) \{\n  const sheet = \[\.\.\.document\.styleSheets\]\.find\(s => s\.href\?\.includes\('\/static\/loaders\.css'\)\);/);
+  assert.match(research, /    const root = this\.attachShadow\(\{mode: 'open'\}\);\n    const kit = kitSheet\(\);\n    if \(kit\) root\.adoptedStyleSheets = \[kit\];\n    root\.innerHTML = loading\('roll', 'Loading the Research Area'\);/);
+  assert.match(research, /\$\('researchHome'\)\.innerHTML = homeTop\(\) \+ loading\('roll', 'Loading this weekend and the season leaders'\);/, 'F on the home page');
+  assert.match(research, /\$\('profileBody'\)\.innerHTML = loading\('last10', 'Loading the profile'\);/, 'C on a profile');
+  assert.match(research, /\$\('matchBody'\)\.innerHTML = loading\('pitch', 'Loading the match', \['Loading the match', "Getting both teams' last 10", 'Fetching the head to head'\]\);/, 'B on the match view');
+  assert.doesNotMatch(research, /'<p class="profile-loading" role="status">Loading/, 'no plain loading line left');
+  assert.match(page, /<script type="module" src="\/static\/research\/research\.js\?v=research-20261116q"><\/script>/);
+
   // The cover (A), on a fake clock and a fake page.
   function harness() {
     let t = 0, timers = [];

@@ -1,9 +1,20 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116p';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead} from './insight.js?v=research-20261116p';
-import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116p';
-import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261116p';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116q';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead} from './insight.js?v=research-20261116q';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116q';
+import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261116q';
 
 const API = '/api/research';
+// The site's loaders (loaders.js, D112), with the old line if the kit is missing.
+const loading = (kind, label, steps) => window.spixLoader?.(kind, {label, steps}) ?? `<p class="profile-loading" role="status">${label}…</p>`;
+// The page has already loaded loaders.css; the shadow root adopts a copy, so its first loader is styled at once.
+function kitSheet() {
+  const sheet = [...document.styleSheets].find(s => s.href?.includes('/static/loaders.css'));
+  try {
+    const copy = new CSSStyleSheet();
+    copy.replaceSync([...sheet.cssRules].map(rule => rule.cssText).join('\n'));
+    return copy;
+  } catch (error) { return null; }
+}
 
 function mountResearch(root, navigate) {
   const $ = id => root.getElementById(id);
@@ -212,7 +223,7 @@ function mountResearch(root, navigate) {
   async function renderHome(focus) {
     const area = state.area, url = `${API}/home?type=${area}&league=${encodeURIComponent(state.league)}`, token = ++homeToken;
     if (homeData.has(url)) return drawHome(homeData.get(url), focus);
-    $('researchHome').innerHTML = homeTop() + '<p class="profile-loading" role="status">Loading this weekend and the season leaders…</p>';
+    $('researchHome').innerHTML = homeTop() + loading('roll', 'Loading this weekend and the season leaders');
     restoreFocus(focus);
     try {
       const data = await load(url);
@@ -313,7 +324,7 @@ function mountResearch(root, navigate) {
     if (state.profileKey !== key) {
       Object.assign(state, {profileKey: key, profile: null, rendered: null, id, scope});
       view('profile');
-      $('profileBody').innerHTML = '<p class="profile-loading" role="status">Loading profile…</p>';
+      $('profileBody').innerHTML = loading('last10', 'Loading the profile');
     }
     let profile;
     try {
@@ -401,7 +412,7 @@ function mountResearch(root, navigate) {
     if (state.matchId !== eventId) {
       Object.assign(state, {matchId: eventId, match: null});
       matchTeam = 'both'; // "Leeds" names a different side in another match
-      $('matchBody').innerHTML = '<p class="profile-loading" role="status">Loading match…</p>';
+      $('matchBody').innerHTML = loading('pitch', 'Loading the match', ['Loading the match', "Getting both teams' last 10", 'Fetching the head to head']);
       $('matchRail').innerHTML = '';
       $('matchView').querySelector('.match-layout').classList.remove('has-rail');
     }
@@ -1049,10 +1060,12 @@ class SpixResearch extends HTMLElement {
   connectedCallback() {
     if (this.ready) return;
     const root = this.attachShadow({mode: 'open'});
-    root.innerHTML = '<p role="status">Loading Research Area…</p>';
+    const kit = kitSheet();
+    if (kit) root.adoptedStyleSheets = [kit];
+    root.innerHTML = loading('roll', 'Loading the Research Area');
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261116p', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261116p', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261116q', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261116q', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));

@@ -3106,6 +3106,12 @@ board (Best Bets), E card outline (the matchday board), F rolling ball (the Rese
   opportunities") while a new date or league loads. The 90 s refresh keeps the cards on screen. The old line stays
   as the fallback. On 8100 with the API held 2.5 s (Fri 20 Nov, Sat 21 Nov): both drawn, then replaced, at 1440 and
   390, no errors. `app.js` at `loaders-20261116c`.
+- Task 4 (16 Nov): the Research Area draws B on the match view ("Loading the match", "Getting both teams' last 10",
+  "Fetching the head to head", all in that one request), C on a profile and F on its home page and its own start.
+  Its shadow root adopts a copy of the page's `loaders.css` (already loaded), so even its first loader is styled at
+  once; research.css's stroke on every SVG no longer outlines the pitch or the ball. On 8100 with the API held 2.5 s
+  (Chelsea, Chelsea v Leeds, the players' home): drawn, then replaced, at 1440 and 390, no errors. Research files at
+  `research-20261116q`, `loaders.css` at `loaders-20261116d`.
 
 ## Findings that shape later steps
 

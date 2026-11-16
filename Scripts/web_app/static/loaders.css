@@ -29,9 +29,9 @@
 
 /* B. Pitch lines: the markings draw in cobalt, hold, fade, and draw again. */
 .ld-pitch{display:block;justify-self:center;margin-inline:auto;width:min(300px,86%);height:auto}
-.ld-grass{fill:var(--accent-dim)}
+.ld-grass{fill:var(--accent-dim);stroke:none}
 .ld-line{fill:none;stroke:var(--accent);stroke-width:.9;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;animation:ld-draw 3.2s cubic-bezier(.65,0,.35,1) infinite;animation-delay:calc(var(--i) * 80ms)}
-.ld-spot{fill:var(--accent);opacity:0;animation:ld-spot 3.2s ease infinite}
+.ld-spot{fill:var(--accent);stroke:none;opacity:0;animation:ld-spot 3.2s ease infinite}
 @keyframes ld-draw{0%{stroke-dashoffset:1;opacity:1}45%{stroke-dashoffset:0}82%{stroke-dashoffset:0;opacity:1}96%,100%{stroke-dashoffset:0;opacity:0}}
 @keyframes ld-spot{0%,40%{opacity:0}50%,82%{opacity:1}96%,100%{opacity:0}}
 
@@ -79,7 +79,7 @@
 .ld-rollball{position:absolute;left:0;bottom:4px;width:22px;height:22px;animation:ld-roll-on 2.6s cubic-bezier(.45,0,.55,1) infinite}
 .ld-rollball svg{display:block;width:100%;height:100%;animation:ld-turn 2.6s cubic-bezier(.45,0,.55,1) infinite}
 .ld-ball-skin{fill:var(--tb-fg);stroke:var(--on-marker);stroke-width:1.2}
-.ld-ball-ink{fill:var(--on-marker)}
+.ld-ball-ink{fill:var(--on-marker);stroke:none}
 .ld-ball-seam{fill:none;stroke:var(--on-marker);stroke-width:1.1}
 @keyframes ld-roll-on{0%{left:0;opacity:0}6%{opacity:1}86%{left:calc(100% - 22px);opacity:1}100%{left:calc(100% - 22px);opacity:0}}
 @keyframes ld-trail{0%{width:0;opacity:1}86%{width:100%;opacity:1}100%{width:100%;opacity:0}}

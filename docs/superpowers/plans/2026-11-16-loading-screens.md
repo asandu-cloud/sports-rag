@@ -8,7 +8,7 @@ them. lets implement them"), each where the options page placed it.
 
 **Architecture:** One shared kit: `static/loaders.js`, a classic script whose top-level functions return each
 loader's HTML (testable with `Function(source)` like `home-wins.js`), and `static/loaders.css`. The page links both;
-the Research Area's shadow root fetches `loaders.css` beside `research.css` and calls the kit through `window`.
+the Research Area's shadow root adopts a copy of the page's `loaders.css` and calls the kit through `window`.
 Everything moves in CSS: the delay, the status steps, the prices, the still frames. Only the first-load cover (A)
 has script timing.
 
@@ -48,7 +48,7 @@ and the owner's approval of all six with the placements below (16 Nov, D112).
 3. The board's background refresh (every 90 s) never shows a loader over cards already on screen — test: the
    loader is drawn only on the `loading` state, which background refreshes skip.
 4. Reduced motion freezes every loader — test: the CSS has one `prefers-reduced-motion` block naming each kind.
-5. The shadow root gets the styles — test: `research.js` fetches `loaders.css`.
+5. The shadow root gets the styles — test: `research.js` adopts the page's `loaders.css`.
 
 ## Tasks
 
@@ -65,7 +65,7 @@ and the owner's approval of all six with the placements below (16 Nov, D112).
 - `_renderFixtures({loading})` draws E (three cards); `_renderBestBets({loading})` draws D.
 
 ### Task 4: B, C and F in the Research Area
-- Match view B, profile C, home F, the component's start F; `research.js` fetches `loaders.css`.
+- Match view B, profile C, home F, the component's start F; the shadow root adopts the page's `loaders.css`.
 
 ### Task 5: Finish: real data, look, review
 - Throttled loads on 8100 at 1440 and 390, light and dark; screenshots for the owner.
@@ -77,5 +77,5 @@ and the owner's approval of all six with the placements below (16 Nov, D112).
 | 1. The loader kit | Done | 27b37f0..this commit | loaders + all 18 *_web.js pass |
 | 2. A, the first-load cover | Done | 8b289c2..this commit | loaders + all 18 *_web.js pass; 8100 with the API held 2.5 s |
 | 3. E on the board, D on Best Bets | Done | 8d05f32..this commit | loaders + all 18 *_web.js pass; 8100 with the API held 2.5 s |
-| 4. B, C and F in the Research Area | In progress | | |
+| 4. B, C and F in the Research Area | Done | 0f73547..this commit | loaders + all 18 *_web.js pass; 8100 with the API held 2.5 s |
 | 5. Finish: real data, look, review | Not started | | |
