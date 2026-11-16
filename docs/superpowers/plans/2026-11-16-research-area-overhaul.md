@@ -305,7 +305,7 @@ from B1/B2 when the player's next match is open), `index.html`; extend `test_res
 | 2. Team page answer first | Done | 6d163c8.. | team + insight, all *_web.js pass |
 | 3. Stat view answer first | Done | d625f52.. | stat + all *_web.js pass |
 | 4. Referee this season first, ranks from one season | Done | 9172a3e.. | ranks + all *_web.js pass |
-| 5. Next matches: rail, bar, sheet (B1) | Not started | | |
+| 5. Next matches: rail, bar, sheet (B1) | In progress | | |
 | 6. Match view shell (B2) | Not started | | |
 | 7. Cards section and Add | Not started | | |
 | 8. Shots on target section | Not started | | |
