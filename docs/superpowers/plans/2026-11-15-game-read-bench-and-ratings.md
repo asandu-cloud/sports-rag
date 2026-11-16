@@ -34,13 +34,13 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
 | 4 | Today's rules and the engine's rules | Done 16 Nov | 02ab071 | d87493a | 12 new, all pass; suite 3,151 passed + the 3 known errors |
 | 5 | Forecasts, walk-forward runner, zero and control lines | Done 16 Nov | fb94888 | a2a93ed | 8 new, all pass; suite 3,159 passed + the 3 known errors |
 | 6 | The scores | Done 16 Nov | c6966dd | 9fbec27 | 10 new + 1 in task 4's, all pass; suite 3,169 passed + the 3 known errors |
-| 7 | Bench command, report, Opportunities, locked-run guard | Done 16 Nov | 7c94626 | the "Done game-read task 7" commit | 6 new, all pass; suite 3,175 passed + the 3 known errors; first tuning run 16 Nov |
-| 8 | Elo (model 1) | Not started | | | |
-| 9 | Pi-ratings (model 2) | Not started | | | |
-| 10 | Dixon–Coles with time decay (model 3) | Not started | | | |
-| 11 | Drifting ratings (model 4) | Not started | | | |
-| 12 | The average of the models | Not started | | | |
-| 13 | Phase 1 runs and the first report to the owner | Not started | | | |
+| 7 | Bench command, report, Opportunities, locked-run guard | Done 16 Nov | 7c94626 | 0e9fa53 | 6 new, all pass; suite 3,175 passed + the 3 known errors; first tuning run 16 Nov |
+| 8 | Elo (model 1) | Done 16 Nov | 5647819 | e3e3266 | 8 new, all pass; suite 3,183 passed + the 3 known errors; k 15, carry 0.9 |
+| 9 | Pi-ratings (model 2) | Done 16 Nov | 6cf4cd5 | b004822 | 4 new, all pass; suite 3,187 passed + the 3 known errors; learning 0.05, cross 0.5 |
+| 10 | Dixon–Coles with time decay (model 3) | Done 16 Nov | bf9408c | 7471f94 | 5 new, all pass; suite 3,192 passed + the 3 known errors; half-life 365 days |
+| 11 | Drifting ratings (model 4) | Done 16 Nov | 3b8eff7 | 31c1810 | 3 new, all pass; suite 3,195 passed + the 3 known errors; gain 3e-6, summer widening 0.01 |
+| 12 | The average of the models | Done 16 Nov | f62eb22 | 8e745f6 | 4 new, all pass; suite 3,199 passed + the 3 known errors |
+| 13 | Phase 1 runs and the first report to the owner | Done 16 Nov | 1f665d6 | the "Done game-read task 13" commit | suite 3,199 passed + the 3 known errors; golden unchanged; one locked run (ledger line 1); every model fails every score |
 | 14 | ClubElo yardstick (only with the owner's yes) | Not started | | | |
 
 ## Global Constraints

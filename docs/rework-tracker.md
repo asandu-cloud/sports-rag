@@ -2819,6 +2819,194 @@ backend).** The number was held since 7 Nov (D78).
         - Promoted teams (116, first 10 matches): +0.3 points [−1.9, +2.6], so no mispricing found.
     - Tests: 6 new, all pass. The full suite: 3,175 passed, plus the 3 known errors. Golden unchanged; no live code
       changed.
+  - **Task 8 done (16 Nov): Elo, model 1** (`Scripts/data_platform/game_read/models/elo.py`,
+    `game_read/ordered.py`; `elo` in the bench).
+    - *How it works:*
+      - one rating per team, from 1500; a bigger win moves it more;
+      - home advantage per league, learned as it goes;
+      - each summer, ratings are pulled towards the league mean;
+      - win, draw or lose, and the goal difference, come from the rating gap through ordered logits, refitted
+        each season.
+    - *Ruling (newcomers):* a team new to a league starts at the mean of the bottom 3 of last season's table (the
+      teams it replaces). A team coming down from the Premier League starts at the Championship's top 3. Who went
+      up or down is known before a season starts, so this uses no future result.
+    - *Ruling:* the summer step reads each team's rating as its season ended. The Championship starts a week
+      earlier, and a relegated team's new Championship level must not leak into the Premier League's mean.
+    - *Tuned on the tuning seasons by result log loss:* k 15, carry 0.9. The grid was k 10–40 and carry 0.6–1.0,
+      and it is flat within 0.0003 around k 12–20, carry 0.8–1.0. The home step (1) and the new-team offset (0)
+      are set, not tuned.
+    - *Tuning seasons, 14,383 matches* (`Research/game-read-bench-2026-11-16-elo/`). It fails every score, as a
+      results-only rating should against the market:
+      - accuracy: result log loss 0.0157 worse than the market's [0.0126, 0.0185]; handicap 0.0144 worse;
+      - blend: c = −0.07, so it adds nothing to the market;
+      - Most likely: −0.33 per 100 against today's lists [−0.61, −0.04] ranked by edge, and −0.31 ranked by
+        blended chance; derived lines −0.39 against the control's −0.02;
+      - Value at the average price: 11,748 picks, −6.2% return, closing line value −6.6%;
+      - closing check: closing prices move away from its picks (−0.05 points).
+    - It runs in about 1 s for the whole history.
+    - Tests: 8 new, all pass. The full suite: 3,183 passed, plus the 3 known errors. Golden unchanged; no live code
+      changed.
+  - **Task 9 done (16 Nov): pi-ratings, model 2** (Constantinou and Fenton 2013;
+    `Scripts/data_platform/game_read/models/pi_ratings.py`; `pi` in the bench).
+    - *How it works:* each team has a home and an away rating, in goals. The error against the real goal difference
+      moves the venue rating, and the other rating moves by a share of that. Result and goal difference come from
+      the predicted goal difference through the same ordered logits as Elo.
+    - The shared part (the two ordered logits, refitted each season, with a fixed prior before 200 matches) moved
+      into `ordered.Outcomes`. Elo's scores are unchanged by the move (result log loss 0.99901 before and after).
+    - *Ruling:* as in the paper, a team new to a league starts at 0 and nothing is pulled back over the summer.
+      The plan tunes only learning and cross.
+    - *Tuned by result log loss:* learning 0.05 and cross 0.5. The grid was learning 0.02–0.1 and cross 0.2–0.9;
+      it is flat within 0.0005 nearby. The paper's starting values were 0.035 and 0.7.
+    - *Tuning seasons, 14,383 matches* (`Research/game-read-bench-2026-11-16-pi/`). It fails every score, and does
+      worse than our Elo:
+      - result log loss 0.0205 worse than the market's [0.0169, 0.0238], against Elo's 0.0157;
+      - handicap 0.0218 worse;
+      - blend c −0.09;
+      - Most likely −0.37 per 100 against today's lists [−0.69, −0.05] ranked by edge, −0.31 ranked by blended
+        chance;
+      - Value at the average price: 12,426 picks, −7.5% return;
+      - closing prices move away from its picks.
+    - *Finding:* the paper's newcomer rule (start at 0, an average team) is a likely reason pi trails Elo, whose
+      newcomers start at the level of the teams they replace. It is not worth a change now: neither model comes
+      near the market.
+    - Tests: 4 new, all pass. The full suite: 3,187 passed, plus the 3 known errors. Golden unchanged; no live code
+      changed.
+  - **Task 10 done (16 Nov): Dixon–Coles ratings with time decay, model 3**
+    (`Scripts/data_platform/game_read/models/dixon_coles.py`; `dc` in the bench).
+    - *How it works:*
+      - each team has an attack and a defence, and each league its own goal level and home advantage;
+      - one rho corrects the low scores;
+      - a shared shift applies to a promoted team in its first season;
+      - older matches count less; the last 4 years are used;
+      - it is refitted before each match day, starting from the last fit (about 70 s for the whole history);
+      - its forecast is a full score matrix, so it prices every goal line, handicap and both teams to score.
+    - *Ruling (ridge):* the penalty sits on the weighted mean log-likelihood, not the sum. On the sum, the plan's
+      1e-3 would shrink nobody, and the plan wants teams with little history pulled towards their league. On the
+      tuning seasons 1e-3 beat 1e-4 and 1e-2 (sum of result and over 2.5 log losses: 1.6831, 1.6872, 1.7050).
+    - *Ruling (promoted shift):* it applies to a team coming up, or arriving from outside the data. A team coming
+      down from the Premier League keeps its ratings on the same scale, with no shift; one shift for both
+      directions would mix opposite effects.
+    - *Ruling (the regression check):* without decay, rho or ridge, the fitted goal means equal scikit-learn's
+      `PoissonRegressor(alpha=0)`. The means are compared, not the raw ratings: without a ridge, attack and
+      defence are fixed only up to a shared constant.
+    - The control line's low-score correction is now shared as `market.corrected`. The control line's scores are
+      unchanged (result 0.9837, over 2.5 0.6751).
+    - *Half-life chosen by the sum of the result and over 2.5 log losses:* 365 days. 270 was best on the result
+      alone and 540 on over 2.5 alone; 120 and 180 were worse on both.
+    - *Tuning seasons, 14,383 matches* (`Research/game-read-bench-2026-11-16-dc/`). It fails every score:
+      - accuracy: result 0.0165 worse than the market's [0.0136, 0.0195], handicap 0.0120 worse, over 2.5 0.0081
+        worse;
+      - blend: c below zero on all three markets;
+      - Most likely: −0.20 per 100 against today's lists [−0.70, +0.30] ranked by edge, and −0.23 ranked by
+        blended chance. Real-price lines +0.58 against the control's −0.36; derived lines −0.32 against −0.02;
+      - Value at the average price: 18,535 picks, −7.2% return, closing line value −6.9%;
+      - closing check: +0.01 [−0.03, +0.04]. Unlike Elo and pi, closing prices do not move away from its picks.
+    - Tests: 5 new, all pass. The full suite: 3,192 passed, plus the 3 known errors. Golden unchanged; no live code
+      changed.
+  - **Task 11 done (16 Nov): drifting ratings, model 4** (`Scripts/data_platform/game_read/models/drifting.py`;
+    `drift` in the bench).
+    - *How it works:* model 3's structure, but each rating moves at its own pace.
+      - It starts from model 3's fit on the first scored day.
+      - After each match, every rating in a side's expected goals takes one filter step on that side's goals. The
+        ratings are league level, home advantage, attack and defence; a rating with more uncertainty moves more.
+      - Uncertainty grows a little each day, and more at a team's first match of a new season.
+      - The whole tuning run takes about 2 s.
+    - *Ruling (the filter, left to the builder):*
+      - a Kalman step on the log of the expected goals, each rating's uncertainty kept on its own, without the
+        links between ratings;
+      - league level and home advantage are filtered too, so a change in a league's scoring is followed;
+      - rho and the promoted-team shift stay at model 3's values; the shift is added once, at a promoted team's
+        first match in its new division;
+      - a newcomer starts with an uncertainty of 0.0625, about the spread of attack ratings within a league;
+      - `gain` is the uncertainty a rating gains per day.
+    - *Tuned by the sum of the result and over 2.5 log losses:* gain 3e-6 and summer widening 0.01. The grid was
+      gain 1e-6 to 3e-4 and widening 0 to 0.1; it is flat within 0.0003 for gains 1e-6 to 1e-5 with a widening of
+      0.003 to 0.01. The sum is 1.6826, against model 3's 1.6831.
+    - *Finding:* the best settings move ratings mostly over the summer and very little within a season. A
+      faster drift (gain 1e-4 or more) is clearly worse on both markets.
+    - *Tuning seasons, 14,383 matches* (`Research/game-read-bench-2026-11-16-drift/`). It fails every score:
+      - accuracy: result 0.0159 worse than the market's [0.0131, 0.0188], handicap 0.0126 worse, over 2.5 0.0081
+        worse;
+      - blend: c below zero on all three markets;
+      - Most likely: −0.52 per 100 against today's lists [−0.99, −0.05] ranked by edge, and −0.47 ranked by
+        blended chance. That is worse than model 3's −0.20, although its result log loss is slightly better;
+      - Value at the average price: 17,993 picks, −8.3% return;
+      - closing check: +0.01 [−0.04, +0.04].
+    - Tests: 3 new, all pass. The full suite: 3,195 passed, plus the 3 known errors. Golden unchanged; no live code
+      changed.
+  - **Task 12 done (16 Nov): the average of the models, model 9, first version**
+    (`Scripts/data_platform/game_read/models/average.py`; `average` in the bench).
+    - *How it works:* a weighted average of the members on the log scale. The weights are never below zero, sum to
+      1, and are fitted by maximum likelihood on the tuning seasons, separately for three parts:
+      - the result;
+      - the goal difference, which gives every handicap;
+      - the score matrix, which gives every goal line and both teams to score.
+      A member without a score matrix (Elo, pi) takes no part in the third.
+    - The bench builds it from its members' rows in the same run, so the members are not run twice. Its weights see
+      only tuning rows, even in a locked run (tested).
+    - *Ruling:* the spec's model 9 averages "the models that pass". None of the four rating models passes, so this
+      first version takes all four (elo, pi, dc, drift) and lets the weights decide. Asking for `average` runs and
+      reports its members too.
+    - *Weights on the tuning seasons:*
+      - result: Elo 0.47, pi 0.05, Dixon–Coles 0.33, drifting 0.15;
+      - goal difference: Elo 0.32, pi 0.00, Dixon–Coles 0.30, drifting 0.37;
+      - score matrix: Dixon–Coles 0.45, drifting 0.55.
+    - *Tuning seasons, 14,383 matches* (`Research/game-read-bench-2026-11-16-average/`). It fails every score.
+      These scores are in-sample, because the weights were fitted on the same seasons; its fair test is the locked
+      run in task 13.
+      - accuracy: result 0.0134 worse than the market's [0.0107, 0.0160], the best of all the models (best single
+        model: Elo, 0.0157); handicap 0.0106 worse; over 2.5 0.0077 worse;
+      - blend: c below zero on all three markets;
+      - Most likely: −0.48 per 100 against today's lists [−0.95, −0.00] ranked by edge, and −0.46 ranked by
+        blended chance;
+      - Value at the average price: 17,212 picks, −7.1% return;
+      - closing check: −0.01 [−0.05, +0.03].
+    - Tests: 4 new (3 for the average, 1 for the bench), all pass. The full suite: 3,199 passed, plus the 3 known
+      errors. Golden unchanged; no live code changed.
+  - **Task 13 done (16 Nov): phase 1 runs and the first report.** Model versions frozen at 1f665d6. One fix
+    before the freeze: the report now says the average's tuning scores are in-sample (a4081ba).
+    - *Tuning run* of every model at 1f665d6 (`Research/game-read-bench-2026-11-16-phase1/`): the zero line passed
+      on 14,383 matches, and the scores match each task's own run.
+    - *The one locked run:* ledger line 1 of `Research/game-read-bench/locked-runs.jsonl`.
+      - Run at 2026-11-16 19:09 UTC on commit 1f665d6, with market, control, elo, pi, dc, drift and average.
+      - 10,711 matches of 2023–2025 (`Research/game-read-bench-2026-11-16-locked/`). The zero line passed.
+      - It is never to be rerun for these versions; a new version gets its own single locked run.
+    - *Every model fails every score, on both blocks* (verdicts: blend, Most likely and Value all fail):
+
+      | Model | Result log loss vs market, tuning / locked | Most likely vs today, per 100, locked (edge) | Value at the average price, locked |
+      |---|---|---|---|
+      | Elo | +0.0157 / +0.0181 | −0.50 [−0.83, −0.16] | 8,347 picks, −12.0% |
+      | Pi-ratings | +0.0205 / +0.0215 | −0.27 [−0.62, +0.07] | 8,943 picks, −12.4% |
+      | Dixon–Coles | +0.0165 / +0.0232 | −0.39 [−0.91, +0.14] | 13,385 picks, −15.2% |
+      | Drifting | +0.0159 / +0.0185 | −0.48 [−1.02, +0.06] | 12,861 picks, −13.5% |
+      | Average | +0.0134 / +0.0170 | −0.66 [−1.26, −0.06] | 12,294 picks, −14.1% |
+      | Control | +0.0004 / +0.0008 | −0.17 [−0.56, +0.23] | 82 picks, −6.3% |
+
+      - Over 2.5 log loss on the locked seasons: Dixon–Coles +0.0075, drifting +0.0080, average +0.0073.
+      - Closing line value of the engine's Value picks: −7% to −8% for every rating model.
+      - The average's tuning edge over its members (fitted in-sample) mostly holds on the locked seasons: the best
+        result log loss there too (+0.0170, against +0.0181 for Elo, the best single model).
+    - *Model 5 (the market blend) answered for the rating models:* none earns a weight above zero (c from −0.07 to
+      −0.14). The live c of D20/D21 stays at 0. Model 8 (Bayesian) is not built: the spec builds it only if models
+      3–4 add anything to the market, and they do not.
+    - *Finding (a lead for phase 2, no pick change):* on the locked seasons, a blend that leans slightly away from
+      the model beats the market alone for Elo (−0.00024 [−0.00047, −0.00003]), Dixon–Coles (−0.00038 [−0.00062,
+      −0.00013]) and the average (−0.00036 [−0.00064, −0.00008]). Where the market has moved away from what past
+      scores say, it tended to be right and could have moved a little further. The rules count it a fail (c must
+      be above zero), and it is tiny next to the market's log loss of about 0.98. It is worth one test in phase 2:
+      the boosted trees on the market's error (model 6) take the ratings as inputs and can find it if it is real.
+    - *Today's rules on the locked seasons:*
+      - Most likely: 32,132 picks, won 65.3%, +0.87 per 100 above the market's chances;
+      - Value: no picks at the average price; at the best price, 673 picks, −5.0% return, closing line value
+        +4.1% [3.1, 5.1]. On tuning it was +3.0% return and +4.0% closing line value.
+    - *Opportunities (tuning seasons only), as in phase 0:*
+      - draws shorten towards the close (+0.11 points [+0.08, +0.15]);
+      - Belgian home wins drift out (−0.64) and away wins in (+0.61);
+      - promoted teams' first 10 matches: +0.3 points [−1.9, +2.6].
+      Every lead is far smaller than the margin, and no return group stays above zero. Nothing to follow.
+    - *What phase 2 does next* (needs its own plan): D12's variables (xG, shots in the box, rest) enter models 3–4
+      one at a time through the ablation gate; then model 6 (boosted trees on the market's error) and model 7
+      (boosted trees on the outcome); then the average of what passes. Task 14 (ClubElo) waits for the owner's yes.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their

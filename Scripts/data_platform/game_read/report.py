@@ -154,6 +154,22 @@ def _control(models) -> list:
                     f"{_interval(control['accuracy']['result'])}.", ""]
 
 
+def _average(models) -> list:
+    weights = models.get("average", {}).get("weights")
+    if not weights:
+        return []
+    names = [name for name in ("elo", "pi", "dc", "drift") if any(name in part for part in weights.values())]
+    titles = {"result": "Result", "handicap": "Goal difference (handicaps)", "goals": "Score matrix (goal lines, both "
+              "teams to score)"}
+    rows = [[titles[part], *(f"{weights[part][name]:.2f}" if name in weights[part] else "—" for name in names)]
+            for part in ("result", "handicap", "goals")]
+    return ["## The average's weights", "",
+            "A weighted average of the members on the log scale; each part's weights are never negative, sum to 1 "
+            "and are fitted on the tuning seasons only. A member without a score matrix takes no part in it. Its scores "
+            "on the tuning seasons are therefore in-sample; the locked seasons are its fair test.", "",
+            *_table(["Part", *names], rows)]
+
+
 def _reference(reference) -> list:
     rows = [(season, _points(found["mean"]).lstrip("+"), _points(found["p95"]).lstrip("+"), _count(found["n"]))
             for season, found in reference.items()]
@@ -201,7 +217,7 @@ def _report(results) -> list:
             "Every interval is 95%, from 2,000 resamples of whole weeks.", "",
             *_zero_line(results), *_accuracy(models), *_blend(models), *_picks(models), *_value(models),
             *_closing(models), *_leagues(models), *_verdicts(results["verdicts"]), *_control(models),
-            *_reference(results["reference"]), *_opportunities(results["opportunities"])]
+            *_average(models), *_reference(results["reference"]), *_opportunities(results["opportunities"])]
 
 
 def write(out_dir, results: Mapping) -> None:

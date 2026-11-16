@@ -146,3 +146,19 @@ def test_the_report_has_every_section(stubbed):
     assert set(summary["verdicts"]) == {"edge", "blend"}
     assert {"reference", "opportunities"} <= set(summary)
     assert not bench.LEDGER.exists()  # only locked runs go to the ledger
+
+
+def test_the_average_runs_its_members_and_fits_its_weights_on_tuning_seasons_only(stubbed, monkeypatch):
+    seen, fit_all = [], bench.average.fit_all
+    monkeypatch.setattr(bench.average, "fit_all", lambda rows: seen.append(rows) or fit_all(rows))
+    out = stubbed / "out"
+    assert bench.main(["run", "--models", "average", "--block", "locked", "--confirm-locked", "--out", str(out)]) == 0
+    assert len(seen) == 1 and set(seen[0]) == {"elo", "pi", "dc", "drift"}
+    assert {m.season for rows in seen[0].values() for m, _ in rows} == {2019}  # never the locked 2023 matches
+    summary = json.loads((out / "summary.json").read_text())
+    assert summary["run"]["models"] == ["market", "control", "elo", "pi", "dc", "drift", "average"]
+    weights = summary["models"]["average"]["weights"]
+    assert set(weights["goals"]) == {"dc", "drift"} and set(weights["result"]) == {"elo", "pi", "dc", "drift"}
+    assert all(sum(part.values()) == pytest.approx(1) for part in weights.values())
+    report = (out / "report.md").read_text()
+    assert "## The average's weights" in report and "in-sample" in report
