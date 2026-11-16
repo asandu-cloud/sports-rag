@@ -18,12 +18,9 @@ try:
 except ModuleNotFoundError:  # python -m Scripts.data_platform from the repo root
     from Scripts.referee_names import _dedup_referee_names, _normalize_ref_name
 from ..repositories.research import COMPETITION_PHASE, ResearchRepository
-from ..research_stats import COUNT_NULL_POLICY, RANK_BUILD_PREFIX, normalize_research_row
+from ..research_stats import COUNT_NULL_POLICY, MIN_RANKED_PEERS, RANK_BUILD_PREFIX, normalize_research_row
 
 PLAYER_MINUTES = 900
-# Provisional ranks (D110, B5) need this many ranked peers in the position: early in a season a group can hold one
-# or two players (16 Nov: the Premier League had 1 ranked midfielder), and a place among them says nothing.
-PROVISIONAL_MIN_PEERS = 10
 REFEREE_MATCHES = 15
 # Teams need enough stats-observed matches to be ranked. After the comparable-round
 # filter every main-stage side has at least six (a Conference League league stage);
@@ -413,8 +410,9 @@ def headline(kind, subject, scope, metrics, group, provisional=False):
 
 
 class ResearchProfileService:
-    def __init__(self, repo=None):
+    def __init__(self, repo=None, *, min_ranked_peers=MIN_RANKED_PEERS):
         self.repo = repo or ResearchRepository()
+        self.min_ranked_peers = min_ranked_peers
 
     def build(self, *, season=None, competition=None):
         if season is not None and not 1900 <= season <= 2100:
@@ -481,19 +479,26 @@ class ResearchProfileService:
         elif eligible and len(matching) != sum(d["value"] is not None for d in metrics.values()):
             reason = "ranks_stale_or_missing"
         ranked = eligible and reason is None
+        provisional, qualified_peers = False, None
         if ranked:
+            # A number shows its rank only among enough ranked subjects (MIN_RANKED_PEERS, owner, 16 Nov).
+            qualified_peers = max(row["peer_count"] for row in matching.values())
             for name, row in matching.items():
-                metrics[name].update({k: row[k] for k in ("rank", "percentile", "peer_count", "league_average")})
-        provisional = False
+                if row["peer_count"] >= self.min_ranked_peers:
+                    metrics[name].update({k: row[k] for k in ("rank", "percentile", "peer_count", "league_average")})
+            if all(data["rank"] is None for data in metrics.values()):
+                ranked, reason = False, "too_few_peers"
         if (kind == "player" and reason == "below_minutes_threshold" and summary["matches"]
                 and build and build.build_id.startswith(RANK_BUILD_PREFIX)):
             peers = self.repo.peer_values(session, build.scope_key, kind, summary["peer_group"], exclude=key)
+            qualified_peers = max(map(len, peers.values()), default=0)
             for name, data in metrics.items():
-                if (len(peers.get(name, ())) >= PROVISIONAL_MIN_PEERS and data["value"] is not None
+                if (len(peers.get(name, ())) >= self.min_ranked_peers and data["value"] is not None
                         and math.isfinite(data["value"])):
                     data.update(provisional_rank(data, peers[name]))
                     provisional = True
         return {"ranked": ranked, "provisional": provisional, "reason": reason, "peer_group": summary["peer_group"],
+                "qualified_peers": qualified_peers, "minimum_peers": self.min_ranked_peers,
                 "sample_minutes": summary["minutes"], "sample_matches": summary["matches"],
                 "minimum_minutes": PLAYER_MINUTES if kind == "player" else None,
                 "minimum_matches": {"referee": REFEREE_MATCHES, "team": TEAM_MATCHES}.get(kind, 1)}, metrics, build
@@ -565,7 +570,8 @@ class ResearchProfileService:
             result["match_log"] = [self._match(kind, row, teams, full=True) for row in rows]
         if include_context:
             result["available_scopes"] = []
-            for item in self.repo.available_scopes(session, kind, key, subject.get("aliases", ())):
+            for item in self.repo.available_scopes(session, kind, key, subject.get("aliases", ()),
+                                                   min_peers=self.min_ranked_peers):
                 available = {"competition": {"code": item["code"], "name": item["name"]},
                              "season": {"year": item["year"], "label": item["label"]},
                              "matches": item["matches"], "ranked": item["ranked"]}
@@ -653,7 +659,8 @@ class ResearchProfileService:
                 loader = self.repo.player_rows if kind == "player" else self.repo.team_rows
                 rows = loader(session, scope["season_id"], key)
             result = self._payload(session, kind, subject, scope, rows)
-            if result["ranking"]["reason"] in ("below_minutes_threshold", "below_matches_threshold"):
+            if result["ranking"]["reason"] in ("below_minutes_threshold", "below_matches_threshold",
+                                               "too_few_peers"):
                 previous_year = scope["year"] - 1
                 if kind == "referee":
                     prior_rows = self.repo.referee_rows(session, previous_year, subject["aliases"])

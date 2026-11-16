@@ -3,6 +3,9 @@
 COUNT_NULL_POLICY = "observed-match-count-zero.v2"
 # v3: comparable-round scope, team match minimum, position-aware headlines.
 RANK_BUILD_PREFIX = "profiles-v3:"
+# A rank shows only when this many subjects are ranked on that number (owner, 16 Nov, D110): early in a season a
+# group can hold one or two (the Premier League had 1 ranked midfielder), and a place among them says nothing.
+MIN_RANKED_PEERS = 10
 
 PLAYER_COUNT_FIELDS = (
     "goals", "assists", "shots_total", "shots_on", "passes_total", "passes_accurate",

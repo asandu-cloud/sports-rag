@@ -221,7 +221,8 @@ def research(session_factory):
                   goals=1, yellow_cards=0, red_cards=0, fouls_committed=0))
         ids = {"player": players[0].id, "other_player": players[1].id, "low": players[2].id,
                "team": teams[0].id, "competition": comp.id}
-    service = ResearchProfileService(ResearchRepository(session_factory))
+    # Rank arithmetic on a three-team league: the website's floor of ten ranked peers is tested on its own.
+    service = ResearchProfileService(ResearchRepository(session_factory), min_ranked_peers=1)
     service.build()
     key = service.search("referees", "Taylor")["results"][0]["referee_key"]
     return service, {**ids, "referee": key}
@@ -763,7 +764,8 @@ def test_research_build_by_hand_waits_for_no_refresh(monkeypatch, capsys):
 
 @pytest.fixture()
 def early_season(session_factory):
-    """Ten forwards with 900 minutes each (k goals for forward k) and one with 30 minutes and a goal."""
+    """Ten forwards with 900 minutes each (k goals for forward k; forwards 0-4 never shoot) and one with 30 minutes
+    and a goal."""
     with session_factory() as s:
         comp = Competition(code="EPL", name="Premier League", api_football_id=39)
         s.add(comp); s.flush()
@@ -777,11 +779,12 @@ def early_season(session_factory):
                         away_team_id=away.id, kickoff_utc=datetime(2026, 8, 15, tzinfo=timezone.utc) + timedelta(days=7 * i),
                         status="FT", home_goals=1, away_goals=0)
             s.add(f); s.flush()
-            players = [(p, 90, 1 if i < k else 0) for k, p in enumerate(ranked)] + ([(low, 30, 1)] if i == 0 else [])
-            for player, minutes, goals in players:
+            players = [(p, 90, 1 if i < k else 0, 3 * (k > 4)) for k, p in enumerate(ranked)]
+            players += [(low, 30, 1, 3)] if i == 0 else []
+            for player, minutes, goals, shots in players:
                 s.add(FixturePlayerStats(fixture_id=f.id, player_id=player.id, team_id=home.id, minutes=minutes,
-                                         position="F", substitute=False, goals=goals, assists=0, shots_total=3,
-                                         shots_on=1, yellow_cards=0, red_cards=0, passes_total=10, passes_accurate=8,
+                                         position="F", substitute=False, goals=goals, assists=0, shots_total=shots,
+                                         shots_on=min(shots, 1), yellow_cards=0, red_cards=0, passes_total=10, passes_accurate=8,
                                          duels_total=5, duels_won=2, fouls_drawn=0, fouls_committed=1, rating=7))
         ids = {"ranked": [p.id for p in ranked], "low": low.id}
     service = ResearchProfileService(ResearchRepository(session_factory))
@@ -802,6 +805,9 @@ def test_provisional_rank_places_a_low_minutes_player_among_ranked_peers(early_s
             assert data["rank"] is None and data["percentile"] is None
             continue
         values = [m[name]["value"] for m in peers if m[name]["rank"] is not None] + [data["value"]]
+        if len(values) - 1 < 10:  # conversion and shooting accuracy: five forwards never shot
+            assert data["rank"] is None and data["peer_count"] is None
+            continue
         assert data["peer_count"] == len(values) == 11
         assert data["percentile"] == percentiles(values)[-1]
         better = sum(v > data["value"] if data["higher_is_more"] else v < data["value"] for v in values)
@@ -825,8 +831,9 @@ def test_no_provisional_rank_without_a_built_scope(early_season, session_factory
     assert all(m["rank"] is None for m in low["metrics"].values())
 
 
-def test_no_provisional_rank_for_teams_and_referees_or_among_too_few_peers(research):
-    service, ids = research
+def test_no_provisional_rank_for_teams_and_referees_or_among_too_few_peers(research, session_factory):
+    _, ids = research
+    service = ResearchProfileService(ResearchRepository(session_factory))  # the website's floor of ten
     team = service.profile("team", ids["team"], season=2026)
     assert team["ranking"]["reason"] == "below_matches_threshold" and team["ranking"]["provisional"] is False
     assert all(m["rank"] is None for m in team["metrics"].values())
@@ -846,3 +853,66 @@ def test_ranked_profiles_are_unchanged(research):
     assert ranked["metrics"]["goals_per_90"]["peer_count"] == 2
     assert ranked["metrics"]["goals_per_90"]["percentile"] == 75
     assert ranked["headline"]["provisional"] is False
+
+
+def test_ranks_show_only_among_ten_or_more(research, session_factory):
+    _, ids = research
+    service = ResearchProfileService(ResearchRepository(session_factory))  # the website's floor of ten
+    for kind, key in (("player", ids["player"]), ("team", ids["team"]), ("referee", ids["referee"])):
+        profile = service.profile(kind, key, season=2025)
+        ranking = profile["ranking"]
+        assert (ranking["ranked"], ranking["reason"]) == (False, "too_few_peers"), kind
+        assert ranking["minimum_peers"] == 10 and 1 <= ranking["qualified_peers"] < 10
+        assert all(m["rank"] is None and m["percentile"] is None and m["peer_count"] is None
+                   and m["league_average"] is None for m in profile["metrics"].values())
+        assert any(m["value"] is not None for m in profile["metrics"].values())  # the raw numbers stay
+        assert profile["headline"] is None
+    small = service.profile("player", ids["player"], season=2025)
+    assert small["ranking"]["qualified_peers"] == 2  # two forwards in the 2025/26 Premier League
+
+
+def test_a_number_with_fewer_than_ten_ranked_keeps_its_value_without_a_rank(early_season):
+    service, ids = early_season
+    profile = service.profile("player", ids["ranked"][9])
+    ranking = profile["ranking"]
+    assert ranking["ranked"] is True and ranking["reason"] is None and ranking["qualified_peers"] == 10
+    goals = profile["metrics"]["goals_per_90"]
+    assert (goals["rank"], goals["peer_count"]) == (1, 10)
+    for name in ("conversion_pct", "shooting_accuracy_pct"):  # five forwards never shot: five ranked here
+        data = profile["metrics"][name]
+        assert data["value"] is not None
+        assert data["rank"] is None and data["percentile"] is None and data["peer_count"] is None
+
+
+def test_available_scopes_count_a_scope_ranked_only_at_the_floor(research, session_factory):
+    _, ids = research
+    service = ResearchProfileService(ResearchRepository(session_factory))  # the website's floor of ten
+    result = service.profile("player", ids["player"], season=2026)
+    assert [(r["season"]["year"], r["ranked"]) for r in result["available_scopes"]] == [(2026, False), (2025, False)]
+    small = ResearchProfileService(ResearchRepository(session_factory), min_ranked_peers=1)
+    result = small.profile("player", ids["player"], season=2026)
+    assert [(r["season"]["year"], r["ranked"]) for r in result["available_scopes"]] == [(2026, False), (2025, True)]
+
+
+def test_too_few_ranked_peers_keeps_last_seasons_ranks(early_season, session_factory):
+    service, ids = early_season
+    with session_factory() as s:  # 2027/28: only forward 9 has played, all 900 minutes
+        comp = s.scalar(select(Competition))
+        season = Season(competition_id=comp.id, year=2027, label="2027/28")
+        s.add(season); s.flush()
+        home, away = s.scalars(select(Team).order_by(Team.id)).all()
+        for i in range(10):
+            f = Fixture(api_football_id=4000 + i, competition_id=comp.id, season_id=season.id, home_team_id=home.id,
+                        away_team_id=away.id, kickoff_utc=datetime(2027, 8, 15, tzinfo=timezone.utc) + timedelta(days=7 * i),
+                        status="FT", home_goals=1, away_goals=0)
+            s.add(f); s.flush()
+            s.add(FixturePlayerStats(fixture_id=f.id, player_id=ids["ranked"][9], team_id=home.id, minutes=90,
+                                     position="F", substitute=False, goals=1, assists=0, shots_total=3, shots_on=1,
+                                     yellow_cards=0, red_cards=0, passes_total=10, passes_accurate=8, duels_total=5,
+                                     duels_won=2, fouls_drawn=0, fouls_committed=1, rating=7))
+    service.build()
+    profile = service.profile("player", ids["ranked"][9], season=2027)
+    assert profile["ranking"]["reason"] == "too_few_peers" and profile["ranking"]["qualified_peers"] == 1
+    previous = profile["previous_season"]
+    assert previous["season"]["year"] == 2026 and previous["ranking"]["ranked"] is True
+    assert previous["metrics"]["goals_per_90"]["peer_count"] == 10
