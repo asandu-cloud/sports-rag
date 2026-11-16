@@ -58,9 +58,8 @@ on it. The Discord bot still runs the old engine until A7.
 - **Cobalt palette live 9 Nov (D80).** Cobalt `#0246A4` replaced the turf green, lime cream `#D5F097` the
   highlighter, and mint cream `#F2FFFA` is the light ground; the dark theme uses a light cobalt `#88B4F2`. Since
   9 Nov evening the dark theme is "cobalt night" (D85): near-black greys with a faint cobalt tint (`--bg #111316`)
-  and mint cream text. Cache tags are `nextmatch-20261110a` (style.css, app.js; D96), `crest-20261110a`
-  (research.js, research.css; D90, 10 Nov: tall crests such as Tottenham's stay inside their boxes) and
-  `night-20261109a` (theme.js). Open for the owner: the steel blue of the Away segment and the "preliminary" label now sits close to
+  and mint cream text. Cache tags are `nextmatch-20261110a` (style.css; D96), `research-20261116g` (app.js; D107),
+  `research-20261116o` (the research files; D107) and `night-20261109a` (theme.js). Open for the owner: the steel blue of the Away segment and the "preliminary" label now sits close to
   the cobalt.
 - **Home page opening live 11 Nov (D98, owner).** "Every match, read for you", with three tilted packs from the
   real read of Brighton v Brentford (8 Nov, labelled Example). It replaced D87's Arsenal v Chelsea animation
@@ -104,20 +103,20 @@ on it. The Discord bot still runs the old engine until A7.
   previous leaders answer listed.
   Open before real users: the privacy line (questions are logged with the account id), and auth and security (the
   owner will discuss them separately). The website listens on the home network only.
-- **Research Area overhaul (D107 frontend, D110 backend; owner, 16 Nov).**
-  - The backend's part went live 16 Nov at 15:05 (website restarted, pid 29701). It adds three public, read-only
-    routes, each behind `read_gate()` (503 while the refresh writes):
-    - `/api/research/teams/{id}/upcoming`;
-    - `/api/research/referees/{key}/upcoming`;
-    - `/api/research/matches/{event_id}`.
-  - Players under 900 minutes get provisional ranks among at least 10 ranked peers.
-  - The daily refresh now rebuilds this season's ranks and referee names (best-effort stage `research_ranks`). They
-    had last been built by hand on 8 Oct.
-  - The frontend's pages (D107) go in after the frontend checks them against these routes on 8100.
-  - Owner, 16 Nov: the cards lines' tag reads "More likely", not "Spix leans this way" (cards carry no Spix
-    suggestion, D61).
-  - Owner, 16 Nov: ranked players get the same 10-peer floor (no rank until 10 players in the group qualify). The
-    backend is building it.
+- **Research Area overhaul live 16 Nov at 15:27 (D107 frontend, D110 backend; owner; website restarted, pid 34028).**
+  - Answer-first team, player and referee pages; a match view (cards, shots on target, goals, corners, result, head
+    to head, team news) with Add into the slip; a team's next three matches beside it (a floating bar on phones).
+  - Three public, read-only routes, each behind `read_gate()` (503 while the refresh writes):
+    `/api/research/teams/{id}/upcoming`, `/api/research/referees/{key}/upcoming`, `/api/research/matches/{event_id}`.
+  - Ranks (owner, 16 Nov): a number shows its rank only when at least 10 players, teams or referees are ranked on
+    it; below that, plain numbers and how many qualify so far. Players under 900 minutes get early-season ranks on
+    the same floor.
+  - The daily refresh now rebuilds this season's ranks and referee names (best-effort stage `research_ranks`; last
+    built by hand on 8 Oct). Until the 17 Nov refresh, this season's ranks read "being rebuilt".
+  - Owner, 16 Nov: the cards lines' likelier side reads "More likely" (cards carry no Spix suggestion, D61); goals,
+    corners and result keep "Spix leans this way".
+  - A match that has kicked off shows its status instead of a read; a read kept after kickoff is headed "How Spix
+    read it before kickoff" and takes no Add.
 - **No more Chroma updates (D81, owner, 9 Nov).** The daily refresh no longer embeds into Chroma, because nothing
   running reads it; `refresh-season --embed` brings the step back. `Index/chroma` (19 GB) stays until A7.
   Confirmed on the 10 Nov refresh.
