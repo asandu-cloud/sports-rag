@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Sequence, Tuple
 
 from .match_read_metrics import match_metrics
-from .research_profiles import iso, referee_aliases
+from .research_profiles import _normalize_ref_name, iso, raw_referee_key
 
 SCHEMA_VERSION = "research-upcoming.v1"
 EXPECTED = ("goals", "corners", "cards")
@@ -52,24 +52,22 @@ def read_summary(event_id: str, kickoff: datetime, *, load_read: Callable[[str],
 
 def referee_refs(raw_names: Iterable[str], alias_rows: Sequence[Mapping[str, Any]]) -> Dict[str, dict]:
     """``{raw name: {"name", "referee_key"}}``: the alias table's key and name, else the key the build would give."""
-    raw_names = sorted({n for n in raw_names if n})
-    computed = {row["raw_name"]: row for row in referee_aliases(raw_names)}
     table = {row["raw_name"]: row["referee_key"] for row in alias_rows}
     names: Dict[str, str] = {}
     for row in sorted(alias_rows, key=lambda r: r["raw_name"]):
         names.setdefault(row["referee_key"], row["name"])
     out = {}
-    for raw in raw_names:
-        key = table.get(raw) or (computed.get(raw) or {}).get("referee_key")
+    for raw in sorted({n for n in raw_names if n}):
+        key = table.get(raw) or raw_referee_key(raw)
         if key is not None:
-            out[raw] = {"name": names.get(key) or computed[raw]["name"], "referee_key": key}
+            out[raw] = {"name": names.get(key) or _normalize_ref_name(raw).title(), "referee_key": key}
     return out
 
 
 def refs_for(repo, session, raw_names) -> Dict[str, dict]:
     """``referee_refs`` for raw names, with the alias rows of those names and of their computed keys."""
     raw_names = sorted({n for n in raw_names if n})
-    keys = [row["referee_key"] for row in referee_aliases(raw_names)]
+    keys = sorted({key for key in map(raw_referee_key, raw_names) if key})
     return referee_refs(raw_names, repo.alias_rows(session, raw_names=raw_names, keys=keys))
 
 

@@ -277,6 +277,48 @@ class ResearchRepository:
             ranked.c.row_number <= limit).order_by(ranked.c.player_id, ranked.c.kickoff_utc))
         return rows
 
+    @staticmethod
+    def _match_stats_query():
+        """Finished fixtures with both sides' statistics (``referee_rows``' shape), names and competition."""
+        f, home, away = Fixture, aliased(FixtureTeamStats), aliased(FixtureTeamStats)
+        home_team, away_team = aliased(Team), aliased(Team)
+        q = select(f.id.label("fixture_id"), f.api_football_id, f.referee, f.kickoff_utc, f.status, f.home_team_id,
+                   f.away_team_id, f.home_goals, f.away_goals, Season.year, Competition.code.label("competition"),
+                   Competition.name.label("competition_name"), home_team.name.label("home_name"),
+                   away_team.name.label("away_name"),
+                   *[getattr(home, c).label("home_stats_" + c) for c in TEAM_FIELDS],
+                   *[getattr(away, c).label("away_stats_" + c) for c in TEAM_FIELDS]).select_from(f)
+        q = q.join(Season, Season.id == f.season_id).join(Competition, Competition.id == f.competition_id)
+        q = q.join(home_team, home_team.id == f.home_team_id).join(away_team, away_team.id == f.away_team_id)
+        q = q.outerjoin(home, and_(home.fixture_id == f.id, home.team_id == f.home_team_id))
+        q = q.outerjoin(away, and_(away.fixture_id == f.id, away.team_id == f.away_team_id))
+        return q.where(f.status.in_(FINISHED))
+
+    def season_referee_names(self, session, *, year):
+        """Every raw referee name of season ``year``'s fixtures, all competitions."""
+        q = select(Fixture.referee).join(Season, Season.id == Fixture.season_id)
+        return list(session.scalars(q.where(Season.year == year, Fixture.referee.is_not(None)).distinct()))
+
+    def referee_recent(self, session, aliases, *, before, limit):
+        """The referee's last ``limit`` finished matches before ``before`` under any of ``aliases``, oldest first."""
+        f = Fixture
+        q = self._match_stats_query().where(f.referee.in_(list(aliases)), f.kickoff_utc < before)
+        return records(session, q.order_by(f.kickoff_utc.desc(), f.id.desc()).limit(limit))[::-1]
+
+    def season_matches(self, session, season_id, *, before):
+        """Every finished match of one competition season before ``before``."""
+        return records(session, self._match_stats_query().where(Fixture.season_id == season_id,
+                                                                Fixture.kickoff_utc < before))
+
+    def h2h(self, session, team_a, team_b, *, since_year, before, limit):
+        """The two teams' last ``limit`` meetings before ``before`` from season ``since_year``, newest first."""
+        f = Fixture
+        q = self._match_stats_query().where(
+            or_(and_(f.home_team_id == team_a, f.away_team_id == team_b),
+                and_(f.home_team_id == team_b, f.away_team_id == team_a)),
+            Season.year >= since_year, f.kickoff_utc < before)
+        return records(session, q.order_by(f.kickoff_utc.desc(), f.id.desc()).limit(limit))
+
     def domestic_season(self, session, team_id, *, year):
         """The team's domestic league season in ``year`` (the one it played most in), or None."""
         f = Fixture

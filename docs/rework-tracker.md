@@ -2789,6 +2789,14 @@ raw responses, under full player names, and one bookmaker breaks the two-bookmak
     for the same reason as the ranks, so their matches reach no referee page or search.
   - The owner chose a daily rebuild (16 Nov): this season's ranks and the referee names become a best-effort
     refresh stage (plan task 5), tested on a copy of the database first. B5 moves to task 6.
+- Task 4 (16 Nov): the match view's referee, head to head and data basis. The named referee's matches and cards a
+  match this season in every competition, under any of his spellings; the match's competition's average; his last
+  10 matches' cards. Null until he is named. Up to 6 meetings from 2023/24, newest first, with score, goals, cards
+  and corners. `data_basis.latest_finished_kickoff` is the newest finished match the view used. A referee's key is
+  now computed from any one of his names (`research_profiles.raw_referee_key`, the build's own rule), so a request
+  no longer runs the name dedup or prints its log line. On the live database the whole view takes 0.2–0.4 s warm
+  (Atlético v Barcelona: Javier Alberola Rojas, 7 matches, 4.9 cards a match against LaLiga's 4.7). 5 tests; the
+  full suite 3,120 passed, plus the 3 known errors; the golden check shows no changes across 54 fixtures.
 
 ## Findings that shape later steps
 

@@ -278,6 +278,22 @@ def scope_key(scope, referee=False):
     return f"referee:{scope['year']}" if referee else f"competition:{scope['competition_id']}:{scope['year']}"
 
 
+def referee_key(name):
+    """A referee's stable key from a normalized name: first initial and surname. The name dedup only merges names
+    sharing both, so any of a referee's names gives his key, before or after a full name arrives."""
+    parts = name.split()
+    # Signature, not longest display name, keeps URLs stable when full names arrive.
+    signature = parts[0].rstrip(".")[:1] + " " + parts[-1] if len(parts) > 1 else name
+    slug = re.sub(r"[^\w]+", "-", signature, flags=re.UNICODE).strip("-")
+    return slug[:110] + "-" + sha256(signature.encode()).hexdigest()[:8]
+
+
+def raw_referee_key(raw):
+    """``referee_key`` of a raw fixture name ("Michael Oliver, England"), or None for an empty one."""
+    name = _normalize_ref_name(raw)
+    return referee_key(name) if name else None
+
+
 def referee_aliases(raw_names):
     normalized = sorted({n for raw in raw_names if (n := _normalize_ref_name(raw))})
     empty = {n: dict(name=n, leagues=set(), cards=0, fouls=0, yellows=0, reds=0, matches=0) for n in normalized}
@@ -288,12 +304,7 @@ def referee_aliases(raw_names):
         if not normalized_name:
             continue
         name = remap[normalized_name]
-        parts = name.split()
-        # Signature, not longest display name, keeps URLs stable when full names arrive.
-        signature = parts[0].rstrip(".")[:1] + " " + parts[-1] if len(parts) > 1 else name
-        slug = re.sub(r"[^\w]+", "-", signature, flags=re.UNICODE).strip("-")
-        key = slug[:110] + "-" + sha256(signature.encode()).hexdigest()[:8]
-        result.append({"raw_name": raw, "referee_key": key, "name": name.title()})
+        result.append({"raw_name": raw, "referee_key": referee_key(name), "name": name.title()})
     return result
 
 

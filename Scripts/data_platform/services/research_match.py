@@ -22,12 +22,14 @@ from .. import fair_prices as fp
 from ..reference_price import audit_books
 from .match_read_metrics import match_metrics
 from ..research_stats import normalize_research_row
-from .research_profiles import add_known, iso, most_common_position, starter, team_summary
+from .research_profiles import (add_known, iso, most_common_position, raw_referee_key, referee_summary,
+                                referee_values, starter, team_summary)
 from .research_upcoming import Read, _figure, _time, kickoff_utc, match_entry, one_decimal, refs_for
 
 SCHEMA_VERSION = "research-match.v1"
 TOTALS_KEYS = {"cards": "totals_cards_over_under", "goals": "totals", "corners": "totals_corners_over_under"}
 LAST_MATCHES, BOOKED, SHOOTERS, SHOOTER_FORM, STARTS_WINDOW = 10, 5, 8, 10, 5
+REFEREE_MATCHES, H2H_MATCHES, H2H_SINCE = 10, 6, 2023
 
 
 def _results(canonical_results) -> List[Mapping[str, Any]]:
@@ -141,6 +143,28 @@ def league_rank(rows: Sequence[Mapping[str, Any]], team_id: int) -> Optional[dic
             "peer_count": len(values)}
 
 
+def _played(row: Mapping[str, Any]) -> Dict[str, Any]:
+    """A finished match's totals from both sides' statistics, under the profiles' count rules."""
+    row = normalize_research_row("referee", row)
+    corners = add_known(row.get("home_stats_corners"), row.get("away_stats_corners"))
+    return {"cards": referee_values(row)["cards"], "corners": corners,
+            "goals": add_known(row.get("home_goals"), row.get("away_goals"))}
+
+
+def meeting(row: Mapping[str, Any]) -> dict:
+    return {"event_id": str(row["api_football_id"]), "date": iso(row["kickoff_utc"]),
+            "competition": {"code": row["competition"], "name": row["competition_name"]},
+            "home": {"id": row["home_team_id"], "name": row["home_name"]},
+            "away": {"id": row["away_team_id"], "name": row["away_name"]},
+            "score": {"home": row["home_goals"], "away": row["away_goals"]}, **_played(row)}
+
+
+def cards_per_match(rows: Sequence[Mapping[str, Any]]) -> tuple:
+    """(matches with both sides' statistics, their cards a match to one decimal)."""
+    summary = referee_summary(rows)
+    return summary["matches"], one_decimal(summary["metrics"]["cards"]["value"])
+
+
 class ResearchMatchService:
     def __init__(self, repo, *, load_read: Callable[[str], Optional[Read]], now: Callable[[], datetime],
                  outlook_hours: int):
@@ -155,13 +179,20 @@ class ResearchMatchService:
             refs = refs_for(self.repo, session, [row["referee"]])
             seasons: Dict[int, list] = {}
             teams = {side: self._team(session, row, side, seasons) for side in ("home", "away")}
+            referee = self._referee(session, row, refs.get(row["referee"]))
+            h2h = [meeting(r) for r in self.repo.h2h(session, row["home_team_id"], row["away_team_id"],
+                                                    since_year=H2H_SINCE, before=kickoff_utc(row),
+                                                    limit=H2H_MATCHES)]
         read = self.load_read(str(row["api_football_id"]))
         fixture = {**match_entry(row, refs, load_read=lambda _: read, now=now, outlook_hours=self.outlook_hours),
                    "status": row["status"]}
+        dates = [m["date"] for side in teams.values() for m in side["last_matches"]]
+        dates += [m["date"] for m in (referee or {}).get("last_matches", [])] + [m["date"] for m in h2h]
         return {"schema_version": SCHEMA_VERSION, "fixture": fixture,
                 "read": None if read is None else read_block(read[0], read[1], status=fixture["read"]["status"]),
-                "teams": teams, "referee": None, "h2h": [], "lineups": None,
-                "data_basis": {"generated_at": iso(now)}}
+                "teams": teams, "referee": referee, "h2h": h2h, "lineups": None,
+                "data_basis": {"latest_finished_kickoff": max(dates) if dates else None, "generated_at": iso(now),
+                               "source": "canonical_database", "h2h_since_season": H2H_SINCE}}
 
     def _team(self, session, row, side, seasons) -> dict:
         team_id, before, year = row[f"{side}_team_id"], kickoff_utc(row), row["season_year"]
@@ -185,3 +216,25 @@ class ResearchMatchService:
                            for r in self.repo.booked(session, team_id, year=year, before=before, limit=BOOKED)],
                 "shooters": [{**p, "last_10": form[p["player_id"]]} for p in starters],
                 "allowed": allowed}
+
+    def _referee(self, session, row, ref) -> Optional[dict]:
+        """The named referee's season in every competition, the match's competition's average, his last 10."""
+        if ref is None:
+            return None
+        before, year, key = kickoff_utc(row), row["season_year"], ref["referee_key"]
+        names = self.repo.season_referee_names(session, year=year)
+        aliases = {r["raw_name"] for r in self.repo.alias_rows(session, keys=[key])} | {row["referee"]}
+        aliases |= {name for name in names if raw_referee_key(name) == key}
+        season = [r for r in self.repo.referee_rows(session, year, sorted(aliases))
+                  if kickoff_utc(r) < before]
+        matches, per_match = cards_per_match(season)
+        league_matches, league_per_match = cards_per_match(
+            self.repo.season_matches(session, row["season_id"], before=before))
+        return {**ref, "matches": matches, "cards_per_match": per_match,
+                "league": {"code": row["competition_code"], "name": row["competition_name"]},
+                "league_matches": league_matches, "league_cards_per_match": league_per_match,
+                "last_matches": [{"date": iso(r["kickoff_utc"]),
+                                  "competition": {"code": r["competition"], "name": r["competition_name"]},
+                                  "home": r["home_name"], "away": r["away_name"], "cards": _played(r)["cards"]}
+                                 for r in self.repo.referee_recent(session, sorted(aliases), before=before,
+                                                                   limit=REFEREE_MATCHES)]}

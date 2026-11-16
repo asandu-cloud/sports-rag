@@ -154,6 +154,15 @@ def test_referee_name_aliases_merge_and_key_survives_full_name_arrival():
     assert keys["M. Taylor"] != keys["A. Taylor"]
 
 
+def test_a_referees_key_from_any_one_name_equals_the_builds_key():
+    from data_platform.services.research_profiles import raw_referee_key
+    names = ["A. Taylor", "Anthony Taylor, England", "M. Oliver", "Michael Oliver", "Michael Oliver, England",
+             "Pierluigi", "J. Alberola Rojas", "Javier Alberola Rojas, Spain"]
+    built = {row["raw_name"]: row["referee_key"] for row in referee_aliases(names)}
+    assert {name: raw_referee_key(name) for name in names} == built
+    assert raw_referee_key("  ") is None and raw_referee_key(None) is None
+
+
 def test_headline_extremeness_priority_ties_and_no_advice():
     metrics = {name: {"value": 1.25, "percentile": pct, "rank": 1, "peer_count": 20,
                       "unit": "per_90", "coverage": {"missing_matches": 0}}
