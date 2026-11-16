@@ -33,8 +33,8 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
 | 3 | The rebuilt Most likely pool | Done 16 Nov | 14ba2c2 | 89e0ad2 | 7 new, all pass; suite 3,139 passed + the 3 known errors |
 | 4 | Today's rules and the engine's rules | Done 16 Nov | 02ab071 | d87493a | 12 new, all pass; suite 3,151 passed + the 3 known errors |
 | 5 | Forecasts, walk-forward runner, zero and control lines | Done 16 Nov | fb94888 | a2a93ed | 8 new, all pass; suite 3,159 passed + the 3 known errors |
-| 6 | The scores | Done 16 Nov | c6966dd | the "Done game-read task 6" commit | 10 new + 1 in task 4's, all pass; suite 3,169 passed + the 3 known errors |
-| 7 | Bench command, report, Opportunities, locked-run guard | Not started | | | |
+| 6 | The scores | Done 16 Nov | c6966dd | 9fbec27 | 10 new + 1 in task 4's, all pass; suite 3,169 passed + the 3 known errors |
+| 7 | Bench command, report, Opportunities, locked-run guard | In progress | the "Start game-read task 7" commit | | |
 | 8 | Elo (model 1) | Not started | | | |
 | 9 | Pi-ratings (model 2) | Not started | | | |
 | 10 | Dixon–Coles with time decay (model 3) | Not started | | | |
