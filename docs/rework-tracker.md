@@ -2768,6 +2768,13 @@ test bets (Over 2.5 cards in Chelsea's next match; a player's shots on target) t
     likely outfield starters with their starts in the last 5, and a line that injuries are not in Spix's data yet.
     Add goes through app.js's research-add-leg into the slip with Spix's chance, as on the match page (checked in a
     browser: Over 2.5 goals at 1.34, 72%). Cache tag research-20261116i.
+  - Task 10, 16 Nov (open): the frontend's self-review fixed three things (result chances drawn as numbers only, no
+    "NaN%" when a line has no chance, the shots on target team filter resets on another match; cache tag
+    research-20261116j). All 16 JS test files pass. Python: 3099 passed, 3 errors, all in
+    test_phase4_baseline_freeze: the replay refuses Index/ml_models/model_r2.json reached through this worktree's
+    Index link (no Python changed on the branch). Still to do: every research view against the real endpoints on 8100
+    once B1 and B2 (backend d7d7da9) are merged into main and here. Static files only: no migration, no .env line; the
+    website needs no restart beyond the usual one after a merge.
 
 **D108 — Why cards were missing at kickoff (15 Nov; backend, read-only).** The orchestrator asked why so few
 domestic matches had a card on the board at kickoff (D77, task 2). Checked on the 10 domestic leagues, 5 Sep–14 Nov,
