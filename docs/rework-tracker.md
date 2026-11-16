@@ -2772,7 +2772,7 @@ raw responses, under full player names, and one bookmaker breaks the two-bookmak
   are passed through for Add. `lineups` is null: a read keeps only whether line-ups were confirmed, not the
   players. 5 tests, on reads built in the stored shape; the full suite 3,110 passed, plus the 3 known errors.
   On 12 real reads of 7–9 Nov: goals and corners lines in every one, cards lines (2.5–5.5) in the 6 whose league
-  has 2 or more bookmakers pricing cards.
+  has 2 or more bookmakers pricing cards. One of them (Atlético Madrid v Barcelona) is kept, trimmed, as a test.
 - Task 3 (16 Nov): each team in the match view. Its last 10 finished matches in every competition (cards, corners,
   goals and shots on target for and against; a missing statistics row leaves them unknown, never 0). The 5 players
   with the most cards this season. Up to 8 likely starters (most starts in the last 5, no goalkeepers), each with

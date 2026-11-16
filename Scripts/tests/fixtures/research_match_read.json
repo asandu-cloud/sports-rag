@@ -1,0 +1,3939 @@
+{
+ "canonical_results": [
+  {
+   "context": {
+    "decision_audit": {
+     "input_options": [
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals",
+       "odds": 1.1,
+       "period": "regulation_time",
+       "point": 1.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals",
+       "odds": 7.0,
+       "period": "regulation_time",
+       "point": 1.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals",
+       "odds": 1.36,
+       "period": "regulation_time",
+       "point": 2.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals",
+       "odds": 3.2,
+       "period": "regulation_time",
+       "point": 2.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals",
+       "odds": 1.91,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals",
+       "odds": 1.91,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals",
+       "odds": 1.01,
+       "period": "regulation_time",
+       "point": 0.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals",
+       "odds": 26.0,
+       "period": "regulation_time",
+       "point": 0.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals",
+       "odds": 29.0,
+       "period": "regulation_time",
+       "point": 8.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals",
+       "odds": 1.01,
+       "period": "regulation_time",
+       "point": 8.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals",
+       "odds": 51.0,
+       "period": "regulation_time",
+       "point": 9.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals",
+       "odds": 3.0,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals",
+       "odds": 1.4,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals",
+       "odds": 19.0,
+       "period": "regulation_time",
+       "point": 7.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals",
+       "odds": 1.02,
+       "period": "regulation_time",
+       "point": 7.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals",
+       "odds": 5.0,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals",
+       "odds": 1.17,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals",
+       "odds": 10.0,
+       "period": "regulation_time",
+       "point": 6.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals",
+       "odds": 1.06,
+       "period": "regulation_time",
+       "point": 6.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.07,
+       "period": "regulation_time",
+       "point": 1.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 6.82,
+       "period": "regulation_time",
+       "point": 1.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.08,
+       "period": "regulation_time",
+       "point": 1.75,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 6.35,
+       "period": "regulation_time",
+       "point": 1.75,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.11,
+       "period": "regulation_time",
+       "point": 2.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 5.95,
+       "period": "regulation_time",
+       "point": 2.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.21,
+       "period": "regulation_time",
+       "point": 2.25,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 4.02,
+       "period": "regulation_time",
+       "point": 2.25,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.34,
+       "period": "regulation_time",
+       "point": 2.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 3.2,
+       "period": "regulation_time",
+       "point": 2.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.39,
+       "period": "regulation_time",
+       "point": 2.75,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 2.9,
+       "period": "regulation_time",
+       "point": 2.75,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.92,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 2.02,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 11.6,
+       "period": "regulation_time",
+       "point": 0.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 11.6,
+       "period": "regulation_time",
+       "point": 8.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 11.6,
+       "period": "regulation_time",
+       "point": 9.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.5,
+       "period": "regulation_time",
+       "point": 3.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 2.65,
+       "period": "regulation_time",
+       "point": 3.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 2.86,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.43,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.68,
+       "period": "regulation_time",
+       "point": 3.25,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 2.22,
+       "period": "regulation_time",
+       "point": 3.25,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 2.12,
+       "period": "regulation_time",
+       "point": 3.75,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.84,
+       "period": "regulation_time",
+       "point": 3.75,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 2.39,
+       "period": "regulation_time",
+       "point": 4.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.62,
+       "period": "regulation_time",
+       "point": 4.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 2.61,
+       "period": "regulation_time",
+       "point": 4.25,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.5,
+       "period": "regulation_time",
+       "point": 4.25,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 3.3,
+       "period": "regulation_time",
+       "point": 4.75,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.3,
+       "period": "regulation_time",
+       "point": 4.75,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 4.24,
+       "period": "regulation_time",
+       "point": 5.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.21,
+       "period": "regulation_time",
+       "point": 5.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 9.8,
+       "period": "regulation_time",
+       "point": 7.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.02,
+       "period": "regulation_time",
+       "point": 7.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 4.82,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.16,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 4.46,
+       "period": "regulation_time",
+       "point": 5.25,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.16,
+       "period": "regulation_time",
+       "point": 5.25,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 8.55,
+       "period": "regulation_time",
+       "point": 6.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.04,
+       "period": "regulation_time",
+       "point": 6.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 7.9,
+       "period": "regulation_time",
+       "point": 6.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals",
+       "odds": 1.06,
+       "period": "regulation_time",
+       "point": 6.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 1.07,
+       "period": "regulation_time",
+       "point": 1.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 8.0,
+       "period": "regulation_time",
+       "point": 1.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 1.24,
+       "period": "regulation_time",
+       "point": 2.25,
+       "side": "over"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 3.55,
+       "period": "regulation_time",
+       "point": 2.25,
+       "side": "under"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 1.34,
+       "period": "regulation_time",
+       "point": 2.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 2.91,
+       "period": "regulation_time",
+       "point": 2.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 1.4,
+       "period": "regulation_time",
+       "point": 2.75,
+       "side": "over"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 2.68,
+       "period": "regulation_time",
+       "point": 2.75,
+       "side": "under"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 1.81,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 1.86,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 1.48,
+       "period": "regulation_time",
+       "point": 3.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 2.42,
+       "period": "regulation_time",
+       "point": 3.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 2.71,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 1.39,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 1.64,
+       "period": "regulation_time",
+       "point": 3.25,
+       "side": "over"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 2.07,
+       "period": "regulation_time",
+       "point": 3.25,
+       "side": "under"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 1.99,
+       "period": "regulation_time",
+       "point": 3.75,
+       "side": "over"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 1.7,
+       "period": "regulation_time",
+       "point": 3.75,
+       "side": "under"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 2.27,
+       "period": "regulation_time",
+       "point": 4.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 1.54,
+       "period": "regulation_time",
+       "point": 4.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 2.5,
+       "period": "regulation_time",
+       "point": 4.25,
+       "side": "over"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 1.45,
+       "period": "regulation_time",
+       "point": 4.25,
+       "side": "under"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 3.15,
+       "period": "regulation_time",
+       "point": 4.75,
+       "side": "over"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 1.29,
+       "period": "regulation_time",
+       "point": 4.75,
+       "side": "under"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 3.65,
+       "period": "regulation_time",
+       "point": 5.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 1.23,
+       "period": "regulation_time",
+       "point": 5.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 5.75,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "totals",
+       "odds": 1.13,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 1.11,
+       "period": "regulation_time",
+       "point": 1.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 6.7,
+       "period": "regulation_time",
+       "point": 1.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 1.35,
+       "period": "regulation_time",
+       "point": 2.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 3.2,
+       "period": "regulation_time",
+       "point": 2.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 1.88,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 1.98,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 1.02,
+       "period": "regulation_time",
+       "point": 0.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 14.5,
+       "period": "regulation_time",
+       "point": 0.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 17.0,
+       "period": "regulation_time",
+       "point": 8.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 1.01,
+       "period": "regulation_time",
+       "point": 8.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 1.5,
+       "period": "regulation_time",
+       "point": 3.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 2.65,
+       "period": "regulation_time",
+       "point": 3.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 2.92,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 1.44,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 2.4,
+       "period": "regulation_time",
+       "point": 4.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 1.6,
+       "period": "regulation_time",
+       "point": 4.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 13.0,
+       "period": "regulation_time",
+       "point": 7.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 1.03,
+       "period": "regulation_time",
+       "point": 7.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 4.8,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 1.19,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 8.25,
+       "period": "regulation_time",
+       "point": 6.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals",
+       "odds": 1.08,
+       "period": "regulation_time",
+       "point": 6.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals",
+       "odds": 1.06,
+       "period": "regulation_time",
+       "point": 1.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals",
+       "odds": 7.5,
+       "period": "regulation_time",
+       "point": 1.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals",
+       "odds": 1.29,
+       "period": "regulation_time",
+       "point": 2.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals",
+       "odds": 3.3,
+       "period": "regulation_time",
+       "point": 2.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals",
+       "odds": 1.75,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals",
+       "odds": 1.95,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals",
+       "odds": 2.88,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals",
+       "odds": 1.36,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals",
+       "odds": 17.0,
+       "period": "regulation_time",
+       "point": 7.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals",
+       "odds": 1.01,
+       "period": "regulation_time",
+       "point": 7.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals",
+       "odds": 4.8,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals",
+       "odds": 1.14,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals",
+       "odds": 8.0,
+       "period": "regulation_time",
+       "point": 6.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals",
+       "odds": 1.05,
+       "period": "regulation_time",
+       "point": 6.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 1.05,
+       "period": "regulation_time",
+       "point": 1.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 6.65,
+       "period": "regulation_time",
+       "point": 1.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 1.06,
+       "period": "regulation_time",
+       "point": 1.75,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 6.25,
+       "period": "regulation_time",
+       "point": 1.75,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 1.08,
+       "period": "regulation_time",
+       "point": 2.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 5.8,
+       "period": "regulation_time",
+       "point": 2.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 1.19,
+       "period": "regulation_time",
+       "point": 2.25,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 3.96,
+       "period": "regulation_time",
+       "point": 2.25,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 1.31,
+       "period": "regulation_time",
+       "point": 2.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 3.12,
+       "period": "regulation_time",
+       "point": 2.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 1.37,
+       "period": "regulation_time",
+       "point": 2.75,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 2.86,
+       "period": "regulation_time",
+       "point": 2.75,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 1.87,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 1.96,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 1.46,
+       "period": "regulation_time",
+       "point": 3.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 2.57,
+       "period": "regulation_time",
+       "point": 3.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 2.77,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 1.38,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 1.65,
+       "period": "regulation_time",
+       "point": 3.25,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 2.17,
+       "period": "regulation_time",
+       "point": 3.25,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 2.02,
+       "period": "regulation_time",
+       "point": 3.75,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 1.75,
+       "period": "regulation_time",
+       "point": 3.75,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 2.31,
+       "period": "regulation_time",
+       "point": 4.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 1.56,
+       "period": "regulation_time",
+       "point": 4.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 2.54,
+       "period": "regulation_time",
+       "point": 4.25,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 1.46,
+       "period": "regulation_time",
+       "point": 4.25,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 3.24,
+       "period": "regulation_time",
+       "point": 4.75,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 1.28,
+       "period": "regulation_time",
+       "point": 4.75,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 4.1,
+       "period": "regulation_time",
+       "point": 5.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 1.17,
+       "period": "regulation_time",
+       "point": 5.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 4.65,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 1.12,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 4.4,
+       "period": "regulation_time",
+       "point": 5.25,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 1.14,
+       "period": "regulation_time",
+       "point": 5.25,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 7.7,
+       "period": "regulation_time",
+       "point": 6.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals",
+       "odds": 1.02,
+       "period": "regulation_time",
+       "point": 6.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals",
+       "odds": 1.34,
+       "period": "regulation_time",
+       "point": 2.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals",
+       "odds": 3.34,
+       "period": "regulation_time",
+       "point": 2.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals",
+       "odds": 1.4,
+       "period": "regulation_time",
+       "point": 2.75,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals",
+       "odds": 3.02,
+       "period": "regulation_time",
+       "point": 2.75,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals",
+       "odds": 1.88,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals",
+       "odds": 2.02,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals",
+       "odds": 1.49,
+       "period": "regulation_time",
+       "point": 3.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals",
+       "odds": 2.71,
+       "period": "regulation_time",
+       "point": 3.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals",
+       "odds": 2.87,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals",
+       "odds": 1.44,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals",
+       "odds": 1.68,
+       "period": "regulation_time",
+       "point": 3.25,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals",
+       "odds": 2.27,
+       "period": "regulation_time",
+       "point": 3.25,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals",
+       "odds": 2.07,
+       "period": "regulation_time",
+       "point": 3.75,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals",
+       "odds": 1.82,
+       "period": "regulation_time",
+       "point": 3.75,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals",
+       "odds": 2.36,
+       "period": "regulation_time",
+       "point": 4.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals",
+       "odds": 1.62,
+       "period": "regulation_time",
+       "point": 4.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals",
+       "odds": 2.61,
+       "period": "regulation_time",
+       "point": 4.25,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals",
+       "odds": 1.52,
+       "period": "regulation_time",
+       "point": 4.25,
+       "side": "under"
+      },
+      {
+       "bookmaker": "SBO",
+       "market_key": "totals",
+       "odds": 1.79,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "SBO",
+       "market_key": "totals",
+       "odds": 2.07,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "SBO",
+       "market_key": "totals",
+       "odds": 1.62,
+       "period": "regulation_time",
+       "point": 3.25,
+       "side": "over"
+      },
+      {
+       "bookmaker": "SBO",
+       "market_key": "totals",
+       "odds": 2.31,
+       "period": "regulation_time",
+       "point": 3.25,
+       "side": "under"
+      },
+      {
+       "bookmaker": "SBO",
+       "market_key": "totals",
+       "odds": 1.99,
+       "period": "regulation_time",
+       "point": 3.75,
+       "side": "over"
+      },
+      {
+       "bookmaker": "SBO",
+       "market_key": "totals",
+       "odds": 1.87,
+       "period": "regulation_time",
+       "point": 3.75,
+       "side": "under"
+      }
+     ]
+    },
+    "market_anchor": {
+     "goal_figures": {
+      "away_goals": 2.164005115259483,
+      "btts_yes": 0.6999598961607678,
+      "goal_difference": -0.5995701790252861,
+      "home_goals": 1.5644349362341967,
+      "total_goals": 3.7284400514936795
+     }
+    }
+   },
+   "fixture": {
+    "away_team": "Barcelona",
+    "event_id": "1570443",
+    "home_team": "Atletico Madrid",
+    "kickoff": "2026-11-08T20:00:00Z",
+    "league": "LaLiga"
+   },
+   "market": {
+    "group": "goals",
+    "key": "totals"
+   },
+   "projection": {
+    "components": {
+     "distribution_version": "dixon_coles.v2",
+     "variance_source": "shared_goal_score_distribution"
+    },
+    "value": 3.7001219886774197
+   }
+  },
+  {
+   "context": {
+    "decision_audit": {
+     "input_options": [
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.82,
+       "period": "regulation_time",
+       "point": 10.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.98,
+       "period": "regulation_time",
+       "point": 10.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.0,
+       "period": "regulation_time",
+       "point": 10.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.73,
+       "period": "regulation_time",
+       "point": 10.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.37,
+       "period": "regulation_time",
+       "point": 8.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.8,
+       "period": "regulation_time",
+       "point": 8.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.62,
+       "period": "regulation_time",
+       "point": 9.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.14,
+       "period": "regulation_time",
+       "point": 9.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.04,
+       "period": "regulation_time",
+       "point": 10.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.73,
+       "period": "regulation_time",
+       "point": 10.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 17.0,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.18,
+       "period": "regulation_time",
+       "point": 7.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 4.0,
+       "period": "regulation_time",
+       "point": 7.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.03,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 9.0,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.5,
+       "period": "regulation_time",
+       "point": 11.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.45,
+       "period": "regulation_time",
+       "point": 11.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 3.3,
+       "period": "regulation_time",
+       "point": 12.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.26,
+       "period": "regulation_time",
+       "point": 12.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.06,
+       "period": "regulation_time",
+       "point": 6.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 6.2,
+       "period": "regulation_time",
+       "point": 6.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 4.5,
+       "period": "regulation_time",
+       "point": 13.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.14,
+       "period": "regulation_time",
+       "point": 13.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 6.1,
+       "period": "regulation_time",
+       "point": 14.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.07,
+       "period": "regulation_time",
+       "point": 14.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 11.0,
+       "period": "regulation_time",
+       "point": 15.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.01,
+       "period": "regulation_time",
+       "point": 15.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.25,
+       "period": "regulation_time",
+       "point": 8.25,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 3.34,
+       "period": "regulation_time",
+       "point": 8.25,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.53,
+       "period": "regulation_time",
+       "point": 8.75,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.29,
+       "period": "regulation_time",
+       "point": 8.75,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.51,
+       "period": "regulation_time",
+       "point": 9.25,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.38,
+       "period": "regulation_time",
+       "point": 9.25,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.69,
+       "period": "regulation_time",
+       "point": 9.75,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.1,
+       "period": "regulation_time",
+       "point": 9.75,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.86,
+       "period": "regulation_time",
+       "point": 10.25,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.82,
+       "period": "regulation_time",
+       "point": 10.25,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.16,
+       "period": "regulation_time",
+       "point": 7.75,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 4.1,
+       "period": "regulation_time",
+       "point": 7.75,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.09,
+       "period": "regulation_time",
+       "point": 10.75,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.61,
+       "period": "regulation_time",
+       "point": 10.75,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.38,
+       "period": "regulation_time",
+       "point": 11.25,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.46,
+       "period": "regulation_time",
+       "point": 11.25,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.01,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 14.0,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.36,
+       "period": "regulation_time",
+       "point": 8.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 3.0,
+       "period": "regulation_time",
+       "point": 8.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.62,
+       "period": "regulation_time",
+       "point": 9.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.22,
+       "period": "regulation_time",
+       "point": 9.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.8,
+       "period": "regulation_time",
+       "point": 10.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.02,
+       "period": "regulation_time",
+       "point": 10.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.0,
+       "period": "regulation_time",
+       "point": 10.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.75,
+       "period": "regulation_time",
+       "point": 10.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.02,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 12.0,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.19,
+       "period": "regulation_time",
+       "point": 7.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 4.35,
+       "period": "regulation_time",
+       "point": 7.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.04,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 9.0,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.62,
+       "period": "regulation_time",
+       "point": 11.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.45,
+       "period": "regulation_time",
+       "point": 11.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 3.55,
+       "period": "regulation_time",
+       "point": 12.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.27,
+       "period": "regulation_time",
+       "point": 12.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.1,
+       "period": "regulation_time",
+       "point": 6.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 6.3,
+       "period": "regulation_time",
+       "point": 6.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 4.9,
+       "period": "regulation_time",
+       "point": 13.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.16,
+       "period": "regulation_time",
+       "point": 13.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 10.5,
+       "period": "regulation_time",
+       "point": 16.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.03,
+       "period": "regulation_time",
+       "point": 16.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 6.6,
+       "period": "regulation_time",
+       "point": 14.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.09,
+       "period": "regulation_time",
+       "point": 14.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 12.0,
+       "period": "regulation_time",
+       "point": 17.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.01,
+       "period": "regulation_time",
+       "point": 17.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 14.0,
+       "period": "regulation_time",
+       "point": 18.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.01,
+       "period": "regulation_time",
+       "point": 18.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 8.75,
+       "period": "regulation_time",
+       "point": 15.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.05,
+       "period": "regulation_time",
+       "point": 15.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.4,
+       "period": "regulation_time",
+       "point": 8.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.75,
+       "period": "regulation_time",
+       "point": 8.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.73,
+       "period": "regulation_time",
+       "point": 9.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.0,
+       "period": "regulation_time",
+       "point": 9.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.2,
+       "period": "regulation_time",
+       "point": 10.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.6,
+       "period": "regulation_time",
+       "point": 10.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.01,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 17.0,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.2,
+       "period": "regulation_time",
+       "point": 7.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 4.0,
+       "period": "regulation_time",
+       "point": 7.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.03,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 9.0,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.88,
+       "period": "regulation_time",
+       "point": 11.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.36,
+       "period": "regulation_time",
+       "point": 11.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 4.0,
+       "period": "regulation_time",
+       "point": 12.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.2,
+       "period": "regulation_time",
+       "point": 12.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.08,
+       "period": "regulation_time",
+       "point": 6.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 6.5,
+       "period": "regulation_time",
+       "point": 6.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 5.5,
+       "period": "regulation_time",
+       "point": 13.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.11,
+       "period": "regulation_time",
+       "point": 13.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 8.0,
+       "period": "regulation_time",
+       "point": 14.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.05,
+       "period": "regulation_time",
+       "point": 14.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 11.0,
+       "period": "regulation_time",
+       "point": 15.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.01,
+       "period": "regulation_time",
+       "point": 15.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.33,
+       "period": "regulation_time",
+       "point": 8.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.93,
+       "period": "regulation_time",
+       "point": 8.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.6,
+       "period": "regulation_time",
+       "point": 9.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.19,
+       "period": "regulation_time",
+       "point": 9.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.97,
+       "period": "regulation_time",
+       "point": 10.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.71,
+       "period": "regulation_time",
+       "point": 10.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.15,
+       "period": "regulation_time",
+       "point": 7.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals_corners_over_under",
+       "odds": 4.25,
+       "period": "regulation_time",
+       "point": 7.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.52,
+       "period": "regulation_time",
+       "point": 11.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.41,
+       "period": "regulation_time",
+       "point": 11.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals_corners_over_under",
+       "odds": 3.42,
+       "period": "regulation_time",
+       "point": 12.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.23,
+       "period": "regulation_time",
+       "point": 12.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.05,
+       "period": "regulation_time",
+       "point": 6.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals_corners_over_under",
+       "odds": 6.55,
+       "period": "regulation_time",
+       "point": 6.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals_corners_over_under",
+       "odds": 4.8,
+       "period": "regulation_time",
+       "point": 13.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.12,
+       "period": "regulation_time",
+       "point": 13.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals_corners_over_under",
+       "odds": 6.75,
+       "period": "regulation_time",
+       "point": 14.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.04,
+       "period": "regulation_time",
+       "point": 14.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.53,
+       "period": "regulation_time",
+       "point": 9.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.46,
+       "period": "regulation_time",
+       "point": 9.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.72,
+       "period": "regulation_time",
+       "point": 9.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.12,
+       "period": "regulation_time",
+       "point": 9.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.93,
+       "period": "regulation_time",
+       "point": 10.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.92,
+       "period": "regulation_time",
+       "point": 10.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.15,
+       "period": "regulation_time",
+       "point": 10.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.71,
+       "period": "regulation_time",
+       "point": 10.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_corners_over_under",
+       "odds": 2.48,
+       "period": "regulation_time",
+       "point": 11.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_corners_over_under",
+       "odds": 1.53,
+       "period": "regulation_time",
+       "point": 11.0,
+       "side": "under"
+      }
+     ]
+    }
+   },
+   "fixture": {
+    "away_team": "Barcelona",
+    "event_id": "1570443",
+    "home_team": "Atletico Madrid",
+    "kickoff": "2026-11-08T20:00:00Z",
+    "league": "LaLiga"
+   },
+   "market": {
+    "group": "corners",
+    "key": "totals"
+   },
+   "projection": {
+    "components": {
+     "distribution_version": "count_totals.v1",
+     "variance_source": "fixed_dispersion"
+    },
+    "value": 8.92382555379689
+   }
+  },
+  {
+   "context": {
+    "decision_audit": {
+     "input_options": [
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.83,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.83,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals_cards_over_under",
+       "odds": 2.1,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.67,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.83,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.83,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_cards_over_under",
+       "odds": 2.1,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.67,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.05,
+       "period": "regulation_time",
+       "point": 1.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 8.5,
+       "period": "regulation_time",
+       "point": 1.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.16,
+       "period": "regulation_time",
+       "point": 2.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 4.9,
+       "period": "regulation_time",
+       "point": 2.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.36,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 3.0,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 6.7,
+       "period": "regulation_time",
+       "point": 8.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.09,
+       "period": "regulation_time",
+       "point": 8.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 9.0,
+       "period": "regulation_time",
+       "point": 9.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.04,
+       "period": "regulation_time",
+       "point": 9.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.72,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 2.05,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 2.02,
+       "period": "regulation_time",
+       "point": 5.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.78,
+       "period": "regulation_time",
+       "point": 5.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 4.7,
+       "period": "regulation_time",
+       "point": 7.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.17,
+       "period": "regulation_time",
+       "point": 7.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 2.3,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.57,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 3.25,
+       "period": "regulation_time",
+       "point": 6.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.31,
+       "period": "regulation_time",
+       "point": 6.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.34,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_cards_over_under",
+       "odds": 3.14,
+       "period": "regulation_time",
+       "point": 3.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.8,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_cards_over_under",
+       "odds": 2.03,
+       "period": "regulation_time",
+       "point": 4.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.47,
+       "period": "regulation_time",
+       "point": 4.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_cards_over_under",
+       "odds": 2.65,
+       "period": "regulation_time",
+       "point": 4.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_cards_over_under",
+       "odds": 2.23,
+       "period": "regulation_time",
+       "point": 5.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.65,
+       "period": "regulation_time",
+       "point": 5.0,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_cards_over_under",
+       "odds": 2.68,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.44,
+       "period": "regulation_time",
+       "point": 5.5,
+       "side": "under"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_cards_over_under",
+       "odds": 3.54,
+       "period": "regulation_time",
+       "point": 6.0,
+       "side": "over"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "totals_cards_over_under",
+       "odds": 1.27,
+       "period": "regulation_time",
+       "point": 6.0,
+       "side": "under"
+      }
+     ]
+    }
+   },
+   "fixture": {
+    "away_team": "Barcelona",
+    "event_id": "1570443",
+    "home_team": "Atletico Madrid",
+    "kickoff": "2026-11-08T20:00:00Z",
+    "league": "LaLiga"
+   },
+   "market": {
+    "group": "cards",
+    "key": "totals"
+   },
+   "projection": {
+    "components": {
+     "distribution_version": "count_totals.v1",
+     "variance_source": "conservative_floor_over_profile_variance"
+    },
+    "value": 4.019
+   }
+  },
+  {
+   "context": {
+    "decision_audit": {
+     "input_options": [
+      {
+       "bookmaker": "Bet365",
+       "market_key": "btts",
+       "odds": 1.33,
+       "period": "regulation_time",
+       "side": "Yes"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "btts",
+       "odds": 3.25,
+       "period": "regulation_time",
+       "side": "No"
+      },
+      {
+       "bookmaker": "William Hill",
+       "market_key": "btts",
+       "odds": 1.36,
+       "period": "regulation_time",
+       "side": "Yes"
+      },
+      {
+       "bookmaker": "William Hill",
+       "market_key": "btts",
+       "odds": 3.1,
+       "period": "regulation_time",
+       "side": "No"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "btts",
+       "odds": 1.32,
+       "period": "regulation_time",
+       "side": "Yes"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "btts",
+       "odds": 3.15,
+       "period": "regulation_time",
+       "side": "No"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "btts",
+       "odds": 1.3,
+       "period": "regulation_time",
+       "side": "Yes"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "btts",
+       "odds": 3.1,
+       "period": "regulation_time",
+       "side": "No"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "btts",
+       "odds": 1.36,
+       "period": "regulation_time",
+       "side": "Yes"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "btts",
+       "odds": 2.95,
+       "period": "regulation_time",
+       "side": "No"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "btts",
+       "odds": 1.33,
+       "period": "regulation_time",
+       "side": "Yes"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "btts",
+       "odds": 3.1,
+       "period": "regulation_time",
+       "side": "No"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "btts",
+       "odds": 1.32,
+       "period": "regulation_time",
+       "side": "Yes"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "btts",
+       "odds": 3.1,
+       "period": "regulation_time",
+       "side": "No"
+      }
+     ]
+    },
+    "market_anchor": {
+     "goal_figures": {
+      "away_goals": 2.164005115259483,
+      "btts_yes": 0.6999598961607678,
+      "goal_difference": -0.5995701790252861,
+      "home_goals": 1.5644349362341967,
+      "total_goals": 3.7284400514936795
+     }
+    }
+   },
+   "fixture": {
+    "away_team": "Barcelona",
+    "event_id": "1570443",
+    "home_team": "Atletico Madrid",
+    "kickoff": "2026-11-08T20:00:00Z",
+    "league": "LaLiga"
+   },
+   "market": {
+    "group": "btts",
+    "key": "btts"
+   },
+   "projection": {
+    "components": {
+     "away_goals": 2.3329663154171096,
+     "home_goals": 1.36715567326031,
+     "yes_probability": 0.680766870602265
+    },
+    "value": 0.680766870602265
+   }
+  },
+  {
+   "context": {
+    "decision_audit": {
+     "input_options": [
+      {
+       "bookmaker": "Bet365",
+       "market_key": "h2h",
+       "odds": 3.4,
+       "period": "regulation_time",
+       "side": "home",
+       "team": "Atletico Madrid"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "h2h",
+       "odds": 4.5,
+       "period": "regulation_time",
+       "side": "draw",
+       "team": "Draw"
+      },
+      {
+       "bookmaker": "Bet365",
+       "market_key": "h2h",
+       "odds": 1.85,
+       "period": "regulation_time",
+       "side": "away",
+       "team": "Barcelona"
+      },
+      {
+       "bookmaker": "William Hill",
+       "market_key": "h2h",
+       "odds": 3.3,
+       "period": "regulation_time",
+       "side": "home",
+       "team": "Atletico Madrid"
+      },
+      {
+       "bookmaker": "William Hill",
+       "market_key": "h2h",
+       "odds": 4.0,
+       "period": "regulation_time",
+       "side": "draw",
+       "team": "Draw"
+      },
+      {
+       "bookmaker": "William Hill",
+       "market_key": "h2h",
+       "odds": 1.85,
+       "period": "regulation_time",
+       "side": "away",
+       "team": "Barcelona"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "h2h",
+       "odds": 3.62,
+       "period": "regulation_time",
+       "side": "home",
+       "team": "Atletico Madrid"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "h2h",
+       "odds": 4.32,
+       "period": "regulation_time",
+       "side": "draw",
+       "team": "Draw"
+      },
+      {
+       "bookmaker": "1xBet",
+       "market_key": "h2h",
+       "odds": 1.97,
+       "period": "regulation_time",
+       "side": "away",
+       "team": "Barcelona"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "h2h",
+       "odds": 3.6,
+       "period": "regulation_time",
+       "side": "home",
+       "team": "Atletico Madrid"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "h2h",
+       "odds": 4.33,
+       "period": "regulation_time",
+       "side": "draw",
+       "team": "Draw"
+      },
+      {
+       "bookmaker": "BetVictor",
+       "market_key": "h2h",
+       "odds": 1.83,
+       "period": "regulation_time",
+       "side": "away",
+       "team": "Barcelona"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "h2h",
+       "odds": 3.65,
+       "period": "regulation_time",
+       "side": "home",
+       "team": "Atletico Madrid"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "h2h",
+       "odds": 4.55,
+       "period": "regulation_time",
+       "side": "draw",
+       "team": "Draw"
+      },
+      {
+       "bookmaker": "Betano",
+       "market_key": "h2h",
+       "odds": 1.9,
+       "period": "regulation_time",
+       "side": "away",
+       "team": "Barcelona"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "h2h",
+       "odds": 3.4,
+       "period": "regulation_time",
+       "side": "home",
+       "team": "Atletico Madrid"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "h2h",
+       "odds": 4.5,
+       "period": "regulation_time",
+       "side": "draw",
+       "team": "Draw"
+      },
+      {
+       "bookmaker": "Betfair",
+       "market_key": "h2h",
+       "odds": 1.83,
+       "period": "regulation_time",
+       "side": "away",
+       "team": "Barcelona"
+      },
+      {
+       "bookmaker": "Dafabet",
+       "market_key": "h2h",
+       "odds": 3.85,
+       "period": "regulation_time",
+       "side": "home",
+       "team": "Atletico Madrid"
+      },
+      {
+       "bookmaker": "Dafabet",
+       "market_key": "h2h",
+       "odds": 4.4,
+       "period": "regulation_time",
+       "side": "draw",
+       "team": "Draw"
+      },
+      {
+       "bookmaker": "Dafabet",
+       "market_key": "h2h",
+       "odds": 1.8,
+       "period": "regulation_time",
+       "side": "away",
+       "team": "Barcelona"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "h2h",
+       "odds": 3.56,
+       "period": "regulation_time",
+       "side": "home",
+       "team": "Atletico Madrid"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "h2h",
+       "odds": 4.25,
+       "period": "regulation_time",
+       "side": "draw",
+       "team": "Draw"
+      },
+      {
+       "bookmaker": "Marathonbet",
+       "market_key": "h2h",
+       "odds": 1.94,
+       "period": "regulation_time",
+       "side": "away",
+       "team": "Barcelona"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "h2h",
+       "odds": 3.6,
+       "period": "regulation_time",
+       "side": "home",
+       "team": "Atletico Madrid"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "h2h",
+       "odds": 4.61,
+       "period": "regulation_time",
+       "side": "draw",
+       "team": "Draw"
+      },
+      {
+       "bookmaker": "Pinnacle",
+       "market_key": "h2h",
+       "odds": 1.88,
+       "period": "regulation_time",
+       "side": "away",
+       "team": "Barcelona"
+      },
+      {
+       "bookmaker": "SBO",
+       "market_key": "h2h",
+       "odds": 3.37,
+       "period": "regulation_time",
+       "side": "home",
+       "team": "Atletico Madrid"
+      },
+      {
+       "bookmaker": "SBO",
+       "market_key": "h2h",
+       "odds": 3.93,
+       "period": "regulation_time",
+       "side": "draw",
+       "team": "Draw"
+      },
+      {
+       "bookmaker": "SBO",
+       "market_key": "h2h",
+       "odds": 1.73,
+       "period": "regulation_time",
+       "side": "away",
+       "team": "Barcelona"
+      }
+     ]
+    },
+    "market_anchor": {
+     "market": {
+      "away": 0.5199693695780437,
+      "draw": 0.21203315675623152,
+      "home": 0.2679974736657248
+     }
+    }
+   },
+   "fixture": {
+    "away_team": "Barcelona",
+    "event_id": "1570443",
+    "home_team": "Atletico Madrid",
+    "kickoff": "2026-11-08T20:00:00Z",
+    "league": "LaLiga"
+   },
+   "market": {
+    "group": "moneyline",
+    "key": "moneyline"
+   },
+   "projection": {
+    "components": {
+     "away_goals": 2.3329663154171096,
+     "away_probability": 0.5823640883604996,
+     "draw_probability": 0.20955052072535607,
+     "home_goals": 1.36715567326031,
+     "home_probability": 0.20808539091414477
+    },
+    "value": 0.20808539091414477
+   }
+  }
+ ],
+ "card": {
+  "created_at": "2026-11-08T19:53:19.145278",
+  "provenance": {
+   "evaluated_at": "2026-11-08T19:53:14"
+  },
+  "recommendations": {
+   "markets": [
+    {
+     "market": "moneyline",
+     "options": [
+      {
+       "chance": 0.2679974736657248,
+       "label": "Atletico Madrid to win",
+       "line": null,
+       "long_shot": false,
+       "market": "moneyline",
+       "side": "home",
+       "typical_price": 3.58
+      },
+      {
+       "chance": 0.21203315675623152,
+       "label": "Draw",
+       "line": null,
+       "long_shot": true,
+       "market": "moneyline",
+       "side": "draw",
+       "typical_price": 4.37
+      },
+      {
+       "chance": 0.5199693695780437,
+       "label": "Barcelona to win",
+       "line": null,
+       "long_shot": false,
+       "market": "moneyline",
+       "side": "away",
+       "typical_price": 1.85
+      }
+     ],
+     "suggestion": {
+      "chance": 0.5199693695780437,
+      "label": "Barcelona to win",
+      "line": null,
+      "long_shot": false,
+      "market": "moneyline",
+      "side": "away",
+      "typical_price": 1.85
+     }
+    },
+    {
+     "market": "goals",
+     "options": [
+      {
+       "chance": 0.9801679866300304,
+       "label": "Over 0.5 goals",
+       "line": 0.5,
+       "long_shot": false,
+       "market": "goals",
+       "side": "over",
+       "typical_price": 1.02
+      },
+      {
+       "chance": 0.01983201336996966,
+       "label": "Under 0.5 goals",
+       "line": 0.5,
+       "long_shot": true,
+       "market": "goals",
+       "side": "under",
+       "typical_price": 14.5
+      },
+      {
+       "chance": 0.9185501516123034,
+       "label": "Over 1.5 goals",
+       "line": 1.5,
+       "long_shot": false,
+       "market": "goals",
+       "side": "over",
+       "typical_price": 1.07
+      },
+      {
+       "chance": 0.08144984838769656,
+       "label": "Under 1.5 goals",
+       "line": 1.5,
+       "long_shot": true,
+       "market": "goals",
+       "side": "under",
+       "typical_price": 6.91
+      },
+      {
+       "chance": 0.7235823130098794,
+       "label": "Over 2.5 goals",
+       "line": 2.5,
+       "long_shot": false,
+       "market": "goals",
+       "side": "over",
+       "typical_price": 1.34
+      },
+      {
+       "chance": 0.27641768699012065,
+       "label": "Under 2.5 goals",
+       "line": 2.5,
+       "long_shot": false,
+       "market": "goals",
+       "side": "under",
+       "typical_price": 3.2
+      },
+      {
+       "chance": 0.5133274067176831,
+       "label": "Over 3.5 goals",
+       "line": 3.5,
+       "long_shot": false,
+       "market": "goals",
+       "side": "over",
+       "typical_price": 1.88
+      },
+      {
+       "chance": 0.48667259328231693,
+       "label": "Under 3.5 goals",
+       "line": 3.5,
+       "long_shot": false,
+       "market": "goals",
+       "side": "under",
+       "typical_price": 1.97
+      },
+      {
+       "chance": 0.3162895659453475,
+       "label": "Over 4.5 goals",
+       "line": 4.5,
+       "long_shot": false,
+       "market": "goals",
+       "side": "over",
+       "typical_price": 2.87
+      },
+      {
+       "chance": 0.6837104340546526,
+       "label": "Under 4.5 goals",
+       "line": 4.5,
+       "long_shot": false,
+       "market": "goals",
+       "side": "under",
+       "typical_price": 1.4
+      },
+      {
+       "chance": 0.15343606966250428,
+       "label": "Over 5.5 goals",
+       "line": 5.5,
+       "long_shot": true,
+       "market": "goals",
+       "side": "over",
+       "typical_price": 4.81
+      },
+      {
+       "chance": 0.8465639303374957,
+       "label": "Under 5.5 goals",
+       "line": 5.5,
+       "long_shot": false,
+       "market": "goals",
+       "side": "under",
+       "typical_price": 1.15
+      },
+      {
+       "chance": 0.06460244056853565,
+       "label": "Over 6.5 goals",
+       "line": 6.5,
+       "long_shot": true,
+       "market": "goals",
+       "side": "over",
+       "typical_price": 8.4
+      },
+      {
+       "chance": 0.9353975594314643,
+       "label": "Under 6.5 goals",
+       "line": 6.5,
+       "long_shot": false,
+       "market": "goals",
+       "side": "under",
+       "typical_price": 1.06
+      },
+      {
+       "chance": 0.027290552117100228,
+       "label": "Over 7.5 goals",
+       "line": 7.5,
+       "long_shot": true,
+       "market": "goals",
+       "side": "over",
+       "typical_price": 15.0
+      },
+      {
+       "chance": 0.9727094478828998,
+       "label": "Under 7.5 goals",
+       "line": 7.5,
+       "long_shot": false,
+       "market": "goals",
+       "side": "under",
+       "typical_price": 1.02
+      },
+      {
+       "chance": 0.013752967509038774,
+       "label": "Over 8.5 goals",
+       "line": 8.5,
+       "long_shot": true,
+       "market": "goals",
+       "side": "over",
+       "typical_price": 17.0
+      },
+      {
+       "chance": 0.9862470324909612,
+       "label": "Under 8.5 goals",
+       "line": 8.5,
+       "long_shot": false,
+       "market": "goals",
+       "side": "under",
+       "typical_price": 1.01
+      }
+     ],
+     "suggestion": {
+      "chance": 0.7235823130098794,
+      "label": "Over 2.5 goals",
+      "line": 2.5,
+      "long_shot": false,
+      "market": "goals",
+      "side": "over",
+      "typical_price": 1.34
+     }
+    },
+    {
+     "market": "btts",
+     "options": [
+      {
+       "chance": 0.727108374265498,
+       "label": "Both teams to score",
+       "line": null,
+       "long_shot": false,
+       "market": "btts",
+       "side": "yes",
+       "typical_price": 1.33
+      },
+      {
+       "chance": 0.27289162573450204,
+       "label": "Not both teams to score",
+       "line": null,
+       "long_shot": false,
+       "market": "btts",
+       "side": "no",
+       "typical_price": 3.1
+      }
+     ],
+     "suggestion": {
+      "chance": 0.727108374265498,
+      "label": "Both teams to score",
+      "line": null,
+      "long_shot": false,
+      "market": "btts",
+      "side": "yes",
+      "typical_price": 1.33
+     }
+    },
+    {
+     "market": "spreads",
+     "options": [
+      {
+       "chance": 0.119155026331233,
+       "label": "Atletico Madrid \u22121.5",
+       "line": -1.5,
+       "long_shot": true,
+       "market": "spreads",
+       "side": "home",
+       "typical_price": 6.31
+      },
+      {
+       "chance": 0.880844973668767,
+       "label": "Barcelona +1.5",
+       "line": 1.5,
+       "long_shot": false,
+       "market": "spreads",
+       "side": "away",
+       "typical_price": 1.12
+      },
+      {
+       "chance": 0.2631839021613458,
+       "label": "Atletico Madrid \u22120.5",
+       "line": -0.5,
+       "long_shot": false,
+       "market": "spreads",
+       "side": "home",
+       "typical_price": 3.33
+      },
+      {
+       "chance": 0.7368160978386542,
+       "label": "Barcelona +0.5",
+       "line": 0.5,
+       "long_shot": false,
+       "market": "spreads",
+       "side": "away",
+       "typical_price": 1.33
+      },
+      {
+       "chance": 0.47892686592985667,
+       "label": "Atletico Madrid +0.5",
+       "line": 0.5,
+       "long_shot": false,
+       "market": "spreads",
+       "side": "home",
+       "typical_price": 2.0
+      },
+      {
+       "chance": 0.5210731340701432,
+       "label": "Barcelona \u22120.5",
+       "line": -0.5,
+       "long_shot": false,
+       "market": "spreads",
+       "side": "away",
+       "typical_price": 1.85
+      },
+      {
+       "chance": 0.707923121656731,
+       "label": "Atletico Madrid +1.5",
+       "line": 1.5,
+       "long_shot": false,
+       "market": "spreads",
+       "side": "home",
+       "typical_price": 1.36
+      },
+      {
+       "chance": 0.29207687834326884,
+       "label": "Barcelona \u22121.5",
+       "line": -1.5,
+       "long_shot": false,
+       "market": "spreads",
+       "side": "away",
+       "typical_price": 3.02
+      },
+      {
+       "chance": 0.8711578311397561,
+       "label": "Atletico Madrid +2.5",
+       "line": 2.5,
+       "long_shot": false,
+       "market": "spreads",
+       "side": "home",
+       "typical_price": 1.13
+      },
+      {
+       "chance": 0.1288421688602439,
+       "label": "Barcelona \u22122.5",
+       "line": -2.5,
+       "long_shot": true,
+       "market": "spreads",
+       "side": "away",
+       "typical_price": 5.55
+      }
+     ],
+     "suggestion": {
+      "chance": 0.7368160978386542,
+      "label": "Barcelona +0.5",
+      "line": 0.5,
+      "long_shot": false,
+      "market": "spreads",
+      "side": "away",
+      "typical_price": 1.33
+     }
+    },
+    {
+     "market": "corners",
+     "options": [
+      {
+       "chance": 0.9786094323720819,
+       "label": "Over 4.5 corners",
+       "line": 4.5,
+       "long_shot": false,
+       "market": "corners",
+       "side": "over",
+       "typical_price": 1.02
+      },
+      {
+       "chance": 0.021390567627918106,
+       "label": "Under 4.5 corners",
+       "line": 4.5,
+       "long_shot": true,
+       "market": "corners",
+       "side": "under",
+       "typical_price": 17.0
+      },
+      {
+       "chance": 0.9581912422487027,
+       "label": "Over 5.5 corners",
+       "line": 5.5,
+       "long_shot": false,
+       "market": "corners",
+       "side": "over",
+       "typical_price": 1.03
+      },
+      {
+       "chance": 0.0418087577512973,
+       "label": "Under 5.5 corners",
+       "line": 5.5,
+       "long_shot": true,
+       "market": "corners",
+       "side": "under",
+       "typical_price": 9.0
+      },
+      {
+       "chance": 0.9143985867156363,
+       "label": "Over 6.5 corners",
+       "line": 6.5,
+       "long_shot": false,
+       "market": "corners",
+       "side": "over",
+       "typical_price": 1.07
+      },
+      {
+       "chance": 0.08560141328436373,
+       "label": "Under 6.5 corners",
+       "line": 6.5,
+       "long_shot": true,
+       "market": "corners",
+       "side": "under",
+       "typical_price": 6.4
+      },
+      {
+       "chance": 0.8171416837562262,
+       "label": "Over 7.5 corners",
+       "line": 7.5,
+       "long_shot": false,
+       "market": "corners",
+       "side": "over",
+       "typical_price": 1.19
+      },
+      {
+       "chance": 0.18285831624377386,
+       "label": "Under 7.5 corners",
+       "line": 7.5,
+       "long_shot": true,
+       "market": "corners",
+       "side": "under",
+       "typical_price": 4.13
+      },
+      {
+       "chance": 0.7018221345269702,
+       "label": "Over 8.5 corners",
+       "line": 8.5,
+       "long_shot": false,
+       "market": "corners",
+       "side": "over",
+       "typical_price": 1.37
+      },
+      {
+       "chance": 0.2981778654730298,
+       "label": "Under 8.5 corners",
+       "line": 8.5,
+       "long_shot": false,
+       "market": "corners",
+       "side": "under",
+       "typical_price": 2.87
+      },
+      {
+       "chance": 0.5783441577611154,
+       "label": "Over 9.5 corners",
+       "line": 9.5,
+       "long_shot": false,
+       "market": "corners",
+       "side": "over",
+       "typical_price": 1.62
+      },
+      {
+       "chance": 0.4216558422388846,
+       "label": "Under 9.5 corners",
+       "line": 9.5,
+       "long_shot": false,
+       "market": "corners",
+       "side": "under",
+       "typical_price": 2.14
+      },
+      {
+       "chance": 0.4569798128120961,
+       "label": "Over 10.5 corners",
+       "line": 10.5,
+       "long_shot": false,
+       "market": "corners",
+       "side": "over",
+       "typical_price": 2.02
+      },
+      {
+       "chance": 0.5430201871879039,
+       "label": "Under 10.5 corners",
+       "line": 10.5,
+       "long_shot": false,
+       "market": "corners",
+       "side": "under",
+       "typical_price": 1.72
+      },
+      {
+       "chance": 0.3373527789086766,
+       "label": "Over 11.5 corners",
+       "line": 11.5,
+       "long_shot": false,
+       "market": "corners",
+       "side": "over",
+       "typical_price": 2.57
+      },
+      {
+       "chance": 0.6626472210913233,
+       "label": "Under 11.5 corners",
+       "line": 11.5,
+       "long_shot": false,
+       "market": "corners",
+       "side": "under",
+       "typical_price": 1.43
+      },
+      {
+       "chance": 0.23034012742100113,
+       "label": "Over 12.5 corners",
+       "line": 12.5,
+       "long_shot": true,
+       "market": "corners",
+       "side": "over",
+       "typical_price": 3.49
+      },
+      {
+       "chance": 0.7696598725789988,
+       "label": "Under 12.5 corners",
+       "line": 12.5,
+       "long_shot": false,
+       "market": "corners",
+       "side": "under",
+       "typical_price": 1.25
+      },
+      {
+       "chance": 0.14317928105662772,
+       "label": "Over 13.5 corners",
+       "line": 13.5,
+       "long_shot": true,
+       "market": "corners",
+       "side": "over",
+       "typical_price": 4.85
+      },
+      {
+       "chance": 0.8568207189433723,
+       "label": "Under 13.5 corners",
+       "line": 13.5,
+       "long_shot": false,
+       "market": "corners",
+       "side": "under",
+       "typical_price": 1.13
+      },
+      {
+       "chance": 0.07504159337890765,
+       "label": "Over 14.5 corners",
+       "line": 14.5,
+       "long_shot": true,
+       "market": "corners",
+       "side": "over",
+       "typical_price": 6.68
+      },
+      {
+       "chance": 0.9249584066210923,
+       "label": "Under 14.5 corners",
+       "line": 14.5,
+       "long_shot": false,
+       "market": "corners",
+       "side": "under",
+       "typical_price": 1.06
+      },
+      {
+       "chance": 0.01681119350840128,
+       "label": "Over 15.5 corners",
+       "line": 15.5,
+       "long_shot": true,
+       "market": "corners",
+       "side": "over",
+       "typical_price": 11.0
+      },
+      {
+       "chance": 0.9831888064915988,
+       "label": "Under 15.5 corners",
+       "line": 15.5,
+       "long_shot": false,
+       "market": "corners",
+       "side": "under",
+       "typical_price": 1.01
+      }
+     ],
+     "suggestion": {
+      "chance": 0.7018221345269702,
+      "label": "Over 8.5 corners",
+      "line": 8.5,
+      "long_shot": false,
+      "market": "corners",
+      "side": "over",
+      "typical_price": 1.37
+     }
+    }
+   ],
+   "version": "recommendations.v1"
+  },
+  "timing": {
+   "is_preliminary": false
+  }
+ },
+ "note": "Atletico Madrid v Barcelona, 8 Nov 2026: a real delivered read trimmed to what the research match view reads (D110)"
+}

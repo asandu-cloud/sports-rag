@@ -136,3 +136,22 @@ def test_match_route_404_for_unknown_event_and_422_for_a_bad_id(match, monkeypat
     assert client.get("/api/research/matches/999").status_code == 404
     assert client.get("/api/research/matches/abc").status_code == 422
 
+
+
+def test_a_real_read_gives_cards_goals_and_corners_lines():
+    """Atlético Madrid v Barcelona (8 Nov), a delivered read trimmed to what the view reads."""
+    import json
+    from pathlib import Path
+    saved = json.loads((Path(__file__).parents[1] / "fixtures" / "research_match_read.json").read_text())
+    block = read_block(saved["card"], saved["canonical_results"], status="ready")
+    cards = [(line["line"], round(line["over"]["chance"], 4), line["over"]["typical_price"],
+              round(line["under"]["chance"], 4), line["under"]["typical_price"]) for line in block["lines"]["cards"]]
+    assert cards == [(3.5, 0.7148, 1.35, 0.2852, 3.07), (4.5, 0.5161, 1.82, 0.4839, 1.93),
+                     (5.5, 0.4157, 2.2, 0.5843, 1.62)]
+    assert [line["line"] for line in block["lines"]["goals"]] == [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5]
+    assert len(block["lines"]["corners"]) == 12
+    assert block["result"] == {"home": 0.268, "draw": 0.212, "away": 0.52}
+    assert block["goals"] == {"home": 1.6, "away": 2.2, "total": 3.7}
+    assert (block["btts_yes"], block["corners_expected"], block["cards_expected"]) == (0.7, 8.9, 4.0)
+    assert block["suggestions"]["goals"]["label"] == "Over 2.5 goals"
+    assert block["suggestions"]["cards"] is None
