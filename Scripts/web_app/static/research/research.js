@@ -1,5 +1,6 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116d';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES} from './insight.js?v=research-20261116d';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116e';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES} from './insight.js?v=research-20261116e';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116e';
 
 const API = '/api/research';
 
@@ -298,6 +299,7 @@ function mountResearch(root, navigate) {
     const scope = rest.find(isScope) || null, stat = rest.find(part => !isScope(part)) || null;
     if (state.area !== area || !initialized) { initialized = true; setArea(area); }
     if (!id) return showSearch();
+    closeSheet(false);
     const token = ++routeToken, key = `${area}/${id}/${scope || ''}`;
     if (state.profileKey !== key) {
       Object.assign(state, {profileKey: key, profile: null, rendered: null, id, scope});
@@ -332,15 +334,59 @@ function mountResearch(root, navigate) {
       $('profileBody').innerHTML = renderProfile(state.profile);
       wireImages($('profileBody')); wireTips($('profileBody'));
       $('profileBody').querySelector('.p-name')?.focus({preventScroll: true});
+      showUpcoming(state.profile);
     }
+  }
+
+  // ----- Next matches (D107 task 5): B1 after the profile. A 404, an error or a 503 while the refresh runs hides
+  // them; the history still shows. Teams get the rail (wide) or the floating bar and its sheet (phone); players
+  // their club's next match and referees their next appointment, in the head.
+  let upcomingToken = 0;
+  async function showUpcoming(d) {
+    const kind = state.area, token = ++upcomingToken;
+    closeSheet(false);
+    $('nextBar').hidden = true; $('nextBar').innerHTML = '';
+    $('profileBody').classList.remove('has-next-bar');
+    const [route, id] = kind === 'players' ? ['teams', d.subject.club?.id] : [kind, state.id];
+    if (id == null) return;
+    const upcoming = await load(`${API}/${route}/${encodeURIComponent(id)}/upcoming?limit=${kind === 'teams' ? 3 : 1}`).catch(() => null);
+    if (token !== upcomingToken || state.rendered !== d) return;
+    state.upcoming = upcoming;
+    if (kind === 'teams') {
+      const rail = railHTML(upcoming), bar = barHTML(upcoming);
+      $('nextRail').innerHTML = rail;
+      $('profileBody').querySelector('.team-layout')?.classList.toggle('has-rail', !!rail);
+      $('nextBar').innerHTML = bar; $('nextBar').hidden = !bar;
+      $('profileBody').classList.toggle('has-next-bar', !!bar);
+      wireImages($('nextRail')); wireImages($('nextBar'));
+    } else {
+      $('headNext').innerHTML = headNext(upcoming?.matches?.[0], kind === 'players' ? 'Next match' : 'Next appointment');
+    }
+  }
+  let sheetOpener = null, swipeFrom = null;
+  function openSheet(opener) {
+    const sheet = $('nextSheet');
+    sheet.innerHTML = sheetHTML(state.upcoming);
+    if (!sheet.innerHTML) return;
+    sheet.hidden = false; sheetOpener = opener;
+    wireImages(sheet);
+    document.body.style.overflow = 'hidden';
+    sheet.querySelector('.sheet').focus();
+  }
+  function closeSheet(returnFocus = true) {
+    const sheet = $('nextSheet');
+    if (sheet.hidden) return;
+    sheet.hidden = true; sheet.innerHTML = '';
+    document.body.style.overflow = '';
+    if (returnFocus) sheetOpener?.focus({preventScroll: true});
   }
   function renderProfile(d) {
     const kind = state.area;
     const pair = (a, b) => a && b ? `<div class="grid-2">${a}${b}</div>` : (a || b || '');
     const stack = (...cards) => { const list = cards.filter(Boolean); return list.length > 1 ? `<div class="stack">${list.join('')}</div>` : list[0] || ''; };
-    if (kind === 'teams') return profileHead(d) + `<div id="teamAnswer">${teamAnswer(d)}</div>` + teamFolds(d) + dataFoot(d);
-    if (kind === 'referees') return profileHead(d) + `<div id="refAnswer">${refereeBlock(d)}</div>` + refereeFolds(d) + dataFoot(d);
-    const top = profileHead(d) + profileLead(d) + seasonLine(d);
+    if (kind === 'teams') return `<div class="team-layout"><div class="team-main">${profileHead(d)}<div id="teamAnswer">${teamAnswer(d)}</div>${teamFolds(d)}${dataFoot(d)}</div><div id="nextRail"></div></div>`;
+    if (kind === 'referees') return profileHead(d) + '<div id="headNext"></div>' + `<div id="refAnswer">${refereeBlock(d)}</div>` + refereeFolds(d) + dataFoot(d);
+    const top = profileHead(d) + '<div id="headNext"></div>' + profileLead(d) + seasonLine(d);
     let body;
     if (kind === 'players') body = pair(rankCard(d), stack(howOftenCard(d), minutesCard(d))) + pair(lastTenCard(d), funnelCard(d));
     return top + body + advancedBlock(d) + dataFoot(d);
@@ -810,6 +856,29 @@ function mountResearch(root, navigate) {
     event.preventDefault(); next.click();
   });
   $('backSearch').addEventListener('click', () => go(state.area, state.id, state.scope));
+  $('profileView').addEventListener('click', event => {
+    const match = event.target.closest('[data-open-match]');
+    if (match) { closeSheet(false); return navigate(`matches/${encodeURIComponent(match.dataset.openMatch)}`); }
+    const opener = event.target.closest('[data-open-sheet]');
+    if (opener) return openSheet(opener);
+    if (event.target.closest('[data-close-sheet]')) closeSheet();
+  });
+  $('nextSheet').addEventListener('keydown', event => {
+    if (event.key === 'Escape') { event.preventDefault(); return closeSheet(); }
+    if (event.key !== 'Tab') return;
+    const items = [...$('nextSheet').querySelectorAll('.sheet button')], first = items[0], last = items.at(-1);
+    const active = root.activeElement;
+    if (event.shiftKey && (active === first || active?.classList.contains('sheet'))) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && active === last) { event.preventDefault(); first.focus(); }
+  });
+  $('nextSheet').addEventListener('touchstart', event => {
+    const sheet = event.target.closest('.sheet');
+    swipeFrom = sheet && sheet.scrollTop <= 0 ? event.touches[0].clientY : null;
+  }, {passive: true});
+  $('nextSheet').addEventListener('touchend', event => {
+    if (swipeFrom != null && event.changedTouches[0].clientY - swipeFrom > 60) closeSheet();
+    swipeFrom = null;
+  });
   $('profileBody').addEventListener('click', event => {
     const rank = event.target.closest('.rank[data-stat]');
     if (rank) return go(state.area, state.id, rank.dataset.scope, rank.dataset.stat);
@@ -873,8 +942,8 @@ class SpixResearch extends HTMLElement {
     const root = this.attachShadow({mode: 'open'});
     root.innerHTML = '<p role="status">Loading Research Area…</p>';
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261116d', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261116d', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261116e', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261116e', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));

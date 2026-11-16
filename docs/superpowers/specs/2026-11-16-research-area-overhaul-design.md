@@ -71,15 +71,15 @@ Order, top to bottom (sketch: `desk-team.png`):
 
 ### 4.2 Next matches
 
-Desktop (1100 px and wider): a 340 px rail on the right of the team page, sticky under the top bar. One card per
-match (sketch: three):
+Desktop (wider than 860 px, as the sketch draws it): a rail on the right of the team page, 340 px wide, 300 px between
+861 and 1100 px, sticky under the top bar. One card per match (sketch: three):
 - crest, "v Leeds" or "at Napoli", competition, day and time;
 - the read's state: "Read ready", "Preliminary" or "Read due Thu";
 - the referee once named ("Referee Anthony Taylor"), else "Referee not named yet";
 - when the read is out, Spix's expected goals, corners and cards for the match, in three small figures;
 - the whole card opens the match view.
 
-Below 1100 px the rail is not shown. The phone and tablet use the floating bar (option C):
+At 860 px and below the rail is not shown. The phone and small tablet use the floating bar (option C):
 - a bar fixed near the bottom: the next match's crest, "Next: v Leeds", "Sat 21 Nov · 15:00 · and 2 more", "Open ›";
 - tapping it opens a bottom sheet titled "Chelsea's next matches" with the same three cards; tapping a card opens
   the match view and closes the sheet; the backdrop, Escape and a swipe down close it;

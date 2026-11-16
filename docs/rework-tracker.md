@@ -2729,6 +2729,14 @@ test bets (Over 2.5 cards in Chelsea's next match; a player's shots on target) t
     proposes a daily rebuild). The referee page leads with "4.3 cards a match in 2025/26, more than 59% of referees"
     and a line picker (2.5 to 5.5) over the last 10 matches; ranks, how often, competitions and season totals fold
     away. Every chart total is now written above its column without stretching the chart.
+  - Task 5, 16 Nov: next matches, from the backend's B1 (6b9db1e, not merged yet). A team page gets a rail on the
+    right (wider than 860 px): one card per match with the day and time in the viewer's own time, the competition,
+    "v Leeds" or "at Nottingham Forest", the referee once named, the read's state ("Read ready", "Preliminary",
+    "Read due Tue") and, once the read is out, Spix's expected goals, corners and cards. On phones a floating bar
+    ("Next: v Leeds · Sat 21 Nov · and 2 more · Open ›") opens a sheet with the same cards; it sits 8 px above the
+    slip's bar (app.js tells the research page that bar's height) and hides while the slip is open. Players get their
+    club's next match in the head, referees their next appointment. A 503 while the refresh runs hides it all. The
+    spec's rail breakpoint now says 860 px, as the sketch draws it. Cards open #research/matches/{id} (task 6).
 
 **D108 — Why cards were missing at kickoff (15 Nov; backend, read-only).** The orchestrator asked why so few
 domestic matches had a card on the board at kickoff (D77, task 2). Checked on the 10 domestic leagues, 5 Sep–14 Nov,
