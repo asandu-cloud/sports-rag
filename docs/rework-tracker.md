@@ -2771,6 +2771,14 @@ raw responses, under full player names, and one bookmaker breaks the two-bookmak
   corners lines equal its options. Cards lines never carry a suggestion (D61). The recommendations block's markets
   are passed through for Add. `lineups` is null: a read keeps only whether line-ups were confirmed, not the
   players. 5 tests, on reads built in the stored shape; the full suite 3,110 passed, plus the 3 known errors.
+  On 12 real reads of 7–9 Nov: goals and corners lines in every one, cards lines (2.5–5.5) in the 6 whose league
+  has 2 or more bookmakers pricing cards.
+- Task 3 (16 Nov): each team in the match view. Its last 10 finished matches in every competition (cards, corners,
+  goals and shots on target for and against; a missing statistics row leaves them unknown, never 0). The 5 players
+  with the most cards this season. Up to 8 likely starters (most starts in the last 5, no goalkeepers), each with
+  their last 10 appearances. Shots on target conceded a match in its domestic league and its rank there (1 = the
+  fewest). On the live database Chelsea v Leeds (21 Nov) takes 0.39 s; Chelsea concede 5.2 a match, 17th of 20.
+  4 tests; the full suite 3,114 passed, plus the 3 known errors.
 
 ## Findings that shape later steps
 
