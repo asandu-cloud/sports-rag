@@ -37,7 +37,7 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
 | 7 | Bench command, report, Opportunities, locked-run guard | Done 16 Nov | 7c94626 | 0e9fa53 | 6 new, all pass; suite 3,175 passed + the 3 known errors; first tuning run 16 Nov |
 | 8 | Elo (model 1) | Done 16 Nov | 5647819 | e3e3266 | 8 new, all pass; suite 3,183 passed + the 3 known errors; k 15, carry 0.9 |
 | 9 | Pi-ratings (model 2) | Done 16 Nov | 6cf4cd5 | b004822 | 4 new, all pass; suite 3,187 passed + the 3 known errors; learning 0.05, cross 0.5 |
-| 10 | Dixon–Coles with time decay (model 3) | In progress | the "Start game-read task 10" commit | | |
+| 10 | Dixon–Coles with time decay (model 3) | Done 16 Nov | bf9408c | the "Done game-read task 10" commit | 5 new, all pass; suite 3,192 passed + the 3 known errors; half-life 365 days |
 | 11 | Drifting ratings (model 4) | Not started | | | |
 | 12 | The average of the models | Not started | | | |
 | 13 | Phase 1 runs and the first report to the owner | Not started | | | |

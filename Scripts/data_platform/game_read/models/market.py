@@ -61,6 +61,17 @@ def _tau(low: np.ndarray, rho: float) -> np.ndarray:
                      [1 - home * away * rho, 1 + away * rho, 1 + home * rho], default=1 - rho)
 
 
+def corrected(home: float, away: float, rho: float) -> np.ndarray:
+    """The independent Poisson score matrix with Dixon–Coles's correction to 0-0, 1-0, 0-1 and 1-1, normalised."""
+    matrix = market_goals._matrix(home, away)
+    matrix[0, 0] *= 1 - home * away * rho
+    matrix[1, 0] *= 1 + away * rho
+    matrix[0, 1] *= 1 + home * rho
+    matrix[1, 1] *= 1 - rho
+    matrix = np.clip(matrix, 0, None)
+    return matrix / matrix.sum()
+
+
 def fit_rho(low: np.ndarray) -> float:
     """Dixon–Coles's rho by maximum likelihood. Only scores of 0 or 1 a side carry it: the correction keeps each
     match's chances summing to 1, so every other score's likelihood is the same whatever rho is."""
@@ -96,12 +107,5 @@ class MarketControl:
         means = _means(prices)
         if means is None:
             return Forecast()
-        home, away = means
-        matrix = market_goals._matrix(home, away)
-        matrix[0, 0] *= 1 - home * away * self.rho
-        matrix[1, 0] *= 1 + away * self.rho
-        matrix[0, 1] *= 1 + home * self.rho
-        matrix[1, 1] *= 1 - self.rho
-        matrix = np.clip(matrix, 0, None)
-        matrix = matrix / matrix.sum()
+        matrix = corrected(*means, self.rho)
         return Forecast(result=_result(matrix), score_matrix=matrix)

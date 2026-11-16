@@ -2871,6 +2871,38 @@ backend).** The number was held since 7 Nov (D78).
       near the market.
     - Tests: 4 new, all pass. The full suite: 3,187 passed, plus the 3 known errors. Golden unchanged; no live code
       changed.
+  - **Task 10 done (16 Nov): Dixon–Coles ratings with time decay, model 3**
+    (`Scripts/data_platform/game_read/models/dixon_coles.py`; `dc` in the bench).
+    - *How it works:*
+      - each team has an attack and a defence, and each league its own goal level and home advantage;
+      - one rho corrects the low scores;
+      - a shared shift applies to a promoted team in its first season;
+      - older matches count less; the last 4 years are used;
+      - it is refitted before each match day, starting from the last fit (about 70 s for the whole history);
+      - its forecast is a full score matrix, so it prices every goal line, handicap and both teams to score.
+    - *Ruling (ridge):* the penalty sits on the weighted mean log-likelihood, not the sum. On the sum, the plan's
+      1e-3 would shrink nobody, and the plan wants teams with little history pulled towards their league. On the
+      tuning seasons 1e-3 beat 1e-4 and 1e-2 (sum of result and over 2.5 log losses: 1.6831, 1.6872, 1.7050).
+    - *Ruling (promoted shift):* it applies to a team coming up, or arriving from outside the data. A team coming
+      down from the Premier League keeps its ratings on the same scale, with no shift; one shift for both
+      directions would mix opposite effects.
+    - *Ruling (the regression check):* without decay, rho or ridge, the fitted goal means equal scikit-learn's
+      `PoissonRegressor(alpha=0)`. The means are compared, not the raw ratings: without a ridge, attack and
+      defence are fixed only up to a shared constant.
+    - The control line's low-score correction is now shared as `market.corrected`. The control line's scores are
+      unchanged (result 0.9837, over 2.5 0.6751).
+    - *Half-life chosen by the sum of the result and over 2.5 log losses:* 365 days. 270 was best on the result
+      alone and 540 on over 2.5 alone; 120 and 180 were worse on both.
+    - *Tuning seasons, 14,383 matches* (`Research/game-read-bench-2026-11-16-dc/`). It fails every score:
+      - accuracy: result 0.0165 worse than the market's [0.0136, 0.0195], handicap 0.0120 worse, over 2.5 0.0081
+        worse;
+      - blend: c below zero on all three markets;
+      - Most likely: −0.20 per 100 against today's lists [−0.70, +0.30] ranked by edge, and −0.23 ranked by
+        blended chance. Real-price lines +0.58 against the control's −0.36; derived lines −0.32 against −0.02;
+      - Value at the average price: 18,535 picks, −7.2% return, closing line value −6.9%;
+      - closing check: +0.01 [−0.03, +0.04]. Unlike Elo and pi, closing prices do not move away from its picks.
+    - Tests: 5 new, all pass. The full suite: 3,192 passed, plus the 3 known errors. Golden unchanged; no live code
+      changed.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
