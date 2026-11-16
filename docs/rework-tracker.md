@@ -3097,6 +3097,10 @@ board (Best Bets), E card outline (the matchday board), F rolling ball (the Rese
   load shows nothing. Screen readers hear one fixed line; the stepping words are hidden from them. Reduced motion
   gets a still frame. D's prices are a shape with no team or bookmaker. The cover shows at 300 ms, holds 600 ms,
   and clears when the load ends or fails, or at 15 s. Nothing uses the kit yet. 1 new JS test file (18 in all, all pass).
+- Task 2 (16 Nov): A covers the window on the app's first board load (`appModule.init()`), with the header's own
+  logo, on its cobalt: "Getting today's matches ready…". A new date, league or the 90 s refresh never brings it
+  back. On 8100 with the API held 2.5 s: drawn at 300 ms, gone once the board arrived, at 1440 and 390, light and
+  dark, no errors. `app.js` at `loaders-20261116b`.
 
 ## Findings that shape later steps
 

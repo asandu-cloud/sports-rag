@@ -1689,6 +1689,7 @@ const appModule = {
       this._installMatchReadPolling();
       this.initialized = true;
       this._initialLoad = this._loadMatchday();
+      window.spixCover?.(this._initialLoad, {label: "Getting today's matches ready", logo: document.querySelector('.logo-word')?.outerHTML || ''});
     }
     return this._initialLoad;
   },

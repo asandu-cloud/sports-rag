@@ -60,6 +60,13 @@ const text = html => html.replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'").replac
   assert.match(page, /<script src="\/static\/loaders\.js\?v=loaders-20261116[a-z]"><\/script>/);
   assert.ok(at('/static/loaders.js') < at('/static/research/research.js') && at('/static/loaders.js') < at('/static/app.js'));
 
+  // A: the app's first board load runs under the cover, with the header's own logo. Later loads (a new date or
+  // league, the 90 s refresh) never call it: init() starts the first load only once.
+  const app = fs.readFileSync(path.join(STATIC, 'app.js'), 'utf8');
+  assert.match(app, /      this\._initialLoad = this\._loadMatchday\(\);\n      window\.spixCover\?\.\(this\._initialLoad, \{label: "Getting today's matches ready", logo: document\.querySelector\('\.logo-word'\)\?\.outerHTML \|\| ''\}\);\n    \}\n    return this\._initialLoad;/);
+  assert.equal((app.match(/spixCover/g) || []).length, 1, 'only the first load');
+  assert.match(page, /<script src="\/static\/app\.js\?v=loaders-20261116b"><\/script>/);
+
   // The cover (A), on a fake clock and a fake page.
   function harness() {
     let t = 0, timers = [];
