@@ -165,7 +165,8 @@ def _average(models) -> list:
             for part in ("result", "handicap", "goals")]
     return ["## The average's weights", "",
             "A weighted average of the members on the log scale; each part's weights are never negative, sum to 1 "
-            "and are fitted on the tuning seasons only. A member without a score matrix takes no part in it.", "",
+            "and are fitted on the tuning seasons only. A member without a score matrix takes no part in it. Its scores "
+            "on the tuning seasons are therefore in-sample; the locked seasons are its fair test.", "",
             *_table(["Part", *names], rows)]
 
 

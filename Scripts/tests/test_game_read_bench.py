@@ -160,4 +160,5 @@ def test_the_average_runs_its_members_and_fits_its_weights_on_tuning_seasons_onl
     weights = summary["models"]["average"]["weights"]
     assert set(weights["goals"]) == {"dc", "drift"} and set(weights["result"]) == {"elo", "pi", "dc", "drift"}
     assert all(sum(part.values()) == pytest.approx(1) for part in weights.values())
-    assert "## The average's weights" in (out / "report.md").read_text()
+    report = (out / "report.md").read_text()
+    assert "## The average's weights" in report and "in-sample" in report
