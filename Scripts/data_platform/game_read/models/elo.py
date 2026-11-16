@@ -19,18 +19,15 @@ from typing import Sequence
 
 import numpy as np
 
-from Scripts.data_platform import market_goals
 from Scripts.data_platform.game_read import ordered
-from Scripts.data_platform.game_read.forecast import Forecast, _differences
+from Scripts.data_platform.game_read.forecast import Forecast
 from Scripts.data_platform.game_read.history import Match
 
 START = 1500.0
 HOME_START = 60.0
 SECOND_TIER = {"Championship"}
 REPLACED = 3  # teams in last season's table taken as the ones a newcomer replaces
-MAX_DIFFERENCE = 4
 GAP_SCALE = 100.0  # the ordered logits read the gap in hundreds of points
-MIN_FIT = 200  # matches before the ordered logits are fitted; until then a fixed prior
 
 # k and carry chosen on the tuning seasons by result log loss, 16 Nov (k 10–40, carry 0.6–1.0; flat within 0.0003
 # around k 12–20, carry 0.8–1.0). The home step and the new-team offset are set, not tuned.
@@ -41,19 +38,6 @@ def multiplier(margin: int) -> float:
     """The goal-difference multiplier: 1 for a margin of 0 or 1, 1.5 for 2, (11 + margin) / 8 from 3."""
     margin = abs(margin)
     return 1.0 if margin <= 1 else 1.5 if margin == 2 else (11 + margin) / 8
-
-
-def _prior() -> Forecast:
-    """A finite forecast before any fit: an average match's score model."""
-    matrix = market_goals._matrix(1.45, 1.15)
-    matrix = matrix / matrix.sum()
-    differences = _differences(matrix)
-    clipped = defaultdict(float)
-    for d, p in differences.items():
-        clipped[max(-MAX_DIFFERENCE, min(MAX_DIFFERENCE, d))] += p
-    i, j = np.indices(matrix.shape)
-    result = (float(matrix[i > j].sum()), float(matrix[i == j].sum()), float(matrix[i < j].sum()))
-    return Forecast(result=result, goal_difference=dict(sorted(clipped.items())))
 
 
 class Elo:
@@ -70,8 +54,8 @@ class Elo:
         self._last = {}  # team -> (league, season) of its latest match
         self._final = defaultdict(dict)  # (league, season) -> team -> rating after its latest match there
         self._starts = {}  # league -> {"down": relegated level, "up": promoted level} for this season
-        self._seen = []  # (gap, result class, goal-difference class) of every learned match
-        self._fit_season, self._result, self._difference = None, None, None
+        self._outcomes = ordered.Outcomes(scale=GAP_SCALE)
+        self._fit_season = None
 
     # Seasons and newcomers
 
@@ -119,29 +103,14 @@ class Elo:
     # The model
 
     def _forecast(self, gap: float) -> Forecast:
-        if self._result is None:
-            return _prior()
-        x = np.array([gap / GAP_SCALE])
-        away, draw, home = self._result.probabilities(x)[0]
-        differences = self._difference.probabilities(x)[0]
-        return Forecast(result=(float(home), float(draw), float(away)),
-                        goal_difference={d - MAX_DIFFERENCE: float(p) for d, p in enumerate(differences)})
-
-    def _refit(self) -> None:
-        if len(self._seen) < MIN_FIT:
-            self._result = self._difference = None
-            return
-        seen = np.array(self._seen)
-        x = seen[:, 0] / GAP_SCALE
-        self._result = ordered.fit(x, seen[:, 1].astype(int), 3)
-        self._difference = ordered.fit(x, seen[:, 2].astype(int), 2 * MAX_DIFFERENCE + 1)
+        return self._outcomes.forecast(gap)
 
     def predict(self, matches: Sequence[Match]) -> list:
         for match in matches:
             self._enter(match)
         season = max(match.season for match in matches)
         if season != self._fit_season:
-            self._refit()
+            self._outcomes.refit()
             self._fit_season = season
         return [self._forecast(self._gap(match)) for match in matches]
 
@@ -152,8 +121,7 @@ class Elo:
         for match, gap in zip(matches, gaps):
             home, away = match.home_goals, match.away_goals
             outcome = 1.0 if home > away else 0.5 if home == away else 0.0
-            self._seen.append((gap, 2 if home > away else 1 if home == away else 0,
-                               max(-MAX_DIFFERENCE, min(MAX_DIFFERENCE, home - away)) + MAX_DIFFERENCE))
+            self._outcomes.add(gap, home, away)
             expected = 1 / (1 + 10 ** (-gap / 400))
             delta = self.k * multiplier(home - away) * (outcome - expected)
             self.ratings[match.home] += delta

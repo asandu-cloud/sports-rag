@@ -9,13 +9,19 @@ order by fitting the first one and the log of each step after it.
 """
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass
 
 import numpy as np
 from scipy.optimize import minimize
 from scipy.special import expit
 
+from Scripts.data_platform import market_goals
+from Scripts.data_platform.game_read.forecast import Forecast, _differences
+
 EPS = 1e-12
+MAX_DIFFERENCE = 4
+MIN_FIT = 200  # matches before the logits are fitted; until then a fixed prior
 
 
 def _design(x) -> np.ndarray:
@@ -71,3 +77,47 @@ def fit(x, y, classes: int) -> OrderedLogit:
     result = minimize(objective, start, jac=True, method="L-BFGS-B")
     cuts, beta = _unpack(result.x, classes)
     return OrderedLogit(cuts=cuts, beta=np.asarray(beta, dtype=float))
+
+
+def _prior() -> Forecast:
+    """A finite forecast before any fit: an average match's score model (1.45 and 1.15 goals)."""
+    matrix = market_goals._matrix(1.45, 1.15)
+    matrix = matrix / matrix.sum()
+    clipped = defaultdict(float)
+    for d, p in _differences(matrix).items():
+        clipped[max(-MAX_DIFFERENCE, min(MAX_DIFFERENCE, d))] += p
+    i, j = np.indices(matrix.shape)
+    result = (float(matrix[i > j].sum()), float(matrix[i == j].sum()), float(matrix[i < j].sum()))
+    return Forecast(result=result, goal_difference=dict(sorted(clipped.items())))
+
+
+class Outcomes:
+    """The result and the goal difference (clipped to −4…+4) from one number per match, such as a rating gap or an
+    expected goal difference, through two ordered logits refitted on every match added so far."""
+
+    def __init__(self, scale: float = 1.0):
+        self.scale = scale
+        self._seen = []
+        self._result = self._difference = None
+
+    def add(self, x: float, home_goals: int, away_goals: int) -> None:
+        result = 2 if home_goals > away_goals else 1 if home_goals == away_goals else 0
+        difference = max(-MAX_DIFFERENCE, min(MAX_DIFFERENCE, home_goals - away_goals)) + MAX_DIFFERENCE
+        self._seen.append((x / self.scale, result, difference))
+
+    def refit(self) -> None:
+        if len(self._seen) < MIN_FIT:
+            self._result = self._difference = None
+            return
+        seen = np.array(self._seen)
+        self._result = fit(seen[:, 0], seen[:, 1].astype(int), 3)
+        self._difference = fit(seen[:, 0], seen[:, 2].astype(int), 2 * MAX_DIFFERENCE + 1)
+
+    def forecast(self, x: float) -> Forecast:
+        if self._result is None:
+            return _prior()
+        point = np.array([x / self.scale])
+        away, draw, home = self._result.probabilities(point)[0]
+        return Forecast(result=(float(home), float(draw), float(away)),
+                        goal_difference={d - MAX_DIFFERENCE: float(p)
+                                         for d, p in enumerate(self._difference.probabilities(point)[0])})

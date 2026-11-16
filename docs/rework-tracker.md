@@ -2846,6 +2846,31 @@ backend).** The number was held since 7 Nov (D78).
     - It runs in about 1 s for the whole history.
     - Tests: 8 new, all pass. The full suite: 3,183 passed, plus the 3 known errors. Golden unchanged; no live code
       changed.
+  - **Task 9 done (16 Nov): pi-ratings, model 2** (Constantinou and Fenton 2013;
+    `Scripts/data_platform/game_read/models/pi_ratings.py`; `pi` in the bench).
+    - *How it works:* each team has a home and an away rating, in goals. The error against the real goal difference
+      moves the venue rating, and the other rating moves by a share of that. Result and goal difference come from
+      the predicted goal difference through the same ordered logits as Elo.
+    - The shared part (the two ordered logits, refitted each season, with a fixed prior before 200 matches) moved
+      into `ordered.Outcomes`. Elo's scores are unchanged by the move (result log loss 0.99901 before and after).
+    - *Ruling:* as in the paper, a team new to a league starts at 0 and nothing is pulled back over the summer.
+      The plan tunes only learning and cross.
+    - *Tuned by result log loss:* learning 0.05 and cross 0.5. The grid was learning 0.02–0.1 and cross 0.2–0.9;
+      it is flat within 0.0005 nearby. The paper's starting values were 0.035 and 0.7.
+    - *Tuning seasons, 14,383 matches* (`Research/game-read-bench-2026-11-16-pi/`). It fails every score, and does
+      worse than our Elo:
+      - result log loss 0.0205 worse than the market's [0.0169, 0.0238], against Elo's 0.0157;
+      - handicap 0.0218 worse;
+      - blend c −0.09;
+      - Most likely −0.37 per 100 against today's lists [−0.69, −0.05] ranked by edge, −0.31 ranked by blended
+        chance;
+      - Value at the average price: 12,426 picks, −7.5% return;
+      - closing prices move away from its picks.
+    - *Finding:* the paper's newcomer rule (start at 0, an average team) is a likely reason pi trails Elo, whose
+      newcomers start at the level of the teams they replace. It is not worth a change now: neither model comes
+      near the market.
+    - Tests: 4 new, all pass. The full suite: 3,187 passed, plus the 3 known errors. Golden unchanged; no live code
+      changed.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
