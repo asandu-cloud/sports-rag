@@ -27,8 +27,8 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
 
 | Task | What it builds | Status | Start commit | Done commit | Tests |
 |---|---|---|---|---|---|
-| 1 | B1: a team's and a referee's next matches | Done 16 Nov | 6d7bf08 | the "Done research-endpoints task 1" commit | 6 new, all pass; suite 3,105 passed + the 3 known errors |
-| 2 | B2: the match, Spix's read and its lines | Not started | | | |
+| 1 | B1: a team's and a referee's next matches | Done 16 Nov | 6d7bf08 | 6b9db1e | 6 new, all pass; suite 3,105 passed + the 3 known errors |
+| 2 | B2: the match, Spix's read and its lines | In progress | the "Start research-endpoints task 2" commit | | |
 | 3 | B2: each team's last 10, booked, shooters and what it allows | Not started | | | |
 | 4 | B2: the referee, head to head and data basis | Not started | | | |
 | 5 | B5: provisional ranks under 900 minutes | Not started | | | |
