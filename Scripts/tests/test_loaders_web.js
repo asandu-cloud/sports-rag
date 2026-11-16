@@ -76,14 +76,16 @@ const text = html => html.replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'").replac
   // B, C and F in the Research Area. Its shadow root adopts the page's own loaders.css (already loaded, so the
   // component's first loader is styled at once); without the kit, the old line.
   const research = fs.readFileSync(path.join(STATIC, 'research/research.js'), 'utf8');
-  assert.match(research, /\nconst loading = \(kind, label, steps\) => window\.spixLoader\?\.\(kind, \{label, steps\}\) \?\? `<p class="profile-loading" role="status">\$\{label\}…<\/p>`;\n/);
+  // Without the adopted sheet (an older browser, or loaders.css failed), a loader would draw unstyled: the old line.
+  assert.match(research, /\nlet kitAdopted = false;\nconst loading = \(kind, label, steps\) => \(kitAdopted && window\.spixLoader\?\.\(kind, \{label, steps\}\)\) \|\| `<p class="profile-loading" role="status">\$\{label\}…<\/p>`;\n/);
+  assert.match(research, /    if \(kit\) \{ root\.adoptedStyleSheets = \[kit\]; kitAdopted = true; \}\n/);
   assert.match(research, /\nfunction kitSheet\(\) \{\n  const sheet = \[\.\.\.document\.styleSheets\]\.find\(s => s\.href\?\.includes\('\/static\/loaders\.css'\)\);/);
-  assert.match(research, /    const root = this\.attachShadow\(\{mode: 'open'\}\);\n    const kit = kitSheet\(\);\n    if \(kit\) root\.adoptedStyleSheets = \[kit\];\n    root\.innerHTML = loading\('roll', 'Loading the Research Area'\);/);
+  assert.match(research, /    const root = this\.attachShadow\(\{mode: 'open'\}\);\n    const kit = kitSheet\(\);\n    if \(kit\) \{ root\.adoptedStyleSheets = \[kit\]; kitAdopted = true; \}\n    root\.innerHTML = loading\('roll', 'Loading the Research Area'\);/);
   assert.match(research, /\$\('researchHome'\)\.innerHTML = homeTop\(\) \+ loading\('roll', 'Loading this weekend and the season leaders'\);/, 'F on the home page');
   assert.match(research, /\$\('profileBody'\)\.innerHTML = loading\('last10', 'Loading the profile'\);/, 'C on a profile');
   assert.match(research, /\$\('matchBody'\)\.innerHTML = loading\('pitch', 'Loading the match', \['Loading the match', "Getting both teams' last 10", 'Fetching the head to head'\]\);/, 'B on the match view');
   assert.doesNotMatch(research, /'<p class="profile-loading" role="status">Loading/, 'no plain loading line left');
-  assert.match(page, /<script type="module" src="\/static\/research\/research\.js\?v=research-20261116q"><\/script>/);
+  assert.match(page, /<script type="module" src="\/static\/research\/research\.js\?v=research-20261116r"><\/script>/);
 
   // The cover (A), on a fake clock and a fake page.
   function harness() {

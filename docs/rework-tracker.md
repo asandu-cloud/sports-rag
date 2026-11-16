@@ -3112,6 +3112,11 @@ board (Best Bets), E card outline (the matchday board), F rolling ball (the Rese
   once; research.css's stroke on every SVG no longer outlines the pitch or the ball. On 8100 with the API held 2.5 s
   (Chelsea, Chelsea v Leeds, the players' home): drawn, then replaced, at 1440 and 390, no errors. Research files at
   `research-20261116q`, `loaders.css` at `loaders-20261116d`.
+- Task 5 (16 Nov): the finishing pass on 8100. Reduced motion: still frames with the first line only. At normal
+  speed a warm first load (0.1 s) drew nothing; a cold one (0.5 s) drew the cover, which then held to 0.9 s, as
+  designed. Review (by this session; no reviewer subagent): without the adopted sheet (an older browser, or a
+  failed `loaders.css`) the Research Area's loaders would draw unstyled, so they fall back to the old line there.
+  Research files at `research-20261116r`. 18 JS test files pass; no Python test reads the static files.
 
 ## Findings that shape later steps
 

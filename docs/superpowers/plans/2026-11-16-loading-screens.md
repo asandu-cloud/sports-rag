@@ -78,4 +78,4 @@ and the owner's approval of all six with the placements below (16 Nov, D112).
 | 2. A, the first-load cover | Done | 8b289c2..this commit | loaders + all 18 *_web.js pass; 8100 with the API held 2.5 s |
 | 3. E on the board, D on Best Bets | Done | 8d05f32..this commit | loaders + all 18 *_web.js pass; 8100 with the API held 2.5 s |
 | 4. B, C and F in the Research Area | Done | 0f73547..this commit | loaders + all 18 *_web.js pass; 8100 with the API held 2.5 s |
-| 5. Finish: real data, look, review | In progress | | |
+| 5. Finish: real data, look, review | Done | 94eccd8..this commit | all 18 *_web.js pass; 8100: throttled and normal loads, reduced motion, 1440 and 390, light and dark |

@@ -1,11 +1,12 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116q';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead} from './insight.js?v=research-20261116q';
-import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116q';
-import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261116q';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116r';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead} from './insight.js?v=research-20261116r';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116r';
+import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261116r';
 
 const API = '/api/research';
-// The site's loaders (loaders.js, D112), with the old line if the kit is missing.
-const loading = (kind, label, steps) => window.spixLoader?.(kind, {label, steps}) ?? `<p class="profile-loading" role="status">${label}…</p>`;
+// The site's loaders (loaders.js, D112), with the old line if the kit or its styles are missing.
+let kitAdopted = false;
+const loading = (kind, label, steps) => (kitAdopted && window.spixLoader?.(kind, {label, steps})) || `<p class="profile-loading" role="status">${label}…</p>`;
 // The page has already loaded loaders.css; the shadow root adopts a copy, so its first loader is styled at once.
 function kitSheet() {
   const sheet = [...document.styleSheets].find(s => s.href?.includes('/static/loaders.css'));
@@ -1061,11 +1062,11 @@ class SpixResearch extends HTMLElement {
     if (this.ready) return;
     const root = this.attachShadow({mode: 'open'});
     const kit = kitSheet();
-    if (kit) root.adoptedStyleSheets = [kit];
+    if (kit) { root.adoptedStyleSheets = [kit]; kitAdopted = true; }
     root.innerHTML = loading('roll', 'Loading the Research Area');
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261116q', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261116q', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261116r', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261116r', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));
