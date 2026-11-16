@@ -304,7 +304,7 @@ from B1/B2 when the player's next match is open), `index.html`; extend `test_res
 | 1. Lines, hits and clearer numbers | Done | cf8a499.. | insight 1/1 file, all asserts |
 | 2. Team page answer first | Done | 6d163c8.. | team + insight, all *_web.js pass |
 | 3. Stat view answer first | Done | d625f52.. | stat + all *_web.js pass |
-| 4. Referee this season first, ranks from one season | Not started | | |
+| 4. Referee this season first, ranks from one season | In progress | | |
 | 5. Next matches: rail, bar, sheet (B1) | Not started | | |
 | 6. Match view shell (B2) | Not started | | |
 | 7. Cards section and Add | Not started | | |
