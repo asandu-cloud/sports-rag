@@ -2709,6 +2709,25 @@ backend).** The number was held since 7 Nov (D78).
       from 2019/20. Closing pools therefore cover the tuning and locked seasons.
     - Tests: 7 new, all pass. The full suite: 3,139 passed, plus the 3 known errors. Golden unchanged; no live code
       changed.
+  - **Task 4 done (16 Nov): today's rules and the engine's rules** (`Scripts/data_platform/game_read/rules.py`).
+    - *Most likely:*
+      - Today's list is the live `suggestion` and `most_likely`, unchanged.
+      - The engine's list keeps the live floors on the market's chance and price, and the live shape: one
+        suggestion a market, up to 3 that can win together and are not the same bet.
+      - It changes only the order. An option the engine backs (its chance above the market's) comes first, the
+        strongest first, by the edge or by the blended chance. The rest keep the live order. An option the engine
+        cannot score is not backed.
+    - *Value:*
+      - The candidates are the lines history prices before kickoff: the result, over/under 2.5, and a half-line
+        main handicap. Each comes at the average or the best price.
+      - The rule is 2% value on the market's chance (today) or the engine's chance, at most 2 a match, highest first,
+        able to win together.
+    - On 600 random matches:
+      - with the market as the engine, all 600 lists equal today's, and every match gets 3;
+      - the average price gives no Value pick;
+      - the best price gives 153, 136 of them on the result (the stale best prices of D39).
+    - Tests: 12 new, all pass. The full suite: 3,151 passed, plus the 3 known errors. Golden unchanged; no live code
+      changed.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
