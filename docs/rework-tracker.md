@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-11-15 (a late daily refresh waits for match time, D109; why cards were missing at kickoff, D108; the game-read engine's design approved and its plan for phases 0–1, A4 closed as a stage of its own, D77). Earlier: 2026-11-04 (A5.4 cards merged behind its switch, live Tue 10 Nov, D58, D62; match events live with a backfill from 20 Sep, D64; recommendation layer live with `SPIX_RECOMMENDATIONS=on`, D68; owner dashboard, D67)
+Last updated: 2026-11-16 (research endpoints for the Research Area overhaul, plan, D110). Earlier: 2026-11-15 (a late daily refresh waits for match time, D109; why cards were missing at kickoff, D108; the game-read engine's design approved and its plan for phases 0–1, A4 closed as a stage of its own, D77). Earlier: 2026-11-04 (A5.4 cards merged behind its switch, live Tue 10 Nov, D58, D62; match events live with a backfill from 20 Sep, D64; recommendation layer live with `SPIX_RECOMMENDATIONS=on`, D68; owner dashboard, D67)
 
 ## Status
 
@@ -2749,6 +2749,15 @@ backend branch; it goes live when merged, because the refresh job runs from main
 - Tests: 15 new (the hold, the run-time record, the reader, the alert, the command), all pass. The full suite:
   3,099 passed, plus the 3 known errors in `test_phase4_baseline_freeze.py`. On the live database the reader found
   84 kickoffs in the next 8 days and no hold now.
+
+**D110 — Research endpoints for the Research Area overhaul (16 Nov; backend, owner).** The frontend's overhaul
+(D107, approved 16 Nov) needs the backend's data: a team's and a referee's next matches (B1), one match's research
+view (B2) and this season's provisional ranks for players under 900 minutes (B5). The owner put them before
+game-read task 3. Plan: `docs/superpowers/plans/2026-11-16-research-endpoints.md` (5 tasks, a start and a done
+commit each). Read-only, behind the refresh gate (503 while the refresh holds it), no pick changes, no schema change.
+Agreed with the frontend: no player shots-on-target prices. The only ones kept are Bet365's, in the odds archive's
+raw responses, under full player names, and one bookmaker breaks the two-bookmaker rule behind every typical price.
+`lineups` may be null.
 
 ## Findings that shape later steps
 
