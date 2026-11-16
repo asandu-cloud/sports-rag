@@ -29,12 +29,12 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
 | Task | What it builds | Status | Start commit | Done commit | Tests |
 |---|---|---|---|---|---|
 | 1 | History loader | Done 15 Nov | cfc881e | eed3af6 | 11 new, all pass; suite 3,079 passed + the 3 known errors |
-| 2 | Margins of our saved reads | Done 15 Nov | cce0817 | the "Done game-read task 2" commit | 5 new, all pass; suite 3,084 passed + the 3 known errors |
-| 3 | The rebuilt Most likely pool | Not started | | | |
-| 4 | Today's rules and the engine's rules | Not started | | | |
-| 5 | Forecasts, walk-forward runner, zero and control lines | Not started | | | |
-| 6 | The scores | Not started | | | |
-| 7 | Bench command, report, Opportunities, locked-run guard | Not started | | | |
+| 2 | Margins of our saved reads | Done 15 Nov | cce0817 | c450daa | 5 new, all pass; suite 3,084 passed + the 3 known errors |
+| 3 | The rebuilt Most likely pool | Done 16 Nov | 14ba2c2 | 89e0ad2 | 7 new, all pass; suite 3,139 passed + the 3 known errors |
+| 4 | Today's rules and the engine's rules | Done 16 Nov | 02ab071 | d87493a | 12 new, all pass; suite 3,151 passed + the 3 known errors |
+| 5 | Forecasts, walk-forward runner, zero and control lines | Done 16 Nov | fb94888 | a2a93ed | 8 new, all pass; suite 3,159 passed + the 3 known errors |
+| 6 | The scores | Done 16 Nov | c6966dd | 9fbec27 | 10 new + 1 in task 4's, all pass; suite 3,169 passed + the 3 known errors |
+| 7 | Bench command, report, Opportunities, locked-run guard | Done 16 Nov | 7c94626 | the "Done game-read task 7" commit | 6 new, all pass; suite 3,175 passed + the 3 known errors; first tuning run 16 Nov |
 | 8 | Elo (model 1) | Not started | | | |
 | 9 | Pi-ratings (model 2) | Not started | | | |
 | 10 | Dixon–Coles with time decay (model 3) | Not started | | | |

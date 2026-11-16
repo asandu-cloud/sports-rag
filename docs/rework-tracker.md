@@ -2688,6 +2688,137 @@ backend).** The number was held since 7 Nov (D78).
       other markets on the saved reads, must decide which reads count, including the 73 shown reads with no
       over/under 2.5 prices.
     - Tests: 5 new, all pass. The full suite: 3,084 passed, plus the 3 known errors. No live code changed.
+  - **Task 3 done (16 Nov): the rebuilt Most likely pool** (`Scripts/data_platform/game_read/pool.py`).
+    - Each history match gets the 27 options the live site would show: the result; goals 0.5–4.5; both teams to
+      score; handicaps −2.5…+2.5, both sides.
+    - The market's real lines keep their own chance (the power method) and average price:
+      - the result, over/under 2.5, and the main handicap when it is a half line (25% of matches; it is usually a
+        quarter or whole line);
+      - every real main line, quarter and whole included, also feeds M1.
+    - The other lines are derived. The chance comes from M1's goal means, and the price comes from that chance and
+      the line's margin (task 2), rounded to two decimals.
+    - *Ruling:* a line whose real price is missing is derived like the others, so one missing market never
+      removes the rest.
+    - On 600 random matches of the 49,714:
+      - 6.5 ms a match, no empty pool, a median of 5 real options a match;
+      - M1 fits the real over 2.5 within 0.6 points on average and the draw within 1.4;
+      - derived over 1.5 said 75.4% and won 75.8%.
+    - *Finding:* without its over/under 2.5 price, M1 puts over 2.5 7.4 points below the market (the Poisson
+      model's draw shortfall pulls the goals down). That applies to only 33 matches before kickoff.
+    - *Finding:* closing prices are missing for 24,650 matches, about half, which matches football-data adding them
+      from 2019/20. Closing pools therefore cover the tuning and locked seasons.
+    - Tests: 7 new, all pass. The full suite: 3,139 passed, plus the 3 known errors. Golden unchanged; no live code
+      changed.
+  - **Task 4 done (16 Nov): today's rules and the engine's rules** (`Scripts/data_platform/game_read/rules.py`).
+    - *Most likely:*
+      - Today's list is the live `suggestion` and `most_likely`, unchanged.
+      - The engine's list keeps the live floors on the market's chance and price, and the live shape: one
+        suggestion a market, up to 3 that can win together and are not the same bet.
+      - It changes only the order. An option the engine backs (its chance above the market's) comes first, the
+        strongest first, by the edge or by the blended chance. The rest keep the live order. An option the engine
+        cannot score is not backed.
+    - *Value:*
+      - The candidates are the lines history prices before kickoff: the result, over/under 2.5, and a half-line
+        main handicap. Each comes at the average or the best price.
+      - The rule is 2% value on the market's chance (today) or the engine's chance, at most 2 a match, highest first,
+        able to win together.
+    - On 600 random matches:
+      - with the market as the engine, all 600 lists equal today's, and every match gets 3;
+      - the average price gives no Value pick;
+      - the best price gives 153, 136 of them on the result (the stale best prices of D39).
+    - Tests: 12 new, all pass. The full suite: 3,151 passed, plus the 3 known errors. Golden unchanged; no live code
+      changed.
+  - **Task 5 done (16 Nov): forecasts, the day-by-day runner, and the zero and control lines**
+    (`Scripts/data_platform/game_read/forecast.py`, `walkforward.py`, `models/market.py`).
+    - *The runner:* each day, a model predicts every match of the day, then learns all of the day's results. The
+      warm-up seasons are only learned. A tuning run is cut at 2022, so it never sees a locked season.
+    - *A forecast* holds what a model can say: the result's chances, the goal difference, or a whole score matrix.
+      Every option of the pool reads its chance from it.
+    - *Ruling:* a forecast can also carry exact chances for named lines. Only the zero line uses this, to repeat the
+      market's real over/under 2.5 and half-line handicap exactly, so it scores zero.
+    - *The zero line* copies the market. On 800 tuning matches it repeats the whole pool within 1e-15.
+    - *The control line* is M1 with Dixon–Coles's low-score correction. Its rho is refitted at each season start on
+      every earlier match:
+      - −0.051 (2019), −0.048 (2020), −0.051 (2021), −0.050 (2022): stable;
+      - on the tuning seasons it said 24.0% for under 1.5 (23.7% happened) and 24.6% for a draw (24.8%
+        happened).
+    - Run time on the 14,383 tuning matches: 71 s for the zero line, 43 s for the control line.
+    - Tests: 8 new, all pass. The full suite: 3,159 passed, plus the 3 known errors. Golden unchanged; no live code
+      changed.
+  - **Task 6 done (16 Nov): the scores** (`Scripts/data_platform/game_read/scores.py`).
+    - *What it measures:*
+      - accuracy: log loss against the market's;
+      - the blend;
+      - Most likely: wins minus the market's expected wins per 100 picks, today's lists against the engine's;
+      - Value: return and closing line value;
+      - the closing check;
+      - the average price against the named books;
+      - the pass rules.
+    - *Intervals:* every interval resamples whole weeks, 2,000 times, seeded.
+    - *Ruling:* each score sums a few numbers per match, and a resample adds up the weeks' sums. The plan had the
+      statistic read rows; this way the whole set runs in seconds.
+    - *Fix to task 4:* the engine now backs an option only when its chance is above the market's by more than
+      1e-9.
+      - A matrix's sums can differ from the pool's in the 16th decimal place. That alone made the zero line "back"
+        options and change the lists.
+      - No real edge is that small.
+    - *Ruling:* a two-way market is scored as p and 1 − p on both sides, because the market's two chances sum to 1
+      only up to float noise.
+    - *Real data:* the zero and control lines on the 14,383 tuning matches (the locked seasons not touched).
+      - *The zero line scores zero everywhere.* Accuracy is 0, the Most likely paired difference is exactly 0, and
+        there are no Value picks at the average price. The blend gap is about 1e-14, with an interval of ±1e-9. Its
+        c means nothing there, because the market goes in twice.
+      - *Today's Most likely lists* make 3 picks on every match (43,057). They won 0.6 more per 100 than the
+        market's chances said.
+      - *Today's Value rule at the best price:* 2,750 picks, +3.0% return, closing line value +4.0% [3.6, 4.5]. That
+        is the stale best price of D39. At the average price it makes no picks.
+      - *The control line:*
+        - result log loss worse than the market's by 0.0004 [0.0001, 0.0007];
+        - Most likely −0.11 per 100 against today's [−0.44, +0.23]; derived lines −0.02;
+        - 9 Value picks at the average price.
+        - It passes nothing, as a control should.
+      - *The average price against the named books' median:* the result's largest gap averages 0.35–0.56 points
+        a season, 95th percentile 0.7–1.2 points (2012–2022).
+    - Run time: about 3 minutes for the first model (building the pools), then about 10 s for each further model.
+    - Tests: 10 new, 1 added to task 4's, all pass. The full suite: 3,169 passed, plus the 3 known errors. Golden
+      unchanged; no live code changed.
+  - **Task 7 done (16 Nov): the bench command, the report, Opportunities and the locked-run guard**
+    (`Scripts/ops/game_read_bench.py`, `game_read/report.py`, `game_read/opportunities.py`).
+    - *The command:*
+      `python -m Scripts.ops.game_read_bench run --models market,control --block tuning --out Research/game-read-bench-<date>`.
+      - It writes `summary.json` and `report.md`.
+      - Every run scores the zero line first. If the zero line is not zero, the run stops with exit code 2 and
+        writes nothing.
+    - *The locked-run guard:*
+      - a locked run must be named (`--confirm-locked`);
+      - it refuses bench code that is not committed;
+      - every locked run is appended to `Research/game-read-bench/locked-runs.jsonl`.
+    - *Ruling:* the "by blended chance" rule uses a two-way blend fitted on every option that clears the Most likely
+      floors in the tuning seasons. That is the population the rule ranks.
+    - *Ruling:* in Opportunities, a return at the average price counts as a lead only above zero. A loss there is
+      the bookmaker's margin.
+    - **First run, tuning seasons, 16 Nov** (`Research/game-read-bench-2026-11-16/`, 341 s): the zero line passed,
+      and 14,383 matches were scored.
+      - *Today's Most likely lists:* 43,057 picks; 0.60 more wins per 100 than the market's chances said.
+      - *Today's Value rule:*
+        - no picks at the average price;
+        - at the best price, 2,750 picks, +3.0% return, closing line value +4.0% [3.6, 4.5]. This is the stale
+          best price of D39.
+      - *The control line on derived lines,* engine minus today: −0.02 per 100 ranked by edge, +0.04 ranked by
+        blended chance. That is the bar a model must clear there. On all lines: −0.11 [−0.44, +0.23] and −0.08
+        [−0.27, +0.12].
+      - *The average price against the named books' median:* a largest gap of 0.35–0.39 points on average, with a
+        95th percentile of 0.69–0.77 (2019–2022). So the average price is a fair stand-in for the market (spec
+        point 3).
+      - *Opportunities:* 31 of 104 groups leave out zero (about 5 would by chance). The groups overlap, so this is
+        not 31 separate findings.
+        - Draws shorten into the close: +0.11 points [0.08, 0.15], and home wins drift out by −0.11.
+        - The largest moves are in Belgium: home −0.64, away +0.61.
+        - All of these are tiny against a margin of about 5%. Nothing to follow alone.
+        - Price bands: the market's chances match how often outcomes won in every band.
+        - Promoted teams (116, first 10 matches): +0.3 points [−1.9, +2.6], so no mispricing found.
+    - Tests: 6 new, all pass. The full suite: 3,175 passed, plus the 3 known errors. Golden unchanged; no live code
+      changed.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
