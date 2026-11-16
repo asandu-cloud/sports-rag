@@ -3007,6 +3007,9 @@ backend).** The number was held since 7 Nov (D78).
     - *What phase 2 does next* (needs its own plan): D12's variables (xG, shots in the box, rest) enter models 3–4
       one at a time through the ablation gate; then model 6 (boosted trees on the market's error) and model 7
       (boosted trees on the outcome); then the average of what passes. Task 14 (ClubElo) waits for the owner's yes.
+  - **Task 14 dropped (owner, 16 Nov): the ClubElo yardstick.** Past results alone do not beat the market (task
+    13), so comparing our Elo with ClubElo's cannot change the conclusion. No download was made. The owner asked
+    for the phase 2 plan next.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their

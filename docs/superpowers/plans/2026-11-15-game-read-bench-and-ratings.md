@@ -40,8 +40,8 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
 | 10 | Dixon–Coles with time decay (model 3) | Done 16 Nov | bf9408c | 7471f94 | 5 new, all pass; suite 3,192 passed + the 3 known errors; half-life 365 days |
 | 11 | Drifting ratings (model 4) | Done 16 Nov | 3b8eff7 | 31c1810 | 3 new, all pass; suite 3,195 passed + the 3 known errors; gain 3e-6, summer widening 0.01 |
 | 12 | The average of the models | Done 16 Nov | f62eb22 | 8e745f6 | 4 new, all pass; suite 3,199 passed + the 3 known errors |
-| 13 | Phase 1 runs and the first report to the owner | Done 16 Nov | 1f665d6 | the "Done game-read task 13" commit | suite 3,199 passed + the 3 known errors; golden unchanged; one locked run (ledger line 1); every model fails every score |
-| 14 | ClubElo yardstick (only with the owner's yes) | Not started | | | |
+| 13 | Phase 1 runs and the first report to the owner | Done 16 Nov | 1f665d6 | 94580e0 | suite 3,199 passed + the 3 known errors; golden unchanged; one locked run (ledger line 1); every model fails every score |
+| 14 | ClubElo yardstick (only with the owner's yes) | Dropped (owner, 16 Nov): past results alone do not beat the market, so the yardstick cannot change the conclusion | | | |
 
 ## Global Constraints
 
