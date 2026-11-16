@@ -2728,6 +2728,23 @@ backend).** The number was held since 7 Nov (D78).
       - the best price gives 153, 136 of them on the result (the stale best prices of D39).
     - Tests: 12 new, all pass. The full suite: 3,151 passed, plus the 3 known errors. Golden unchanged; no live code
       changed.
+  - **Task 5 done (16 Nov): forecasts, the day-by-day runner, and the zero and control lines**
+    (`Scripts/data_platform/game_read/forecast.py`, `walkforward.py`, `models/market.py`).
+    - *The runner:* each day, a model predicts every match of the day, then learns all of the day's results. The
+      warm-up seasons are only learned. A tuning run is cut at 2022, so it never sees a locked season.
+    - *A forecast* holds what a model can say: the result's chances, the goal difference, or a whole score matrix.
+      Every option of the pool reads its chance from it.
+    - *Ruling:* a forecast can also carry exact chances for named lines. Only the zero line uses this, to repeat the
+      market's real over/under 2.5 and half-line handicap exactly, so it scores zero.
+    - *The zero line* copies the market. On 800 tuning matches it repeats the whole pool within 1e-15.
+    - *The control line* is M1 with Dixon–Coles's low-score correction. Its rho is refitted at each season start on
+      every earlier match:
+      - −0.051 (2019), −0.048 (2020), −0.051 (2021), −0.050 (2022): stable;
+      - on the tuning seasons it said 24.0% for under 1.5 (23.7% happened) and 24.6% for a draw (24.8%
+        happened).
+    - Run time on the 14,383 tuning matches: 71 s for the zero line, 43 s for the control line.
+    - Tests: 8 new, all pass. The full suite: 3,159 passed, plus the 3 known errors. Golden unchanged; no live code
+      changed.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
