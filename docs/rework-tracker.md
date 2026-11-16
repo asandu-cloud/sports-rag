@@ -2746,6 +2746,14 @@ test bets (Over 2.5 cards in Chelsea's next match; a player's shots on target) t
     on target from a player); the back link returns there, and the team's next matches stay on the right with this
     one marked. A 404 or 503 says so in words. The markets row shows only filled markets (tasks 7 to 9). Test
     fixtures are the backend's real 16 Nov payloads: Chelsea v Leeds (no read yet) and Atletico v Barcelona (8 Nov).
+  - Task 7, 16 Nov: the match view's Cards section. A line picker (2.5 to 5.5, 3.5 first; the line stays while the
+    bettor moves around), Over and Under with Spix's chance and the typical price from the read (no Add: the slip
+    takes result, goals, both teams to score, handicap and corners, not cards), then how often each team's last 10,
+    the referee's last 10 and the meetings since 2023/24 went over, who picks up the cards (each side's own and their
+    opponents', the biggest named), the referee against the competition this season, and the players booked most this
+    season. B2 counts a yellow and a red as one card each, and the page says to check the bookmaker's rule for reds.
+    Without a referee or a read it says so. app.js now takes a research-add-leg event into the slip the way the match
+    page's Explore options do (used by goals, corners and result in task 9). Cache tag research-20261116g.
 
 **D108 — Why cards were missing at kickoff (15 Nov; backend, read-only).** The orchestrator asked why so few
 domestic matches had a card on the board at kickoff (D77, task 2). Checked on the 10 domestic leagues, 5 Sep–14 Nov,

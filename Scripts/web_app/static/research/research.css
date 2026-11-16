@@ -404,3 +404,50 @@ button.who:hover,button.who:focus-visible{background:var(--surface2)}
 @media(max-width:1100px){.match-layout.has-rail{grid-template-columns:minmax(0,1fr) 300px;gap:24px}}
 @media(max-width:860px){.match-layout.has-rail{display:block}#matchRail{display:none}}
 @media(max-width:640px){.figs{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:14px}.mkts{margin:0 -16px;padding:10px 16px}.mv-title{font-size:30px}.crest.md{width:36px;height:36px}}
+/* D107 task 7: a market's section (cards first; the other markets reuse these) */
+.mk{display:grid;gap:4px}
+.mk-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.mk-h h2{font-size:28px;line-height:1;font-weight:850;font-stretch:var(--display-stretch);text-transform:uppercase}
+.mk-h p{color:var(--text2);font-size:15px}.mk-h p b{color:var(--text);font-size:18px}
+.mk .lines{margin-top:10px}
+.mk-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.mk-pick{border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:14px 16px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:center}
+.mk-pick.lean{border-color:var(--accent-l);box-shadow:0 0 0 1px var(--accent-l)}
+.mk-pl{font-weight:800;font-stretch:var(--display-stretch);font-size:20px;line-height:1.1}
+.mk-lean{font-size:12px;font-weight:700;color:var(--accent-l);grid-column:1}
+.mk-pc{color:var(--text2);font-size:14px;grid-column:1}.mk-pc b{color:var(--text)}
+.mk-add{grid-row:1/span 3;grid-column:2;min-height:44px;padding:0 14px;border:1px solid var(--accent-l);color:var(--accent-l);border-radius:6px;font-size:14px;font-weight:600;background:var(--surface)}
+.mk-add:hover{background:var(--surface2)}
+.mk-note{margin-top:10px;font-size:14px;color:var(--text2)}
+.mk-ev{margin-top:22px}
+.mk-ev h3{font-size:15px;font-weight:700}
+.mk-ev h3 small{font-weight:400;color:var(--text3);font-size:13px;margin-left:6px}
+.mk-rows{margin-top:6px}
+.mk-row{display:grid;grid-template-columns:34px minmax(0,1fr) auto 64px 70px;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-soft)}
+.mk-row>.crest{width:30px;height:30px}
+.mk-ini{width:30px;height:30px;border-radius:50%;background:var(--surface2);color:var(--accent-l);font-weight:700;font-size:11px;display:inline-grid;place-items:center}
+.mk-who{min-width:0}
+.mk-who strong{display:block;font-size:15px;line-height:1.2;overflow-wrap:anywhere}
+.mk-who small{display:block;font-size:13px;color:var(--text3)}
+.mk-hit{text-align:right;font-weight:700;font-size:15px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.mk-avg{text-align:right;font-size:13px;color:var(--text3)}.mk-avg b{color:var(--text);font-size:15px;display:block}
+.mk-two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+.mk-mini{border:1px solid var(--border);border-radius:10px;padding:14px 16px;background:var(--surface);min-width:0}
+.mk-mh{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;min-height:30px}
+.mk-mh .crest{width:26px;height:26px}
+.mk-mini dl{margin:8px 0 0}.mk-mini dd{margin:0}
+.mk-mini dl div{display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:14px;color:var(--text2);border-top:1px solid var(--border-soft)}
+.mk-mini dd{color:var(--text);font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.mk-mini dd small{display:block;font-weight:400;color:var(--text3);font-size:12px}
+.mk-notes,.mk-booked{margin:8px 0 0;list-style:none;padding:0}
+.mk-notes li{padding:6px 0;font-size:14px;color:var(--text2);border-top:1px solid var(--border-soft)}
+.mk-booked-row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;font-size:14px;border-top:1px solid var(--border-soft)}
+.mk-booked-row span:last-child{color:var(--text2);text-align:right;white-space:nowrap}
+.mk-callout{margin-top:12px;border-left:3px solid var(--accent-l);padding:4px 0 4px 12px;font-size:14px;color:var(--text2)}
+@media(max-width:640px){
+  .mk-pair,.mk-two{grid-template-columns:1fr}
+  .mk-row{grid-template-columns:30px minmax(0,1fr) auto;row-gap:6px}
+  .mk-row .strip{grid-column:2/span 2;grid-row:2}
+  .mk-avg{display:none}
+  .mk-booked-row span:last-child{white-space:normal}
+}

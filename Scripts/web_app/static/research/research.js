@@ -1,7 +1,7 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116f';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES} from './insight.js?v=research-20261116f';
-import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116f';
-import {MARKETS, renderMatch, matchError} from './match.js?v=research-20261116f';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116g';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES} from './insight.js?v=research-20261116g';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116g';
+import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail} from './match.js?v=research-20261116g';
 
 const API = '/api/research';
 
@@ -373,7 +373,9 @@ function mountResearch(root, navigate) {
     closeSheet(false);
     if (!initialized) { initialized = true; setArea('teams'); }
     const token = ++routeToken;
-    market = MARKETS.includes(market) ? market : MARKETS.includes(storedMarket()) ? storedMarket() : 'cards';
+    // A market whose section is not built opens the first one that is.
+    const shown = MARKETS.filter(key => SECTIONS[key]), wanted = MARKETS.includes(market) ? market : storedMarket();
+    market = shown.includes(wanted) ? wanted : shown[0];
     try { localStorage.setItem(MATCH_MARKET, market); } catch (error) { /* a per-browser convenience only */ }
     view('match');
     if (state.matchId !== eventId) {
@@ -396,11 +398,18 @@ function mountResearch(root, navigate) {
     state.match = match;
     if (state.matchFrom?.eventId !== eventId) state.matchFrom = {eventId, route: `teams/${f.home.id}`, label: f.home.name, teamId: f.home.id};
     state.matchMarket = market;
-    $('matchBody').innerHTML = renderMatch(match, {market, back: state.matchFrom});
+    $('matchBody').innerHTML = renderMatch(match, matchViewOf(market));
     wireImages($('matchBody'));
     if (first) $('matchTitle')?.focus({preventScroll: true});
     else $('matchBody').querySelector(`[data-market="${market}"]`)?.focus({preventScroll: true});
     showMatchRail(eventId, token);
+  }
+  // The line each market was last read at stays while the bettor moves between markets and matches.
+  const matchLines = {};
+  const matchViewOf = market => ({market, back: state.matchFrom, line: matchLines[market]});
+  function redrawSection() {
+    const section = $('matchBody').querySelector('.mk');
+    if (section) { section.innerHTML = SECTIONS[state.matchMarket](state.match, matchViewOf(state.matchMarket)); wireImages(section); }
   }
   async function showMatchRail(eventId, token) {
     const teamId = state.matchFrom?.teamId ?? state.match.fixture.home.id;
@@ -889,9 +898,20 @@ function mountResearch(root, navigate) {
   });
   $('profileBack').addEventListener('click', () => go(state.area));
   $('matchView').addEventListener('click', event => {
-    const target = event.target.closest('[data-match-back],[data-market],[data-open-match],[data-referee]');
+    const target = event.target.closest('[data-match-back],[data-market],[data-open-match],[data-referee],[data-mline],[data-add]');
     if (!target) return;
     if (target.matches('[data-match-back]')) return navigate(state.matchFrom?.route || 'teams');
+    if (target.dataset.mline) {
+      matchLines[state.matchMarket] = Number(target.dataset.mline);
+      redrawSection();
+      return $('matchBody').querySelector(`.mk [data-mline="${target.dataset.mline}"]`)?.focus({preventScroll: true});
+    }
+    if (target.dataset.add) {
+      const [market, side, line] = target.dataset.add.split('|');
+      const detail = addLegDetail(state.match, market, side, line === '' || line === 'null' ? null : Number(line));
+      if (detail) root.host.dispatchEvent(new CustomEvent('research-add-leg', {bubbles: true, composed: true, detail}));
+      return;
+    }
     if (target.dataset.market) return navigate(`matches/${encodeURIComponent(state.matchId)}/${target.dataset.market}`);
     if (target.dataset.referee) return go('referees', target.dataset.referee);
     state.matchFrom = {...state.matchFrom, eventId: target.dataset.openMatch};
@@ -1007,8 +1027,8 @@ class SpixResearch extends HTMLElement {
     const root = this.attachShadow({mode: 'open'});
     root.innerHTML = '<p role="status">Loading Research Area…</p>';
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261116f', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261116f', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261116g', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261116g', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));

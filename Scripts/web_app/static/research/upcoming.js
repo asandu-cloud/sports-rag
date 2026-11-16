@@ -1,7 +1,7 @@
 // Research Area overhaul (D107, task 5): a team's next matches, from B1's research-upcoming.v1. The rail on wide
 // screens, the floating bar and its sheet on phones (the owner's option C), and the next match in a player's or
 // referee's head. Pure functions returning HTML; research.js places them and wires the clicks.
-import {escape, one} from './insight.js?v=research-20261116f';
+import {escape, one} from './insight.js?v=research-20261116g';
 
 // Kickoffs in the viewer's own time, as the board shows them.
 const part = (iso, options) => new Date(iso).toLocaleString('en-GB', options);
@@ -11,7 +11,7 @@ const clock = iso => part(iso, {hour: '2-digit', minute: '2-digit', hour12: fals
 const localDay = iso => part(iso, {year: 'numeric', month: '2-digit', day: '2-digit'});
 export const whenText = (iso, joiner = ' · ') => `${weekday(iso)} ${dayMonth(iso)}${joiner}${clock(iso)}`;
 export const opensDay = iso => `${weekday(iso)} ${dayMonth(iso)}`;
-const possessive = name => name.endsWith('s') ? `${name}'` : `${name}'s`;
+export const possessive = name => name.endsWith('s') ? `${name}'` : `${name}'s`;
 const COUNT = ['', 'match', 'two', 'three', 'four', 'five'];
 
 export function crest(team, size = '') {
