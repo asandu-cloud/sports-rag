@@ -13,7 +13,9 @@ const fixture = name => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixture
 (async () => {
   const m = await import(pathToFileURL(path.join(__dirname, '../web_app/static/research/match.js')));
   const leeds = fixture('research_match_chelsea_leeds.json');
-  const atleti = fixture('research_match_atletico_barcelona.json');
+  // Atletico v Barcelona's real read, saved after full time; the tests of a read before kickoff see it as not started.
+  const played = fixture('research_match_atletico_barcelona.json');
+  const atleti = {...played, fixture: {...played.fixture, status: 'NS'}};
   const now = new Date('2026-11-16T12:00:00Z');
 
   // The markets, in the spec's order.
@@ -261,6 +263,32 @@ const fixture = name => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixture
   gap.read.lines.goals.find(l => l.line === 2.5).under.chance = null;
   assert.doesNotMatch(text(m.goalsSection(gap, {line: 2.5})), /NaN/);
   assert.match(text(m.goalsSection(gap, {line: 2.5})), /Under 2\.5 goals typical price 3\.20/);
+
+  // A match that has kicked off (real-data pass, 16 Nov). The API drops the read once the board does: Atletico v
+  // Barcelona as served after full time, status FT and no read. Nothing promises a read that will not come.
+  const gone = {...played, read: null, fixture: {...played.fixture, read: {status: 'waiting', read_at: null, opens_at: null, expected: null}}};
+  assert.match(text(m.matchHead(gone, {now})), /Referee Javier Alberola Rojas Full time$/);
+  assert.equal(text(m.spixReads(gone, 'goals')), "How Spix reads it This match has been played, so Spix's read is no longer shown. The past numbers below run up to its kickoff.");
+  const goneGoals = text(m.goalsSection(gone, {line: 2.5}));
+  assert.match(goneGoals, /Spix's chances and typical prices are shown before kickoff only\./);
+  assert.doesNotMatch(goneGoals, /once the read is out/);
+  assert.match(text(m.resultSection(gone, {})), /shown before kickoff only/);
+  const inPlay = {...gone, fixture: {...gone.fixture, status: '2H'}};
+  assert.match(text(m.matchHead(inPlay, {now})), /In play$/);
+  assert.match(text(m.spixReads(inPlay, 'goals')), /This match has kicked off, so Spix's read is no longer shown\. The past numbers below run up to kickoff\./);
+  const postponed = {...gone, fixture: {...gone.fixture, status: 'PST'}};
+  assert.match(text(m.matchHead(postponed, {now})), /Postponed$/);
+  assert.match(text(m.spixReads(postponed, 'goals')), /This match was postponed\. Spix reads it again once it has a new date\./);
+  assert.match(text(m.goalsSection(postponed, {line: 2.5})), /Spix's chances and typical prices show once the match has a new date\./);
+  // Still carrying its read from before kickoff (the board's Live tab keeps it): said in the past tense, no Add.
+  assert.match(text(m.matchHead(played, {now})), /Full time$/);
+  assert.match(text(m.spixReads(played, 'goals')), /^How Spix read it before kickoff Barcelona are favourites\./);
+  const playedGoals = m.goalsSection(played, {line: 2.5});
+  assert.match(text(playedGoals), /Over 2\.5 goals Spix leans this way Spix 72%/);
+  assert.doesNotMatch(playedGoals, /data-add/, 'no Add once the match has kicked off');
+  assert.doesNotMatch(m.resultSection(played, {}), /data-add/);
+  assert.equal(m.matchPhase({status: 'NS'}), null);
+  assert.equal(m.matchPhase({}), null, 'no status: as the API gives an upcoming match');
 
   console.log('test_research_match_web: ok');
 })().catch(error => { console.error(error); process.exit(1); });

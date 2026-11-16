@@ -2783,6 +2783,12 @@ test bets (Over 2.5 cards in Chelsea's next match; a player's shots on target) t
   - Task 7 follow-up, 16 Nov (owner): the Cards section's likelier side reads "More likely", not "Spix leans this
     way", because cards carry no Spix suggestion (D61). Goals, corners and result keep "Spix leans this way". Cache tag
     research-20261116l.
+  - Task 10 real-data pass, 16 Nov (8100, live API): a match that has kicked off promised a read that will never
+    come. The API drops the read once the board does, so Atletico v Barcelona (played 8 Nov, status FT) said "Read
+    not out yet" and "Spix's read comes out nearer the match". The match view now reads the fixture's status:
+    "In play", "Full time", "Postponed", "Cancelled" or "Abandoned", a plain sentence in place of the read, and
+    "shown before kickoff only" in the sections. A read still carried after kickoff (the board's Live tab keeps it)
+    is headed "How Spix read it before kickoff" and takes no Add. Cache tag research-20261116m.
 
 **D108 — Why cards were missing at kickoff (15 Nov; backend, read-only).** The orchestrator asked why so few
 domestic matches had a card on the board at kickoff (D77, task 2). Checked on the 10 domestic leagues, 5 Sep–14 Nov,

@@ -1,8 +1,8 @@
 // Research Area overhaul (D107, task 6): one match's research view, from B2's research-match.v1. The head, How Spix
 // reads it, the markets row, the open market's section (SECTIONS, filled by tasks 7 to 9) and the foot line. Pure
 // functions returning HTML; research.js places them and wires the clicks.
-import {escape, one, LINES, DEFAULT_LINE, passes, hitCount, strip, shortDay} from './insight.js?v=research-20261116l';
-import {crest, whenText, readState, opensDay, possessive} from './upcoming.js?v=research-20261116l';
+import {escape, one, LINES, DEFAULT_LINE, passes, hitCount, strip, shortDay} from './insight.js?v=research-20261116m';
+import {crest, whenText, readState, opensDay, possessive} from './upcoming.js?v=research-20261116m';
 
 export const MARKETS = ['cards', 'sot', 'goals', 'corners', 'result', 'h2h', 'news'];
 export const MARKET_LABELS = {cards: 'Cards', sot: 'Shots on target', goals: 'Goals', corners: 'Corners', result: 'Result',
@@ -14,20 +14,39 @@ const GAMCARE = 'https://www.gamcare.org.uk/get-support/';
 const pct = chance => `${Math.round(chance * 100)}%`;
 const back = label => `<button type="button" class="text-button back-button" data-match-back><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg><span>${escape(label)}</span></button>`;
 
+// A match that has kicked off, from the fixture's status (API-Football's short codes, as the board's Live tab reads
+// them). The API drops the read once the board does, so nothing may promise one; a read still carried is from before
+// kickoff and takes no Add. Any other status, or none, is a match still to come.
+const KICKED = "This match has kicked off, so Spix's read is no longer shown. The past numbers below run up to kickoff.";
+const BEFORE_ONLY = "Spix's chances and typical prices are shown before kickoff only.";
+const PHASES = {
+  live: {chip: 'In play', lead: KICKED, note: BEFORE_ONLY},
+  played: {chip: 'Full time', lead: "This match has been played, so Spix's read is no longer shown. The past numbers below run up to its kickoff.", note: BEFORE_ONLY},
+  PST: {chip: 'Postponed', lead: 'This match was postponed. Spix reads it again once it has a new date.', note: "Spix's chances and typical prices show once the match has a new date."},
+  CANC: {chip: 'Cancelled', lead: 'This match was cancelled, so Spix has no read for it.', note: 'No chances or typical prices for a cancelled match.'},
+  ABD: {chip: 'Abandoned', lead: KICKED, note: BEFORE_ONLY},
+};
+const IN_PLAY = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE', 'INT', 'SUSP'], FULL_TIME = ['FT', 'AET', 'PEN', 'AWD', 'WO'];
+export function matchPhase(fixture) {
+  const code = String(fixture?.status || '').toUpperCase();
+  return IN_PLAY.includes(code) ? PHASES.live : FULL_TIME.includes(code) ? PHASES.played : PHASES[code] || null;
+}
+
 export function matchHead(match, {now = new Date()} = {}) {
-  const f = match.fixture, read = f.read || {};
+  const f = match.fixture, read = f.read || {}, phase = matchPhase(f);
   const referee = f.referee?.name
     ? `<span>Referee <button type="button" class="link" data-referee="${escape(f.referee.referee_key)}">${escape(f.referee.name)}</button></span>`
     : '<span>Referee not named yet</span>';
-  const tone = read.status === 'ready' ? '' : read.status === 'preliminary' ? ' pre' : ' wait';
+  const tone = phase ? ' wait' : read.status === 'ready' ? '' : read.status === 'preliminary' ? ' pre' : ' wait';
   return `<div class="mv-head">${crest(f.home, 'md')}<h2 class="mv-title" id="matchTitle" tabindex="-1">${escape(f.home.name)} <span class="vw">v</span> ${escape(f.away.name)}</h2>${crest(f.away, 'md')}</div>
-    <p class="mv-meta"><span>${escape(whenText(f.kickoff))}</span><span>${escape(f.competition?.name || '')}</span>${referee}<span class="status${tone}">${escape(readState(read, now))}</span></p>`;
+    <p class="mv-meta"><span>${escape(whenText(f.kickoff))}</span><span>${escape(f.competition?.name || '')}</span>${referee}<span class="status${tone}">${escape(phase ? phase.chip : readState(read, now))}</span></p>`;
 }
 
 // How Spix reads it: the read's own figures, one marked for the open market. Before the read is out, when it comes.
 export function spixReads(match, market) {
-  const f = match.fixture, r = match.read;
-  const open = '<section class="reads" aria-labelledby="readsTitle"><p class="cap" id="readsTitle">How Spix reads it</p>';
+  const f = match.fixture, r = match.read, phase = matchPhase(f);
+  const open = `<section class="reads" aria-labelledby="readsTitle"><p class="cap" id="readsTitle">${r && phase ? 'How Spix read it before kickoff' : 'How Spix reads it'}</p>`;
+  if (!r && phase) return `${open}<p class="rlead">${escape(phase.lead)}</p></section>`;
   if (!r) {
     const when = f.read?.opens_at ? opensDay(f.read.opens_at) : 'nearer the match';
     return `${open}<p class="rlead">Spix's read comes out ${escape(when)}. The past numbers below are ready now.</p></section>`;
@@ -102,17 +121,17 @@ function lineRow(market, line) {
 // the slip takes (addLegDetail finds it).
 const LEAN = {cards: 'More likely'};
 function pickCard(match, {label, chance, price, market, side, line}) {
-  const lean = chance > 0.5, addable = market && addLegDetail(match, market, side, line);
+  const lean = chance > 0.5, addable = market && !matchPhase(match.fixture) && addLegDetail(match, market, side, line);
   const button = addable ? `<button type="button" class="mk-add" data-add="${market}|${side}|${line}" aria-label="Add ${escape(label)} to the slip">Add</button>` : '';
   const parts = [chance == null ? '' : `Spix <b>${pct(chance)}</b>`, price == null ? '' : `typical price <b>${Number(price).toFixed(2)}</b>`].filter(Boolean);
   return `<div class="mk-pick${lean ? ' lean' : ''}"><span class="mk-pl">${escape(label)}</span>${lean ? ` <span class="mk-lean">${LEAN[market] || 'Spix leans this way'}</span>` : ''}<span class="mk-pc">${parts.join(' · ')}</span>${button}</div>`;
 }
-const WAITING = '<p class="mk-note">Spix\'s chances and typical prices show once the read is out.</p>';
+const waiting = match => `<p class="mk-note">${escape(matchPhase(match.fixture)?.note || "Spix's chances and typical prices show once the read is out.")}</p>`;
 
 // Over and Under at the line, from the read's lines.
 function pickPair(match, market, line, unit) {
   const r = match.read;
-  if (!r) return WAITING;
+  if (!r) return waiting(match);
   const lines = r.lines?.[market] || [], at = lines.find(l => l.line === line);
   if (!at) return `<p class="mk-note">No typical price for ${line} ${unit} yet.${lines.length ? ` Spix's chances cover ${listWords(lines.map(l => l.line))}.` : ''}</p>`;
   const card = side => at[side] ? pickCard(match, {label: `${side === 'over' ? 'Over' : 'Under'} ${line} ${unit}`, chance: at[side].chance,
@@ -285,7 +304,7 @@ export function resultSection(match, view = {}) {
   const picks = match.read && options.length
     ? `<div class="mk-pair mk-three">${order.map(side => options.find(o => o.side === side)).filter(Boolean).map(o => pickCard(match,
       {label: o.label, chance: o.chance, price: o.typical_price, market: 'moneyline', side: o.side, line: null})).join('')}</div>`
-    : WAITING;
+    : waiting(match);
   const venue = (side, where) => {
     const team = t[side]; if (!team) return '';
     const rows = (team.last_matches || []).filter(m => m.venue === where), n = record(rows);
