@@ -2688,6 +2688,27 @@ backend).** The number was held since 7 Nov (D78).
       other markets on the saved reads, must decide which reads count, including the 73 shown reads with no
       over/under 2.5 prices.
     - Tests: 5 new, all pass. The full suite: 3,084 passed, plus the 3 known errors. No live code changed.
+  - **Task 3 done (16 Nov): the rebuilt Most likely pool** (`Scripts/data_platform/game_read/pool.py`).
+    - Each history match gets the 27 options the live site would show: the result; goals 0.5–4.5; both teams to
+      score; handicaps −2.5…+2.5, both sides.
+    - The market's real lines keep their own chance (the power method) and average price:
+      - the result, over/under 2.5, and the main handicap when it is a half line (25% of matches; it is usually a
+        quarter or whole line);
+      - every real main line, quarter and whole included, also feeds M1.
+    - The other lines are derived. The chance comes from M1's goal means, and the price comes from that chance and
+      the line's margin (task 2), rounded to two decimals.
+    - *Ruling:* a line whose real price is missing is derived like the others, so one missing market never
+      removes the rest.
+    - On 600 random matches of the 49,714:
+      - 6.5 ms a match, no empty pool, a median of 5 real options a match;
+      - M1 fits the real over 2.5 within 0.6 points on average and the draw within 1.4;
+      - derived over 1.5 said 75.4% and won 75.8%.
+    - *Finding:* without its over/under 2.5 price, M1 puts over 2.5 7.4 points below the market (the Poisson
+      model's draw shortfall pulls the goals down). That applies to only 33 matches before kickoff.
+    - *Finding:* closing prices are missing for 24,650 matches, about half, which matches football-data adding them
+      from 2019/20. Closing pools therefore cover the tuning and locked seasons.
+    - Tests: 7 new, all pass. The full suite: 3,139 passed, plus the 3 known errors. Golden unchanged; no live code
+      changed.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
