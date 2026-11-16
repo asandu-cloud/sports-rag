@@ -56,8 +56,8 @@ task N: …", "Done game-read phase 2 task N: … (<tests>, D77)", "Fix game-rea
 
 | Task | What it builds | Status | Start commit | Done commit | Tests |
 |---|---|---|---|---|---|
-| 1 | The fresh block (2026/27) and its guard | Done 16 Nov | b602472 | the "Done game-read phase 2 task 1" commit | 6 new, all pass; suite 3,204 passed + the 3 known errors; 1,084 fresh matches |
-| 2 | Match statistics: export and loader | Not started | | | |
+| 1 | The fresh block (2026/27) and its guard | Done 16 Nov | b602472 | ed8ea5a | 6 new, all pass; suite 3,204 passed + the 3 known errors; 1,084 fresh matches |
+| 2 | Match statistics: export and loader | In progress | | | |
 | 3 | Shot ratings (S3) into models 3–4, through the ablation gate | Not started | | | |
 | 4 | Rest (C1) into models 3–4, through the ablation gate | Not started | | | |
 | 5 | The features pass and the lean-away blend (model 5b) | Not started | | | |
