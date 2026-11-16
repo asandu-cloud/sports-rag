@@ -74,7 +74,7 @@ and the owner's approval of all six with the placements below (16 Nov, D112).
 
 | Task | Status | Commits | Tests |
 |---|---|---|---|
-| 1. The loader kit | In progress | | |
+| 1. The loader kit | Done | 27b37f0..this commit | loaders + all 18 *_web.js pass |
 | 2. A, the first-load cover | Not started | | |
 | 3. E on the board, D on Best Bets | Not started | | |
 | 4. B, C and F in the Research Area | Not started | | |

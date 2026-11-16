@@ -3087,6 +3087,17 @@ only (players, teams and referees keep separate lists), the row goes back to the
 to the first of them. The list lives in the browser's own storage, so nothing reaches the server. Cache tag
 `research-20261116p`. 1 new JS test file (17 in all, all pass); checked on 8100 at 1440 and 390, light and dark.
 
+**D112 — Loading screens (16 Nov; frontend, owner).** The site's waits showed a plain "Loading…" line. The owner
+saw six options side by side (https://claude.ai/artifact/De2WiK5ZfHMYDqvaeSuf9S, private) and approved all six:
+A ball drop (the app's first load), B pitch lines (the Research Area's match view), C last 10 (a profile), D price
+board (Best Bets), E card outline (the matchday board), F rolling ball (the Research Area's home and start). Plan:
+`docs/superpowers/plans/2026-11-16-loading-screens.md` (5 tasks). Display only; no pick, data or `.env` change.
+- Task 1 (16 Nov): the kit. `static/loaders.js` (`spixLoader(kind, …)` for the six, `spixCover` for A) and
+  `static/loaders.css`, linked before `app.js` and the Research Area. A loader fades in only after 300 ms, so a quick
+  load shows nothing. Screen readers hear one fixed line; the stepping words are hidden from them. Reduced motion
+  gets a still frame. D's prices are a shape with no team or bookmaker. The cover shows at 300 ms, holds 600 ms,
+  and clears when the load ends or fails, or at 15 s. Nothing uses the kit yet. 1 new JS test file (18 in all, all pass).
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
