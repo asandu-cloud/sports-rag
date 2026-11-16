@@ -149,8 +149,12 @@ on it. The Discord bot still runs the old engine until A7.
   - The one locked run (16 Nov, 1f665d6, 2023–2025, 10,711 matches; never rerun for these versions): every rating
     model fails every score, as on the tuning seasons. None beats the market or earns a blend weight above zero.
     Report: `Research/game-read-bench-2026-11-16-locked/report.md`.
-  - Owner, 16 Nov: task 14 (the ClubElo yardstick) is dropped. The backend writes the phase 2 plan (xG and other
-    variables, then boosted trees on the market's error); it comes to the owner before any code.
+  - Owner, 16 Nov: task 14 (the ClubElo yardstick) is dropped. Phase 2 approved
+    (`docs/superpowers/plans/2026-11-16-game-read-phase-2.md`, 9 tasks, about two weeks, no pick changes):
+    - real xG stays out; a home-made shot xG (inside and outside the box, weights fitted on tuning seasons only)
+      is tested beside shots in the box and on target;
+    - the backend fetches football-data's 10 files for 2026/27;
+    - this season so far is the last check: a model that passes on 2023–2025 must point the same way there.
 - **Cards missing at kickoff (D108, 15 Nov).** From 5 Sep to 14 Nov, 327 of 798 finished domestic matches had a card
   at kickoff: 35% before 4 Nov, 80% from 4 Nov.
   - 166 had no read at all, almost all from before the website worker started on 9 Sep.
