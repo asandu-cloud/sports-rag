@@ -67,9 +67,10 @@ the next matches read two new backend endpoints (B1, B2 in the spec) and stay hi
   `values.opponent_cards`, `sot_for` = `values.sot_for` …).
 - `marketTotal(row, market) -> number|null` (both sides added; null if either side is null).
 - `hitCount(values, line) -> {hits, of}`: nulls skipped; `line` 2.5 means > 2.5, `line` 1 (player) means ≥ 1.
-- `hitSquares(items, {line, label}) -> html`: `items` are `{value, top, bottom, title}`; one `<li>` square per item,
-  value written inside, class `hit` when over, `miss` otherwise, `none` with "–" when null; `aria-label` from `title`.
-- `labelledColumns(items, {line, max, legend}) -> html`: columns with the value written on top, `zero` mark for 0,
+- `passes(value, line) -> bool|null`; `strip(values, test, labels) -> html`: the sketch's strip, one 14 px square a
+  match (`y` filled, `na` dashed when not recorded), each with a title, the strip labelled "N of M" (Ruling, 16 Nov:
+  the sketch's strip replaces the plan's squares with totals inside; the sketch is what the owner approved).
+- `labelledColumns(items, {line, label, legend, noun}) -> html`: columns with the value written on top, `zero` mark for 0,
   dashed line at `line`, x labels from `top`/`bottom`, a "Show as table" `<details>`.
 
 - [ ] **Step 1: Write the failing tests** in `test_research_insight_web.js` (import the module with
@@ -299,7 +300,7 @@ from B1/B2 when the player's next match is open), `index.html`; extend `test_res
 
 | Task | Status | Commits | Tests |
 |---|---|---|---|
-| 1. Lines, hits and clearer numbers | In progress | | |
+| 1. Lines, hits and clearer numbers | Done | cf8a499.. | insight 1/1 file, all asserts |
 | 2. Team page answer first | Not started | | |
 | 3. Stat view answer first | Not started | | |
 | 4. Referee this season first, ranks from one season | Not started | | |

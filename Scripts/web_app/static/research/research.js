@@ -1,4 +1,5 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=real-20261008c';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116a';
+import {one} from './insight.js?v=research-20261116a';
 
 const API = '/api/research';
 
@@ -6,7 +7,9 @@ function mountResearch(root, navigate) {
   const $ = id => root.getElementById(id);
   const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
   const fmt = (value, digits = 1) => Number.isFinite(value) ? value.toLocaleString('en-GB', {maximumFractionDigits: digits}) : 'Unavailable';
-  const fixed = (value, digits = 2) => Number.isFinite(value) ? value.toFixed(digits) : '–';
+  const fixed = value => one(value);
+  // The API's display values carry two decimals; percentages stay whole, everything else gets one decimal.
+  const dv = m => m == null || m.value == null ? null : m.unit === 'percent' ? m.display_value : one(m.value);
   const whole = value => Number.isFinite(value) ? value.toLocaleString('en-GB') : '–';
   const day = iso => new Date(iso).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', timeZone: 'UTC'});
   const dayYear = iso => new Date(iso).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'});
@@ -379,14 +382,15 @@ function mountResearch(root, navigate) {
   function profileLead(d) {
     const h = d.headline;
     if (h?.text && h.display_value) {
-      let text = escape(h.text).replace(escape(h.display_value), `<mark>${escape(h.display_value)}</mark>`);
+      const shown = h.display_value.endsWith('%') ? h.display_value : one(h.value);
+      let text = escape(h.text).replace(escape(h.display_value), `<mark>${escape(shown)}</mark>`);
       if (!/[.!?]$/.test(h.text)) text += '.';
       return `<p class="lead">${text}</p>`;
     }
     const t = d.totals;
     if (state.area === 'players') return `<p class="lead"><mark>${plural(t.goals, 'goal')}</mark> and ${plural(t.shots, 'shot')} in ${plural(t.appearances, 'appearance')} for ${escape(d.subject.club?.name || 'their club')} in ${escape(d.competition?.name || 'this competition')}, ${escape(d.season.label)}.</p>`;
     if (state.area === 'teams') return `<p class="lead">${plural(t.wins, 'win')}, ${plural(t.draws, 'draw')} and ${plural(t.losses, 'loss', 'losses')} from ${plural(t.matches, 'match', 'matches')}, scoring <mark>${whole(t.goals_for)}</mark> and conceding ${whole(t.goals_against)}.</p>`;
-    const cards = d.metrics.cards?.display_value;
+    const cards = dv(d.metrics.cards);
     return cards ? `<p class="lead"><mark>${escape(cards)}</mark> cards per match across ${plural(t.matches, 'match', 'matches')} in ${escape(d.season.label)}.</p>` : '';
   }
   function seasonLine(d) {
@@ -416,7 +420,7 @@ function mountResearch(root, navigate) {
       title = 'Ranks are being rebuilt';
       text = `Rankings for this season will return after the next data refresh.${prev}`;
     }
-    return `<div class="notice"><b>${title}</b><span>${text}</span></div>`;
+    return `<p class="quiet-line"><span class="quiet">${title}</span> ${text}</p>`;
   }
   function rankSource(d) {
     if (d.ranking.ranked) return {metrics: d.metrics, ranking: d.ranking, label: null, scope: scopeOf(d)};
@@ -448,13 +452,13 @@ function mountResearch(root, navigate) {
       <p class="card-note">${note} Select a row to see it match by match.</p></section>`;
   }
   function rankRow(key, m, def, src) {
-    if (!m || !def || m.percentile == null || m.display_value == null) return '';
+    if (!m || !def || m.percentile == null || dv(m) == null) return '';
     const [label, stat] = def;
     const text = cap(state.area === 'teams' ? m.rank_phrase : m.comparison_text) || '';
     const average = state.area === 'teams' && Number.isFinite(m.league_average) ? ` League average ${m.unit === 'percent' ? Math.round(m.league_average) + '%' : fixed(m.league_average)}.` : '';
-    const tipText = `${label}: ${m.display_value}. ${text}.${average}`;
+    const tipText = `${label}: ${dv(m)}. ${text}.${average}`;
     return `<button class="rank" type="button" data-stat="${stat}" data-scope="${escape(src.scope)}" data-tip="${escape(tipText)}" aria-label="${escape(tipText)} Opens the match-by-match chart.">
-      <span class="rank-label">${escape(label)}</span><span class="rank-value">${escape(m.display_value)}</span>
+      <span class="rank-label">${escape(label)}</span><span class="rank-value">${escape(dv(m))}</span>
       <span class="track" aria-hidden="true"><span class="fill" style="width:${m.percentile}%"></span><span class="mid"></span><span class="dot" style="left:${m.percentile}%"></span></span>
       <span class="rank-go" aria-hidden="true">›</span><span class="rank-band">${escape(text)}</span></button>`;
   }
@@ -462,11 +466,9 @@ function mountResearch(root, navigate) {
     const rows = Object.entries(d.frequencies || {}).filter(([, v]) => v?.denominator).map(([key, v]) => ({label: frequencyLabels[key] || key, n: v.count, of: v.denominator, pct: Math.round(v.count / v.denominator * 100)}));
     if (!rows.length) return '';
     const of = Math.max(...rows.map(r => r.of));
-    const note = state.area === 'players' ? 'Counts from past matches. They are not a forecast or a probability for the next game.'
-      : state.area === 'teams' ? 'Match totals include both teams. Past matches, not a forecast.' : 'Past appointments, not a forecast. Cards depend on the teams as well as the referee.';
     return `<section class="card"><div class="card-h"><h3>How often</h3><small>In ${isPlayer() ? plural(of, 'appearance') : plural(of, 'match', 'matches')}</small></div>
       <div class="meters">${rows.map(r => `<div class="meter"><span class="meter-label">${escape(r.label)}</span><span class="meter-count"><b>${r.n}</b> of ${r.of} · ${r.pct}%</span><span class="meter-bar" role="img" aria-label="${escape(r.label)}: ${r.n} of ${r.of}"><i style="width:${r.pct}%"></i></span></div>`).join('')}</div>
-      <p class="card-note">${note}</p></section>`;
+      </section>`;
   }
   const niceMax = (value, minimum = 1) => {
     const v = Math.max(minimum, value || 0), step = v <= 4 ? 1 : v <= 8 ? 2 : v <= 20 ? 5 : v <= 50 ? 10 : 30;
@@ -482,8 +484,8 @@ function mountResearch(root, navigate) {
       const total = segs.reduce((sum, seg) => sum + (it[seg.key] || 0), 0);
       const stack = missing ? '<span class="col-missing">–</span>' : total === 0 ? '<span class="col-zero"></span>' : segs.map(s => it[s.key] > 0 ? `<i style="height:${it[s.key] / max * height}px;background:var(${s.color})"></i>` : '').join('');
       const goalDots = dots && !missing ? `<span class="goals">${Array.from({length: Math.min(4, dots(it) || 0)}, () => '<i></i>').join('')}</span>` : '';
-      const text = tipFor(it);
-      return `<div class="ccol"><div class="colwrap" tabindex="0" data-tip="${escape(text)}" aria-label="${escape(text)}">${goalDots}<span class="stack-col">${stack}</span></div></div>`;
+      const text = tipFor(it), written = missing ? '' : `<b class="cv">${whole(total)}</b>`;
+      return `<div class="ccol"><div class="colwrap" tabindex="0" data-tip="${escape(text)}" aria-label="${escape(text)}">${goalDots}${written}<span class="stack-col">${stack}</span></div></div>`;
     }).join('');
     const gaps = items.some(it => segs.every(seg => it[seg.key] == null)) ? '<span>– No statistics recorded</span>' : '';
     if (gaps) legend = (legend || '') + gaps;
@@ -528,7 +530,7 @@ function mountResearch(root, navigate) {
         <div class="bars" style="height:${h}px;grid-template-columns:repeat(${last.length},minmax(0,1fr))">${ticks.slice(1).map(t => `<span class="gridline" style="bottom:${t / max * 100}%"></span>`).join('')}${cols}</div></div>
         <div class="xlabels" style="grid-template-columns:repeat(${last.length},minmax(0,1fr))">${last.map(m => `<span><b>${escape(m.opponent?.abbreviation || short(m.opponent))}</b>${score(m)}</span>`).join('')}</div>
         <details class="tbl"><summary>Show as table</summary><div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Opponent</th><th>Score</th><th>xG for</th><th>xG against</th></tr></thead><tbody>${last.map(m => `<tr><td>${day(m.date)}</td><td>${escape(opp(m))} (${m.venue === 'home' ? 'H' : 'A'})</td><td>${score(m)}</td><td>${fixed(m.values.xg_for)}</td><td>${fixed(m.values.xg_against)}</td></tr>`).join('')}</tbody></table></div></details></div>`;
-      if (hasXg) chart += `<p class="card-note">Expected goals (xG) estimates the quality of chances. A taller green bar than blue means ${escape(name)} made the better chances.</p>`;
+      if (hasXg) chart += `<p class="card-note">Expected goals (xG) estimates the quality of chances. When ${escape(name)}'s column is the taller of the two, they made the better chances.</p>`;
     } else {
       title = `Last ${plural(last.length, 'match', 'matches')}`; small = 'Cards shown, both teams';
       const items = last.map(m => ({...m, cards: m.values.cards}));
@@ -549,7 +551,7 @@ function mountResearch(root, navigate) {
       <div class="yaxis" style="height:${h}px"><span style="bottom:0%">0</span><span style="bottom:${90 / top * 100}%">90</span></div>
       <div class="bars" style="height:${h}px;grid-template-columns:repeat(${last.length},minmax(0,1fr))"><span class="gridline" style="bottom:${90 / top * 100}%"></span>${last.map(m => {
         const text = `${day(m.date)} ${venueWord(m)} ${opp(m)}: ${m.values.minutes} minutes${m.started === false ? ', came off the bench' : ''}`;
-        return `<div class="ccol"><div class="colwrap" tabindex="0" data-tip="${escape(text)}" aria-label="${escape(text)}"><span class="stack-col"><i style="height:${m.values.minutes / top * h}px;background:var(${m.started === false ? '--chart-muted' : '--chart-1'})"></i></span></div></div>`;
+        return `<div class="ccol"><div class="colwrap" tabindex="0" data-tip="${escape(text)}" aria-label="${escape(text)}"><b class="cv">${m.values.minutes}</b><span class="stack-col"><i style="height:${m.values.minutes / top * h}px;background:var(${m.started === false ? '--chart-muted' : '--chart-1'})"></i></span></div></div>`;
       }).join('')}</div></div>
       <div class="legend"><span><i style="background:var(--chart-1)"></i>Started</span><span><i style="background:var(--chart-muted)"></i>Off the bench</span></div></div>`;
     return `<section class="card"><div class="card-h"><h3>Minutes</h3><small>Last ${plural(last.length, 'appearance')}</small></div>${strip}<p class="card-note">${role ? `Started ${role.starts} of ${plural(role.appearances, 'appearance')} this season. ` : ''}Per-90 rates only count minutes on the pitch.</p></section>`;
@@ -572,11 +574,11 @@ function mountResearch(root, navigate) {
     const {max} = niceMax(Math.max(...rows.flatMap(([, h, a]) => [h, a])), 2);
     const row = ([label, h, a]) => {
       const lo = Math.min(h, a), hi = Math.max(h, a), text = `${label}: home ${fixed(h)}, away ${fixed(a)} per match`;
-      return `<div class="dumb-row"><span>${label}</span><span class="dumb-track" role="img" tabindex="0" aria-label="${escape(text)}" data-tip="${escape(text)}"><span class="link" style="left:${lo / max * 100}%;width:${(hi - lo) / max * 100}%"></span><span class="d" style="left:${h / max * 100}%;background:var(--chart-1)"></span><span class="d" style="left:${a / max * 100}%;background:var(--chart-2)"></span></span></div>`;
+      return `<div class="dumb-row"><span>${label}</span><b class="dumb-h"><i style="background:var(--chart-1)"></i>${fixed(h)}</b><span class="dumb-track" role="img" aria-label="${escape(text)}"><span class="link" style="left:${lo / max * 100}%;width:${(hi - lo) / max * 100}%"></span><span class="d" style="left:${h / max * 100}%;background:var(--chart-1)"></span><span class="d" style="left:${a / max * 100}%;background:var(--chart-2)"></span></span><b class="dumb-a">${fixed(a)}<i style="background:var(--chart-2)"></i></b></div>`;
     };
     return `<section class="card"><div class="card-h"><h3>Home and away</h3><small>Per match</small></div>
       <div class="legend"><span><i class="dot" style="background:var(--chart-1)"></i>Home (${ha.home.matches})</span><span><i class="dot" style="background:var(--chart-2)"></i>Away (${ha.away.matches})</span></div>
-      <div class="dumb">${rows.map(row).join('')}</div><p class="card-note">Scale 0 to ${max}. Hover or focus a row for exact values.</p></section>`;
+      <div class="dumb">${rows.map(row).join('')}</div></section>`;
   }
   function leadersCard(d) {
     const L = d.squad_leaders;
@@ -596,23 +598,23 @@ function mountResearch(root, navigate) {
     const compare = metric => metric?.comparison_text ? cap(metric.comparison_text) : '';
     let cells = '';
     if (state.area === 'players') {
-      cells = cell('Shooting accuracy', m.shooting_accuracy_pct?.display_value, compare(m.shooting_accuracy_pct) || 'Share of shots on target')
-        + cell('Shot conversion', m.conversion_pct?.display_value, compare(m.conversion_pct) || 'Share of shots scored')
-        + cell('Duels won', m.duel_win_pct?.display_value, compare(m.duel_win_pct) || 'Share of one-on-one contests won')
-        + cell('Pass accuracy', m.pass_accuracy_pct?.display_value, compare(m.pass_accuracy_pct) || 'Share of passes completed')
+      cells = cell('Shooting accuracy', dv(m.shooting_accuracy_pct), compare(m.shooting_accuracy_pct) || 'Share of shots on target')
+        + cell('Shot conversion', dv(m.conversion_pct), compare(m.conversion_pct) || 'Share of shots scored')
+        + cell('Duels won', dv(m.duel_win_pct), compare(m.duel_win_pct) || 'Share of one-on-one contests won')
+        + cell('Pass accuracy', dv(m.pass_accuracy_pct), compare(m.pass_accuracy_pct) || 'Share of passes completed')
         + cell('Fouls won vs committed', `${whole(t.fouls_won)} / ${whole(t.fouls_committed)}`, 'Season totals')
-        + cell('Average match rating', m.average_rating?.display_value, compare(m.average_rating) || 'Data provider rating, 0 to 10');
+        + cell('Average match rating', dv(m.average_rating), compare(m.average_rating) || 'Data provider rating, 0 to 10');
     } else if (state.area === 'teams') {
       const diff = (a, b) => Number.isFinite(a) && Number.isFinite(b) ? (a - b >= 0 ? '+' : '−') + Math.abs(a - b).toFixed(1) : null;
       cells = cell('Goals minus xG', diff(t.goals_for, t.xg_for), 'Positive means more goals than the chances suggested')
         + cell('Conceded minus xG against', diff(t.goals_against, t.xg_against), 'Negative means fewer goals allowed than the chances suggested')
-        + cell('Possession', m.possession?.display_value, cap(m.possession?.rank_phrase) || 'Average share of the ball')
-        + cell('Shots on target faced', m.shots_on_target_faced?.display_value, cap(m.shots_on_target_faced?.rank_phrase) || 'Per match')
-        + cell('Cards per match', m.cards?.display_value, cap(m.cards?.rank_phrase) || 'Yellow and red');
+        + cell('Possession', dv(m.possession), cap(m.possession?.rank_phrase) || 'Average share of the ball')
+        + cell('Shots on target faced', dv(m.shots_on_target_faced), cap(m.shots_on_target_faced?.rank_phrase) || 'Per match')
+        + cell('Cards per match', dv(m.cards), cap(m.cards?.rank_phrase) || 'Yellow and red');
     } else {
-      cells = cell('Cards per foul', m.cards_per_foul?.display_value, compare(m.cards_per_foul) || 'How readily fouls become cards')
+      cells = cell('Cards per foul', dv(m.cards_per_foul), compare(m.cards_per_foul) || 'How readily fouls become cards')
         + cell('Yellows and reds', `${whole(t.yellows)} / ${whole(t.reds)}`, 'Season totals')
-        + cell('Fouls per match', m.fouls?.display_value, compare(m.fouls));
+        + cell('Fouls per match', dv(m.fouls), compare(m.fouls));
     }
     const open = window.matchMedia('(min-width: 769px)').matches ? ' open' : '';
     return cells ? `<details class="adv"${open}><summary>Advanced <small>Rates, accuracy and context</small></summary><div class="adv-grid">${cells}</div></details>` : '';
@@ -622,7 +624,7 @@ function mountResearch(root, navigate) {
     const excluded = b.excluded_matches ? `, ${plural(b.excluded_matches, 'match', 'matches')} without full statistics left out` : '';
     const scope = isReferee() ? `all competitions in our data, ${escape(d.season.label)}` : `${escape(d.competition?.name)}, ${escape(d.season.label)}`;
     const phase = isReferee() ? '' : ' Domestic leagues count regular-season matches; European cups count the league or group stage and knockouts.';
-    return `<p class="disclaimer">Statistics describe past matches. They are not predictions or recommendations. Data behind this view: ${plural(b.matches ?? 0, 'match', 'matches')}, ${scope}${excluded}.${phase}</p>`;
+    return `<p class="disclaimer">Past matches are records, not a forecast. Data behind this view: ${plural(b.matches ?? 0, 'match', 'matches')}, ${scope}${excluded}.${phase} 18+ · <a href="https://www.gamcare.org.uk/get-support/" target="_blank" rel="noopener">GamCare</a></p>`;
   }
 
   // ----- Match-by-match chart -----
@@ -883,8 +885,8 @@ class SpixResearch extends HTMLElement {
     const root = this.attachShadow({mode: 'open'});
     root.innerHTML = '<p role="status">Loading Research Area…</p>';
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=real-20261008c', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=crest-20261110a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261116a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261116a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));

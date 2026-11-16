@@ -2705,6 +2705,13 @@ test bets (Over 2.5 cards in Chelsea's next match; a player's shots on target) t
   ranks for players under 900 minutes. The rail, the bar and the match view stay hidden while B1 and B2 answer 404.
 - *Not in it:* no paywall (the free and paid split waits for the payments work, D50); no new picks (cards and shots on
   target stay out of the lists, D61); every Spix figure comes from the match's Match Read.
+- *Build (plan tasks):*
+  - Task 1, 16 Nov: `insight.js` (lines, hits, the sketch's strips, labelled columns) and the number rules on today's
+    pages: one decimal everywhere (the API's two-decimal values included, xG too), values written on every column,
+    home and away numbers at both ends with their side's dot, a grey "Ranks are being rebuilt" note instead of the amber
+    box, and one foot line ("Past matches are records, not a forecast… 18+ · GamCare") in place of three disclaimers.
+    Backend reply the same day: player shots-on-target prices are Bet365 alone, matched by name, so they stay out
+    (no price column or tile).
 
 **D108 — Why cards were missing at kickoff (15 Nov; backend, read-only).** The orchestrator asked why so few
 domestic matches had a card on the board at kickoff (D77, task 2). Checked on the 10 domestic leagues, 5 Sep–14 Nov,
