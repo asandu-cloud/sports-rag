@@ -310,7 +310,7 @@ from B1/B2 when the player's next match is open), `index.html`; extend `test_res
 | 7. Cards section and Add | Done | e476a63.. | match + all *_web.js pass |
 | 8. Shots on target section | Done | 6c74e68.. | match + all *_web.js pass |
 | 9. Goals, Corners, Result, Head to head, Team news | Done | 616bddf.. | match + all *_web.js pass |
-| 10. Finish: real data, look, review | In progress: step 1 waits for the B1/B2 merge | f6aaecd.. | all 16 *_web.js pass; Python 3099 passed, 3 errors (phase4 replay, worktree Index link) |
+| 10. Finish: real data, look, review | Done | f6aaecd..this commit | all 16 *_web.js pass; Python 3099 passed, 3 errors (phase4 replay, worktree Index link only; main passes); real-data pass on 8100: 36 screenshots, no sideways scroll, no console errors |
 
 Backend items (spec 6.2), asked 16 Nov: B1 next matches, B2 the match, B3 checks (Chelsea's ranks, Taylor's
 2026/27 matches), B4 all-competitions scope (later), B5 early-season ranks.

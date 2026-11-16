@@ -2797,6 +2797,11 @@ test bets (Over 2.5 cards in Chelsea's next match; a player's shots on target) t
     proposed to the backend (reason too_few_peers, ranking.qualified_peers and minimum_peers); a rename on their
     side is a one-line follow-up. Only the three rebuild reasons now say "being rebuilt"; any other reason says "No
     ranks for 2026/27 yet". Cache tag research-20261116o.
+  - Task 10 done, 16 Nov: the real-data pass ran on 8100 against the live API after the D110 merge. It covered
+    Chelsea, Leeds, Coventry (promoted), Palmer and his shots on target, Taylor (2025/26), Oliver (2026/27), Chelsea v
+    Leeds in all seven markets, Atletico v Viking (Champions League) and Atletico v Barcelona (played): 36 screenshots
+    at 1440 light and 390 dark, no sideways scroll, no "NaN" or "undefined", no console errors. It found the two
+    fixes above (a played match's wording, the chart labels). Static files only; no migration, no .env line.
 
 **D108 — Why cards were missing at kickoff (15 Nov; backend, read-only).** The orchestrator asked why so few
 domestic matches had a card on the board at kickoff (D77, task 2). Checked on the 10 domestic leagues, 5 Sep–14 Nov,
