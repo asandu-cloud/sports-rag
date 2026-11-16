@@ -95,6 +95,14 @@ def test_unscored_options_count_as_not_backed():
     assert rules.engine_most_likely(POOL, {}, strength=rules.by_edge) == rules.todays_most_likely(POOL)
 
 
+def test_float_noise_backs_nothing():
+    noisy = {**market_engine(POOL), ("goals", "under", 3.5): 0.71 + 1e-15}  # a matrix's sums can differ from the
+    # pool's in the 16th place
+    assert rules.engine_most_likely(POOL, noisy, strength=rules.by_edge) == rules.todays_most_likely(POOL)
+    backed = {**noisy, ("goals", "under", 3.5): 0.71 + 2e-9}
+    assert rules.engine_most_likely(POOL, backed, strength=rules.by_edge)[0] == POOL[6]
+
+
 def test_by_blend_ranks_by_the_blended_chance():
     model = {"intercepts": [0.0, 0.0], "b": 1.0, "c": 0.0}  # the market alone
     assert rules.by_blend(model)(opt("goals", "over", 2.5, 0.6, 1.6), 0.9) == pytest.approx(0.6)

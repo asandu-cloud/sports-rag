@@ -2745,6 +2745,43 @@ backend).** The number was held since 7 Nov (D78).
     - Run time on the 14,383 tuning matches: 71 s for the zero line, 43 s for the control line.
     - Tests: 8 new, all pass. The full suite: 3,159 passed, plus the 3 known errors. Golden unchanged; no live code
       changed.
+  - **Task 6 done (16 Nov): the scores** (`Scripts/data_platform/game_read/scores.py`).
+    - *What it measures:*
+      - accuracy: log loss against the market's;
+      - the blend;
+      - Most likely: wins minus the market's expected wins per 100 picks, today's lists against the engine's;
+      - Value: return and closing line value;
+      - the closing check;
+      - the average price against the named books;
+      - the pass rules.
+    - *Intervals:* every interval resamples whole weeks, 2,000 times, seeded.
+    - *Ruling:* each score sums a few numbers per match, and a resample adds up the weeks' sums. The plan had the
+      statistic read rows; this way the whole set runs in seconds.
+    - *Fix to task 4:* the engine now backs an option only when its chance is above the market's by more than
+      1e-9.
+      - A matrix's sums can differ from the pool's in the 16th decimal place. That alone made the zero line "back"
+        options and change the lists.
+      - No real edge is that small.
+    - *Ruling:* a two-way market is scored as p and 1 − p on both sides, because the market's two chances sum to 1
+      only up to float noise.
+    - *Real data:* the zero and control lines on the 14,383 tuning matches (the locked seasons not touched).
+      - *The zero line scores zero everywhere.* Accuracy is 0, the Most likely paired difference is exactly 0, and
+        there are no Value picks at the average price. The blend gap is about 1e-14, with an interval of ±1e-9. Its
+        c means nothing there, because the market goes in twice.
+      - *Today's Most likely lists* make 3 picks on every match (43,057). They won 0.6 more per 100 than the
+        market's chances said.
+      - *Today's Value rule at the best price:* 2,750 picks, +3.0% return, closing line value +4.0% [3.6, 4.5]. That
+        is the stale best price of D39. At the average price it makes no picks.
+      - *The control line:*
+        - result log loss worse than the market's by 0.0004 [0.0001, 0.0007];
+        - Most likely −0.11 per 100 against today's [−0.44, +0.23]; derived lines −0.02;
+        - 9 Value picks at the average price.
+        - It passes nothing, as a control should.
+      - *The average price against the named books' median:* the result's largest gap averages 0.35–0.56 points
+        a season, 95th percentile 0.7–1.2 points (2012–2022).
+    - Run time: about 3 minutes for the first model (building the pools), then about 10 s for each further model.
+    - Tests: 10 new, 1 added to task 4's, all pass. The full suite: 3,169 passed, plus the 3 known errors. Golden
+      unchanged; no live code changed.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their

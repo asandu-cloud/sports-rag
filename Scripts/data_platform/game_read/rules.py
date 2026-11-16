@@ -2,9 +2,9 @@
 
 Today's Most likely list is the live one, run unchanged on a rebuilt pool. The engine's keeps the live floors and
 shape (one suggestion a market, up to three that can win together and are not the same bet) and changes only the
-order: an option the engine backs, its chance above the market's, comes before the rest, the strongest first by a
-ranking rule (the edge, or the blended chance); the rest keep the live order. With the market as the engine
-nothing is backed, so the list is today's.
+order: an option the engine backs, its chance above the market's by more than float noise, comes before the rest,
+the strongest first by a ranking rule (the edge, or the blended chance); the rest keep the live order. With the
+market as the engine nothing is backed, so the list is today's.
 
 Value is scored on the lines history prices: the result, over/under 2.5 and a half-line main handicap, at the
 average or the best price. Today's rule uses the market's chance; the engine's uses its own. Both need 2% value and
@@ -20,6 +20,7 @@ from Scripts.data_platform.game_read.pool import _half, option_key
 from Scripts.data_platform.recommendations import MAX_MOST_LIKELY, MAX_VALUE, MIN_CHANCE, MIN_PRICE
 
 VALUE_THRESHOLD = 0.02
+BACKED_MARGIN = 1e-9  # a chance above the market's by less is float noise (a matrix's sums against the pool's)
 Strength = Callable[[dict, float], float]
 
 
@@ -51,7 +52,7 @@ def engine_most_likely(pool: list, engine: Mapping[tuple, float], *, strength: S
     """The live list with the engine's backed options first. Options the engine cannot score are not backed."""
     def backed(option):
         chance = engine.get(option_key(option))
-        return chance is not None and chance > option["chance"]
+        return chance is not None and chance > option["chance"] + BACKED_MARGIN
 
     def order(option):
         if backed(option):
