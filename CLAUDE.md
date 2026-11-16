@@ -142,8 +142,10 @@ on it. The Discord bot still runs the old engine until A7.
   - Most likely still shows up to 3, Spix-backed first. Value is scored on the same bench, and every report ends
     with an Opportunities section.
   - A4 calibration is closed as a stage of its own; its weekly reruns stop once the bench runs.
-  - Code started 15 Nov (owner lifted the freeze). Tasks 1–2 are merged: the history loader and the margins of our
-    saved reads (`Scripts/data_platform/game_read/`, read-only, nothing live imports it). Nothing in the plan changes
+  - Code started 15 Nov (owner lifted the freeze). Tasks 1–7 are merged (phase 0, the bench, 16 Nov): the history loader,
+    the margins of our saved reads, and the test bench (`Scripts/data_platform/game_read/`,
+    `Scripts/ops/game_read_bench.py`; read-only, nothing live imports it). First tuning run: the zero line passed on
+    14,383 matches; nothing to follow in Opportunities. Nothing in the plan changes
     a published pick. Progress: the plan's table.
 - **Cards missing at kickoff (D108, 15 Nov).** From 5 Sep to 14 Nov, 327 of 798 finished domestic matches had a card
   at kickoff: 35% before 4 Nov, 80% from 4 Nov.
