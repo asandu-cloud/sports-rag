@@ -32,7 +32,7 @@ Each task has a start commit and a done commit (CLAUDE.md, "Large builds"). To u
 | 3 | B2: each team's last 10, booked, shooters and what it allows | Done 16 Nov | 5b28ddd | 662ca89 | 4 new, all pass; suite 3,114 passed + the 3 known errors |
 | 4 | B2: the referee, head to head and data basis | Done 16 Nov | 6a83be6 | d7d7da9 | 5 new, all pass; suite 3,120 passed + the 3 known errors; golden unchanged |
 | 5 | B3: this season's ranks and referee names rebuilt by the daily refresh | Done 16 Nov | ae9cc06 | ba6eb02 | 3 new, all pass; copy rehearsal 1.3 s; suite 3,123 passed + the 3 known errors; golden unchanged |
-| 6 | B5: provisional ranks under 900 minutes | In progress | the "Start research-endpoints task 6" commit | | |
+| 6 | B5: provisional ranks under 900 minutes | Done 16 Nov | 6ba180e | the "Done research-endpoints task 6" commit | 4 new, all pass; floor of 10 ranked peers; suite 3,127 passed + the 3 known errors; golden unchanged |
 
 ## Global Constraints
 

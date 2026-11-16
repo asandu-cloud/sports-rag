@@ -2806,6 +2806,15 @@ raw responses, under full player names, and one bookmaker breaks the two-bookmak
   referee spelling is missing from the table (before: 100 of 781). Live once merged, from the next daily refresh;
   no `.env` line, no pick changes. 3 tests; the full suite 3,123 passed, plus the 3 known errors; the golden check
   shows no changes across 54 fixtures.
+- Task 6 (16 Nov, B5): a player under 900 minutes is placed among the ranked players of the same position,
+  competition and season (`ranking.provisional: true`, `peer_count` = peers + 1, `ranked` stays false, last season's
+  ranks kept). The headline carries `provisional` too. A floor of 10 ranked peers (my call): on a rebuilt clone
+  of the database, the Premier League had 1 ranked midfielder and no ranked forwards this season, so without it
+  Cole Palmer (888 minutes) read "1st of 2, more than 75% of Premier League midfielders". Last season's full Premier
+  League had 61–134 ranked players per outfield position. Ranked players have no floor yet. They sit in the same
+  tiny groups early in a season (that one midfielder reads "more than 50% of Premier League midfielders"), and
+  the daily rebuild (task 5) shows them every day: the owner's call. 4 tests; the full suite 3,127 passed, plus the
+  3 known errors; the golden check shows no changes across 54 fixtures.
 
 ## Findings that shape later steps
 

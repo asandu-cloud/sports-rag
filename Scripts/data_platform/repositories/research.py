@@ -365,6 +365,17 @@ class ResearchRepository:
             ResearchPeerStat.subject_key == str(key)))
         return build, rows
 
+    def peer_values(self, session, scope_key, kind, peer_group, *, exclude):
+        """Every ranked peer's value per metric in one built scope and peer group, without ``exclude``."""
+        p = ResearchPeerStat
+        rows = session.execute(select(p.metric, p.value).where(
+            p.scope_key == scope_key, p.subject_type == kind, p.peer_group == peer_group,
+            p.subject_key != str(exclude)))
+        out = {}
+        for metric, value in rows:
+            out.setdefault(metric, []).append(value)
+        return out
+
     def replace(self, session, builds, rows, aliases):
         """Caller commits once: failures retain the previous complete build scope."""
         keys = [b["scope_key"] for b in builds]

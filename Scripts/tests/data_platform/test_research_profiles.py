@@ -759,3 +759,90 @@ def test_research_build_by_hand_waits_for_no_refresh(monkeypatch, capsys):
     assert cli.cmd_research_build(args) == 1
     assert events == [("gate", {"writer": True})]
     assert "Research keeps its last ranks" in capsys.readouterr().out
+
+
+@pytest.fixture()
+def early_season(session_factory):
+    """Ten forwards with 900 minutes each (k goals for forward k) and one with 30 minutes and a goal."""
+    with session_factory() as s:
+        comp = Competition(code="EPL", name="Premier League", api_football_id=39)
+        s.add(comp); s.flush()
+        season = Season(competition_id=comp.id, year=2026, label="2026/27")
+        home, away = Team(name="Alpha", api_football_id=101), Team(name="Beta", api_football_id=102)
+        ranked = [Player(name=f"Forward {k}", api_football_id=300 + k) for k in range(10)]
+        low = Player(name="Low minutes", api_football_id=399)
+        s.add_all([season, home, away, *ranked, low]); s.flush()
+        for i in range(10):
+            f = Fixture(api_football_id=3000 + i, competition_id=comp.id, season_id=season.id, home_team_id=home.id,
+                        away_team_id=away.id, kickoff_utc=datetime(2026, 8, 15, tzinfo=timezone.utc) + timedelta(days=7 * i),
+                        status="FT", home_goals=1, away_goals=0)
+            s.add(f); s.flush()
+            players = [(p, 90, 1 if i < k else 0) for k, p in enumerate(ranked)] + ([(low, 30, 1)] if i == 0 else [])
+            for player, minutes, goals in players:
+                s.add(FixturePlayerStats(fixture_id=f.id, player_id=player.id, team_id=home.id, minutes=minutes,
+                                         position="F", substitute=False, goals=goals, assists=0, shots_total=3,
+                                         shots_on=1, yellow_cards=0, red_cards=0, passes_total=10, passes_accurate=8,
+                                         duels_total=5, duels_won=2, fouls_drawn=0, fouls_committed=1, rating=7))
+        ids = {"ranked": [p.id for p in ranked], "low": low.id}
+    service = ResearchProfileService(ResearchRepository(session_factory))
+    service.build()
+    return service, ids
+
+
+def test_provisional_rank_places_a_low_minutes_player_among_ranked_peers(early_season):
+    service, ids = early_season
+    low = service.profile("player", ids["low"])
+    assert low["ranking"]["ranked"] is False and low["ranking"]["reason"] == "below_minutes_threshold"
+    assert low["ranking"]["provisional"] is True
+    peers = [service.profile("player", key)["metrics"] for key in ids["ranked"]]
+    assert all(m["goals_per_90"]["peer_count"] == 10 for m in peers)
+    placed = 0
+    for name, data in low["metrics"].items():
+        if data["value"] is None:
+            assert data["rank"] is None and data["percentile"] is None
+            continue
+        values = [m[name]["value"] for m in peers if m[name]["rank"] is not None] + [data["value"]]
+        assert data["peer_count"] == len(values) == 11
+        assert data["percentile"] == percentiles(values)[-1]
+        better = sum(v > data["value"] if data["higher_is_more"] else v < data["value"] for v in values)
+        assert data["rank"] == better + 1
+        assert data["league_average"] is None
+        placed += 1
+    assert placed
+    # A goal in 30 minutes (3.0 a 90) against 0.0 to 0.9 a 90: first of eleven
+    assert (low["metrics"]["goals_per_90"]["rank"], low["metrics"]["goals_per_90"]["peer_count"]) == (1, 11)
+    assert low["headline"]["provisional"] is True
+    assert low["previous_season"] is None  # kept as before: no earlier season here
+
+
+def test_no_provisional_rank_without_a_built_scope(early_season, session_factory):
+    from sqlalchemy import delete
+    service, ids = early_season
+    with session_factory() as s:
+        s.execute(delete(ResearchProfileBuild))  # peer rows stay; without their build they are not trusted
+    low = service.profile("player", ids["low"])
+    assert low["ranking"]["provisional"] is False
+    assert all(m["rank"] is None for m in low["metrics"].values())
+
+
+def test_no_provisional_rank_for_teams_and_referees_or_among_too_few_peers(research):
+    service, ids = research
+    team = service.profile("team", ids["team"], season=2026)
+    assert team["ranking"]["reason"] == "below_matches_threshold" and team["ranking"]["provisional"] is False
+    assert all(m["rank"] is None for m in team["metrics"].values())
+    referee = service.profile("referee", ids["referee"], season=2026)
+    assert referee["ranking"]["reason"] == "below_matches_threshold" and referee["ranking"]["provisional"] is False
+    current = service.profile("player", ids["player"])  # 2026: no ranked forward yet
+    assert current["ranking"]["provisional"] is False and current["headline"] is None
+    low = service.profile("player", ids["low"], season=2025)  # two ranked forwards: under the floor of ten
+    assert low["ranking"]["reason"] == "below_minutes_threshold" and low["ranking"]["provisional"] is False
+    assert all(m["rank"] is None for m in low["metrics"].values()) and low["headline"] is None
+
+
+def test_ranked_profiles_are_unchanged(research):
+    service, ids = research
+    ranked = service.profile("player", ids["player"], competition="EPL", season=2025)
+    assert ranked["ranking"]["ranked"] is True and ranked["ranking"]["provisional"] is False
+    assert ranked["metrics"]["goals_per_90"]["peer_count"] == 2
+    assert ranked["metrics"]["goals_per_90"]["percentile"] == 75
+    assert ranked["headline"]["provisional"] is False
