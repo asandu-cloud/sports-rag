@@ -2737,6 +2737,15 @@ test bets (Over 2.5 cards in Chelsea's next match; a player's shots on target) t
     slip's bar (app.js tells the research page that bar's height) and hides while the slip is open. Players get their
     club's next match in the head, referees their next appointment. A 503 while the refresh runs hides it all. The
     spec's rail breakpoint now says 860 px, as the sketch draws it. Cards open #research/matches/{id} (task 6).
+  - Task 6, 16 Nov: the match view's shell, from the backend's B2 (d7d7da9, not merged yet), at
+    #research/matches/{id}/{market}. The head (both crests, "Chelsea v Leeds", day and time, competition, the referee
+    once named, linking to his page, and the read's state), then "How Spix reads it": the favourite ("Chelsea are
+    favourites", or "No clear favourite" within 10 points), the three result chances, goals with each side's share,
+    corners, cards and both teams to score, with the open market's figure marked. Before the read is out it says
+    when it comes out. It opens at the market the bettor was reading (the team page's Cards, Goals or Corners; Shots
+    on target from a player); the back link returns there, and the team's next matches stay on the right with this
+    one marked. A 404 or 503 says so in words. The markets row shows only filled markets (tasks 7 to 9). Test
+    fixtures are the backend's real 16 Nov payloads: Chelsea v Leeds (no read yet) and Atletico v Barcelona (8 Nov).
 
 **D108 — Why cards were missing at kickoff (15 Nov; backend, read-only).** The orchestrator asked why so few
 domestic matches had a card on the board at kickoff (D77, task 2). Checked on the 10 domestic leagues, 5 Sep–14 Nov,

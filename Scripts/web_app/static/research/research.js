@@ -1,6 +1,7 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116e';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES} from './insight.js?v=research-20261116e';
-import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116e';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116f';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES} from './insight.js?v=research-20261116f';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116f';
+import {MARKETS, renderMatch, matchError} from './match.js?v=research-20261116f';
 
 const API = '/api/research';
 
@@ -84,6 +85,7 @@ function mountResearch(root, navigate) {
     $('searchView').hidden = name !== 'search';
     $('profileView').hidden = name !== 'profile';
     $('playerView').hidden = name !== 'chart';
+    $('matchView').hidden = name !== 'match';
     root.host.dataset.profile = String(name !== 'search');
     if (tip()) tip().hidden = true;
   }
@@ -294,6 +296,7 @@ function mountResearch(root, navigate) {
   // ----- Routing -----
   async function fromRoute(route = 'players') {
     const parts = route.split('/').map(part => decodeURIComponent(part));
+    if (parts[0] === 'matches' && parts[1]) return showMatch(parts[1], parts[2]);
     const area = catalogues[parts[0]] ? parts[0] : 'players';
     const id = parts[1] || null, rest = parts.slice(2);
     const scope = rest.find(isScope) || null, stat = rest.find(part => !isScope(part)) || null;
@@ -363,6 +366,52 @@ function mountResearch(root, navigate) {
       $('headNext').innerHTML = headNext(upcoming?.matches?.[0], kind === 'players' ? 'Next match' : 'Next appointment');
     }
   }
+  // ----- Match view (D107 task 6): B2, one market open at a time; the team's next matches on the right -----
+  const MATCH_MARKET = 'spix-research-match-market';
+  const storedMarket = () => { try { return localStorage.getItem(MATCH_MARKET); } catch (error) { return null; } };
+  async function showMatch(eventId, market) {
+    closeSheet(false);
+    if (!initialized) { initialized = true; setArea('teams'); }
+    const token = ++routeToken;
+    market = MARKETS.includes(market) ? market : MARKETS.includes(storedMarket()) ? storedMarket() : 'cards';
+    try { localStorage.setItem(MATCH_MARKET, market); } catch (error) { /* a per-browser convenience only */ }
+    view('match');
+    if (state.matchId !== eventId) {
+      Object.assign(state, {matchId: eventId, match: null});
+      $('matchBody').innerHTML = '<p class="profile-loading" role="status">Loading match…</p>';
+      $('matchRail').innerHTML = '';
+      $('matchView').querySelector('.match-layout').classList.remove('has-rail');
+    }
+    let match;
+    try {
+      match = await load(`${API}/matches/${encodeURIComponent(eventId)}`);
+    } catch (error) {
+      if (token !== routeToken) return;
+      state.matchId = null;
+      $('matchBody').innerHTML = matchError(error.status);
+      return;
+    }
+    if (token !== routeToken) return;
+    const first = state.match !== match, f = match.fixture;
+    state.match = match;
+    if (state.matchFrom?.eventId !== eventId) state.matchFrom = {eventId, route: `teams/${f.home.id}`, label: f.home.name, teamId: f.home.id};
+    state.matchMarket = market;
+    $('matchBody').innerHTML = renderMatch(match, {market, back: state.matchFrom});
+    wireImages($('matchBody'));
+    if (first) $('matchTitle')?.focus({preventScroll: true});
+    else $('matchBody').querySelector(`[data-market="${market}"]`)?.focus({preventScroll: true});
+    showMatchRail(eventId, token);
+  }
+  async function showMatchRail(eventId, token) {
+    const teamId = state.matchFrom?.teamId ?? state.match.fixture.home.id;
+    const upcoming = await load(`${API}/teams/${encodeURIComponent(teamId)}/upcoming?limit=3`).catch(() => null);
+    if (token !== routeToken) return;
+    const rail = railHTML(upcoming, {active: eventId});
+    $('matchRail').innerHTML = rail;
+    $('matchView').querySelector('.match-layout').classList.toggle('has-rail', !!rail);
+    wireImages($('matchRail'));
+  }
+
   let sheetOpener = null, swipeFrom = null;
   function openSheet(opener) {
     const sheet = $('nextSheet');
@@ -839,6 +888,15 @@ function mountResearch(root, navigate) {
     if (suggestion) { $('playerSearch').value = suggestion.dataset.suggest; search(); $('playerSearch').focus(); }
   });
   $('profileBack').addEventListener('click', () => go(state.area));
+  $('matchView').addEventListener('click', event => {
+    const target = event.target.closest('[data-match-back],[data-market],[data-open-match],[data-referee]');
+    if (!target) return;
+    if (target.matches('[data-match-back]')) return navigate(state.matchFrom?.route || 'teams');
+    if (target.dataset.market) return navigate(`matches/${encodeURIComponent(state.matchId)}/${target.dataset.market}`);
+    if (target.dataset.referee) return go('referees', target.dataset.referee);
+    state.matchFrom = {...state.matchFrom, eventId: target.dataset.openMatch};
+    navigate(`matches/${encodeURIComponent(target.dataset.openMatch)}/${state.matchMarket || 'cards'}`);
+  });
   $('researchHome').addEventListener('click', event => {
     const target = event.target.closest('[data-go],[data-league],[data-board],[data-expand],[data-suggest]');
     if (!target) return;
@@ -858,7 +916,14 @@ function mountResearch(root, navigate) {
   $('backSearch').addEventListener('click', () => go(state.area, state.id, state.scope));
   $('profileView').addEventListener('click', event => {
     const match = event.target.closest('[data-open-match]');
-    if (match) { closeSheet(false); return navigate(`matches/${encodeURIComponent(match.dataset.openMatch)}`); }
+    if (match) {
+      // The match view opens at the market the bettor was reading, and its back link returns here.
+      closeSheet(false);
+      const d = state.profile, id = match.dataset.openMatch;
+      state.matchFrom = {eventId: id, route: [state.area, encodeURIComponent(state.id), state.scope].filter(Boolean).join('/'),
+        label: d.subject.name, teamId: state.area === 'teams' ? d.subject.id : state.area === 'players' ? d.subject.club?.id : null};
+      return navigate(`matches/${encodeURIComponent(id)}/${state.area === 'teams' ? state.teamMarket : state.area === 'players' ? 'sot' : 'cards'}`);
+    }
     const opener = event.target.closest('[data-open-sheet]');
     if (opener) return openSheet(opener);
     if (event.target.closest('[data-close-sheet]')) closeSheet();
@@ -942,8 +1007,8 @@ class SpixResearch extends HTMLElement {
     const root = this.attachShadow({mode: 'open'});
     root.innerHTML = '<p role="status">Loading Research Area…</p>';
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261116e', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261116e', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261116f', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261116f', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));
