@@ -3101,6 +3101,11 @@ board (Best Bets), E card outline (the matchday board), F rolling ball (the Rese
   logo, on its cobalt: "Getting today's matches ready…". A new date, league or the 90 s refresh never brings it
   back. On 8100 with the API held 2.5 s: drawn at 300 ms, gone once the board arrived, at 1440 and 390, light and
   dark, no errors. `app.js` at `loaders-20261116b`.
+- Task 3 (16 Nov): the matchday board draws E (three card outlines: "Loading the fixture schedule", "Loading the
+  published Match Reads", "Preparing the matchday board") and Best Bets draws D ("Ranking the clearest matchday
+  opportunities") while a new date or league loads. The 90 s refresh keeps the cards on screen. The old line stays
+  as the fallback. On 8100 with the API held 2.5 s (Fri 20 Nov, Sat 21 Nov): both drawn, then replaced, at 1440 and
+  390, no errors. `app.js` at `loaders-20261116c`.
 
 ## Findings that shape later steps
 

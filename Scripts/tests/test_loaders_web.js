@@ -65,7 +65,13 @@ const text = html => html.replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'").replac
   const app = fs.readFileSync(path.join(STATIC, 'app.js'), 'utf8');
   assert.match(app, /      this\._initialLoad = this\._loadMatchday\(\);\n      window\.spixCover\?\.\(this\._initialLoad, \{label: "Getting today's matches ready", logo: document\.querySelector\('\.logo-word'\)\?\.outerHTML \|\| ''\}\);\n    \}\n    return this\._initialLoad;/);
   assert.equal((app.match(/spixCover/g) || []).length, 1, 'only the first load');
-  assert.match(page, /<script src="\/static\/app\.js\?v=loaders-20261116b"><\/script>/);
+
+  // E on the board and D on Best Bets, in their loading states only (a background refresh never draws them).
+  // The old line stays as the fallback if the kit is missing.
+  assert.match(app, /    if \(state\.loading\) \{\n      container\.innerHTML = window\.spixLoader\?\.\('card', \{label: 'Preparing the matchday board', cards: 3,\n        steps: \['Loading the fixture schedule', 'Loading the published Match Reads', 'Preparing the matchday board'\]\}\)\n        \?\? '<div class="empty-state"><p>Preparing the matchday board…<\/p>/);
+  assert.match(app, /    if \(state\.loading\) \{\n      container\.innerHTML = window\.spixLoader\?\.\('prices', \{label: 'Ranking the clearest matchday opportunities'\}\)\n        \?\? '<div class="empty-state"><p>Ranking the clearest matchday opportunities…<\/p><\/div>';/);
+  assert.match(app, /if \(!background\) \{[\s\S]{0,200}?this\._renderFixtures\(\{ loading: true \}\);\n      this\._renderBestBets\(\{ loading: true \}\);/, 'only a foreground load');
+  assert.match(page, /<script src="\/static\/app\.js\?v=loaders-20261116c"><\/script>/);
 
   // The cover (A), on a fake clock and a fake page.
   function harness() {
