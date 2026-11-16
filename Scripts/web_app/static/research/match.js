@@ -1,8 +1,8 @@
 // Research Area overhaul (D107, task 6): one match's research view, from B2's research-match.v1. The head, How Spix
 // reads it, the markets row, the open market's section (SECTIONS, filled by tasks 7 to 9) and the foot line. Pure
 // functions returning HTML; research.js places them and wires the clicks.
-import {escape, one, LINES, DEFAULT_LINE, passes, hitCount, strip, shortDay} from './insight.js?v=research-20261116g';
-import {crest, whenText, readState, opensDay, possessive} from './upcoming.js?v=research-20261116g';
+import {escape, one, LINES, DEFAULT_LINE, passes, hitCount, strip, shortDay} from './insight.js?v=research-20261116h';
+import {crest, whenText, readState, opensDay, possessive} from './upcoming.js?v=research-20261116h';
 
 export const MARKETS = ['cards', 'sot', 'goals', 'corners', 'result', 'h2h', 'news'];
 export const MARKET_LABELS = {cards: 'Cards', sot: 'Shots on target', goals: 'Goals', corners: 'Corners', result: 'Result',
@@ -85,8 +85,9 @@ const initials = name => name.split(/[\s.-]+/).filter(Boolean).map(w => w[0]).jo
 const listWords = items => items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
 const TEAM_TOTAL = {cards: ['cards_for', 'cards_against'], goals: ['goals_for', 'goals_against'], corners: ['corners_for', 'corners_against']};
 
+const segment = (attr, label, options, current) => `<div class="segmented" role="group" aria-label="${label}">${options.map(([v, text]) => `<button type="button" data-${attr}="${v}" aria-pressed="${v === current}">${escape(text)}</button>`).join('')}</div>`;
 function lineRow(market, line) {
-  return `<div class="lines"><span>Line</span><div class="segmented" role="group" aria-label="${MARKET_LABELS[market]} line">${LINES[market].map(v => `<button type="button" data-mline="${v}" aria-pressed="${v === line}">${v}</button>`).join('')}</div></div>`;
+  return `<div class="lines"><span>Line</span>${segment('mline', `${MARKET_LABELS[market]} line`, LINES[market].map(v => [v, v]), line)}</div>`;
 }
 
 // Over and Under at the line: Spix's chance and the typical price from the read. Add only where the slip takes it.
@@ -181,4 +182,60 @@ export function addLegDetail(match, market, side, line) {
   if (!leg) return null;
   const f = match.fixture;
   return {fixture: {event_id: String(f.event_id), home: f.home.name, away: f.away.name, kickoff: f.kickoff, league: f.competition?.code}, leg, market};
+}
+
+// ----- Task 8: Shots on target -----
+const POSITIONS = {G: 'Goalkeeper', D: 'Defender', M: 'Midfielder', F: 'Forward'};
+const ordinal = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+const SOT_LINES = [1, 2];
+// "in the Premier League", but "in La Liga", "in Serie A", "in Ligue 1".
+const inLeague = name => !name ? 'in the league' : /^(La|Serie|Ligue|Liga) /.test(name) ? `in ${name}` : `in the ${name}`;
+
+// 1 = fewest. The top half reads from the fewest, the bottom half from the most.
+export function rankWords(rank, peers) {
+  if (rank === 1) return `the fewest of ${peers}`;
+  if (rank === peers) return `the most of ${peers}`;
+  return rank <= peers / 2 ? `${ordinal(rank)} fewest of ${peers}` : `${ordinal(peers - rank + 1)} most of ${peers}`;
+}
+
+function allowMini(team, allowed) {
+  const body = allowed
+    ? `<dl><div><dt>Shots on target faced a match</dt><dd>${one(allowed.per_match)}<small>${rankWords(allowed.rank, allowed.peer_count)} ${escape(inLeague(allowed.competition?.name))}</small></dd></div></dl>`
+    : `<p class="mk-note">No league figures for ${escape(team.name)} this season yet.</p>`;
+  return `<div class="mk-mini"><div class="mk-mh">${crest(team)}What ${escape(team.name)} allow</div>${body}</div>`;
+}
+
+export function sotSection(match, view = {}) {
+  const line = SOT_LINES.includes(view.line) ? view.line : SOT_LINES[0];
+  const team = ['home', 'away'].includes(view.team) ? view.team : 'both';
+  const t = match.teams || {}, names = {home: t.home?.team?.name, away: t.away?.team?.name};
+  const sides = team === 'both' ? ['home', 'away'] : [team];
+  const players = sides.flatMap(side => (t[side]?.shooters || []).map(p => {
+    const values = (p.last_10 || []).map(a => a.sot), minutes = mean((p.last_10 || []).map(a => a.minutes));
+    return {p, side, values, minutes, ...hitCount(values, line)};
+  })).sort((a, b) => b.hits - a.hits);
+  const row = x => `<tr class="mk-sot-row"><td><span class="mk-player">${crest(t[x.side].team)}<span><strong>${escape(x.p.name)}</strong><small>${escape([names[x.side], POSITIONS[x.p.position]].filter(Boolean).join(' · '))}</small></span></span></td>
+    <td>${strip(x.values, v => passes(v, line), x.p.last_10.map(a => `${shortDay(a.date)} v ${a.opponent}${a.started ? '' : ', from the bench'}`))} <b class="mk-of">${x.hits} of ${x.of}</b></td>
+    <td class="r mk-min">${x.minutes == null ? '' : `${Math.round(x.minutes)} min`}</td></tr>`;
+  const table = players.length
+    ? `<table class="mk-tbl"><thead><tr><th scope="col">Player</th><th scope="col">Last 10 appearances</th><th scope="col" class="r mk-min">Minutes a match</th></tr></thead><tbody>${players.map(row).join('')}</tbody></table>`
+    : '<p class="mk-note">No player figures for these teams yet.</p>';
+  // Each side's shooters face the other side's defence.
+  const facing = sides.map(side => side === 'home' ? 'away' : 'home').filter(side => t[side]?.team);
+  const teams = [['both', 'Both'], ['home', names.home || 'Home'], ['away', names.away || 'Away']];
+  return `<div class="mk-h"><h2 class="cond">Shots on target</h2><p>Likely starters, by starts in their last 5</p></div>
+    <div class="lines"><span class="mk-ctl"><span>Each player</span>${segment('mline', 'Shots on target line', SOT_LINES.map(v => [v, `${v}+`]), line)}</span><span class="mk-ctl"><span>Team</span>${segment('mteam', 'Team', teams, team)}</span></div>
+    ${table}<div class="mk-two">${facing.map(side => allowMini(t[side].team, t[side].allowed)).join('')}</div>
+    <p class="mk-note">Line-ups are confirmed about an hour before kickoff; this list comes from recent starts.</p>`;
+}
+SECTIONS.sot = sotSection;
+
+// The player page's context: the club's next opponent and the shots on target it allows.
+export function opponentAllows(match, teamId) {
+  const t = match.teams || {}, mine = ['home', 'away'].find(side => t[side]?.team?.id === teamId);
+  if (!mine) return '';
+  const other = t[mine === 'home' ? 'away' : 'home'], a = other?.allowed;
+  if (!a) return '';
+  const rank = rankWords(a.rank, a.peer_count);
+  return `${other.team.name} allow ${one(a.per_match)} shots on target a match, ${rank.startsWith('the ') ? rank : `the ${rank}`} ${inLeague(a.competition?.name)}.`;
 }

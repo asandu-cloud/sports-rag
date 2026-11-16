@@ -2754,6 +2754,12 @@ test bets (Over 2.5 cards in Chelsea's next match; a player's shots on target) t
     season. B2 counts a yellow and a red as one card each, and the page says to check the bookmaker's rule for reds.
     Without a referee or a read it says so. app.js now takes a research-add-leg event into the slip the way the match
     page's Explore options do (used by goals, corners and result in task 9). Cache tag research-20261116g.
+  - Task 8, 16 Nov: the match view's Shots on target. B2's likely starters (by starts in their last 5) with their last
+    10 appearances as squares against 1+ or 2+, "8 of 10", and minutes a match, most hits first; both teams or one.
+    No price column: B2 carries no player prices. Under the table, what each side allows: shots on target faced a match
+    this season and its league rank in words ("the 10th most of 20 in the Premier League", "the fewest of 20 in La
+    Liga"). On a player's Shots, On target or Goals page, "Keep it in context" now adds the next opponent's line from
+    the same figures (deferred from task 3). Cache tag research-20261116h.
 
 **D108 — Why cards were missing at kickoff (15 Nov; backend, read-only).** The orchestrator asked why so few
 domestic matches had a card on the board at kickoff (D77, task 2). Checked on the 10 domestic leagues, 5 Sep–14 Nov,

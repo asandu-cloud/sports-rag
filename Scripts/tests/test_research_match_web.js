@@ -143,5 +143,51 @@ const fixture = name => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixture
   const app = fs.readFileSync(path.join(__dirname, '../web_app/static/app.js'), 'utf8');
   assert.match(app, /document\.addEventListener\('research-add-leg', event => \{[\s\S]*?slip\.add\(`\$\{fixture\.home\} vs \$\{fixture\.away\}`, leg\.label, leg\.typical_price \?\? null, recsMarketName\(leg\.market\), \{\s*fixtureId: String\(fixture\.event_id\),/);
 
+  // Task 8, Shots on target: the likely starters' last 10 against 1+ or 2+, both teams or one, most hits first; what
+  // each side allows. B2 carries no player prices, so there is no price column at all.
+  assert.equal(m.SECTIONS.sot, m.sotSection);
+  const sot = m.sotSection(leeds, {line: 1});
+  assert.match(text(sot), /^Shots on target Likely starters, by starts in their last 5 Each player 1\+ 2\+ Team Both Chelsea Leeds/);
+  assert.match(sot, /data-mline="1" aria-pressed="true"/);
+  assert.match(sot, /data-mteam="both" aria-pressed="true"/);
+  const sotRows = sot.match(/<tr class="mk-sot-row">[\s\S]*?<\/tr>/g);
+  assert.equal(sotRows.length, 16);
+  assert.match(text(sotRows[0]), /^Pedro Neto Chelsea · Midfielder 8 of 10 76 min$/, 'most hits first');
+  assert.match(text(sot), /Cole Palmer Chelsea · Midfielder 7 of 10 89 min/);
+  assert.match(text(sot), /Dominic Calvert-Lewin Leeds · Forward 7 of 10 87 min/);
+  assert.doesNotMatch(sot, /Typical price|–/, 'no price column without prices');
+  const sot2 = m.sotSection(leeds, {line: 2});
+  assert.match(text(sot2), /Pedro Neto Chelsea · Midfielder 4 of 10/);
+  assert.match(text(sot2), /Cole Palmer Chelsea · Midfielder 2 of 10/);
+  assert.match(sot2, /data-mline="2" aria-pressed="true"/);
+  // What each side allows: shots on target faced a match this season and the league rank.
+  assert.match(text(sot), /What Leeds allow Shots on target faced a match 4\.3 10th most of 20 in the Premier League/);
+  assert.match(text(sot), /What Chelsea allow Shots on target faced a match 5\.2 4th most of 20 in the Premier League/);
+  // One team: its players, and only what their opponents allow.
+  const leedsOnly = m.sotSection(leeds, {line: 1, team: 'away'});
+  assert.equal(leedsOnly.match(/<tr class="mk-sot-row">/g).length, 8);
+  assert.doesNotMatch(text(leedsOnly), /Cole Palmer|What Leeds allow/);
+  assert.match(text(leedsOnly), /What Chelsea allow/);
+  assert.match(leedsOnly, /data-mteam="away" aria-pressed="true"/);
+  assert.match(text(sot), /Line-ups are confirmed about an hour before kickoff; this list comes from recent starts\./);
+  const noLeague = structuredClone(leeds);
+  noLeague.teams.away.allowed = null;
+  assert.match(text(m.sotSection(noLeague, {line: 1})), /What Leeds allow No league figures for Leeds this season yet\./);
+  // Ranks in words, 1 = fewest.
+  assert.equal(m.rankWords(1, 20), 'the fewest of 20');
+  assert.equal(m.rankWords(20, 20), 'the most of 20');
+  assert.equal(m.rankWords(3, 20), '3rd fewest of 20');
+  assert.equal(m.rankWords(10, 20), '10th fewest of 20');
+  assert.equal(m.rankWords(11, 20), '10th most of 20');
+  assert.match(text(m.sotSection(atleti, {line: 1})), /What Barcelona allow Shots on target faced a match 3\.3 the fewest of 20 in La Liga/);
+  // The player page's context panel: what the next opponent allows.
+  assert.equal(m.opponentAllows(leeds, 12), 'Leeds allow 4.3 shots on target a match, the 10th most of 20 in the Premier League.');
+  assert.equal(m.opponentAllows(leeds, 17), 'Chelsea allow 5.2 shots on target a match, the 4th most of 20 in the Premier League.');
+  assert.equal(m.opponentAllows(atleti, 22), 'Barcelona allow 3.3 shots on target a match, the fewest of 20 in La Liga.');
+  assert.equal(m.opponentAllows(noLeague, 12), '');
+  assert.equal(m.opponentAllows(leeds, 999), '');
+  const content = fs.readFileSync(path.join(__dirname, '../web_app/static/research/content.html'), 'utf8');
+  assert.match(content, /<section id="opponentContext" class="opponent-context" hidden><h3>The next opponent<\/h3><p id="opponentInsight"><\/p><\/section>/);
+
   console.log('test_research_match_web: ok');
 })().catch(error => { console.error(error); process.exit(1); });

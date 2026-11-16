@@ -1,7 +1,7 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116g';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES} from './insight.js?v=research-20261116g';
-import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116g';
-import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail} from './match.js?v=research-20261116g';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116h';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES} from './insight.js?v=research-20261116h';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116h';
+import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261116h';
 
 const API = '/api/research';
 
@@ -366,6 +366,20 @@ function mountResearch(root, navigate) {
       $('headNext').innerHTML = headNext(upcoming?.matches?.[0], kind === 'players' ? 'Next match' : 'Next appointment');
     }
   }
+  // D107 task 8: on a shooting statistic, what the club's next opponent allows (B1 finds the match, B2 the figure).
+  const SHOOTING = new Set(['shots', 'shots_on_target', 'goals']);
+  let opponentToken = 0;
+  async function showOpponent() {
+    const token = ++opponentToken, club = state.profile?.subject?.club?.id;
+    $('opponentContext').hidden = true;
+    if (club == null || !SHOOTING.has(state.stat)) return;
+    const next = (await load(`${API}/teams/${encodeURIComponent(club)}/upcoming?limit=1`).catch(() => null))?.matches?.[0];
+    const match = next ? await load(`${API}/matches/${encodeURIComponent(next.event_id)}`).catch(() => null) : null;
+    if (token !== opponentToken) return;
+    const sentence = match ? opponentAllows(match, club) : '';
+    $('opponentInsight').textContent = sentence;
+    $('opponentContext').hidden = !sentence;
+  }
   // ----- Match view (D107 task 6): B2, one market open at a time; the team's next matches on the right -----
   const MATCH_MARKET = 'spix-research-match-market';
   const storedMarket = () => { try { return localStorage.getItem(MATCH_MARKET); } catch (error) { return null; } };
@@ -406,7 +420,8 @@ function mountResearch(root, navigate) {
   }
   // The line each market was last read at stays while the bettor moves between markets and matches.
   const matchLines = {};
-  const matchViewOf = market => ({market, back: state.matchFrom, line: matchLines[market]});
+  let matchTeam = 'both';
+  const matchViewOf = market => ({market, back: state.matchFrom, line: matchLines[market], team: matchTeam});
   function redrawSection() {
     const section = $('matchBody').querySelector('.mk');
     if (section) { section.innerHTML = SECTIONS[state.matchMarket](state.match, matchViewOf(state.matchMarket)); wireImages(section); }
@@ -860,6 +875,7 @@ function mountResearch(root, navigate) {
       const known = records.filter(r => r.minutes != null), full = known.filter(r => r.minutes >= 75).length;
       $('minutesInsight').textContent = known.length ? `Played 75+ minutes in ${full} of ${plural(known.length, 'appearance')} in this view.` : 'No recorded minutes in this view.';
       $('contextFootnote').textContent = 'Short appearances mean fewer opportunities.';
+      showOpponent();
     } else if (state.area === 'teams') {
       const scored = records.filter(r => r.stats.goals_for != null && r.stats.goals_against != null);
       const wins = scored.filter(r => r.stats.goals_for > r.stats.goals_against).length, draws = scored.filter(r => r.stats.goals_for === r.stats.goals_against).length;
@@ -898,13 +914,18 @@ function mountResearch(root, navigate) {
   });
   $('profileBack').addEventListener('click', () => go(state.area));
   $('matchView').addEventListener('click', event => {
-    const target = event.target.closest('[data-match-back],[data-market],[data-open-match],[data-referee],[data-mline],[data-add]');
+    const target = event.target.closest('[data-match-back],[data-market],[data-open-match],[data-referee],[data-mline],[data-mteam],[data-add]');
     if (!target) return;
     if (target.matches('[data-match-back]')) return navigate(state.matchFrom?.route || 'teams');
     if (target.dataset.mline) {
       matchLines[state.matchMarket] = Number(target.dataset.mline);
       redrawSection();
       return $('matchBody').querySelector(`.mk [data-mline="${target.dataset.mline}"]`)?.focus({preventScroll: true});
+    }
+    if (target.dataset.mteam) {
+      matchTeam = target.dataset.mteam;
+      redrawSection();
+      return $('matchBody').querySelector(`.mk [data-mteam="${matchTeam}"]`)?.focus({preventScroll: true});
     }
     if (target.dataset.add) {
       const [market, side, line] = target.dataset.add.split('|');
@@ -1027,8 +1048,8 @@ class SpixResearch extends HTMLElement {
     const root = this.attachShadow({mode: 'open'});
     root.innerHTML = '<p role="status">Loading Research Area…</p>';
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261116g', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261116g', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261116h', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261116h', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));

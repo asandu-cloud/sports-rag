@@ -451,3 +451,24 @@ button.who:hover,button.who:focus-visible{background:var(--surface2)}
   .mk-avg{display:none}
   .mk-booked-row span:last-child{white-space:normal}
 }
+/* D107 task 8: shots on target table, and the player page's next opponent */
+.mk-tbl{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+.mk-tbl th{text-align:left;font-weight:500;color:var(--text3);font-size:13px;padding:8px 6px;border-bottom:1px solid var(--border)}
+.mk-tbl td{padding:10px 6px;border-bottom:1px solid var(--border-soft);vertical-align:middle;color:var(--text)}
+.mk-tbl .r{text-align:right}
+.mk-player{display:flex;align-items:center;gap:10px;min-width:0}
+.mk-player .crest{width:26px;height:26px;flex-shrink:0}
+.mk-player strong{display:block;line-height:1.25;font-size:14px;font-weight:700}
+.mk-player small{display:block;color:var(--text3);font-size:12px;font-weight:400;margin-top:1px}
+.mk-of{margin-left:6px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.mk-min{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--text2)}
+.mk-ctl{display:inline-flex;align-items:center;gap:10px}
+.mk-ctl>span{font-size:13px;color:var(--text3)}
+.mk-ctl+.mk-ctl{margin-left:8px}
+.opponent-context p{margin-top:9px;font-size:12px;line-height:1.7;color:var(--text2)}
+@media(max-width:640px){
+  .mk-tbl .mk-min{display:none}
+  .mk-tbl td:nth-child(2){white-space:nowrap}
+  .mk-tbl .strip i{width:11px;height:11px}
+  .mk-ctl+.mk-ctl{margin-left:0}
+}
