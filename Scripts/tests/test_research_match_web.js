@@ -189,5 +189,65 @@ const fixture = name => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixture
   const content = fs.readFileSync(path.join(__dirname, '../web_app/static/research/content.html'), 'utf8');
   assert.match(content, /<section id="opponentContext" class="opponent-context" hidden><h3>The next opponent<\/h3><p id="opponentInsight"><\/p><\/section>/);
 
+  // Task 9. Goals at 2.5: the read's chance and price for each side, Add on both (the slip takes goals), then each
+  // team's last 10 and the meetings.
+  assert.equal(m.SECTIONS.goals, m.goalsSection);
+  const goals = m.goalsSection(atleti, {line: 2.5});
+  assert.match(text(goals), /^Goals Spix expects 3\.7 goals Line 1\.5 2\.5 3\.5/);
+  assert.match(text(goals), /Over 2\.5 goals Spix leans this way Spix 72% · typical price 1\.34 Add/);
+  assert.match(text(goals), /Under 2\.5 goals Spix 28% · typical price 3\.20 Add/);
+  assert.match(goals, /data-add="goals\|over\|2\.5"/);
+  assert.match(goals, /data-add="goals\|under\|2\.5"/);
+  assert.equal((goals.match(/class="strip"/g) || []).length, 3);
+  assert.match(text(goals), /Atletico Madrid's matches Last 10 · scored 1\.8, conceded 0\.5 4 of 10 2\.3 a match/);
+  assert.match(text(goals), /Barcelona's matches Last 10 · scored 3\.8, conceded 1\.5 10 of 10 5\.3 a match/);
+  assert.match(text(goals), /Atletico Madrid v Barcelona Meetings since 2023\/24 5 of 6 3\.5 a match/);
+  assert.doesNotMatch(m.goalsSection(leeds, {line: 2.5}), /data-add/, 'no read, no Add');
+  assert.match(text(m.goalsSection(leeds, {})), /Spix's chances and typical prices show once the read is out\./);
+  assert.match(m.goalsSection(leeds, {}), /data-mline="2\.5" aria-pressed="true"/, '2.5 by default');
+
+  // Corners at 9.5 likewise.
+  assert.equal(m.SECTIONS.corners, m.cornersSection);
+  const corners = m.cornersSection(atleti, {line: 9.5});
+  assert.match(text(corners), /^Corners Spix expects 8\.9 corners Line 8\.5 9\.5 10\.5 11\.5/);
+  assert.match(text(corners), /Over 9\.5 corners Spix leans this way Spix 58% · typical price 1\.62 Add/);
+  assert.match(text(corners), /Under 9\.5 corners Spix 42% · typical price 2\.14 Add/);
+  assert.match(text(corners), /Atletico Madrid's matches Last 10 · won 5\.2, conceded 4\.1 4 of 10 9\.3 a match/);
+  assert.match(text(corners), /Barcelona's matches Last 10 · won 6\.3, conceded 2\.8 4 of 10 9\.1 a match/);
+  assert.match(text(corners), /Atletico Madrid v Barcelona Meetings since 2023\/24 3 of 6 9\.8 a match/);
+
+  // Result: the three chances with prices and Add, each side's last 10 as W, D and L, home and away form.
+  assert.equal(m.SECTIONS.result, m.resultSection);
+  const result = m.resultSection(atleti, {});
+  assert.match(text(result), /Atletico Madrid to win Spix 27% · typical price 3\.58 Add Draw Spix 21% · typical price 4\.37 Add Barcelona to win Spix leans this way Spix 52% · typical price 1\.85 Add/);
+  assert.equal((result.match(/data-add="moneyline\|/g) || []).length, 3);
+  assert.match(result, /data-add="moneyline\|draw\|null"/);
+  assert.match(text(result), /Atletico Madrid Last 10, every competition W W W W W W D W W L 8 won, 1 drawn, 1 lost/);
+  assert.match(text(result), /Barcelona Last 10, every competition W W W W W W L L W W 8 won, 0 drawn, 2 lost/);
+  assert.match(text(result), /Atletico Madrid at home Won, drew, lost 4 · 0 · 1 5 home matches in their last 10/);
+  assert.match(text(result), /Barcelona away Won, drew, lost 4 · 0 · 1 5 away matches in their last 10/);
+  assert.match(text(m.resultSection(leeds, {})), /Spix's chances and typical prices show once the read is out\./);
+  assert.doesNotMatch(m.resultSection(leeds, {}), /data-add/);
+
+  // Head to head: one row per meeting, newest first, with what happened in it.
+  assert.equal(m.SECTIONS.h2h, m.h2hSection);
+  const h2h = m.h2hSection(atleti, {});
+  assert.match(text(h2h), /^Head to head Since 2023\/24 Barcelona won 4, Atletico Madrid won 2\./);
+  const meetings = h2h.match(/<li class="mk-h2h-row">[\s\S]*?<\/li>/g);
+  assert.equal(meetings.length, 6);
+  assert.match(text(meetings[0]), /^14 Apr 2026 UEFA Champions League Atletico Madrid 1–2 Barcelona 2 cards · 6 corners · 3 goals$/);
+  assert.match(text(m.h2hSection(leeds, {})), /Chelsea 2–2 Leeds 8 cards · 5 corners · 4 goals/);
+  assert.match(text(m.h2hSection(strangers, {})), /No meetings since 2023\/24\./);
+
+  // Team news: no line-ups yet, so the likely starters from recent starts, and when line-ups come.
+  assert.equal(m.SECTIONS.news, m.newsSection);
+  const news = m.newsSection(atleti, {});
+  assert.match(text(news), /^Team news Likely outfield starters, from starts in the last 5/);
+  assert.equal((news.match(/class="mk-news-row"/g) || []).length, 16);
+  assert.match(text(news), /Dávid Hancko Defender · started 5 of last 5/);
+  assert.match(text(m.newsSection(leeds, {})), /Josh Acheampong Defender · started 4 of last 5/);
+  assert.match(text(news), /Line-ups are confirmed about an hour before kickoff\. Injuries and suspensions are not in Spix's data yet\./);
+  assert.deepEqual(m.MARKETS.filter(key => m.SECTIONS[key]), m.MARKETS, 'every market has its section');
+
   console.log('test_research_match_web: ok');
 })().catch(error => { console.error(error); process.exit(1); });

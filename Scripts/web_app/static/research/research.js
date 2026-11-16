@@ -1,7 +1,7 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116h';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES} from './insight.js?v=research-20261116h';
-import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116h';
-import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261116h';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116i';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES} from './insight.js?v=research-20261116i';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116i';
+import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261116i';
 
 const API = '/api/research';
 
@@ -1048,8 +1048,8 @@ class SpixResearch extends HTMLElement {
     const root = this.attachShadow({mode: 'open'});
     root.innerHTML = '<p role="status">Loading Research Area…</p>';
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261116h', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261116h', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261116i', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261116i', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));

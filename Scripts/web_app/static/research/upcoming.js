@@ -1,7 +1,7 @@
 // Research Area overhaul (D107, task 5): a team's next matches, from B1's research-upcoming.v1. The rail on wide
 // screens, the floating bar and its sheet on phones (the owner's option C), and the next match in a player's or
 // referee's head. Pure functions returning HTML; research.js places them and wires the clicks.
-import {escape, one} from './insight.js?v=research-20261116h';
+import {escape, one} from './insight.js?v=research-20261116i';
 
 // Kickoffs in the viewer's own time, as the board shows them.
 const part = (iso, options) => new Date(iso).toLocaleString('en-GB', options);

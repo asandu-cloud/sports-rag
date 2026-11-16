@@ -1,8 +1,8 @@
 // Research Area overhaul (D107, task 6): one match's research view, from B2's research-match.v1. The head, How Spix
 // reads it, the markets row, the open market's section (SECTIONS, filled by tasks 7 to 9) and the foot line. Pure
 // functions returning HTML; research.js places them and wires the clicks.
-import {escape, one, LINES, DEFAULT_LINE, passes, hitCount, strip, shortDay} from './insight.js?v=research-20261116h';
-import {crest, whenText, readState, opensDay, possessive} from './upcoming.js?v=research-20261116h';
+import {escape, one, LINES, DEFAULT_LINE, passes, hitCount, strip, shortDay} from './insight.js?v=research-20261116i';
+import {crest, whenText, readState, opensDay, possessive} from './upcoming.js?v=research-20261116i';
 
 export const MARKETS = ['cards', 'sot', 'goals', 'corners', 'result', 'h2h', 'news'];
 export const MARKET_LABELS = {cards: 'Cards', sot: 'Shots on target', goals: 'Goals', corners: 'Corners', result: 'Result',
@@ -83,6 +83,13 @@ const plural = (n, single, many) => `${n} ${n === 1 ? single : many}`;
 const seasonLabel = year => `${year}/${String(year + 1).slice(2)}`;
 const initials = name => name.split(/[\s.-]+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
 const listWords = items => items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
+// Cards say where the matches come from; goals and corners what each side made of them.
+const SPLIT = {goals: ['scored', 'conceded'], corners: ['won', 'conceded']};
+function teamSub(rows, market) {
+  if (!SPLIT[market]) return `Last ${rows.length}, every competition`;
+  const [mine, theirs] = TEAM_TOTAL[market], [won, gave] = SPLIT[market];
+  return `Last ${rows.length} · ${won} ${one(mean(rows.map(m => m[mine])))}, ${gave} ${one(mean(rows.map(m => m[theirs])))}`;
+}
 const TEAM_TOTAL = {cards: ['cards_for', 'cards_against'], goals: ['goals_for', 'goals_against'], corners: ['corners_for', 'corners_against']};
 
 const segment = (attr, label, options, current) => `<div class="segmented" role="group" aria-label="${label}">${options.map(([v, text]) => `<button type="button" data-${attr}="${v}" aria-pressed="${v === current}">${escape(text)}</button>`).join('')}</div>`;
@@ -90,21 +97,25 @@ function lineRow(market, line) {
   return `<div class="lines"><span>Line</span>${segment('mline', `${MARKET_LABELS[market]} line`, LINES[market].map(v => [v, v]), line)}</div>`;
 }
 
-// Over and Under at the line: Spix's chance and the typical price from the read. Add only where the slip takes it.
-function pickPair(match, market, line, unit, {add = false} = {}) {
+// One option: its label, Spix's chance and the typical price; "Spix leans this way" over 50%. Add only when the read
+// has the option in a market the slip takes (addLegDetail finds it).
+function pickCard(match, {label, chance, price, market, side, line}) {
+  const lean = chance > 0.5, addable = market && addLegDetail(match, market, side, line);
+  const button = addable ? `<button type="button" class="mk-add" data-add="${market}|${side}|${line}" aria-label="Add ${escape(label)} to the slip">Add</button>` : '';
+  const shown = price == null ? '' : ` · typical price <b>${Number(price).toFixed(2)}</b>`;
+  return `<div class="mk-pick${lean ? ' lean' : ''}"><span class="mk-pl">${escape(label)}</span>${lean ? ' <span class="mk-lean">Spix leans this way</span>' : ''}<span class="mk-pc">Spix <b>${pct(chance)}</b>${shown}</span>${button}</div>`;
+}
+const WAITING = '<p class="mk-note">Spix\'s chances and typical prices show once the read is out.</p>';
+
+// Over and Under at the line, from the read's lines.
+function pickPair(match, market, line, unit) {
   const r = match.read;
-  if (!r) return '<p class="mk-note">Spix\'s chances and typical prices show once the read is out.</p>';
+  if (!r) return WAITING;
   const lines = r.lines?.[market] || [], at = lines.find(l => l.line === line);
   if (!at) return `<p class="mk-note">No typical price for ${line} ${unit} yet.${lines.length ? ` Spix's chances cover ${listWords(lines.map(l => l.line))}.` : ''}</p>`;
-  const pick = side => {
-    const o = at[side];
-    if (!o) return '';
-    const label = `${side === 'over' ? 'Over' : 'Under'} ${line} ${unit}`, lean = o.chance > 0.5;
-    const price = o.typical_price == null ? '' : ` · typical price <b>${Number(o.typical_price).toFixed(2)}</b>`;
-    const button = add ? `<button type="button" class="mk-add" data-add="${market}|${side}|${line}" aria-label="Add ${label} to the slip">Add</button>` : '';
-    return `<div class="mk-pick${lean ? ' lean' : ''}"><span class="mk-pl">${label}</span>${lean ? ' <span class="mk-lean">Spix leans this way</span>' : ''}<span class="mk-pc">Spix <b>${pct(o.chance)}</b>${price}</span>${button}</div>`;
-  };
-  return `<div class="mk-pair">${pick('over')}${pick('under')}</div>`;
+  const card = side => at[side] ? pickCard(match, {label: `${side === 'over' ? 'Over' : 'Under'} ${line} ${unit}`, chance: at[side].chance,
+    price: at[side].typical_price, market, side, line}) : '';
+  return `<div class="mk-pair">${card('over')}${card('under')}</div>`;
 }
 
 function evRow(icon, title, sub, values, labels, line) {
@@ -118,7 +129,7 @@ function historyRows(match, market, line, unit) {
   for (const side of ['home', 'away']) {
     const t = match.teams?.[side], [mine, theirs] = TEAM_TOTAL[market];
     if (!t?.last_matches?.length) continue;
-    rows.push(evRow(crest(t.team), `${possessive(t.team.name)} matches`, `Last ${t.last_matches.length}, every competition`,
+    rows.push(evRow(crest(t.team), `${possessive(t.team.name)} matches`, teamSub(t.last_matches, market),
       t.last_matches.map(m => both(m[mine], m[theirs])),
       t.last_matches.map(m => `${shortDay(m.date)} ${m.venue === 'home' ? 'v' : 'at'} ${m.opponent?.name || ''}`), line));
   }
@@ -167,11 +178,18 @@ function bookedBlock(match) {
   return `<div class="mk-ev"><h3>Players booked most often<small>This season, every competition</small></h3><div class="mk-two">${sides.map(t => `<div class="mk-mini"><div class="mk-mh">${crest(t.team)}${escape(t.team.name)}</div>${t.booked?.length ? `<ul class="mk-booked">${t.booked.slice(0, 5).map(player).join('')}</ul>` : '<p class="mk-note">No one booked this season yet.</p>'}</div>`).join('')}</div></div>`;
 }
 
+const EXPECTED = {cards: r => r.cards_expected, goals: r => r.goals?.total, corners: r => r.corners_expected};
+// A totals market's head: its name, what Spix expects, the line picker, Over and Under, and the history at that line.
+function totalsTop(match, market, line) {
+  const unit = market, value = match.read ? EXPECTED[market](match.read) : null;
+  const expects = value != null ? `<p>Spix expects <b>${one(value)}</b> ${unit}</p>` : '';
+  return `<div class="mk-h"><h2 class="cond">${MARKET_LABELS[market]}</h2>${expects}</div>${lineRow(market, line)}${pickPair(match, market, line, unit)}
+    ${historyRows(match, market, line, unit)}`;
+}
+const lineOf = (market, view) => LINES[market].includes(view.line) ? view.line : DEFAULT_LINE[market];
+
 export function cardsSection(match, view = {}) {
-  const line = LINES.cards.includes(view.line) ? view.line : DEFAULT_LINE.cards, r = match.read;
-  const expects = r?.cards_expected != null ? `<p>Spix expects <b>${one(r.cards_expected)}</b> cards</p>` : '';
-  return `<div class="mk-h"><h2 class="cond">Cards</h2>${expects}</div>${lineRow('cards', line)}${pickPair(match, 'cards', line, 'cards')}
-    ${historyRows(match, 'cards', line, 'cards')}${whoGetsCards(match)}${refereeBlock(match)}${bookedBlock(match)}`;
+  return `${totalsTop(match, 'cards', lineOf('cards', view))}${whoGetsCards(match)}${refereeBlock(match)}${bookedBlock(match)}`;
 }
 SECTIONS.cards = cardsSection;
 
@@ -239,3 +257,72 @@ export function opponentAllows(match, teamId) {
   const rank = rankWords(a.rank, a.peer_count);
   return `${other.team.name} allow ${one(a.per_match)} shots on target a match, ${rank.startsWith('the ') ? rank : `the ${rank}`} ${inLeague(a.competition?.name)}.`;
 }
+
+// ----- Task 9: Goals, Corners, Result, Head to head, Team news -----
+export const goalsSection = (match, view = {}) => totalsTop(match, 'goals', lineOf('goals', view));
+export const cornersSection = (match, view = {}) => totalsTop(match, 'corners', lineOf('corners', view));
+SECTIONS.goals = goalsSection;
+SECTIONS.corners = cornersSection;
+
+const outcome = m => m.goals_for == null || m.goals_against == null ? null
+  : m.goals_for > m.goals_against ? 'W' : m.goals_for === m.goals_against ? 'D' : 'L';
+const record = rows => { const r = rows.map(outcome); return {W: r.filter(x => x === 'W').length, D: r.filter(x => x === 'D').length, L: r.filter(x => x === 'L').length}; };
+const fullDay = iso => new Date(iso).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/London'});
+
+function formRow(t) {
+  const rows = t.last_matches || [], n = record(rows);
+  const squares = rows.map(m => { const o = outcome(m);
+    return `<i class="${o ? o.toLowerCase() : 'na'}" title="${escape(`${shortDay(m.date)} ${m.venue === 'home' ? 'v' : 'at'} ${m.opponent?.name || ''}: ${m.goals_for ?? '?'}–${m.goals_against ?? '?'}`)}">${o || ''}</i>`; }).join('');
+  return `<div class="mk-row mk-form">${crest(t.team)}<span class="mk-who"><strong>${escape(t.team.name)}</strong><small>Last ${rows.length}, every competition</small></span><span class="mk-wdl" role="img" aria-label="${n.W} won, ${n.D} drawn, ${n.L} lost">${squares}</span><span class="mk-hit">${n.W} won, ${n.D} drawn, ${n.L} lost</span></div>`;
+}
+
+export function resultSection(match, view = {}) {
+  const f = match.fixture, t = match.teams || {};
+  const options = match.read?.markets?.find(m => m.market === 'moneyline')?.options || [];
+  const order = ['home', 'draw', 'away'];
+  const picks = match.read && options.length
+    ? `<div class="mk-pair mk-three">${order.map(side => options.find(o => o.side === side)).filter(Boolean).map(o => pickCard(match,
+      {label: o.label, chance: o.chance, price: o.typical_price, market: 'moneyline', side: o.side, line: null})).join('')}</div>`
+    : WAITING;
+  const venue = (side, where) => {
+    const team = t[side]; if (!team) return '';
+    const rows = (team.last_matches || []).filter(m => m.venue === where), n = record(rows);
+    return `<div class="mk-mini"><div class="mk-mh">${crest(team.team)}${escape(team.team.name)} ${where === 'home' ? 'at home' : 'away'}</div><dl><div><dt>Won, drew, lost</dt><dd>${n.W} · ${n.D} · ${n.L}<small>${plural(rows.length, `${where} match`, `${where} matches`)} in their last ${team.last_matches.length}</small></dd></div></dl></div>`;
+  };
+  return `<div class="mk-h"><h2 class="cond">Result</h2></div>${picks}
+    <div class="mk-ev"><h3>Form<small>newest on the right</small></h3><div class="mk-rows">${['home', 'away'].filter(side => t[side]?.last_matches?.length).map(side => formRow(t[side])).join('')}</div></div>
+    <div class="mk-two">${venue('home', 'home')}${venue('away', 'away')}</div>`;
+}
+SECTIONS.result = resultSection;
+
+export function h2hSection(match, view = {}) {
+  const f = match.fixture, list = match.h2h || [], since = seasonLabel(match.data_basis?.h2h_since_season || 2023);
+  const head = `<div class="mk-h"><h2 class="cond">Head to head</h2><p>Since ${since}</p></div>`;
+  if (!list.length) return `${head}<p class="mk-note">No meetings since ${since}.</p>`;
+  const wins = {[f.home.id]: 0, [f.away.id]: 0};
+  let draws = 0;
+  for (const m of list) {
+    const {home, away} = m.score || {};
+    if (home == null || away == null) continue;
+    if (home === away) draws += 1; else wins[home > away ? m.home.id : m.away.id] = (wins[home > away ? m.home.id : m.away.id] || 0) + 1;
+  }
+  const sides = [f.home, f.away].sort((a, b) => wins[b.id] - wins[a.id]);
+  const summary = `${sides.map(team => `${escape(team.name)} won ${wins[team.id] || 0}`).join(', ')}${draws ? `, ${plural(draws, 'draw', 'draws')}` : ''}.`;
+  const facts = m => [[m.cards, 'card', 'cards'], [m.corners, 'corner', 'corners'], [m.goals, 'goal', 'goals']].filter(([v]) => v != null).map(([v, a, b]) => plural(v, a, b)).join(' · ');
+  return `${head}<p class="mk-callout">${summary}</p><ul class="mk-h2h">${list.map(m => `<li class="mk-h2h-row"><span class="mk-h2h-when">${escape(fullDay(m.date))}<small>${escape(m.competition?.name || '')}</small></span><span class="mk-h2h-score">${escape(m.home.name)} ${m.score?.home ?? '?'}–${m.score?.away ?? '?'} ${escape(m.away.name)}</span><span class="mk-h2h-facts">${facts(m)}</span></li>`).join('')}</ul>`;
+}
+SECTIONS.h2h = h2hSection;
+
+// No line-ups in B2 yet (lineups is always null), so the likely starters from recent starts.
+export function newsSection(match, view = {}) {
+  const t = match.teams || {};
+  const side = key => { const team = t[key]; if (!team) return '';
+    const list = team.shooters || [];
+    return `<div class="mk-mini"><div class="mk-mh">${crest(team.team)}${escape(team.team.name)}</div>${list.length
+      ? `<ul class="mk-booked">${list.map(p => `<li class="mk-news-row"><span>${escape(p.name)}</span><span>${escape([POSITIONS[p.position], `started ${p.starts_last_5} of last 5`].filter(Boolean).join(' · '))}</span></li>`).join('')}</ul>`
+      : '<p class="mk-note">No recent starts recorded.</p>'}</div>`; };
+  return `<div class="mk-h"><h2 class="cond">Team news</h2><p>Likely outfield starters, from starts in the last 5</p></div>
+    <div class="mk-two">${side('home')}${side('away')}</div>
+    <p class="mk-note">Line-ups are confirmed about an hour before kickoff. Injuries and suspensions are not in Spix's data yet.</p>`;
+}
+SECTIONS.news = newsSection;

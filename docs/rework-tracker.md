@@ -2760,6 +2760,14 @@ test bets (Over 2.5 cards in Chelsea's next match; a player's shots on target) t
     this season and its league rank in words ("the 10th most of 20 in the Premier League", "the fewest of 20 in La
     Liga"). On a player's Shots, On target or Goals page, "Keep it in context" now adds the next opponent's line from
     the same figures (deferred from task 3). Cache tag research-20261116h.
+  - Task 9, 16 Nov: the match view's other five markets. Goals (1.5 to 3.5) and Corners (8.5 to 11.5) work like Cards:
+    Spix's chance and typical price for Over and Under, now with Add, and how often each team's last 10 (with what
+    they scored or won and conceded) and the meetings went over. Result: the three chances with prices and Add, each
+    side's last 10 as W, D and L squares, and the home side at home and the away side away. Head to head: who won
+    how many, then each meeting with its score and cards, corners and goals. Team news: B2 has no line-ups yet, so the
+    likely outfield starters with their starts in the last 5, and a line that injuries are not in Spix's data yet.
+    Add goes through app.js's research-add-leg into the slip with Spix's chance, as on the match page (checked in a
+    browser: Over 2.5 goals at 1.34, 72%). Cache tag research-20261116i.
 
 **D108 — Why cards were missing at kickoff (15 Nov; backend, read-only).** The orchestrator asked why so few
 domestic matches had a card on the board at kickoff (D77, task 2). Checked on the 10 domestic leagues, 5 Sep–14 Nov,

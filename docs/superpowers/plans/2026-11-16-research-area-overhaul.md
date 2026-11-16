@@ -309,7 +309,7 @@ from B1/B2 when the player's next match is open), `index.html`; extend `test_res
 | 6. Match view shell (B2) | Done | 17bf72c.. | match + all *_web.js pass |
 | 7. Cards section and Add | Done | e476a63.. | match + all *_web.js pass |
 | 8. Shots on target section | Done | 6c74e68.. | match + all *_web.js pass |
-| 9. Goals, Corners, Result, Head to head, Team news | In progress | | |
+| 9. Goals, Corners, Result, Head to head, Team news | Done | 616bddf.. | match + all *_web.js pass |
 | 10. Finish: real data, look, review | Not started | | |
 
 Backend items (spec 6.2), asked 16 Nov: B1 next matches, B2 the match, B3 checks (Chelsea's ranks, Taylor's
