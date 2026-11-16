@@ -3053,6 +3053,23 @@ backend).** The number was held since 7 Nov (D78).
       - In columns the bench doesn't read, 3 newly promoted teams (Bolton, Málaga, La Coruña) now have their team
         ids on 2012–2018 rows.
     - 6 new tests; suite 3,204 passed plus the 3 known worktree errors; golden check unchanged.
+  - **Phase 2 task 2 done (16 Nov): match statistics, export and loader.**
+    - `python -m Scripts.ops.game_read_bench export-stats` reads `platform.db` once, inside the refresh gate, and
+      writes `Index/game_read_stats.sqlite3`. The bench reads only that file.
+    - Per side, for each of the 50,798 bench matches:
+      - shots inside and outside the box (our fixtures);
+      - shots on target (football-data's own columns);
+      - real xG, kept only to check the derived xG on 2022/23;
+      - rest: whole days since the team's previous finished fixture in the leagues and European cups we hold.
+        Domestic cups are not held, so a cup midweek counts as rest.
+    - Run 16 Nov at 21:56. Share of matches with both sides' figures:
+      - shots in the box: 0.93 in 2019/20 and 2020/21 (Belgium 59% over 2019–2022), 0.99–1.00 from 2021/22;
+      - shots on target: 0.67–0.69 for 2012/13–2016/17 (Belgium, Netherlands, Portugal and Turkey about 30%), then
+        0.99–1.00;
+      - rest: 0.97 in 2019/20, then 0.99–1.00;
+      - real xG: 0.27 in 2022/23, 1.00 from 2023/24.
+    - Rest days: median 6; 22% under 4; 7% over 14.
+    - 5 new tests; suite 3,209 passed plus the 3 known worktree errors; golden check unchanged.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their

@@ -2,6 +2,7 @@
 
     python -m Scripts.ops.game_read_bench run --models market,control --block tuning \\
         --out Research/game-read-bench-<date>
+    python -m Scripts.ops.game_read_bench export-stats   # once, outside refresh hours (phase 2)
 
 Every run scores the zero line (``market``) and the control line (``control``) first. When the zero line does not
 score zero, the bench is wrong: the run stops with exit code 2 and writes nothing.
@@ -22,13 +23,14 @@ import subprocess
 import sys
 import time
 
-from Scripts.data_platform.game_read import history, opportunities, report, rules, scores, walkforward
+from Scripts.data_platform.game_read import history, opportunities, report, rules, scores, stats, walkforward
 from Scripts.data_platform.game_read.models import average
 from Scripts.data_platform.game_read.models.dixon_coles import DixonColes
 from Scripts.data_platform.game_read.models.drifting import Drifting
 from Scripts.data_platform.game_read.models.elo import Elo
 from Scripts.data_platform.game_read.models.market import MarketControl, MarketCopy
 from Scripts.data_platform.game_read.models.pi_ratings import PiRatings
+from Scripts.data_platform.services.refresh_coordination import RefreshBusy
 
 ROOT = Path(__file__).resolve().parents[2]
 LEDGER = ROOT / "Research" / "game-read-bench" / "locked-runs.jsonl"
@@ -171,6 +173,17 @@ def run(args) -> int:
     return 0
 
 
+def export_stats(args) -> int:
+    try:
+        found = stats.export(args.out)
+    except RefreshBusy as busy:
+        print(f"The data refresh holds the database ({busy}); nothing written. Try again after the refresh.",
+              file=sys.stderr)
+        return 2
+    print(json.dumps(found, indent=1))
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -181,7 +194,12 @@ def main(argv=None) -> int:
     bench.add_argument("--confirm-locked", action="store_true", help="name this run as the one locked or fresh run")
     bench.add_argument("--leagues", nargs="*", default=None, help="competition names, e.g. EPL LaLiga")
     bench.add_argument("--out", type=Path, required=True)
-    return run(parser.parse_args(argv))
+    bench.set_defaults(command=run)
+    export = commands.add_parser("export-stats", help="export the matches' statistics from our database, once")
+    export.add_argument("--out", type=Path, default=stats.STATS_DB)
+    export.set_defaults(command=export_stats)
+    args = parser.parse_args(argv)
+    return args.command(args)
 
 
 if __name__ == "__main__":
