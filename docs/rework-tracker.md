@@ -3685,6 +3685,34 @@ team bars (D118) measured 1.97:1 against the card, under the usual 3:1 for chart
 keeps Spix cobalt `#0246A4`. `style.css` at `charts-20261117b`; the research files are unchanged
 (`research-20261117f`). 18 JS test files pass; checked on 8100 on Bayern's page at 1100 and 390, light and dark.
 
+**D121 — A played match from the last 10, opened from the glance squares (17 Nov; frontend, owner).** The owner asked
+to point at a square in "Last 10 at a glance" and see which match it is, then open that match's numbers and what Spix
+said before it. From the renders (https://claude.ai/artifact/U5LRo9EBaPtGFjR2tTeeGf) the owner chose the hover card
+leading to a full report page (panel B not chosen). Plan: `docs/superpowers/plans/2026-11-17-match-report.md`.
+- Task 1 (done): the report, `research/played.js`, at `#research/played/teams/<id>/<scope>/<fixture_id>/<market>`, drawn
+  in the match view with no rail. The head; the last 10 to move between (a dot where a read was kept); Cards, Goals,
+  Corners; the lead against the glance's first row ("9 corners, one short of 10"); "The match in numbers" (both
+  teams, bars scaled to the larger, the team's usual over its last 10); earlier and later matches. "What Spix said
+  before kickoff" reads the backend's D122 field `spix_before_kickoff`: absent, the section is left out; null, it says
+  no read was kept; else each pick with its chance and the backend's outcome (the site never grades a pick). Only 3 of
+  Como's last 10 kept a read (24 Oct, 1 and 8 Nov).
+- Research files at `research-20261117g`. 19 JS test files pass (new: `test_research_played_web.js`, Como's real last
+  10). Checked on 8100 at 1280 and 390, light and dark, with D122's field filled in the browser from the kept picks
+  of 1 and 8 Nov until the backend lands it.
+- Task 2 (done): the team page's glance squares are buttons (same 14px squares, a taller hit area). Pointing at one,
+  or focusing it from the keyboard, shows a card: when and where, the score, the market's figure split by side, and
+  "Spix before kickoff: 5 of 5 picks came in" (or "no read kept"); the match is ringed in every row. A click opens the
+  report where the screen can hover; on a touch screen it opens a sheet with earlier and later matches and "Open the
+  match". The report opens from the profile already loaded, with no second fetch. Research files at
+  `research-20261117h`. 19 JS test files pass; checked on 8100 with a real mouse at 1280 and taps at 390, light and
+  dark.
+- Task 3 (done): checked against D122's real field after main's merge (ab065ba), no stub: Como v Sassuolo "4 of 5
+  picks came in, 1 stake back" (Sassuolo +2 at 2–0), Como v Venezia 5 of 5, Inter v Como none of 3, Bayern v Leipzig 2
+  of 5, Mainz v Bayern 3 of 3; Bayern's strip holds its 9 league matches. Per the orchestrator, a pick with no outcome
+  reads "Not graded" (after extra time, or corners unknown), and a missing key leaves the section out. A push's icon is
+  now neutral grey, not the red of a loss. Research files at `research-20261117i`; 19 JS test files and the 125
+  research Python tests pass. Needs the website restart that also brings in D122.
+
 **D122 — A team's match log shows what Spix said before kickoff, graded (17 Nov; backend, frontend asked through the
 orchestrator).** Each row of `match_log` in `GET /api/research/teams/{id}` now carries `spix_before_kickoff`:
 - `null` when no read was kept for that match, otherwise `{"read_at", "most_likely": [...], "value": [...]}`. Each

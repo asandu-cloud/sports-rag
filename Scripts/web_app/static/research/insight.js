@@ -30,14 +30,16 @@ export function marketTotal(row, market) {
   return a == null || b == null ? null : a + b;
 }
 
-// One square a match, newest on the right: filled when it happened, dashed when not recorded.
-export function strip(values, test, labels = []) {
+// One square a match, newest on the right: filled when it happened, dashed when not recorded. With open (the team
+// page's glance, D121) each square is a button for its match, data-glance its place in the last 10.
+export function strip(values, test, labels = [], {open = false} = {}) {
   const known = values.filter(v => v != null);
   const marks = values.map((v, i) => {
-    const name = labels[i] ? `${labels[i]}: ` : '';
-    return `<i class="${v == null ? 'na' : test(v) ? 'y' : ''}" title="${escape(name + (v == null ? 'not recorded' : v))}"></i>`;
+    const name = labels[i] ? `${labels[i]}: ` : '', kind = v == null ? 'na' : test(v) ? 'y' : '';
+    const said = escape(name + (v == null ? 'not recorded' : v));
+    return open ? `<button type="button" class="${kind}" data-glance="${i}" aria-label="${said}"></button>` : `<i class="${kind}" title="${said}"></i>`;
   }).join('');
-  return `<span class="strip" role="img" aria-label="${known.filter(test).length} of ${known.length}">${marks}</span>`;
+  return `<span class="strip" role="${open ? 'group' : 'img'}" aria-label="${known.filter(test).length} of ${known.length}">${marks}</span>`;
 }
 
 const niceMax = value => {
@@ -98,7 +100,7 @@ export function teamLeadSub(name, rows, market) {
 }
 
 // Last 10 at a glance: the sketch's rows, each a strip of the matches and a written count.
-export function glance(name, rows, market) {
+export function glance(name, rows, market, {open = false} = {}) {
   const total = rows.map(r => marketTotal(r, market)), own = rows.map(r => r[`${market}_for`]), other = rows.map(r => r[`${market}_against`]);
   const both = rows.map(r => r.goals_for == null || r.goals_against == null ? null : r.goals_for > 0 && r.goals_against > 0 ? 1 : 0);
   const list = {
@@ -110,7 +112,7 @@ export function glance(name, rows, market) {
   const labels = rows.map(where);
   return `<div class="glance">${list.map(([label, values, test]) => {
     const known = values.filter(v => v != null);
-    return `<div class="g-row"><span class="g-l">${escape(label)}</span><span class="g-s">${strip(values, test, labels)}</span><span class="g-n">${known.filter(test).length} of ${known.length}</span></div>`;
+    return `<div class="g-row"><span class="g-l">${escape(label)}</span><span class="g-s">${strip(values, test, labels, {open})}</span><span class="g-n">${known.filter(test).length} of ${known.length}</span></div>`;
   }).join('')}</div>`;
 }
 
