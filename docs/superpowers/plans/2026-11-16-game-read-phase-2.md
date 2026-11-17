@@ -62,9 +62,9 @@ task N: …", "Done game-read phase 2 task N: … (<tests>, D77)", "Fix game-rea
 | 1 | The fresh block (2026/27) and its guard | Done 16 Nov | b602472 | ed8ea5a | 6 new, all pass; suite 3,204 passed + the 3 known errors; 1,084 fresh matches |
 | 2 | Match statistics: export and loader | Done 16 Nov | 1be9759 | 2b2f594 | 5 new, all pass; suite 3,209 passed + the 3 known errors |
 | 3 | Shot ratings (S3) into models 3–4, through the ablation gate | Done 17 Nov | ddba5eb | 82161ca | 8 new, all pass; suite 3,217 passed + the 3 known errors; no variant passes the gate |
-| 4 | Rest (C1) into models 3–4, through the ablation gate | Done 17 Nov | e6b53bc | the "Done game-read phase 2 task 4" commit | 4 new, all pass; suite 3,221 passed + the 3 known errors; rest fails the gate |
-| 5 | The features pass and the lean-away blend (model 5b) | Not started | | | |
-| 6 | Boosted trees on the market's error (model 6) | Not started | | | |
+| 4 | Rest (C1) into models 3–4, through the ablation gate | Done 17 Nov | e6b53bc | 77e740a | 4 new, all pass; suite 3,221 passed + the 3 known errors; rest fails the gate |
+| 5 | The features pass and the lean-away blend (model 5b) | Done 17 Nov | db4adb9 | 29d9b9e | 4 new, all pass; suite 3,225 passed + the 3 known errors; no lean blend beats the market |
+| 6 | Boosted trees on the market's error (model 6) | Done 17 Nov | 5528df6 | the "Done game-read phase 2 task 6" commit | 5 new, all pass; suite 3,230 passed + the 3 known errors; no setting beats the market |
 | 7 | Boosted trees on the outcome (model 7) | Not started | | | |
 | 8 | The average of what passes (model 9, second version) | Not started | | | |
 | 9 | Phase 2 runs (tuning, one locked, one fresh) and the report | Not started | | | |

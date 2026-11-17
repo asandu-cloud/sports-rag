@@ -3133,6 +3133,77 @@ backend).** The number was held since 7 Nov (D78).
       are not counted.
     - *Variants tried so far:* 8 (task 3: 6, xG included; task 4: 2).
     - 4 new tests (rest 2, bench 2); suite 3,221 passed plus the 3 known worktree errors; golden check unchanged.
+  - **Phase 2 task 5 done (17 Nov): the features pass and the lean-away blend (model 5b). Leaning away does not help
+    out of sample.**
+    - *The features pass* (`game_read/features.py`) asks its rating models about every day from 2013, each day once,
+      before that day's results are learned. Per match it keeps:
+      - each member's chances and expected goals;
+      - the market's chances and margin;
+      - the market minus each member on the log scale;
+      - the shot and rest variables;
+      - league, month and weekday.
+
+      A test changes a day's results and shots and checks that the day's inputs do not move. It was checked to
+      catch a real leak (learning before recording).
+    - *The lean-away blend* (`models/lean.py`) is D20's blend, `logit p = a + b·logit market + c·logit member`, on
+      the result and over 2.5.
+      - It is refitted at each season's first day on every earlier season from 2013, with c free to fall below
+        zero.
+      - Names: `lean-<model>`, `lean-average` (Elo, pi, dc, drift) and `lean-average+xg` (dc and drift with the
+        derived xG). The average's weights are refitted on the same earlier seasons.
+      - The bench saves each season's b and c.
+    - *Tuning run* (17 Nov, 1,137 s; `Research/game-read-bench-2026-11-17-lean/`). Change in log loss against the
+      market:
+
+      | Model | Result | Over 2.5 |
+      |---|---|---|
+      | lean-elo | +0.00013 [−0.00024, +0.00052] | (Elo has no goals) |
+      | lean-dc | +0.00011 [−0.00025, +0.00045] | −0.00002 [−0.00019, +0.00014] |
+      | lean-dc+xg | +0.00021 [−0.00011, +0.00054] | +0.00000 [−0.00014, +0.00015] |
+      | lean-average | −0.00004 [−0.00038, +0.00031] | −0.00003 [−0.00020, +0.00015] |
+      | lean-average+xg | +0.00000 [−0.00033, +0.00035] | −0.00003 [−0.00020, +0.00015] |
+
+    - *What the fits do.* Every season's fit leans away from its member, with c between −0.09 and −0.14 on the
+      result and −0.05 to −0.10 on over 2.5. It also stretches the market (b 1.10–1.16 on the result, 1.05–1.09
+      on over 2.5). Fitted on earlier seasons, the lean carries no gain into the next one: every interval crosses
+      zero.
+    - *The derived xG* (carried by the owner's choice) changes nothing here: +0.01% [−0.008, +0.029] on lean-dc and
+      +0.004% [−0.002, +0.011] on lean-average.
+    - *Variants tried so far:* 13 (task 3: 6, task 4: 2, task 5: 5).
+    - 4 new tests (features 1, lean 2, bench 1); suite 3,225 passed plus the 3 known worktree errors; golden check
+      unchanged.
+  - **Phase 2 task 6 done (17 Nov): boosted trees on the market's error (model 6). No setting beats the market.**
+    - *The model* (`models/trees.py`): one LightGBM model per market (the result, over 2.5 and the real half-line
+      handicap).
+      - It starts from the market's log chances (`init_score`) and learns only corrections.
+      - It is refitted at each season start on every earlier season from 2013.
+      - The number of rounds comes from early stopping on the last training season. If the trees do not beat the
+        market there, the part keeps 0 rounds, which is the market itself.
+      - Its inputs are the features pass's rows.
+      - Only the real lines get a chance.
+    - *Names:* `trees-error[-nolead]@<leaves>-<minimum leaf>-<L2>[+xg]`. A name without `@` runs the plan's grid of 8
+      settings (leaves 7 or 15, minimum leaf 200 or 500, L2 1 or 10; learning rate 0.02).
+      - `+xg` gives dc and drift the derived xG and adds it to the inputs.
+      - It is gated against the same name without it.
+      - Plain inputs carry Elo, pi, dc and drift, plus the box, target and rest variables.
+      - `-nolead` leaves out the market-minus-member columns.
+    - *One shared features pass* per set of inputs in a run. `Features.learn` skips learned days, and the trees pick
+      matches by season. A test lets a season's own results in on purpose and checks that its forecasts change
+      (verified to fail with `<=`).
+    - *Tuning run* (17 Nov, 1,772 s, 32 settings; `Research/game-read-bench-2026-11-17-trees-error/`).
+      - On the result, the best is `trees-error-nolead@15-500-10+xg` at −0.00015 [−0.00049, +0.00019]. Every
+        setting's interval crosses zero except two that are worse than the market:
+        - `trees-error@15-200-1+xg` +0.00090 [+0.00029, +0.00155];
+        - `trees-error-nolead@7-500-10` +0.00050 [+0.00005, +0.00096].
+      - On over 2.5, every setting is within ±0.00015, all crossing zero.
+      - The best setting's handicap is +0.00088 [−0.00035, +0.00196] (3,344 real half lines), and its picks are
+        +0.03 wins per 100 [−0.29, +0.36].
+      - Early stopping keeps few rounds (often 0–40), so the corrections stay small.
+      - The derived xG (kept by the owner's choice) moves each setting by −0.05% to +0.05%, far from the gate.
+    - *For task 9's locked run:* the tuning pick is `trees-error-nolead@15-500-10+xg`, with its plain base beside it.
+    - *Variants tried so far:* 45 (task 3: 6, task 4: 2, task 5: 5, task 6: 32).
+    - 5 new tests (trees 3, features 1, bench 1); suite 3,230 passed plus the 3 known worktree errors; golden check
+      unchanged.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
@@ -3445,6 +3516,33 @@ and 390 dark, no errors.
 "Search for a player", "Search for a team" and "Search for a referee" (were "Search a …"). The screen-reader label
 follows the placeholder. Research files at `research-20261117a`. 18 JS test files pass; checked on 8100 by clicking
 each tab.
+
+**D115 — A plan to move production to an always-on server (17 Nov; backend, owner asked).**
+
+*Why:*
+- The Mac's sleep was the largest single reason a match had no fresh card at kickoff (123 of 301, D108).
+- The website can only be opened on the home network.
+
+*The request.* The owner asked for a migration plan, with how hard the move is and a monthly cost, using small
+resources until there are real users: `docs/superpowers/plans/2026-11-17-always-on-server.md`.
+
+*Findings (17 Nov):*
+- **What moves as it is.** The website and 10 launchd jobs become systemd timers on Ubuntu, at the same Bucharest
+  times.
+- **The one real code fix.** The daily refresh runs 36 old scripts that have the Mac's home folder written in.
+- **Already safe off the Mac.** The sleep check answers "awake" when it cannot read the lid, and `caffeinate` runs
+  only on a Mac.
+- **Data.** The live data is about 17 GB (`platform.db` 11 GB). Chroma (19 GB) and the research data stay on the Mac.
+
+*The plan:*
+- A private server, reached only through Tailscale, with 4 vCPU and 8 GB: about €10–17 a month.
+- OVHcloud VPS-2 is recommended. Hetzner has limited new cloud servers since 26 Jun 2026.
+- A one-runner guard, so the jobs never run on two machines.
+- A nightly copy of `platform.db`, pulled to the Mac for development.
+- A switch of about 30–60 minutes, in a week with no stage going live.
+
+*Status:* not started; no code changed. Waiting for the owner's four choices: the provider, the switch week against
+the next stage, the phase6-shadow job, and where the owner tools run.
 
 ## Findings that shape later steps
 
