@@ -3618,6 +3618,21 @@ team bars (D118) measured 1.97:1 against the card, under the usual 3:1 for chart
 keeps Spix cobalt `#0246A4`. `style.css` at `charts-20261117b`; the research files are unchanged
 (`research-20261117f`). 18 JS test files pass; checked on 8100 on Bayern's page at 1100 and 390, light and dark.
 
+**D121 — A played match from the last 10, opened from the glance squares (17 Nov; frontend, owner).** The owner asked
+to point at a square in "Last 10 at a glance" and see which match it is, then open that match's numbers and what Spix
+said before it. From the renders (https://claude.ai/artifact/U5LRo9EBaPtGFjR2tTeeGf) the owner chose the hover card
+leading to a full report page (panel B not chosen). Plan: `docs/superpowers/plans/2026-11-17-match-report.md`.
+- Task 1 (done): the report, `research/played.js`, at `#research/played/teams/<id>/<scope>/<fixture_id>/<market>`, drawn
+  in the match view with no rail. The head; the last 10 to move between (a dot where a read was kept); Cards, Goals,
+  Corners; the lead against the glance's first row ("9 corners, one short of 10"); "The match in numbers" (both
+  teams, bars scaled to the larger, the team's usual over its last 10); earlier and later matches. "What Spix said
+  before kickoff" reads the backend's D122 field `spix_before_kickoff`: absent, the section is left out; null, it says
+  no read was kept; else each pick with its chance and the backend's outcome (the site never grades a pick). Only 3 of
+  Como's last 10 kept a read (24 Oct, 1 and 8 Nov).
+- Research files at `research-20261117g`. 19 JS test files pass (new: `test_research_played_web.js`, Como's real last
+  10). Checked on 8100 at 1280 and 390, light and dark, with D122's field filled in the browser from the kept picks
+  of 1 and 8 Nov until the backend lands it.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A

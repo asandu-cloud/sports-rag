@@ -1,7 +1,8 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261117f';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead, columnHeadroom, upDown} from './insight.js?v=research-20261117f';
-import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261117f';
-import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261117f';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261117g';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead, columnHeadroom, upDown} from './insight.js?v=research-20261117g';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261117g';
+import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261117g';
+import {playedReport} from './played.js?v=research-20261117g';
 
 const API = '/api/research';
 // The site's loaders (loaders.js, D112), with the old line if the kit or its styles are missing.
@@ -315,6 +316,7 @@ function mountResearch(root, navigate) {
   async function fromRoute(route = 'players') {
     const parts = route.split('/').map(part => decodeURIComponent(part));
     if (parts[0] === 'matches' && parts[1]) return showMatch(parts[1], parts[2]);
+    if (parts[0] === 'played' && parts[1]) return showPlayed(parts[1], parts[2], parts[3], parts[4], parts[5]);
     const area = catalogues[parts[0]] ? parts[0] : 'players';
     const id = parts[1] || null, rest = parts.slice(2);
     const scope = rest.find(isScope) || null, stat = rest.find(part => !isScope(part)) || null;
@@ -398,6 +400,45 @@ function mountResearch(root, navigate) {
     $('opponentInsight').textContent = sentence;
     $('opponentContext').hidden = !sentence;
   }
+  // ----- A played match from a team's last 10 (D121): drawn in the match view's body, with no rail. The route names
+  // the profile and the match: played/<area>/<id>/<scope>/<fixture_id>/<market>. -----
+  const PLAYED = ['cards', 'goals', 'corners'];
+  const playedRoute = (area, id, scope, fixtureId, market) => ['played', area, encodeURIComponent(id), scope, encodeURIComponent(fixtureId), market].join('/');
+  async function showPlayed(area, id, scope, fixtureId, market) {
+    closeSheet(false);
+    if (!initialized) { initialized = true; setArea(area); }
+    const token = ++routeToken, first = state.played?.fixtureId !== fixtureId;
+    market = PLAYED.includes(market) ? market : state.teamMarket;
+    view('match');
+    $('matchRail').innerHTML = '';
+    $('matchView').querySelector('.match-layout').classList.remove('has-rail');
+    if (first) $('matchBody').innerHTML = loading('pitch', 'Loading the match');
+    let profile;
+    try {
+      profile = await load(profileUrl(area, id, scope));
+    } catch (error) {
+      if (token !== routeToken) return;
+      state.played = null;
+      $('matchBody').innerHTML = matchError(error.status);
+      return;
+    }
+    if (token !== routeToken) return;
+    const index = lastTen(profile).findIndex(m => String(m.fixture_id) === String(fixtureId));
+    if (index < 0) { state.played = null; $('matchBody').innerHTML = matchError(404); return; }
+    Object.assign(state, {matchId: null, match: null, played: {area, id, scope, fixtureId, profile, market}});
+    state.matchFrom = {route: [area, encodeURIComponent(id), scope].join('/'), label: profile.subject.name, teamId: profile.subject.id};
+    $('matchBody').innerHTML = playedReport(profile, index, market);
+    wireImages($('matchBody'));
+    const strip = $('matchBody').querySelector('.pr-strip'), pill = strip?.querySelector('[aria-current="true"]');
+    if (pill && strip.scrollWidth > strip.clientWidth) strip.scrollLeft = pill.offsetLeft - (strip.clientWidth - pill.offsetWidth) / 2;
+    if (first) $('matchTitle')?.focus({preventScroll: true});
+    else $('matchBody').querySelector(`[data-played-market="${market}"]`)?.focus({preventScroll: true});
+  }
+  function openPlayed(index, market = state.played.market) {
+    const p = state.played, row = lastTen(p.profile)[index];
+    if (row) navigate(playedRoute(p.area, p.id, p.scope, row.fixture_id, market));
+  }
+
   // ----- Match view (D107 task 6): B2, one market open at a time; the team's next matches on the right -----
   const MATCH_MARKET = 'spix-research-match-market';
   const storedMarket = () => { try { return localStorage.getItem(MATCH_MARKET); } catch (error) { return null; } };
@@ -928,9 +969,11 @@ function mountResearch(root, navigate) {
   });
   $('profileBack').addEventListener('click', () => go(state.area));
   $('matchView').addEventListener('click', event => {
-    const target = event.target.closest('[data-match-back],[data-market],[data-open-match],[data-referee],[data-mline],[data-mteam],[data-add]');
+    const target = event.target.closest('[data-match-back],[data-played],[data-played-market],[data-market],[data-open-match],[data-referee],[data-mline],[data-mteam],[data-add]');
     if (!target) return;
     if (target.matches('[data-match-back]')) return navigate(state.matchFrom?.route || 'teams');
+    if (target.dataset.played != null) return openPlayed(Number(target.dataset.played));
+    if (target.dataset.playedMarket) return openPlayed(lastTen(state.played.profile).findIndex(m => String(m.fixture_id) === String(state.played.fixtureId)), target.dataset.playedMarket);
     if (target.dataset.mline) {
       matchLines[state.matchMarket] = Number(target.dataset.mline);
       redrawSection();
@@ -1065,8 +1108,8 @@ class SpixResearch extends HTMLElement {
     if (kit) { root.adoptedStyleSheets = [kit]; kitAdopted = true; }
     root.innerHTML = loading('roll', 'Loading the Research Area');
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261117f', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261117f', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261117g', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261117g', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));

@@ -1,0 +1,544 @@
+{
+ "schema_version": "research-profile.v1",
+ "subject": {
+  "type": "team",
+  "id": 60,
+  "name": "Como",
+  "api_football_id": 895,
+  "logo_url": "https://media.api-sports.io/football/teams/895.png",
+  "short_code": "COM",
+  "country": "Italy"
+ },
+ "competition": {
+  "id": 3,
+  "code": "SerieA",
+  "name": "Serie A"
+ },
+ "season": {
+  "year": 2026,
+  "label": "2026/27",
+  "id": 12
+ },
+ "match_log": [
+  {
+   "fixture_id": 75,
+   "date": "2026-08-30T16:30:00+00:00",
+   "status": "FT",
+   "home": {
+    "id": 45,
+    "name": "Napoli",
+    "short_code": "NAP",
+    "logo_url": "https://media.api-sports.io/football/teams/492.png"
+   },
+   "away": {
+    "id": 60,
+    "name": "Como",
+    "short_code": "COM",
+    "logo_url": "https://media.api-sports.io/football/teams/895.png"
+   },
+   "score": {
+    "home": 1,
+    "away": 2
+   },
+   "stats_available": {
+    "subject": true,
+    "opponent": true
+   },
+   "stats_observed": true,
+   "venue": "away",
+   "opponent": {
+    "id": 45,
+    "name": "Napoli",
+    "short_code": "NAP",
+    "logo_url": "https://media.api-sports.io/football/teams/492.png",
+    "abbreviation": "NAP"
+   },
+   "values": {
+    "goals_for": 2,
+    "goals_against": 1,
+    "xg_for": 1.05,
+    "xg_against": 1.39,
+    "corners_for": 7,
+    "corners_against": 2,
+    "cards": 0,
+    "shots_for": 21,
+    "shots_against": 13,
+    "sot_for": 6,
+    "sot_against": 2,
+    "opponent_cards": 1,
+    "red_cards": 0,
+    "fouls": 5,
+    "offsides": 0,
+    "possession": 58.0
+   }
+  },
+  {
+   "fixture_id": 120,
+   "date": "2026-09-04T18:45:00+00:00",
+   "status": "FT",
+   "home": {
+    "id": 47,
+    "name": "Genoa",
+    "short_code": "GEN",
+    "logo_url": "https://media.api-sports.io/football/teams/495.png"
+   },
+   "away": {
+    "id": 60,
+    "name": "Como",
+    "short_code": "COM",
+    "logo_url": "https://media.api-sports.io/football/teams/895.png"
+   },
+   "score": {
+    "home": 1,
+    "away": 4
+   },
+   "stats_available": {
+    "subject": true,
+    "opponent": true
+   },
+   "stats_observed": true,
+   "venue": "away",
+   "opponent": {
+    "id": 47,
+    "name": "Genoa",
+    "short_code": "GEN",
+    "logo_url": "https://media.api-sports.io/football/teams/495.png",
+    "abbreviation": "GEN"
+   },
+   "values": {
+    "goals_for": 4,
+    "goals_against": 1,
+    "xg_for": 1.78,
+    "xg_against": 0.78,
+    "corners_for": 4,
+    "corners_against": 5,
+    "cards": 1,
+    "shots_for": 20,
+    "shots_against": 11,
+    "sot_for": 9,
+    "sot_against": 2,
+    "opponent_cards": 2,
+    "red_cards": 0,
+    "fouls": 7,
+    "offsides": 2,
+    "possession": 62.0
+   }
+  },
+  {
+   "fixture_id": 180,
+   "date": "2026-09-14T16:30:00+00:00",
+   "status": "FT",
+   "home": {
+    "id": 60,
+    "name": "Como",
+    "short_code": "COM",
+    "logo_url": "https://media.api-sports.io/football/teams/895.png"
+   },
+   "away": {
+    "id": 57,
+    "name": "Parma",
+    "short_code": "PAR",
+    "logo_url": "https://media.api-sports.io/football/teams/523.png"
+   },
+   "score": {
+    "home": 2,
+    "away": 1
+   },
+   "stats_available": {
+    "subject": true,
+    "opponent": true
+   },
+   "stats_observed": true,
+   "venue": "home",
+   "opponent": {
+    "id": 57,
+    "name": "Parma",
+    "short_code": "PAR",
+    "logo_url": "https://media.api-sports.io/football/teams/523.png",
+    "abbreviation": "PAR"
+   },
+   "values": {
+    "goals_for": 2,
+    "goals_against": 1,
+    "xg_for": 2.98,
+    "xg_against": 1.15,
+    "corners_for": 11,
+    "corners_against": 4,
+    "cards": 1,
+    "shots_for": 29,
+    "shots_against": 12,
+    "sot_for": 7,
+    "sot_against": 4,
+    "opponent_cards": 0,
+    "red_cards": 0,
+    "fouls": 8,
+    "offsides": 4,
+    "possession": 64.0
+   }
+  },
+  {
+   "fixture_id": 6099,
+   "date": "2026-09-20T13:00:00+00:00",
+   "status": "FT",
+   "home": {
+    "id": 308,
+    "name": "Frosinone",
+    "short_code": "FRO",
+    "logo_url": "https://media.api-sports.io/football/teams/512.png"
+   },
+   "away": {
+    "id": 60,
+    "name": "Como",
+    "short_code": "COM",
+    "logo_url": "https://media.api-sports.io/football/teams/895.png"
+   },
+   "score": {
+    "home": 2,
+    "away": 0
+   },
+   "stats_available": {
+    "subject": true,
+    "opponent": true
+   },
+   "stats_observed": true,
+   "venue": "away",
+   "opponent": {
+    "id": 308,
+    "name": "Frosinone",
+    "short_code": "FRO",
+    "logo_url": "https://media.api-sports.io/football/teams/512.png",
+    "abbreviation": "FRO"
+   },
+   "values": {
+    "goals_for": 0,
+    "goals_against": 2,
+    "xg_for": 2.2,
+    "xg_against": 1.96,
+    "corners_for": 8,
+    "corners_against": 7,
+    "cards": 2,
+    "shots_for": 27,
+    "shots_against": 22,
+    "sot_for": 8,
+    "sot_against": 6,
+    "opponent_cards": 3,
+    "red_cards": 0,
+    "fouls": 6,
+    "offsides": 2,
+    "possession": 65.0
+   }
+  },
+  {
+   "fixture_id": 6202,
+   "date": "2026-10-11T10:30:00+00:00",
+   "status": "FT",
+   "home": {
+    "id": 60,
+    "name": "Como",
+    "short_code": "COM",
+    "logo_url": "https://media.api-sports.io/football/teams/895.png"
+   },
+   "away": {
+    "id": 49,
+    "name": "AS Roma",
+    "short_code": "ROM",
+    "logo_url": "https://media.api-sports.io/football/teams/497.png"
+   },
+   "score": {
+    "home": 0,
+    "away": 0
+   },
+   "stats_available": {
+    "subject": true,
+    "opponent": true
+   },
+   "stats_observed": true,
+   "venue": "home",
+   "opponent": {
+    "id": 49,
+    "name": "AS Roma",
+    "short_code": "ROM",
+    "logo_url": "https://media.api-sports.io/football/teams/497.png",
+    "abbreviation": "ROM"
+   },
+   "values": {
+    "goals_for": 0,
+    "goals_against": 0,
+    "xg_for": 1.49,
+    "xg_against": 1.12,
+    "corners_for": 6,
+    "corners_against": 2,
+    "cards": 2,
+    "shots_for": 19,
+    "shots_against": 9,
+    "sot_for": 4,
+    "sot_against": 2,
+    "opponent_cards": 4,
+    "red_cards": 0,
+    "fouls": 9,
+    "offsides": 0,
+    "possession": 66.0
+   }
+  },
+  {
+   "fixture_id": 6214,
+   "date": "2026-10-18T13:00:00+00:00",
+   "status": "FT",
+   "home": {
+    "id": 52,
+    "name": "Fiorentina",
+    "short_code": "FIO",
+    "logo_url": "https://media.api-sports.io/football/teams/502.png"
+   },
+   "away": {
+    "id": 60,
+    "name": "Como",
+    "short_code": "COM",
+    "logo_url": "https://media.api-sports.io/football/teams/895.png"
+   },
+   "score": {
+    "home": 1,
+    "away": 3
+   },
+   "stats_available": {
+    "subject": true,
+    "opponent": true
+   },
+   "stats_observed": true,
+   "venue": "away",
+   "opponent": {
+    "id": 52,
+    "name": "Fiorentina",
+    "short_code": "FIO",
+    "logo_url": "https://media.api-sports.io/football/teams/502.png",
+    "abbreviation": "FIO"
+   },
+   "values": {
+    "goals_for": 3,
+    "goals_against": 1,
+    "xg_for": 1.83,
+    "xg_against": 2.33,
+    "corners_for": 5,
+    "corners_against": 11,
+    "cards": 3,
+    "shots_for": 16,
+    "shots_against": 19,
+    "sot_for": 8,
+    "sot_against": 7,
+    "opponent_cards": 2,
+    "red_cards": 0,
+    "fouls": 12,
+    "offsides": 0,
+    "possession": 54.0
+   }
+  },
+  {
+   "fixture_id": 6221,
+   "date": "2026-10-24T13:00:00+00:00",
+   "status": "FT",
+   "home": {
+    "id": 60,
+    "name": "Como",
+    "short_code": "COM",
+    "logo_url": "https://media.api-sports.io/football/teams/895.png"
+   },
+   "away": {
+    "id": 42,
+    "name": "Sassuolo",
+    "short_code": "SAS",
+    "logo_url": "https://media.api-sports.io/football/teams/488.png"
+   },
+   "score": {
+    "home": 2,
+    "away": 0
+   },
+   "stats_available": {
+    "subject": true,
+    "opponent": true
+   },
+   "stats_observed": true,
+   "venue": "home",
+   "opponent": {
+    "id": 42,
+    "name": "Sassuolo",
+    "short_code": "SAS",
+    "logo_url": "https://media.api-sports.io/football/teams/488.png",
+    "abbreviation": "SAS"
+   },
+   "values": {
+    "goals_for": 2,
+    "goals_against": 0,
+    "xg_for": 1.69,
+    "xg_against": 0.26,
+    "corners_for": 6,
+    "corners_against": 4,
+    "cards": 2,
+    "shots_for": 14,
+    "shots_against": 7,
+    "sot_for": 6,
+    "sot_against": 0,
+    "opponent_cards": 2,
+    "red_cards": 0,
+    "fouls": 14,
+    "offsides": 2,
+    "possession": 56.0
+   }
+  },
+  {
+   "fixture_id": 6532,
+   "date": "2026-10-27T19:45:00+00:00",
+   "status": "FT",
+   "home": {
+    "id": 53,
+    "name": "Torino",
+    "short_code": "TOR",
+    "logo_url": "https://media.api-sports.io/football/teams/503.png"
+   },
+   "away": {
+    "id": 60,
+    "name": "Como",
+    "short_code": "COM",
+    "logo_url": "https://media.api-sports.io/football/teams/895.png"
+   },
+   "score": {
+    "home": 1,
+    "away": 3
+   },
+   "stats_available": {
+    "subject": true,
+    "opponent": true
+   },
+   "stats_observed": true,
+   "venue": "away",
+   "opponent": {
+    "id": 53,
+    "name": "Torino",
+    "short_code": "TOR",
+    "logo_url": "https://media.api-sports.io/football/teams/503.png",
+    "abbreviation": "TOR"
+   },
+   "values": {
+    "goals_for": 3,
+    "goals_against": 1,
+    "xg_for": 2.11,
+    "xg_against": 0.99,
+    "corners_for": 6,
+    "corners_against": 5,
+    "cards": 0,
+    "shots_for": 18,
+    "shots_against": 11,
+    "sot_for": 5,
+    "sot_against": 5,
+    "opponent_cards": 1,
+    "red_cards": 0,
+    "fouls": 3,
+    "offsides": 3,
+    "possession": 72.0
+   }
+  },
+  {
+   "fixture_id": 32056,
+   "date": "2026-11-01T11:30:00+00:00",
+   "status": "FT",
+   "home": {
+    "id": 60,
+    "name": "Como",
+    "short_code": "COM",
+    "logo_url": "https://media.api-sports.io/football/teams/895.png"
+   },
+   "away": {
+    "id": 309,
+    "name": "Venezia",
+    "short_code": "VEN",
+    "logo_url": "https://media.api-sports.io/football/teams/517.png"
+   },
+   "score": {
+    "home": 1,
+    "away": 0
+   },
+   "stats_available": {
+    "subject": true,
+    "opponent": true
+   },
+   "stats_observed": true,
+   "venue": "home",
+   "opponent": {
+    "id": 309,
+    "name": "Venezia",
+    "short_code": "VEN",
+    "logo_url": "https://media.api-sports.io/football/teams/517.png",
+    "abbreviation": "VEN"
+   },
+   "values": {
+    "goals_for": 1,
+    "goals_against": 0,
+    "xg_for": 1.63,
+    "xg_against": 0.23,
+    "corners_for": 8,
+    "corners_against": 1,
+    "cards": 1,
+    "shots_for": 19,
+    "shots_against": 7,
+    "sot_for": 4,
+    "sot_against": 1,
+    "opponent_cards": 2,
+    "red_cards": 0,
+    "fouls": 5,
+    "offsides": 1,
+    "possession": 66.0
+   }
+  },
+  {
+   "fixture_id": 32220,
+   "date": "2026-11-08T17:00:00+00:00",
+   "status": "FT",
+   "home": {
+    "id": 55,
+    "name": "Inter",
+    "short_code": "INT",
+    "logo_url": "https://media.api-sports.io/football/teams/505.png"
+   },
+   "away": {
+    "id": 60,
+    "name": "Como",
+    "short_code": "COM",
+    "logo_url": "https://media.api-sports.io/football/teams/895.png"
+   },
+   "score": {
+    "home": 2,
+    "away": 0
+   },
+   "stats_available": {
+    "subject": true,
+    "opponent": true
+   },
+   "stats_observed": true,
+   "venue": "away",
+   "opponent": {
+    "id": 55,
+    "name": "Inter",
+    "short_code": "INT",
+    "logo_url": "https://media.api-sports.io/football/teams/505.png",
+    "abbreviation": "INT"
+   },
+   "values": {
+    "goals_for": 0,
+    "goals_against": 2,
+    "xg_for": 0.23,
+    "xg_against": 1.86,
+    "corners_for": 2,
+    "corners_against": 4,
+    "cards": 0,
+    "shots_for": 5,
+    "shots_against": 14,
+    "sot_for": 1,
+    "sot_against": 4,
+    "opponent_cards": 1,
+    "red_cards": 0,
+    "fouls": 6,
+    "offsides": 3,
+    "possession": 57.0
+   }
+  }
+ ]
+}

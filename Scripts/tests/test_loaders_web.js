@@ -101,7 +101,7 @@ const text = html => html.replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'").replac
   assert.match(research, /\$\('profileBody'\)\.innerHTML = loading\('last10', 'Loading the profile'\);/, 'C on a profile');
   assert.match(research, /\$\('matchBody'\)\.innerHTML = loading\('pitch', 'Loading the match', \['Loading the match', "Getting both teams' last 10", 'Fetching the head to head'\]\);/, 'B on the match view');
   assert.doesNotMatch(research, /'<p class="profile-loading" role="status">Loading/, 'no plain loading line left');
-  assert.match(page, /<script type="module" src="\/static\/research\/research\.js\?v=research-20261117f"><\/script>/);
+  assert.match(page, /<script type="module" src="\/static\/research\/research\.js\?v=research-20261117g"><\/script>/);
 
   // The cover (A), on a fake clock and a fake page.
   function harness() {
