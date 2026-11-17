@@ -45,6 +45,18 @@ const niceMax = value => {
   return Math.ceil(v / step) * step;
 };
 
+// How far the plot must reserve above its top so each column's number and goal dots stay inside the card.
+// cols: {top: the column's height in px, dots: goals}. The number is 11px tall, 4px up; the dots start 22px up, each
+// 8px with a 2px ring and 3px apart, at most 4. Returns 0 when everything fits, else the overflow plus 4px.
+export function columnHeadroom(cols, height) {
+  const reach = cols.map(({top, dots}) => {
+    const n = Math.min(4, dots || 0);
+    return Math.max(top + 15, n ? top + 22 + n * 8 + (n - 1) * 3 + 2 : 0);
+  });
+  const over = Math.max(0, ...reach) - height;
+  return over > 0 ? over + 4 : 0;
+}
+
 // Columns with every value written on top, a zero drawn as a base mark, and the bettor's line dashed across.
 // items: {value, top, bottom, title}. A whole-number line sits half a step low, between "1" and "0".
 export function labelledColumns(items, {line, label, legend, noun}) {

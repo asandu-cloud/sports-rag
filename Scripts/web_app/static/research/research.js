@@ -1,7 +1,7 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261117a';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead} from './insight.js?v=research-20261117a';
-import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261117a';
-import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261117a';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261117b';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead, columnHeadroom} from './insight.js?v=research-20261117b';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261117b';
+import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261117b';
 
 const API = '/api/research';
 // The site's loaders (loaders.js, D112), with the old line if the kit or its styles are missing.
@@ -593,20 +593,24 @@ function mountResearch(root, navigate) {
     const n = items.length;
     const {max, ticks} = niceMax(maxValue ?? Math.max(0, ...items.map(it => segs.reduce((sum, s) => sum + (it[s.key] || 0), 0))), minimum);
     const grid = ticks.slice(1).map(t => `<span class="gridline" style="bottom:${t / max * 100}%"></span>`).join('');
+    const tops = [];
     const cols = items.map(it => {
       const missing = segs.every(s => it[s.key] == null);
       const total = segs.reduce((sum, seg) => sum + (it[seg.key] || 0), 0);
       const stack = missing ? '<span class="col-missing">–</span>' : total === 0 ? '<span class="col-zero"></span>' : segs.map(s => it[s.key] > 0 ? `<i style="height:${it[s.key] / max * height}px;background:var(${s.color})"></i>` : '').join('');
       // The total and the goal dots sit above the stack, out of flow, so they never stretch the row.
       const drawn = segs.filter(seg => it[seg.key] > 0).length, top = total === 0 ? 3 : total / max * height + 2 * Math.max(0, drawn - 1);
+      if (!missing) tops.push({top, dots: dots ? dots(it) : 0});
       const goalDots = dots && !missing && dots(it) ? `<span class="goals" style="bottom:${top + 22}px">${Array.from({length: Math.min(4, dots(it))}, () => '<i></i>').join('')}</span>` : '';
       const text = tipFor(it), written = missing ? '' : `<b class="cv cv-abs" style="bottom:${top + 4}px">${whole(total)}</b>`;
       return `<div class="ccol"><div class="colwrap" tabindex="0" data-tip="${escape(text)}" aria-label="${escape(text)}">${goalDots}${written}<span class="stack-col">${stack}</span></div></div>`;
     }).join('');
     const gaps = items.some(it => segs.every(seg => it[seg.key] == null)) ? '<span>– No statistics recorded</span>' : '';
     if (gaps) legend = (legend || '') + gaps;
+    // Room above the plot for the tallest column's number and goal dots, so they never reach the legend.
+    const room = columnHeadroom(tops, height);
     return `<div class="chart">${legend ? `<div class="legend">${legend}</div>` : ''}
-      <div class="plot" role="img" aria-label="${escape(label)}"><div class="yaxis" style="height:${height}px">${ticks.map(t => `<span style="bottom:${t / max * 100}%">${t}</span>`).join('')}</div>
+      <div class="plot" style="padding-top:${room}px" role="img" aria-label="${escape(label)}"><div class="yaxis" style="height:${height}px">${ticks.map(t => `<span style="bottom:${t / max * 100}%">${t}</span>`).join('')}</div>
       <div class="bars" style="height:${height}px;grid-template-columns:repeat(${n},minmax(0,1fr))">${grid}${cols}</div></div>
       <div class="xlabels" style="grid-template-columns:repeat(${n},minmax(0,1fr))">${items.map(xLabel).join('')}</div>
       <details class="tbl"><summary>Show as table</summary><div class="tbl-wrap">${table}</div></details></div>`;
@@ -663,7 +667,8 @@ function mountResearch(root, navigate) {
     if (!last.length) return '';
     const top = Math.max(90, ...last.map(m => m.values.minutes)), h = 56;
     const role = d.role_summary;
-    const strip = `<div class="chart"><div class="plot" role="img" aria-label="Minutes played in each of the last ${last.length} appearances">
+    const room = columnHeadroom(last.map(m => ({top: m.values.minutes / top * h, dots: 0})), h);
+    const strip = `<div class="chart"><div class="plot" style="padding-top:${room}px" role="img" aria-label="Minutes played in each of the last ${last.length} appearances">
       <div class="yaxis" style="height:${h}px"><span style="bottom:0%">0</span><span style="bottom:${90 / top * 100}%">90</span></div>
       <div class="bars" style="height:${h}px;grid-template-columns:repeat(${last.length},minmax(0,1fr))"><span class="gridline" style="bottom:${90 / top * 100}%"></span>${last.map(m => {
         const text = `${day(m.date)} ${venueWord(m)} ${opp(m)}: ${m.values.minutes} minutes${m.started === false ? ', came off the bench' : ''}`;
@@ -1065,8 +1070,8 @@ class SpixResearch extends HTMLElement {
     if (kit) { root.adoptedStyleSheets = [kit]; kitAdopted = true; }
     root.innerHTML = loading('roll', 'Loading the Research Area');
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261117a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261117a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261117b', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261117b', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));

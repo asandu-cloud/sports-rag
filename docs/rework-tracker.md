@@ -3446,6 +3446,14 @@ and 390 dark, no errors.
 follows the placeholder. Research files at `research-20261117a`. 18 JS test files pass; checked on 8100 by clicking
 each tab.
 
+**D115 — Research Area charts keep their numbers and goal dots inside the card (17 Nov; frontend, owner).** On
+Olise's page (Bundesliga 2026/27), the shots chart's 6-shot, 3-goal match v Union Berlin drew its goal dots up into
+the legend: the plot was a fixed 170 px with no room above the tallest column. A new `columnHeadroom()`
+(`research/insight.js`) works out how far the tallest column's number and goal dots (at most 4) reach past the top,
+and the plot reserves that much above itself. The minutes chart had the same fault: its "90"s pressed against the
+card's heading. It now reserves room too. Research files at `research-20261117b`. 18 JS test files pass. Checked on
+8100 on Olise's page at 1440 and 390: the highest dot now sits 16 px below the legend.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A

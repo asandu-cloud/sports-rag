@@ -83,5 +83,17 @@ const text = html => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
   assert.match(cols, /<details class="tbl">/);
   assert.equal((cols.match(/<tr>/g) || []).length, 5, 'a header row and one row per match');
 
+  // Room above a column chart (owner, 17 Nov): the total and the goal dots sit above each column, so the plot reserves
+  // the height the tallest of them reaches past the top. Olise v Union Berlin: 6 shots on a 0-6 axis, 3 goals; the dots
+  // rose into the legend. Number: 11px tall, 4px above the column. Dots: 8px with a 2px ring, 3px apart, from 22px up.
+  assert.equal(h.columnHeadroom([{top: 172, dots: 3}], 170), 60, 'Olise v Union Berlin: 6 shots, 3 goals');
+  assert.equal(h.columnHeadroom([{top: 170, dots: 0}], 170), 19, 'a full column still needs room for its number');
+  assert.equal(h.columnHeadroom([{top: 50, dots: 1}, {top: 90, dots: 0}], 170), 0, 'short columns fit as they are');
+  assert.equal(h.columnHeadroom([{top: 170, dots: 9}], 170), h.columnHeadroom([{top: 170, dots: 4}], 170), 'at most 4 dots are drawn');
+  assert.equal(h.columnHeadroom([], 170), 0);
+  const research = fs.readFileSync(path.join(__dirname, '../web_app/static/research/research.js'), 'utf8');
+  assert.match(research, /<div class="plot" style="padding-top:\$\{room\}px" role="img"/, 'the shots and cards charts reserve it');
+  assert.match(research, /const room = columnHeadroom\(last\.map\(m => \(\{top: m\.values\.minutes \/ top \* h, dots: 0\}\)\), h\);\n    const strip = `<div class="chart"><div class="plot" style="padding-top:\$\{room\}px" role="img" aria-label="Minutes played/, 'the minutes chart reserves room for its "90"s');
+
   console.log('test_research_insight_web: ok');
 })().catch(error => { console.error(error); process.exit(1); });
