@@ -58,7 +58,7 @@ on it. The Discord bot still runs the old engine until A7.
 - **Cobalt palette live 9 Nov (D80).** Cobalt `#0246A4` replaced the turf green, lime cream `#D5F097` the
   highlighter, and mint cream `#F2FFFA` is the light ground; the dark theme uses a light cobalt `#88B4F2`. Since
   9 Nov evening the dark theme is "cobalt night" (D85): near-black greys with a faint cobalt tint (`--bg #111316`)
-  and mint cream text. Cache tags are `charts-20261117b` (style.css; D118, D119), `loaders-20261116c` (app.js; D112),
+  and mint cream text. Cache tags are `referee-20261117a` (style.css and app.js; D123),
   `research-20261117i` (the research files; D107, D111, D112, D114, D116–D118, D121), `loaders-20261117a` (loaders.js/.css; D112, D113) and `night-20261109a` (theme.js). Open for the owner: the steel blue of the Away segment and the "preliminary" label now sits close to
   the cobalt.
 - **Home page opening live 11 Nov (D98, owner).** "Every match, read for you", with three tilted packs from the
@@ -126,6 +126,10 @@ on it. The Discord bot still runs the old engine until A7.
     (null when no read was kept; missing while `SPIX_BEFORE_KICKOFF` is off or the refresh holds the gate). Teams
     only; players and referees not built. The team profile's other reads stay ungated (owner, 17 Nov: statements
     take about 0.01 s; WAL mode is the real fix, with the server move).
+- **Referee on the board cards live 17 Nov (D123 frontend, D124 backend; owner; website restarted, pid 95950).** An
+  upcoming card's bottom line is a whistle, the referee's name (as the Research Area names them) and the value-pick
+  count, or "TBD" until one is named. The line falls back to the suggestion count while the refresh writes. The Live
+  tab is unchanged.
 - **Loading screens live 16 Nov (D112, owner).** Six loaders: a ball drop over the app's first load, card outlines
   on the board, a price board on Best Bets, and pitch lines, last 10 and a rolling ball in the Research Area.
   Nothing shows under 300 ms; the 90 s board refresh never draws one; reduced motion gets still frames.
@@ -172,7 +176,7 @@ on it. The Discord bot still runs the old engine until A7.
     little to the market on the result in 2023–2025 (at best 0.12% of log loss): the three lean blends, the trees on
     the market's error and the average. None passes the owner's measure (Most likely picks) or Value, and on this
     season only the trees and the average point the same way. Part of the gain may be the market's own
-    favourite-longshot lean; a market-only check would be a new version (owner said yes on 17 Nov; the backend runs it as a new version with its own locked run). Phase 4 has nothing to start
+    favourite-longshot lean; a market-only check would be a new version (owner said yes on 17 Nov). Done the same day (tasks 10–11, locked and fresh runs on 7dd6bdb): the market alone (lean-market) gives 62–79% of the lean blends' gain; Spix's own share is small and unproven. Phase 4 has nothing to start
     with, so Most likely and Value stay as they are. Report: the D77 entry in the tracker.
 - **Cards missing at kickoff (D108, 15 Nov).** From 5 Sep to 14 Nov, 327 of 798 finished domestic matches had a card
   at kickoff: 35% before 4 Nov, 80% from 4 Nov.
