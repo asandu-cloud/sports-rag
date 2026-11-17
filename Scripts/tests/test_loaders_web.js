@@ -45,6 +45,22 @@ const text = html => html.replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'").replac
   assert.equal((kit.spixLoader('card', {label: 'x', cards: 3}).match(/class="ld-fixture"/g) || []).length, 3, 'E: as many cards as asked');
   assert.match(kit.spixLoader('roll', {label: 'x', title: 'Chelsea v Leeds'}), /<p class="ld-title">Chelsea v Leeds<\/p>/);
   assert.doesNotMatch(kit.spixLoader('roll', {label: 'x'}), /ld-title/);
+  // F (D113, owner 17 Nov): a tube the ball rolls through, cobalt filling in behind it, and the ball is the logo's own
+  // football: its patches turn inside the clip while its shade and highlight stay put, as in the header.
+  const roll = kit.spixLoader('roll', {label: 'x'});
+  assert.match(roll, /<span class="ld-tube"><span class="ld-fill"><\/span><span class="ld-rollball"><svg viewBox="-17\.2 -17\.2 34\.4 34\.4">/);
+  assert.match(roll, /<clipPath id="ld-ball-clip"><circle r="16\.36"\/><\/clipPath><circle r="16\.36" fill="#FAFDFA"\/><g clip-path="url\(#ld-ball-clip\)"><g class="ld-spin" stroke="#111E17"/);
+  assert.match(roll, /<ellipse cx="-6\.87" cy="-8\.18"[^>]*fill="#FFFFFF" fill-opacity="0\.85"\/><\/g><circle r="15\.95" fill="none" stroke="#111E17" stroke-width="0\.82"\/><\/svg><\/span><\/span>/, 'the highlight and outline sit outside the turning patches');
+  const header = page.slice(page.indexOf('<svg class="logo-word'));
+  const patches = s => s.slice(s.indexOf('<g stroke-width="0.49">'), s.indexOf('<ellipse cx="-6.87"'));
+  assert.equal(patches(roll), patches(header), "the same patches as the header's ball");
+  assert.doesNotMatch(roll, /spix-header-ball|spx-/, "no ids or classes shared with the header's logo");
+  assert.match(css, /\.ld-tube\{[^}]*height:28px;[^}]*border-radius:14px;[^}]*background:var\(--surface2\);[^}]*overflow:hidden/);
+  assert.match(css, /\.ld-fill\{[^}]*background:var\(--accent\);[^}]*animation:ld-fill 2\.6s/);
+  assert.match(css, /@keyframes ld-fill\{0%\{width:14px;opacity:1\}86%\{width:calc\(100% - 14px\);opacity:1\}/, 'the fill ends at the middle of the ball');
+  assert.match(css, /@keyframes ld-roll-on\{0%\{left:4px;opacity:0\}6%\{opacity:1\}86%\{left:calc\(100% - 24px\);opacity:1\}/);
+  assert.match(css, /\.ld-rollball svg\{[^}]*stroke:none/, "research.css strokes every svg; the ball's unstroked parts stay clean");
+  assert.match(css, /\.ld-rollball \.ld-spin\{transform-box:view-box;transform-origin:0 0;animation:ld-turn 2\.6s/);
 
   // The CSS: the 300 ms delay on every loader, a still frame for reduced motion, theme tokens only.
   assert.match(css, /\.ld\{[^}]*animation:ld-in \.2s ease \.3s both/);
@@ -56,8 +72,8 @@ const text = html => html.replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'").replac
 
   // The page loads the kit before app.js and the Research Area.
   const at = name => page.indexOf(name);
-  assert.match(page, /<link rel="stylesheet" href="\/static\/loaders\.css\?v=loaders-20261116[a-z]">/);
-  assert.match(page, /<script src="\/static\/loaders\.js\?v=loaders-20261116[a-z]"><\/script>/);
+  assert.match(page, /<link rel="stylesheet" href="\/static\/loaders\.css\?v=loaders-20261117a">/);
+  assert.match(page, /<script src="\/static\/loaders\.js\?v=loaders-20261117a"><\/script>/);
   assert.ok(at('/static/loaders.js') < at('/static/research/research.js') && at('/static/loaders.js') < at('/static/app.js'));
 
   // A: the app's first board load runs under the cover, with the header's own logo. Later loads (a new date or
