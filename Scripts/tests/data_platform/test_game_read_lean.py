@@ -88,3 +88,48 @@ def test_lean_away_chances_sum_to_one_with_c_below_zero():
                                                        if m.home_goals == m.away_goals else 2]) for m, _ in rows])
     assert lean_loss < market_loss
     assert market_over25(rows[0][0].pre) is not None
+
+
+def timid(seed=5, years=(2013, 2014, 2015), per_year=1200):
+    """Matches where what happens follows the market's chances sharpened (market^1.6, normalised): the market is
+    too timid, and only the market is needed to see it."""
+    rng = np.random.default_rng(seed)
+    matches = []
+    for year in years:
+        for i in range(per_year):
+            market = rng.dirichlet([6, 3, 4])
+            truth = market ** 1.6
+            truth /= truth.sum()
+            over_market = rng.uniform(0.3, 0.7)
+            over_truth = over_market ** 1.6 / (over_market ** 1.6 + (1 - over_market) ** 1.6)
+            goals = [(1, 0), (1, 1), (0, 1)][rng.choice(3, p=truth)]
+            if rng.uniform() < over_truth:
+                goals = (goals[0] + 2, goals[1] + 2)  # over 2.5, same result
+            prices = Prices(result_avg=priced(list(market)), over25_avg=priced([over_market, 1 - over_market]))
+            matches.append(Match(id=len(matches), competition="EPL", country="X", season=year,
+                                 day=date(year, 8, 10) + timedelta(days=i // 12), home=f"X:H{i % 7}",
+                                 away=f"X:A{i % 5}", home_goals=goals[0], away_goals=goals[1], pre=prices,
+                                 close=prices))
+    return matches
+
+
+def test_market_only_lean_has_no_member_and_sharpens_the_market():
+    """Model 5c (owner, 17 Nov): the lean blend with no member, refitted each season the same way, so the lean
+    blends' gain can be split into the market's own sharpening and what the member adds."""
+    matches = timid()
+    lean = LeanAway("market", {}, start=2013)
+    rows = walkforward.run(lean, matches, score_from=2015)
+    assert lean.name == "lean-market" and set(lean.fits) == {2015}
+    for part in ("result", "over25"):
+        assert lean.fits[2015][part]["c"] == 0 and not lean.fits[2015][part]["use_spix"]
+        assert lean.fits[2015][part]["b"] > 1.3
+    outcome = lambda m: 0 if m.home_goals > m.away_goals else 1 if m.home_goals == m.away_goals else 2
+    for match, forecast in rows:
+        market = market_result(match.pre)
+        assert sum(forecast.result) == pytest.approx(1)
+        # sharper: the favourite's chance grows
+        favourite = int(np.argmax(market))
+        assert forecast.result[favourite] >= market[favourite] - 0.02
+    lean_loss = np.mean([-np.log(f.result[outcome(m)]) for m, f in rows])
+    market_loss = np.mean([-np.log(market_result(m.pre)[outcome(m)]) for m, _ in rows])
+    assert lean_loss < market_loss

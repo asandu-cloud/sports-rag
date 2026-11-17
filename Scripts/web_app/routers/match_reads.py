@@ -619,6 +619,29 @@ def price_check_fixture(
             "spix_probability": outcome["spix_probability"], **checked}
 
 
+def _attach_referees(cards: Sequence[Dict[str, Any]]) -> None:
+    """Each card's referee as the Research Area names him (D124): ``fixture.referee`` is ``{"name", "referee_key"}``,
+    or None while none is named. Left out for a match the database does not know, and for every card while the
+    refresh writes (the read never waits for it) or the read fails."""
+    from data_platform.services import refresh_coordination
+    from data_platform.services.research_upcoming import board_referees
+
+    if not cards:
+        return
+    try:
+        with refresh_coordination.read_gate():
+            found = board_referees([card["fixture"].get("event_id") for card in cards])
+    except refresh_coordination.RefreshBusy:
+        return
+    except Exception:
+        logger.exception("Board referees unavailable")
+        return
+    for card in cards:
+        event_id = str(card["fixture"].get("event_id"))
+        if event_id in found:
+            card["fixture"]["referee"] = found[event_id]
+
+
 @router.get("/{league}/{target_date}")
 def get_matchday_match_reads(league: str, target_date: str) -> Dict[str, Any]:
     """Return one public effective Match Read card per stored fixture.
@@ -635,6 +658,7 @@ def get_matchday_match_reads(league: str, target_date: str) -> Dict[str, Any]:
     reads = _load_matchday_reads(service, league=league_code, target_date=matchday)
     now = _utc_now()
     cards = _effective_cards(reads, now=now)
+    _attach_referees(cards)
     body = {
         "schema_version": MATCH_READ_BOARD_SCHEMA_VERSION,
         "league": league_code,

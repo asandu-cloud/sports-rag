@@ -3305,6 +3305,45 @@ backend).** The number was held since 7 Nov (D78).
       bare domain. All 10 were byte-identical to 16 Nov's (no league match since 8 Nov), so the bench file was not
       rebuilt.
     - Suite 3,233 passed plus the 3 known worktree errors; golden check unchanged. Task 9 had no start commit (missed).
+  - **The market-only check (owner, 17 Nov, through the orchestrator): phase 2 tasks 10–11, research only.** The lean
+    blends' gain may be the market's own favourite-longshot lean. The "adds to the market" score compares each blend
+    with a market-only recalibration fitted once on the tuning seasons, but the lean blends are refitted every season
+    (b rising). So the control is a market-only blend refitted the same way.
+    - *Task 10 done (17 Nov):*
+      - `lean-market` (model 5c) is `logit p = a + b·logit p_market` (`blend.fit(..., use_spix=False)`), refitted at
+        each season start like the other lean blends.
+      - `run --against <name>` scores every other model against it, match by match (the ablation's pairing, in % of
+        its log loss), and the report gains "Against <name>".
+      - The lean blends are not rerun on locked or fresh: one run per version. On tuning the comparison is paired; on
+        locked and fresh only `lean-market` runs, on the same 10,711 and 1,084 matches, so the gap to each lean
+        blend's earlier score is exact but has no interval.
+      - 2 new tests, and task 5's name test now accepts `lean-market`. Suite 3,237 passed plus the 3 known worktree
+        errors; golden check unchanged.
+    - *Task 11 done (17 Nov): most of the lean blends' gain is the market's own sharpening. What is left for Spix's
+      models is 0.02–0.045% of log loss, unproven, and not repeated this season. Nothing changes for Most likely or
+      Value, and phase 4 still has nothing to start with.*
+      - Tuning run (7dd6bdb, 1,015 s; `Research/game-read-bench-2026-11-17-market-only-tuning/`), paired against
+        `lean-market`:
+        - `lean-average` −0.02% [−0.05, +0.01] on the result;
+        - `lean-dc` −0.01% [−0.03, +0.02];
+        - `lean-dc+xg` +0.00% [−0.02, +0.03];
+        - over 2.5: −0.01% each, intervals across zero.
+        - `lean-market`'s b is 1.03–1.04 on the result.
+      - Locked run (17 Nov 20:59 UTC, 7dd6bdb, `lean-market` only, 10,711 matches; `…-market-only-locked/`):
+        - On the result, −0.00072 [−0.00108, −0.00038] against the market (−0.074%). b rises to 1.045–1.049 in
+          2024–2025. On over 2.5, nothing (+0.004%).
+        - Against the lean blends' locked scores, on the same matches, so the gaps are exact but have no interval:
+          `lean-average` −0.00104 (gap −0.033%), `lean-dc` −0.00116 (gap −0.045%), `lean-dc+xg` −0.00091 (gap
+          −0.020%). The market alone gives 62–79% of their gain.
+        - Most likely picks: −0.51 per 100 [−0.99, −0.05], worse than today's list. Value: none. "Adds to the
+          market": fails.
+      - Fresh run (17 Nov 21:09 UTC, 7dd6bdb, 1,084 matches; `…-market-only-fresh/`): result −0.00005, over 2.5
+        −0.00015, intervals across zero. The lean blends' gaps to it point both ways: result −0.007% (`lean-average`),
+        +0.041% (`lean-dc`), +0.013% (`lean-dc+xg`); over 2.5 −0.03% to −0.04%.
+      - Reading: the lean blends' result gain in 2023–2025 is mostly the market's favourite-longshot lean, which a
+        market-only refit catches and which grew in 2024–2025. A paired interval on the remaining 0.02–0.045% would
+        need the lean blends rerun on the locked seasons, which the one-run rule forbids; the owner's call.
+      - Ledger: lines 4–5 of `Research/game-read-bench/locked-runs.jsonl`.
 
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
@@ -3738,6 +3777,18 @@ orchestrator).** Each row of `match_log` in `GET /api/research/teams/{id}` now c
   - Inter 8 Nov (3 Most likely, all lost).
 - 2 new tests (the service with a stand-in lookup; the route with a real saved read, remembered after the first
   view). Suite 3,235 passed plus the 3 known worktree errors; golden check unchanged. Needs a website restart.
+
+**D124 — The board's cards name the referee (17 Nov; backend, frontend D123 asked through the orchestrator).** Each
+card in `GET /api/match-reads/{league}/{date}` now carries `fixture.referee`:
+- `{"name", "referee_key"}`: the Research Area's own lookup (`refs_for`), so the key opens the same referee page;
+- `null` when the database knows the match and no referee is named yet;
+- left out when it can't be told: the match isn't in the database, the refresh is writing (the read never waits,
+  `read_gate()`), or the read fails. The frontend then keeps its current line.
+- Only `cards`; the `before_kickoff` entries don't carry it.
+- One short read, two queries (`ResearchRepository.referees_by_event`, `alias_rows`): 18 ms for 30 matches on real
+  data. On 8 Nov all 30 matches were named (e.g. Davide Massa, `d-massa-a01d3aa4`); on 20 Nov none is named yet.
+- Read-only, no pick changes, no migration. 1 new test; suite 3,238 passed plus the 3 known worktree errors; golden
+  check unchanged. Needs a website restart.
 
 ## Findings that shape later steps
 

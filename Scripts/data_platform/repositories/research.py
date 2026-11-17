@@ -351,6 +351,12 @@ class ResearchRepository:
         return list(session.scalars(select(Fixture.referee).where(
             Fixture.status.in_(UNPLAYED), Fixture.kickoff_utc > now, Fixture.referee.is_not(None)).distinct()))
 
+    def referees_by_event(self, session, event_ids):
+        """{API-Football id: raw referee name or None} for the fixtures the database knows (D124)."""
+        rows = session.execute(select(Fixture.api_football_id, Fixture.referee)
+                               .where(Fixture.api_football_id.in_(list(event_ids))))
+        return {row.api_football_id: row.referee for row in rows}
+
     def alias_rows(self, session, *, raw_names=(), keys=()):
         a = ResearchRefereeAlias
         return records(session, select(a.raw_name, a.name, a.referee_key).where(

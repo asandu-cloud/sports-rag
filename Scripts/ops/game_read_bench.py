@@ -52,7 +52,8 @@ VARIABLES = {**{kind: (lambda kind=kind: ShotVariable(kind, _stats())) for kind 
              "rest": lambda: RestVariable(_stats())}
 ABLATED = ("result", "over25")
 # Model 5b: "lean-<member>" blends the market with one member ("lean-dc+xg"), or with the members' average
-# ("lean-average" pools elo, pi, dc and drift; "lean-average+xg" gives dc and drift the variable).
+# ("lean-average" pools elo, pi, dc and drift; "lean-average+xg" gives dc and drift the variable). Model 5c,
+# "lean-market", is the same blend with no member: the market's own sharpening.
 LEAN = "lean-"
 # Model 6: "trees-error[-nolead]@<leaves>-<minimum leaf>-<L2>[+xg]" ("trees-error@7-200-1+xg"); a name without "@"
 # stands for the whole tuning grid. "+xg" gives dc and drift the derived xG and adds it to the inputs, and is gated
@@ -78,6 +79,8 @@ def _stats():
 
 def _lean(target: str):
     model, *variables = target.split("+")
+    if target == "market":  # model 5c: the market sharpened alone (owner, 17 Nov)
+        return lambda: LeanAway("market", {})
     if model == "average":
         if any(v not in VARIABLES for v in variables):
             return None
@@ -167,6 +170,14 @@ def _ablation(base: str, base_rows, rows, blocks) -> dict:
     return found
 
 
+def _against(base_rows, rows, blocks) -> dict:
+    """A model against the run's named one (``--against``), paired by match, per block and market: its log loss minus
+    the named one's, in % of the named one's (the market-only check; owner, 17 Nov)."""
+    pick = lambda pairs, block: [row for row in pairs if history.block(row[0].season) == block]
+    return {block: {market: scores.ablation(pick(base_rows, block), pick(rows, block), market) for market in ABLATED}
+            for block in blocks}
+
+
 def _named():
     return history.named_result_prices()
 
@@ -238,9 +249,12 @@ def run(args) -> int:
     if AVERAGE in args.models:
         names += [*(name for name in _with_bases(args.average_of) if name not in names), AVERAGE]
     unknown = [name for name in names if _factory(name) is None and name != AVERAGE]
+    if args.against and args.against not in names:
+        print(f"--against names a model the run does not score: {args.against}", file=sys.stderr)
+        return 2
     if unknown:
         print(f"Unknown models: {', '.join(unknown)} (known: {', '.join(MODELS)}, and {' or '.join(WITH_VARIABLES)} "
-              f"with any of +{', +'.join(VARIABLES)}; {LEAN}<model> or {LEAN}average[+<variable>]; "
+              f"with any of +{', +'.join(VARIABLES)}; {LEAN}<model>, {LEAN}average[+<variable>] or {LEAN}market; "
               f"{TREES}error|outcome[-nolead][@<leaves>-<minimum leaf>-<L2>][+xg])", file=sys.stderr)
         return 2
 
@@ -276,6 +290,8 @@ def run(args) -> int:
         if "+" in name:
             base = name.rsplit("+", 1)[0]
             results[name]["ablation"] = _ablation(base, all_rows[base], rows, dict.fromkeys(("tuning", args.block)))
+        if args.against and name not in (*REFERENCES, args.against):
+            results[name]["against"] = _against(all_rows[args.against], rows, dict.fromkeys(("tuning", args.block)))
         if name == "market":
             zero = zero_line(results[name])
             if not zero["passed"]:
@@ -287,7 +303,8 @@ def run(args) -> int:
     scored_matches = [m for m in matches if history.block(m.season) == args.block]
     summary = {
         "run": {"block": args.block, "time": started.strftime("%Y-%m-%d %H:%M UTC"), "commit": _commit(),
-                "models": names, "leagues": args.leagues or "all", "matches_scored": len(scored_matches)},
+                "models": names, "leagues": args.leagues or "all", "matches_scored": len(scored_matches),
+                "against": args.against},
         "zero_line": zero,
         "models": results,
         "verdicts": {rule: scores.verdicts({name: {"blend": found["blend"], "picks": found["picks"][rule],
@@ -333,6 +350,7 @@ def main(argv=None) -> int:
                        default=list(average.MEMBERS), help="comma-separated: the average's members (model 9)")
     bench.add_argument("--average-diagnostic", action="store_true",
                        help="no member passed on the tuning seasons: label the average a diagnostic in the report")
+    bench.add_argument("--against", help="score every other model against this one of the run's, paired by match")
     bench.add_argument("--block", choices=("tuning", "locked", "fresh"), required=True)
     bench.add_argument("--confirm-locked", action="store_true", help="name this run as the one locked or fresh run")
     bench.add_argument("--leagues", nargs="*", default=None, help="competition names, e.g. EPL LaLiga")
