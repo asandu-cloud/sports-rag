@@ -68,6 +68,8 @@ task N: …", "Done game-read phase 2 task N: … (<tests>, D77)", "Fix game-rea
 | 7 | Boosted trees on the outcome (model 7) | Done 17 Nov | ee14f16 | the "Done game-read phase 2 task 7" commit | 1 new + bench test extended, all pass; suite 3,231 passed + the 3 known errors; no setting beats the market |
 | 8 | The average of what passes (model 9, second version) | Done 17 Nov | 42f6662 | the "Done game-read phase 2 task 8" commit | 1 new, all pass; suite 3,232 passed + the 3 known errors; diagnostic members chosen for task 9 |
 | 9 | Phase 2 runs (tuning, one locked, one fresh) and the report | Done 17 Nov | none (missed) | the "Done game-read phase 2 task 9" commit | locked and fresh runs on b39b5b3 (ledger lines 2–3); six pass the result blend on locked, none passes picks or Value; suite 3,233 passed + the 3 known errors, golden unchanged |
+| 10 | The market-only lean (model 5c) and the paired comparison against it | In progress | the "Start game-read phase 2 task 10" commit | | |
+| 11 | Its runs (tuning, one locked, one fresh) and the report | Not started | | | |
 
 ## The locked seasons and the fresh block
 
@@ -383,3 +385,52 @@ phase 1 results are known, and the lean-away lead came from them. So:
 - [ ] **Step 7: The report to the owner**, in plain language: what passed; what it means for Most likely and Value;
   whether phase 4 (the selector behind `SPIX_GAME_READ`, then the shadow run) has anything to start with.
 - [ ] **Step 8: Full suite and golden check;** commit the tracker entry.
+
+## Addendum (17 Nov): the market-only check (owner)
+
+Phase 2's lean blends added a little to the market on the result in the locked seasons, but every fit sharpened the
+market (b 1.14–1.18, rising each season) and leaned slightly away from the model (c −0.10 to −0.14). Part of the
+gain may be the market's own favourite-longshot lean. The existing "adds to the market" score compares each blend with
+a market-only recalibration fitted once on the tuning seasons; the lean blends are refitted every season. The owner
+approved (17 Nov, through the orchestrator) a market-only version refitted the same way, with its own locked run:
+research only, no pick changes, logged under D77.
+
+The locked rule stands: each version runs on the locked seasons and the fresh block once. The lean blends already
+had theirs, so they are not rerun there. On the tuning seasons the comparison is paired, match by match. On the
+locked and fresh blocks only the new version runs; it forecasts exactly the matches the lean blends forecast (every
+match with a market price), so the gap between their mean log losses is exact, but it has no interval.
+
+### Task 10: The market-only lean (model 5c) and the paired comparison against it
+
+**Files:**
+- Modify: `Scripts/data_platform/game_read/models/lean.py`, `Scripts/ops/game_read_bench.py`,
+  `Scripts/data_platform/game_read/report.py`
+- Test: `Scripts/tests/data_platform/test_game_read_lean.py`, `Scripts/tests/test_game_read_bench.py`
+
+**Interfaces:**
+- `LeanAway("market", {})` (name `lean-market`): `logit p = a + b·logit p_market` (`blend.fit(..., use_spix=False)`),
+  refitted at each season start on every earlier season's priced matches from 2013, like the other lean blends.
+  Result and over 2.5.
+- `run --against <name>`: each other model gets `against` = `scores.ablation(rows of <name>, its rows, market)` per
+  market, on the tuning seasons and the scored block (paired by match, % of `<name>`'s log loss). The report adds a
+  section "Against <name>".
+
+- [ ] **Step 1: Write the failing tests.**
+  - `test_market_only_lean_has_no_member_and_sharpens_the_market`: c is 0 in every fit; on simulated matches where
+    the market is too timid, b comes out above 1 and the forecast is sharper than the market.
+  - `test_the_bench_scores_each_model_against_the_named_one`: `--against lean-market` fills `against` for the other
+    models and not for itself; an unknown name returns 2.
+- [ ] **Step 2: Run them.** Expected: FAIL.
+- [ ] **Step 3: Implement.**
+- [ ] **Step 4: Run them.** Expected: PASS.
+- [ ] **Step 5: Commit** with a tracker line.
+
+### Task 11: Its runs and the report
+
+- [ ] **Step 1: Tuning run:** `lean-market`, `lean-average`, `lean-dc`, `lean-dc+xg`, `--against lean-market`.
+- [ ] **Step 2: One locked run** with `lean-market` only (`--confirm-locked`, committed code). Expected: one ledger line.
+- [ ] **Step 3: One fresh run** with `lean-market` only. Expected: one ledger line.
+- [ ] **Step 4: The tracker entry** under D77: lean-market's scores; on tuning, each lean blend against it (paired);
+  on locked and fresh, the exact gap to each lean blend's earlier score.
+- [ ] **Step 5: Full suite and golden check;** commit; the short report to the orchestrator and the owner.
+
