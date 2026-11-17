@@ -83,3 +83,14 @@ def test_goal_lines_come_only_from_members_with_a_matrix():
     assert [m.learned for m in average.members] == [60, 60]
     alone = combine({"ratings": ratings}, weights)  # no member with a matrix: no goal lines at all
     assert alone.score_matrix is None and chance(alone, over) is None
+
+
+def test_a_member_missing_a_few_matches_still_takes_part():
+    """A lean blend or the trees give no result where the market has no price: they still take part, and the
+    weights are fitted on the matches where every member gives the part."""
+    matches, forecasts = simulated(seed=13)
+    forecasts["perfect"] = [Forecast() if i % 50 == 0 else f for i, f in enumerate(forecasts["perfect"])]
+    weights = fit_weights(forecasts, matches, "result")
+    assert set(weights) == {"perfect", "flat", "reversed"} and weights["perfect"] > 0.9
+    forecasts["never"] = [Forecast() for _ in matches]  # a member that never gives the part takes no part
+    assert set(fit_weights(forecasts, matches, "result")) == {"perfect", "flat", "reversed"}

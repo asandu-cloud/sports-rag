@@ -3239,6 +3239,13 @@ backend).** The number was held since 7 Nov (D78).
       - `trees-error-nolead@15-500-10+xg` (model 6).
       - Model 7 is left out: its best settings are exact copies of the market.
     - 1 new test; suite 3,232 passed plus the 3 known worktree errors; golden check unchanged.
+    - *Fix (17 Nov, found in task 9's tuning run):* the diagnostic average gave `dc+xg` all the weight, because a
+      member took part in a part only if it gave that part on every match. The lean blends and the trees give no
+      result where the market has no price, so they were left out.
+      - Now a member takes part if it gives the part at all, and the weights are fitted on the matches where every
+        member gives it.
+      - Phase 1's average is unchanged: its members give each of their parts on every match.
+      - 1 new test.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their

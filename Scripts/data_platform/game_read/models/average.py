@@ -56,12 +56,16 @@ def outcome(match: Match, market: str) -> int:
 
 def fit_weights(forecasts_by_model: Mapping[str, Sequence[Forecast]], matches: Sequence[Match],
                 market: str) -> dict:
-    """Weights for the members that give this part on every match, fitted by maximum likelihood."""
+    """Weights for the members that give this part, fitted by maximum likelihood on the matches where every one of
+    them gives it (a lean blend or the trees give no result where the market has no price)."""
     names = [name for name, forecasts in forecasts_by_model.items()
-             if all(distribution(f, market) is not None for f in forecasts)]
+             if any(distribution(f, market) is not None for f in forecasts)]
     if len(names) <= 1:
         return {name: 1.0 for name in names}
-    logs = np.stack([np.log(np.clip([distribution(f, market) for f in forecasts_by_model[name]], EPS, None))
+    kept = [i for i in range(len(matches))
+            if all(distribution(forecasts_by_model[name][i], market) is not None for name in names)]
+    matches = [matches[i] for i in kept]
+    logs = np.stack([np.log(np.clip([distribution(forecasts_by_model[name][i], market) for i in kept], EPS, None))
                      for name in names], axis=2)  # matches × outcomes × members
     rows, happened = np.arange(len(matches)), np.array([outcome(m, market) for m in matches])
     chosen = logs[rows, happened, :]
