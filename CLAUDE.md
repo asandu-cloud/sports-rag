@@ -155,7 +155,8 @@ on it. The Discord bot still runs the old engine until A7.
   - Owner, 16 Nov: task 14 (the ClubElo yardstick) is dropped. Phase 2 approved
     (`docs/superpowers/plans/2026-11-16-game-read-phase-2.md`, 9 tasks, about two weeks, no pick changes):
     - real xG stays out; a home-made shot xG (inside and outside the box, weights fitted on tuning seasons only)
-      is tested beside shots in the box and on target;
+      was tested beside shots in the box and on target. None passed the 0.5% gate (task 3: −0.39% on the result);
+      the owner kept the home-made xG in the models anyway (17 Nov), and the report says so;
     - the backend fetches football-data's 10 files for 2026/27;
     - this season so far is the last check: a model that passes on 2023–2025 must point the same way there.
 - **Cards missing at kickoff (D108, 15 Nov).** From 5 Sep to 14 Nov, 327 of 798 finished domestic matches had a card
