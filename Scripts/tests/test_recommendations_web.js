@@ -134,7 +134,11 @@ assert.doesNotMatch(h.renderRecommendations(hostile), /<script>/);
 // The board card: the first Most likely pick, and the count of suggestions (markets with one, plus value picks).
 const board = h.renderRecsBoardCard(fixture, '', '');
 assert.match(board, /Most likely/);
-assert.match(text(board), /Under 11\.5 corners about 3 in 4 · 72% 1\.32/);
+assert.match(text(board), /Under 11\.5 corners about 3 in 4 · 72% Odds 1\.32/);
+// The odds tile (D125): one line, the word and the price; no price, no tile.
+assert.match(board, /<span class="recs-odds"><span class="recs-odds-l">Odds<\/span><span class="recs-fig">1\.32<\/span><\/span><\/p>/);
+const noPriceCard = h.renderRecsBoardCard({ ...fixture, recommendations: { ...block, most_likely: [{ ...block.most_likely[0], typical_price: null }] } }, '', '');
+assert.doesNotMatch(noPriceCard, /recs-odds/);
 assert.match(text(board), /3 suggestions · 1 value pick/);
 assert.match(text(h.renderRecsBoardCard(empty, '', '')), /Not priced yet/);
 

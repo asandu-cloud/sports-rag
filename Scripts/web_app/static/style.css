@@ -1294,6 +1294,11 @@ button.fixture-teams:hover { color: var(--accent-l); }
 }
 .recs-board-chance { margin: 0; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .recs-board-chance b { font-weight: 600; }
+/* D125: the odds tile, one line in the lime marker. */
+.recs-board-chance:has(.recs-odds) { align-items: center; }
+.recs-odds { flex: none; display: inline-flex; align-items: baseline; gap: 6px; padding: 4px 9px; border-radius: 7px; background: var(--marker); color: #111316; line-height: 1; }
+.recs-odds-l { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .7; }
+.recs-odds .recs-fig { font-size: 18px; line-height: 1; }
 .recs-board-foot { background: var(--surface2); padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; }
 .recs-board-teams {
   margin: 0;

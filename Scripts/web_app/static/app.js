@@ -559,10 +559,13 @@ function renderRecsBoardCard(f, homeEmblem, awayEmblem) {
   const time = `<span class="match-card-time">${esc(f.time)}</span>`;
   let top;
   if (first) {
+    // The odds tile (D125): the price on one line with its word, in the lime marker; no price, no tile.
+    const price = recsPrice(first.typical_price);
+    const odds = price ? `<span class="recs-odds"><span class="recs-odds-l">Odds</span><span class="recs-fig">${price}</span></span>` : '';
     top = `
       <div class="recs-board-topline"><span class="recs-label">Most likely</span>${time}</div>
       <p class="recs-board-pick">${esc(first.label)}</p>
-      <p class="recs-board-chance"><span><b>${esc(recsWords(first))}</b> <span class="recs-pct">· ${chancePercent(first.chance)}</span></span><span class="recs-fig">${recsPrice(first.typical_price)}</span></p>`;
+      <p class="recs-board-chance"><span><b>${esc(recsWords(first))}</b> <span class="recs-pct">· ${chancePercent(first.chance)}</span></span>${odds}</p>`;
   } else if (recsPriced(block)) {
     top = `<div class="recs-board-topline"><span class="recs-label">Explore the match</span>${time}</div>
       <p class="recs-note">Nothing stands out here. Every option can still be added.</p>`;
