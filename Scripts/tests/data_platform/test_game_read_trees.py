@@ -1,4 +1,5 @@
-"""Game-read bench, phase 2 task 6: boosted trees on the market's error, model 6 (D77)."""
+"""Game-read bench, phase 2 tasks 6 and 7: boosted trees on the market's error (model 6) and on the outcome
+(model 7) (D77)."""
 from __future__ import annotations
 
 from datetime import date, timedelta
@@ -104,3 +105,24 @@ def test_it_never_trains_on_the_season_it_predicts():
             assert max(fitted["train"]) < season and fitted["stop"] == season - 1
     assert [f.result for f in found["before"]] == [f.result for f in found["after"]]
     assert [f.lines for f in found["before"]] == [f.lines for f in found["after"]]
+
+
+def test_outcome_trees_take_the_market_as_an_input_only():
+    matches = simulated(per_year=600)
+    outcome, error = (Trees(on, features=Features({}, start=2013), rounds=1) for on in ("outcome", "error"))
+    assert outcome.name == "trees-outcome" and error.name == "trees-error"
+    rows = {t.on: walkforward.run(t, matches, score_from=2015) for t in (outcome, error)}
+    assert outcome.fits[2015]["result"]["rounds"] == 1
+    assert {"market_home", "market_draw", "market_away", "market_over", "market_cover"} <= set(outcome.columns)
+
+    def home(on):
+        return np.array([chance(f, HOME) for _, f in rows[on]])
+
+    market = np.array([market_result(m.pre)[0] for m, _ in rows["outcome"]])
+    # after one small round the error trees are still the market, while the outcome trees start from the base rate
+    assert np.max(np.abs(home("error") - market)) < 0.01
+    assert np.std(home("outcome")) < np.std(market) / 4
+    assert np.mean(np.abs(home("outcome") - market)) > 0.05
+    for match, forecast in rows["outcome"]:
+        assert abs(sum(forecast.result) - 1) < 1e-9
+        assert abs(chance(forecast, OVER) + chance(forecast, {**OVER, "side": "under"}) - 1) < 1e-9

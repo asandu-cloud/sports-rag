@@ -116,7 +116,8 @@ def _trees(name: str):
     model, _, rest = name.partition("@")
     settings, *variables = rest.split("+")
     values = settings.split("-")
-    if model not in ("trees-error", "trees-error-nolead") or variables not in ([], ["xg"]) or len(values) != 3:
+    on = model[len(TREES):].removesuffix("-nolead")
+    if on not in ("error", "outcome") or variables not in ([], ["xg"]) or len(values) != 3:
         return None
     try:
         params = dict(zip(GRID, map(int, values)))
@@ -124,7 +125,7 @@ def _trees(name: str):
         return None
     if any(params[key] not in GRID[key] for key in GRID):
         return None
-    return lambda: Trees("error", _features(bool(variables)), params, lead=not model.endswith("-nolead"), name=name)
+    return lambda: Trees(on, _features(bool(variables)), params, lead=not model.endswith("-nolead"), name=name)
 
 
 def _factory(name: str):
@@ -240,7 +241,7 @@ def run(args) -> int:
     if unknown:
         print(f"Unknown models: {', '.join(unknown)} (known: {', '.join(MODELS)}, and {' or '.join(WITH_VARIABLES)} "
               f"with any of +{', +'.join(VARIABLES)}; {LEAN}<model> or {LEAN}average[+<variable>]; "
-              f"{TREES}error[-nolead][@<leaves>-<minimum leaf>-<L2>][+xg])", file=sys.stderr)
+              f"{TREES}error|outcome[-nolead][@<leaves>-<minimum leaf>-<L2>][+xg])", file=sys.stderr)
         return 2
 
     started, clock = datetime.now(timezone.utc), time.perf_counter()

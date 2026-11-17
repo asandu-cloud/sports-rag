@@ -3204,6 +3204,27 @@ backend).** The number was held since 7 Nov (D78).
     - *Variants tried so far:* 45 (task 3: 6, task 4: 2, task 5: 5, task 6: 32).
     - 5 new tests (trees 3, features 1, bench 1); suite 3,230 passed plus the 3 known worktree errors; golden check
       unchanged.
+  - **Phase 2 task 7 done (17 Nov): boosted trees on the outcome (model 7). No setting beats the market; 11 of 32 are
+    worse on the result.**
+    - *The model* (`models/trees.py`, `on="outcome"`): the same trees and inputs as model 6, but with no starting
+      point from the market. The market's chances are inputs like the rest, and the trees start from the base rate.
+      The same rule as model 6 applies: if the trees do not beat the market on the last training season, the part is
+      the market (0 rounds).
+    - *Names:* `trees-outcome[-nolead]@<leaves>-<minimum leaf>-<L2>[+xg]`, the same grid of 8.
+    - *Tuning run* (17 Nov, 1,806 s, 32 settings; `Research/game-read-bench-2026-11-17-trees-outcome/`).
+      - In most seasons the trees could not even match the market on their last training season, so they kept to
+        it. When they did keep rounds (one season of four, 108–246 rounds), they lost out of sample.
+      - Result: 21 settings equal the market exactly. The other 11 are worse, with intervals above zero, from
+        +0.00059 to +0.00125 (`trees-outcome@15-500-10`).
+      - Over 2.5: 19 equal the market and 13 are worse (+0.00037 to +0.00051). The handicap is worse in every
+        setting (+0.00005 to +0.00334). None is better anywhere.
+      - The derived xG (kept by the owner's choice): its "gains" of up to −0.13% appear only where the +xg version
+        fell back to the market and its plain base did not. It adds nothing of its own.
+    - *Reading:* learning the market from scratch costs more than the trees find. Model 6, which starts from the
+      market, is the better of the two shapes, and it also finds nothing.
+    - *Variants tried so far:* 77 (task 3: 6, task 4: 2, task 5: 5, task 6: 32, task 7: 32).
+    - 1 new test, and the bench test extended; suite 3,231 passed plus the 3 known worktree errors; golden check
+      unchanged.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
