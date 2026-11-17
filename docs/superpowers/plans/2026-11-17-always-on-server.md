@@ -421,7 +421,7 @@ Still well under €50 a month.
 
 ### Task 9: The first week, then the docs
 
-- [ ] **Watch the next daily refresh end to end,** with its time against the Mac's (about 40 minutes).
+- [ ] **Watch the next daily refresh end to end,** with its time against the Mac's (49 minutes on 17 Nov).
   - The `legacy_model_refresh` stage must succeed (task 1).
   - If the refresh runs much longer, resize the server one step (about €3–6 more a month).
 - [ ] **Check that a failed refresh would still alert to Telegram.** Send a test message only with the owner's
