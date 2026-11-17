@@ -3485,6 +3485,33 @@ and 390 dark, no errors.
 follows the placeholder. Research files at `research-20261117a`. 18 JS test files pass; checked on 8100 by clicking
 each tab.
 
+**D115 — A plan to move production to an always-on server (17 Nov; backend, owner asked).**
+
+*Why:*
+- The Mac's sleep was the largest single reason a match had no fresh card at kickoff (123 of 301, D108).
+- The website can only be opened on the home network.
+
+*The request.* The owner asked for a migration plan, with how hard the move is and a monthly cost, using small
+resources until there are real users: `docs/superpowers/plans/2026-11-17-always-on-server.md`.
+
+*Findings (17 Nov):*
+- **What moves as it is.** The website and 10 launchd jobs become systemd timers on Ubuntu, at the same Bucharest
+  times.
+- **The one real code fix.** The daily refresh runs 36 old scripts that have the Mac's home folder written in.
+- **Already safe off the Mac.** The sleep check answers "awake" when it cannot read the lid, and `caffeinate` runs
+  only on a Mac.
+- **Data.** The live data is about 17 GB (`platform.db` 11 GB). Chroma (19 GB) and the research data stay on the Mac.
+
+*The plan:*
+- A private server, reached only through Tailscale, with 4 vCPU and 8 GB: about €10–17 a month.
+- OVHcloud VPS-2 is recommended. Hetzner has limited new cloud servers since 26 Jun 2026.
+- A one-runner guard, so the jobs never run on two machines.
+- A nightly copy of `platform.db`, pulled to the Mac for development.
+- A switch of about 30–60 minutes, in a week with no stage going live.
+
+*Status:* not started; no code changed. Waiting for the owner's four choices: the provider, the switch week against
+the next stage, the phase6-shadow job, and where the owner tools run.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
