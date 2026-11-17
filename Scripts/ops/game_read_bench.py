@@ -29,6 +29,7 @@ from Scripts.data_platform.game_read.models import average
 from Scripts.data_platform.game_read.models.dixon_coles import DixonColes
 from Scripts.data_platform.game_read.models.drifting import Drifting
 from Scripts.data_platform.game_read.models.elo import Elo
+from Scripts.data_platform.game_read.models.lean import LeanAway
 from Scripts.data_platform.game_read.models.market import MarketControl, MarketCopy
 from Scripts.data_platform.game_read.models.pi_ratings import PiRatings
 from Scripts.data_platform.game_read.models.rest import RestVariable
@@ -47,6 +48,9 @@ WITH_VARIABLES = {"dc": DixonColes, "drift": Drifting}
 VARIABLES = {**{kind: (lambda kind=kind: ShotVariable(kind, _stats())) for kind in KINDS},
              "rest": lambda: RestVariable(_stats())}
 ABLATED = ("result", "over25")
+# Model 5b: "lean-<member>" blends the market with one member ("lean-dc+xg"), or with the members' average
+# ("lean-average" pools elo, pi, dc and drift; "lean-average+xg" gives dc and drift the variable).
+LEAN = "lean-"
 # Variables kept by the owner's choice although they missed the gate; every report that uses one says so.
 CARRIED = {"xg": "the derived shot-location xG missed the 0.5% gate in phase 2 task 3 (−0.39% on the result, "
                  "[−0.51, −0.26]); the owner carried it forward on 17 Nov"}
@@ -63,10 +67,25 @@ def _stats():
     return stats.load()
 
 
+def _lean(target: str):
+    model, *variables = target.split("+")
+    if model == "average":
+        if any(v not in VARIABLES for v in variables):
+            return None
+        members = ["+".join([m, *variables]) if m in WITH_VARIABLES else m for m in average.MEMBERS]
+    elif target in REFERENCES or target.startswith(LEAN) or _factory(target) is None:
+        return None
+    else:
+        members = [target]
+    return lambda: LeanAway(target, {member: _factory(member)() for member in members})
+
+
 def _factory(name: str):
     """What builds the model of this name, or None for an unknown name."""
     if name in MODELS:
         return MODELS[name]
+    if name.startswith(LEAN):
+        return _lean(name[len(LEAN):])
     model, *variables = name.split("+")
     if model not in WITH_VARIABLES or not variables or any(v not in VARIABLES for v in variables):
         return None
@@ -170,7 +189,7 @@ def run(args) -> int:
     unknown = [name for name in names if _factory(name) is None and name != AVERAGE]
     if unknown:
         print(f"Unknown models: {', '.join(unknown)} (known: {', '.join(MODELS)}, and {' or '.join(WITH_VARIABLES)} "
-              f"with any of +{', +'.join(VARIABLES)})", file=sys.stderr)
+              f"with any of +{', +'.join(VARIABLES)}; {LEAN}<model> or {LEAN}average[+<variable>])", file=sys.stderr)
         return 2
 
     started, clock = datetime.now(timezone.utc), time.perf_counter()
@@ -178,13 +197,15 @@ def run(args) -> int:
     until = {"tuning": history.LOCKED_FROM - 1, "locked": history.FRESH_FROM - 1}.get(args.block)
     results, zero, members, all_rows = {}, None, {}, {}
     for name in names:
+        model = None
         if name == AVERAGE:
             weights = average.fit_all({member: [row for row in members[member]
                                                 if history.block(row[0].season) == "tuning"]
                                        for member in average.MEMBERS})
             rows = average.combine_rows({member: members[member] for member in average.MEMBERS}, weights)
         else:
-            rows = walkforward.run(_factory(name)(), matches, score_from=history.TUNING_FROM, until=until)
+            model = _factory(name)()
+            rows = walkforward.run(model, matches, score_from=history.TUNING_FROM, until=until)
             if name in average.MEMBERS:
                 members[name] = rows
         all_rows[name] = rows
@@ -193,6 +214,10 @@ def run(args) -> int:
         results[name] = _score(scored, tuning)
         if name == AVERAGE:
             results[name]["weights"] = weights
+        if isinstance(model, LeanAway):  # each season's blend: how much it leans on the member (c), and on what
+            results[name]["fits"] = {str(season): {"n": fitted["n"], **{part: None if fitted[part] is None else {
+                key: fitted[part][key] for key in ("b", "c", "intercepts")} for part in ("result", "over25")}}
+                for season, fitted in sorted(model.fits.items()) if history.block(season) in ("tuning", args.block)}
         if "+" in name:
             base = name.rsplit("+", 1)[0]
             results[name]["ablation"] = _ablation(base, all_rows[base], rows, dict.fromkeys(("tuning", args.block)))

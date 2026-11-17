@@ -241,3 +241,19 @@ def test_a_variable_carried_by_the_owner_is_said_in_the_report(stubbed, monkeypa
     assert "owner's choice" in (out / "report.md").read_text()
     assert bench.main(["run", "--block", "tuning", "--models", "dc", "--out", str(stubbed / "plain")]) == 0
     assert json.loads((stubbed / "plain" / "summary.json").read_text())["carried"] == {}
+
+
+def test_lean_away_names_resolve_and_run(stubbed, monkeypatch):
+    monkeypatch.setattr(bench, "_stats", lambda: {})
+    pooled = bench._factory("lean-average+xg")()
+    assert pooled.name == "lean-average+xg" and set(pooled.features.models) == {"elo", "pi", "dc+xg", "drift+xg"}
+    assert set(bench._factory("lean-average")().features.models) == {"elo", "pi", "dc", "drift"}
+    assert list(bench._factory("lean-dc+xg")().features.models) == ["dc+xg"]
+    for wrong in ("lean-market", "lean-elo+xg", "lean-nothing", "lean-average+nope", "lean-lean-dc"):
+        assert bench._factory(wrong) is None, wrong
+    out = stubbed / "out"
+    assert bench.main(["run", "--block", "tuning", "--models", "lean-elo", "--out", str(out)]) == 0
+    summary = json.loads((out / "summary.json").read_text())
+    assert summary["run"]["models"] == ["market", "control", "lean-elo"]
+    assert set(summary["models"]["lean-elo"]["fits"]) == {"2019"}  # one fit a scored season, its c per part
+    assert set(summary["models"]["lean-elo"]["fits"]["2019"]) == {"n", "result", "over25"}

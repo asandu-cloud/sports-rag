@@ -3133,6 +3133,45 @@ backend).** The number was held since 7 Nov (D78).
       are not counted.
     - *Variants tried so far:* 8 (task 3: 6, xG included; task 4: 2).
     - 4 new tests (rest 2, bench 2); suite 3,221 passed plus the 3 known worktree errors; golden check unchanged.
+  - **Phase 2 task 5 done (17 Nov): the features pass and the lean-away blend (model 5b). Leaning away does not help
+    out of sample.**
+    - *The features pass* (`game_read/features.py`) asks its rating models about every day from 2013, each day once,
+      before that day's results are learned. Per match it keeps:
+      - each member's chances and expected goals;
+      - the market's chances and margin;
+      - the market minus each member on the log scale;
+      - the shot and rest variables;
+      - league, month and weekday.
+
+      A test changes a day's results and shots and checks that the day's inputs do not move. It was checked to
+      catch a real leak (learning before recording).
+    - *The lean-away blend* (`models/lean.py`) is D20's blend, `logit p = a + b·logit market + c·logit member`, on
+      the result and over 2.5.
+      - It is refitted at each season's first day on every earlier season from 2013, with c free to fall below
+        zero.
+      - Names: `lean-<model>`, `lean-average` (Elo, pi, dc, drift) and `lean-average+xg` (dc and drift with the
+        derived xG). The average's weights are refitted on the same earlier seasons.
+      - The bench saves each season's b and c.
+    - *Tuning run* (17 Nov, 1,137 s; `Research/game-read-bench-2026-11-17-lean/`). Change in log loss against the
+      market:
+
+      | Model | Result | Over 2.5 |
+      |---|---|---|
+      | lean-elo | +0.00013 [−0.00024, +0.00052] | (Elo has no goals) |
+      | lean-dc | +0.00011 [−0.00025, +0.00045] | −0.00002 [−0.00019, +0.00014] |
+      | lean-dc+xg | +0.00021 [−0.00011, +0.00054] | +0.00000 [−0.00014, +0.00015] |
+      | lean-average | −0.00004 [−0.00038, +0.00031] | −0.00003 [−0.00020, +0.00015] |
+      | lean-average+xg | +0.00000 [−0.00033, +0.00035] | −0.00003 [−0.00020, +0.00015] |
+
+    - *What the fits do.* Every season's fit leans away from its member, with c between −0.09 and −0.14 on the
+      result and −0.05 to −0.10 on over 2.5. It also stretches the market (b 1.10–1.16 on the result, 1.05–1.09
+      on over 2.5). Fitted on earlier seasons, the lean carries no gain into the next one: every interval crosses
+      zero.
+    - *The derived xG* (carried by the owner's choice) changes nothing here: +0.01% [−0.008, +0.029] on lean-dc and
+      +0.004% [−0.002, +0.011] on lean-average.
+    - *Variants tried so far:* 13 (task 3: 6, task 4: 2, task 5: 5).
+    - 4 new tests (features 1, lean 2, bench 1); suite 3,225 passed plus the 3 known worktree errors; golden check
+      unchanged.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
