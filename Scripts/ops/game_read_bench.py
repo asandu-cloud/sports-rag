@@ -31,6 +31,7 @@ from Scripts.data_platform.game_read.models.drifting import Drifting
 from Scripts.data_platform.game_read.models.elo import Elo
 from Scripts.data_platform.game_read.models.market import MarketControl, MarketCopy
 from Scripts.data_platform.game_read.models.pi_ratings import PiRatings
+from Scripts.data_platform.game_read.models.rest import RestVariable
 from Scripts.data_platform.game_read.models.shots import KINDS, ShotVariable
 from Scripts.data_platform.services.refresh_coordination import RefreshBusy
 
@@ -40,12 +41,15 @@ BENCH_CODE = ("Scripts/data_platform/game_read", "Scripts/ops/game_read_bench.py
 REFERENCES = ("market", "control")
 MODELS = {"market": MarketCopy, "control": MarketControl, "elo": Elo, "pi": PiRatings, "dc": DixonColes,
           "drift": Drifting}
-# Phase 2 variants: a model with one more variable is named "<model>+<variable>" and is gated against "<model>".
-for _kind in KINDS:
-    for _name, _model in (("dc", DixonColes), ("drift", Drifting)):
-        MODELS[f"{_name}+{_kind}"] = (lambda model=_model, kind=_kind:
-                                      model(variables=(ShotVariable(kind, _stats()),)))
+# Phase 2 variants: models 3–4 with variables, named "<model>+<variable>+…" ("dc+box+rest"); each is gated against
+# the same name without its last variable.
+WITH_VARIABLES = {"dc": DixonColes, "drift": Drifting}
+VARIABLES = {**{kind: (lambda kind=kind: ShotVariable(kind, _stats())) for kind in KINDS},
+             "rest": lambda: RestVariable(_stats())}
 ABLATED = ("result", "over25")
+# Variables kept by the owner's choice although they missed the gate; every report that uses one says so.
+CARRIED = {"xg": "the derived shot-location xG missed the 0.5% gate in phase 2 task 3 (−0.39% on the result, "
+                 "[−0.51, −0.26]); the owner carried it forward on 17 Nov"}
 AVERAGE = "average"  # built from its members' rows in the run, with weights fitted on the tuning seasons only
 ZERO_BLEND = 1e-6
 
@@ -57,6 +61,16 @@ def _load(leagues):
 @lru_cache(maxsize=1)
 def _stats():
     return stats.load()
+
+
+def _factory(name: str):
+    """What builds the model of this name, or None for an unknown name."""
+    if name in MODELS:
+        return MODELS[name]
+    model, *variables = name.split("+")
+    if model not in WITH_VARIABLES or not variables or any(v not in VARIABLES for v in variables):
+        return None
+    return lambda: WITH_VARIABLES[model](variables=tuple(VARIABLES[v]() for v in variables))
 
 
 def _with_bases(names) -> list:
@@ -153,9 +167,10 @@ def run(args) -> int:
     names = [*REFERENCES, *_with_bases(name for name in args.models if name not in (*REFERENCES, AVERAGE))]
     if AVERAGE in args.models:
         names += [*(name for name in average.MEMBERS if name not in names), AVERAGE]
-    unknown = [name for name in names if name not in MODELS and name != AVERAGE]
+    unknown = [name for name in names if _factory(name) is None and name != AVERAGE]
     if unknown:
-        print(f"Unknown models: {', '.join(unknown)} (known: {', '.join(MODELS)})", file=sys.stderr)
+        print(f"Unknown models: {', '.join(unknown)} (known: {', '.join(MODELS)}, and {' or '.join(WITH_VARIABLES)} "
+              f"with any of +{', +'.join(VARIABLES)})", file=sys.stderr)
         return 2
 
     started, clock = datetime.now(timezone.utc), time.perf_counter()
@@ -169,7 +184,7 @@ def run(args) -> int:
                                        for member in average.MEMBERS})
             rows = average.combine_rows({member: members[member] for member in average.MEMBERS}, weights)
         else:
-            rows = walkforward.run(MODELS[name](), matches, score_from=history.TUNING_FROM, until=until)
+            rows = walkforward.run(_factory(name)(), matches, score_from=history.TUNING_FROM, until=until)
             if name in average.MEMBERS:
                 members[name] = rows
         all_rows[name] = rows
@@ -200,6 +215,8 @@ def run(args) -> int:
                                             for name, found in results.items()})
                      for rule in ("edge", "blend")},
         "reference": scores.reference_check(scored_matches, _named()),
+        "carried": {variable: note for variable, note in CARRIED.items()
+                    if any(variable in name.split("+")[1:] for name in names)},
         "opportunities": opportunities.scan([m for m in matches if history.block(m.season) not in history.GUARDED]),
     }
     summary["run"]["seconds"] = round(time.perf_counter() - clock)

@@ -219,3 +219,25 @@ def test_a_variant_runs_its_base_and_is_gated_against_it(stubbed, monkeypatch, h
     assert "ablation" not in summary["models"]["dc"]
     assert "## Ablation" in (out / "report.md").read_text()
     assert bench.main(["run", "--block", "tuning", "--models", "dc+nothing", "--out", str(stubbed / "x")]) == 2
+
+
+def test_variables_combine_in_a_name(monkeypatch):
+    monkeypatch.setattr(bench, "_stats", lambda: {})
+    model = bench._factory("dc+box+rest")()
+    assert model.name == "dc+box+rest" and [v.name for v in model.variables] == ["box", "rest"]
+    assert bench._factory("drift+rest")().name == "drift+rest"
+    assert bench._factory("dc+nothing") is None and bench._factory("elo+rest") is None
+    assert bench._factory("market") is bench.MODELS["market"]
+
+
+def test_a_variable_carried_by_the_owner_is_said_in_the_report(stubbed, monkeypatch, history):
+    from Scripts.data_platform.game_read.stats import MatchStats
+    monkeypatch.setattr(bench, "_stats", lambda: {m.id: MatchStats(home_box=8, away_box=6, home_outside=5,
+                                                                   away_outside=4) for m in history})
+    out = stubbed / "out"
+    assert bench.main(["run", "--block", "tuning", "--models", "dc+xg", "--out", str(out)]) == 0
+    summary = json.loads((out / "summary.json").read_text())
+    assert set(summary["carried"]) == {"xg"} and summary["run"]["models"] == ["market", "control", "dc", "dc+xg"]
+    assert "owner's choice" in (out / "report.md").read_text()
+    assert bench.main(["run", "--block", "tuning", "--models", "dc", "--out", str(stubbed / "plain")]) == 0
+    assert json.loads((stubbed / "plain" / "summary.json").read_text())["carried"] == {}

@@ -197,6 +197,15 @@ def _ablation(models) -> list:
     return lines
 
 
+def _carried(carried) -> list:
+    if not carried:
+        return []
+    return ["## Variables kept by the owner's choice", "",
+            "These variables missed the ablation gate and were kept by the owner's choice, not by the bench. Wherever "
+            "practical, a model that carries one runs beside the same model without it (a variant always runs with "
+            "its base), so a later gain can be traced to it or not.", "", *(f"- `{variable}`: {note}." for variable, note in carried.items()), ""]
+
+
 def _reference(reference) -> list:
     rows = [(season, _points(found["mean"]).lstrip("+"), _points(found["p95"]).lstrip("+"), _count(found["n"]))
             for season, found in reference.items()]
@@ -244,7 +253,8 @@ def _report(results) -> list:
             "Every interval is 95%, from 2,000 resamples of whole weeks.", "",
             *_zero_line(results), *_accuracy(models), *_blend(models), *_picks(models), *_value(models),
             *_closing(models), *_leagues(models), *_verdicts(results["verdicts"]), *_control(models),
-            *_average(models), *_ablation(models), *_reference(results["reference"]), *_opportunities(results["opportunities"])]
+            *_average(models), *_ablation(models), *_carried(results.get("carried")),
+            *_reference(results["reference"]), *_opportunities(results["opportunities"])]
 
 
 def write(out_dir, results: Mapping) -> None:

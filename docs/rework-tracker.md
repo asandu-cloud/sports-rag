@@ -3102,6 +3102,37 @@ backend).** The number was held since 7 Nov (D78).
       far from the market, and no blend shows a gain (all intervals cross zero).
     - By D12's rule, all six are removed from the next tasks. Task 4 adds rest to plain `dc` and `drift`.
     - 8 new tests; suite 3,217 passed plus the 3 known worktree errors; golden check unchanged.
+  - **The derived xG is carried forward by the owner's choice, despite missing the gate (owner, 17 Nov: "use the
+    derived xG, go ahead with phase 2").**
+    - It missed the 0.5% bar in task 3 (−0.39% on the result, [−0.51, −0.26]). The bench did not pass it; the owner
+      kept it.
+    - Rest (task 4) is gated on top of `dc+xg` and `drift+xg`, and the features pass (task 5) uses them as its
+      Dixon–Coles and drifting members.
+    - Every run that uses it says so in its summary (`carried`) and in its report (a section, "Variables kept by
+      the owner's choice").
+    - Wherever practical, the plain `dc` and `drift` run beside the xG ones (a variant always runs with its bases),
+      so a later gain can be traced to the xG or not.
+    - The xG variants count among the variants tried.
+  - **Phase 2 task 4 done (17 Nov): rest through the ablation gate. It fails.**
+    - Variable `rest`: each side's `(min(days, 7) − 7) / 7`, with two coefficients shared by every league (own rest
+      and the opponent's). A missing rest is 0.
+    - The bench now builds any combination by name (`dc+xg+rest`), and lists the variables in its unknown-model
+      message.
+    - *Tuning run* (17 Nov, 719 s; `Research/game-read-bench-2026-11-17-rest/`, with plain dc and drift beside).
+      Change in log loss, in %:
+
+      | Variant | Base | Result | Over 2.5 |
+      |---|---|---|---|
+      | dc+xg+rest | dc+xg | +0.02 [−0.01, +0.06] | +0.06 [−0.00, +0.13] |
+      | drift+xg+rest | drift+xg | +0.00 [−0.01, +0.01] | −0.00 [−0.02, +0.02] |
+
+    - Rest adds nothing. It is removed, and models 3–4 go on as `dc+xg` and `drift+xg`.
+    - Against the market, the result's log loss is +0.0165 for dc, +0.0126 for dc+xg and +0.0129 for dc+xg+rest;
+      +0.0159 for drift, +0.0145 for drift+xg and +0.0145 for drift+xg+rest. No blend gains.
+    - Two plain-rest runs (dc+rest, drift+rest) were stopped before scoring when the owner's decision came. They
+      are not counted.
+    - *Variants tried so far:* 8 (task 3: 6, xG included; task 4: 2).
+    - 4 new tests (rest 2, bench 2); suite 3,221 passed plus the 3 known worktree errors; golden check unchanged.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
