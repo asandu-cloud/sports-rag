@@ -1,13 +1,18 @@
-"""Game-read bench (D77, phase 2): boosted trees on the market's error, model 6.
+"""Game-read bench (D77, phase 2): boosted trees on the market's error (model 6) and on the outcome (model 7).
 
 One LightGBM model per market: the result (three classes), over 2.5 and the real half-line main handicap (home covers
-or not). Each starts from the market's log chances (``init_score``) and learns only corrections: its forecast is the
-market's log chances plus the trees' sum, normalised. The inputs are the features pass's rows (``Features.row``);
-``lead=False`` leaves out the lead's inputs (the market minus each member).
+or not). The inputs are the features pass's rows (``Features.row``); ``lead=False`` leaves out the lead's inputs (the
+market minus each member).
+
+- ``on="error"`` starts from the market's log chances (``init_score``) and learns only corrections: its forecast is the
+  market's log chances plus the trees' sum, normalised.
+- ``on="outcome"`` predicts what happens directly, starting from the training seasons' base rate; the market's chances
+  are inputs like the rest.
 
 It is refitted at each season's first day. The number of rounds is set by early stopping on the last training season,
 fitting on the seasons before it; the model is then refitted with that number on every earlier season from 2013.
-When the trees do not beat the market on that last season, the number is 0 and the forecast is the market's. Matches
+When the trees do not beat the market on that last season, the number is 0 and the forecast is the market's, for
+both targets. Matches
 are picked by season, so a shared, finished features pass never lets a season's own results in.
 
 The forecast carries the result and the real over 2.5 and handicap lines; derived lines get no chance.
@@ -77,7 +82,7 @@ def _loss(chances: np.ndarray, won: np.ndarray, classes: int) -> float:
 class Trees:
     def __init__(self, on: str = "error", features: Optional[Features] = None, params: Optional[Mapping] = None,
                  rounds: Optional[int] = None, lead: bool = True, name: Optional[str] = None):
-        if on != "error":
+        if on not in ("error", "outcome"):
             raise ValueError(f"unknown target {on!r}")
         self.on, self.lead = on, lead
         self.features = features if features is not None else Features({})
@@ -110,7 +115,7 @@ class Trees:
 
     def _params(self, classes: int) -> dict:
         found = {"objective": "multiclass" if classes == 3 else "binary", "learning_rate": LEARNING_RATE,
-                 "boost_from_average": False, "verbosity": -1, "seed": 0, "deterministic": True,
+                 "boost_from_average": self.on == "outcome", "verbosity": -1, "seed": 0, "deterministic": True,
                  "force_row_wise": True, **self.params}
         if classes == 3:
             found["num_class"] = 3
@@ -124,7 +129,8 @@ class Trees:
         markets = np.array([t[0] for _, t in kept], dtype=float)
         won = np.array([t[1] for _, t in kept])
         x = self._matrix([m for m, _ in kept], leagues)
-        found = lgb.Dataset(x, won, init_score=_init(markets, classes), categorical_feature=[x.shape[1] - 1],
+        start = _init(markets, classes) if self.on == "error" else None
+        found = lgb.Dataset(x, won, init_score=start, categorical_feature=[x.shape[1] - 1],
                             reference=reference, free_raw_data=False)
         found.markets, found.won = markets, won
         return found, len(kept)
@@ -177,7 +183,7 @@ class Trees:
         if booster is None or match.id not in self.features.forecasts:
             return market
         raw = booster.predict(self._matrix([match], leagues), raw_score=True)[0]
-        score = _init(np.array([market], dtype=float), classes)[0] + raw
+        score = raw if self.on == "outcome" else _init(np.array([market], dtype=float), classes)[0] + raw
         if classes == 3:
             chances = np.exp(score - score.max())
             return (chances / chances.sum()).tolist()

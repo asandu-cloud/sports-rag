@@ -272,8 +272,12 @@ def test_trees_names_expand_to_the_grid_and_share_one_pass(stubbed, monkeypatch)
     plain = bench._factory("trees-error-nolead@7-200-1")()
     assert not plain.lead and set(plain.features.models) == {"elo", "pi", "dc", "drift"}
     assert bench._factory("trees-error@15-200-1")().features is plain.features  # one pass per set of inputs
-    for wrong in ("trees-error@7-200", "trees-error@8-200-1", "trees-outcome@7-200-1", "trees-error@7-200-1+box",
-                  "trees-error@7-200-1+xg+rest", "trees-error"):
+    assert bench._expand(["trees-outcome+xg"]) == [f"trees-outcome@{g}+xg" for g in grid]
+    outcome = bench._factory("trees-outcome-nolead@7-500-10")()
+    assert outcome.on == "outcome" and not outcome.lead and outcome.features is plain.features
+    assert bench._factory("trees-error@7-500-10")().on == "error"
+    for wrong in ("trees-error@7-200", "trees-error@8-200-1", "trees-result@7-200-1", "trees-error@7-200-1+box",
+                  "trees-error@7-200-1+xg+rest", "trees-error", "trees-outcome"):
         assert bench._factory(wrong) is None, wrong
     out = stubbed / "out"
     assert bench.main(["run", "--block", "tuning", "--models", "trees-error-nolead@7-200-1", "--out", str(out)]) == 0
