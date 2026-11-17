@@ -58,8 +58,8 @@ task N: …", "Done game-read phase 2 task N: … (<tests>, D77)", "Fix game-rea
 |---|---|---|---|---|---|
 | 1 | The fresh block (2026/27) and its guard | Done 16 Nov | b602472 | ed8ea5a | 6 new, all pass; suite 3,204 passed + the 3 known errors; 1,084 fresh matches |
 | 2 | Match statistics: export and loader | Done 16 Nov | 1be9759 | 2b2f594 | 5 new, all pass; suite 3,209 passed + the 3 known errors |
-| 3 | Shot ratings (S3) into models 3–4, through the ablation gate | Done 17 Nov | ddba5eb | the "Done game-read phase 2 task 3" commit | 8 new, all pass; suite 3,217 passed + the 3 known errors; no variant passes the gate |
-| 4 | Rest (C1) into models 3–4, through the ablation gate | Not started | | | |
+| 3 | Shot ratings (S3) into models 3–4, through the ablation gate | Done 17 Nov | ddba5eb | 82161ca | 8 new, all pass; suite 3,217 passed + the 3 known errors; no variant passes the gate |
+| 4 | Rest (C1) into models 3–4, through the ablation gate | In progress | | | |
 | 5 | The features pass and the lean-away blend (model 5b) | Not started | | | |
 | 6 | Boosted trees on the market's error (model 6) | Not started | | | |
 | 7 | Boosted trees on the outcome (model 7) | Not started | | | |
