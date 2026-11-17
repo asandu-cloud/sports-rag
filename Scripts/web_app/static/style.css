@@ -1304,6 +1304,14 @@ button.fixture-teams:hover { color: var(--accent-l); }
 .recs-board-v { color: var(--text3); font-weight: 400; }
 .recs-board-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .recs-board-count { color: var(--text2); font-size: 14px; }
+/* D123: the referee line. The name shortens first; the value picks always show in full. */
+.recs-board-count:has(.recs-ref) { flex: 1 1 auto; min-width: 0; }
+.recs-ref { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.recs-ref-icon { flex: none; color: var(--text3); }
+.recs-ref-name, .recs-ref-tbd { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recs-ref-name { color: var(--text); font-weight: 600; }
+.recs-ref-tbd { color: var(--text3); }
+.recs-ref-v { flex: none; white-space: nowrap; }
 
 /* -- Before kickoff (D71): a started match's picks, on the page ground, with nothing to bet with -- */
 .match-read-fixture-card.bk-card,
