@@ -3706,6 +3706,12 @@ leading to a full report page (panel B not chosen). Plan: `docs/superpowers/plan
   match". The report opens from the profile already loaded, with no second fetch. Research files at
   `research-20261117h`. 19 JS test files pass; checked on 8100 with a real mouse at 1280 and taps at 390, light and
   dark.
+- Task 3 (done): checked against D122's real field after main's merge (ab065ba), no stub: Como v Sassuolo "4 of 5
+  picks came in, 1 stake back" (Sassuolo +2 at 2–0), Como v Venezia 5 of 5, Inter v Como none of 3, Bayern v Leipzig 2
+  of 5, Mainz v Bayern 3 of 3; Bayern's strip holds its 9 league matches. Per the orchestrator, a pick with no outcome
+  reads "Not graded" (after extra time, or corners unknown), and a missing key leaves the section out. A push's icon is
+  now neutral grey, not the red of a loss. Research files at `research-20261117i`; 19 JS test files and the 125
+  research Python tests pass. Needs the website restart that also brings in D122.
 
 **D122 — A team's match log shows what Spix said before kickoff, graded (17 Nov; backend, frontend asked through the
 orchestrator).** Each row of `match_log` in `GET /api/research/teams/{id}` now carries `spix_before_kickoff`:

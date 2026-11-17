@@ -32,4 +32,4 @@ no rail; its back link returns to the team page.
 |---|---|---|---|
 | 1. The report | Done | 3745f89..this commit | played + all 19 *_web.js pass; 8100 at 1280 and 390, light and dark |
 | 2. The card and the sheet | Done | 97a057f..this commit | played + all 19 *_web.js pass; 8100: mouse hover and click at 1280, taps at 390, light and dark |
-| 3. Finish | In progress | | |
+| 3. Finish | Done | 55012b0..this commit | 19 *_web.js + 125 research pytest pass; real D122 data on 8100, Como and Bayern, 1440 and 390, light and dark |

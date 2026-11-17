@@ -1,8 +1,8 @@
 // A played match from a team's last 10 (D121), opened from "Last 10 at a glance": the head, the last 10 to move
 // between, the market's lead, what Spix said before kickoff (D122's spix_before_kickoff, graded by the backend) and the
 // match in numbers. Pure functions returning HTML; research.js places them and wires the clicks.
-import {escape, one} from './insight.js?v=research-20261117h';
-import {crest, whenText, opensDay, possessive} from './upcoming.js?v=research-20261117h';
+import {escape, one} from './insight.js?v=research-20261117i';
+import {crest, whenText, opensDay, possessive} from './upcoming.js?v=research-20261117i';
 
 export const PLAYED_MARKETS = [['cards', 'Cards'], ['goals', 'Goals'], ['corners', 'Corners']];
 const GAMCARE = 'https://www.gamcare.org.uk/get-support/';
@@ -26,12 +26,12 @@ function result(m) {
   return {letter: f > a ? 'W' : f < a ? 'L' : 'D', word: f > a ? 'won' : f < a ? 'lost' : 'drew', score: `${f}–${a}`};
 }
 
-export const outcomeWords = outcome => OUTCOME[outcome] || 'Not settled yet';
+export const outcomeWords = outcome => OUTCOME[outcome] || 'Not graded';
 // Counts what came in; what happened to the rest follows, so a stake back is never read as a loss or a win.
 export function pickSummary(picks) {
   const n = picks.length, by = key => picks.filter(p => (p.outcome ?? null) === key).length, won = by('won');
   const head = won === 0 && by(null) === 0 ? `None of the ${n} picks came in` : `${won} of ${n} ${n === 1 ? 'pick' : 'picks'} came in`;
-  const rest = [[by('half_won'), 'half came in'], [by('push'), 'stake back'], [by(null), 'not settled yet']].filter(([k]) => k).map(([k, w]) => `${k} ${w}`);
+  const rest = [[by('half_won'), 'half came in'], [by('push'), 'stake back'], [by(null), 'not graded']].filter(([k]) => k).map(([k, w]) => `${k} ${w}`);
   return [head, ...rest].join(', ');
 }
 // The figure a pick was settled on: the market's total, else the score as written.
@@ -49,11 +49,11 @@ function spixSection(m, market) {
   const minutes = sb.read_at ? Math.round((new Date(m.date) - new Date(sb.read_at)) / 60000) : null;
   const when = sb.read_at ? ` · read at ${whenText(sb.read_at).split(' · ')[1]}${minutes > 0 ? `, ${minutes} ${minutes === 1 ? 'minute' : 'minutes'} before` : ''}` : '';
   const row = p => {
-    const done = p.outcome === 'won' || p.outcome === 'half_won', icon = done
+    const done = p.outcome === 'won' || p.outcome === 'half_won', missed = p.outcome === 'lost' || p.outcome === 'half_lost', icon = done
       ? '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>'
-      : p.outcome === 'lost' || p.outcome === 'half_lost' ? '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>' : '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg>';
+      : missed ? '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>' : '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg>';
     const chance = Number.isFinite(p.chance) ? `${Math.round(p.chance * 100)}%` : '–';
-    return `<div class="pr-pick${p.market === market ? ' on' : ''}"><b>${escape(p.label)}</b><span class="pr-ch">${chance}</span><span class="pr-out ${done ? 'in' : p.outcome ? 'out' : 'open'}">${icon}<span>${outcomeWords(p.outcome)}<small>${escape(settledOn(m, p.market))}</small></span></span></div>`;
+    return `<div class="pr-pick${p.market === market ? ' on' : ''}"><b>${escape(p.label)}</b><span class="pr-ch">${chance}</span><span class="pr-out ${done ? 'in' : missed ? 'out' : 'open'}">${icon}<span>${outcomeWords(p.outcome)}<small>${escape(settledOn(m, p.market))}</small></span></span></div>`;
   };
   const group = (title, list) => list?.length ? `<p class="pr-group">${title}</p>${list.map(row).join('')}` : '';
   return `${open}<p class="pr-cap">As the board showed it at kickoff${when}</p><p class="pr-sum">${pickSummary(picks)}</p>

@@ -73,10 +73,17 @@ const sectionOf = (html, label) => html.match(new RegExp(`<section class="pr-car
   // The other outcomes say what happened to the stake; the summary counts only what came in.
   assert.equal(p.pickSummary([{outcome: 'won'}, {outcome: 'won'}, {outcome: 'push'}, {outcome: 'half_won'}, {outcome: 'half_lost'}]),
     '2 of 5 picks came in, 1 half came in, 1 stake back');
-  assert.equal(p.pickSummary([{outcome: 'won'}, {outcome: null}]), '1 of 2 picks came in, 1 not settled yet');
+  assert.equal(p.pickSummary([{outcome: 'won'}, {outcome: null}]), '1 of 2 picks came in, 1 not graded');
+  // The icon's colour: in for won and half won, out for lost and half lost; a push and an ungraded pick stay neutral.
+  const kinds = ['won', 'half_won', 'lost', 'half_lost', 'push', null].map(outcome => {
+    const one = JSON.parse(JSON.stringify(como)), row = one.match_log[one.match_log.length - 2];
+    row.spix_before_kickoff = {read_at: '2026-11-01T11:02:11Z', most_likely: [{label: 'x', market: 'goals', chance: 0.7, outcome}], value: []};
+    return p.playedReport(one, 8, 'goals').match(/class="pr-out ([a-z]+)"/)[1];
+  });
+  assert.deepEqual(kinds, ['in', 'in', 'out', 'out', 'open', 'open']);
   assert.equal(p.pickSummary([{outcome: 'won'}]), '1 of 1 pick came in');
   assert.deepEqual(['won', 'lost', 'push', 'half_won', 'half_lost', null].map(p.outcomeWords),
-    ['Came in', 'Did not come in', 'Stake back', 'Half came in', 'Half lost', 'Not settled yet']);
+    ['Came in', 'Did not come in', 'Stake back', 'Half came in', 'Half lost', 'Not graded']);
 
   // The match in numbers: Como then the opponent, the bars scaled to the larger of the two, Como's usual beside.
   const nums = sectionOf(ven, 'The match in numbers');
@@ -104,7 +111,7 @@ const sectionOf = (html, label) => html.match(new RegExp(`<section class="pr-car
   // research.js routes #research/played/teams/<id>/<scope>/<fixture_id>/<market> to the report, drawn in the match view.
   const research = fs.readFileSync(path.join(__dirname, '../web_app/static/research/research.js'), 'utf8');
   assert.match(research, /if \(parts\[0\] === 'played' && parts\[1\]\) return showPlayed\(/);
-  assert.match(research, /import \{playedReport, glanceCard, glanceSheet\} from '\.\/played\.js\?v=research-20261117h'/);
+  assert.match(research, /import \{playedReport, glanceCard, glanceSheet\} from '\.\/played\.js\?v=research-20261117i'/);
   assert.match(research, /\[data-played\]/);
   assert.match(research, /\[data-played-market\]/);
   assert.match(research, /strip\.scrollLeft = pill\.offsetLeft - \(strip\.clientWidth - pill\.offsetWidth\) \/ 2/, 'a phone shows the open match in the strip');
