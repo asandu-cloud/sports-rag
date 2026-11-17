@@ -201,3 +201,21 @@ def test_the_average_runs_its_members_and_fits_its_weights_on_tuning_seasons_onl
     assert all(sum(part.values()) == pytest.approx(1) for part in weights.values())
     report = (out / "report.md").read_text()
     assert "## The average's weights" in report and "in-sample" in report
+
+
+def test_a_variant_runs_its_base_and_is_gated_against_it(stubbed, monkeypatch, history):
+    from Scripts.data_platform.game_read.stats import MatchStats
+    rng = np.random.default_rng(9)
+    table = {m.id: MatchStats(home_box=int(rng.poisson(9)), away_box=int(rng.poisson(7)), home_outside=5,
+                              away_outside=4, home_target=3, away_target=2) for m in history}
+    monkeypatch.setattr(bench, "_stats", lambda: table)
+    out = stubbed / "out"
+    assert bench.main(["run", "--block", "tuning", "--models", "dc+box", "--out", str(out)]) == 0
+    summary = json.loads((out / "summary.json").read_text())
+    assert summary["run"]["models"] == ["market", "control", "dc", "dc+box"]
+    found = summary["models"]["dc+box"]["ablation"]
+    assert found["base"] == "dc" and set(found["tuning"]) == {"result", "over25"}
+    assert found["tuning"]["result"]["n"] == 96 and isinstance(found["passed"], bool)
+    assert "ablation" not in summary["models"]["dc"]
+    assert "## Ablation" in (out / "report.md").read_text()
+    assert bench.main(["run", "--block", "tuning", "--models", "dc+nothing", "--out", str(stubbed / "x")]) == 2

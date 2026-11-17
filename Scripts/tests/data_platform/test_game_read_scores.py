@@ -181,3 +181,26 @@ def test_verdicts_apply_the_spec_rules():
     assert found["best_price"] == {"value": False, "picks": False}  # derived lines no better than the control
     assert found["losing"] == {"value": False, "picks": False}
     assert found["control"] == {"picks": False}
+
+
+def test_the_gate_needs_half_a_percent_and_no_league_worse_than_two():
+    pre = Prices(result_avg=(2.10, 3.40, 3.60))
+    rows = [Match(id=i, competition=("EPL", "LaLiga")[i % 2], country="X", season=2019,
+                  day=date(2019, 9, 1) + timedelta(days=7 * (i // 4)), home="X:a", away="X:b", home_goals=1,
+                  away_goals=0, pre=pre, close=pre) for i in range(40)]
+    base = [(m, Forecast(result=(1 / 3, 1 / 3, 1 / 3))) for m in rows]
+    better = [(m, Forecast(result=(0.5, 0.25, 0.25))) for m in reversed(rows)]  # paired by match, not by order
+    found = scores.ablation(base, better, "result")
+    assert found["estimate"] == pytest.approx(100 * (math.log(3) - math.log(2)) / -math.log(3))
+    assert found["n"] == 40 and set(found["by_league"]) == {"EPL", "LaLiga"}
+    assert scores.gate(found)
+    assert scores.ablation(base, better, "over25")["n"] == 0
+
+    def summary(estimate, high, worst):
+        return {"estimate": estimate, "low": estimate - 1, "high": high,
+                "by_league": {"EPL": {"estimate": estimate, "n": 10}, "LaLiga": {"estimate": worst, "n": 10}}}
+    assert scores.gate(summary(-0.6, -0.1, 1.9))
+    assert not scores.gate(summary(-0.4, -0.1, -0.4))  # less than half a percent better
+    assert not scores.gate(summary(-0.6, 0.1, -0.6))  # the interval reaches zero
+    assert not scores.gate(summary(-0.6, -0.1, 2.1))  # one league more than 2% worse
+    assert not scores.gate({"estimate": None, "low": None, "high": None, "by_league": {}})

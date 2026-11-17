@@ -171,6 +171,32 @@ def _average(models) -> list:
             *_table(["Part", *names], rows)]
 
 
+def _ablation(models) -> list:
+    variants = {name: found["ablation"] for name, found in models.items() if found.get("ablation")}
+    if not variants:
+        return []
+    lines = ["## Ablation", "",
+             "Each variant's log loss minus its base model's, in % of the base's (below zero: the variable helps). "
+             "The gate (D12): at least 0.5% better, the interval below zero, and no league more than 2% worse. A "
+             "variable passes on the tuning seasons when it clears the gate on the result or over 2.5 without making "
+             "the other worse (its interval above zero).", ""]
+    for block in [b for b in ("tuning", "locked", "fresh") if any(b in found for found in variants.values())]:
+        rows = []
+        for name, found in variants.items():
+            for market, a in found.get(block, {}).items():
+                worst = max(((league, v["estimate"]) for league, v in a["by_league"].items()
+                             if v["estimate"] is not None), key=lambda pair: pair[1], default=(None, None))
+                rows.append((name, found["base"], MARKETS[market], _per_100(a["estimate"]), _interval(a, _per_100),
+                             "—" if worst[0] is None else f"{worst[0]} {_per_100(worst[1])}", _count(a["n"]),
+                             _yes(a["gate"])))
+        lines += [f"### {TITLES[block].capitalize()}", "",
+                  *_table(["Variant", "Base", "Market", "Change %", "Interval", "Worst league", "Matches", "Gate"],
+                          rows)]
+    lines += ["Passed on the tuning seasons: " + (", ".join(n for n, f in variants.items() if f["passed"]) or "none")
+              + ".", ""]
+    return lines
+
+
 def _reference(reference) -> list:
     rows = [(season, _points(found["mean"]).lstrip("+"), _points(found["p95"]).lstrip("+"), _count(found["n"]))
             for season, found in reference.items()]
@@ -218,7 +244,7 @@ def _report(results) -> list:
             "Every interval is 95%, from 2,000 resamples of whole weeks.", "",
             *_zero_line(results), *_accuracy(models), *_blend(models), *_picks(models), *_value(models),
             *_closing(models), *_leagues(models), *_verdicts(results["verdicts"]), *_control(models),
-            *_average(models), *_reference(results["reference"]), *_opportunities(results["opportunities"])]
+            *_average(models), *_ablation(models), *_reference(results["reference"]), *_opportunities(results["opportunities"])]
 
 
 def write(out_dir, results: Mapping) -> None:

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+from functools import lru_cache
 import json
 from pathlib import Path
 import subprocess
@@ -30,6 +31,7 @@ from Scripts.data_platform.game_read.models.drifting import Drifting
 from Scripts.data_platform.game_read.models.elo import Elo
 from Scripts.data_platform.game_read.models.market import MarketControl, MarketCopy
 from Scripts.data_platform.game_read.models.pi_ratings import PiRatings
+from Scripts.data_platform.game_read.models.shots import KINDS, ShotVariable
 from Scripts.data_platform.services.refresh_coordination import RefreshBusy
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -38,12 +40,48 @@ BENCH_CODE = ("Scripts/data_platform/game_read", "Scripts/ops/game_read_bench.py
 REFERENCES = ("market", "control")
 MODELS = {"market": MarketCopy, "control": MarketControl, "elo": Elo, "pi": PiRatings, "dc": DixonColes,
           "drift": Drifting}
+# Phase 2 variants: a model with one more variable is named "<model>+<variable>" and is gated against "<model>".
+for _kind in KINDS:
+    for _name, _model in (("dc", DixonColes), ("drift", Drifting)):
+        MODELS[f"{_name}+{_kind}"] = (lambda model=_model, kind=_kind:
+                                      model(variables=(ShotVariable(kind, _stats()),)))
+ABLATED = ("result", "over25")
 AVERAGE = "average"  # built from its members' rows in the run, with weights fitted on the tuning seasons only
 ZERO_BLEND = 1e-6
 
 
 def _load(leagues):
     return history.load_matches(competitions=leagues or None)
+
+
+@lru_cache(maxsize=1)
+def _stats():
+    return stats.load()
+
+
+def _with_bases(names) -> list:
+    """Each variant preceded by the model it is gated against ("dc+box+rest" after "dc+box", after "dc")."""
+    found = []
+    for name in names:
+        parts = name.split("+")
+        for size in range(1, len(parts) + 1):
+            if (base := "+".join(parts[:size])) not in found:
+                found.append(base)
+    return found
+
+
+def _ablation(base: str, base_rows, rows, blocks) -> dict:
+    """The variant against its base on each block, per market, and whether it passes on the tuning seasons: the
+    gate on the result or over 2.5, without the other's interval above zero."""
+    found = {"base": base}
+    for block in blocks:
+        pick = lambda pairs: [row for row in pairs if history.block(row[0].season) == block]
+        found[block] = {market: {**(a := scores.ablation(pick(base_rows), pick(rows), market)), "gate": scores.gate(a)}
+                        for market in ABLATED}
+    tuning = found["tuning"]
+    found["passed"] = any(tuning[market]["gate"] and not ((tuning[other]["low"] or 0) > 0)
+                          for market, other in (ABLATED, ABLATED[::-1]))
+    return found
 
 
 def _named():
@@ -112,7 +150,7 @@ def run(args) -> int:
         print(f"The bench code has uncommitted changes; a {args.block} run needs committed code:\n{changes}",
               file=sys.stderr)
         return 2
-    names = [*REFERENCES, *(name for name in args.models if name not in (*REFERENCES, AVERAGE))]
+    names = [*REFERENCES, *_with_bases(name for name in args.models if name not in (*REFERENCES, AVERAGE))]
     if AVERAGE in args.models:
         names += [*(name for name in average.MEMBERS if name not in names), AVERAGE]
     unknown = [name for name in names if name not in MODELS and name != AVERAGE]
@@ -123,7 +161,7 @@ def run(args) -> int:
     started, clock = datetime.now(timezone.utc), time.perf_counter()
     matches = _load(args.leagues)
     until = {"tuning": history.LOCKED_FROM - 1, "locked": history.FRESH_FROM - 1}.get(args.block)
-    results, zero, members = {}, None, {}
+    results, zero, members, all_rows = {}, None, {}, {}
     for name in names:
         if name == AVERAGE:
             weights = average.fit_all({member: [row for row in members[member]
@@ -134,11 +172,15 @@ def run(args) -> int:
             rows = walkforward.run(MODELS[name](), matches, score_from=history.TUNING_FROM, until=until)
             if name in average.MEMBERS:
                 members[name] = rows
+        all_rows[name] = rows
         tuning = [row for row in rows if history.block(row[0].season) == "tuning"]
         scored = [row for row in rows if history.block(row[0].season) == args.block]
         results[name] = _score(scored, tuning)
         if name == AVERAGE:
             results[name]["weights"] = weights
+        if "+" in name:
+            base = name.rsplit("+", 1)[0]
+            results[name]["ablation"] = _ablation(base, all_rows[base], rows, dict.fromkeys(("tuning", args.block)))
         if name == "market":
             zero = zero_line(results[name])
             if not zero["passed"]:
