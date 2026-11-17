@@ -59,7 +59,7 @@ on it. The Discord bot still runs the old engine until A7.
   highlighter, and mint cream `#F2FFFA` is the light ground; the dark theme uses a light cobalt `#88B4F2`. Since
   9 Nov evening the dark theme is "cobalt night" (D85): near-black greys with a faint cobalt tint (`--bg #111316`)
   and mint cream text. Cache tags are `nextmatch-20261110a` (style.css; D96), `loaders-20261116c` (app.js; D112),
-  `research-20261116r` (the research files; D107, D111, D112), `loaders-20261117a` (loaders.js/.css; D112, D113) and `night-20261109a` (theme.js). Open for the owner: the steel blue of the Away segment and the "preliminary" label now sits close to
+  `research-20261117a` (the research files; D107, D111, D112, D114), `loaders-20261117a` (loaders.js/.css; D112, D113) and `night-20261109a` (theme.js). Open for the owner: the steel blue of the Away segment and the "preliminary" label now sits close to
   the cobalt.
 - **Home page opening live 11 Nov (D98, owner).** "Every match, read for you", with three tilted packs from the
   real read of Brighton v Brentford (8 Nov, labelled Example). It replaced D87's Arsenal v Chelsea animation
