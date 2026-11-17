@@ -543,6 +543,15 @@ function slipChance(slipLegs) {
   return chance;
 }
 
+// The referee line (D123): a whistle, the referee or TBD, then the match's value picks. Only the name gives way when
+// the line runs short.
+const RECS_WHISTLE = '<svg class="recs-ref-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="14" r="5"/><path d="M12.5 10.5 21 7v4l-6 2.2"/><path d="M6 6.5 4.5 5M9 5.5V3.5M12 6.5l1.5-1.5"/></svg>';
+function recsRefereeLine(referee, values) {
+  const name = referee?.name ? `<span class="recs-ref-name">${esc(referee.name)}</span>` : '<span class="recs-ref-tbd">TBD</span>';
+  const value = values ? `<span class="recs-ref-v">· ${pluralise(values, 'value pick')}</span>` : '';
+  return `<span class="recs-ref">${RECS_WHISTLE}<span class="sr-only">Referee </span>${name}${value}</span>`;
+}
+
 // The board card: the first Most likely pick, then the match and how much there is to see.
 function renderRecsBoardCard(f, homeEmblem, awayEmblem) {
   const block = f.recommendations;
@@ -562,7 +571,9 @@ function renderRecsBoardCard(f, homeEmblem, awayEmblem) {
       <p class="recs-note">Suggestions come once the bookmakers price this match.</p>`;
   }
   const values = block?.value?.length || 0;
-  const counts = recsPriced(block)
+  // The referee once the board's data carries the key (null: not named yet); until then the count of suggestions.
+  const counts = f.referee !== undefined ? recsRefereeLine(f.referee, values)
+    : recsPriced(block)
     ? [pluralise(recsSuggestionCount(block), 'suggestion'), values ? pluralise(values, 'value pick') : ''].filter(Boolean).join(' · ')
     : '';
   return `
@@ -2031,6 +2042,9 @@ const appModule = {
         : [],
       selectionRelationship: card.game_script?.selection_relationship || '',
       tags: Array.isArray(card.game_script?.tags) ? card.game_script.tags : [],
+      // D123: undefined while the board's data has no referee key, null until one is named.
+      referee: !('referee' in fixture) ? undefined
+        : fixture.referee?.name ? { name: String(fixture.referee.name), key: fixture.referee.referee_key || null } : null,
       update,
       markets,
       recommendations: recommendationsFor(card, window.location.search),

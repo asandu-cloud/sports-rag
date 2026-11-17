@@ -138,6 +138,20 @@ assert.match(text(board), /Under 11\.5 corners about 3 in 4 · 72% 1\.32/);
 assert.match(text(board), /3 suggestions · 1 value pick/);
 assert.match(text(h.renderRecsBoardCard(empty, '', '')), /Not priced yet/);
 
+// D123: once the board's data carries the referee key, the line names the referee (a whistle, then the name, then the
+// value picks); null reads TBD; a missing key keeps the count above, so nothing reads TBD before the field exists.
+const oliver = h.renderRecsBoardCard({ ...fixture, referee: { name: 'Michael Oliver', key: 'm-oliver' } }, '', '');
+assert.doesNotMatch(oliver, /suggestions/);
+assert.match(oliver, /<span class="recs-board-count"><span class="recs-ref"><svg class="recs-ref-icon"[^>]*aria-hidden="true">/);
+assert.match(oliver, /<span class="sr-only">Referee <\/span><span class="recs-ref-name">Michael Oliver<\/span><span class="recs-ref-v">· 1 value pick<\/span>/);
+assert.match(text(oliver), /Referee Michael Oliver · 1 value pick View match/);
+const noValueCard = { ...fixture, recommendations: { ...block, value: [] } };
+assert.match(text(h.renderRecsBoardCard({ ...noValueCard, referee: null }, '', '')), /Referee TBD View match/);
+assert.match(h.renderRecsBoardCard({ ...noValueCard, referee: null }, '', ''), /<span class="recs-ref-tbd">TBD<\/span><\/span><\/span>/);
+assert.match(text(h.renderRecsBoardCard({ ...fixture, recommendations: { ...block, value: [block.value[0], block.value[0]] }, referee: null }, '', '')), /Referee TBD · 2 value picks/);
+assert.match(text(h.renderRecsBoardCard({ ...empty, referee: { name: 'Felix Zwayer', key: 'f' } }, '', '')), /Not priced yet[\s\S]*Referee Felix Zwayer View match/, 'an unpriced match still names its referee');
+assert.doesNotMatch(h.renderRecsBoardCard({ ...fixture, referee: { name: '<b>x</b>', key: 'x' } }, '', ''), /<b>x/);
+
 // ?recs=off hides the block, so the page falls back to the old summary for comparison.
 assert.equal(h.recommendationsFor({ recommendations: block }, '?recs=off'), null);
 assert.equal(h.recommendationsFor({ recommendations: block }, ''), block);
@@ -150,6 +164,12 @@ const normaliser = Function('briefingFigures', 'recommendationsFor', 'window', `
   { location: { search: '?recs=off' } });
 Object.assign(normaliser, { _formatMatchReadSelection: () => '', _formatFixtureTime: () => '22:00' });
 assert.equal(normaliser._normaliseMatchReadCard({ id: 1, status: 'no_bet', recommendations: block }, 'UCL').recommendations, null);
+// D123: the board's referee, kept apart from a missing key.
+const withRef = referee => normaliser._normaliseMatchReadCard({ id: 2, status: 'no_bet', fixture: { event_id: '9', referee } }, 'EPL').referee;
+assert.deepEqual(withRef({ name: 'Michael Oliver', referee_key: 'm-oliver-9b083744' }), { name: 'Michael Oliver', key: 'm-oliver-9b083744' });
+assert.equal(withRef(null), null);
+assert.equal(withRef({ name: '' }), null);
+assert.equal(normaliser._normaliseMatchReadCard({ id: 3, status: 'no_bet', fixture: { event_id: '10' } }, 'EPL').referee, undefined);
 
 console.log('Recommendation layer page, explorer, board card and ?recs=off checks passed.');
 

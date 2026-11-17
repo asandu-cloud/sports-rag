@@ -4317,6 +4317,19 @@ Chroma as a separate stage whose failure is a warning. Finding: Chroma's result 
 guaranteed (20–22 of 881 queries came back in a different order in two runs with no writes, 0 in
 three later runs; cause not established); the store's order is fixed.
 
+**D123 — The referee on the board cards (17 Nov; frontend, owner).** The owner asked for the referee on the board's
+match cards, in place of the "n suggestions" line at the bottom left, with TBD while none is named. From the mockups on
+real 7–8 Nov cards (https://claude.ai/artifact/Ei3VKaLRtHftCBz42qY7Ki) the owner chose a whistle, then the referee's
+name, then the match's value picks ("Clement Turpin · 1 value pick"); no referee: the whistle and TBD. When the line
+runs short only the name shortens; the value-pick count always shows in full. Screen readers hear "Referee".
+- Reads `card.fixture.referee` (`{name, referee_key}` or null), the backend's D124 field on the Match Read cards. A
+  missing key keeps the old count line, so no card reads TBD before D124 is live. Upcoming cards only; the Live tab's
+  cards do not change.
+- `app.js` and `style.css` at `referee-20261117a`. 19 JS test files pass (`test_recommendations_web.js`: the line, TBD,
+  plural value picks, an unpriced match, escaping, the normaliser's missing key). Checked on 8100 with the real board code
+  on 7–8 Nov cards and their real referees, at 1440 (light, dark) and 390: one name shortens on desktop (Claudio
+  Giuseppe Allegretta), two on a phone; no value count is cut; a card without the key keeps "5 suggestions".
+
 ## How to resume in a new session
 
 1. Read this file, then `git log --oneline` since the last commit listed above.
