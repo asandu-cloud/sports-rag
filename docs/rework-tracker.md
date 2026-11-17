@@ -3685,6 +3685,32 @@ team bars (D118) measured 1.97:1 against the card, under the usual 3:1 for chart
 keeps Spix cobalt `#0246A4`. `style.css` at `charts-20261117b`; the research files are unchanged
 (`research-20261117f`). 18 JS test files pass; checked on 8100 on Bayern's page at 1100 and 390, light and dark.
 
+**D122 — A team's match log shows what Spix said before kickoff, graded (17 Nov; backend, frontend asked through the
+orchestrator).** Each row of `match_log` in `GET /api/research/teams/{id}` now carries `spix_before_kickoff`:
+- `null` when no read was kept for that match, otherwise `{"read_at", "most_likely": [...], "value": [...]}`. Each
+  pick is `{"label", "market", "side", "line", "chance", "outcome"}`, up to 3 Most likely and 2 Value.
+- The lists are the board's before-kickoff record (D70): the read a visitor could see a second before kickoff,
+  through the board's own `_before_kickoff`.
+- `outcome` is won, lost, push, half_won, half_lost, or null while it waits. Grading is the home page reel's
+  (`home_wins.grade`, D99): `settlement.asian_outcome`, so quarter lines settle in halves, on full time only. A
+  match after extra time stays null, and so does a corners pick when a team's corners are unknown. The log's
+  filled-in zeros are never read as a count.
+- The key is left out when the board's switch `SPIX_BEFORE_KICKOFF` is off, and while the refresh holds the gate
+  for a match not yet remembered. A missing key means "not available now", never "no read".
+- The lookup is read-only, runs inside `read_gate()`, and needs no migration. A started match's answer never
+  changes, so the website reads each match once and remembers it (up to 5,000 matches, cleared at restart).
+  - First view of a team: about 0.6 s, or 1.7 s in a fresh process. Later views: 0.01 s.
+  - The rest of the profile still reads without the gate, as before D122; gating it would turn team pages into
+    503s during the refresh, which is the frontend's and the owner's call.
+- Players and referees: not done. Their logs would need the same lookup and a player's side of each match; ask if
+  wanted.
+- Checked on real data (gated, read-only): Como shows reads for 3 of its last 10.
+  - Sassuolo 24 Oct (3 Most likely won; Value "Sassuolo +2" push at 2–0).
+  - Venezia 1 Nov (3 Most likely and 2 Value, all won).
+  - Inter 8 Nov (3 Most likely, all lost).
+- 2 new tests (the service with a stand-in lookup; the route with a real saved read, remembered after the first
+  view). Suite 3,235 passed plus the 3 known worktree errors; golden check unchanged. Needs a website restart.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
