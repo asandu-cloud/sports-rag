@@ -285,3 +285,23 @@ def test_trees_names_expand_to_the_grid_and_share_one_pass(stubbed, monkeypatch)
     assert summary["run"]["models"] == ["market", "control", "trees-error-nolead@7-200-1"]
     fitted = summary["models"]["trees-error-nolead@7-200-1"]["fits"]["2019"]
     assert {"train", "stop", "result", "over25", "handicap"} <= set(fitted)
+
+
+def test_the_average_takes_the_members_it_is_given(stubbed, monkeypatch):
+    seen, fit_all = [], bench.average.fit_all
+    monkeypatch.setattr(bench.average, "fit_all", lambda rows: seen.append(rows) or fit_all(rows))
+    out = stubbed / "out"
+    assert bench.main(["run", "--models", "average", "--average-of", "dc,lean-elo", "--average-diagnostic",
+                       "--block", "tuning", "--out", str(out)]) == 0
+    assert len(seen) == 1 and set(seen[0]) == {"dc", "lean-elo"}
+    assert {m.season for rows in seen[0].values() for m, _ in rows} == {2019}
+    summary = json.loads((out / "summary.json").read_text())
+    assert summary["run"]["models"] == ["market", "control", "dc", "lean-elo", "average"]
+    found = summary["models"]["average"]
+    assert found["members"] == ["dc", "lean-elo"] and found["diagnostic"]
+    # the lean blend gives only the result, so the goal lines come from dc alone
+    assert set(found["weights"]["result"]) == {"dc", "lean-elo"} and set(found["weights"]["goals"]) == {"dc"}
+    report = (out / "report.md").read_text()
+    assert "## The average's weights" in report and "lean-elo" in report and "diagnostic" in report
+    assert bench.main(["run", "--models", "average", "--average-of", "nonsense", "--block", "tuning",
+                       "--out", str(stubbed / "wrong")]) == 2

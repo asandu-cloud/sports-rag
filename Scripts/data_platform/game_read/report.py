@@ -159,7 +159,9 @@ def _average(models) -> list:
     weights = models.get("average", {}).get("weights")
     if not weights:
         return []
-    names = [name for name in ("elo", "pi", "dc", "drift") if any(name in part for part in weights.values())]
+    found = models["average"]
+    names = [name for name in found.get("members", ("elo", "pi", "dc", "drift"))
+             if any(name in part for part in weights.values())]
     titles = {"result": "Result", "handicap": "Goal difference (handicaps)", "goals": "Score matrix (goal lines, both "
               "teams to score)"}
     rows = [[titles[part], *(f"{weights[part][name]:.2f}" if name in weights[part] else "—" for name in names)]
@@ -168,6 +170,8 @@ def _average(models) -> list:
             "A weighted average of the members on the log scale; each part's weights are never negative, sum to 1 "
             "and are fitted on the tuning seasons only. A member without a score matrix takes no part in it. Its scores "
             "on the tuning seasons are therefore in-sample; the locked seasons are its fair test.", "",
+            *(["Run as a diagnostic: no member passed on the tuning seasons, so this averages the best variant of "
+               "each family. It is not a candidate.", ""] if found.get("diagnostic") else []),
             *_table(["Part", *names], rows)]
 
 

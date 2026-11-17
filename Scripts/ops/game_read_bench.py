@@ -63,7 +63,7 @@ _PASSES = {}
 # Variables kept by the owner's choice although they missed the gate; every report that uses one says so.
 CARRIED = {"xg": "the derived shot-location xG missed the 0.5% gate in phase 2 task 3 (−0.39% on the result, "
                  "[−0.51, −0.26]); the owner carried it forward on 17 Nov"}
-AVERAGE = "average"  # built from its members' rows in the run, with weights fitted on the tuning seasons only
+AVERAGE = "average"  # built from its members' rows in the run (--average-of), weights fitted on tuning seasons only
 ZERO_BLEND = 1e-6
 
 
@@ -236,7 +236,7 @@ def run(args) -> int:
     _PASSES.clear()
     names = [*REFERENCES, *_with_bases(_expand(name for name in args.models if name not in (*REFERENCES, AVERAGE)))]
     if AVERAGE in args.models:
-        names += [*(name for name in average.MEMBERS if name not in names), AVERAGE]
+        names += [*(name for name in _with_bases(args.average_of) if name not in names), AVERAGE]
     unknown = [name for name in names if _factory(name) is None and name != AVERAGE]
     if unknown:
         print(f"Unknown models: {', '.join(unknown)} (known: {', '.join(MODELS)}, and {' or '.join(WITH_VARIABLES)} "
@@ -253,19 +253,19 @@ def run(args) -> int:
         if name == AVERAGE:
             weights = average.fit_all({member: [row for row in members[member]
                                                 if history.block(row[0].season) == "tuning"]
-                                       for member in average.MEMBERS})
-            rows = average.combine_rows({member: members[member] for member in average.MEMBERS}, weights)
+                                       for member in args.average_of})
+            rows = average.combine_rows({member: members[member] for member in args.average_of}, weights)
         else:
             model = _factory(name)()
             rows = walkforward.run(model, matches, score_from=history.TUNING_FROM, until=until)
-            if name in average.MEMBERS:
+            if name in args.average_of:
                 members[name] = rows
         all_rows[name] = rows
         tuning = [row for row in rows if history.block(row[0].season) == "tuning"]
         scored = [row for row in rows if history.block(row[0].season) == args.block]
         results[name] = _score(scored, tuning)
         if name == AVERAGE:
-            results[name]["weights"] = weights
+            results[name].update(weights=weights, members=list(args.average_of), diagnostic=args.average_diagnostic)
         if isinstance(model, Trees):  # each season's fit: its training seasons, and the rounds each part kept
             results[name]["fits"] = {str(season): fitted for season, fitted in sorted(model.fits.items())
                                      if history.block(season) in ("tuning", args.block)}
@@ -329,6 +329,10 @@ def main(argv=None) -> int:
     bench = commands.add_parser("run", help="score models and write the report")
     bench.add_argument("--models", type=lambda text: [n for n in text.split(",") if n], default=list(REFERENCES),
                        help="comma-separated; market and control always run first")
+    bench.add_argument("--average-of", type=lambda text: [n for n in text.split(",") if n],
+                       default=list(average.MEMBERS), help="comma-separated: the average's members (model 9)")
+    bench.add_argument("--average-diagnostic", action="store_true",
+                       help="no member passed on the tuning seasons: label the average a diagnostic in the report")
     bench.add_argument("--block", choices=("tuning", "locked", "fresh"), required=True)
     bench.add_argument("--confirm-locked", action="store_true", help="name this run as the one locked or fresh run")
     bench.add_argument("--leagues", nargs="*", default=None, help="competition names, e.g. EPL LaLiga")

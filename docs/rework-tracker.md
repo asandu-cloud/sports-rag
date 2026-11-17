@@ -3225,6 +3225,20 @@ backend).** The number was held since 7 Nov (D78).
     - *Variants tried so far:* 77 (task 3: 6, task 4: 2, task 5: 5, task 6: 32, task 7: 32).
     - 1 new test, and the bench test extended; suite 3,231 passed plus the 3 known worktree errors; golden check
       unchanged.
+  - **Phase 2 task 8 done (17 Nov): the average takes the members it is given (model 9, second version).**
+    - `--average-of a,b,c` names the members, which can be any bench model. Without it, the average is phase 1's
+      elo, pi, dc and drift. Each member's base also runs, for its gate.
+    - `--average-diagnostic` labels it in the report as a diagnostic, not a candidate.
+    - The weights are still fitted on the tuning seasons only, part by part. A member that gives only the result
+      and lines (the lean blends, the trees) takes part in the result only, so the goal lines and handicaps come
+      from the rating members.
+    - *No phase 2 model passed on the tuning seasons, so task 9 runs the diagnostic.* Its members are each family's
+      best on the tuning result:
+      - `dc+xg` (ratings; tied with `dc+box`, and the xG is the variable the owner kept);
+      - `lean-average` (model 5b);
+      - `trees-error-nolead@15-500-10+xg` (model 6).
+      - Model 7 is left out: its best settings are exact copies of the market.
+    - 1 new test; suite 3,232 passed plus the 3 known worktree errors; golden check unchanged.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
