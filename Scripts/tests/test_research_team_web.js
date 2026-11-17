@@ -70,7 +70,10 @@ const text = html => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').replace(
   // Spix cobalt for the team in both themes (owner); the name above is text, so it keeps the readable accent.
   const css = fs.readFileSync(path.join(__dirname, '../web_app/static/research/research.css'), 'utf8');
   const style = fs.readFileSync(path.join(__dirname, '../web_app/static/style.css'), 'utf8');
-  assert.equal((style.match(/--chart-team: #0246A4;/g) || []).length, 2, 'light and dark');
+  // Owner, 17 Nov (D119): the dark theme uses the light cobalt, as the label does, so the bars clear 3:1 on the
+  // dark card (cobalt measured 1.97:1); the light theme keeps Spix cobalt.
+  assert.match(style.slice(0, style.indexOf(':root[data-theme="dark"]')), /--chart-team: #0246A4;/, 'light');
+  assert.match(style.slice(style.indexOf(':root[data-theme="dark"]')), /^\s*--chart-team: #88B4F2;/m, 'dark');
   assert.match(css, /\.profile \.ud-up\{[^}]*background:var\(--chart-team\)/);
   assert.match(css, /\.profile \.ud-down\{[^}]*background:var\(--chart-muted\)/);
   assert.match(css, /\.profile \.ud-name-up\{[^}]*color:var\(--accent-l\)/);
