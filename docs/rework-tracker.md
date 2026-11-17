@@ -3454,6 +3454,12 @@ and the plot reserves that much above itself. The minutes chart had the same fau
 card's heading. It now reserves room too. Research files at `research-20261117b`. 18 JS test files pass. Checked on
 8100 on Olise's page at 1440 and 390: the highest dot now sits 16 px below the legend.
 
+**D116 — "Home and away" draws thin connectors again (17 Nov; frontend).** Found while photographing the charts for
+the owner's colour question. The bar joining each home and away dot had the class `link`, and the text-button rule
+`.link` (added in D107 task 6, `min-height:44px`) also matched it, so every connector drew as a 44 px grey block
+hanging below its row, in both themes. It is now `dumb-link`, a 4 px line again. Research files at
+`research-20261117c`. 18 JS test files pass; checked on 8100 on Bayern's page (Bundesliga 2026/27).
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A

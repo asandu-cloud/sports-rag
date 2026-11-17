@@ -1,7 +1,7 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261117b';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead, columnHeadroom} from './insight.js?v=research-20261117b';
-import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261117b';
-import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261117b';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261117c';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead, columnHeadroom} from './insight.js?v=research-20261117c';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261117c';
+import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261117c';
 
 const API = '/api/research';
 // The site's loaders (loaders.js, D112), with the old line if the kit or its styles are missing.
@@ -695,7 +695,7 @@ function mountResearch(root, navigate) {
     const {max} = niceMax(Math.max(...rows.flatMap(([, h, a]) => [h, a])), 2);
     const row = ([label, h, a]) => {
       const lo = Math.min(h, a), hi = Math.max(h, a), text = `${label}: home ${fixed(h)}, away ${fixed(a)} per match`;
-      return `<div class="dumb-row"><span>${label}</span><b class="dumb-h"><i style="background:var(--chart-1)"></i>${fixed(h)}</b><span class="dumb-track" role="img" aria-label="${escape(text)}"><span class="link" style="left:${lo / max * 100}%;width:${(hi - lo) / max * 100}%"></span><span class="d" style="left:${h / max * 100}%;background:var(--chart-1)"></span><span class="d" style="left:${a / max * 100}%;background:var(--chart-2)"></span></span><b class="dumb-a">${fixed(a)}<i style="background:var(--chart-2)"></i></b></div>`;
+      return `<div class="dumb-row"><span>${label}</span><b class="dumb-h"><i style="background:var(--chart-1)"></i>${fixed(h)}</b><span class="dumb-track" role="img" aria-label="${escape(text)}"><span class="dumb-link" style="left:${lo / max * 100}%;width:${(hi - lo) / max * 100}%"></span><span class="d" style="left:${h / max * 100}%;background:var(--chart-1)"></span><span class="d" style="left:${a / max * 100}%;background:var(--chart-2)"></span></span><b class="dumb-a">${fixed(a)}<i style="background:var(--chart-2)"></i></b></div>`;
     };
     return `<section class="card"><div class="card-h"><h3>Home and away</h3><small>Per match</small></div>
       <div class="legend"><span><i class="dot" style="background:var(--chart-1)"></i>Home (${ha.home.matches})</span><span><i class="dot" style="background:var(--chart-2)"></i>Away (${ha.away.matches})</span></div>
@@ -1070,8 +1070,8 @@ class SpixResearch extends HTMLElement {
     if (kit) { root.adoptedStyleSheets = [kit]; kitAdopted = true; }
     root.innerHTML = loading('roll', 'Loading the Research Area');
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261117b', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261117b', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261117c', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261117c', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));

@@ -52,5 +52,14 @@ const text = html => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').replace(
   assert.match(text(chart), /Chelsea 2\.1 a match Opponents 3\.4 a match Line 3\.5 cards/);
   assert.match(text(h.stackedColumns('Chelsea', rows, 'corners')), /Line 9\.5 corners/);
 
+  // Home and away (owner, 17 Nov): the bar joining each home and away dot is a 4px line on the track. It was named
+  // "link", which the text-button rule (.link, min-height 44px) also matched, so it drew as a 44px block.
+  const js = fs.readFileSync(path.join(__dirname, '../web_app/static/research/research.js'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '../web_app/static/research/research.css'), 'utf8');
+  assert.match(js, /<span class="dumb-track" role="img" aria-label="\$\{escape\(text\)\}"><span class="dumb-link" style="left:/);
+  assert.doesNotMatch(js, /class="link"/);
+  assert.match(css, /\.profile \.dumb-track \.dumb-link\{position:absolute;top:9px;height:4px;/);
+  assert.doesNotMatch(css, /\.dumb-track \.link\b/);
+
   console.log('test_research_team_web: ok');
 })().catch(error => { console.error(error); process.exit(1); });

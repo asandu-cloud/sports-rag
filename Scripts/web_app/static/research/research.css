@@ -116,7 +116,7 @@
 .profile .dumb-track{position:relative;height:22px;outline:none}
 .profile .dumb-track:focus-visible{box-shadow:0 0 0 2px var(--accent);border-radius:4px}
 .profile .dumb-track::before{content:'';position:absolute;left:0;right:0;top:10px;height:1px;background:var(--border)}
-.profile .dumb-track .link{position:absolute;top:9px;height:4px;border-radius:2px;background:var(--border2);opacity:.5}
+.profile .dumb-track .dumb-link{position:absolute;top:9px;height:4px;border-radius:2px;background:var(--border2);opacity:.5}
 .profile .dumb-track .d{position:absolute;top:5px;width:12px;height:12px;margin-left:-6px;border-radius:50%;box-shadow:0 0 0 2px var(--surface)}
 .profile .leaders{display:grid;gap:8px}
 .profile .leaders div{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:10px;font-size:14px;align-items:center;padding-bottom:6px;border-bottom:1px solid var(--border-soft)}
