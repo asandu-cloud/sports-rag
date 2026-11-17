@@ -17,7 +17,7 @@ Last updated: 2026-11-16 (research endpoints for the Research Area overhaul, pla
 | A3 Market anchor and honest uncertainty | Started 16 Oct under D16 (research and shadow only) | see A3 table |
 | A4 Calibration | A4.1 dataset done 16 Oct (25,527 graded candidates, 160 fixtures; grading matches settlement on all 1,918 overlapping picks). A4.2 method study done 16 Oct: no calibrator adopted yet (D28), rerun weekly; live as A3.7 stage 5, not before Tue 10 Nov (D29). **Closed as a stage of its own 15 Nov (owner, D77)**: no calibrator passed in corners or cards, and the markets where one helped are priced from the market; the weekly reruns stop once the game-read bench runs | 197dc73; see D28 |
 | A5 Selection policy | Research started 16 Oct (D30): A5.1 done (Spix's disagreement with the market is almost all error); A5.2 done (pricing against the market wins, D31); A5.3 part 1 done 20 Oct (half the best prices were not on offer at the read, D39); price confirmation built 23 Oct, off until stage 4 (D42); exchange commission dropped, the feed has no exchange prices (D43); confidence labels built 23 Oct behind `SPIX_CONFIDENCE_LABELS`, all low until a spread cut-off passes (D44); stage 4 replay with confirmation 24 Oct (Findings); the goal-market selection rule ships with stage 4 (D33), the rest at stage 6, earliest Tue 17 Nov | see D30, D31, D33 |
-| A6–A8, Part B | A6 is now the game-read engine (D77): design approved 15 Nov, plan for phases 0–1 (`docs/superpowers/plans/2026-11-15-game-read-bench-and-ratings.md`); code started 15 Nov. Phases 0–1 (tasks 1–13) merged 16 Nov: the bench, four rating models and their average, and the one locked run (1f665d6): every model fails every score on both blocks; no pick changes. Task 14 (ClubElo) waits for the owner's yes; phase 2 needs its own plan after the owner reads the report. A6 prep done 24 Oct (penaltyblog checked, not used: ratings fitted in-house, Findings). A7, A8 and Part B not started | 43b4431 |
+| A6–A8, Part B | A6 is now the game-read engine (D77): design approved 15 Nov, plan for phases 0–1 (`docs/superpowers/plans/2026-11-15-game-read-bench-and-ratings.md`); code started 15 Nov. Phases 0–1 (tasks 1–13) merged 16 Nov: the bench, four rating models and their average, and the one locked run (1f665d6): every model fails every score on both blocks; no pick changes. Task 14 (ClubElo) dropped by the owner. Phase 2 (9 tasks) merged 17 Nov: six versions add a little to the market on the result in the locked seasons; none passes Most likely or Value, so phase 4 has nothing to start with; no pick changes. A6 prep done 24 Oct (penaltyblog checked, not used: ratings fitted in-house, Findings). A7, A8 and Part B not started | 43b4431 |
 | Market expansion (D25) | Planned after A5 | see D25 |
 
 ### A1 (order changed 15 Oct, see D6)
@@ -3239,6 +3239,73 @@ backend).** The number was held since 7 Nov (D78).
       - `trees-error-nolead@15-500-10+xg` (model 6).
       - Model 7 is left out: its best settings are exact copies of the market.
     - 1 new test; suite 3,232 passed plus the 3 known worktree errors; golden check unchanged.
+    - *Fix (17 Nov, found in task 9's tuning run):* the diagnostic average gave `dc+xg` all the weight, because a
+      member took part in a part only if it gave that part on every match. The lean blends and the trees give no
+      result where the market has no price, so they were left out.
+      - Now a member takes part if it gives the part at all, and the weights are fitted on the matches where every
+        member gives it.
+      - Phase 1's average is unchanged: its members give each of their parts on every match.
+      - 1 new test.
+  - **Phase 2 task 9 done (17 Nov): the runs. Six frozen versions add a little to the market on the result in the
+    locked seasons. None passes the owner's measure (Most likely picks) or Value. The fresh season confirms only
+    some of the direction. Phase 4 has nothing to start with.**
+    - *Frozen set*, with each variant's base run beside it:
+      - `dc+xg` and `drift+xg` (models 3–4, xG carried by the owner's choice);
+      - `lean-average` and `lean-dc+xg` (5b), plus `lean-dc`;
+      - `trees-error-nolead@15-500-10+xg`, the tuning pick, and `trees-error@15-500-10+xg`, its twin with the lead's
+        inputs (model 6);
+      - `trees-outcome-nolead@15-200-10+xg` (model 7, its least-bad setting);
+      - the average as a labelled diagnostic: `dc+xg`, `lean-average` and `trees-error-nolead@15-500-10+xg`.
+    - *Tuning run (b39b5b3, 1,895 s; `Research/game-read-bench-2026-11-17-phase2-tuning/`).* The zero line passes and
+      every section is filled. It was run twice. The first run (kept as `…-phase2-tuning-before-fix/`) showed the
+      task 8 fault: the average was `dc+xg` alone. After the fix, the average's result weights are trees 0.63,
+      `lean-average` 0.36 and `dc+xg` 0.02. Its goal lines and handicaps still come from `dc+xg` alone.
+    - *Locked run (17 Nov 18:28 UTC, b39b5b3, 10,711 matches; `…-phase2-locked/`).*
+      - Six pass "adds to the market" on the result, by both ranking rules: a blend fitted on the tuning seasons,
+        with c above zero and an interval below zero in the locked seasons.
+        - `lean-average`: −0.00044 [−0.00077, −0.00011]
+        - `lean-dc`: −0.00028 [−0.00042, −0.00013]
+        - `lean-dc+xg`
+        - `trees-error-nolead@15-500-10`
+        - `trees-error@15-500-10+xg`
+        - the average: −0.00047 [−0.00088, −0.00007]
+      - Accuracy on the result, against the market's log loss:
+        - `lean-dc` −0.12%;
+        - `lean-average` −0.107% (−0.00104 [−0.00150, −0.00059]);
+        - `lean-dc+xg` −0.09%;
+        - the average −0.07%;
+        - the trees on the error −0.03% to −0.05%.
+      - The Süper Lig gives the most (−0.25% for `lean-average`). The Championship gives nothing.
+      - Over 2.5 and the handicap: no model adds anything.
+      - The rating models stay 1.6–2.3% worse than the market on the result.
+      - **Most likely picks: none passes.** All are 0.15 to 0.67 wins per 100 picks below today's list, and the
+        intervals cross zero. **Value: none passes.**
+      - Reading: every lean fit sharpens the market (b 1.14–1.18, rising each season) and leans away from the member
+        (c −0.10 to −0.14). Part of the gain may be the market's own favourite-longshot lean, not Spix's read. A
+        market-only sharpening model would separate the two. It would be a new version with its own locked run, so
+        it is the owner's call.
+    - *Fresh run (17 Nov 19:14 UTC, b39b5b3, 1,084 matches, 2026/27 to 8 Nov; `…-phase2-fresh/`).*
+      - Nothing passes any score, and the intervals are wide.
+      - On the result blend, the score that passed:
+        - same direction: the average (−0.00036), `trees-error-nolead@15-500-10` (−0.00074) and
+          `trees-error@15-500-10+xg` (−0.00042);
+        - the wrong way, or level: the lean blends (`lean-average` +0.00003, `lean-dc` +0.00015, `lean-dc+xg` 0).
+      - The lean blends' Most likely picks read +1.1 to +1.4 per 100 here, the opposite of the locked seasons. At
+        1,084 matches that is noise.
+    - *The lead's inputs (model 6):* none of its result comes from them. Without them, the trees did as well or
+      better: on locked, plain −0.00047 against −0.00026 with the lead; with xG −0.00046 against −0.00033.
+    - *Gate and variants:* no variable passed the 0.5% ablation gate (xG and rest). 77 variants were tried on the
+      tuning seasons, plus the 16 frozen versions in each guarded run.
+    - *Opportunities* (tuning seasons, market only; the same as phase 1's): home wins drift out from pick time to the
+      close (−0.11 points overall; Belgian Pro League −0.64, EPL −0.22, Primeira Liga −0.24, Ligue 1 −0.19), and the
+      Ligue 1 draw comes in (+0.22). About 5 of the 104 groups would show up by chance alone.
+    - *Ledger:* `Research/game-read-bench/locked-runs.jsonl` holds 3 lines: phase 1 locked (16 Nov, 1f665d6), phase 2
+      locked (17 Nov 18:28, b39b5b3) and fresh (17 Nov 19:14, b39b5b3).
+    - *Downloads:* the 10 2026/27 files were fetched again (owner's decision 2). football-data now redirects to the
+      bare domain. All 10 were byte-identical to 16 Nov's (no league match since 8 Nov), so the bench file was not
+      rebuilt.
+    - Suite 3,233 passed plus the 3 known worktree errors; golden check unchanged. Task 9 had no start commit (missed).
+
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
@@ -3639,6 +3706,32 @@ leading to a full report page (panel B not chosen). Plan: `docs/superpowers/plan
   match". The report opens from the profile already loaded, with no second fetch. Research files at
   `research-20261117h`. 19 JS test files pass; checked on 8100 with a real mouse at 1280 and taps at 390, light and
   dark.
+
+**D122 — A team's match log shows what Spix said before kickoff, graded (17 Nov; backend, frontend asked through the
+orchestrator).** Each row of `match_log` in `GET /api/research/teams/{id}` now carries `spix_before_kickoff`:
+- `null` when no read was kept for that match, otherwise `{"read_at", "most_likely": [...], "value": [...]}`. Each
+  pick is `{"label", "market", "side", "line", "chance", "outcome"}`, up to 3 Most likely and 2 Value.
+- The lists are the board's before-kickoff record (D70): the read a visitor could see a second before kickoff,
+  through the board's own `_before_kickoff`.
+- `outcome` is won, lost, push, half_won, half_lost, or null while it waits. Grading is the home page reel's
+  (`home_wins.grade`, D99): `settlement.asian_outcome`, so quarter lines settle in halves, on full time only. A
+  match after extra time stays null, and so does a corners pick when a team's corners are unknown. The log's
+  filled-in zeros are never read as a count.
+- The key is left out when the board's switch `SPIX_BEFORE_KICKOFF` is off, and while the refresh holds the gate
+  for a match not yet remembered. A missing key means "not available now", never "no read".
+- The lookup is read-only, runs inside `read_gate()`, and needs no migration. A started match's answer never
+  changes, so the website reads each match once and remembers it (up to 5,000 matches, cleared at restart).
+  - First view of a team: about 0.6 s, or 1.7 s in a fresh process. Later views: 0.01 s.
+  - The rest of the profile still reads without the gate, as before D122; gating it would turn team pages into
+    503s during the refresh, which is the frontend's and the owner's call.
+- Players and referees: not done. Their logs would need the same lookup and a player's side of each match; ask if
+  wanted.
+- Checked on real data (gated, read-only): Como shows reads for 3 of its last 10.
+  - Sassuolo 24 Oct (3 Most likely won; Value "Sassuolo +2" push at 2–0).
+  - Venezia 1 Nov (3 Most likely and 2 Value, all won).
+  - Inter 8 Nov (3 Most likely, all lost).
+- 2 new tests (the service with a stand-in lookup; the route with a real saved read, remembered after the first
+  view). Suite 3,235 passed plus the 3 known worktree errors; golden check unchanged. Needs a website restart.
 
 ## Findings that shape later steps
 

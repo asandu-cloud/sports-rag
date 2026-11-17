@@ -161,6 +161,12 @@ on it. The Discord bot still runs the old engine until A7.
       the owner kept the home-made xG in the models anyway (17 Nov), and the report says so;
     - the backend fetches football-data's 10 files for 2026/27;
     - this season so far is the last check: a model that passes on 2023–2025 must point the same way there.
+  - Phase 2 done, merged 17 Nov (locked run 18:28 UTC and fresh run 19:14 UTC, both on b39b5b3). Six versions add a
+    little to the market on the result in 2023–2025 (at best 0.12% of log loss): the three lean blends, the trees on
+    the market's error and the average. None passes the owner's measure (Most likely picks) or Value, and on this
+    season only the trees and the average point the same way. Part of the gain may be the market's own
+    favourite-longshot lean; a market-only check would be a new version (owner's call). Phase 4 has nothing to start
+    with, so Most likely and Value stay as they are. Report: the D77 entry in the tracker.
 - **Cards missing at kickoff (D108, 15 Nov).** From 5 Sep to 14 Nov, 327 of 798 finished domestic matches had a card
   at kickoff: 35% before 4 Nov, 80% from 4 Nov.
   - 166 had no read at all, almost all from before the website worker started on 9 Sep.

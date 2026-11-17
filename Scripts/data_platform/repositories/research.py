@@ -119,7 +119,7 @@ class ResearchRepository:
                    opponent_id.label("opponent_team_id"),
                    *[getattr(t, c) for c in TEAM_FIELDS],
                    *[getattr(opp, c).label("opponent_" + c) for c in TEAM_FIELDS],
-                   f.id.label("fixture_id"), f.kickoff_utc, f.status, f.home_team_id,
+                   f.id.label("fixture_id"), f.api_football_id, f.kickoff_utc, f.status, f.home_team_id,
                    f.away_team_id, f.home_goals, f.away_goals).select_from(f)
         q = q.join(Team, or_(Team.id == f.home_team_id, Team.id == f.away_team_id))
         q = q.outerjoin(t, and_(t.fixture_id == f.id, t.team_id == Team.id))
