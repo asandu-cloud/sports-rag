@@ -3612,6 +3612,12 @@ already the backend's server-move plan. They are now D116 (chart headroom), D117
 (up and down); commits 8b3a177, 0e08a09 and e008bb3 still carry the old numbers in their messages. Research files at
 `research-20261117f` (comments only changed).
 
+**D119 — Team bars in light cobalt in the dark theme (17 Nov; frontend, owner).** In the dark theme the up-and-down
+team bars (D118) measured 1.97:1 against the card, under the usual 3:1 for chart marks. Owner: in the dark theme only,
+`--chart-team` is the light cobalt `#88B4F2`, the colour of the "↑ team" label (8.03:1 on the card); the light theme
+keeps Spix cobalt `#0246A4`. `style.css` at `charts-20261117b`; the research files are unchanged
+(`research-20261117f`). 18 JS test files pass; checked on 8100 on Bayern's page at 1100 and 390, light and dark.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
