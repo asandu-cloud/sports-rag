@@ -66,7 +66,7 @@ task N: …", "Done game-read phase 2 task N: … (<tests>, D77)", "Fix game-rea
 | 5 | The features pass and the lean-away blend (model 5b) | Done 17 Nov | db4adb9 | 29d9b9e | 4 new, all pass; suite 3,225 passed + the 3 known errors; no lean blend beats the market |
 | 6 | Boosted trees on the market's error (model 6) | Done 17 Nov | 5528df6 | the "Done game-read phase 2 task 6" commit | 5 new, all pass; suite 3,230 passed + the 3 known errors; no setting beats the market |
 | 7 | Boosted trees on the outcome (model 7) | Done 17 Nov | ee14f16 | the "Done game-read phase 2 task 7" commit | 1 new + bench test extended, all pass; suite 3,231 passed + the 3 known errors; no setting beats the market |
-| 8 | The average of what passes (model 9, second version) | Not started | | | |
+| 8 | The average of what passes (model 9, second version) | In progress | e096b70 | | |
 | 9 | Phase 2 runs (tuning, one locked, one fresh) and the report | Not started | | | |
 
 ## The locked seasons and the fresh block
