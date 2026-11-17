@@ -112,7 +112,9 @@ on it. The Discord bot still runs the old engine until A7.
     it; below that, plain numbers and how many qualify so far. Players under 900 minutes get early-season ranks on
     the same floor.
   - The daily refresh now rebuilds this season's ranks and referee names (best-effort stage `research_ranks`; last
-    built by hand on 8 Oct). Until the 17 Nov refresh, this season's ranks read "being rebuilt".
+    built by hand on 8 Oct). Confirmed on the 17 Nov refresh (6 s, exit 0): Chelsea ranked among 20 teams;
+    Bellingham ranked among 12 LaLiga midfielders; Pedri early-season among 12; Ampadu "too few peers" (1 Premier
+    League midfielder at 900 minutes) with 2025/26 linked. Many groups stay below the floor until about December.
   - Owner, 16 Nov: the cards lines' likelier side reads "More likely" (cards carry no Spix suggestion, D61); goals,
     corners and result keep "Spix leans this way".
   - A match that has kicked off shows its status instead of a read; a read kept after kickoff is headed "How Spix
