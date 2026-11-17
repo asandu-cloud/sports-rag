@@ -257,3 +257,27 @@ def test_lean_away_names_resolve_and_run(stubbed, monkeypatch):
     assert summary["run"]["models"] == ["market", "control", "lean-elo"]
     assert set(summary["models"]["lean-elo"]["fits"]) == {"2019"}  # one fit a scored season, its c per part
     assert set(summary["models"]["lean-elo"]["fits"]["2019"]) == {"n", "result", "over25"}
+
+
+def test_trees_names_expand_to_the_grid_and_share_one_pass(stubbed, monkeypatch):
+    monkeypatch.setattr(bench, "_stats", lambda: {})
+    grid = [f"{leaves}-{leaf}-{l2}" for leaves in (7, 15) for leaf in (200, 500) for l2 in (1, 10)]
+    assert bench._expand(["trees-error"]) == [f"trees-error@{g}" for g in grid]
+    assert bench._expand(["trees-error-nolead+xg", "dc"]) == [*(f"trees-error-nolead@{g}+xg" for g in grid), "dc"]
+    carried = bench._factory("trees-error@15-500-10+xg")()
+    assert carried.name == "trees-error@15-500-10+xg" and carried.lead
+    assert carried.params == {"num_leaves": 15, "min_data_in_leaf": 500, "lambda_l2": 10}
+    assert set(carried.features.models) == {"elo", "pi", "dc+xg", "drift+xg"}
+    assert [v.name for v in carried.features.variables] == ["box", "target", "rest", "xg"]
+    plain = bench._factory("trees-error-nolead@7-200-1")()
+    assert not plain.lead and set(plain.features.models) == {"elo", "pi", "dc", "drift"}
+    assert bench._factory("trees-error@15-200-1")().features is plain.features  # one pass per set of inputs
+    for wrong in ("trees-error@7-200", "trees-error@8-200-1", "trees-outcome@7-200-1", "trees-error@7-200-1+box",
+                  "trees-error@7-200-1+xg+rest", "trees-error"):
+        assert bench._factory(wrong) is None, wrong
+    out = stubbed / "out"
+    assert bench.main(["run", "--block", "tuning", "--models", "trees-error-nolead@7-200-1", "--out", str(out)]) == 0
+    summary = json.loads((out / "summary.json").read_text())
+    assert summary["run"]["models"] == ["market", "control", "trees-error-nolead@7-200-1"]
+    fitted = summary["models"]["trees-error-nolead@7-200-1"]["fits"]["2019"]
+    assert {"train", "stop", "result", "over25", "handicap"} <= set(fitted)

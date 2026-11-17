@@ -4,6 +4,8 @@
 season ``start`` (2013: one warm-up season after the first), each day once, before the day's results are learned.
 Days the runner only lets it learn are recorded first, then learned. So every match from ``start`` has the members'
 forecasts as they would have stood that morning, and ``history`` holds the recorded matches in order, results known.
+A finished pass can be shared: replaying its days records and learns nothing twice, so a model reading it must pick
+its matches by season (never "what has been learned so far").
 
 ``row(match)`` turns a recorded match into numbers (None where a part is missing):
 
@@ -48,6 +50,7 @@ class Features:
         self.forecasts = {}  # match id -> {member name: Forecast}
         self.values = {}  # match id -> [(home values, away values) per variable]
         self.history = []  # recorded matches, results learned, in order
+        self._learned = set()
 
     def predict(self, matches: Sequence[Match]) -> None:
         """Record each member's forecast and each variable's values, once per match, from ``start``."""
@@ -60,7 +63,11 @@ class Features:
             self.values[match.id] = [variable.features(match) for variable in self.variables]
 
     def learn(self, matches: Sequence[Match]) -> None:
+        matches = [m for m in matches if m.id not in self._learned]
+        if not matches:
+            return
         self.predict(matches)
+        self._learned.update(m.id for m in matches)
         for model in self.models.values():
             model.learn(matches)
         for variable in self.variables:

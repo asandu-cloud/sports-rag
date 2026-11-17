@@ -71,3 +71,28 @@ def test_features_for_a_day_use_only_earlier_days():
     recorded = {m.season for m in before.history}
     assert recorded == {2013, 2014}  # every match from the start season has out-of-sample inputs, none before
     assert len(before.history) == 180
+
+
+def test_a_finished_pass_can_be_shared():
+    """A second model reading a finished pass replays its days; nothing is learned or recorded twice."""
+    matches, stats = history()
+    counted = []
+
+    class Counting:
+        name = "counting"
+
+        def predict(self, found):
+            return [Elo().predict([m])[0] for m in found]
+
+        def learn(self, found):
+            counted.extend(m.id for m in found)
+
+    features = Features({"counting": Counting()}, start=2013)
+    for day in sorted({m.day for m in matches}):
+        features.learn([m for m in matches if m.day == day])
+    before = (list(features.history), dict(features.forecasts), len(counted))
+    for day in sorted({m.day for m in matches}):
+        features.predict([m for m in matches if m.day == day])
+        features.learn([m for m in matches if m.day == day])
+    assert (list(features.history), dict(features.forecasts), len(counted)) == before
+    assert len(counted) == len(matches)

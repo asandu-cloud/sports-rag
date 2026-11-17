@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 from functools import lru_cache
+import itertools
 import json
 from pathlib import Path
 import subprocess
@@ -29,7 +30,9 @@ from Scripts.data_platform.game_read.models import average
 from Scripts.data_platform.game_read.models.dixon_coles import DixonColes
 from Scripts.data_platform.game_read.models.drifting import Drifting
 from Scripts.data_platform.game_read.models.elo import Elo
+from Scripts.data_platform.game_read.features import Features
 from Scripts.data_platform.game_read.models.lean import LeanAway
+from Scripts.data_platform.game_read.models.trees import GRID, Trees
 from Scripts.data_platform.game_read.models.market import MarketControl, MarketCopy
 from Scripts.data_platform.game_read.models.pi_ratings import PiRatings
 from Scripts.data_platform.game_read.models.rest import RestVariable
@@ -51,6 +54,12 @@ ABLATED = ("result", "over25")
 # Model 5b: "lean-<member>" blends the market with one member ("lean-dc+xg"), or with the members' average
 # ("lean-average" pools elo, pi, dc and drift; "lean-average+xg" gives dc and drift the variable).
 LEAN = "lean-"
+# Model 6: "trees-error[-nolead]@<leaves>-<minimum leaf>-<L2>[+xg]" ("trees-error@7-200-1+xg"); a name without "@"
+# stands for the whole tuning grid. "+xg" gives dc and drift the derived xG and adds it to the inputs, and is gated
+# against the same name without it. Every trees model of a run with the same inputs reads one shared features pass.
+TREES = "trees-"
+TREES_VARIABLES = ("box", "target", "rest")
+_PASSES = {}
 # Variables kept by the owner's choice although they missed the gate; every report that uses one says so.
 CARRIED = {"xg": "the derived shot-location xG missed the 0.5% gate in phase 2 task 3 (−0.39% on the result, "
                  "[−0.51, −0.26]); the owner carried it forward on 17 Nov"}
@@ -80,12 +89,52 @@ def _lean(target: str):
     return lambda: LeanAway(target, {member: _factory(member)() for member in members})
 
 
+def _expand(names) -> list:
+    """Each trees name without its settings becomes the whole grid, in order."""
+    found = []
+    for name in names:
+        if name.startswith(TREES) and "@" not in name:
+            model, *variables = name.split("+")
+            found += ["+".join([f"{model}@{'-'.join(map(str, values))}", *variables])
+                      for values in itertools.product(*GRID.values())]
+        else:
+            found.append(name)
+    return found
+
+
+def _features(carried: bool) -> Features:
+    """The run's one features pass for these inputs: the four members (dc and drift with the derived xG when
+    ``carried``) and the shot and rest variables."""
+    if carried not in _PASSES:
+        names = [f"{m}+xg" if carried and m in WITH_VARIABLES else m for m in average.MEMBERS]
+        variables = [*TREES_VARIABLES, *(("xg",) if carried else ())]
+        _PASSES[carried] = Features({m: _factory(m)() for m in names}, [VARIABLES[v]() for v in variables])
+    return _PASSES[carried]
+
+
+def _trees(name: str):
+    model, _, rest = name.partition("@")
+    settings, *variables = rest.split("+")
+    values = settings.split("-")
+    if model not in ("trees-error", "trees-error-nolead") or variables not in ([], ["xg"]) or len(values) != 3:
+        return None
+    try:
+        params = dict(zip(GRID, map(int, values)))
+    except ValueError:
+        return None
+    if any(params[key] not in GRID[key] for key in GRID):
+        return None
+    return lambda: Trees("error", _features(bool(variables)), params, lead=not model.endswith("-nolead"), name=name)
+
+
 def _factory(name: str):
     """What builds the model of this name, or None for an unknown name."""
     if name in MODELS:
         return MODELS[name]
     if name.startswith(LEAN):
         return _lean(name[len(LEAN):])
+    if name.startswith(TREES):
+        return _trees(name)
     model, *variables = name.split("+")
     if model not in WITH_VARIABLES or not variables or any(v not in VARIABLES for v in variables):
         return None
@@ -183,13 +232,15 @@ def run(args) -> int:
         print(f"The bench code has uncommitted changes; a {args.block} run needs committed code:\n{changes}",
               file=sys.stderr)
         return 2
-    names = [*REFERENCES, *_with_bases(name for name in args.models if name not in (*REFERENCES, AVERAGE))]
+    _PASSES.clear()
+    names = [*REFERENCES, *_with_bases(_expand(name for name in args.models if name not in (*REFERENCES, AVERAGE)))]
     if AVERAGE in args.models:
         names += [*(name for name in average.MEMBERS if name not in names), AVERAGE]
     unknown = [name for name in names if _factory(name) is None and name != AVERAGE]
     if unknown:
         print(f"Unknown models: {', '.join(unknown)} (known: {', '.join(MODELS)}, and {' or '.join(WITH_VARIABLES)} "
-              f"with any of +{', +'.join(VARIABLES)}; {LEAN}<model> or {LEAN}average[+<variable>])", file=sys.stderr)
+              f"with any of +{', +'.join(VARIABLES)}; {LEAN}<model> or {LEAN}average[+<variable>]; "
+              f"{TREES}error[-nolead][@<leaves>-<minimum leaf>-<L2>][+xg])", file=sys.stderr)
         return 2
 
     started, clock = datetime.now(timezone.utc), time.perf_counter()
@@ -214,6 +265,9 @@ def run(args) -> int:
         results[name] = _score(scored, tuning)
         if name == AVERAGE:
             results[name]["weights"] = weights
+        if isinstance(model, Trees):  # each season's fit: its training seasons, and the rounds each part kept
+            results[name]["fits"] = {str(season): fitted for season, fitted in sorted(model.fits.items())
+                                     if history.block(season) in ("tuning", args.block)}
         if isinstance(model, LeanAway):  # each season's blend: how much it leans on the member (c), and on what
             results[name]["fits"] = {str(season): {"n": fitted["n"], **{part: None if fitted[part] is None else {
                 key: fitted[part][key] for key in ("b", "c", "intercepts")} for part in ("result", "over25")}}
