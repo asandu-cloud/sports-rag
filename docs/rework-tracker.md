@@ -3319,6 +3319,31 @@ backend).** The number was held since 7 Nov (D78).
         blend's earlier score is exact but has no interval.
       - 2 new tests, and task 5's name test now accepts `lean-market`. Suite 3,237 passed plus the 3 known worktree
         errors; golden check unchanged.
+    - *Task 11 done (17 Nov): most of the lean blends' gain is the market's own sharpening. What is left for Spix's
+      models is 0.02–0.045% of log loss, unproven, and not repeated this season. Nothing changes for Most likely or
+      Value, and phase 4 still has nothing to start with.*
+      - Tuning run (7dd6bdb, 1,015 s; `Research/game-read-bench-2026-11-17-market-only-tuning/`), paired against
+        `lean-market`:
+        - `lean-average` −0.02% [−0.05, +0.01] on the result;
+        - `lean-dc` −0.01% [−0.03, +0.02];
+        - `lean-dc+xg` +0.00% [−0.02, +0.03];
+        - over 2.5: −0.01% each, intervals across zero.
+        - `lean-market`'s b is 1.03–1.04 on the result.
+      - Locked run (17 Nov 20:59 UTC, 7dd6bdb, `lean-market` only, 10,711 matches; `…-market-only-locked/`):
+        - On the result, −0.00072 [−0.00108, −0.00038] against the market (−0.074%). b rises to 1.045–1.049 in
+          2024–2025. On over 2.5, nothing (+0.004%).
+        - Against the lean blends' locked scores, on the same matches, so the gaps are exact but have no interval:
+          `lean-average` −0.00104 (gap −0.033%), `lean-dc` −0.00116 (gap −0.045%), `lean-dc+xg` −0.00091 (gap
+          −0.020%). The market alone gives 62–79% of their gain.
+        - Most likely picks: −0.51 per 100 [−0.99, −0.05], worse than today's list. Value: none. "Adds to the
+          market": fails.
+      - Fresh run (17 Nov 21:09 UTC, 7dd6bdb, 1,084 matches; `…-market-only-fresh/`): result −0.00005, over 2.5
+        −0.00015, intervals across zero. The lean blends' gaps to it point both ways: result −0.007% (`lean-average`),
+        +0.041% (`lean-dc`), +0.013% (`lean-dc+xg`); over 2.5 −0.03% to −0.04%.
+      - Reading: the lean blends' result gain in 2023–2025 is mostly the market's favourite-longshot lean, which a
+        market-only refit catches and which grew in 2024–2025. A paired interval on the remaining 0.02–0.045% would
+        need the lean blends rerun on the locked seasons, which the one-run rule forbids; the owner's call.
+      - Ledger: lines 4–5 of `Research/game-read-bench/locked-runs.jsonl`.
 
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
