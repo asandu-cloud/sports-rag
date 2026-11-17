@@ -3471,6 +3471,20 @@ board (Best Bets), E card outline (the matchday board), F rolling ball (the Rese
   failed `loaders.css`) the Research Area's loaders would draw unstyled, so they fall back to the old line there.
   Research files at `research-20261116r`. 18 JS test files pass; no Python test reads the static files.
 
+**D113 — The Research Area's loader rolls the logo's ball through a tube (17 Nov; frontend, owner).** The owner
+wanted the ball inside the bar, not on top of it. Five sketches (https://claude.ai/artifact/UGt3Yk4g9scnCR6UxGxDff,
+private); the owner chose A, the tube, with the header logo's football. F is now a rounded tube: the ball rolls
+through it and cobalt fills in behind, up to the ball's middle. The ball is the logo's own drawing, with its own clip
+id. Its patches turn about its centre, and its shade and highlight stay put, as in the header. research.css strokes
+every SVG, so the ball's SVG sets no stroke. Reduced motion: the ball rests mid-tube. `loaders.js` and
+`loaders.css` at `loaders-20261117a`. 18 JS test files pass. Checked on 8100 with the API held 4 s, at 1440 light
+and 390 dark, no errors.
+
+**D114 — Research Area search bars say "Search for a …" (17 Nov; frontend, owner).** The three tabs' search bars read
+"Search for a player", "Search for a team" and "Search for a referee" (were "Search a …"). The screen-reader label
+follows the placeholder. Research files at `research-20261117a`. 18 JS test files pass; checked on 8100 by clicking
+each tab.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A

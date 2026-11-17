@@ -19,4 +19,11 @@ assert.match(js, /\$\('researchHome'\)\.addEventListener\('click', event => \{\n
 assert.match(css, /\.recent \.clear-recent\{[^}]*min-height:36px[^}]*background:none[^}]*text-decoration:underline/);
 assert.match(css, /\.recent \.clear-recent:hover\{color:var\(--accent-l\)\}/);
 
+// The search bar on each tab (owner, 17 Nov): "Search for a player", "Search for a team", "Search for a referee". The
+// page starts on players, so content.html carries that one until research.js sets the tab's own.
+const content = static_('research/content.html'), data = static_('research/data.js');
+for (const who of ['player', 'team', 'referee']) assert.match(data, new RegExp(`search: 'Search for a ${who}'`));
+assert.doesNotMatch(data + content, /Search a (player|team|referee)/);
+assert.match(content, /placeholder="Search for a player"/);
+
 console.log('test_research_home_web: ok');

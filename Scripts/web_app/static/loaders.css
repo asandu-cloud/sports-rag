@@ -70,20 +70,18 @@
 .ld-tiles .ld-sk{height:52px;border-radius:7px}
 @keyframes ld-sweep{to{transform:translateX(100%)}}
 
-/* F. Rolling ball: a football rolls along a touchline and leaves a cobalt trail. */
+/* F. Rolling ball (D113): the logo's football rolls through a tube and the cobalt fills in behind it, up to its middle. */
+/* The patches turn about the ball's centre, (0,0) in its viewBox: with view-box, 0 0 is that point; 50% would be (17.2,17.2). */
 .ld-roll .ld-art{gap:14px;width:min(360px,100%)}
 .ld-title{margin:0;font-size:17px;font-weight:750;font-stretch:var(--display-stretch);text-transform:uppercase;text-align:center;color:var(--text)}
-.ld-track{position:relative;display:block;width:100%;height:30px}
-.ld-track::before{content:"";position:absolute;left:0;right:0;bottom:3px;border-top:2px solid var(--border)}
-.ld-trail{position:absolute;left:0;bottom:3px;width:0;height:2px;background:var(--accent);animation:ld-trail 2.6s cubic-bezier(.45,0,.55,1) infinite}
-.ld-rollball{position:absolute;left:0;bottom:4px;width:22px;height:22px;animation:ld-roll-on 2.6s cubic-bezier(.45,0,.55,1) infinite}
-.ld-rollball svg{display:block;width:100%;height:100%;animation:ld-turn 2.6s cubic-bezier(.45,0,.55,1) infinite}
-.ld-ball-skin{fill:var(--tb-fg);stroke:var(--on-marker);stroke-width:1.2}
-.ld-ball-ink{fill:var(--on-marker);stroke:none}
-.ld-ball-seam{fill:none;stroke:var(--on-marker);stroke-width:1.1}
-@keyframes ld-roll-on{0%{left:0;opacity:0}6%{opacity:1}86%{left:calc(100% - 22px);opacity:1}100%{left:calc(100% - 22px);opacity:0}}
-@keyframes ld-trail{0%{width:0;opacity:1}86%{width:100%;opacity:1}100%{width:100%;opacity:0}}
-@keyframes ld-turn{0%{transform:rotate(0)}86%,100%{transform:rotate(1440deg)}}
+.ld-tube{position:relative;display:block;width:100%;height:28px;border:1px solid var(--border);border-radius:14px;background:var(--surface2);overflow:hidden}
+.ld-fill{position:absolute;left:0;top:0;bottom:0;width:14px;border-radius:14px;background:var(--accent);animation:ld-fill 2.6s cubic-bezier(.45,0,.55,1) infinite}
+.ld-rollball{position:absolute;left:4px;top:50%;width:20px;height:20px;margin-top:-10px;animation:ld-roll-on 2.6s cubic-bezier(.45,0,.55,1) infinite}
+.ld-rollball svg{display:block;width:100%;height:100%;overflow:visible;stroke:none}
+.ld-rollball .ld-spin{transform-box:view-box;transform-origin:0 0;animation:ld-turn 2.6s cubic-bezier(.45,0,.55,1) infinite}
+@keyframes ld-fill{0%{width:14px;opacity:1}86%{width:calc(100% - 14px);opacity:1}100%{width:calc(100% - 14px);opacity:0}}
+@keyframes ld-roll-on{0%{left:4px;opacity:0}6%{opacity:1}86%{left:calc(100% - 24px);opacity:1}100%{left:calc(100% - 24px);opacity:0}}
+@keyframes ld-turn{0%{transform:rotate(0)}86%,100%{transform:rotate(1600deg)}}
 
 @media (max-width:600px){.ld{min-height:180px;padding:28px 0}.ld-num{font-size:23px}}
 
@@ -95,5 +93,5 @@
 .ld-pitch .ld-line{stroke-dashoffset:0}.ld-pitch .ld-spot{opacity:1}
 .ld-last10 .ld-bar{transform:scaleY(1)}.ld-last10 .ld-bar.over{background:var(--accent)}.ld-last10 .ld-mark{opacity:1}
 .ld-prices .ld-num i::before{transform:translateY(calc(-1em * (10 + var(--d))))}
-.ld-roll .ld-rollball{left:calc(50% - 11px)}.ld-roll .ld-trail{width:50%}
+.ld-roll .ld-rollball{left:calc(50% - 10px)}.ld-roll .ld-fill{width:50%}
 }
