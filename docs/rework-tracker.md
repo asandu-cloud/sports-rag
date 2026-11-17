@@ -3246,6 +3246,66 @@ backend).** The number was held since 7 Nov (D78).
         member gives it.
       - Phase 1's average is unchanged: its members give each of their parts on every match.
       - 1 new test.
+  - **Phase 2 task 9 done (17 Nov): the runs. Six frozen versions add a little to the market on the result in the
+    locked seasons. None passes the owner's measure (Most likely picks) or Value. The fresh season confirms only
+    some of the direction. Phase 4 has nothing to start with.**
+    - *Frozen set*, with each variant's base run beside it:
+      - `dc+xg` and `drift+xg` (models 3–4, xG carried by the owner's choice);
+      - `lean-average` and `lean-dc+xg` (5b), plus `lean-dc`;
+      - `trees-error-nolead@15-500-10+xg`, the tuning pick, and `trees-error@15-500-10+xg`, its twin with the lead's
+        inputs (model 6);
+      - `trees-outcome-nolead@15-200-10+xg` (model 7, its least-bad setting);
+      - the average as a labelled diagnostic: `dc+xg`, `lean-average` and `trees-error-nolead@15-500-10+xg`.
+    - *Tuning run (b39b5b3, 1,895 s; `Research/game-read-bench-2026-11-17-phase2-tuning/`).* The zero line passes and
+      every section is filled. It was run twice. The first run (kept as `…-phase2-tuning-before-fix/`) showed the
+      task 8 fault: the average was `dc+xg` alone. After the fix, the average's result weights are trees 0.63,
+      `lean-average` 0.36 and `dc+xg` 0.02. Its goal lines and handicaps still come from `dc+xg` alone.
+    - *Locked run (17 Nov 18:28 UTC, b39b5b3, 10,711 matches; `…-phase2-locked/`).*
+      - Six pass "adds to the market" on the result, by both ranking rules: a blend fitted on the tuning seasons,
+        with c above zero and an interval below zero in the locked seasons.
+        - `lean-average`: −0.00044 [−0.00077, −0.00011]
+        - `lean-dc`: −0.00028 [−0.00042, −0.00013]
+        - `lean-dc+xg`
+        - `trees-error-nolead@15-500-10`
+        - `trees-error@15-500-10+xg`
+        - the average: −0.00047 [−0.00088, −0.00007]
+      - Accuracy on the result, against the market's log loss:
+        - `lean-dc` −0.12%;
+        - `lean-average` −0.107% (−0.00104 [−0.00150, −0.00059]);
+        - `lean-dc+xg` −0.09%;
+        - the average −0.07%;
+        - the trees on the error −0.03% to −0.05%.
+      - The Süper Lig gives the most (−0.25% for `lean-average`). The Championship gives nothing.
+      - Over 2.5 and the handicap: no model adds anything.
+      - The rating models stay 1.6–2.3% worse than the market on the result.
+      - **Most likely picks: none passes.** All are 0.15 to 0.67 wins per 100 picks below today's list, and the
+        intervals cross zero. **Value: none passes.**
+      - Reading: every lean fit sharpens the market (b 1.14–1.18, rising each season) and leans away from the member
+        (c −0.10 to −0.14). Part of the gain may be the market's own favourite-longshot lean, not Spix's read. A
+        market-only sharpening model would separate the two. It would be a new version with its own locked run, so
+        it is the owner's call.
+    - *Fresh run (17 Nov 19:14 UTC, b39b5b3, 1,084 matches, 2026/27 to 8 Nov; `…-phase2-fresh/`).*
+      - Nothing passes any score, and the intervals are wide.
+      - On the result blend, the score that passed:
+        - same direction: the average (−0.00036), `trees-error-nolead@15-500-10` (−0.00074) and
+          `trees-error@15-500-10+xg` (−0.00042);
+        - the wrong way, or level: the lean blends (`lean-average` +0.00003, `lean-dc` +0.00015, `lean-dc+xg` 0).
+      - The lean blends' Most likely picks read +1.1 to +1.4 per 100 here, the opposite of the locked seasons. At
+        1,084 matches that is noise.
+    - *The lead's inputs (model 6):* none of its result comes from them. Without them, the trees did as well or
+      better: on locked, plain −0.00047 against −0.00026 with the lead; with xG −0.00046 against −0.00033.
+    - *Gate and variants:* no variable passed the 0.5% ablation gate (xG and rest). 77 variants were tried on the
+      tuning seasons, plus the 16 frozen versions in each guarded run.
+    - *Opportunities* (tuning seasons, market only; the same as phase 1's): home wins drift out from pick time to the
+      close (−0.11 points overall; Belgian Pro League −0.64, EPL −0.22, Primeira Liga −0.24, Ligue 1 −0.19), and the
+      Ligue 1 draw comes in (+0.22). About 5 of the 104 groups would show up by chance alone.
+    - *Ledger:* `Research/game-read-bench/locked-runs.jsonl` holds 3 lines: phase 1 locked (16 Nov, 1f665d6), phase 2
+      locked (17 Nov 18:28, b39b5b3) and fresh (17 Nov 19:14, b39b5b3).
+    - *Downloads:* the 10 2026/27 files were fetched again (owner's decision 2). football-data now redirects to the
+      bare domain. All 10 were byte-identical to 16 Nov's (no league match since 8 Nov), so the bench file was not
+      rebuilt.
+    - Suite 3,233 passed plus the 3 known worktree errors; golden check unchanged. Task 9 had no start commit (missed).
+
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their
