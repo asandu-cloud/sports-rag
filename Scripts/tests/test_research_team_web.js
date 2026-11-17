@@ -40,7 +40,7 @@ const text = html => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').replace(
   assert.deepEqual(h.glance('Chelsea', rows, 'corners').split('<div class="g-row">').slice(1).map(text),
     ['10+ corners in the match 7 of 10', 'Chelsea won 5+ corners 4 of 10']);
 
-  // Cards by match, up and down (owner, 17 Nov, D117): the team's bar rises above the line in Spix cobalt, the
+  // Cards by match, up and down (owner, 17 Nov, D118): the team's bar rises above the line in Spix cobalt, the
   // opponent's hangs below it in grey, and the names sit on the chart, so no colour has to say who is who. The match
   // total moves under each column's label and is marked when it clears the line, since a split column cannot carry it.
   const chart = h.stackedColumns('Chelsea', rows, 'cards');

@@ -1,7 +1,7 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261117e';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead, columnHeadroom, upDown} from './insight.js?v=research-20261117e';
-import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261117e';
-import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261117e';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261117f';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead, columnHeadroom, upDown} from './insight.js?v=research-20261117f';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261117f';
+import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261117f';
 
 const API = '/api/research';
 // The site's loaders (loaders.js, D112), with the old line if the kit or its styles are missing.
@@ -639,7 +639,7 @@ function mountResearch(root, navigate) {
       const name = d.subject.name;
       const score = m => `${m.values.goals_for ?? '?'}–${m.values.goals_against ?? '?'}`;
       const gap = last.some(m => m.values[forKey] == null && m.values[againstKey] == null);
-      // Up and down (D117): the team's chances above the line in Spix cobalt, the opponent's below in grey.
+      // Up and down (D118): the team's chances above the line in Spix cobalt, the opponent's below in grey.
       chart = upDown({name, items: last.map(m => ({up: m.values[forKey], down: m.values[againstKey],
         label: `${day(m.date)} ${venueWord(m)} ${opp(m)}: ${score(m)}.${hasXg ? ` xG ${fixed(m.values[forKey])} for, ${fixed(m.values[againstKey])} against` : ''}`,
         where: venueWord(m), who: m.opponent?.abbreviation || short(m.opponent), sub: score(m)})),
@@ -1065,8 +1065,8 @@ class SpixResearch extends HTMLElement {
     if (kit) { root.adoptedStyleSheets = [kit]; kitAdopted = true; }
     root.innerHTML = loading('roll', 'Loading the Research Area');
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261117e', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261117e', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261117f', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261117f', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));

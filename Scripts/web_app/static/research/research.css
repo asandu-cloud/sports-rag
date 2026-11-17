@@ -277,7 +277,7 @@ button.who:hover,button.who:focus-visible{background:var(--surface2)}
 .sc-legend span{display:inline-flex;align-items:center;gap:6px}
 .sc-legend i{display:inline-block;width:10px;height:10px;border-radius:2px}
 .sc-legend i.own{background:var(--chart-team)}.sc-legend i.opp{background:var(--chart-muted)}
-/* Up and down (D117): the team above the centre line in Spix cobalt, the opponents below in grey, names on the chart.
+/* Up and down (D118): the team above the centre line in Spix cobalt, the opponents below in grey, names on the chart.
    The names sit in the area's top and bottom padding, so a full-height bar never runs under them. */
 .profile .ud{display:grid;gap:6px;min-width:0}
 .profile .ud-plot{display:grid;grid-template-columns:24px minmax(0,1fr);gap:6px}

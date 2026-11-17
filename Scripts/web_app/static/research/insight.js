@@ -115,7 +115,7 @@ export function glance(name, rows, market) {
 }
 
 // Cards (or goals, corners) by match: the team's and the opponent's stacked, the total written, the line dashed.
-// Up and down (owner, 17 Nov, D117): the team's bars rise above a centre line, the opponents' hang below it, and both
+// Up and down (owner, 17 Nov, D118): the team's bars rise above a centre line, the opponents' hang below it, and both
 // names sit on the chart, so neither colour nor a legend has to say who is who. items: {up, down, label, where, who,
 // sub}: "v" or "at", the opponent's short name, and a line under it (HTML, escaped by the caller). Both values missing
 // draws a dash at the line.

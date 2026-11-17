@@ -3446,7 +3446,7 @@ and 390 dark, no errors.
 follows the placeholder. Research files at `research-20261117a`. 18 JS test files pass; checked on 8100 by clicking
 each tab.
 
-**D115 — Research Area charts keep their numbers and goal dots inside the card (17 Nov; frontend, owner).** On
+**D116 — Research Area charts keep their numbers and goal dots inside the card (17 Nov; frontend, owner).** On
 Olise's page (Bundesliga 2026/27), the shots chart's 6-shot, 3-goal match v Union Berlin drew its goal dots up into
 the legend: the plot was a fixed 170 px with no room above the tallest column. A new `columnHeadroom()`
 (`research/insight.js`) works out how far the tallest column's number and goal dots (at most 4) reach past the top,
@@ -3454,13 +3454,13 @@ and the plot reserves that much above itself. The minutes chart had the same fau
 card's heading. It now reserves room too. Research files at `research-20261117b`. 18 JS test files pass. Checked on
 8100 on Olise's page at 1440 and 390: the highest dot now sits 16 px below the legend.
 
-**D116 — "Home and away" draws thin connectors again (17 Nov; frontend).** Found while photographing the charts for
+**D117 — "Home and away" draws thin connectors again (17 Nov; frontend).** Found while photographing the charts for
 the owner's colour question. The bar joining each home and away dot had the class `link`, and the text-button rule
 `.link` (added in D107 task 6, `min-height:44px`) also matched it, so every connector drew as a 44 px grey block
 hanging below its row, in both themes. It is now `dumb-link`, a 4 px line again. Research files at
 `research-20261117c`. 18 JS test files pass; checked on 8100 on Bayern's page (Bundesliga 2026/27).
 
-**D117 — Team charts go up and down, the team in Spix cobalt (17 Nov; frontend, owner).** The owner found that no
+**D118 — Team charts go up and down, the team in Spix cobalt (17 Nov; frontend, owner).** The owner found that no
 second colour made it clear which bars were the team's and which the opponent's
 (https://claude.ai/artifact/25XuS9dJ8Rp46ioRUxbnP6 tried six). From five sketches
 (https://claude.ai/artifact/TVG6D6aRYHr3ABVWUWR1AQ) the owner chose "Up and down", with the team in the signature
@@ -3471,8 +3471,13 @@ both. Labels read "v STU" / "at SCH" (on phones "v" or "at" takes its own line).
 dashed betting line, so each match's total now sits under its label, marked in lime when over the line (3.5 cards,
 2.5 goals, 9.5 corners). In the dark theme cobalt bars measure 1.97:1 against the card (under the 3:1 usually asked of
 chart marks); the owner asked for cobalt, and the "↑ team" label uses the readable light cobalt. `style.css` at
-`charts-20261117a`, research files at `research-20261117e`. 18 JS test files pass; checked on 8100 on Bayern's page
+`charts-20261117a`, research files at `research-20261117f`. 18 JS test files pass; checked on 8100 on Bayern's page
 at 1100 and 390, light and dark, no errors.
+
+**Renumbered (17 Nov; frontend).** The frontend's chart entries first went out as D115–D117, but D115 on main was
+already the backend's server-move plan. They are now D116 (chart headroom), D117 (home and away connectors) and D118
+(up and down); commits 8b3a177, 0e08a09 and e008bb3 still carry the old numbers in their messages. Research files at
+`research-20261117f` (comments only changed).
 
 ## Findings that shape later steps
 
