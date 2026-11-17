@@ -3441,6 +3441,11 @@ every SVG, so the ball's SVG sets no stroke. Reduced motion: the ball rests mid-
 `loaders.css` at `loaders-20261117a`. 18 JS test files pass. Checked on 8100 with the API held 4 s, at 1440 light
 and 390 dark, no errors.
 
+**D114 — Research Area search bars say "Search for a …" (17 Nov; frontend, owner).** The three tabs' search bars read
+"Search for a player", "Search for a team" and "Search for a referee" (were "Search a …"). The screen-reader label
+follows the placeholder. Research files at `research-20261117a`. 18 JS test files pass; checked on 8100 by clicking
+each tab.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
