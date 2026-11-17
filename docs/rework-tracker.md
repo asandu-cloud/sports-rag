@@ -4381,6 +4381,17 @@ runs short only the name shortens; the value-pick count always shows in full. Sc
   on 7–8 Nov cards and their real referees, at 1440 (light, dark) and 390: one name shortens on desktop (Claudio
   Giuseppe Allegretta), two on a phone; no value count is cut; a card without the key keeps "5 suggestions".
 
+**D125 — The odds tile on the board cards (17 Nov; frontend, owner).** The owner asked to highlight the price on the
+board's match cards. From mockups on real cards (https://claude.ai/artifact/SAhVfhtW4z1ujiEb2qnnFV) the owner chose the
+lime-marker tile, then asked for smaller sizes, and chose "one line, 18px": the word "Odds" and the price on one line,
+the price at 18 px, at the right end of the chance line. A pick with no price shows no tile.
+- The price is the Most likely pick's `typical_price`, as the card already showed it; nothing new from the backend.
+  Upcoming cards only; the Live tab's cards do not change.
+- `app.js` and `style.css` at `odds-20261117a`. 20 JS test files pass (`test_recommendations_web.js`: the tile's markup
+  and text, no tile without a price). Checked on 8100 with the real 21 Nov Premier League board at 1440 (light, dark) and
+  390 (light, dark): 6 tiles, Manchester City v Fulham with its price removed in the test browser shows none; the Live tab
+  (real 8 Nov before-kickoff cards replayed as today) shows no tile; no sideways scroll, no console errors.
+
 ## How to resume in a new session
 
 1. Read this file, then `git log --oneline` since the last commit listed above.
