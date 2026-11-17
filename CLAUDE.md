@@ -289,7 +289,7 @@ restarted.
 The Mac must stay on mains power with the lid open for the scheduled jobs. Refresh failures alert to Telegram.
 
 ### Parallel sessions (set up 3 Nov 2026)
-The owner runs up to three Claude instances at once. Each one has its own folder, and there is only ever one
+The owner runs up to four Claude instances at once. Each one has its own folder, and there is only ever one
 instance per folder.
 
 | Folder | Branch | Port to test on | Owns |
@@ -297,6 +297,7 @@ instance per folder.
 | `~/Desktop/Betting_RAG` | `main` | 8000 is the live website | **Production.** Every scheduled job and the website run from here. Nobody develops here; only merge here, then run the tests and restart the website if what it serves changed |
 | `~/Desktop/Betting_RAG-backend` | `backend` | 8200 | `Scripts/data_platform`, `Scripts/rag_ingest/core`, `Scripts/ops`, tests, engine switches, the cards work (D54), the `recommendations.v1` data format |
 | `~/Desktop/Betting_RAG-frontend` | `frontend` | 8100 (app), 8011 (landing preview) | `Scripts/web_app/static`, `landing-preview/`, `website/`, `DESIGN.md`, `docs/brand/` |
+| `~/Desktop/Betting_RAG-cyber` | `cyber` | 8500 | Sign-in, accounts, security and payments (owner, 17 Nov): `Scripts/web_app/auth.py`, `users.py`, `stripe_webhooks.py`, `discord_roles.py`, the user, subscription and referral tables, and the security layer (rate limits, headers, access). It defines the account API; the frontend builds the screens |
 | `~/Desktop/Spix-Content` | its own repo | none | Content creation. Not part of this repo, and never writes to it |
 
 - **Which folder am I in?** Run `git branch --show-current`. On `main`, only merge.
@@ -321,7 +322,7 @@ instance per folder.
   for changes there.
 
 #### Committing and merging
-- **Backend and frontend** commit only on their own branch, in small steps, each with a clear message and its
+- **Backend, frontend and cyber** commit only on their own branch, in small steps, each with a clear message and its
   tracker entry in the same commit. They never commit on `main` and never merge into it. When a piece is ready,
   they tell the owner in one short message: what changed, the test results (and screenshots for the frontend),
   and whether it needs a migration, a new `.env` line or a website restart.
