@@ -116,7 +116,7 @@
 .profile .dumb-track{position:relative;height:22px;outline:none}
 .profile .dumb-track:focus-visible{box-shadow:0 0 0 2px var(--accent);border-radius:4px}
 .profile .dumb-track::before{content:'';position:absolute;left:0;right:0;top:10px;height:1px;background:var(--border)}
-.profile .dumb-track .link{position:absolute;top:9px;height:4px;border-radius:2px;background:var(--border2);opacity:.5}
+.profile .dumb-track .dumb-link{position:absolute;top:9px;height:4px;border-radius:2px;background:var(--border2);opacity:.5}
 .profile .dumb-track .d{position:absolute;top:5px;width:12px;height:12px;margin-left:-6px;border-radius:50%;box-shadow:0 0 0 2px var(--surface)}
 .profile .leaders{display:grid;gap:8px}
 .profile .leaders div{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:10px;font-size:14px;align-items:center;padding-bottom:6px;border-bottom:1px solid var(--border-soft)}
@@ -273,19 +273,35 @@ button.who:hover,button.who:focus-visible{background:var(--surface2)}
 .g-row:last-child>span{border-bottom:0}
 .g-s,.g-n{padding-left:18px!important}
 .g-n{justify-content:flex-end;font-weight:700;white-space:nowrap}
-.sc-plot{position:relative;display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:8px;height:150px;align-items:end;border-bottom:1px solid var(--border)}
-.sc-col{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
-.sc-col b{font-size:12px;color:var(--text2);margin-bottom:3px}
-.sc-col i{display:block;width:70%;max-width:30px}
-.sc-col i.opp{background:var(--chart-2);border-radius:3px 3px 0 0}
-.sc-col i.own{background:var(--accent)}
-.sc-line{position:absolute;left:0;right:0;border-top:1.5px dashed var(--text2);pointer-events:none}
-.sc-x{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:8px;text-align:center;font-size:12px;color:var(--text2);margin-top:6px}
-.sc-x small{display:block;color:var(--text3)}
 .sc-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--text2)}
 .sc-legend span{display:inline-flex;align-items:center;gap:6px}
 .sc-legend i{display:inline-block;width:10px;height:10px;border-radius:2px}
-.sc-legend i.own{background:var(--accent)}.sc-legend i.opp{background:var(--chart-2)}
+.sc-legend i.own{background:var(--chart-team)}.sc-legend i.opp{background:var(--chart-muted)}
+/* Up and down (D118): the team above the centre line in Spix cobalt, the opponents below in grey, names on the chart.
+   The names sit in the area's top and bottom padding, so a full-height bar never runs under them. */
+.profile .ud{display:grid;gap:6px;min-width:0}
+.profile .ud-plot{display:grid;grid-template-columns:24px minmax(0,1fr);gap:6px}
+.profile .ud-y,.profile .ud-area{position:relative;height:196px;padding-block:18px}
+.profile .ud-in{position:relative;height:100%}
+.profile .ud-y span{position:absolute;right:0;transform:translateY(-50%);font-size:11px;line-height:1;color:var(--text3);font-variant-numeric:tabular-nums}
+.profile .ud-g{position:absolute;left:0;right:0;border-top:1px solid var(--border-soft)}
+.profile .ud-zero{position:absolute;left:0;right:0;top:50%;border-top:1px solid var(--border2)}
+.profile .ud-cols{position:absolute;inset:0;display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr))}
+.profile .ud-col{position:relative;outline:none}
+.profile .ud-col:focus-visible{box-shadow:inset 0 0 0 2px var(--accent);border-radius:4px}
+.profile .ud-up,.profile .ud-down{position:absolute;left:50%;transform:translateX(-50%);width:50%;max-width:34px}
+.profile .ud-up{bottom:50%;border-radius:3px 3px 0 0;background:var(--chart-team)}
+.profile .ud-down{top:50%;border-radius:0 0 3px 3px;background:var(--chart-muted)}
+.profile .ud-col:hover .ud-up,.profile .ud-col:hover .ud-down{filter:brightness(1.08)}
+.profile .ud-miss{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;font-size:12px;color:var(--text3)}
+.profile .ud-name{position:absolute;left:4px;margin:0;font-size:11px;font-weight:700;line-height:1;white-space:nowrap}
+.profile .ud-name-up{top:2px;color:var(--accent-l)}
+.profile .ud-name-down{bottom:2px;color:var(--text3)}
+.profile .ud-x{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));margin-left:30px;text-align:center;font-size:11px;color:var(--text3);line-height:1.3}
+.profile .ud-xl{min-width:0;overflow-wrap:anywhere}
+.profile .ud-x b{display:block;color:var(--text2);font-size:11.5px;font-weight:700}
+.profile .ud-x b i{font-style:normal}
+@media(max-width:640px){.profile .ud-y,.profile .ud-area{height:168px}.profile .ud-x{font-size:10px}.profile .ud-x b{font-size:10.5px}.profile .ud-x b i{display:block}}
 .sc-legend i.lg-line{height:0;border-top:1.5px dashed var(--text2);border-radius:0}
 .folds{display:grid;gap:10px}
 .fold{background:var(--surface);border:1px solid var(--border);border-radius:10px}

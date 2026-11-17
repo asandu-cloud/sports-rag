@@ -1,7 +1,7 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261117a';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead} from './insight.js?v=research-20261117a';
-import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261117a';
-import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261117a';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261117f';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead, columnHeadroom, upDown} from './insight.js?v=research-20261117f';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261117f';
+import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261117f';
 
 const API = '/api/research';
 // The site's loaders (loaders.js, D112), with the old line if the kit or its styles are missing.
@@ -593,20 +593,24 @@ function mountResearch(root, navigate) {
     const n = items.length;
     const {max, ticks} = niceMax(maxValue ?? Math.max(0, ...items.map(it => segs.reduce((sum, s) => sum + (it[s.key] || 0), 0))), minimum);
     const grid = ticks.slice(1).map(t => `<span class="gridline" style="bottom:${t / max * 100}%"></span>`).join('');
+    const tops = [];
     const cols = items.map(it => {
       const missing = segs.every(s => it[s.key] == null);
       const total = segs.reduce((sum, seg) => sum + (it[seg.key] || 0), 0);
       const stack = missing ? '<span class="col-missing">–</span>' : total === 0 ? '<span class="col-zero"></span>' : segs.map(s => it[s.key] > 0 ? `<i style="height:${it[s.key] / max * height}px;background:var(${s.color})"></i>` : '').join('');
       // The total and the goal dots sit above the stack, out of flow, so they never stretch the row.
       const drawn = segs.filter(seg => it[seg.key] > 0).length, top = total === 0 ? 3 : total / max * height + 2 * Math.max(0, drawn - 1);
+      if (!missing) tops.push({top, dots: dots ? dots(it) : 0});
       const goalDots = dots && !missing && dots(it) ? `<span class="goals" style="bottom:${top + 22}px">${Array.from({length: Math.min(4, dots(it))}, () => '<i></i>').join('')}</span>` : '';
       const text = tipFor(it), written = missing ? '' : `<b class="cv cv-abs" style="bottom:${top + 4}px">${whole(total)}</b>`;
       return `<div class="ccol"><div class="colwrap" tabindex="0" data-tip="${escape(text)}" aria-label="${escape(text)}">${goalDots}${written}<span class="stack-col">${stack}</span></div></div>`;
     }).join('');
     const gaps = items.some(it => segs.every(seg => it[seg.key] == null)) ? '<span>– No statistics recorded</span>' : '';
     if (gaps) legend = (legend || '') + gaps;
+    // Room above the plot for the tallest column's number and goal dots, so they never reach the legend.
+    const room = columnHeadroom(tops, height);
     return `<div class="chart">${legend ? `<div class="legend">${legend}</div>` : ''}
-      <div class="plot" role="img" aria-label="${escape(label)}"><div class="yaxis" style="height:${height}px">${ticks.map(t => `<span style="bottom:${t / max * 100}%">${t}</span>`).join('')}</div>
+      <div class="plot" style="padding-top:${room}px" role="img" aria-label="${escape(label)}"><div class="yaxis" style="height:${height}px">${ticks.map(t => `<span style="bottom:${t / max * 100}%">${t}</span>`).join('')}</div>
       <div class="bars" style="height:${height}px;grid-template-columns:repeat(${n},minmax(0,1fr))">${grid}${cols}</div></div>
       <div class="xlabels" style="grid-template-columns:repeat(${n},minmax(0,1fr))">${items.map(xLabel).join('')}</div>
       <details class="tbl"><summary>Show as table</summary><div class="tbl-wrap">${table}</div></details></div>`;
@@ -632,21 +636,16 @@ function mountResearch(root, navigate) {
       const hasXg = last.some(m => m.values.xg_for != null);
       const [forKey, againstKey, what] = hasXg ? ['xg_for', 'xg_against', 'Expected goals'] : ['goals_for', 'goals_against', 'Goals'];
       title = hasXg ? 'Chances by match' : 'Goals by match'; small = `${what}, last ${last.length}`;
-      const {max, ticks} = niceMax(Math.max(...last.flatMap(m => [m.values[forKey] || 0, m.values[againstKey] || 0])), 2);
-      const h = 170, name = d.subject.name;
+      const name = d.subject.name;
       const score = m => `${m.values.goals_for ?? '?'}–${m.values.goals_against ?? '?'}`;
-      const cols = last.map(m => {
-        const f = m.values[forKey], a = m.values[againstKey];
-        const text = `${day(m.date)} ${venueWord(m)} ${opp(m)}: ${score(m)}.${hasXg ? ` xG ${fixed(f)} for, ${fixed(a)} against` : ''}`;
-        const bars = f == null && a == null ? '<span class="col-missing">–</span>' : `<i style="height:${(f || 0) / max * h}px;background:var(--chart-1)"></i><i style="height:${(a || 0) / max * h}px;background:var(--chart-2)"></i>`;
-        return `<div class="ccol"><div class="colwrap" tabindex="0" data-tip="${escape(text)}" aria-label="${escape(text)}"><span class="pair">${bars}</span></div></div>`;
-      }).join('');
-      chart = `<div class="chart"><div class="legend"><span><i style="background:var(--chart-1)"></i>${escape(name)}</span><span><i style="background:var(--chart-2)"></i>Opponent</span>${last.some(m => m.values[forKey] == null && m.values[againstKey] == null) ? '<span>– No statistics recorded</span>' : ''}</div>
-        <div class="plot" role="img" aria-label="${what} for and against in each of the last ${last.length} matches"><div class="yaxis" style="height:${h}px">${ticks.map(t => `<span style="bottom:${t / max * 100}%">${t}</span>`).join('')}</div>
-        <div class="bars" style="height:${h}px;grid-template-columns:repeat(${last.length},minmax(0,1fr))">${ticks.slice(1).map(t => `<span class="gridline" style="bottom:${t / max * 100}%"></span>`).join('')}${cols}</div></div>
-        <div class="xlabels" style="grid-template-columns:repeat(${last.length},minmax(0,1fr))">${last.map(m => `<span><b>${escape(m.opponent?.abbreviation || short(m.opponent))}</b>${score(m)}</span>`).join('')}</div>
-        <details class="tbl"><summary>Show as table</summary><div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Opponent</th><th>Score</th><th>xG for</th><th>xG against</th></tr></thead><tbody>${last.map(m => `<tr><td>${day(m.date)}</td><td>${escape(opp(m))} (${m.venue === 'home' ? 'H' : 'A'})</td><td>${score(m)}</td><td>${fixed(m.values.xg_for)}</td><td>${fixed(m.values.xg_against)}</td></tr>`).join('')}</tbody></table></div></details></div>`;
-      if (hasXg) chart += `<p class="card-note">Expected goals (xG) estimates the quality of chances. When ${escape(name)}'s column is the taller of the two, they made the better chances.</p>`;
+      const gap = last.some(m => m.values[forKey] == null && m.values[againstKey] == null);
+      // Up and down (D118): the team's chances above the line in Spix cobalt, the opponent's below in grey.
+      chart = upDown({name, items: last.map(m => ({up: m.values[forKey], down: m.values[againstKey],
+        label: `${day(m.date)} ${venueWord(m)} ${opp(m)}: ${score(m)}.${hasXg ? ` xG ${fixed(m.values[forKey])} for, ${fixed(m.values[againstKey])} against` : ''}`,
+        where: venueWord(m), who: m.opponent?.abbreviation || short(m.opponent), sub: score(m)})),
+        legend: gap ? '<div class="legend"><span>– No statistics recorded</span></div>' : ''}) + `
+        <details class="tbl"><summary>Show as table</summary><div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Opponent</th><th>Score</th><th>xG for</th><th>xG against</th></tr></thead><tbody>${last.map(m => `<tr><td>${day(m.date)}</td><td>${escape(opp(m))} (${m.venue === 'home' ? 'H' : 'A'})</td><td>${score(m)}</td><td>${fixed(m.values.xg_for)}</td><td>${fixed(m.values.xg_against)}</td></tr>`).join('')}</tbody></table></div></details>`;
+      if (hasXg) chart += `<p class="card-note">Expected goals (xG) estimates the quality of chances. When ${escape(name)}'s bar above the line is longer than the opponent's below it, they made the better chances.</p>`;
     } else {
       title = `Last ${plural(last.length, 'match', 'matches')}`; small = 'Cards shown, both teams';
       const items = last.map(m => ({...m, cards: m.values.cards}));
@@ -663,7 +662,8 @@ function mountResearch(root, navigate) {
     if (!last.length) return '';
     const top = Math.max(90, ...last.map(m => m.values.minutes)), h = 56;
     const role = d.role_summary;
-    const strip = `<div class="chart"><div class="plot" role="img" aria-label="Minutes played in each of the last ${last.length} appearances">
+    const room = columnHeadroom(last.map(m => ({top: m.values.minutes / top * h, dots: 0})), h);
+    const strip = `<div class="chart"><div class="plot" style="padding-top:${room}px" role="img" aria-label="Minutes played in each of the last ${last.length} appearances">
       <div class="yaxis" style="height:${h}px"><span style="bottom:0%">0</span><span style="bottom:${90 / top * 100}%">90</span></div>
       <div class="bars" style="height:${h}px;grid-template-columns:repeat(${last.length},minmax(0,1fr))"><span class="gridline" style="bottom:${90 / top * 100}%"></span>${last.map(m => {
         const text = `${day(m.date)} ${venueWord(m)} ${opp(m)}: ${m.values.minutes} minutes${m.started === false ? ', came off the bench' : ''}`;
@@ -690,7 +690,7 @@ function mountResearch(root, navigate) {
     const {max} = niceMax(Math.max(...rows.flatMap(([, h, a]) => [h, a])), 2);
     const row = ([label, h, a]) => {
       const lo = Math.min(h, a), hi = Math.max(h, a), text = `${label}: home ${fixed(h)}, away ${fixed(a)} per match`;
-      return `<div class="dumb-row"><span>${label}</span><b class="dumb-h"><i style="background:var(--chart-1)"></i>${fixed(h)}</b><span class="dumb-track" role="img" aria-label="${escape(text)}"><span class="link" style="left:${lo / max * 100}%;width:${(hi - lo) / max * 100}%"></span><span class="d" style="left:${h / max * 100}%;background:var(--chart-1)"></span><span class="d" style="left:${a / max * 100}%;background:var(--chart-2)"></span></span><b class="dumb-a">${fixed(a)}<i style="background:var(--chart-2)"></i></b></div>`;
+      return `<div class="dumb-row"><span>${label}</span><b class="dumb-h"><i style="background:var(--chart-1)"></i>${fixed(h)}</b><span class="dumb-track" role="img" aria-label="${escape(text)}"><span class="dumb-link" style="left:${lo / max * 100}%;width:${(hi - lo) / max * 100}%"></span><span class="d" style="left:${h / max * 100}%;background:var(--chart-1)"></span><span class="d" style="left:${a / max * 100}%;background:var(--chart-2)"></span></span><b class="dumb-a">${fixed(a)}<i style="background:var(--chart-2)"></i></b></div>`;
     };
     return `<section class="card"><div class="card-h"><h3>Home and away</h3><small>Per match</small></div>
       <div class="legend"><span><i class="dot" style="background:var(--chart-1)"></i>Home (${ha.home.matches})</span><span><i class="dot" style="background:var(--chart-2)"></i>Away (${ha.away.matches})</span></div>
@@ -1065,8 +1065,8 @@ class SpixResearch extends HTMLElement {
     if (kit) { root.adoptedStyleSheets = [kit]; kitAdopted = true; }
     root.innerHTML = loading('roll', 'Loading the Research Area');
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261117a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261117a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261117f', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261117f', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));

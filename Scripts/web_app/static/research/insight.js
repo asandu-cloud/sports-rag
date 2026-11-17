@@ -45,6 +45,18 @@ const niceMax = value => {
   return Math.ceil(v / step) * step;
 };
 
+// How far the plot must reserve above its top so each column's number and goal dots stay inside the card.
+// cols: {top: the column's height in px, dots: goals}. The number is 11px tall, 4px up; the dots start 22px up, each
+// 8px with a 2px ring and 3px apart, at most 4. Returns 0 when everything fits, else the overflow plus 4px.
+export function columnHeadroom(cols, height) {
+  const reach = cols.map(({top, dots}) => {
+    const n = Math.min(4, dots || 0);
+    return Math.max(top + 15, n ? top + 22 + n * 8 + (n - 1) * 3 + 2 : 0);
+  });
+  const over = Math.max(0, ...reach) - height;
+  return over > 0 ? over + 4 : 0;
+}
+
 // Columns with every value written on top, a zero drawn as a base mark, and the bettor's line dashed across.
 // items: {value, top, bottom, title}. A whole-number line sits half a step low, between "1" and "0".
 export function labelledColumns(items, {line, label, legend, noun}) {
@@ -103,20 +115,40 @@ export function glance(name, rows, market) {
 }
 
 // Cards (or goals, corners) by match: the team's and the opponent's stacked, the total written, the line dashed.
-export function stackedColumns(name, rows, market, line = DEFAULT_LINE[market]) {
-  const totals = rows.map(r => marketTotal(r, market));
-  const max = Math.max(line + 1, ...totals.filter(v => v != null)) * 1.12;
-  const cols = rows.map((r, i) => {
-    const a = r[`${market}_for`], b = r[`${market}_against`], t = totals[i];
-    const label = `${r.venue === 'home' ? 'v' : 'at'} ${r.opponent?.name || 'Opponent'}, ${shortDay(r.date)}: ${t == null ? 'not recorded' : `${name} ${a}, ${r.opponent?.name || 'Opponent'} ${b}, ${t} in all`}`;
-    const bars = t == null ? '<b>–</b>' : `<b>${t}</b><i class="opp" style="height:${b / max * 100}%"></i><i class="own" style="height:${a / max * 100}%"></i>`;
-    return `<div class="sc-col" role="img" aria-label="${escape(label)}">${bars}</div>`;
+// Up and down (owner, 17 Nov, D118): the team's bars rise above a centre line, the opponents' hang below it, and both
+// names sit on the chart, so neither colour nor a legend has to say who is who. items: {up, down, label, where, who,
+// sub}: "v" or "at", the opponent's short name, and a line under it (HTML, escaped by the caller). Both values missing
+// draws a dash at the line.
+export function upDown({name, items, legend = '', note = ''}) {
+  const top = Math.max(0, ...items.flatMap(it => [it.up ?? 0, it.down ?? 0]));
+  const step = top <= 4 ? 1 : top <= 8 ? 2 : top <= 20 ? 5 : 10, max = Math.max(step, Math.ceil(top / step) * step);
+  const round = v => Math.round(v * 100) / 100, at = v => round(v / max * 50);
+  const ticks = Array.from({length: max / step}, (_, i) => (i + 1) * step);
+  const y = [...[...ticks].reverse().map(t => [t, round(50 - at(t))]), [0, 50], ...ticks.map(t => [t, round(50 + at(t))])];
+  const cols = items.map(it => {
+    const bars = it.up == null && it.down == null ? '<span class="ud-miss">–</span>'
+      : `<i class="ud-up" style="height:${at(it.up || 0)}%"></i><i class="ud-down" style="height:${at(it.down || 0)}%"></i>`;
+    return `<div class="ud-col" tabindex="0" data-tip="${escape(it.label)}" role="img" aria-label="${escape(it.label)}">${bars}</div>`;
   }).join('');
-  const x = rows.map(r => `<span>${escape(r.opponent?.abbreviation || r.opponent?.short_code || '?')}<small>${r.venue === 'home' ? 'H' : 'A'}</small></span>`).join('');
+  return `<div class="ud" style="--n:${items.length}"><div class="ud-plot"><div class="ud-y"><div class="ud-in">${y.map(([t, p]) => `<span style="top:${p}%">${t}</span>`).join('')}</div></div>
+    <div class="ud-area"><p class="ud-name ud-name-up">↑ ${escape(name)}</p><p class="ud-name ud-name-down">↓ Opponents</p><div class="ud-in">${y.filter(([t]) => t).map(([, p]) => `<span class="ud-g" style="top:${p}%"></span>`).join('')}<span class="ud-zero"></span><div class="ud-cols">${cols}</div></div></div></div>
+    <div class="ud-x">${items.map(it => `<span class="ud-xl"><b><i>${escape(it.where)}</i> ${escape(it.who)}</b>${it.sub}</span>`).join('')}</div></div>${legend}${note}`;
+}
+
+// A market by match, up and down: the team's count above the line, the opponents' below. The match total sits under
+// each label, marked when it clears the line, since a split column cannot carry the line itself.
+export function stackedColumns(name, rows, market, line = DEFAULT_LINE[market]) {
+  const items = rows.map(r => {
+    const a = r[`${market}_for`], b = r[`${market}_against`], t = marketTotal(r, market), opp = r.opponent?.name || 'Opponent';
+    const where = r.venue === 'home' ? 'v' : 'at';
+    const label = `${where} ${opp}, ${shortDay(r.date)}: ${t == null ? 'not recorded' : `${name} ${a}, ${opp} ${b}, ${t} in all`}`;
+    const total = t == null ? '–' : passes(t, line) ? `<mark>${t}</mark>` : t;
+    return {up: a, down: b, label, where, who: r.opponent?.abbreviation || r.opponent?.short_code || '?', sub: total};
+  });
   const own = mean(rows.map(r => r[`${market}_for`])), other = mean(rows.map(r => r[`${market}_against`]));
-  return `<div class="sc" style="--n:${rows.length}"><div class="sc-plot">${cols}<div class="sc-line" style="bottom:${line / max * 100}%"></div></div><div class="sc-x">${x}</div></div>
-    <div class="legend sc-legend"><span><i class="own"></i>${escape(name)} ${one(own)} a match</span><span><i class="opp"></i>Opponents ${one(other)} a match</span><span><i class="lg-line"></i>Line ${line} ${WORDS[market].noun}</span></div>
-    <p class="card-note">The number above each column is the match total.</p>`;
+  return upDown({name, items,
+    legend: `<div class="legend sc-legend"><span><i class="own"></i>${escape(name)} ${one(own)} a match</span><span><i class="opp"></i>Opponents ${one(other)} a match</span></div>`,
+    note: `<p class="card-note">The number under each match is its total, marked when over ${line} ${WORDS[market].noun}.</p>`});
 }
 
 // ----- The match-by-match view (task 3) -----
