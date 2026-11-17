@@ -398,6 +398,36 @@ button.who:hover,button.who:focus-visible{background:var(--surface2)}
 .match>.back-button{justify-self:start;margin:0}
 .match .disclaimer{font-size:12px;color:var(--text3);border-top:1px solid var(--border-soft);padding-top:10px;line-height:1.6;max-width:90ch}
 /* A played match from the last 10 (D121): the strip to move between matches, the lead, what Spix said and the numbers. */
+/* The glance squares as buttons (D121): the same 14px squares, a taller hit area, and the pointed-at match ringed in
+   every row. The card beside them is #gtip. */
+.profile .strip button{position:relative;width:14px;height:14px;padding:0;border-radius:3px;border:1.5px solid var(--border2);background:transparent;cursor:pointer}
+.profile .strip button.y{background:var(--accent);border-color:var(--accent)}
+.profile .strip button.na{border-style:dashed;border-color:var(--border)}
+.profile .strip button::before{content:'';position:absolute;inset:-8px -2px}
+.profile .strip button:focus-visible{outline:none}
+.profile .strip button.col::after{content:'';position:absolute;inset:-5px;border:2px solid var(--accent);border-radius:5px}
+.profile .strip button.col:hover::after,.profile .strip button.col:focus-visible::after{border-color:var(--text)}
+.gtip{position:fixed;z-index:50;pointer-events:none;width:280px;background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow-lg);font-size:13px;line-height:1.4}
+.gtip[hidden]{display:none}
+.gtip p{margin:0}
+.gtip .gc-when{color:var(--text3);font-size:12px}
+.gtip .gc-score{font-size:18px;font-weight:700;margin-top:4px}
+.gtip .gc-stat{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;color:var(--text2);font-size:14px}
+.gtip .gc-stat b{font-size:22px;font-weight:800;color:var(--text)}
+.gtip .gc-split{color:var(--text3);font-size:12px}
+.gtip .gc-spix{border-top:1px solid var(--border);margin-top:10px;padding-top:10px;color:var(--text2)}
+.gtip .gc-spix b{color:var(--text)}
+.gtip .gc-open{margin-top:8px;font-weight:600;color:var(--accent-l)}
+.gsheet .gs-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;color:var(--text3)}
+.gsheet .gs-step{width:44px;height:44px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:20px;cursor:pointer}
+.gsheet .gs-step:disabled{opacity:.35;cursor:default}
+.gsheet h3{font-size:24px;font-weight:700;text-align:center;margin:10px 0 0}
+.gsheet .gs-meta{text-align:center;color:var(--text3);font-size:13px;margin:2px 0 0}
+.gsheet .gs-tiles{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:10px;margin-top:14px}
+.gsheet .gs-tile{display:flex;flex-direction:column;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px}
+.gsheet .gs-tile small{font-size:12px;color:var(--text3)}
+.gsheet .gs-tile b{font-size:26px;font-weight:800;line-height:1.1}
+.gsheet .gs-open{width:100%;min-height:50px;margin-top:14px;border-radius:12px;border:none;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:16px;cursor:pointer}
 .match .pr-top{flex-wrap:nowrap}
 .match .pr-top .mv-title{flex:0 1 auto;min-width:0}
 .match .pr-strip{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px}

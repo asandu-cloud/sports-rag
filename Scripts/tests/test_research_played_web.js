@@ -104,13 +104,57 @@ const sectionOf = (html, label) => html.match(new RegExp(`<section class="pr-car
   // research.js routes #research/played/teams/<id>/<scope>/<fixture_id>/<market> to the report, drawn in the match view.
   const research = fs.readFileSync(path.join(__dirname, '../web_app/static/research/research.js'), 'utf8');
   assert.match(research, /if \(parts\[0\] === 'played' && parts\[1\]\) return showPlayed\(/);
-  assert.match(research, /import \{playedReport\} from '\.\/played\.js\?v=research-20261117g'/);
+  assert.match(research, /import \{playedReport, glanceCard, glanceSheet\} from '\.\/played\.js\?v=research-20261117h'/);
   assert.match(research, /\[data-played\]/);
   assert.match(research, /\[data-played-market\]/);
   assert.match(research, /strip\.scrollLeft = pill\.offsetLeft - \(strip\.clientWidth - pill\.offsetWidth\) \/ 2/, 'a phone shows the open match in the strip');
   const css = fs.readFileSync(path.join(__dirname, '../web_app/static/research/research.css'), 'utf8');
   assert.match(css, /\.match \.pr-top\{flex-wrap:nowrap\}/);
   assert.match(css, /\.match \.pr-top \.mv-title\{flex:0 1 auto;min-width:0\}/);
+
+  // ----- Task 2: the glance squares name their match -----
+  const ins = await import(pathToFileURL(path.join(__dirname, '../web_app/static/research/insight.js')));
+  const rows10 = como.match_log.map(ins.fromProfileRow);
+  // With open, each square is a button for its match (no slow native tooltip); without, the strip is as before.
+  const open = ins.glance('Como', rows10, 'corners', {open: true});
+  const first = open.split('<div class="g-row">')[1];
+  const squares = first.match(/<button[^>]*><\/button>/g);
+  assert.equal(squares.length, 10);
+  assert.equal(squares[8], '<button type="button" class="" data-glance="8" aria-label="v VEN: 9"></button>');
+  assert.equal(squares[2], '<button type="button" class="y" data-glance="2" aria-label="v PAR: 15"></button>');
+  assert.match(first, /<span class="strip" role="group" aria-label="5 of 10">/);
+  assert.doesNotMatch(open, /title=/);
+  assert.doesNotMatch(ins.glance('Como', rows10, 'corners'), /<button/, 'other strips keep their squares');
+
+  // The card: when and where, the score, the market's figure split by side, and what Spix said when D122 says.
+  const card = p.glanceCard(withReads, 8, 'corners');
+  assert.equal(text(card), "Sun 1 Nov · Serie A · Como at home Como 1–0 Venezia Corners in the match 9 Como 8 · Venezia 1 · one short of 10 Spix before kickoff: 5 of 5 picks came in Click to open the match ›");
+  assert.match(text(p.glanceCard(withReads, 9, 'cards')), /Cards in the match 1 Como 0 · Inter 1 · under 4 Spix before kickoff: None of the 3 picks came in/);
+  assert.match(text(p.glanceCard(withReads, 5, 'goals')), /Goals in the match 4 Como 3 · Fiorentina 1: a 3\+ match Spix before kickoff: no read kept/);
+  assert.doesNotMatch(p.glanceCard(como, 8, 'corners'), /Spix before kickoff/, 'no field yet, no line');
+
+  // The phone sheet: the same match, earlier and later, and a button that opens the report.
+  const sheet = p.glanceSheet(withReads, 8, 'corners');
+  assert.match(sheet, /^<div class="sheet-bg" data-close-sheet><\/div>/);
+  assert.match(sheet, /<div class="sheet gsheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" tabindex="-1">/);
+  assert.match(sheet, /<button type="button" class="gs-step" data-glance-step="7" aria-label="Earlier match">/);
+  assert.match(sheet, /<button type="button" class="gs-step" data-glance-step="9" aria-label="Later match">/);
+  assert.match(sheet, /<h3 id="sheetTitle">Como 1–0 Venezia<\/h3>/);
+  assert.match(text(sheet), /Match 9 of 10 · Sun 1 Nov/);
+  assert.deepEqual(sheet.match(/<div class="gs-tile">[\s\S]*?<\/div>/g).map(text), ['Corners in the match 9 Como 8 · Venezia 1', 'Spix before kickoff 5 of 5 picks came in']);
+  assert.match(sheet, /<button type="button" class="gs-open" data-played-open="8">Open the match<\/button>/);
+  assert.match(p.glanceSheet(como, 0, 'corners'), /data-glance-step="-1" aria-label="Earlier match" disabled/);
+  assert.equal((p.glanceSheet(como, 8, 'corners').match(/class="gs-tile"/g) || []).length, 1, 'no Spix tile without the field');
+
+  // research.js: the team page's glance opens; pointing shows the card; a click opens the report on a screen that can
+  // hover, else the sheet; the profile already loaded serves the report without a second fetch.
+  assert.match(research, /glance\(name, rows, m, \{open: true\}\)/);
+  assert.match(research, /function wireGlance\(/);
+  assert.match(research, /matchMedia\('\(hover: hover\) and \(pointer: fine\)'\)\.matches/);
+  assert.match(research, /openSheet\(square, glanceSheet\(state\.profile, Number\(square\.dataset\.glance\), state\.teamMarket\)\)/);
+  assert.match(research, /if \(!cache\.has\(url\)\) cache\.set\(url, Promise\.resolve\(state\.profile\)\)/);
+  assert.match(css, /\.profile \.strip button\{/);
+  assert.match(css, /\.profile \.strip button\.col::after\{/);
 
   console.log('test_research_played_web: ok');
 })().catch(error => { console.error(error); process.exit(1); });

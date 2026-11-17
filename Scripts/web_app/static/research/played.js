@@ -1,8 +1,8 @@
 // A played match from a team's last 10 (D121), opened from "Last 10 at a glance": the head, the last 10 to move
 // between, the market's lead, what Spix said before kickoff (D122's spix_before_kickoff, graded by the backend) and the
 // match in numbers. Pure functions returning HTML; research.js places them and wires the clicks.
-import {escape, one} from './insight.js?v=research-20261117g';
-import {crest, whenText, opensDay, possessive} from './upcoming.js?v=research-20261117g';
+import {escape, one} from './insight.js?v=research-20261117h';
+import {crest, whenText, opensDay, possessive} from './upcoming.js?v=research-20261117h';
 
 export const PLAYED_MARKETS = [['cards', 'Cards'], ['goals', 'Goals'], ['corners', 'Corners']];
 const GAMCARE = 'https://www.gamcare.org.uk/get-support/';
@@ -44,7 +44,7 @@ function spixSection(m, market) {
   if (!('spix_before_kickoff' in m)) return '';
   const sb = m.spix_before_kickoff, open = '<section class="pr-card" aria-label="What Spix said before kickoff"><h3>What Spix said before kickoff</h3>';
   if (!sb) return `${open}<p class="pr-none">No read from before kickoff was kept for this match, so there are no picks to show.</p></section>`;
-  const picks = [...(sb.most_likely || []), ...(sb.value || [])];
+  const picks = picksOf(sb);
   if (!picks.length) return `${open}<p class="pr-none">Spix made no picks for this match.</p></section>`;
   const minutes = sb.read_at ? Math.round((new Date(m.date) - new Date(sb.read_at)) / 60000) : null;
   const when = sb.read_at ? ` · read at ${whenText(sb.read_at).split(' · ')[1]}${minutes > 0 ? `, ${minutes} ${minutes === 1 ? 'minute' : 'minutes'} before` : ''}` : '';
@@ -81,10 +81,15 @@ function numbersSection(d, m, rows, market) {
     <div class="pr-head"><span></span><span>${escape(code(d.subject))}</span><span></span><span>${escape(code(m.opponent))}</span><span>Usual</span></div>${lines}${fouls}</section>`;
 }
 
+// Where a match's total fell against the glance's first row: reached it, one short, or under.
+const against = (t, k, sep) => t >= k ? `: a ${k}+ match` : `${sep}${t === k - 1 ? 'one short of' : 'under'} ${k}`;
+const Noun = market => NOUN[market][1][0].toUpperCase() + NOUN[market][1].slice(1);
+const picksOf = sb => [...(sb.most_likely || []), ...(sb.value || [])];
+
 function lead(d, m, rows, market) {
   const name = escape(d.subject.name), opp = escape(m.opponent?.name || 'Opponent'), t = total(m, market), k = MARK[market];
-  if (t == null) return `<p class="pr-lead">${NOUN[market][1][0].toUpperCase() + NOUN[market][1].slice(1)} were not recorded for this match.</p>`;
-  const where = t >= k ? `: a ${k}+ match.` : t === k - 1 ? `, one short of ${k}.` : `, under ${k}.`;
+  if (t == null) return `<p class="pr-lead">${Noun(market)} were not recorded for this match.</p>`;
+  const where = `${against(t, k, ', ')}.`;
   const [ownKey, otherKey] = KEYS[market], a = m.values[ownKey], b = m.values[otherKey], n = rows.length;
   const ua = one(mean(rows.map(r => r.values?.[ownKey]))), ub = one(mean(rows.map(r => r.values?.[otherKey])));
   const sub = market === 'cards' ? `${name} got ${a} and ${opp} ${b}. Over their last ${n}, ${name} got ${ua} a match and their opponents ${ub}.`
@@ -117,4 +122,34 @@ export function playedReport(d, index, market) {
     <div class="pr-grid">${spixSection(m, market)}${numbersSection(d, m, rows, market)}</div>
     <nav class="pr-nav" aria-label="Earlier and later matches">${step(index - 1, '‹ Earlier')}${step(index + 1, 'Later ›')}</nav>
     <p class="disclaimer">Past matches are records, not a forecast. Spix's figures come from statistical models. 18+ · <a href="${GAMCARE}" target="_blank" rel="noopener">GamCare</a></p>`;
+}
+
+// The glance card (D121, task 2): what a square stands for, shown while it is pointed at or focused.
+export function glanceCard(d, index, market) {
+  const m = lastTen(d)[index], name = d.subject.name, opp = m.opponent?.name || 'Opponent', t = total(m, market);
+  const [a, b] = KEYS[market].map(k => m.values?.[k]), sb = m.spix_before_kickoff;
+  const spix = 'spix_before_kickoff' in m ? `<p class="gc-spix">Spix before kickoff: <b>${sb ? escape(pickSummary(picksOf(sb))) : 'no read kept'}</b></p>` : '';
+  return `<p class="gc-when">${opensDay(m.date)} · ${escape(d.competition?.name || '')} · ${escape(name)} ${m.venue === 'home' ? 'at home' : 'away'}</p>
+    <p class="gc-score">${scoreLine(m)}</p>
+    <p class="gc-stat"><span>${Noun(market)} in the match</span><b>${t ?? '–'}</b></p>
+    <p class="gc-split">${escape(name)} ${a ?? '–'} · ${escape(opp)} ${b ?? '–'}${t == null ? '' : against(t, MARK[market], ' · ')}</p>${spix}
+    <p class="gc-open">Click to open the match ›</p>`;
+}
+
+// The same on a phone, where nothing can be pointed at: a sheet with the match, its neighbours and "Open the match".
+export function glanceSheet(d, index, market) {
+  const rows = lastTen(d), m = rows[index], name = d.subject.name, opp = m.opponent?.name || 'Opponent', t = total(m, market);
+  const [a, b] = KEYS[market].map(k => m.values?.[k]), sb = m.spix_before_kickoff, picks = sb ? picksOf(sb) : [];
+  const step = (i, label, glyph) => `<button type="button" class="gs-step" data-glance-step="${i}" aria-label="${label}"${rows[i] ? '' : ' disabled'}>${glyph}</button>`;
+  const spix = !('spix_before_kickoff' in m) ? ''
+    : `<div class="gs-tile"><small>Spix before kickoff</small><b>${picks.length ? `${picks.filter(p => p.outcome === 'won').length} of ${picks.length}` : '–'}</b><small>${picks.length ? 'picks came in' : sb ? 'no picks' : 'no read kept'}</small></div>`;
+  return `<div class="sheet-bg" data-close-sheet></div>
+    <div class="sheet gsheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" tabindex="-1">
+      <div class="grab" aria-hidden="true"></div>
+      <div class="gs-nav">${step(index - 1, 'Earlier match', '‹')}<span>Match ${index + 1} of ${rows.length} · ${opensDay(m.date)}</span>${step(index + 1, 'Later match', '›')}</div>
+      <h3 id="sheetTitle">${scoreLine(m)}</h3>
+      <p class="gs-meta">${STATUS[m.status] || 'Played'} · ${escape(d.competition?.name || '')} · ${escape(name)} ${m.venue === 'home' ? 'at home' : 'away'}</p>
+      <div class="gs-tiles"><div class="gs-tile"><small>${Noun(market)} in the match</small><b>${t ?? '–'}</b><small>${escape(name)} ${a ?? '–'} · ${escape(opp)} ${b ?? '–'}</small></div>${spix}</div>
+      <button type="button" class="gs-open" data-played-open="${index}">Open the match</button>
+    </div>`;
 }

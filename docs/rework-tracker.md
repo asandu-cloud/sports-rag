@@ -3632,6 +3632,13 @@ leading to a full report page (panel B not chosen). Plan: `docs/superpowers/plan
 - Research files at `research-20261117g`. 19 JS test files pass (new: `test_research_played_web.js`, Como's real last
   10). Checked on 8100 at 1280 and 390, light and dark, with D122's field filled in the browser from the kept picks
   of 1 and 8 Nov until the backend lands it.
+- Task 2 (done): the team page's glance squares are buttons (same 14px squares, a taller hit area). Pointing at one,
+  or focusing it from the keyboard, shows a card: when and where, the score, the market's figure split by side, and
+  "Spix before kickoff: 5 of 5 picks came in" (or "no read kept"); the match is ringed in every row. A click opens the
+  report where the screen can hover; on a touch screen it opens a sheet with earlier and later matches and "Open the
+  match". The report opens from the profile already loaded, with no second fetch. Research files at
+  `research-20261117h`. 19 JS test files pass; checked on 8100 with a real mouse at 1280 and taps at 390, light and
+  dark.
 
 ## Findings that shape later steps
 
