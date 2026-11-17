@@ -1,7 +1,7 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261116r';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead} from './insight.js?v=research-20261116r';
-import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261116r';
-import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261116r';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261117a';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead} from './insight.js?v=research-20261117a';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261117a';
+import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261117a';
 
 const API = '/api/research';
 // The site's loaders (loaders.js, D112), with the old line if the kit or its styles are missing.
@@ -1065,8 +1065,8 @@ class SpixResearch extends HTMLElement {
     if (kit) { root.adoptedStyleSheets = [kit]; kitAdopted = true; }
     root.innerHTML = loading('roll', 'Loading the Research Area');
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261116r', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261116r', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261117a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261117a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));
