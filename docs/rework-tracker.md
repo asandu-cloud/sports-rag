@@ -3070,6 +3070,38 @@ backend).** The number was held since 7 Nov (D78).
       - real xG: 0.27 in 2022/23, 1.00 from 2023/24.
     - Rest days: median 6; 22% under 4; 7% over 14.
     - 5 new tests; suite 3,209 passed plus the 3 known worktree errors; golden check unchanged.
+  - **Phase 2 task 3 done (17 Nov): shot ratings through the ablation gate. No variant passes.**
+    - Models 3–4 take variables: each adds a fitted coefficient on a side's value, known before the match, to its
+      log goals.
+      - A shot variable is the side's shot attack minus the opponent's shot defence, from model 3 fitted on the
+        statistic instead of goals. It refits weekly and is 0 until both teams have 5 matches with it.
+      - Variants are named `dc+box` and so on, and the bench gates each against its base on the tuning seasons
+        (new "Ablation" section).
+    - *Derived shot-location xG*, frozen in `shots.LOCATION_XG`: 0.160 goals a shot inside the box, 0.029 outside.
+      - Fitted on the tuning seasons (27,748 sides).
+      - On 2022/23's 1,930 sides with real xG, it tracks real xG at a correlation of 0.76 (average 1.43 against
+        1.41).
+    - *Ruling:* the drifting ratings take their coefficients from a model 3 fit again at each new season's first
+      day, not only at their start. Shots in the box start with the first scored season, so at the start every
+      value is still 0.
+    - *Tuning run* (16 Nov, 904 s, 14,383 matches; `Research/game-read-bench-2026-11-16-shots/`). Change in log
+      loss against the model without the variable, in %:
+
+      | Variant | Result | Over 2.5 |
+      |---|---|---|
+      | dc+box | −0.39 [−0.51, −0.27] | +0.01 [−0.09, +0.10] |
+      | dc+target | −0.23 [−0.35, −0.11] | +0.18 [+0.05, +0.30] |
+      | dc+xg | −0.39 [−0.51, −0.26] | −0.01 [−0.10, +0.08] |
+      | drift+box | −0.15 [−0.26, −0.04] | +0.11 [+0.04, +0.19] |
+      | drift+target | −0.19 [−0.31, −0.07] | +0.20 [+0.07, +0.33] |
+      | drift+xg | −0.15 [−0.25, −0.04] | +0.09 [+0.01, +0.17] |
+
+    - Shots in the box and the derived xG help Dixon–Coles's result forecast in every league, but by 0.39%, short
+      of the 0.5% bar. They do nothing for over 2.5. Shots on target make over 2.5 worse.
+    - Against the market: dc's result log loss goes from +0.0165 to +0.0126 with shots in the box. That is still
+      far from the market, and no blend shows a gain (all intervals cross zero).
+    - By D12's rule, all six are removed from the next tasks. Task 4 adds rest to plain `dc` and `drift`.
+    - 8 new tests; suite 3,217 passed plus the 3 known worktree errors; golden check unchanged.
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,
 owner).** The owner does not use the Research Area for their own bets ("nowhere near ready for customer use"). Their

@@ -13,6 +13,11 @@ goals:
 uncertainty moves more. Uncertainty grows by ``gain`` a day between matches, and a team's by ``summer_widening``
 more at its first match of a new season. Rho and the promoted-team shift stay at model 3's values; the shift is
 added once, at a promoted team's first match in its new division.
+
+Phase 2 (D12): with ``variables``, each side's ``beta · x`` is added to the log of its expected goals, in the
+forecast and in the filter step. The coefficients come from a fit of model 3 at the start and again at each new
+season's first day (only the coefficients: the ratings keep drifting), since a statistic that begins with the first
+scored season is still 0 everywhere at the start.
 """
 from __future__ import annotations
 
@@ -53,9 +58,11 @@ class _Rating:
 class Drifting:
     name = "drift"
 
-    def __init__(self, gain: float = GAIN, summer_widening: float = SUMMER_WIDENING):
+    def __init__(self, gain: float = GAIN, summer_widening: float = SUMMER_WIDENING, variables: Sequence = ()):
         self.gain, self.summer_widening = gain, summer_widening
-        self._base = DixonColes()  # keeps who is new to a division, and gives the start
+        self._base = DixonColes(variables=variables)  # keeps who is new to a division and the variables; the start
+        self.name = "+".join([type(self).name, *(v.name for v in self._base.variables)])
+        self.beta, self._beta_season = (), None
         self._attack, self._defence = {}, {}  # team -> _Rating
         self._level, self._home = {}, {}  # league -> _Rating
         self._where = {}  # team -> (league, season) of its latest match
@@ -81,6 +88,7 @@ class Drifting:
         fitted = self._base.fitted
         self.rho, self.promoted_attack, self.promoted_defence = (fitted.rho, fitted.promoted_attack,
                                                                  fitted.promoted_defence)
+        self.beta, self._beta_season = fitted.beta, max(season for _, season, _ in self._last.values())
         team, league = _settled(self.gain, 1), _settled(self.gain, LEAGUE_MATCHES_A_WEEK)
         for name, attack in fitted.attack.items():
             last_day, season, new = self._last[name]
@@ -109,19 +117,33 @@ class Drifting:
         return ((attack.value + self.promoted_attack * shifted, self._ahead(attack, match.day, match.season)),
                 (defence.value + self.promoted_defence * shifted, self._ahead(defence, match.day, match.season)))
 
+    def _offsets(self, match: Match) -> tuple:
+        """Each side's ``beta · x``: what the variables add to the log of its expected goals."""
+        if not self.beta:
+            return 0.0, 0.0
+        home_x, away_x = self._base.features(match)
+        return float(np.dot(self.beta, home_x)), float(np.dot(self.beta, away_x))
+
     def means(self, match: Match) -> tuple:
         level, home = (r.value for r in self._league(match))
         (home_attack, _), (home_defence, _) = self._team(match, match.home)
         (away_attack, _), (away_defence, _) = self._team(match, match.away)
-        return math.exp(level + home + home_attack - away_defence), math.exp(level + away_attack - home_defence)
+        home_offset, away_offset = self._offsets(match)
+        return (math.exp(level + home + home_attack - away_defence + home_offset),
+                math.exp(level + away_attack - home_defence + away_offset))
 
     # The model
 
     def predict(self, matches: Sequence[Match]) -> list:
+        for match in matches:
+            self._base.features(match)  # before the day is learned
         if not self.started:
             self._base.predict(matches)  # fits model 3 once it has enough history
             if self._base.fitted is not None:
                 self._start(min(match.day for match in matches))
+        elif self._base.variables and max(match.season for match in matches) > self._beta_season:
+            self._base.predict(matches)  # refits model 3, for its coefficients only
+            self.beta, self._beta_season = self._base.fitted.beta, max(match.season for match in matches)
         forecasts = []
         for match in matches:
             home, away, rho = (*self.means(match), self.rho) if self.started else (*PRIOR, 0.0)
@@ -129,8 +151,8 @@ class Drifting:
             forecasts.append(Forecast(result=_result(matrix), score_matrix=matrix))
         return forecasts
 
-    def _step(self, ratings: list, signs: list, goals: int) -> None:
-        expected = math.exp(sum(sign * r.value for r, sign in zip(ratings, signs)))
+    def _step(self, ratings: list, signs: list, goals: int, offset: float = 0.0) -> None:
+        expected = math.exp(sum(sign * r.value for r, sign in zip(ratings, signs)) + offset)
         scale = expected * sum(r.variance for r in ratings) + 1
         step = (goals - expected) / scale
         for rating, sign in zip(ratings, signs):
@@ -150,8 +172,10 @@ class Drifting:
             self._defence[team] = _Rating(defence, defence_variance, match.day, match.season)
             sides[team] = self._attack[team], self._defence[team]
         level, home = self._level[league], self._home[league]
-        self._step([level, home, sides[match.home][0], sides[match.away][1]], [1, 1, 1, -1], match.home_goals)
-        self._step([level, sides[match.away][0], sides[match.home][1]], [1, 1, -1], match.away_goals)
+        home_offset, away_offset = self._offsets(match)
+        self._step([level, home, sides[match.home][0], sides[match.away][1]], [1, 1, 1, -1], match.home_goals,
+                   home_offset)
+        self._step([level, sides[match.away][0], sides[match.home][1]], [1, 1, -1], match.away_goals, away_offset)
 
     def learn(self, matches: Sequence[Match]) -> None:
         self._base.learn(matches)  # after the start, model 3 is not refitted: only its record of newcomers is used

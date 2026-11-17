@@ -133,6 +133,33 @@ def accuracy(rows: Sequence, market: str) -> dict:
             "market_log_loss": _finite(_ratio(totals[2], totals[3])) if found else None}
 
 
+# The ablation gate (D12, spec): a variable stays only when its model's log loss is at least half a percent lower
+# than the same model's without it, the interval is below zero, and no league is more than 2% worse.
+GATE_GAIN, GATE_LEAGUE = -0.5, 2.0
+
+
+def ablation(base_rows: Sequence, variant_rows: Sequence, market: str) -> dict:
+    """The variant's log loss minus the base's, in % of the base's, on the matches both forecast (paired by match),
+    with the week-block interval and each league's."""
+    base = {match.id: forecast for match, forecast in base_rows}
+    found = []
+    for match, forecast in variant_rows:
+        mine = _probabilities(match, forecast, market)
+        theirs = _probabilities(match, base[match.id], market) if match.id in base else None
+        if mine and theirs:
+            found.append((match, (_log_loss(mine[0], mine[2]) - _log_loss(theirs[0], theirs[2]),
+                                  _log_loss(theirs[0], theirs[2]))))
+    return {"market": market, **_summary(found, lambda t: 100 * _ratio(t[0], t[1]))}
+
+
+def gate(found: Mapping) -> bool:
+    estimate, high = found.get("estimate"), found.get("high")
+    if estimate is None or high is None:
+        return False
+    leagues = [league["estimate"] for league in found.get("by_league", {}).values() if league["estimate"] is not None]
+    return estimate <= GATE_GAIN and high < 0 and all(value <= GATE_LEAGUE for value in leagues)
+
+
 def blend_score(tuning_rows: Sequence, scored_rows: Sequence, market: str) -> dict:
     """The blend fitted on the tuning rows, with and without the model; on the scored rows, its ``c`` and the log
     loss of the blend minus the market-only recalibration's (below zero: the model adds to the market)."""
