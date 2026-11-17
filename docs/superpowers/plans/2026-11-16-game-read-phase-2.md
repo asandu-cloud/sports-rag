@@ -68,7 +68,7 @@ task N: …", "Done game-read phase 2 task N: … (<tests>, D77)", "Fix game-rea
 | 7 | Boosted trees on the outcome (model 7) | Done 17 Nov | ee14f16 | the "Done game-read phase 2 task 7" commit | 1 new + bench test extended, all pass; suite 3,231 passed + the 3 known errors; no setting beats the market |
 | 8 | The average of what passes (model 9, second version) | Done 17 Nov | 42f6662 | the "Done game-read phase 2 task 8" commit | 1 new, all pass; suite 3,232 passed + the 3 known errors; diagnostic members chosen for task 9 |
 | 9 | Phase 2 runs (tuning, one locked, one fresh) and the report | Done 17 Nov | none (missed) | the "Done game-read phase 2 task 9" commit | locked and fresh runs on b39b5b3 (ledger lines 2–3); six pass the result blend on locked, none passes picks or Value; suite 3,233 passed + the 3 known errors, golden unchanged |
-| 10 | The market-only lean (model 5c) and the paired comparison against it | In progress | the "Start game-read phase 2 task 10" commit | | |
+| 10 | The market-only lean (model 5c) and the paired comparison against it | Done 17 Nov | 2ce2ea8 | the "Done game-read phase 2 task 10" commit | 2 new + task 5's name test updated, all pass; suite 3,237 passed + the 3 known errors, golden unchanged |
 | 11 | Its runs (tuning, one locked, one fresh) and the report | Not started | | | |
 
 ## The locked seasons and the fresh block

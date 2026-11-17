@@ -3305,6 +3305,20 @@ backend).** The number was held since 7 Nov (D78).
       bare domain. All 10 were byte-identical to 16 Nov's (no league match since 8 Nov), so the bench file was not
       rebuilt.
     - Suite 3,233 passed plus the 3 known worktree errors; golden check unchanged. Task 9 had no start commit (missed).
+  - **The market-only check (owner, 17 Nov, through the orchestrator): phase 2 tasks 10–11, research only.** The lean
+    blends' gain may be the market's own favourite-longshot lean. The "adds to the market" score compares each blend
+    with a market-only recalibration fitted once on the tuning seasons, but the lean blends are refitted every season
+    (b rising). So the control is a market-only blend refitted the same way.
+    - *Task 10 done (17 Nov):*
+      - `lean-market` (model 5c) is `logit p = a + b·logit p_market` (`blend.fit(..., use_spix=False)`), refitted at
+        each season start like the other lean blends.
+      - `run --against <name>` scores every other model against it, match by match (the ablation's pairing, in % of
+        its log loss), and the report gains "Against <name>".
+      - The lean blends are not rerun on locked or fresh: one run per version. On tuning the comparison is paired; on
+        locked and fresh only `lean-market` runs, on the same 10,711 and 1,084 matches, so the gap to each lean
+        blend's earlier score is exact but has no interval.
+      - 2 new tests, and task 5's name test now accepts `lean-market`. Suite 3,237 passed plus the 3 known worktree
+        errors; golden check unchanged.
 
 
 **D107 — Research Area overhaul: next matches, a match view and clearer numbers (16 Nov; frontend and backend,

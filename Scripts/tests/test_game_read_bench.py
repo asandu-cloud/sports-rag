@@ -249,7 +249,8 @@ def test_lean_away_names_resolve_and_run(stubbed, monkeypatch):
     assert pooled.name == "lean-average+xg" and set(pooled.features.models) == {"elo", "pi", "dc+xg", "drift+xg"}
     assert set(bench._factory("lean-average")().features.models) == {"elo", "pi", "dc", "drift"}
     assert list(bench._factory("lean-dc+xg")().features.models) == ["dc+xg"]
-    for wrong in ("lean-market", "lean-elo+xg", "lean-nothing", "lean-average+nope", "lean-lean-dc"):
+    assert bench._factory("lean-market")().market_only  # model 5c, the market alone (owner, 17 Nov)
+    for wrong in ("lean-control", "lean-market+xg", "lean-elo+xg", "lean-nothing", "lean-average+nope", "lean-lean-dc"):
         assert bench._factory(wrong) is None, wrong
     out = stubbed / "out"
     assert bench.main(["run", "--block", "tuning", "--models", "lean-elo", "--out", str(out)]) == 0
@@ -304,4 +305,21 @@ def test_the_average_takes_the_members_it_is_given(stubbed, monkeypatch):
     report = (out / "report.md").read_text()
     assert "## The average's weights" in report and "lean-elo" in report and "diagnostic" in report
     assert bench.main(["run", "--models", "average", "--average-of", "nonsense", "--block", "tuning",
+                       "--out", str(stubbed / "wrong")]) == 2
+
+
+def test_the_bench_scores_each_model_against_the_named_one(stubbed):
+    """The market-only check (owner, 17 Nov): ``--against lean-market`` pairs every other model with it, match by
+    match, on the tuning seasons and the scored block."""
+    out = stubbed / "against"
+    assert bench.main(["run", "--models", "lean-market,lean-elo", "--against", "lean-market", "--block", "tuning",
+                       "--out", str(out)]) == 0
+    summary = json.loads((out / "summary.json").read_text())
+    assert summary["run"]["against"] == "lean-market"
+    assert "against" not in summary["models"]["lean-market"]
+    found = summary["models"]["lean-elo"]["against"]
+    assert set(found) == {"tuning"} and found["tuning"]["result"]["n"] > 0
+    assert summary["models"]["lean-market"]["fits"]
+    assert "## Against lean-market" in (out / "report.md").read_text()
+    assert bench.main(["run", "--models", "lean-elo", "--against", "nonsense", "--block", "tuning",
                        "--out", str(stubbed / "wrong")]) == 2

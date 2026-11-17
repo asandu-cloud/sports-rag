@@ -201,6 +201,22 @@ def _ablation(models) -> list:
     return lines
 
 
+def _against(run, models) -> list:
+    named = run.get("against")
+    compared = {name: found["against"] for name, found in models.items() if found.get("against")}
+    if not named or not compared:
+        return []
+    lines = [f"## Against {named}", "",
+             f"Each model's log loss minus {named}'s, match by match, in % of {named}'s (below zero: the model adds "
+             f"something {named} does not have).", ""]
+    for block in [b for b in ("tuning", "locked", "fresh") if any(b in found for found in compared.values())]:
+        rows = [(name, MARKETS[market], _per_100(a["estimate"]), _interval(a, _per_100), _count(a["n"]))
+                for name, found in compared.items() for market, a in found.get(block, {}).items()]
+        lines += [f"### {TITLES[block].capitalize()}", "", *_table(["Model", "Market", "Change %", "Interval",
+                                                                     "Matches"], rows)]
+    return lines
+
+
 def _carried(carried) -> list:
     if not carried:
         return []
@@ -257,7 +273,7 @@ def _report(results) -> list:
             "Every interval is 95%, from 2,000 resamples of whole weeks.", "",
             *_zero_line(results), *_accuracy(models), *_blend(models), *_picks(models), *_value(models),
             *_closing(models), *_leagues(models), *_verdicts(results["verdicts"]), *_control(models),
-            *_average(models), *_ablation(models), *_carried(results.get("carried")),
+            *_average(models), *_ablation(models), *_against(run, models), *_carried(results.get("carried")),
             *_reference(results["reference"]), *_opportunities(results["opportunities"])]
 
 

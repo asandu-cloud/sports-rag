@@ -9,6 +9,10 @@ saw it.
 ``member`` names one of ``models``, or ``average`` (``average+xg``…): the members' log-linear pool, its weights per
 part fitted on the same earlier seasons (``average.fit_all``). Where the market's chance is missing there is no
 forecast; where the member's chance or a fit is missing, the forecast is the market's.
+
+``member`` may also be ``market`` (model 5c, ``lean-market``; owner, 17 Nov): no member, ``logit p = a + b·logit
+p_market``, refitted the same way. It is the market's own sharpening, so the lean blends' gain over the market can be
+split into that and what their member adds.
 """
 from __future__ import annotations
 
@@ -49,10 +53,13 @@ class LeanAway:
     def __init__(self, member: str, models: Mapping, start: int = FEATURES_FROM):
         self.member, self.name = member, f"lean-{member}"
         self.pooled = member.split("+")[0] == "average"
+        self.market_only = member == "market"
         self.features = Features(models, start=start)
         self.fits = {}  # season -> {"seasons", "n", "weights", "result", "over25"}
 
-    def _said(self, match: Match, weights) -> Forecast:
+    def _said(self, match: Match, weights) -> Optional[Forecast]:
+        if self.market_only:
+            return None
         forecasts = self.features.forecasts[match.id]
         return average.combine(forecasts, weights) if self.pooled else forecasts[self.member]
 
@@ -66,12 +73,13 @@ class LeanAway:
         for part, (market_of, member_of, happened) in PARTS.items():
             rows = []
             for match in earlier:
-                market, said = market_of(match), member_of(self._said(match, weights))
+                market = market_of(match)
+                said = market if self.market_only else member_of(self._said(match, weights))
                 if market is not None and said is not None:
                     rows.append((market, said, happened(match)))
             fitted[part] = None if len(rows) < MIN_FIT else blend.fit(
                 np.array([r[0] for r in rows], dtype=float), np.array([r[1] for r in rows], dtype=float),
-                [r[2] for r in rows])
+                [r[2] for r in rows], use_spix=not self.market_only)
         return fitted
 
     def _part(self, match: Match, part: str, said: Forecast, fitted: dict) -> Optional[list]:
@@ -79,7 +87,7 @@ class LeanAway:
         market = market_of(match)
         if market is None:
             return None
-        member = member_of(said)
+        member = market if self.market_only else member_of(said)
         if member is None or fitted[part] is None:
             return list(market)
         return blend.predict(fitted[part], [market], [member])[0].tolist()
