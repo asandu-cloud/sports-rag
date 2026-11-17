@@ -31,5 +31,5 @@ no rail; its back link returns to the team page.
 | Task | Status | Commits | Tests |
 |---|---|---|---|
 | 1. The report | Done | 3745f89..this commit | played + all 19 *_web.js pass; 8100 at 1280 and 390, light and dark |
-| 2. The card and the sheet | Not started | | |
+| 2. The card and the sheet | In progress | | |
 | 3. Finish | Not started | | |
