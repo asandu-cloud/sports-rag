@@ -71,6 +71,20 @@ def refs_for(repo, session, raw_names) -> Dict[str, dict]:
     return referee_refs(raw_names, repo.alias_rows(session, raw_names=raw_names, keys=keys))
 
 
+def board_referees(event_ids, *, repo=None) -> Dict[str, Optional[dict]]:
+    """The board cards' referees (D124): ``{event id: {"name", "referee_key"} or None}`` as the Research Area names
+    them, for the matches the database knows; None while no referee is named. One short read of two queries."""
+    from ..repositories.research import ResearchRepository
+    numbers = {int(e): str(e) for e in event_ids if str(e).isdigit()}
+    if not numbers:
+        return {}
+    repo = repo or ResearchRepository()
+    with repo.session_factory() as session:
+        raw = repo.referees_by_event(session, numbers)
+        refs = refs_for(repo, session, raw.values())
+    return {numbers[number]: refs.get(name) if name else None for number, name in raw.items()}
+
+
 def kickoff_utc(row) -> datetime:
     kickoff = row["kickoff_utc"]
     return kickoff.replace(tzinfo=kickoff.tzinfo or timezone.utc)

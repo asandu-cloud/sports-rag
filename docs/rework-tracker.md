@@ -3753,6 +3753,18 @@ orchestrator).** Each row of `match_log` in `GET /api/research/teams/{id}` now c
 - 2 new tests (the service with a stand-in lookup; the route with a real saved read, remembered after the first
   view). Suite 3,235 passed plus the 3 known worktree errors; golden check unchanged. Needs a website restart.
 
+**D124 — The board's cards name the referee (17 Nov; backend, frontend D123 asked through the orchestrator).** Each
+card in `GET /api/match-reads/{league}/{date}` now carries `fixture.referee`:
+- `{"name", "referee_key"}`: the Research Area's own lookup (`refs_for`), so the key opens the same referee page;
+- `null` when the database knows the match and no referee is named yet;
+- left out when it can't be told: the match isn't in the database, the refresh is writing (the read never waits,
+  `read_gate()`), or the read fails. The frontend then keeps its current line.
+- Only `cards`; the `before_kickoff` entries don't carry it.
+- One short read, two queries (`ResearchRepository.referees_by_event`, `alias_rows`): 18 ms for 30 matches on real
+  data. On 8 Nov all 30 matches were named (e.g. Davide Massa, `d-massa-a01d3aa4`); on 20 Nov none is named yet.
+- Read-only, no pick changes, no migration. 1 new test; suite 3,238 passed plus the 3 known worktree errors; golden
+  check unchanged. Needs a website restart.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
