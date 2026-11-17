@@ -916,3 +916,98 @@ def test_too_few_ranked_peers_keeps_last_seasons_ranks(early_season, session_fac
     previous = profile["previous_season"]
     assert previous["season"]["year"] == 2026 and previous["ranking"]["ranked"] is True
     assert previous["metrics"]["goals_per_90"]["peer_count"] == 10
+
+
+def _pick(market, side, line, chance, label="pick"):
+    return {"market": market, "side": side, "line": line, "label": label, "chance": chance}
+
+
+def test_match_log_carries_what_spix_showed_before_kickoff_graded(research, session_factory):
+    """D122: each finished match in the team's log carries the lists the board showed at kickoff, each pick graded
+    as the home page's reel grades it (quarter lines in halves); null where no read was kept."""
+    from data_platform.services.refresh_coordination import RefreshBusy
+    service, ids = research
+    with session_factory() as s:  # Alpha's own corners missing in an otherwise observed match: never read as 0
+        f = s.scalar(select(Fixture).where(Fixture.api_football_id == 1004))
+        s.query(FixtureTeamStats).filter_by(fixture_id=f.id, is_home=True).update({"corners": None}); s.commit()
+    shown = {
+        "1002": {"read_at": "2025-08-03T10:00:00Z",  # FT 2-0, Alpha at home, 7-3 corners
+                 "most_likely": [_pick("moneyline", "home", None, 0.6), _pick("goals", "over", 2.25, 0.55),
+                                 _pick("corners", "under", 10.5, 0.52)],
+                 "value": [_pick("goals", "under", 2.25, 0.48), _pick("btts", "yes", None, 0.4)]},
+        "1003": {"read_at": None, "most_likely": [_pick("spreads", "away", 1.75, 0.5)], "value": []},  # away 0-2
+        "1000": {"read_at": None, "most_likely": [_pick("goals", "over", 1.5, 0.7)], "value": []},  # AET: waits
+        "1004": {"read_at": None, "most_likely": [_pick("corners", "over", 8.5, 0.6)], "value": []},
+    }
+    asked = []
+    service.kickoff_picks = lambda event_ids: asked.append(list(event_ids)) or shown
+    log = {m["date"][:10]: m for m in service.profile("team", ids["team"], competition="EPL", season=2025)["match_log"]}
+    assert asked and set(asked[0]) >= {"1000", "1002", "1003", "1004"}
+    first = log["2025-08-03"]["spix_before_kickoff"]
+    assert first["read_at"] == "2025-08-03T10:00:00Z"
+    assert [(p["market"], p["outcome"]) for p in first["most_likely"]] == [
+        ("moneyline", "won"), ("goals", "half_lost"), ("corners", "won")]
+    assert [p["outcome"] for p in first["value"]] == ["half_won", "lost"]
+    assert set(first["most_likely"][0]) == {"label", "market", "side", "line", "chance", "outcome"}
+    assert log["2025-08-04"]["spix_before_kickoff"]["most_likely"][0]["outcome"] == "half_lost"  # +1.75 on 0-2
+    assert log["2025-08-01"]["spix_before_kickoff"]["most_likely"][0]["outcome"] is None
+    assert log["2025-08-05"]["spix_before_kickoff"]["most_likely"][0]["outcome"] is None
+    assert log["2025-08-06"]["spix_before_kickoff"] is None  # no read kept
+    profile = service.profile("team", ids["team"], competition="EPL", season=2025)
+    assert all("spix_before_kickoff" not in m for m in profile["last_10"])
+
+    def busy(event_ids):
+        raise RefreshBusy("refresh")
+    service.kickoff_picks = busy  # while the refresh writes, the key is left out rather than claiming no read
+    assert all("spix_before_kickoff" not in m
+               for m in service.profile("team", ids["team"], competition="EPL", season=2025)["match_log"])
+    service.kickoff_picks = None
+    player = service.profile("player", ids["player"], competition="EPL", season=2025)
+    assert all("spix_before_kickoff" not in m for m in player["match_log"])
+
+
+def test_team_route_reads_the_picks_the_board_showed_at_kickoff(research, session_factory, monkeypatch):
+    from contextlib import nullcontext
+
+    from data_platform.services.refresh_coordination import RefreshBusy
+    from web_app.routers import match_reads as board
+    from web_app.routers import research as router_module
+    from Scripts.tests.data_platform.test_before_kickoff_api import started_read
+    from Scripts.tests.data_platform.test_match_read_api import _service
+
+    reads = _service(session_factory)
+    started_read(reads, "1002")  # kicks off 2026-09-06 12:00, read 10 minutes before
+    router_module._SHOWN_AT_KICKOFF.clear()
+    looked_up = []
+    listed = reads.list_delivered_for_fixture
+    reads.list_delivered_for_fixture = lambda event_id, **kw: looked_up.append(event_id) or listed(event_id, **kw)
+    monkeypatch.setattr(board, "_get_match_read_service", lambda: reads)
+    monkeypatch.setattr(board, "_utc_now", lambda: datetime(2026, 9, 6, 14, 0, tzinfo=timezone.utc))
+    monkeypatch.setenv("SPIX_RECOMMENDATIONS", "on")
+    monkeypatch.setenv("SPIX_BEFORE_KICKOFF", "on")
+    monkeypatch.setattr(router_module, "ResearchProfileService",
+                        lambda **kw: ResearchProfileService(ResearchRepository(session_factory), **kw))
+    monkeypatch.setattr(router_module, "_gate", nullcontext)
+    client = TestClient(FastAPI()); client.app.include_router(router_module.router)
+    url = f"/api/research/teams/{research[1]['team']}?competition=EPL&season=2025"
+    log = client.get(url).json()["match_log"]
+    [kept] = [m["spix_before_kickoff"] for m in log if m["spix_before_kickoff"]]
+    assert sum(m["spix_before_kickoff"] is None for m in log) == len(log) - 1
+    assert kept["read_at"].endswith("Z") and kept["value"][0]["label"] == "Over 2.5 goals"
+    assert kept["value"][0]["outcome"] == "lost"  # 2-0
+    assert all(p["outcome"] in ("won", "lost", "push", "half_won", "half_lost", None)
+               for p in kept["most_likely"] + kept["value"])
+
+    # A started match's lists never change, so each match is read once: later views need no read at all.
+    assert looked_up.count("1002") == 1 and client.get(url).json()["match_log"] == log
+    assert looked_up.count("1002") == 1 and len(looked_up) == len(log)
+
+    def busy():
+        raise RefreshBusy("refresh")
+    monkeypatch.setattr(router_module, "_gate", busy)
+    assert client.get(url).json()["match_log"] == log  # all remembered: nothing to read while the refresh writes
+    router_module._SHOWN_AT_KICKOFF.clear()
+    assert all("spix_before_kickoff" not in m for m in client.get(url).json()["match_log"])
+    monkeypatch.setattr(router_module, "_gate", nullcontext)
+    monkeypatch.setenv("SPIX_BEFORE_KICKOFF", "")  # the board's own switch: off leaves the key out
+    assert all("spix_before_kickoff" not in m for m in client.get(url).json()["match_log"])

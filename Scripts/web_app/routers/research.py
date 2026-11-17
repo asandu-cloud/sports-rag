@@ -1,4 +1,6 @@
 """Read-only research profiles from the canonical database and built peer ranks."""
+from collections import OrderedDict
+from threading import Lock
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Path, Query
@@ -15,10 +17,43 @@ RefereeKey = Annotated[str, Path(min_length=1, max_length=128, pattern=r"^[\w-]+
 Limit = Annotated[int, Query(ge=1, le=10)]
 BUSY = "Research is updating; try again shortly."
 _gate = read_gate  # the new routes never wait for the refresh, nor make it wait (D82, D110)
+_SHOWN_AT_KICKOFF = OrderedDict()  # event id -> the board's before-kickoff entry, or None (D122)
+SHOWN_AT_KICKOFF_KEPT = 5000  # about two seasons of the public leagues' matches
+_SHOWN_LOCK = Lock()
+
+
+def _kickoff_picks(event_ids):
+    """Each finished match's lists as the board showed them at kickoff (D70), by event id. A match with no read kept
+    is left out. A started match's answer never changes, so each is read once, inside the refresh gate
+    (``RefreshBusy`` while the refresh writes), and remembered."""
+    from web_app.routers import match_reads
+    with _SHOWN_LOCK:
+        todo = [event_id for event_id in event_ids if event_id not in _SHOWN_AT_KICKOFF]
+    found = {}
+    if todo:
+        service, now = match_reads._get_match_read_service(), match_reads._utc_now()
+        with _gate():
+            for event_id in todo:
+                reads = service.list_delivered_for_fixture(event_id, surface="website", limit=100)
+                found[event_id] = next(iter(match_reads._before_kickoff(reads, now=now)), None)
+    with _SHOWN_LOCK:  # the website answers on several threads
+        for event_id in event_ids:
+            if event_id in found:
+                _SHOWN_AT_KICKOFF[event_id] = found[event_id]
+            elif event_id in _SHOWN_AT_KICKOFF:
+                found[event_id] = _SHOWN_AT_KICKOFF[event_id]
+            else:
+                continue
+            _SHOWN_AT_KICKOFF.move_to_end(event_id)
+        while len(_SHOWN_AT_KICKOFF) > SHOWN_AT_KICKOFF_KEPT:
+            _SHOWN_AT_KICKOFF.popitem(last=False)
+    return {event_id: entry for event_id, entry in found.items() if entry is not None}
 
 
 def _get_research_service():
-    return ResearchProfileService()
+    from data_platform.services import before_kickoff
+    # A team's match log carries what Spix showed before kickoff (D122) while the board shows it (D70).
+    return ResearchProfileService(kickoff_picks=_kickoff_picks if before_kickoff.enabled() else None)
 
 
 def _call(method, *args, **kwargs):

@@ -8,6 +8,7 @@ from bisect import bisect_left, bisect_right
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from hashlib import sha256
+import logging
 import math
 import re
 import time
@@ -18,6 +19,8 @@ try:
 except ModuleNotFoundError:  # python -m Scripts.data_platform from the repo root
     from Scripts.referee_names import _dedup_referee_names, _normalize_ref_name
 from ..repositories.research import COMPETITION_PHASE, ResearchRepository
+from . import home_wins
+from .refresh_coordination import RefreshBusy
 from ..research_stats import COUNT_NULL_POLICY, MIN_RANKED_PEERS, RANK_BUILD_PREFIX, normalize_research_row
 
 PLAYER_MINUTES = 900
@@ -409,10 +412,35 @@ def headline(kind, subject, scope, metrics, group, provisional=False):
             "partial_observations": partial, "provisional": provisional, "text": text}
 
 
+logger = logging.getLogger(__name__)
+OUTCOMES = {"hit": "won", "half_hit": "half_won", "push": "push", "half_miss": "half_lost", "miss": "lost"}
+PICK_KEYS = ("label", "market", "side", "line", "chance")
+
+
+def before_kickoff(row, shown):
+    """What Spix showed before kickoff for one of a team's finished matches (D122), or None when no read was kept.
+    Each pick is graded as the home page's reel grades it (``home_wins.grade``: full time only, quarter lines in
+    halves); its outcome stays None while it waits, as after extra time or with a team's corners unknown."""
+    if not shown:
+        return None
+    filled = row.get("_zero_filled_counts") or {}
+    own, theirs = (None if "corners" in filled.get(side, ()) else row.get(key)  # a filled-in 0 is not a count
+                   for side, key in (("subject", "corners"), ("opponent", "opponent_corners")))
+    home = row["team_id"] == row["home_team_id"]
+    facts = {"status": row.get("status"), "home_goals": row.get("home_goals"), "away_goals": row.get("away_goals"),
+             "corners_home": own if home else theirs, "corners_away": theirs if home else own}
+    graded = lambda picks: [{**{key: pick.get(key) for key in PICK_KEYS},
+                             "outcome": OUTCOMES.get(home_wins.grade(pick, facts))} for pick in picks or ()]
+    return {"read_at": shown.get("read_at"), "most_likely": graded(shown.get("most_likely")),
+            "value": graded(shown.get("value"))}
+
+
 class ResearchProfileService:
-    def __init__(self, repo=None, *, min_ranked_peers=MIN_RANKED_PEERS):
+    def __init__(self, repo=None, *, min_ranked_peers=MIN_RANKED_PEERS, kickoff_picks=None):
         self.repo = repo or ResearchRepository()
         self.min_ranked_peers = min_ranked_peers
+        # {event id: the lists the board showed at kickoff} for a list of event ids (D122); None leaves them out.
+        self.kickoff_picks = kickoff_picks
 
     def build(self, *, season=None, competition=None):
         if season is not None and not 1900 <= season <= 2100:
@@ -568,6 +596,10 @@ class ResearchProfileService:
         if include_context:
             # Every match in the selected scope, oldest first, for the match-by-match charts.
             result["match_log"] = [self._match(kind, row, teams, full=True) for row in rows]
+            shown = self._kickoff_shown(rows) if kind == "team" and self.kickoff_picks else None
+            if shown is not None:
+                for match, row in zip(result["match_log"], rows):
+                    match["spix_before_kickoff"] = before_kickoff(row, shown.get(str(row.get("api_football_id"))))
         if include_context:
             result["available_scopes"] = []
             for item in self.repo.available_scopes(session, kind, key, subject.get("aliases", ()),
@@ -584,6 +616,17 @@ class ResearchProfileService:
                     available["ranked"] = ranking["ranked"]
                 result["available_scopes"].append(available)
         return result
+
+    def _kickoff_shown(self, rows):
+        """The lists shown at kickoff by event id, or None when they cannot be read now (the refresh writes, or the
+        store fails): the log then leaves the key out rather than say no read was kept."""
+        try:
+            return self.kickoff_picks([str(r["api_football_id"]) for r in rows if r.get("api_football_id") is not None])
+        except RefreshBusy:
+            return None
+        except Exception:
+            logger.exception("The picks shown at kickoff are unavailable for a research match log")
+            return None
 
     @staticmethod
     def _match(kind, row, teams, full=False):
