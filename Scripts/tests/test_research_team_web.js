@@ -40,22 +40,49 @@ const text = html => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').replace(
   assert.deepEqual(h.glance('Chelsea', rows, 'corners').split('<div class="g-row">').slice(1).map(text),
     ['10+ corners in the match 7 of 10', 'Chelsea won 5+ corners 4 of 10']);
 
-  // Cards by match: one column a match, both segments, the total written on top, the line dashed and named in the legend.
+  // Cards by match, up and down (owner, 17 Nov, D117): the team's bar rises above the line in Spix cobalt, the
+  // opponent's hangs below it in grey, and the names sit on the chart, so no colour has to say who is who. The match
+  // total moves under each column's label and is marked when it clears the line, since a split column cannot carry it.
   const chart = h.stackedColumns('Chelsea', rows, 'cards');
-  const cols = chart.match(/<div class="sc-col"[^>]*>[\s\S]*?<\/div>/g);
+  const cols = chart.match(/<div class="ud-col"[^>]*>[\s\S]*?<\/div>/g);
   assert.equal(cols.length, 10);
-  assert.match(cols[9], /<b>9<\/b>/);
-  assert.match(cols[9], /class="own"/);
-  assert.match(cols[9], /class="opp"/);
   assert.match(cols[9], /aria-label="at Sunderland, 8 Nov: Chelsea 4, Sunderland 5, 9 in all"/);
-  assert.match(chart, /class="sc-line"/);
-  assert.match(text(chart), /Chelsea 2\.1 a match Opponents 3\.4 a match Line 3\.5 cards/);
-  assert.match(text(h.stackedColumns('Chelsea', rows, 'corners')), /Line 9\.5 corners/);
+  assert.match(cols[9], /<i class="ud-up" style="height:33\.33%"><\/i><i class="ud-down" style="height:41\.67%"><\/i>/, 'Chelsea 4 and Sunderland 5 on a 0-6 scale');
+  assert.match(chart, /<p class="ud-name ud-name-up">↑ Chelsea<\/p>/);
+  assert.match(chart, /<p class="ud-name ud-name-down">↓ Opponents<\/p>/);
+  const xs = chart.match(/<span class="ud-xl">[\s\S]*?<\/span>/g);
+  assert.equal(xs[9], '<span class="ud-xl"><b><i>at</i> SUN</b><mark>9</mark></span>', 'on phones v or at takes its own line');
+  assert.equal(xs[4], '<span class="ud-xl"><b><i>at</i> BRE</b>2</span>', 'a total under the line is not marked');
+  assert.equal(xs.filter(x => x.includes('<mark>')).length, 9);
+  assert.doesNotMatch(chart, /sc-line|sc-col/);
+  assert.match(text(chart), /Chelsea 2\.1 a match Opponents 3\.4 a match/);
+  assert.match(text(chart), /The number under each match is its total, marked when over 3\.5 cards\./);
+  const corners = h.stackedColumns('Chelsea', rows, 'corners');
+  assert.match(text(corners), /marked when over 9\.5 corners/);
+  assert.equal((corners.match(/<mark>/g) || []).length, 7);
+
+  // A match with no figures draws a dash at the line; the scale ticks run both ways from 0.
+  const ud = h.upDown({name: 'Bayern München', items: [{up: 4.06, down: 0.79, label: 'v Stuttgart', where: 'v', who: 'STU', sub: '5–1'}, {up: null, down: null, label: 'v Union Berlin', where: 'v', who: 'UNI', sub: '7–0'}]});
+  assert.match(ud, /<div class="ud-col" tabindex="0" data-tip="v Union Berlin" role="img" aria-label="v Union Berlin"><span class="ud-miss">–<\/span><\/div>/);
+  assert.match(ud, /<span class="ud-xl"><b><i>v<\/i> STU<\/b>5–1<\/span>/);
+  assert.deepEqual([...ud.matchAll(/<span style="top:([\d.]+)%">(\d)<\/span>/g)].map(m => [m[2], +m[1]]), [['6', 0], ['4', 16.67], ['2', 33.33], ['0', 50], ['2', 66.67], ['4', 83.33], ['6', 100]]);
+
+  // Spix cobalt for the team in both themes (owner); the name above is text, so it keeps the readable accent.
+  const css = fs.readFileSync(path.join(__dirname, '../web_app/static/research/research.css'), 'utf8');
+  const style = fs.readFileSync(path.join(__dirname, '../web_app/static/style.css'), 'utf8');
+  assert.equal((style.match(/--chart-team: #0246A4;/g) || []).length, 2, 'light and dark');
+  assert.match(css, /\.profile \.ud-up\{[^}]*background:var\(--chart-team\)/);
+  assert.match(css, /\.profile \.ud-down\{[^}]*background:var\(--chart-muted\)/);
+  assert.match(css, /\.profile \.ud-name-up\{[^}]*color:var\(--accent-l\)/);
+  assert.match(css, /\.profile \.ud-x b i\{font-style:normal\}/);
+  assert.match(css, /@media\(max-width:640px\)\{[^\n]*\.profile \.ud-x b i\{display:block\}/);
+  const research = fs.readFileSync(path.join(__dirname, '../web_app/static/research/research.js'), 'utf8');
+  assert.match(research, /chart = upDown\(\{name, items: last\.map\(m => \(\{up: m\.values\[forKey\], down: m\.values\[againstKey\]/, 'the chances chart is drawn the same way');
+  assert.match(research, /where: venueWord\(m\), who: m\.opponent\?\.abbreviation \|\| short\(m\.opponent\), sub: score\(m\)/);
 
   // Home and away (owner, 17 Nov): the bar joining each home and away dot is a 4px line on the track. It was named
   // "link", which the text-button rule (.link, min-height 44px) also matched, so it drew as a 44px block.
-  const js = fs.readFileSync(path.join(__dirname, '../web_app/static/research/research.js'), 'utf8');
-  const css = fs.readFileSync(path.join(__dirname, '../web_app/static/research/research.css'), 'utf8');
+  const js = research;
   assert.match(js, /<span class="dumb-track" role="img" aria-label="\$\{escape\(text\)\}"><span class="dumb-link" style="left:/);
   assert.doesNotMatch(js, /class="link"/);
   assert.match(css, /\.profile \.dumb-track \.dumb-link\{position:absolute;top:9px;height:4px;/);

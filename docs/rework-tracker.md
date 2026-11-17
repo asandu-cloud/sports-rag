@@ -3460,6 +3460,20 @@ the owner's colour question. The bar joining each home and away dot had the clas
 hanging below its row, in both themes. It is now `dumb-link`, a 4 px line again. Research files at
 `research-20261117c`. 18 JS test files pass; checked on 8100 on Bayern's page (Bundesliga 2026/27).
 
+**D117 — Team charts go up and down, the team in Spix cobalt (17 Nov; frontend, owner).** The owner found that no
+second colour made it clear which bars were the team's and which the opponent's
+(https://claude.ai/artifact/25XuS9dJ8Rp46ioRUxbnP6 tried six). From five sketches
+(https://claude.ai/artifact/TVG6D6aRYHr3ABVWUWR1AQ) the owner chose "Up and down", with the team in the signature
+blue. On a team page, "Cards by match" (also Goals and Corners) and "Chances by match" now draw the team's bars above a
+centre line in cobalt `#0246A4` (new token `--chart-team`, the same in both themes) and the opponents' below it in grey,
+with "↑ <team>" and "↓ Opponents" written on the chart. One function, `upDown()` in `research/insight.js`, draws
+both. Labels read "v STU" / "at SCH" (on phones "v" or "at" takes its own line). A split column cannot carry the
+dashed betting line, so each match's total now sits under its label, marked in lime when over the line (3.5 cards,
+2.5 goals, 9.5 corners). In the dark theme cobalt bars measure 1.97:1 against the card (under the 3:1 usually asked of
+chart marks); the owner asked for cobalt, and the "↑ team" label uses the readable light cobalt. `style.css` at
+`charts-20261117a`, research files at `research-20261117e`. 18 JS test files pass; checked on 8100 on Bayern's page
+at 1100 and 390, light and dark, no errors.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A

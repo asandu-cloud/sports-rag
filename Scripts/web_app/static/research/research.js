@@ -1,7 +1,7 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261117c';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead, columnHeadroom} from './insight.js?v=research-20261117c';
-import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261117c';
-import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261117c';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261117e';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead, columnHeadroom, upDown} from './insight.js?v=research-20261117e';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261117e';
+import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261117e';
 
 const API = '/api/research';
 // The site's loaders (loaders.js, D112), with the old line if the kit or its styles are missing.
@@ -636,21 +636,16 @@ function mountResearch(root, navigate) {
       const hasXg = last.some(m => m.values.xg_for != null);
       const [forKey, againstKey, what] = hasXg ? ['xg_for', 'xg_against', 'Expected goals'] : ['goals_for', 'goals_against', 'Goals'];
       title = hasXg ? 'Chances by match' : 'Goals by match'; small = `${what}, last ${last.length}`;
-      const {max, ticks} = niceMax(Math.max(...last.flatMap(m => [m.values[forKey] || 0, m.values[againstKey] || 0])), 2);
-      const h = 170, name = d.subject.name;
+      const name = d.subject.name;
       const score = m => `${m.values.goals_for ?? '?'}–${m.values.goals_against ?? '?'}`;
-      const cols = last.map(m => {
-        const f = m.values[forKey], a = m.values[againstKey];
-        const text = `${day(m.date)} ${venueWord(m)} ${opp(m)}: ${score(m)}.${hasXg ? ` xG ${fixed(f)} for, ${fixed(a)} against` : ''}`;
-        const bars = f == null && a == null ? '<span class="col-missing">–</span>' : `<i style="height:${(f || 0) / max * h}px;background:var(--chart-1)"></i><i style="height:${(a || 0) / max * h}px;background:var(--chart-2)"></i>`;
-        return `<div class="ccol"><div class="colwrap" tabindex="0" data-tip="${escape(text)}" aria-label="${escape(text)}"><span class="pair">${bars}</span></div></div>`;
-      }).join('');
-      chart = `<div class="chart"><div class="legend"><span><i style="background:var(--chart-1)"></i>${escape(name)}</span><span><i style="background:var(--chart-2)"></i>Opponent</span>${last.some(m => m.values[forKey] == null && m.values[againstKey] == null) ? '<span>– No statistics recorded</span>' : ''}</div>
-        <div class="plot" role="img" aria-label="${what} for and against in each of the last ${last.length} matches"><div class="yaxis" style="height:${h}px">${ticks.map(t => `<span style="bottom:${t / max * 100}%">${t}</span>`).join('')}</div>
-        <div class="bars" style="height:${h}px;grid-template-columns:repeat(${last.length},minmax(0,1fr))">${ticks.slice(1).map(t => `<span class="gridline" style="bottom:${t / max * 100}%"></span>`).join('')}${cols}</div></div>
-        <div class="xlabels" style="grid-template-columns:repeat(${last.length},minmax(0,1fr))">${last.map(m => `<span><b>${escape(m.opponent?.abbreviation || short(m.opponent))}</b>${score(m)}</span>`).join('')}</div>
-        <details class="tbl"><summary>Show as table</summary><div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Opponent</th><th>Score</th><th>xG for</th><th>xG against</th></tr></thead><tbody>${last.map(m => `<tr><td>${day(m.date)}</td><td>${escape(opp(m))} (${m.venue === 'home' ? 'H' : 'A'})</td><td>${score(m)}</td><td>${fixed(m.values.xg_for)}</td><td>${fixed(m.values.xg_against)}</td></tr>`).join('')}</tbody></table></div></details></div>`;
-      if (hasXg) chart += `<p class="card-note">Expected goals (xG) estimates the quality of chances. When ${escape(name)}'s column is the taller of the two, they made the better chances.</p>`;
+      const gap = last.some(m => m.values[forKey] == null && m.values[againstKey] == null);
+      // Up and down (D117): the team's chances above the line in Spix cobalt, the opponent's below in grey.
+      chart = upDown({name, items: last.map(m => ({up: m.values[forKey], down: m.values[againstKey],
+        label: `${day(m.date)} ${venueWord(m)} ${opp(m)}: ${score(m)}.${hasXg ? ` xG ${fixed(m.values[forKey])} for, ${fixed(m.values[againstKey])} against` : ''}`,
+        where: venueWord(m), who: m.opponent?.abbreviation || short(m.opponent), sub: score(m)})),
+        legend: gap ? '<div class="legend"><span>– No statistics recorded</span></div>' : ''}) + `
+        <details class="tbl"><summary>Show as table</summary><div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Opponent</th><th>Score</th><th>xG for</th><th>xG against</th></tr></thead><tbody>${last.map(m => `<tr><td>${day(m.date)}</td><td>${escape(opp(m))} (${m.venue === 'home' ? 'H' : 'A'})</td><td>${score(m)}</td><td>${fixed(m.values.xg_for)}</td><td>${fixed(m.values.xg_against)}</td></tr>`).join('')}</tbody></table></div></details>`;
+      if (hasXg) chart += `<p class="card-note">Expected goals (xG) estimates the quality of chances. When ${escape(name)}'s bar above the line is longer than the opponent's below it, they made the better chances.</p>`;
     } else {
       title = `Last ${plural(last.length, 'match', 'matches')}`; small = 'Cards shown, both teams';
       const items = last.map(m => ({...m, cards: m.values.cards}));
@@ -1070,8 +1065,8 @@ class SpixResearch extends HTMLElement {
     if (kit) { root.adoptedStyleSheets = [kit]; kitAdopted = true; }
     root.innerHTML = loading('roll', 'Loading the Research Area');
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261117c', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261117c', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261117e', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261117e', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));
