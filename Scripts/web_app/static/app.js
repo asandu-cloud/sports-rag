@@ -835,6 +835,74 @@ function renderAssistantAsk(status, error = null, busy = false) {
         + (error ? `<p class="ra-error" role="alert">${esc(error.message)}</p>` : ''));
 }
 
+// The Matchday fixture search (D126). Names fold to plain lower-case letters, so "genc" finds Gençlerbirliği; each
+// typed word must start a word of the teams' or the league's name. Only matches not yet started are searched.
+const FIXTURE_SEARCH_SPLIT = /[\s\-.'’/()]+/;
+const FIXTURE_SEARCH_SHOWN = 20;
+function fixtureSearchFold(value) {
+  return String(value ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+function fixtureSearch(rows, query, leagues) {
+  const words = fixtureSearchFold(query).split(FIXTURE_SEARCH_SPLIT).filter(Boolean);
+  if (!words.length) return [];
+  const byId = Object.fromEntries((leagues || []).map(league => [league.id, league]));
+  return (rows || [])
+    .filter(row => row?.fixture && (!row.status || ['NS', 'TBD'].includes(row.status)))
+    .map(row => {
+      const f = row.fixture, league = byId[f.league] || { name: f.league };
+      return { row, league, name: fixtureSearchFold([f.home_team, f.away_team, league.name].join(' ')).split(FIXTURE_SEARCH_SPLIT) };
+    })
+    .filter(({ name }) => words.every(word => name.some(part => part.startsWith(word))))
+    .map(({ row, league }) => ({
+      id: String(row.fixture.event_id), league: row.fixture.league, leagueName: league.name, leagueLogo: league.logo || null,
+      home: row.fixture.home_team, away: row.fixture.away_team, kickoff: row.fixture.kickoff,
+      homeLogo: row.visuals?.home_team_logo || null, awayLogo: row.visuals?.away_team_logo || null, words,
+    }))
+    .sort((a, b) => Date.parse(a.kickoff) - Date.parse(b.kickoff) || a.home.localeCompare(b.home));
+}
+
+// A team's name with the typed starts of its words in bold, on the name's own letters (accents kept).
+function fixtureSearchMark(name, words) {
+  const chars = Array.from(String(name));
+  const folded = chars.map(fixtureSearchFold);
+  const bold = new Array(chars.length).fill(false);
+  chars.forEach((char, i) => {
+    if (i > 0 && !FIXTURE_SEARCH_SPLIT.test(chars[i - 1])) return;
+    const rest = folded.slice(i).join('');
+    const word = words.filter(w => rest.startsWith(w)).sort((a, b) => b.length - a.length)[0];
+    for (let j = i, seen = 0; word && j < chars.length && seen < word.length; j++) { bold[j] = true; seen += folded[j].length; }
+  });
+  return chars.map((char, i) => (bold[i] && !bold[i - 1] ? '<b>' : '') + esc(char) + (bold[i] && !bold[i + 1] ? '</b>' : '')).join('');
+}
+
+function renderFixtureSearch(hits, query, { now = new Date(), active = 0 } = {}) {
+  if (!hits.length) return `<p class="fx-empty">No match for “${esc(String(query).trim())}” in the next 7 days.</p>`;
+  const midnight = moment => new Date(moment.getFullYear(), moment.getMonth(), moment.getDate()).getTime();
+  const dayLabel = kickoff => {
+    const start = new Date(kickoff);
+    const offset = Math.round((midnight(start) - midnight(now)) / 86400000);
+    return offset === 0 ? 'Today' : offset === 1 ? 'Tomorrow'
+      : start.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+  };
+  const crest = src => (src ? `<img src="${esc(src)}" alt="" loading="lazy">` : '<span class="fx-crest-blank"></span>');
+  const groups = [];
+  hits.slice(0, FIXTURE_SEARCH_SHOWN).forEach((hit, i) => {
+    const day = dayLabel(hit.kickoff);
+    if (groups.at(-1)?.day !== day) groups.push({ day, rows: [] });
+    const time = new Date(hit.kickoff).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    groups.at(-1).rows.push(`<div class="fx-row${i === active ? ' on' : ''}" role="option" id="fixtureSearchOption${i}" aria-selected="${i === active}" data-index="${i}" data-event-id="${esc(hit.id)}" data-kickoff="${esc(hit.kickoff)}">`
+      + `<span class="fx-crests" aria-hidden="true">${crest(hit.homeLogo)}${crest(hit.awayLogo)}</span>`
+      + `<span class="fx-main"><span class="fx-teams">${fixtureSearchMark(hit.home, hit.words)} <span class="fx-v">v</span> ${fixtureSearchMark(hit.away, hit.words)}</span>`
+      + `<span class="fx-meta">${hit.leagueLogo ? `<img src="${esc(hit.leagueLogo)}" alt="">` : ''}${esc(hit.leagueName)}</span></span>`
+      + `<span class="fx-time">${esc(time)}</span></div>`);
+  });
+  const foot = hits.length > FIXTURE_SEARCH_SHOWN
+    ? `<p class="fx-count fx-more">Showing ${FIXTURE_SEARCH_SHOWN} of ${hits.length} matches. Keep typing to narrow it.</p>`
+    : `<p class="fx-count">${pluralise(hits.length, 'match', 'matches')} in the next 7 days</p>`;
+  return groups.map((group, g) => `<div class="fx-group" role="group" aria-labelledby="fixtureSearchDay${g}"><p class="fx-day" id="fixtureSearchDay${g}">${esc(group.day)}</p>${group.rows.join('')}</div>`).join('') + foot;
+}
+
 // ----- End of pure render helpers -----
 
 function showToast(msg, type = 'info') {
@@ -1700,6 +1768,7 @@ const appModule = {
     if (!this.initialized) {
       this._buildDateStrips();
       this._buildLeagueFilters();
+      this._initFixtureSearch();
       this._installMatchReadPolling();
       this.initialized = true;
       this._initialLoad = this._loadMatchday();
@@ -1764,11 +1833,145 @@ const appModule = {
   _setActiveDate(offset) {
     if (this.activeDate === offset) return;
     this.activeDate = offset;
-    document.querySelectorAll('.date-chip').forEach(btn => {
-      btn.classList.toggle('active', Number(btn.dataset.dateOffset) === offset);
-      btn.setAttribute('aria-pressed', String(Number(btn.dataset.dateOffset) === offset));
-    });
+    this._syncDateChips();
     return this._loadMatchday();
+  },
+
+  _syncDateChips() {
+    document.querySelectorAll('.date-chip').forEach(btn => {
+      btn.classList.toggle('active', Number(btn.dataset.dateOffset) === this.activeDate);
+      btn.setAttribute('aria-pressed', String(Number(btn.dataset.dateOffset) === this.activeDate));
+    });
+  },
+
+  // The fixture search (D126). The next 7 days' schedule loads once, when the box is first used, and is kept for
+  // 10 minutes (1 minute when a day failed to load); the 90 s board refresh never touches it.
+  _fixtureSearchCache: null,
+  _fixtureSearchLoad: null,
+
+  async _fixtureSearchRows() {
+    const cache = this._fixtureSearchCache;
+    if (cache && Date.now() - cache.at < cache.keep) return cache.rows;
+    this._fixtureSearchLoad ??= Promise.allSettled(Array.from({ length: 7 }, async (_, offset) => {
+      const response = await fetch(`/api/match-reads/schedule/${this._selectedDateISO(offset)}`);
+      if (!response.ok) throw new Error(`Fixture schedule ${response.status}`);
+      const payload = await response.json();
+      return Array.isArray(payload.fixtures) ? payload.fixtures : [];
+    })).then(results => {
+      const loaded = results.filter(result => result.status === 'fulfilled');
+      if (!loaded.length) throw new Error('The matches could not be loaded. Please try again shortly.');
+      const rows = [...new Map(loaded.flatMap(result => result.value)
+        .map(row => [String(row?.fixture?.event_id), row])).values()];
+      const keep = (loaded.length === results.length ? 10 : 1) * 60 * 1000;
+      this._fixtureSearchCache = { at: Date.now(), keep, rows };
+      return rows;
+    }).finally(() => { this._fixtureSearchLoad = null; });
+    return this._fixtureSearchLoad;
+  },
+
+  _initFixtureSearch() {
+    const input = document.getElementById('fixtureSearchInput');
+    const list = document.getElementById('fixtureSearchResults');
+    const status = document.getElementById('fixtureSearchStatus');
+    if (!input || !list) return;
+    let hits = [], active = 0, query = '', timer = null;
+    const shown = () => Math.min(hits.length, FIXTURE_SEARCH_SHOWN);
+    const close = () => {
+      list.hidden = true;
+      input.setAttribute('aria-expanded', 'false');
+      input.removeAttribute('aria-activedescendant');
+    };
+    const show = html => {
+      list.innerHTML = html;
+      list.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+    };
+    const paint = () => {
+      show(renderFixtureSearch(hits, query, { active }));
+      if (shown()) input.setAttribute('aria-activedescendant', `fixtureSearchOption${active}`);
+      else input.removeAttribute('aria-activedescendant');
+    };
+    const run = async () => {
+      query = input.value;
+      if (!query.trim()) { hits = []; close(); if (status) status.textContent = ''; return; }
+      if (!this._fixtureSearchCache) show('<p class="fx-empty">Loading the next 7 days of matches…</p>');
+      let rows;
+      try {
+        rows = await this._fixtureSearchRows();
+      } catch (error) {
+        if (input.value === query) show(`<p class="fx-empty">${esc(error.message)}</p>`);
+        return;
+      }
+      if (input.value !== query) return;
+      hits = fixtureSearch(rows, query, this.LEAGUES);
+      active = 0;
+      paint();
+      if (status) status.textContent = hits.length ? `${pluralise(hits.length, 'match', 'matches')} found` : 'No match found';
+    };
+    const pick = hit => {
+      if (!hit) return;
+      input.value = '';
+      hits = [];
+      close();
+      input.blur();
+      this._openSearchResult(hit);
+    };
+    input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 120); });
+    input.addEventListener('focus', () => { if (input.value.trim()) run(); });
+    input.addEventListener('blur', close);
+    input.addEventListener('keydown', event => {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        if (list.hidden || !shown()) return;
+        event.preventDefault();
+        active = (active + (event.key === 'ArrowDown' ? 1 : shown() - 1)) % shown();
+        paint();
+        document.getElementById(`fixtureSearchOption${active}`)?.scrollIntoView({ block: 'nearest' });
+      } else if (event.key === 'Enter') {
+        if (list.hidden || !shown()) return;
+        event.preventDefault();
+        pick(hits[active]);
+      } else if (event.key === 'Escape' && !list.hidden) {
+        event.preventDefault();
+        close();
+      }
+    });
+    // Keep the focus in the box while a result is pressed, so the list does not close before the click lands.
+    list.addEventListener('mousedown', event => event.preventDefault());
+    list.addEventListener('click', event => {
+      const option = event.target.closest('.fx-row');
+      if (option) pick(hits[Number(option.dataset.index)]);
+    });
+  },
+
+  // A picked result: the board moves to its day and league in one load. A match with a Match Read opens as
+  // "View match" does; one without is scrolled to and outlined for a moment.
+  async _openSearchResult(hit) {
+    const offset = boardDayOffset(hit.kickoff);
+    const chip = [...document.querySelectorAll('#leagueFilters .league-chip')].find(btn => btn.dataset.league === hit.league)
+      || document.querySelector('#leagueFilters .league-all');
+    const dayChanged = offset !== null && offset !== this.activeDate;
+    const leagueChanged = Boolean(chip) && chip.dataset.league !== this.activeLeague;
+    if (dayChanged) {
+      this.activeDate = offset;
+      this._syncDateChips();
+    }
+    if (leagueChanged) {
+      this.activeLeague = chip.dataset.league;
+      this._syncLeagueChips(chip);
+      this._revealLeague(chip);
+    }
+    if (dayChanged || leagueChanged) await this._loadMatchday();
+    const fixture = this.fixtures.find(f => String(f.id) === hit.id);
+    if (fixture && !fixture.isScheduleOnly && !fixture.afterKickoff) {
+      this._showMatch(fixture.id);
+      return;
+    }
+    const card = [...document.querySelectorAll('#fixturesContainer [data-fixture-id]')].find(el => el.dataset.fixtureId === hit.id);
+    if (!card) return;
+    card.classList.add('fx-found');
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    card.scrollIntoView({ block: 'center', behavior: still ? 'auto' : 'smooth' });
+    setTimeout(() => card.classList.remove('fx-found'), 2400);
   },
 
   // Opens a match page from outside the board (the Research Assistant's next match, D96): the match's day first,
@@ -1915,11 +2118,11 @@ const appModule = {
       behavior: ui.reducedMotion.matches ? 'instant' : 'smooth' });
   },
 
-  _selectedDateISO() {
+  _selectedDateISO(offset = this.activeDate) {
     const selected = new Date();
     // Midday avoids DST and UTC-boundary surprises when a user selects a date.
     selected.setHours(12, 0, 0, 0);
-    selected.setDate(selected.getDate() + this.activeDate);
+    selected.setDate(selected.getDate() + offset);
     const year = selected.getFullYear();
     const month = String(selected.getMonth() + 1).padStart(2, '0');
     const day = String(selected.getDate()).padStart(2, '0');
