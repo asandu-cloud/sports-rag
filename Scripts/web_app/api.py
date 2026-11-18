@@ -26,6 +26,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
@@ -91,6 +92,10 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+# Responses are gzipped when the browser asks (D127): a Saturday's boards are about 1.4 MB of JSON and pack to an
+# eighth of that. Under 1 KB is sent as it is, and the live event stream is never packed, so no event is held back.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 # ---------------------------------------------------------------------------
 # Mount auth, webhooks, and checkout routers
