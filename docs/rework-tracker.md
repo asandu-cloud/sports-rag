@@ -4392,6 +4392,25 @@ the price at 18 px, at the right end of the chance line. A pick with no price sh
   390 (light, dark): 6 tiles, Manchester City v Fulham with its price removed in the test browser shows none; the Live tab
   (real 8 Nov before-kickoff cards replayed as today) shows no tile; no sideways scroll, no console errors.
 
+**D126 — Fixture search on the Matchday board (18 Nov; frontend, owner).** The owner asked for a search bar so people
+can find the match they want to bet on. From the mockups on the real 20–24 Nov schedule
+(https://claude.ai/artifact/BMkBHCwngTsHuQ7roLgUuH) the owner chose option A: a box above the date strip with a list
+that drops over the board.
+- It searches every match in the next 7 days, in every league, that has not started. Each typed word must start a word
+  of the teams' or the league's name; accents and case do not matter ("genc" finds Gençlerbirliği). Results are grouped
+  by day with crests, league and kick-off; the typed starts are in bold (not lime, which marks the odds). At most 20
+  show, with a count. Arrow keys, Enter and Escape work; screen readers get a combobox and a count.
+- A pick moves the board to the match's day and league in one load. A match with a Match Read opens as "View match"
+  does; one without is scrolled to and outlined in cobalt for 2.4 s.
+- Load: the existing schedule route, 7 requests the first time the box is used, kept 10 minutes (1 minute if a day
+  failed). The 90 s board refresh never calls it (a test checks this).
+- `app.js` and `style.css` at `search-20261118a`. 21 JS test files pass (new `test_fixture_search_web.js`: matching,
+  the list, escaping, the 20 cap, the loader's cache). Checked on 8100 with real data at 1440 (light, dark) and 390
+  (light, dark): "man", "real", "celtic" (none), "a" (20 of 28); Enter on Newcastle v Arsenal opened its match page on
+  Sat 21 Nov; Manchester City v Napoli (no read yet) was outlined on Tue 24 Nov, Champions League; no sideways scroll,
+  no console errors. The mockups said matches in play would stay in; the build leaves them out, because a started
+  match sits in the Live tab, not in its league.
+
 ## How to resume in a new session
 
 1. Read this file, then `git log --oneline` since the last commit listed above.

@@ -11,7 +11,7 @@
   <meta name="theme-color" content="#0246A4">
   <script>try{var t=localStorage.getItem('spix-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}try{var q=new URLSearchParams(location.search).get('logo');if(q==='old'||q==='new')sessionStorage.setItem('spix-logo',q);if(sessionStorage.getItem('spix-logo')==='old')document.documentElement.dataset.logo='old';}catch(e){}</script>
   <link rel="preload" href="/static/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/static/style.css?v=odds-20261117a">
+  <link rel="stylesheet" href="/static/style.css?v=search-20261118a">
   <link rel="stylesheet" href="/static/landing.css?v=wins-20261112a">
   <link rel="stylesheet" href="/static/home-hero.css?v=home-20261113a">
   <link rel="stylesheet" href="/static/home-wins.css?v=wins-20261113a">
@@ -197,6 +197,17 @@
           <div class="page-header">
             <h1 class="page-title">Matchday</h1>
             <p class="page-subtitle">The full fixture schedule, published Match Reads and current actionable selections</p>
+          </div>
+          <!-- Fixture search (D126): every match in the next 7 days, all leagues; a pick sets the board's day and league. -->
+          <div class="fx-search" id="fixtureSearch" role="search">
+            <label class="fx-search-box" for="fixtureSearchInput">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <span class="sr-only">Search matches in the next 7 days</span>
+              <input id="fixtureSearchInput" type="search" placeholder="Search a team or match" autocomplete="off" spellcheck="false" enterkeyhint="search"
+                role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="fixtureSearchResults">
+            </label>
+            <div class="fx-results" id="fixtureSearchResults" role="listbox" aria-label="Matches in the next 7 days" hidden></div>
+            <p class="sr-only" id="fixtureSearchStatus" role="status"></p>
           </div>
           <div class="date-strip" id="dateStrip" role="group" aria-label="Select date"></div>
           <div class="league-filters" id="leagueFilters" role="toolbar" aria-label="Filter fixtures by league"></div>
@@ -384,7 +395,7 @@
   <script src="/static/logo.js?v=logo-20261029a"></script><script src="/static/theme.js?v=night-20261109a"></script>
   <script src="/static/loaders.js?v=loaders-20261117a"></script>
   <script type="module" src="/static/research/research.js?v=research-20261117i"></script>
-  <script src="/static/app.js?v=odds-20261117a"></script>
+  <script src="/static/app.js?v=search-20261118a"></script>
   <script src="/static/home-hero.js?v=home-20261112b"></script>
   <script src="/static/home-wins.js?v=wins-20261114a"></script>
 </body>

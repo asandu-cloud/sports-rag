@@ -482,6 +482,54 @@ html[data-logo="old"] .logo-word { display: none; }
 }
 .page-subtitle { margin-top: 10px; color: var(--text2); font-size: 16px; max-width: 65ch; }
 
+/* -- Fixture search (D126): a box above the date strip; the results drop over the board. -- */
+.fx-search { position: relative; max-width: 560px; margin-bottom: 16px; }
+.fx-search-box {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 48px; padding: 0 14px;
+  border: 1px solid var(--border2); border-radius: 8px; background: var(--surface);
+  color: var(--text3); cursor: text;
+}
+.fx-search-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.fx-search-box svg { flex: none; }
+.fx-search-box input {
+  flex: 1; min-width: 0; border: 0; background: none; outline: none;
+  font: inherit; font-size: 16px; color: var(--text);
+}
+.fx-search-box input::placeholder { color: var(--text3); }
+.fx-results {
+  position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 30;
+  max-height: min(440px, 60vh); overflow: auto; overscroll-behavior: contain;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg);
+}
+.fx-day {
+  padding: 12px 16px 6px;
+  font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text3);
+}
+.fx-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; border-top: 1px solid var(--border-soft); cursor: pointer;
+}
+.fx-day + .fx-row { border-top: 0; }
+.fx-row.on, .fx-row:hover { background: var(--accent-dim); }
+.fx-crests { flex: none; display: flex; }
+.fx-crests img, .fx-crest-blank {
+  width: 26px; height: 26px; padding: 2px; border-radius: 50%;
+  background: var(--crest-bg); border: 1px solid var(--border-soft); object-fit: contain;
+}
+.fx-crests > * + * { margin-left: -6px; }
+.fx-main { flex: 1; min-width: 0; }
+.fx-teams { display: block; font-size: 15px; font-weight: 500; line-height: 1.35; color: var(--text); overflow-wrap: anywhere; }
+.fx-teams b { font-weight: 700; }
+.fx-v { color: var(--text3); font-weight: 400; }
+.fx-meta { display: flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 13px; color: var(--text2); }
+.fx-meta img { width: 18px; height: 18px; padding: 2px; border-radius: 4px; background: var(--crest-bg); object-fit: contain; }
+.fx-time { flex: none; font-size: 14px; font-variant-numeric: tabular-nums; color: var(--text2); }
+.fx-empty { padding: 16px; font-size: 15px; color: var(--text2); }
+.fx-count { padding: 10px 16px; border-top: 1px solid var(--border-soft); font-size: 13px; color: var(--text3); }
+.match-read-fixture-card.fx-found { outline: 3px solid var(--accent); outline-offset: 2px; transition: outline-color .4s var(--ease); }
+@media (max-width: 640px) { .fx-search { max-width: none; } }
+
 /* -- Date strip -- */
 .date-strip {
   display: flex; gap: 6px;
