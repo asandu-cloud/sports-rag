@@ -130,6 +130,9 @@ on it. The Discord bot still runs the old engine until A7.
   upcoming card's bottom line is a whistle, the referee's name (as the Research Area names them) and the value-pick
   count, or "TBD" until one is named. The line falls back to the suggestion count while the refresh writes. The Live
   tab is unchanged.
+- **Board odds tile (D125), Matchday fixture search (D126) and compression (D127) live 18 Nov (owner).** The website
+  gzips responses over 1 KB when the browser asks (the live event stream never); a Saturday's boards drop from about
+  1.4 MB to 172 KB. Website restarted 18 Nov 15:00 after the refresh (pid 10091).
 - **Loading screens live 16 Nov (D112, owner).** Six loaders: a ball drop over the app's first load, card outlines
   on the board, a price board on Best Bets, and pitch lines, last 10 and a rolling ball in the Research Area.
   Nothing shows under 300 ms; the 90 s board refresh never draws one; reduced motion gets still frames.
