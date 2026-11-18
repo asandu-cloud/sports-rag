@@ -3790,6 +3790,23 @@ card in `GET /api/match-reads/{league}/{date}` now carries `fixture.referee`:
 - Read-only, no pick changes, no migration. 1 new test; suite 3,238 passed plus the 3 known worktree errors; golden
   check unchanged. Needs a website restart.
 
+**D127 — The website gzips its responses (18 Nov; backend, owner asked through the orchestrator).** Nothing was
+compressed, and the owner opens the site through a VS Code dev tunnel, which is slow on busy days. `api.py` now adds
+Starlette's `GZipMiddleware` (minimum 1 KB, its default level 9): a response of 1 KB or more is gzipped when the browser
+asks for it (`Accept-Encoding: gzip`), and sent plain otherwise.
+- Sizes on real data, Sat 21 Nov: the EPL board 198,069 → 23,570 bytes; all 13 boards and the schedule 1,405,977 →
+  172,258; `app.js` 169,468 → 47,800; `style.css` 78,927 → 15,746; the app shell 42,376 → 13,043. Packing costs at
+  most 5 ms a request (the Championship board, the largest); warm board answers took 0.25–0.30 s either way.
+- Left alone: answers under 1 KB (an empty board), the live event stream `/api/live/stream` (`text/event-stream`,
+  which Starlette 0.52 never packs, so no event is held back; a test pins it), and request bodies (the Stripe webhooks
+  read theirs as before). Static files keep their ETag, Last-Modified and 304s; the app shell keeps
+  `Cache-Control: no-cache`. PNG and woff2 files are packed too, for little gain; browsers keep them by ETag.
+- The 90 s board refresh, checked in headless Chrome on 8200 with the real 21 Nov board: 13 board requests after
+  picking the day and 13 again at the 90 s poll, all 200 (9 gzipped, the 4 empty boards plain), 50 cards before and
+  after, no script errors.
+- The security headers are untouched (the cyber branch's layer). No migration, no `.env` line. 3 new tests; suite
+  3,241 passed plus the 3 known worktree errors; golden check unchanged. Needs a website restart.
+
 ## Findings that shape later steps
 
 - **The OpenAI account is out of credit; Match Read briefings have used the fixed wording since 5 Nov 18:04.** A
