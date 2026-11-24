@@ -19,7 +19,7 @@ Much of the rest of this file describes the **legacy** engine (`rag_cli_v2.py`, 
 (`market_service.py`, `line_selection.py`, `market_goal_model.py`), staged behind switches (below). The website runs
 on it. The Discord bot still runs the old engine until A7.
 
-### Current status (as of 12 Nov 2026; the tracker is newer if it disagrees)
+### Current status (as of 24 Nov 2026; the tracker is newer if it disagrees)
 - **Engine stages 1–4 live.** Stage 4 went live 3 Nov: `SPIX_MARKET_ANCHOR=full` and
   `SPIX_SELECTION_POLICY=market_value`, every bookmaker, 2% value threshold, price confirmation at 60 minutes,
   failing closed. Value picks are rare by design: 5 of 18 matches on 3 Nov.
@@ -197,14 +197,23 @@ on it. The Discord bot still runs the old engine until A7.
     - One Telegram alert comes if it is still waiting at 22:00.
     - The 07:15 run and retries after a failure are never held, and it changes no pick.
     - The rest needs the Mac awake: plugged in, lid open.
+- **Bet-building assistant chosen (D128, owner, 24 Nov).** Spix builds good bets instead of chasing an edge over the
+  market. The owner took all six recommendations of the 18 Nov plan: the builder starts at about 1 in 3; "a leg on
+  every match I picked" is off by default; game-read phase 3 onwards is parked, with the bench kept as the yardstick;
+  the €5,000-a-month date is set after 8 weekends with real members; Most likely with cost in mind is tested on the
+  owner dashboard before any stage week (not before Tue 8 Dec). Design:
+  `docs/superpowers/specs/2026-11-24-bet-building-assistant-design.md`, waiting for the owner's approval before any
+  code. No published pick changes.
+- **The Mac's lost week (19–24 Nov).** It ran on battery with the lid shut, so the daily refresh skipped every day
+  until 24 Nov (13:15–14:03, succeeded). The 23 Nov scorecard came out on 24 Nov at 14:07 with only 18 new picks, and
+  10 of 87 finished matches on 20–23 Nov had a card at kickoff (backend's count). Cards' first weekend was lost.
 - **Next dates.**
-  - No club matches from 9 to 19 Nov (international break). Cards picks start with the 20–22 Nov weekend, once
-    cards prices appear (about 18–19 Nov). Then check that new reads record `pinnacle`, and ask the backend for
-    checks 4–7 (tracker, 9 Nov). The Mon 16 Nov scorecard has no new matches.
-  - Keep the Mac on mains with the lid open, above all on 20–22 Nov. On 7 and 8 Nov it slept through both
-    mornings (lid closed, on battery), so 21 of 139 matches had no card at kickoff (D99).
-  - Mon 23 Nov 08:00: the first scorecard to judge cards.
-  - Tue 24 Nov: earliest next stage (owner, 9 Nov: 17 Nov would share cards' first weekend).
+  - Cards get their first real test on 27–29 Nov. Then check that new reads record `pinnacle`, and ask the backend
+    for checks 4–7 (tracker, 9 Nov).
+  - Keep the Mac on mains with the lid open, above all on 27–29 Nov. On 7 and 8 Nov, and again 19–24 Nov, it slept
+    on battery with the lid closed and the board lost its cards (D99).
+  - Mon 30 Nov 08:00: the first scorecard to judge cards.
+  - Tue 8 Dec: earliest stage week for Most likely with cost in mind (D128), on the owner's yes.
 - **Update this block** in the same commit as the tracker whenever a stage goes live or the current project
   changes.
 
