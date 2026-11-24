@@ -58,8 +58,8 @@ on it. The Discord bot still runs the old engine until A7.
 - **Cobalt palette live 9 Nov (D80).** Cobalt `#0246A4` replaced the turf green, lime cream `#D5F097` the
   highlighter, and mint cream `#F2FFFA` is the light ground; the dark theme uses a light cobalt `#88B4F2`. Since
   9 Nov evening the dark theme is "cobalt night" (D85): near-black greys with a faint cobalt tint (`--bg #111316`)
-  and mint cream text. Cache tags are `cover-20261124a` (style.css and app.js; D123, D125, D126, D130, D132),
-  `research-20261117i` (the research files; D107, D111, D112, D114, D116–D118, D121), `loaders-20261124a` (loaders.js/.css; D112, D113, D132) and `night-20261109a` (theme.js). Open for the owner: the steel blue of the Away segment and the "preliminary" label now sits close to
+  and mint cream text. Cache tags are `back-20261124a` (style.css and app.js; D123, D125, D126, D130, D132, D133),
+  `research-20261124a` (the research files; D107, D111, D112, D114, D116–D118, D121, D133), `loaders-20261124a` (loaders.js/.css; D112, D113, D132) and `night-20261109a` (theme.js). Open for the owner: the steel blue of the Away segment and the "preliminary" label now sits close to
   the cobalt.
 - **Home page opening live 11 Nov (D98, owner).** "Every match, read for you", with three tilted packs from the
   real read of Brighton v Brentford (8 Nov, labelled Example). It replaced D87's Arsenal v Chelsea animation
@@ -134,6 +134,9 @@ on it. The Discord bot still runs the old engine until A7.
     link only when the board's data names the profile: the referee key now, the team ids since 24 Nov 21:17
     (D131: `home_team_id`/`away_team_id` on cards, before-kickoff entries and schedule rows, looked up inside
     `read_gate()`, left out while the refresh writes, null for a team with no profile; website restarted, pid 65002).
+    Since 25 Nov (D133, owner) a profile opened from a board name shows "Back to Matchday", which returns to the same
+    date, league, search and scroll. Lineups on the match page (D134 frontend, D135 backend): owner chose on-demand
+    fetching on 25 Nov (capped at 400 requests a day, nothing stored, behind a display switch); not built yet.
 - **Board odds tile (D125), Matchday fixture search (D126) and compression (D127) live 18 Nov (owner).** The website
   gzips responses over 1 KB when the browser asks (the live event stream never); a Saturday's boards drop from about
   1.4 MB to 172 KB. Website restarted 18 Nov 15:00 after the refresh (pid 10091).
