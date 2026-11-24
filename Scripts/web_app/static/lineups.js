@@ -34,18 +34,21 @@ function luRows(xi) {
 
 const luNamed = side => Boolean(side?.start_xi?.length);
 // confirmed | partial | waiting | off (no block: the switch is off) | unavailable | missed (under way or over, no eleven).
-function luState(match) {
+// Without a status (the match page: the board's card has none), the clock says whether a match began when the switch
+// is off; with it on, the backend's "unavailable" already covers a closed window.
+function luState(match, now = new Date()) {
   const l = match.lineups, sides = {home: luNamed(l?.home), away: luNamed(l?.away)};
-  const kicked = LU_KICKED.includes(String(match.fixture?.status || '').toUpperCase());
+  const code = String(match.fixture?.status || '').toUpperCase();
   let kind = sides.home && sides.away ? 'confirmed' : sides.home || sides.away ? 'partial'
     : l == null ? 'off' : l.status === 'unavailable' ? 'unavailable' : 'waiting';
-  if (kicked && ['off', 'waiting', 'unavailable'].includes(kind)) kind = 'missed';
+  if (code ? LU_KICKED.includes(code) && ['off', 'waiting', 'unavailable'].includes(kind)
+    : kind === 'off' && Date.parse(match.fixture?.kickoff) <= now.getTime()) kind = 'missed';
   return {kind, sides};
 }
 
 // The match page asks again every 5 minutes while an eleven may still come: 75 minutes before kickoff to 15 after.
 function luRecheckIn(match, now = new Date()) {
-  if (!['waiting', 'partial'].includes(luState(match).kind)) return null;
+  if (!['waiting', 'partial'].includes(luState(match, now).kind)) return null;
   const toKickoff = Date.parse(match.fixture?.kickoff) - now.getTime();
   return toKickoff <= LU_FROM && toKickoff >= -LU_UNTIL ? LU_RECHECK : null;
 }
@@ -100,8 +103,8 @@ function luLead(match, {kind, sides}) {
 const LU_CHIPS = {confirmed: 'Confirmed', partial: 'One named', waiting: 'Not out yet', off: 'Not out yet', unavailable: 'Not available', missed: 'Not available'};
 
 // The whole section. title: the caller's heading HTML (the match page's or Team news'), placed as given.
-function spixLineups(match, {title = ''} = {}) {
-  const state = luState(match), checked = match.lineups?.checked_at && state.kind !== 'off' && state.kind !== 'missed'
+function spixLineups(match, {title = '', now = new Date()} = {}) {
+  const state = luState(match, now), checked = match.lineups?.checked_at && state.kind !== 'off' && state.kind !== 'missed'
     ? new Date(match.lineups.checked_at).toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'}) : '';
   const side = key => state.sides[key] ? luEleven(match, key) : luMost(match, key);
   return `<div class="lu"><div class="lu-head">${title}<span class="lu-chip${state.kind === 'confirmed' ? ' ok' : ''}">${LU_CHIPS[state.kind]}</span>${checked ? `<span class="lu-when">Checked ${checked}</span>` : ''}</div>

@@ -2853,9 +2853,10 @@ const appModule = {
     this._loadLineups(f);
   },
 
-  // Line-ups (D134): from the Research Area's match route (D135), shown under the Match Read once it answers and
-  // asked again every 5 minutes while an eleven may still come. An error, a preview card or a missing lineups.js
-  // shows nothing; a player's name opens the profile as the board's names do (D130), so its Back returns here.
+  // Line-ups (D134): from the Research Area's light line-ups route (D135; the names and kickoff are the card's), shown
+  // under the Match Read once it answers and asked again every 5 minutes while an eleven may still come. An error, a
+  // preview card or a missing lineups.js shows nothing; a player's name opens the profile as the board's names do
+  // (D130), so its Back returns here.
   async _loadLineups(f) {
     clearTimeout(this._lineupsTimer);
     const box = document.getElementById('matchLineups');
@@ -2864,9 +2865,10 @@ const appModule = {
     if (f.isPreview || typeof window.spixLineups !== 'function') return;
     let match;
     try {
-      const response = await fetch(`/api/research/matches/${encodeURIComponent(f.id)}`);
+      const response = await fetch(`/api/research/matches/${encodeURIComponent(f.id)}/lineups`);
       if (!response.ok) return;
-      match = await response.json();
+      const body = await response.json();
+      match = { fixture: { kickoff: f.kickoff, home: { name: f.home }, away: { name: f.away } }, lineups: body.lineups ?? null };
     } catch (error) { return; }
     if (this.currentMatch !== f || router.state?.tab !== 'match') return;
     box.innerHTML = window.spixLineups(match, { title: '<h2 class="recs-title">Line-ups</h2>' });

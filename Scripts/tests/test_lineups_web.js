@@ -59,6 +59,12 @@ assert.equal(lu.luState(base({status: 'unavailable', home: null, away: null})).k
 assert.equal(lu.luState(base(null, '1H')).kind, 'missed');
 assert.equal(lu.luState(base({status: 'not_out_yet', home: null, away: null}, 'FT')).kind, 'missed');
 assert.equal(lu.luState(base(confirmed.lineups, 'FT')).kind, 'confirmed', 'an eleven named before kickoff still shows');
+// The match page knows no status (the board's card has none): with the switch off, the clock says whether it began;
+// with it on, the backend's own "unavailable" covers a closed window.
+const noStatus = lineups => ({...base(lineups), fixture: {...base(lineups).fixture, status: undefined}});
+assert.equal(lu.luState(noStatus(null), new Date('2026-11-26T20:05:00Z')).kind, 'missed');
+assert.equal(lu.luState(noStatus(null), new Date('2026-11-26T19:55:00Z')).kind, 'off');
+assert.equal(lu.luState(noStatus({status: 'not_out_yet', home: null, away: null}), new Date('2026-11-26T20:05:00Z')).kind, 'waiting');
 
 // Confirmed: the head, both teams on the pitch with formation, coach, numbers and bench.
 const html = lu.spixLineups(confirmed, {title: '<h2 class="recs-title">Line-ups</h2>', now});
@@ -129,8 +135,8 @@ assert.doesNotMatch(html, /Injuries/);
 const STATIC_FILE = file => fs.readFileSync(path.join(STATIC, file), 'utf8');
 const app = STATIC_FILE('app.js'), page = STATIC_FILE('index.html');
 assert.match(page, /<div id="matchReadSummary"><\/div>\n          <div id="matchLineups"><\/div>/);
-assert.match(page, /<link rel="stylesheet" href="\/static\/lineups\.css\?v=lineups-20261125a">/);
-assert.match(page, /<script src="\/static\/loaders\.js\?v=loaders-20261124a"><\/script>\n  <script src="\/static\/lineups\.js\?v=lineups-20261125a"><\/script>/);
+assert.match(page, /<link rel="stylesheet" href="\/static\/lineups\.css\?v=lineups-20261125b">/);
+assert.match(page, /<script src="\/static\/loaders\.js\?v=loaders-20261124a"><\/script>\n  <script src="\/static\/lineups\.js\?v=lineups-20261125b"><\/script>/);
 assert.match(app, /    this\.switchTab\('match'\);\n    this\._loadLineups\(f\);\n  \},/);
 const from = app.indexOf('  async _loadLineups(f) {');
 const body = app.slice(from, app.indexOf('\n  },', from) + 4);
@@ -138,18 +144,20 @@ const body = app.slice(from, app.indexOf('\n  },', from) + 4);
   const run = async ({ok = true, payload = confirmed, preview = false, leave = false, kit = true} = {}) => {
     const box = {innerHTML: 'old', dataset: {}}, calls = [], timers = [];
     const self = {currentMatch: null, _bindProfileLinks: el => calls.push(['bind', el === box])};
-    const f = {id: '1636252', isPreview: preview};
+    const f = {id: '1636252', isPreview: preview, home: 'Crystal Palace', away: 'Real Sociedad', kickoff: '2026-11-26T20:00:00+00:00'};
     self.currentMatch = f;
     const win = kit ? {spixLineups: lu.spixLineups, luRecheckIn: (m, n) => lu.luRecheckIn(m, now)} : {};
     const router = {state: {tab: 'match'}};
-    const fetch = async url => { calls.push(['fetch', url]); if (leave) self.currentMatch = {}; return {ok, json: async () => payload}; };
+    const fetch = async url => { calls.push(['fetch', url]); if (leave) self.currentMatch = {}; return {ok, json: async () => ({schema_version: 'research-lineups.v1', event_id: '1636252', lineups: payload.lineups})}; };
     const fn = Function('document', 'window', 'fetch', 'router', 'setTimeout', 'clearTimeout', `return ({${body}})._loadLineups`)(
       {getElementById: id => id === 'matchLineups' ? box : null}, win, fetch, router, (cb, ms) => { timers.push(ms); return 1; }, () => {});
     await fn.call(self, f);
     return {box, calls, timers};
   };
   let r = await run();
-  assert.deepEqual(r.calls, [['fetch', '/api/research/matches/1636252'], ['bind', true]]);
+  // The light route (D135): the block alone; the names and kickoff come from the board's card.
+  assert.deepEqual(r.calls, [['fetch', '/api/research/matches/1636252/lineups'], ['bind', true]]);
+  assert.match(r.box.innerHTML, /aria-label="Crystal Palace starting eleven"[^]*aria-label="Real Sociedad starting eleven"/);
   assert.match(r.box.innerHTML, /^<div class="lu"><div class="lu-head"><h2 class="recs-title">Line-ups<\/h2><span class="lu-chip ok">Confirmed/);
   assert.deepEqual(r.timers, [], 'both named: no second ask');
   r = await run({payload: base({status: 'not_out_yet', home: null, away: null})});
