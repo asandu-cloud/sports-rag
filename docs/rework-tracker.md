@@ -4613,6 +4613,29 @@ plan).** In progress, parked for D136 (owner: fix the substitute flag first, bec
     position and grid), and `likely` (each team's keeper plus ten outfield players with most starts in the last 5).
   - 11 tests (`test_lineups.py`).
 
+**D136 — Who started comes from the substitution events (25 Nov; backend, owner; found by the frontend).**
+- **The cause is upstream.** Since mid-August 2026, API-Football's own `/fixtures/players` reply says
+  `games.substitute: false` for most players who came on: a saved 24 Nov reply flags players with 5, 12 and 20
+  minutes as starters. The sync copied the field faithfully.
+- **How bad.** Matches with a team showing more than 11 "starters": 1 of 42 in the week of 4 Aug, 26 of 113 by
+  31 Aug, 98 of 134 in the week of 14 Sep, and about 75–80% since. Starts counted appearances in:
+  - the likely starters and shooters;
+  - the "from the bench" marks;
+  - player roles and anything else that counts starts.
+
+  No pick reads the flag (only `research.py` and `research_profiles.py` do).
+- **The fix.** A substitution event names the player going off as `player` and the one coming on as `assist`. On the
+  stored data, the `assist`'s minutes match 90 minus the substitution minute to within 0.4 minutes on average. So:
+  - `upserts.mark_substitutes`: a player who came on, or never played, is a substitute; every other player who
+    played started. A match with no stored events keeps the provider's flag.
+  - The refresh runs it after saving each match's events.
+  - `remark-substitutes --since` fixes the stored rows from the stored events, with no provider call.
+- **Coverage.** Every finished match of October and November has its events stored. In August and September, 206
+  broken matches have none (41 in August, 165 in September): fixing them needs the events fetched (`backfill-events`,
+  one request a match), on the owner's yes.
+- 3 new tests (`test_substitutes.py`). Suite: 3,269 passed, plus the 3 known worktree errors. 24 JS test files
+  pass. Golden check: no changes across 54 fixtures.
+
 ## How to resume in a new session
 
 1. Read this file, then `git log --oneline` since the last commit listed above.

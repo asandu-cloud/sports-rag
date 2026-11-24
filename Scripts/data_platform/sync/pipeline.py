@@ -29,6 +29,7 @@ from .apifootball import ApiFootballClient, COMPETITIONS, CompetitionSpec, iter_
 from .upserts import (
     get_watermark,
     upsert_competition,
+    mark_substitutes,
     upsert_fixture_events,
     upsert_fixture_from_api_row,
     upsert_fixture_player_stats,
@@ -162,6 +163,7 @@ def sync_fixture_details(
             )
         with session.begin_nested():  # a failed write loses the events only, never the stats above
             stats.event_rows += upsert_fixture_events(session, fixture=fixture, events_response=events_payload)
+            mark_substitutes(session, fixture=fixture)  # D136: the provider's substitute flag is unreliable
     except Exception as exc:  # pragma: no cover - network path
         stats.errors.append({"fixture_id": fixture.api_football_id, "stage": "events", "error": str(exc)})
         logger.warning("events failed for fixture %s: %s", fixture.api_football_id, exc)

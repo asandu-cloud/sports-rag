@@ -520,6 +520,32 @@ def upsert_fixture_events(
     return len(events)
 
 
+def mark_substitutes(session: Session, *, fixture: Fixture) -> int:
+    """Who started, from the fixture's stored events (D136); returns the rows changed.
+
+    Since August 2026 API-Football's ``games.substitute`` says False for most players who came on. A substitution
+    event names the player going off as ``player`` and the one coming on as ``assist``. So a player who came on, or
+    who never played, is a substitute, and every other player who played started. A fixture with no stored events
+    keeps the provider's flag. The row's digest stays the provider's, so the same reply again leaves the mark alone.
+    """
+    events = session.execute(select(FixtureEvent.event_type, FixtureEvent.assist_api_id)
+                             .where(FixtureEvent.fixture_id == fixture.id)).all()
+    if not events:
+        return 0
+    came_on = {assist for kind, assist in events if str(kind or "").lower() == "subst" and assist is not None}
+    changed = 0
+    for row, api_id in session.execute(select(FixturePlayerStats, Player.api_football_id)
+                                       .join(Player, Player.id == FixturePlayerStats.player_id)
+                                       .where(FixturePlayerStats.fixture_id == fixture.id)).all():
+        substitute = api_id in came_on or not (row.minutes or 0) > 0
+        if row.substitute is not substitute:
+            row.substitute = substitute
+            row.stats_json = {**(row.stats_json or {}), "substitute": substitute}
+            changed += 1
+    session.flush()
+    return changed
+
+
 # ---------------------------------------------------------------------------
 # Watermarks
 # ---------------------------------------------------------------------------
