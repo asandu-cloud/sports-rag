@@ -154,7 +154,40 @@ def referee_upcoming(referee_key: RefereeKey, limit: Limit = 1):
     return _gated(lambda: _get_upcoming_service().referee(referee_key, limit=limit))
 
 
+_LINEUPS = None
+
+
+def _get_lineups():
+    """The website's one in-memory line-ups store (D135)."""
+    global _LINEUPS
+    if _LINEUPS is None:
+        from data_platform.services.lineups import Lineups
+        _LINEUPS = Lineups()
+    return _LINEUPS
+
+
+def _lineups(event_id):
+    """The match's line-ups block, or None while ``SPIX_LINEUPS`` is off (D135). The provider is asked between two
+    short gated reads, never inside the gate, so a slow answer cannot hold up the refresh."""
+    from data_platform.services import lineups
+    from web_app.routers import match_reads
+    if not lineups.enabled():
+        return None
+    service = _get_match_service()
+    facts = _gated(service.lineup_facts, event_id)
+    known = _get_lineups().lookup(event_id, facts["kickoff"], match_reads._utc_now())
+    return _gated(service.lineup_block, facts, known)
+
+
 @router.get("/matches/{event_id}")
 def match(event_id: Annotated[str, Path(pattern=r"^\d{1,12}$")]):
     """One match for the research view: the fixture, Spix's read and its lines, and the past numbers (D110, B2)."""
-    return _gated(lambda: _get_match_service().match(event_id))
+    body = _gated(lambda: _get_match_service().match(event_id))
+    body["lineups"] = _lineups(event_id)
+    return body
+
+
+@router.get("/matches/{event_id}/lineups")
+def match_lineups(event_id: Annotated[str, Path(pattern=r"^\d{1,12}$")]):
+    """The match page's line-ups alone (D135): null while the switch is off."""
+    return {"schema_version": "research-lineups.v1", "event_id": event_id, "lineups": _lineups(event_id)}

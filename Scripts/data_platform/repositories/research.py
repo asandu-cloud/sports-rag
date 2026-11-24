@@ -373,6 +373,25 @@ class ResearchRepository:
                                          .where(side.in_(ids), f.status.in_(FINISHED), comparable_rounds())))
         return found
 
+    def player_ids_by_api(self, session, api_ids):
+        """{API-Football player id: player id} for the players the database knows (D135)."""
+        ids = list(api_ids)
+        if not ids:
+            return {}
+        return {r.api_football_id: r.id for r in session.execute(
+            select(Player.api_football_id, Player.id).where(Player.api_football_id.in_(ids)))}
+
+    def players_with_profiles(self, session, player_ids):
+        """The players among ``player_ids`` with minutes in a finished match in comparable rounds: the ones
+        ``select_scope`` finds, so the ones whose Research Area page opens (D135)."""
+        ids, f, p = list(player_ids), Fixture, FixturePlayerStats
+        if not ids:
+            return set()
+        return set(session.scalars(select(p.player_id).distinct().join(f, f.id == p.fixture_id)
+                                   .join(Competition, Competition.id == f.competition_id)
+                                   .where(p.player_id.in_(ids), p.minutes > 0, f.status.in_(FINISHED),
+                                          comparable_rounds())))
+
     def alias_rows(self, session, *, raw_names=(), keys=()):
         a = ResearchRefereeAlias
         return records(session, select(a.raw_name, a.name, a.referee_key).where(

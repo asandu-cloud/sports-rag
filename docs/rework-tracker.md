@@ -4597,6 +4597,22 @@ button on a team or referee profile reached from a board card's name (D130) that
   and scroll (121 px desktop, 606 px phone); Forward showed the button again; a direct visit to Barcelona's profile
   shows "Find another team".
 
+**D135 — Confirmed line-ups for the match page, on demand (25 Nov; backend, for the frontend's D134; owner chose the
+plan).** In progress, parked for D136 (owner: fix the substitute flag first, because the likely elevens count starts).
+- One trial request (25 Nov, Sabah FA v Barcelona) confirmed that `/fixtures?ids=` returns a `lineups` key, empty
+  before release. A saved `/fixtures/lineups` reply gave the shape: formation, coach, 11 starters with id, name,
+  number, position and grid, and the bench.
+- Built so far, behind `SPIX_LINEUPS` (off):
+  - `services/lineups.py`: in memory, asked only for matches someone opens. It asks from 60 minutes before kickoff,
+    every 5 minutes until both elevens are out, once at kickoff, then every 30 minutes up to 150 minutes after.
+    Up to 20 matches share a request, with a cap of 400 requests a UTC day.
+  - `GET /api/research/matches/{event_id}/lineups`, and the same block in the full match view.
+  - The provider call runs between two short gated reads, never inside the gate.
+  - The block: `status` (confirmed, not_out_yet or unavailable), `checked_at`, `home` and `away` (each with the
+    formation, coach, `start_xi` and `bench`, and each player's Research Area id or null, plus name, number,
+    position and grid), and `likely` (each team's keeper plus ten outfield players with most starts in the last 5).
+  - 11 tests (`test_lineups.py`).
+
 ## How to resume in a new session
 
 1. Read this file, then `git log --oneline` since the last commit listed above.
