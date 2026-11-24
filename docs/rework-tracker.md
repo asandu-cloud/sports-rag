@@ -4653,8 +4653,18 @@ this shape (D134, e2ba598 on frontend).
   | Oct | 457 | 19.2 | 11.0 | 10.4 | 717 → 4 |
   | Nov | 289 | 19.1 | 11.0 | 10.3 | 450 → 2 |
 
-- **Left.** July, August and September matches have no events stored. `backfill-events --since 2026-08-01` would
-  make 756 requests (968 from 1 Jul), one a match; then `remark-substitutes` again. That needs the owner's yes.
+- **On the real database (25 Nov, owner: "you can go ahead").** No refresh was running, and each step ran under
+  `data_access(writer=True)`.
+  - 01:00: `remark-substitutes --since 2026-08-01` changed 12,796 rows in 785 matches in 1.6 s, the same result as
+    the copy.
+  - Then `backfill-events --since 2026-08-01` made 756 requests and fetched 756 matches (12,425 event rows), with no
+    errors and no empty replies.
+  - 01:05: `remark-substitutes` again changed 3,330 rows in 193 of 1,541 matches.
+  - Starters per team per match: Aug 11.2 → 11.0, Sep 16.2 → 11.0, Oct 19.2 → 11.0, Nov 19.1 → 11.0. Teams over 11:
+    Aug 22 → 20, Sep 383 → 32, Oct 717 → 4, Nov 450 → 2 (substitutions the provider records with no player coming on
+    who fits).
+  - July (38 matches, 14.3 starters per team, mostly qualifiers) is left as it was: it would take about 210 more
+    requests, on the owner's call.
 - **Nothing to rebuild.** The ranks don't use starts; profiles, match views and likely starters count them live from
   the rows; the stats-questions store doesn't read the flag.
 - 4 new tests (`test_substitutes.py`). Suite: 3,270 passed, plus the 3 known worktree errors. 24 JS test files
