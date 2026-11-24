@@ -1,8 +1,8 @@
 // A played match from a team's last 10 (D121), opened from "Last 10 at a glance": the head, the last 10 to move
 // between, the market's lead, what Spix said before kickoff (D122's spix_before_kickoff, graded by the backend) and the
 // match in numbers. Pure functions returning HTML; research.js places them and wires the clicks.
-import {escape, one} from './insight.js?v=research-20261124a';
-import {crest, whenText, opensDay, possessive} from './upcoming.js?v=research-20261124a';
+import {escape, one} from './insight.js?v=research-20261125a';
+import {crest, whenText, opensDay, possessive} from './upcoming.js?v=research-20261125a';
 
 export const PLAYED_MARKETS = [['cards', 'Cards'], ['goals', 'Goals'], ['corners', 'Corners']];
 const GAMCARE = 'https://www.gamcare.org.uk/get-support/';

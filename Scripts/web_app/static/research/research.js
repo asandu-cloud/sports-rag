@@ -1,16 +1,17 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261124a';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead, columnHeadroom, upDown} from './insight.js?v=research-20261124a';
-import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261124a';
-import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261124a';
-import {playedReport, glanceCard, glanceSheet} from './played.js?v=research-20261124a';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261125a';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead, columnHeadroom, upDown} from './insight.js?v=research-20261125a';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261125a';
+import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261125a';
+import {playedReport, glanceCard, glanceSheet} from './played.js?v=research-20261125a';
 
 const API = '/api/research';
 // The site's loaders (loaders.js, D112), with the old line if the kit or its styles are missing.
 let kitAdopted = false;
 const loading = (kind, label, steps) => (kitAdopted && window.spixLoader?.(kind, {label, steps})) || `<p class="profile-loading" role="status">${label}…</p>`;
-// The page has already loaded loaders.css; the shadow root adopts a copy, so its first loader is styled at once.
-function kitSheet() {
-  const sheet = [...document.styleSheets].find(s => s.href?.includes('/static/loaders.css'));
+// The page has already loaded loaders.css and lineups.css (D134); the shadow root adopts a copy of each, so its first
+// loader is styled at once.
+function kitSheet(file) {
+  const sheet = [...document.styleSheets].find(s => s.href?.includes(file));
   try {
     const copy = new CSSStyleSheet();
     copy.replaceSync([...sheet.cssRules].map(rule => rule.cssText).join('\n'));
@@ -1000,8 +1001,9 @@ function mountResearch(root, navigate, back = () => {}) {
   });
   $('profileBack').addEventListener('click', () => (state.backToBoard ? back() : go(state.area)));
   $('matchView').addEventListener('click', event => {
-    const target = event.target.closest('[data-match-back],[data-played],[data-played-market],[data-market],[data-open-match],[data-referee],[data-mline],[data-mteam],[data-add]');
+    const target = event.target.closest('[data-match-back],[data-played],[data-played-market],[data-market],[data-open-match],[data-referee],[data-mline],[data-mteam],[data-add],[data-research-route]');
     if (!target) return;
+    if (target.dataset.researchRoute) { event.preventDefault(); const [area, id] = target.dataset.researchRoute.split('/'); return go(area, id); }
     if (target.matches('[data-match-back]')) return navigate(state.matchFrom?.route || 'teams');
     if (target.dataset.played != null) return openPlayed(Number(target.dataset.played));
     if (target.dataset.playedMarket) return openPlayed(lastTen(state.played.profile).findIndex(m => String(m.fixture_id) === String(state.played.fixtureId)), target.dataset.playedMarket);
@@ -1150,12 +1152,13 @@ class SpixResearch extends HTMLElement {
   connectedCallback() {
     if (this.ready) return;
     const root = this.attachShadow({mode: 'open'});
-    const kit = kitSheet();
-    if (kit) { root.adoptedStyleSheets = [kit]; kitAdopted = true; }
+    const kit = kitSheet('/static/loaders.css'), lineupSheet = kitSheet('/static/lineups.css');
+    root.adoptedStyleSheets = [kit, lineupSheet].filter(Boolean);
+    kitAdopted = Boolean(kit);
     root.innerHTML = loading('roll', 'Loading the Research Area');
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261124a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261124a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261125a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261125a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
       this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})),

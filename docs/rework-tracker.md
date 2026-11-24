@@ -4597,6 +4597,31 @@ button on a team or referee profile reached from a board card's name (D130) that
   and scroll (121 px desktop, 606 px phone); Forward showed the button again; a direct visit to Barcelona's profile
   shows "Find another team".
 
+**D134 — Line-ups on the match page and in Team news (25 Nov; frontend, owner).** The owner asked for a line-ups
+section inside the Match Read, and chose version A (a pitch) from mockups on Crystal Palace v Real Sociedad's real
+match page. The data is the backend's D135 (the `lineups` block of `/api/research/matches/{event_id}`, on demand,
+behind `SPIX_LINEUPS`); API-Football has no predicted line-ups.
+- A section "Line-ups" under the Match Read (`static/lineups.js` and `lineups.css`, at `lineups-20261125a`). A named
+  eleven is drawn on a pitch in its formation, keeper at the foot (API-Football's grid when every starter has one,
+  else by position), with shirt numbers, coach, formation and bench. Until a team names its eleven, each team's
+  players with most starts in the last 5 (the block's `likely` list, or the 8 outfield shooters without one), labelled
+  "a record of past starts, not a prediction". States: confirmed, one named, not out yet, switch off (`lineups` null:
+  no promise that they will show), unavailable, and a match under way or over without elevens. A player's name opens
+  the profile with Back to Matchday (D130, D133), which returns to the match page.
+- The match page asks the route when it opens, shows nothing on an error or for a preview card, and asks again every
+  5 minutes while an eleven may still come (75 minutes before kickoff to 15 after).
+- The Research Area's Team news draws the same section (its shadow root adopts a copy of `lineups.css`, as of
+  `loaders.css`); a name there opens the profile inside the area.
+- Found on the way, sent to the backend as D136: since about September 2026 `fixture_player_stats.substitute` is 0 for
+  nearly every substitute (19.2 "starters" per team per match since 1 Oct, against 11), so every "starts" count has
+  counted appearances. The past-starts list waits for that fix: merge D134 after D136, and with D135 to show elevens.
+- `app.js` at `lineups-20261125a`; the Research Area's files at `research-20261125a`. 24 JS test files pass (new
+  `test_lineups_web.js`: the states, the pitch rows, the short names, the links, when to ask again, the match page's
+  loading and the Research Area's wiring). Checked on 8100 on 26 Nov's board at 1440 (light, dark) and 390, with the
+  block filled in the browser from the two teams' real players (no numbers or grid yet): pitch and past starts as
+  mocked; Henderson's name opened his profile with Back to Matchday, which returned to the match page at the same
+  scroll; Team news shows the same elevens.
+
 ## How to resume in a new session
 
 1. Read this file, then `git log --oneline` since the last commit listed above.

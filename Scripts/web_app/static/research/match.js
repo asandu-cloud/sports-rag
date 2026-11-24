@@ -1,8 +1,8 @@
 // Research Area overhaul (D107, task 6): one match's research view, from B2's research-match.v1. The head, How Spix
 // reads it, the markets row, the open market's section (SECTIONS, filled by tasks 7 to 9) and the foot line. Pure
 // functions returning HTML; research.js places them and wires the clicks.
-import {escape, one, LINES, DEFAULT_LINE, passes, hitCount, strip, shortDay} from './insight.js?v=research-20261124a';
-import {crest, whenText, readState, opensDay, possessive} from './upcoming.js?v=research-20261124a';
+import {escape, one, LINES, DEFAULT_LINE, passes, hitCount, strip, shortDay} from './insight.js?v=research-20261125a';
+import {crest, whenText, readState, opensDay, possessive} from './upcoming.js?v=research-20261125a';
 
 export const MARKETS = ['cards', 'sot', 'goals', 'corners', 'result', 'h2h', 'news'];
 export const MARKET_LABELS = {cards: 'Cards', sot: 'Shots on target', goals: 'Goals', corners: 'Corners', result: 'Result',
@@ -334,8 +334,10 @@ export function h2hSection(match, view = {}) {
 }
 SECTIONS.h2h = h2hSection;
 
-// No line-ups in B2 yet (lineups is always null), so the likely starters from recent starts.
+// Team news: the line-ups section (D134, lineups.js through window) with the elevens once named (D135); without the
+// kit, the likely starters from recent starts.
 export function newsSection(match, view = {}) {
+  if (typeof globalThis.spixLineups === 'function') return globalThis.spixLineups(match, {title: '<h2 class="cond">Team news</h2>'});
   const t = match.teams || {};
   const side = key => { const team = t[key]; if (!team) return '';
     const list = team.shooters || [];
