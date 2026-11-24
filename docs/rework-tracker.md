@@ -4566,6 +4566,24 @@ the referee on the match cards to open their Research Area profiles.
     (1635718) gives 210 and 21, as the frontend expected.
 - No migration and no `.env` line. The website needs a restart to serve the ids.
 
+**D132 — No empty board before the first-load cover (24 Nov; frontend, owner).** The owner kept seeing the matchday
+board for a split second, then the loading screen, when opening the site in a new tab and pressing Explore matchday.
+- Cause: D112's first-load cover waits 300 ms before it draws (so a quick load never shows a loader), but the board's
+  frame (heading, search, date chips, league tabs) showed at once. A cold load takes about 2.5–3.5 s, so the cover
+  nearly always came, and the empty board showed for about 200 ms under it every time. Frames on a cold browser: board
+  at 116 ms, cover at 319 ms. A cold load straight to `/app#fixtures` did the same (board 84 ms, cover 373 ms).
+- Fix: through the first load only, the board's and Best Bets' content is hidden (`body.ld-hold`, opacity 0; the
+  header stays). `spixCover` gains `onReveal`, run once: at the end of a load that beat the cover, as the cover starts to
+  fade, or when it gives up at 15 s. The class is set only when the loader kit is there to clear it. D112's rules hold:
+  nothing shows under 300 ms, the 90 s refresh and later loads never hide anything or draw the cover, and reduced motion
+  is unchanged.
+- After, on a cold browser: landing to board, cover at 324 ms with no board before it, board with 15 cards at 2.5 s;
+  `/app#fixtures` cold, cover at 386 ms, nothing before it; Back and Forward between home and board show the board at
+  once with no cover, as before.
+- `app.js` and `style.css` at `cover-20261124a`, `loaders.js` and `loaders.css` at `loaders-20261124a`. 22 JS test
+  files pass (`test_loaders_web.js`: the reveal on a quick load, a slow load (with the fade, never before), a quick and a
+  slow failure, the 15 s give-up, once only, the app's wiring and the CSS rule).
+
 ## How to resume in a new session
 
 1. Read this file, then `git log --oneline` since the last commit listed above.
