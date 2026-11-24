@@ -520,23 +520,43 @@ def upsert_fixture_events(
     return len(events)
 
 
+SUBSTITUTE_FIT = 5  # minutes (D136)
+
+
 def mark_substitutes(session: Session, *, fixture: Fixture) -> int:
     """Who started, from the fixture's stored events (D136); returns the rows changed.
 
     Since August 2026 API-Football's ``games.substitute`` says False for most players who came on. A substitution
     event names the player going off as ``player`` and the one coming on as ``assist``. So a player who came on, or
-    who never played, is a substitute, and every other player who played started. A fixture with no stored events
-    keeps the provider's flag. The row's digest stays the provider's, so the same reply again leaves the mark alone.
+    who never played, is a substitute, and every other player who played started. When an event's ``assist`` is empty
+    or not among the match's players, the player who came on is the team's played starter whose minutes fit the
+    match's length less the substitution minute, within ``SUBSTITUTE_FIT`` minutes, never the player who went off.
+    A fixture with no stored events keeps the provider's flag. The row's digest stays the provider's, so the same
+    reply again leaves the mark alone.
     """
-    events = session.execute(select(FixtureEvent.event_type, FixtureEvent.assist_api_id)
+    events = session.execute(select(FixtureEvent.event_type, FixtureEvent.team_api_id, FixtureEvent.player_api_id,
+                                    FixtureEvent.assist_api_id, FixtureEvent.elapsed)
                              .where(FixtureEvent.fixture_id == fixture.id)).all()
     if not events:
         return 0
-    came_on = {assist for kind, assist in events if str(kind or "").lower() == "subst" and assist is not None}
+    rows = session.execute(select(FixturePlayerStats, Player.api_football_id, Team.api_football_id)
+                           .join(Player, Player.id == FixturePlayerStats.player_id)
+                           .join(Team, Team.id == FixturePlayerStats.team_id)
+                           .where(FixturePlayerStats.fixture_id == fixture.id)).all()
+    present = {api_id for _, api_id, _ in rows}
+    subst = [e for e in events if str(e.event_type or "").lower() == "subst"]
+    came_on = {e.assist_api_id for e in subst if e.assist_api_id in present}
+    end = max([row.minutes or 0 for row, _, _ in rows] or [0])
+    for event in subst:
+        if event.assist_api_id in present or event.elapsed is None:
+            continue
+        fits = [(abs((row.minutes or 0) - (end - event.elapsed)), api_id) for row, api_id, team in rows
+                if team == event.team_api_id and (row.minutes or 0) > 0 and api_id not in came_on
+                and api_id != event.player_api_id]
+        if fits and min(fits)[0] <= SUBSTITUTE_FIT:
+            came_on.add(min(fits)[1])
     changed = 0
-    for row, api_id in session.execute(select(FixturePlayerStats, Player.api_football_id)
-                                       .join(Player, Player.id == FixturePlayerStats.player_id)
-                                       .where(FixturePlayerStats.fixture_id == fixture.id)).all():
+    for row, api_id, _ in rows:
         substitute = api_id in came_on or not (row.minutes or 0) > 0
         if row.substitute is not substitute:
             row.substitute = substitute

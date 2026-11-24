@@ -103,3 +103,19 @@ def test_remark_fixes_stored_rows_from_stored_events_and_a_dry_run_writes_nothin
         assert flags(s, s.get(Fixture, fixture_id))[9002] is True
     assert remark_substitutes(session_factory, since=since)["rows_changed"] == 0
     assert remark_substitutes(session_factory, since=date(2027, 1, 1))["fixtures_with_events"] == 0
+
+
+def test_a_substitution_without_a_known_incoming_player_takes_the_one_whose_minutes_fit(session_factory):
+    """API-Football sometimes leaves ``assist`` empty, or names a player the match's rows lack: the player who came
+    on is then the one whose minutes fit the substitution, within five minutes, never the one who went off."""
+    nameless = {"time": {"elapsed": 70, "extra": None}, "team": {"id": 100}, "player": {"id": 9004, "name": "x"},
+                "assist": {"id": None}, "type": "subst", "detail": "Substitution 1", "comments": None}
+    with session_factory() as s:
+        fixture = a_match(s)
+        upsert_fixture_events(s, fixture=fixture, events_response=[nameless])
+        mark_substitutes(s, fixture=fixture)
+        assert flags(s, fixture) == {9001: False, 9004: False, 9002: True, 9003: True, 9005: False}
+        late = {**nameless, "time": {"elapsed": 30, "extra": None}, "assist": {"id": 123456}}  # 60 left: nobody fits
+        upsert_fixture_events(s, fixture=fixture, events_response=[late])
+        mark_substitutes(s, fixture=fixture)
+        assert flags(s, fixture)[9002] is False

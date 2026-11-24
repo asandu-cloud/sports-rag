@@ -4633,7 +4633,27 @@ plan).** In progress, parked for D136 (owner: fix the substitute flag first, bec
 - **Coverage.** Every finished match of October and November has its events stored. In August and September, 206
   broken matches have none (41 in August, 165 in September): fixing them needs the events fetched (`backfill-events`,
   one request a match), on the owner's yes.
-- 3 new tests (`test_substitutes.py`). Suite: 3,269 passed, plus the 3 known worktree errors. 24 JS test files
+- **A fallback for provider gaps.** On the copy, 59 team-matches in October and November still showed more than 11
+  starters. 62 of the 63 extra starters came from substitutions whose `assist` was empty (28) or named a player the
+  match's rows lack (34). For those, the player who came on is the team's played starter whose minutes fit the
+  match's length less the substitution minute, within 5 minutes, and never the player who went off.
+- **On a copy of the database (25 Nov, 00:51), from 1 Aug.** The re-mark covered 785 matches with events and
+  changed 12,834 rows (12,776, then 58 more with the fallback). No provider call.
+
+  | Month | Matches | Starters per team, before | Starters per team, after | Subs per team, after | Teams over 11, before → after |
+  |---|---|---|---|---|---|
+  | May (reference) | 336 | 11.0 | 11.0 | 10.1 | 0 → 0 |
+  | Jul | 38 | 14.3 | 14.3 (no events) | 7.0 | 27 → 27 |
+  | Aug | 326 | 11.2 | 11.2 (no events) | 10.4 | 22 → 22 |
+  | Sep | 364 | 16.2 | 15.4 (11.0 where events exist) | 6.0 | 383 → 325 |
+  | Oct | 457 | 19.2 | 11.0 | 10.4 | 717 → 4 |
+  | Nov | 289 | 19.1 | 11.0 | 10.3 | 450 → 2 |
+
+- **Left.** July, August and September matches have no events stored. `backfill-events --since 2026-08-01` would
+  make 756 requests (968 from 1 Jul), one a match; then `remark-substitutes` again. That needs the owner's yes.
+- **Nothing to rebuild.** The ranks don't use starts; profiles, match views and likely starters count them live from
+  the rows; the stats-questions store doesn't read the flag.
+- 4 new tests (`test_substitutes.py`). Suite: 3,270 passed, plus the 3 known worktree errors. 24 JS test files
   pass. Golden check: no changes across 54 fixtures.
 
 ## How to resume in a new session
