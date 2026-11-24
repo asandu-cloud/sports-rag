@@ -3896,8 +3896,11 @@ only, and three bets can pass every pair yet never win together (over 2.5, not b
 - Golden check: no changes across 54 fixtures.
 - Run in memory on the stored 24 Nov Champions League reads, recorded as `fairest`, the latest reads give the
   mockup's bets: Real Madrid Under 5.5 goals 1.40, Real Madrid −2.5 1.86, Over 8.5 corners 1.34.
-- No migration and no `.env` line. A website restart is needed only when the switch is flipped; the worker records
-  it on new reads.
+- No migration and no `.env` line.
+- The website needs a restart after the merge to load the code. Until then it ignores the recorded value and shows
+  `likeliest`, which fails safe.
+- Flipping the switch later needs no restart: the match-read worker loads `.env` on each run and records the value
+  on new reads.
 
 **Against D128.** This is D128's item 8 ("Most likely with cost in mind") in a new form: the fairest bet per payout
 range, where D128 put the cheaper of two picks within 2 points of chance first. D128 has it tested on the owner
