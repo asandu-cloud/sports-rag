@@ -4598,7 +4598,11 @@ button on a team or referee profile reached from a board card's name (D130) that
   shows "Find another team".
 
 **D135 — Confirmed line-ups for the match page, on demand (25 Nov; backend, for the frontend's D134; owner chose the
-plan).** In progress, parked for D136 (owner: fix the substitute flag first, because the likely elevens count starts).
+plan).** Built behind `SPIX_LINEUPS`, off. It was parked for D136 (owner: fix the substitute flag first, because
+the likely elevens count starts); D136's code is in, so the likely elevens are right once its re-mark runs. To turn it
+on, the owner adds `SPIX_LINEUPS=on` to `.env` and the website restarts. No migration, no job, and no pick, stored read
+or golden fixture changes. Suite: 3,270 passed, plus the 3 known worktree errors (D136's run). The frontend built to
+this shape (D134, e2ba598 on frontend).
 - One trial request (25 Nov, Sabah FA v Barcelona) confirmed that `/fixtures?ids=` returns a `lineups` key, empty
   before release. A saved `/fixtures/lineups` reply gave the shape: formation, coach, 11 starters with id, name,
   number, position and grid, and the bench.
