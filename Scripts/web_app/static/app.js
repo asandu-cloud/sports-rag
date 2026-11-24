@@ -1791,8 +1791,14 @@ const appModule = {
       this._initFixtureSearch();
       this._installMatchReadPolling();
       this.initialized = true;
+      // D132: the board's content stays hidden through the first load, so an empty board never shows for the 300 ms
+      // before the cover; the cover brings it back as it fades, or at once when the load beats it.
       this._initialLoad = this._loadMatchday();
-      window.spixCover?.(this._initialLoad, {label: "Getting today's matches ready", logo: document.querySelector('.logo-word')?.outerHTML || ''});
+      if (window.spixCover) {
+        document.body.classList.add('ld-hold');
+        window.spixCover(this._initialLoad, {label: "Getting today's matches ready", logo: document.querySelector('.logo-word')?.outerHTML || '',
+          onReveal: () => document.body.classList.remove('ld-hold')});
+      }
     }
     return this._initialLoad;
   },

@@ -72,22 +72,25 @@ const text = html => html.replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'").replac
 
   // The page loads the kit before app.js and the Research Area.
   const at = name => page.indexOf(name);
-  assert.match(page, /<link rel="stylesheet" href="\/static\/loaders\.css\?v=loaders-20261117a">/);
-  assert.match(page, /<script src="\/static\/loaders\.js\?v=loaders-20261117a"><\/script>/);
+  assert.match(page, /<link rel="stylesheet" href="\/static\/loaders\.css\?v=loaders-20261124a">/);
+  assert.match(page, /<script src="\/static\/loaders\.js\?v=loaders-20261124a"><\/script>/);
   assert.ok(at('/static/loaders.js') < at('/static/research/research.js') && at('/static/loaders.js') < at('/static/app.js'));
 
   // A: the app's first board load runs under the cover, with the header's own logo. Later loads (a new date or
   // league, the 90 s refresh) never call it: init() starts the first load only once.
   const app = fs.readFileSync(path.join(STATIC, 'app.js'), 'utf8');
-  assert.match(app, /      this\._initialLoad = this\._loadMatchday\(\);\n      window\.spixCover\?\.\(this\._initialLoad, \{label: "Getting today's matches ready", logo: document\.querySelector\('\.logo-word'\)\?\.outerHTML \|\| ''\}\);\n    \}\n    return this\._initialLoad;/);
-  assert.equal((app.match(/spixCover/g) || []).length, 1, 'only the first load');
+  // D132: through that first load the board's content stays hidden (no flash of an empty board before the cover), and
+  // only when the kit is there to bring it back.
+  assert.match(app, /      this\._initialLoad = this\._loadMatchday\(\);\n      if \(window\.spixCover\) \{\n        document\.body\.classList\.add\('ld-hold'\);\n        window\.spixCover\(this\._initialLoad, \{label: "Getting today's matches ready", logo: document\.querySelector\('\.logo-word'\)\?\.outerHTML \|\| '',\n          onReveal: \(\) => document\.body\.classList\.remove\('ld-hold'\)\}\);\n      \}\n    \}\n    return this\._initialLoad;/);
+  assert.match(css, /body\.ld-hold #viewFixtures > \*,body\.ld-hold #viewBestBets > \*\{opacity:0\}/);
+  assert.equal((app.match(/spixCover\(/g) || []).length, 1, 'only the first load');
 
   // E on the board and D on Best Bets, in their loading states only (a background refresh never draws them).
   // The old line stays as the fallback if the kit is missing.
   assert.match(app, /    if \(state\.loading\) \{\n      container\.innerHTML = window\.spixLoader\?\.\('card', \{label: 'Preparing the matchday board', cards: 3,\n        steps: \['Loading the fixture schedule', 'Loading the published Match Reads', 'Preparing the matchday board'\]\}\)\n        \?\? '<div class="empty-state"><p>Preparing the matchday board…<\/p>/);
   assert.match(app, /    if \(state\.loading\) \{\n      container\.innerHTML = window\.spixLoader\?\.\('prices', \{label: 'Ranking the clearest matchday opportunities'\}\)\n        \?\? '<div class="empty-state"><p>Ranking the clearest matchday opportunities…<\/p><\/div>';/);
   assert.match(app, /if \(!background\) \{[\s\S]{0,200}?this\._renderFixtures\(\{ loading: true \}\);\n      this\._renderBestBets\(\{ loading: true \}\);/, 'only a foreground load');
-  assert.match(page, /<script src="\/static\/app\.js\?v=links-20261124a"><\/script>/);
+  assert.match(page, /<script src="\/static\/app\.js\?v=cover-20261124a"><\/script>/);
 
   // B, C and F in the Research Area. Its shadow root adopts the page's own loaders.css (already loaded, so the
   // component's first loader is styled at once); without the kit, the old line.
@@ -136,15 +139,20 @@ const text = html => html.replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'").replac
   const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return {promise, resolve, reject}; };
   const options = h => ({doc: h.doc, clock: h.clock, logo: '<svg></svg>', label: "Getting today's matches ready", steps: ['Loading the fixture schedule']});
 
-  // A quick load: nothing is ever drawn.
-  let h = harness(), load = deferred();
-  kit.spixCover(load.promise, options(h));
-  await h.advance(250); load.resolve(); await h.advance(1000);
+  // A quick load: nothing is ever drawn, and the board shows the moment the load ends.
+  let h = harness(), load = deferred(), reveals = [];
+  kit.spixCover(load.promise, {...options(h), onReveal: () => reveals.push(h.clock.now())});
+  await h.advance(250);
+  assert.deepEqual(reveals, [], 'hidden while loading');
+  load.resolve(); await h.advance(1000);
   assert.equal(h.nodes.length, 0, 'under 300 ms: no cover');
+  assert.deepEqual(reveals, [250], 'shown when the load ends, once');
 
-  // A slow load: drawn at 300 ms, held to 900 ms though the load ends at 400, faded, then removed.
-  h = harness(); load = deferred();
-  kit.spixCover(load.promise, options(h));
+  // A slow load: drawn at 300 ms, held to 900 ms though the load ends at 400, faded, then removed. The board shows
+  // as the cover starts to fade, never under a cover that is still fading in.
+  h = harness(); load = deferred(); reveals = [];
+  let fadingAtReveal = null;
+  kit.spixCover(load.promise, {...options(h), onReveal: () => { reveals.push(h.clock.now()); fadingAtReveal = h.nodes[0]?.classes.has('ld-out'); }});
   await h.advance(300);
   assert.equal(h.nodes.length, 1, 'shown at 300 ms');
   const cover = h.nodes[0];
@@ -154,21 +162,37 @@ const text = html => html.replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'").replac
   assert.ok(!cover.classes.has('ld-out'), 'held: 600 ms not yet up at 850 ms');
   await h.advance(60);
   assert.ok(cover.classes.has('ld-out'), 'fading at 900 ms');
+  assert.deepEqual(reveals, [900], 'the board shows with the fade');
+  assert.equal(fadingAtReveal, false, 'revealed just before the fade starts');
   assert.ok(!cover.removed);
   await h.advance(300);
   assert.ok(cover.removed, 'gone after the fade');
 
-  // A failed load clears it too.
-  h = harness(); load = deferred();
-  kit.spixCover(load.promise, options(h));
+  // A failed load clears it too, and shows the board (its error message).
+  h = harness(); load = deferred(); reveals = [];
+  kit.spixCover(load.promise, {...options(h), onReveal: () => reveals.push(h.clock.now())});
   await h.advance(400); load.reject(new Error('down')); await h.advance(1500);
   assert.ok(h.nodes[0].removed, 'a failure clears the cover');
+  assert.equal(reveals.length, 1);
+  // A quick failure, too.
+  h = harness(); load = deferred(); reveals = [];
+  kit.spixCover(load.promise, {...options(h), onReveal: () => reveals.push(h.clock.now())});
+  await h.advance(100); load.reject(new Error('down')); await h.advance(1500);
+  assert.deepEqual(reveals, [100]);
 
-  // A load that never ends: the cover gives up at 15 s and the board's own loader carries on.
-  h = harness(); load = deferred();
-  kit.spixCover(load.promise, options(h));
+  // A load that never ends: the cover gives up at 15 s and the board's own loader carries on, shown.
+  h = harness(); load = deferred(); reveals = [];
+  kit.spixCover(load.promise, {...options(h), onReveal: () => reveals.push(h.clock.now())});
   await h.advance(15000);
   assert.ok(h.nodes[0].classes.has('ld-out'), 'gives up at 15 s');
+  assert.deepEqual(reveals, [15000]);
+  load.resolve(); await h.advance(1000);
+  assert.deepEqual(reveals, [15000], 'once only');
+  // Without onReveal the cover works as before.
+  h = harness(); load = deferred();
+  kit.spixCover(load.promise, options(h));
+  await h.advance(100); load.resolve(); await h.advance(1000);
+  assert.equal(h.nodes.length, 0);
 
   console.log('test_loaders_web: ok');
 })().catch(error => { console.error(error); process.exit(1); });

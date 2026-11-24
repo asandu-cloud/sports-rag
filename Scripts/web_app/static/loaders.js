@@ -63,7 +63,9 @@ const LD_CLOCK = {now: () => performance.now(), setTimeout: (fn, ms) => setTimeo
 
 // The first-load cover (A): drawn only if the load is still running at 300 ms, held at least 600 ms once drawn,
 // cleared when the load ends or fails, and given up at 15 s (the board's own loader carries on underneath).
-function spixCover(load, {label, steps, logo, doc = document, clock = LD_CLOCK, delay = 300, hold = 600, giveUp = 15000}) {
+// onReveal (D132) runs once, when what the cover stands for may show: at the end of a load that beat the cover, or as
+// the cover starts to fade.
+function spixCover(load, {label, steps, logo, doc = document, clock = LD_CLOCK, delay = 300, hold = 600, giveUp = 15000, onReveal = () => {}}) {
   let el = null, shownAt = 0, done = false;
   const show = clock.setTimeout(() => {
     if (done) return;
@@ -78,8 +80,9 @@ function spixCover(load, {label, steps, logo, doc = document, clock = LD_CLOCK, 
     done = true;
     clock.clearTimeout(show);
     clock.clearTimeout(limit);
-    if (!el) return;
+    if (!el) return onReveal();
     clock.setTimeout(() => {
+      onReveal();
       el.classList.add('ld-out');
       clock.setTimeout(() => el.remove(), 250);
     }, Math.max(0, hold - (clock.now() - shownAt)));

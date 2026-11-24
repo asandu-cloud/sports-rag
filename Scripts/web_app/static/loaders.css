@@ -15,6 +15,8 @@
 .ld-cover{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));background:var(--tb-bg);color:var(--tb-fg);animation:ld-in .2s ease both}
 .ld-cover.ld-out{animation:ld-out .25s ease forwards}
 .ld-cover .ld{animation:none}
+/* D132: the board's content, hidden through the first load until the cover (or the load's end) reveals it. */
+body.ld-hold #viewFixtures > *,body.ld-hold #viewBestBets > *{opacity:0}
 .ld-ball .ld-steps{color:var(--tb-fg2);font-size:14px}
 .ld-ball svg{display:block;width:min(260px,60vw);height:auto;overflow:visible;color:var(--tb-fg)}
 .ld-ball .spx-drop,.ld-ball .spx-stem{transform-box:fill-box;transform-origin:50% 100%}
