@@ -543,11 +543,31 @@ function slipChance(slipLegs) {
   return chance;
 }
 
+// Board links (D130): a team name or the referee opens its Research Area profile when the board's data names one
+// (a team's Research Area id, a referee's key); otherwise the name stays plain text.
+function boardTeamRoute(id) {
+  return /^[1-9]\d*$/.test(String(id ?? '')) ? `teams/${id}` : null;
+}
+function boardRefereeRoute(referee) {
+  return referee?.name && referee.key ? `referees/${encodeURIComponent(referee.key)}` : null;
+}
+function boardTeamName(name, id) {
+  const route = boardTeamRoute(id);
+  return route ? boardProfileLink(esc(name), route, name) : `<span>${esc(name)}</span>`;
+}
+function boardProfileLink(html, route, name) {
+  return route
+    ? `<a class="board-profile-link" href="/app#research/${route}" data-research-route="${route}" aria-label="${esc(name)}: Research Area profile">${html}</a>`
+    : html;
+}
+
 // The referee line (D123): a whistle, the referee or TBD, then the match's value picks. Only the name gives way when
 // the line runs short.
 const RECS_WHISTLE = '<svg class="recs-ref-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="14" r="5"/><path d="M12.5 10.5 21 7v4l-6 2.2"/><path d="M6 6.5 4.5 5M9 5.5V3.5M12 6.5l1.5-1.5"/></svg>';
 function recsRefereeLine(referee, values) {
-  const name = referee?.name ? `<span class="recs-ref-name">${esc(referee.name)}</span>` : '<span class="recs-ref-tbd">TBD</span>';
+  const name = referee?.name
+    ? boardProfileLink(`<span class="recs-ref-name">${esc(referee.name)}</span>`, boardRefereeRoute(referee), referee.name)
+    : '<span class="recs-ref-tbd">TBD</span>';
   const value = values ? `<span class="recs-ref-v">· ${pluralise(values, 'value pick')}</span>` : '';
   return `<span class="recs-ref">${RECS_WHISTLE}<span class="sr-only">Referee </span>${name}${value}</span>`;
 }
@@ -582,7 +602,7 @@ function renderRecsBoardCard(f, homeEmblem, awayEmblem) {
   return `
     <div class="recs-board-body">${top}</div>
     <div class="recs-board-foot">
-      <h3 class="recs-board-teams">${homeEmblem}<span>${esc(f.home)}</span> <span class="recs-board-v">v</span> ${awayEmblem}<span>${esc(f.away)}</span></h3>
+      <h3 class="recs-board-teams">${homeEmblem}${boardTeamName(f.home, f.homeId)} <span class="recs-board-v">v</span> ${awayEmblem}${boardTeamName(f.away, f.awayId)}</h3>
       <div class="recs-board-row">
         <span class="recs-board-count">${counts}</span>
         <button class="match-card-open" type="button" aria-label="View match: ${esc(f.home)} versus ${esc(f.away)}">View match <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -636,7 +656,7 @@ function renderBeforeKickoffCard(f, homeEmblem, awayEmblem, leagueName) {
     : `<p class="bk-none">${esc(f.scheduleNote)}</p>`;
   return `
     <div class="bk-top"><span class="bk-time">${leagueName ? `${esc(leagueName)} · ` : ''}${esc(f.time)}</span><span class="bk-status">${esc(f.scheduleLabel)}</span></div>
-    <h3 class="bk-teams">${homeEmblem}<span>${esc(f.home)}</span> <span class="bk-v">v</span> ${awayEmblem}<span>${esc(f.away)}</span></h3>
+    <h3 class="bk-teams">${homeEmblem}${boardTeamName(f.home, f.homeId)} <span class="bk-v">v</span> ${awayEmblem}${boardTeamName(f.away, f.awayId)}</h3>
     ${body}`;
 }
 
@@ -2221,6 +2241,7 @@ const appModule = {
       league: leagueId || fixture.league,
       home: fixture.home_team || 'Home team TBC',
       away: fixture.away_team || 'Away team TBC',
+      homeId: fixture.home_team_id ?? null, awayId: fixture.away_team_id ?? null,
       kickoff: fixture.kickoff,
       time: this._formatFixtureTime(fixture.kickoff),
       pick: core?.pick || (status === 'no_bet' ? 'No bet' : 'Unavailable'),
@@ -2329,6 +2350,7 @@ const appModule = {
     return {
       id: String(fixture.event_id), league: fixture.league,
       home: fixture.home_team || 'Home team TBC', away: fixture.away_team || 'Away team TBC',
+      homeId: fixture.home_team_id ?? null, awayId: fixture.away_team_id ?? null,
       kickoff: fixture.kickoff, time: this._formatFixtureTime(fixture.kickoff),
       isScheduleOnly: true, scheduled, status: 'pending', scheduleLabel: label,
       scheduleNote: scheduled
@@ -2722,9 +2744,9 @@ const appModule = {
         ${updateLabel}
       </div>
       <h3 class="match-card-teams">
-        <span class="match-card-team home">${emblem(f.visuals?.homeTeamLogo, f.home, 'home')}<span>${esc(f.home)}</span></span>
+        <span class="match-card-team home">${emblem(f.visuals?.homeTeamLogo, f.home, 'home')}<span>${boardProfileLink(esc(f.home), boardTeamRoute(f.homeId), f.home)}</span></span>
         <span class="sr-only"> versus </span>
-        <span class="match-card-team away">${emblem(f.visuals?.awayTeamLogo, f.away, 'away')}<span>${esc(f.away)}</span></span>
+        <span class="match-card-team away">${emblem(f.visuals?.awayTeamLogo, f.away, 'away')}<span>${boardProfileLink(esc(f.away), boardTeamRoute(f.awayId), f.away)}</span></span>
       </h3>
       ${f.isScheduleOnly
         ? `<p class="match-card-schedule-note empty-state-hint">${esc(f.scheduleNote)}</p>`
@@ -2741,9 +2763,24 @@ const appModule = {
         image.remove();
       }, { once: true });
     });
+    this._bindProfileLinks(card);
     if (f.isScheduleOnly) return card;
-    card.addEventListener('click', () => this._showMatch(f.id));
+    card.addEventListener('click', event => {
+      if (event.target.closest('[data-research-route]')) return;
+      this._showMatch(f.id);
+    });
     return card;
+  },
+
+  // D130: a name opens its Research Area profile in place; a modified click (new tab, new window) keeps the browser's
+  // own behaviour. Neither opens the card.
+  _bindProfileLinks(card) {
+    card.querySelectorAll('[data-research-route]').forEach(link => link.addEventListener('click', event => {
+      event.stopPropagation();
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      router.go('app', 'research', null, link.dataset.researchRoute);
+    }));
   },
 
   _matchReadQuoteUsable(f, pick, odds) {

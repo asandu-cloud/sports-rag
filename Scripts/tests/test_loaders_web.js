@@ -87,7 +87,7 @@ const text = html => html.replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'").replac
   assert.match(app, /    if \(state\.loading\) \{\n      container\.innerHTML = window\.spixLoader\?\.\('card', \{label: 'Preparing the matchday board', cards: 3,\n        steps: \['Loading the fixture schedule', 'Loading the published Match Reads', 'Preparing the matchday board'\]\}\)\n        \?\? '<div class="empty-state"><p>Preparing the matchday board…<\/p>/);
   assert.match(app, /    if \(state\.loading\) \{\n      container\.innerHTML = window\.spixLoader\?\.\('prices', \{label: 'Ranking the clearest matchday opportunities'\}\)\n        \?\? '<div class="empty-state"><p>Ranking the clearest matchday opportunities…<\/p><\/div>';/);
   assert.match(app, /if \(!background\) \{[\s\S]{0,200}?this\._renderFixtures\(\{ loading: true \}\);\n      this\._renderBestBets\(\{ loading: true \}\);/, 'only a foreground load');
-  assert.match(page, /<script src="\/static\/app\.js\?v=search-20261118a"><\/script>/);
+  assert.match(page, /<script src="\/static\/app\.js\?v=links-20261124a"><\/script>/);
 
   // B, C and F in the Research Area. Its shadow root adopts the page's own loaders.css (already loaded, so the
   // component's first loader is styled at once); without the kit, the old line.

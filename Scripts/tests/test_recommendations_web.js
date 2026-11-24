@@ -147,7 +147,8 @@ assert.match(text(h.renderRecsBoardCard(empty, '', '')), /Not priced yet/);
 const oliver = h.renderRecsBoardCard({ ...fixture, referee: { name: 'Michael Oliver', key: 'm-oliver' } }, '', '');
 assert.doesNotMatch(oliver, /suggestions/);
 assert.match(oliver, /<span class="recs-board-count"><span class="recs-ref"><svg class="recs-ref-icon"[^>]*aria-hidden="true">/);
-assert.match(oliver, /<span class="sr-only">Referee <\/span><span class="recs-ref-name">Michael Oliver<\/span><span class="recs-ref-v">· 1 value pick<\/span>/);
+// D130: a named referee with a key links to their Research Area profile.
+assert.match(oliver, /<span class="sr-only">Referee <\/span><a class="board-profile-link" href="\/app#research\/referees\/m-oliver" data-research-route="referees\/m-oliver" aria-label="Michael Oliver: Research Area profile"><span class="recs-ref-name">Michael Oliver<\/span><\/a><span class="recs-ref-v">· 1 value pick<\/span>/);
 assert.match(text(oliver), /Referee Michael Oliver · 1 value pick View match/);
 const noValueCard = { ...fixture, recommendations: { ...block, value: [] } };
 assert.match(text(h.renderRecsBoardCard({ ...noValueCard, referee: null }, '', '')), /Referee TBD View match/);
