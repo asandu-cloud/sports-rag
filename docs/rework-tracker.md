@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-11-16 (research endpoints for the Research Area overhaul, plan, D110). Earlier: 2026-11-15 (a late daily refresh waits for match time, D109; why cards were missing at kickoff, D108; the game-read engine's design approved and its plan for phases 0–1, A4 closed as a stage of its own, D77). Earlier: 2026-11-04 (A5.4 cards merged behind its switch, live Tue 10 Nov, D58, D62; match events live with a backfill from 20 Sep, D64; recommendation layer live with `SPIX_RECOMMENDATIONS=on`, D68; owner dashboard, D67)
+Last updated: 2026-11-24 (the bet-building assistant chosen, design written, D128). Earlier: 2026-11-16 (research endpoints for the Research Area overhaul, plan, D110). Earlier: 2026-11-15 (a late daily refresh waits for match time, D109; why cards were missing at kickoff, D108; the game-read engine's design approved and its plan for phases 0–1, A4 closed as a stage of its own, D77). Earlier: 2026-11-04 (A5.4 cards merged behind its switch, live Tue 10 Nov, D58, D62; match events live with a backfill from 20 Sep, D64; recommendation layer live with `SPIX_RECOMMENDATIONS=on`, D68; owner dashboard, D67)
 
 ## Status
 
@@ -3806,6 +3806,41 @@ asks for it (`Accept-Encoding: gzip`), and sent plain otherwise.
   after, no script errors.
 - The security headers are untouched (the cyber branch's layer). No migration, no `.env` line. 3 new tests; suite
   3,241 passed plus the 3 known worktree errors; golden check unchanged. Needs a website restart.
+
+**D128 — Spix builds bets instead of chasing an edge: the bet-building assistant (24 Nov; backend, owner).** On 18
+Nov the owner asked how Spix could choose and build good bets without a model that beats the market. The answer was a
+plan with two simulations (https://claude.ai/artifact/4ij8vSVmfHEpMPsZX32VN5):
+- 200 bettors over 11 seasons (2012/13 to 2022/23) at real typical prices. Aimed at about 1 in 3, the builder gives
+  back 96.2 of every 100 and brings a win in 84% of months. A casual four-leg slip gives back 86.1, with a win in 27%
+  of months. At the same chance, the builder gives back 4.0 more than stacked Most likely picks.
+- 10,000 business futures. The assistant came first in 70% of them, at about €1,447 a month by Jan 2029.
+
+A companion page tested 12 marketing campaigns (https://claude.ai/artifact/BbNCoKwVMwx3zSNTgYvM7b). Its six choices
+are still open.
+
+On 24 Nov the owner chose all six recommendations:
+1. "The bet-building assistant. Ready-made slips appear only as a starting point to edit."
+2. "About 1 in 3" as the builder's starting size.
+3. "A leg on every match I picked": "Off by default, one tap to turn on. The cheapest slip first."
+4. "Park game-read phase 3 onwards. The bench stays as the yardstick."
+5. The €5,000-a-month goal: "Set the date after 8 weekends with real members."
+6. Most likely with cost in mind: "Test it on the owner dashboard first, then decide on a stage week."
+
+**No published pick changes.** The design is `docs/superpowers/specs/2026-11-24-bet-building-assistant-design.md`,
+waiting for the owner's approval before any code. It has eight parts:
+- each option's cost (what the bookmaker keeps), stored and never shown;
+- a score grid corrected for draws and "both teams score", fitted on 2019–2022 only;
+- the slip builder;
+- `POST /api/slip/build` behind `SPIX_SLIP_BUILDER` (off);
+- a weekly check on history before 2023;
+- the screens;
+- the share card and Monday recap;
+- Most likely with cost.
+
+Only the last part changes picks. It gets its own stage week, not before Tue 8 Dec, and only on the owner's yes.
+
+The simulation scripts sat in the session's scratch folder, which macOS cleared on 23 Nov. They are rebuilt as
+`Scripts/ops/slip_builder_study.py` under the plan.
 
 ## Findings that shape later steps
 
