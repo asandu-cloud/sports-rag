@@ -4529,6 +4529,23 @@ that drops over the board.
   no console errors. The mockups said matches in play would stay in; the build leaves them out, because a started
   match sits in the Live tab, not in its league.
 
+**D130 — Board names open their Research Area profiles (24 Nov; frontend, owner).** The owner asked for the teams and
+the referee on the match cards to open their Research Area profiles.
+- A team name links to `#research/teams/<id>` and the referee to `#research/referees/<key>`. A name is a link only when
+  the board's data names its profile; otherwise it stays plain text. "TBD", a referee with no key, a board with no
+  referee field (the refresh holds the gate) and a team without an id are never links. The board's data does not carry
+  the Research Area team ids yet: the backend adds `fixture.home_team_id` and `away_team_id` (D131). Until then only the
+  referee links. A missing key and null read the same.
+- Upcoming cards (teams and referee), the Live tab's cards (teams) and schedule-only cards (teams). A tap on a name opens
+  the profile in place, Back returns to the board, and a modified click opens a new tab. A tap anywhere else still opens
+  the match. The names keep their look, with a faint underline that turns cobalt on hover, and a wider tap area.
+- `app.js` and `style.css` at `links-20261124a`. 22 JS test files pass (new `test_board_links_web.js`: routes, links,
+  plain names without ids, TBD, escaping, the normalisers, the card's click guard; the D123 referee markup test updated).
+  Checked on 8100 with the real 25 Nov Champions League board at 1440 (light, dark) and 390 (light, dark), as today's
+  data has it (only the referee links) and with the real ids injected in the test browser the way D131 will send them.
+  Nick Walsh opened his referee profile; Barcelona and Sabah FA opened their team profiles; Back returned to the board;
+  a tap on the pick opened the match page. No sideways scroll and no console errors.
+
 ## How to resume in a new session
 
 1. Read this file, then `git log --oneline` since the last commit listed above.
