@@ -5,7 +5,7 @@ deviations. The Engine Rework report (claude.ai artifact BHP6rm7e4Xf5a29KGoCiUe)
 original design; where this file differs, **this file wins**. Update it in the same
 commit as the work it describes; the report is refreshed from it at milestones.
 
-Last updated: 2026-11-24 (the bet-building assistant chosen, design written, D128). Earlier: 2026-11-16 (research endpoints for the Research Area overhaul, plan, D110). Earlier: 2026-11-15 (a late daily refresh waits for match time, D109; why cards were missing at kickoff, D108; the game-read engine's design approved and its plan for phases 0–1, A4 closed as a stage of its own, D77). Earlier: 2026-11-04 (A5.4 cards merged behind its switch, live Tue 10 Nov, D58, D62; match events live with a backfill from 20 Sep, D64; recommendation layer live with `SPIX_RECOMMENDATIONS=on`, D68; owner dashboard, D67)
+Last updated: 2026-11-24 (best bets on the match cards behind SPIX_BEST_BETS, D129; the bet-building assistant chosen, D128). Earlier: 2026-11-16 (research endpoints for the Research Area overhaul, plan, D110). Earlier: 2026-11-15 (a late daily refresh waits for match time, D109; why cards were missing at kickoff, D108; the game-read engine's design approved and its plan for phases 0–1, A4 closed as a stage of its own, D77). Earlier: 2026-11-04 (A5.4 cards merged behind its switch, live Tue 10 Nov, D58, D62; match events live with a backfill from 20 Sep, D64; recommendation layer live with `SPIX_RECOMMENDATIONS=on`, D68; owner dashboard, D67)
 
 ## Status
 
@@ -3841,6 +3841,72 @@ Only the last part changes picks. It gets its own stage week, not before Tue 8 D
 
 The simulation scripts sat in the session's scratch folder, which macOS cleared on 23 Nov. They are rebuilt as
 `Scripts/ops/slip_builder_study.py` under the plan.
+
+**D129 — Best bets on the match cards: the fairest bets in each payout range, behind `SPIX_BEST_BETS` (24 Nov;
+backend, owner).** Built behind the switch, which is off; no published pick changes until the owner flips it.
+
+**The problem.** Each market's suggestion is the likeliest option at 1.30 or more (D52), so every pick slides to the
+price floor:
+- the board card's pick averaged 1.34 and was under 1.45 on 97% of matches;
+- corners were a third of all picks;
+- from 5 Sep to 8 Nov the board card's pick said 72.2%, landed 69.3% and gave back −7.5 per 100 staked.
+
+The owner asked for the best available bets per match, to take as singles or to use in a parlay. The card keeps its
+design ("we are not changing the design of the match card itself. we are changing whats inside it"). The mockup on
+the real 24 Nov boards: https://claude.ai/artifact/E8jykPRRawU697SsfPKU4Y.
+
+**The rule.** Design: `docs/superpowers/specs/2026-11-24-best-bets-rule-design.md`.
+- Options priced 1.30–1.99 where the bookmaker keeps at most 6 of every 100 staked.
+- Three bets from three markets that can all win together: the fairest under 1.60, the fairest from 1.60, then the
+  next fairest. Listed fairest first.
+- Each market marks its bet among the three, or its own fairest.
+
+**The switch.** `SPIX_BEST_BETS` is `likeliest` (the default) or `fairest`, and an unknown value reads as
+`likeliest`. The rule follows the switch recorded in the read, so older reads stay `likeliest`, and cards already
+shown, the before-kickoff record and the wins reel keep the bets they showed.
+
+**Backtest.** 4–22 Nov, 128 matches, cards as shown at kickoff:
+- Likeliest: price 1.40, landed 71.4% against 69.0% said, −0.2 per 100 (±6.4).
+- Fairest: price 1.54, landed 64.8% against 63.5% said, −1.3 (±7.5).
+- Board card bet: 1.34 → 1.45 in price, −6.2 → −5.4 per 100 (±11–12).
+- Board cards led by corners: 52 → 1.
+- The bookmaker keeps 3.5 of every 100 against 3.8, and 2.6 against 3.4 on the board card.
+
+So chances stay honest and the money is the same within noise. The gain is payout and variety, not money saved.
+
+**What was built.** In `recommendations.py`:
+- `keeps`, `fair_options`, `best_bets` and `fairest_suggestion`;
+- `rule`, which reads the switch the read recorded (`context.engine_switches`): no key, or an unknown value, is
+  `likeliest`;
+- `block()` takes the fairest path only for a read recorded as `fairest`. The block's format is unchanged
+  (`recommendations.v1`, no key added).
+
+The owner dashboard, the pick evidence, the before-kickoff record and the wins reel all build from the same
+`block()`, so they follow each read's rule.
+
+One difference from today's rule: the three are checked on one common scoreline. Today's `most_likely` checks pairs
+only, and three bets can pass every pair yet never win together (over 2.5, not both teams to score, a draw).
+`most_likely` is left as it is.
+
+**Checks.**
+- 14 new tests (12 in `test_recommendations.py`, 1 in `test_engine_switches.py`, 1 updated in
+  `test_market_service.py`, which proves each read records the switch).
+- Suite: 3,253 passed, plus the 3 known worktree errors (`test_phase4_baseline_freeze`).
+- 22 JS test files pass.
+- Golden check: no changes across 54 fixtures.
+- Run in memory on the stored 24 Nov Champions League reads, recorded as `fairest`, the latest reads give the
+  mockup's bets: Real Madrid Under 5.5 goals 1.40, Real Madrid −2.5 1.86, Over 8.5 corners 1.34.
+- No migration and no `.env` line.
+- The website needs a restart after the merge to load the code. Until then it ignores the recorded value and shows
+  `likeliest`, which fails safe.
+- Flipping the switch later needs no restart: the match-read worker loads `.env` on each run and records the value
+  on new reads.
+
+**Against D128.** This is D128's item 8 ("Most likely with cost in mind") in a new form: the fairest bet per payout
+range, where D128 put the cheaper of two picks within 2 points of chance first. D128 has it tested on the owner
+dashboard first, with a stage week not before Tue 8 Dec. The backtest above is a first test on real cards. Whether it
+replaces the dashboard test, or the dashboard check runs first, is the owner's call, as is the stage week. No `.env`
+line until then.
 
 ## Findings that shape later steps
 
