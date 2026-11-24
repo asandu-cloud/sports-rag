@@ -58,8 +58,8 @@ on it. The Discord bot still runs the old engine until A7.
 - **Cobalt palette live 9 Nov (D80).** Cobalt `#0246A4` replaced the turf green, lime cream `#D5F097` the
   highlighter, and mint cream `#F2FFFA` is the light ground; the dark theme uses a light cobalt `#88B4F2`. Since
   9 Nov evening the dark theme is "cobalt night" (D85): near-black greys with a faint cobalt tint (`--bg #111316`)
-  and mint cream text. Cache tags are `links-20261124a` (style.css and app.js; D123, D125, D126, D130),
-  `research-20261117i` (the research files; D107, D111, D112, D114, D116–D118, D121), `loaders-20261117a` (loaders.js/.css; D112, D113) and `night-20261109a` (theme.js). Open for the owner: the steel blue of the Away segment and the "preliminary" label now sits close to
+  and mint cream text. Cache tags are `cover-20261124a` (style.css and app.js; D123, D125, D126, D130, D132),
+  `research-20261117i` (the research files; D107, D111, D112, D114, D116–D118, D121), `loaders-20261124a` (loaders.js/.css; D112, D113, D132) and `night-20261109a` (theme.js). Open for the owner: the steel blue of the Away segment and the "preliminary" label now sits close to
   the cobalt.
 - **Home page opening live 11 Nov (D98, owner).** "Every match, read for you", with three tilted packs from the
   real read of Brighton v Brentford (8 Nov, labelled Example). It replaced D87's Arsenal v Chelsea animation
@@ -140,6 +140,8 @@ on it. The Discord bot still runs the old engine until A7.
 - **Loading screens live 16 Nov (D112, owner).** Six loaders: a ball drop over the app's first load, card outlines
   on the board, a price board on Best Bets, and pitch lines, last 10 and a rolling ball in the Research Area.
   Nothing shows under 300 ms; the 90 s board refresh never draws one; reduced motion gets still frames.
+  Since 24 Nov (D132, owner) the board's and Best Bets' content stays hidden through the first load until the
+  cover fades or the load ends, so the empty board no longer flashes before the cover.
 - **No more Chroma updates (D81, owner, 9 Nov).** The daily refresh no longer embeds into Chroma, because nothing
   running reads it; `refresh-season --embed` brings the step back. `Index/chroma` (19 GB) stays until A7.
   Confirmed on the 10 Nov refresh.
