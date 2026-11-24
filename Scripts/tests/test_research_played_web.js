@@ -111,7 +111,7 @@ const sectionOf = (html, label) => html.match(new RegExp(`<section class="pr-car
   // research.js routes #research/played/teams/<id>/<scope>/<fixture_id>/<market> to the report, drawn in the match view.
   const research = fs.readFileSync(path.join(__dirname, '../web_app/static/research/research.js'), 'utf8');
   assert.match(research, /if \(parts\[0\] === 'played' && parts\[1\]\) return showPlayed\(/);
-  assert.match(research, /import \{playedReport, glanceCard, glanceSheet\} from '\.\/played\.js\?v=research-20261117i'/);
+  assert.match(research, /import \{playedReport, glanceCard, glanceSheet\} from '\.\/played\.js\?v=research-20261124a'/);
   assert.match(research, /\[data-played\]/);
   assert.match(research, /\[data-played-market\]/);
   assert.match(research, /strip\.scrollLeft = pill\.offsetLeft - \(strip\.clientWidth - pill\.offsetWidth\) \/ 2/, 'a phone shows the open match in the strip');

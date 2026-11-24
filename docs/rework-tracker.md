@@ -4584,6 +4584,19 @@ board for a split second, then the loading screen, when opening the site in a ne
   files pass (`test_loaders_web.js`: the reveal on a quick load, a slow load (with the fade, never before), a quick and a
   slow failure, the 15 s give-up, once only, the app's wiring and the CSS rule).
 
+**D133 — Back to Matchday on a profile opened from the board (24 Nov; frontend, owner).** The owner asked for a back
+button on a team or referee profile reached from a board card's name (D130) that returns to where the user was.
+- The profile's back button reads "Back to Matchday" and runs the browser's own Back, so the board returns with its
+  date, league tab, search text and scroll. A profile reached any other way (a direct link, the Research Area's search,
+  a link inside the area) keeps "Find another team/referee". The mark lives in the history entry (`fromBoard`, as the
+  match page's back already did), so Back and Forward bring it back with the page; `router.backToBoard()` covers both.
+- `app.js` and `style.css` at `back-20261124a`; the Research Area's files at `research-20261124a`. 23 JS test files
+  pass (new `test_board_back_web.js`: the wiring, and the router's back step on a fake history). Checked on 8100 with
+  the real 25 Nov board at 1440 (light, dark) and 390: Tomorrow, Champions League, "barc" in the search, scrolled; Viking
+  opened with "Back to Matchday"; the button and the browser's Back both returned to the same date, league, search text
+  and scroll (121 px desktop, 606 px phone); Forward showed the button again; a direct visit to Barcelona's profile
+  shows "Find another team".
+
 ## How to resume in a new session
 
 1. Read this file, then `git log --oneline` since the last commit listed above.

@@ -1,8 +1,8 @@
-import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261117i';
-import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead, columnHeadroom, upDown} from './insight.js?v=research-20261117i';
-import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261117i';
-import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261117i';
-import {playedReport, glanceCard, glanceSheet} from './played.js?v=research-20261117i';
+import {catalogues, rankMetrics, rankGroups, frequencyLabels} from './data.js?v=research-20261124a';
+import {one, fromProfileRow, teamLead, teamLeadSub, glance, stackedColumns, passes, hitCount, linesFor, defaultLine, statAnswer, rankCard as rankCardFor, refereeAnswer, LINES, headlineLead, columnHeadroom, upDown} from './insight.js?v=research-20261124a';
+import {railHTML, barHTML, sheetHTML, headNext} from './upcoming.js?v=research-20261124a';
+import {MARKETS, SECTIONS, renderMatch, matchError, addLegDetail, opponentAllows} from './match.js?v=research-20261124a';
+import {playedReport, glanceCard, glanceSheet} from './played.js?v=research-20261124a';
 
 const API = '/api/research';
 // The site's loaders (loaders.js, D112), with the old line if the kit or its styles are missing.
@@ -18,7 +18,7 @@ function kitSheet() {
   } catch (error) { return null; }
 }
 
-function mountResearch(root, navigate) {
+function mountResearch(root, navigate, back = () => {}) {
   const $ = id => root.getElementById(id);
   const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
   const fmt = (value, digits = 1) => Number.isFinite(value) ? value.toLocaleString('en-GB', {maximumFractionDigits: digits}) : 'Unavailable';
@@ -314,7 +314,9 @@ function mountResearch(root, navigate) {
   }
 
   // ----- Routing -----
-  async function fromRoute(route = 'players') {
+  // D133: backToBoard when the page opened this profile from a board card's name; its back button then returns there.
+  async function fromRoute(route = 'players', {backToBoard = false} = {}) {
+    state.backToBoard = backToBoard;
     const parts = route.split('/').map(part => decodeURIComponent(part));
     if (parts[0] === 'matches' && parts[1]) return showMatch(parts[1], parts[2]);
     if (parts[0] === 'played' && parts[1]) return showPlayed(parts[1], parts[2], parts[3], parts[4], parts[5]);
@@ -322,6 +324,7 @@ function mountResearch(root, navigate) {
     const id = parts[1] || null, rest = parts.slice(2);
     const scope = rest.find(isScope) || null, stat = rest.find(part => !isScope(part)) || null;
     if (state.area !== area || !initialized) { initialized = true; setArea(area); }
+    $('profileBackLabel').textContent = state.backToBoard ? 'Back to Matchday' : `Find another ${current().singular}`;
     if (!id) return showSearch();
     closeSheet(false);
     const token = ++routeToken, key = `${area}/${id}/${scope || ''}`;
@@ -995,7 +998,7 @@ function mountResearch(root, navigate) {
     const suggestion = event.target.closest('[data-suggest]');
     if (suggestion) { $('playerSearch').value = suggestion.dataset.suggest; search(); $('playerSearch').focus(); }
   });
-  $('profileBack').addEventListener('click', () => go(state.area));
+  $('profileBack').addEventListener('click', () => (state.backToBoard ? back() : go(state.area)));
   $('matchView').addEventListener('click', event => {
     const target = event.target.closest('[data-match-back],[data-played],[data-played-market],[data-market],[data-open-match],[data-referee],[data-mline],[data-mteam],[data-add]');
     if (!target) return;
@@ -1151,17 +1154,18 @@ class SpixResearch extends HTMLElement {
     if (kit) { root.adoptedStyleSheets = [kit]; kitAdopted = true; }
     root.innerHTML = loading('roll', 'Loading the Research Area');
     this.ready = Promise.all([
-      fetch(new URL('./content.html?v=research-20261117i', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
-      fetch(new URL('./research.css?v=research-20261117i', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
+      fetch(new URL('./content.html?v=research-20261124a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research content unavailable'); return r.text(); }),
+      fetch(new URL('./research.css?v=research-20261124a', import.meta.url)).then(r => { if (!r.ok) throw new Error('Research styles unavailable'); return r.text(); })
     ]).then(([html, css]) => {
       root.innerHTML = `<style>${css}</style>${html}`;
-      this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})));
+      this.controller = mountResearch(root, route => this.dispatchEvent(new CustomEvent('research-navigate', {bubbles: true, composed: true, detail: {route}})),
+        () => this.dispatchEvent(new CustomEvent('research-back', {bubbles: true, composed: true})));
     }).catch(error => {
       root.innerHTML = '<p role="alert">Research Area could not load. <button type="button">Try again</button></p>';
       root.querySelector('button').addEventListener('click', () => location.reload());
       throw error;
     });
   }
-  async showRoute(route) { await this.ready; this.controller.showRoute(route); }
+  async showRoute(route, options) { await this.ready; this.controller.showRoute(route, options); }
 }
 customElements.define('spix-research', SpixResearch);
