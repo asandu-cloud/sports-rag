@@ -357,6 +357,22 @@ class ResearchRepository:
                                .where(Fixture.api_football_id.in_(list(event_ids))))
         return {row.api_football_id: row.referee for row in rows}
 
+    def teams_by_event(self, session, event_ids):
+        """{API-Football id: (home team id, away team id)} for the fixtures the database knows (D131)."""
+        rows = session.execute(select(Fixture.api_football_id, Fixture.home_team_id, Fixture.away_team_id)
+                               .where(Fixture.api_football_id.in_(list(event_ids))))
+        return {row.api_football_id: (row.home_team_id, row.away_team_id) for row in rows}
+
+    def teams_with_profiles(self, session, team_ids):
+        """The teams among ``team_ids`` with a finished match in comparable rounds: the ones ``select_scope`` finds,
+        so the ones whose Research Area page opens (D131)."""
+        ids, f = list(team_ids), Fixture
+        found = set()
+        for side in (f.home_team_id, f.away_team_id):
+            found.update(session.scalars(select(side).distinct().join(Competition, Competition.id == f.competition_id)
+                                         .where(side.in_(ids), f.status.in_(FINISHED), comparable_rounds())))
+        return found
+
     def alias_rows(self, session, *, raw_names=(), keys=()):
         a = ResearchRefereeAlias
         return records(session, select(a.raw_name, a.name, a.referee_key).where(
