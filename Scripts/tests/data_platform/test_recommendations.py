@@ -273,3 +273,122 @@ def test_most_likely_never_lists_the_same_bet_twice_under_two_markets():
     assert [p["market"] for p in rec.most_likely([handicap, win, over])] == ["moneyline", "goals"]
     assert rec.same_bet(mk("spreads", "away", 0.5), mk("moneyline", "home", None)) is False
     assert rec.same_bet(handicap, win) and not rec.same_bet(win, over)
+
+
+# --- D129: the fairest bets in each payout range, behind SPIX_BEST_BETS ---------------------------------------------
+
+# Manchester City v Napoli, 24 Nov 17:56: the real chances and typical prices.
+city_win = mk("moneyline", "home", None, 0.759, 1.30)
+draw = mk("moneyline", "draw", None, 0.143, 6.28)
+over_2_5 = mk("goals", "over", 2.5, 0.749, 1.29)
+under_4_5 = mk("goals", "under", 4.5, 0.661, 1.44)
+over_3_5 = mk("goals", "over", 3.5, 0.541, 1.78)
+under_3_5 = mk("goals", "under", 3.5, 0.459, 2.07)
+btts_yes = mk("btts", "yes", None, 0.607, 1.56)
+city_minus_0_5 = mk("spreads", "home", -0.5, 0.768, 1.26)
+city_minus_1_5 = mk("spreads", "home", -1.5, 0.555, 1.74)
+napoli_plus_2_5 = mk("spreads", "away", 2.5, 0.656, 1.47)
+corners_over_8_5 = mk("corners", "over", 8.5, 0.636, 1.49)
+corners_over_9_5 = mk("corners", "over", 9.5, 0.504, 1.85)
+CITY_NAPOLI = [city_win, draw, over_2_5, under_4_5, over_3_5, under_3_5, btts_yes, city_minus_0_5, city_minus_1_5,
+               napoli_plus_2_5, corners_over_8_5, corners_over_9_5]
+
+
+def test_keeps_is_the_bookmakers_share_of_each_stake_at_the_typical_price():
+    assert rec.keeps(city_win) == pytest.approx(1 - 0.759 * 1.30)
+    assert rec.keeps(mk(chance=0.5, price=None)) is None
+
+
+def test_fair_options_are_priced_1_30_to_1_99_with_the_bookmaker_keeping_at_most_6_in_100():
+    fair = rec.fair_options(CITY_NAPOLI)
+    assert city_win in fair and city_minus_1_5 in fair and corners_over_8_5 in fair
+    assert over_2_5 not in fair and city_minus_0_5 not in fair  # under 1.30
+    assert under_3_5 not in fair and draw not in fair  # 2.00 or more
+    assert corners_over_9_5 not in fair  # the bookmaker keeps 6.8 in 100
+    assert rec.fair_options([mk(chance=0.47, price=2.0)]) == []
+
+
+def test_best_bets_take_the_fairest_under_1_60_then_from_1_60_then_the_next_fairest():
+    picks = rec.best_bets(CITY_NAPOLI)
+    # Napoli +2.5 (keeps 3.6) is fairer than Over 3.5 (3.7), but the handicap market is taken by City −1.5
+    assert picks == [city_win, city_minus_1_5, over_3_5]
+
+
+def test_best_bets_are_listed_fairest_first_so_the_board_card_shows_the_fairest():
+    a = mk("goals", "under", 3.5, 0.64, 1.51)  # keeps 3.4
+    b = mk("spreads", "away", 0.5, 0.72, 1.36)  # keeps 2.1, under 1.60
+    c = mk("btts", "no", None, 0.57, 1.70)  # keeps 3.1, from 1.60
+    assert rec.best_bets([a, b, c]) == [b, c, a]
+
+
+def test_best_bets_can_all_win_together_and_never_repeat_a_bet():
+    win = mk("moneyline", "home", None, 0.74, 1.33)
+    minus_0_5 = mk("spreads", "home", -0.5, 0.74, 1.34)  # the same bet as the win
+    over = mk("goals", "over", 2.5, 0.60, 1.62)
+    under = mk("goals", "under", 1.5, 0.62, 1.60)  # cannot win with over 2.5; one goals bet at most anyway
+    away_plus = mk("spreads", "away", 1.5, 0.58, 1.66)
+    picks = rec.best_bets([win, minus_0_5, over, under, away_plus])
+    assert minus_0_5 in picks and win not in picks  # the same bet: only its fairer form, −0.5 at 1.34
+    assert all(rec.can_win_together(a, b) for a in picks for b in picks if a is not b)
+    assert len({p["market"] for p in picks}) == len(picks)
+
+
+def test_best_bets_skip_a_fair_bet_that_cannot_win_with_one_already_chosen():
+    over = mk("goals", "over", 2.5, 0.74, 1.33)  # keeps 1.6, the fairest under 1.60
+    no_btts = mk("btts", "no", None, 0.58, 1.66)  # keeps 3.7, from 1.60
+    nil_draw = mk("moneyline", "draw", None, 0.58, 1.66)  # keeps 3.7; each pair can win, all three never
+    picks = rec.best_bets([over, no_btts, nil_draw])
+    assert picks[:2] == [over, no_btts] and nil_draw not in picks
+
+
+def test_best_bets_of_nothing_fair_is_empty():
+    assert rec.best_bets([draw, under_3_5, corners_over_9_5]) == []
+
+
+def with_switches(results, **switches):
+    for r in results:
+        r.setdefault("context", {})["engine_switches"] = {"version": "engine-switches.v1", **switches}
+    return results
+
+
+def test_the_rule_follows_the_switch_the_read_recorded_and_fails_closed():
+    assert rec.rule(all_markets_results()) == "likeliest"  # a read from before the switch
+    assert rec.rule(with_switches(all_markets_results(), SPIX_BEST_BETS="fairest")) == "fairest"
+    assert rec.rule(with_switches(all_markets_results(), SPIX_BEST_BETS="cheapest")) == "likeliest"
+    assert rec.rule(with_switches(all_markets_results(), SPIX_BEST_BETS="likeliest")) == "likeliest"
+
+
+def test_the_live_switch_does_not_change_a_read_that_recorded_another(monkeypatch):
+    monkeypatch.setenv("SPIX_BEST_BETS", "fairest")
+    old = rec.block(all_markets_results(), selections=[], metrics=METRICS, prices_as_of=None)
+    monkeypatch.setenv("SPIX_BEST_BETS", "likeliest")
+    new = rec.block(with_switches(all_markets_results(), SPIX_BEST_BETS="fairest"), selections=[], metrics=METRICS,
+                    prices_as_of=None)
+    options = [o for m in new["markets"] for o in m["options"]]
+    assert [{k: v for k, v in p.items() if k != "why"} for p in new["most_likely"]] == rec.best_bets(options)
+    assert [{k: v for k, v in p.items() if k != "why"} for p in old["most_likely"]] == rec.most_likely(
+        m["suggestion"] for m in old["markets"])
+
+
+def test_a_fairest_block_marks_each_markets_bet_among_the_three_or_its_own_fairest():
+    b = rec.block(with_switches(all_markets_results(), SPIX_BEST_BETS="fairest"), selections=[], metrics=METRICS,
+                  prices_as_of=None)
+    picks = [{k: v for k, v in p.items() if k != "why"} for p in b["most_likely"]]
+    assert picks and all("why" in p for p in b["most_likely"])
+    for market in b["markets"]:
+        mine = [p for p in picks if p["market"] == market["market"]]
+        fair = [o for o in rec.fair_options(market["options"]) if not any(rec.same_bet(o, p) for p in picks)]
+        expected = mine[0] if mine else (min(fair, key=rec._fairness) if fair else None)
+        assert market["suggestion"] == expected
+    assert b["version"] == "recommendations.v1" and set(b) == {"version", "prices_as_of", "most_likely", "value",
+                                                               "markets", "score_grid"}
+
+
+def test_market_suggestion_under_the_fairest_rule_skips_the_same_bet_as_a_pick():
+    win = mk("moneyline", "home", None, 0.74, 1.33)
+    minus_0_5 = mk("spreads", "home", -0.5, 0.74, 1.34)
+    plus_1_5 = mk("spreads", "away", 1.5, 0.58, 1.66)
+    picks = [win]
+    assert rec.fairest_suggestion([minus_0_5, plus_1_5], picks) == plus_1_5
+    assert rec.fairest_suggestion([minus_0_5], picks) is None
+    assert rec.fairest_suggestion([minus_0_5, plus_1_5], [plus_1_5]) == plus_1_5

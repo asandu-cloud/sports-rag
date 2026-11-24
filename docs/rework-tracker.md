@@ -3843,7 +3843,7 @@ The simulation scripts sat in the session's scratch folder, which macOS cleared 
 `Scripts/ops/slip_builder_study.py` under the plan.
 
 **D129 — Best bets on the match cards: the fairest bets in each payout range, behind `SPIX_BEST_BETS` (24 Nov;
-backend, owner).** In progress.
+backend, owner).** Built behind the switch, which is off; no published pick changes until the owner flips it.
 
 **The problem.** Each market's suggestion is the likeliest option at 1.30 or more (D52), so every pick slides to the
 price floor:
@@ -3873,6 +3873,31 @@ shown, the before-kickoff record and the wins reel keep the bets they showed.
 - The bookmaker keeps 3.5 of every 100 against 3.8, and 2.6 against 3.4 on the board card.
 
 So chances stay honest and the money is the same within noise. The gain is payout and variety, not money saved.
+
+**What was built.** In `recommendations.py`:
+- `keeps`, `fair_options`, `best_bets` and `fairest_suggestion`;
+- `rule`, which reads the switch the read recorded (`context.engine_switches`): no key, or an unknown value, is
+  `likeliest`;
+- `block()` takes the fairest path only for a read recorded as `fairest`. The block's format is unchanged
+  (`recommendations.v1`, no key added).
+
+The owner dashboard, the pick evidence, the before-kickoff record and the wins reel all build from the same
+`block()`, so they follow each read's rule.
+
+One difference from today's rule: the three are checked on one common scoreline. Today's `most_likely` checks pairs
+only, and three bets can pass every pair yet never win together (over 2.5, not both teams to score, a draw).
+`most_likely` is left as it is.
+
+**Checks.**
+- 14 new tests (12 in `test_recommendations.py`, 1 in `test_engine_switches.py`, 1 updated in
+  `test_market_service.py`, which proves each read records the switch).
+- Suite: 3,253 passed, plus the 3 known worktree errors (`test_phase4_baseline_freeze`).
+- 22 JS test files pass.
+- Golden check: no changes across 54 fixtures.
+- Run in memory on the stored 24 Nov Champions League reads, recorded as `fairest`, the latest reads give the
+  mockup's bets: Real Madrid Under 5.5 goals 1.40, Real Madrid −2.5 1.86, Over 8.5 corners 1.34.
+- No migration and no `.env` line. A website restart is needed only when the switch is flipped; the worker records
+  it on new reads.
 
 **Against D128.** This is D128's item 8 ("Most likely with cost in mind") in a new form: the fairest bet per payout
 range, where D128 put the cheaper of two picks within 2 points of chance first. D128 has it tested on the owner
