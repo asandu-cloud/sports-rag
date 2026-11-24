@@ -131,8 +131,9 @@ on it. The Discord bot still runs the old engine until A7.
   count, or "TBD" until one is named. The line falls back to the suggestion count while the refresh writes. The Live
   tab is unchanged.
   - Since 24 Nov (D130, owner) the referee's name and the team names open their Research Area profiles. A name is a
-    link only when the board's data names the profile: the referee key now, the team ids once the backend sends
-    `home_team_id`/`away_team_id` (D131, not merged yet).
+    link only when the board's data names the profile: the referee key now, the team ids since 24 Nov 21:17
+    (D131: `home_team_id`/`away_team_id` on cards, before-kickoff entries and schedule rows, looked up inside
+    `read_gate()`, left out while the refresh writes, null for a team with no profile; website restarted, pid 65002).
 - **Board odds tile (D125), Matchday fixture search (D126) and compression (D127) live 18 Nov (owner).** The website
   gzips responses over 1 KB when the browser asks (the live event stream never); a Saturday's boards drop from about
   1.4 MB to 172 KB. Website restarted 18 Nov 15:00 after the refresh (pid 10091).
