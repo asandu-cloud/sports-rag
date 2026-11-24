@@ -62,7 +62,9 @@ def test_schedule_includes_unanalysed_late_fixtures_without_writes_or_outcomes(
     assert {r['status'] for r in body['fixtures']} == {'NS', 'PST'}
     assert any('T17:00:00+00:00' in r['fixture']['kickoff'] for r in body['fixtures'])
     assert all(set(row) == {'fixture', 'status', 'visuals'} for row in body['fixtures'])
-    assert all(set(row['fixture']) == {'event_id', 'league', 'home_team', 'away_team', 'kickoff'} for row in body['fixtures'])
+    assert all(set(row['fixture']) == {'event_id', 'league', 'home_team', 'away_team', 'kickoff',
+                                       'home_team_id', 'away_team_id'} for row in body['fixtures'])  # ids: D131
+    assert all(row['fixture']['home_team_id'] is None for row in body['fixtures'])  # no finished match: no page
     assert statements and all(s.lstrip().upper().startswith('SELECT') for s in statements)
     assert all('home_goals' not in s and 'away_goals' not in s for s in statements)
     with session_factory() as session:

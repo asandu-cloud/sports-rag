@@ -492,6 +492,7 @@ def get_matchday_schedule(target_date: str, league: Optional[str] = None) -> Dic
         statuses = _live_statuses_for(matchday, _utc_now(), None if league else fixtures)
         for row in fixtures:
             row["live_status"] = statuses.get(str((row.get("fixture") or {}).get("event_id")))
+    _attach_team_ids([row["fixture"] for row in fixtures if isinstance(row.get("fixture"), dict)])
     return {"schema_version": "fixture-schedule.v1", "date": matchday.isoformat(),
             "fixtures": fixtures, "count": len(fixtures)}
 
@@ -642,6 +643,27 @@ def _attach_referees(cards: Sequence[Dict[str, Any]]) -> None:
             card["fixture"]["referee"] = found[event_id]
 
 
+def _attach_team_ids(fixtures: Sequence[Dict[str, Any]]) -> None:
+    """Each fixture's team ids as the Research Area takes them (D131): ``home_team_id`` and ``away_team_id``, None
+    for a team with no page yet. Left out for a match the database does not know, and for every fixture while the
+    refresh writes (the read never waits for it) or the read fails."""
+    from data_platform.services import refresh_coordination
+    from data_platform.services.research_upcoming import board_team_ids
+
+    if not fixtures:
+        return
+    try:
+        with refresh_coordination.read_gate():
+            found = board_team_ids([fixture.get("event_id") for fixture in fixtures])
+    except refresh_coordination.RefreshBusy:
+        return
+    except Exception:
+        logger.exception("Board team ids unavailable")
+        return
+    for fixture in fixtures:
+        fixture.update(found.get(str(fixture.get("event_id")), {}))
+
+
 @router.get("/{league}/{target_date}")
 def get_matchday_match_reads(league: str, target_date: str) -> Dict[str, Any]:
     """Return one public effective Match Read card per stored fixture.
@@ -675,4 +697,5 @@ def get_matchday_match_reads(league: str, target_date: str) -> Dict[str, Any]:
             for entry in entries:
                 entry["status"] = statuses.get(entry["fixture"]["event_id"])
         body["before_kickoff"] = entries
+    _attach_team_ids([item["fixture"] for item in cards + body.get("before_kickoff", [])])
     return body

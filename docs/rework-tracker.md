@@ -4546,6 +4546,26 @@ the referee on the match cards to open their Research Area profiles.
   Nick Walsh opened his referee profile; Barcelona and Sabah FA opened their team profiles; Back returned to the board;
   a tap on the pick opened the match page. No sideways scroll and no console errors.
 
+**D131 — The board's data carries the Research Area team ids (24 Nov; backend, for D130).** Done.
+- `fixture.home_team_id` and `fixture.away_team_id` sit on each card of `/api/match-reads/{league}/{date}`, on each
+  `before_kickoff` entry, and on each row of `/api/match-reads/schedule/{date}`. They are the internal ids that
+  `/api/research/teams/{id}` takes (Barcelona 21, not API-Football's 529).
+- A team gets null when it has no finished match in comparable rounds, because its page would not open (404). This is
+  the same test `select_scope` makes.
+- The keys are left out for a match the database does not know, and for every card while the refresh holds the gate
+  (`read_gate()`, as D124 does for the referee) or the read fails. Nothing is guessed, and no stored read is rewritten.
+- Code: `ResearchRepository.teams_by_event` and `teams_with_profiles`, `research_upcoming.board_team_ids`, and
+  `_attach_team_ids` in `routers/match_reads.py`.
+- Checks:
+  - 2 new tests (`test_board_team_ids.py`). One card's id opens `/api/research/teams/{id}`, and a null team's id
+    answers 404. Before-kickoff entries, schedule rows and the refresh gate are covered too.
+  - The schedule's pinned keys test now lists the two ids.
+  - Suite: 3,255 passed, plus the 3 known worktree errors. 23 JS test files pass.
+  - Golden check: no changes across 54 fixtures.
+  - On the real database, gated: Saturday 28 Nov's 43 matches in 20 ms, with every team found. Sabah FA v Barcelona
+    (1635718) gives 210 and 21, as the frontend expected.
+- No migration and no `.env` line. The website needs a restart to serve the ids.
+
 ## How to resume in a new session
 
 1. Read this file, then `git log --oneline` since the last commit listed above.

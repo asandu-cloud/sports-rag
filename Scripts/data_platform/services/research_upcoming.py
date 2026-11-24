@@ -85,6 +85,22 @@ def board_referees(event_ids, *, repo=None) -> Dict[str, Optional[dict]]:
     return {numbers[number]: refs.get(name) if name else None for number, name in raw.items()}
 
 
+def board_team_ids(event_ids, *, repo=None) -> Dict[str, dict]:
+    """The board's team ids as the Research Area takes them (D131): ``{event id: {"home_team_id", "away_team_id"}}``
+    for the matches the database knows; None for a team with no finished match yet, whose page would not open."""
+    from ..repositories.research import ResearchRepository
+    numbers = {int(e): str(e) for e in event_ids if str(e).isdigit()}
+    if not numbers:
+        return {}
+    repo = repo or ResearchRepository()
+    with repo.session_factory() as session:
+        teams = repo.teams_by_event(session, numbers)
+        profiled = repo.teams_with_profiles(session, {t for pair in teams.values() for t in pair})
+    return {numbers[number]: {"home_team_id": home if home in profiled else None,
+                              "away_team_id": away if away in profiled else None}
+            for number, (home, away) in teams.items()}
+
+
 def kickoff_utc(row) -> datetime:
     kickoff = row["kickoff_utc"]
     return kickoff.replace(tzinfo=kickoff.tzinfo or timezone.utc)
