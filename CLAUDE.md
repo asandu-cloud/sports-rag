@@ -204,6 +204,11 @@ on it. The Discord bot still runs the old engine until A7.
   owner dashboard before any stage week (not before Tue 8 Dec). Design:
   `docs/superpowers/specs/2026-11-24-bet-building-assistant-design.md`, waiting for the owner's approval before any
   code. No published pick changes.
+- **Fairest Most likely rule built, off (D129, owner, 24 Nov; website restarted, pid 63135).** With
+  `SPIX_BEST_BETS=fairest`, Most likely becomes the fairest bets priced 1.30 to under 2.00 where the bookmaker keeps
+  at most 6 of every 100. Default `likeliest` is today's behaviour; each read records the switch, so a card already
+  shown keeps its bets. Turning it on is its own stage week, on the owner's call. Design:
+  `docs/superpowers/specs/2026-11-24-best-bets-rule-design.md`.
 - **The Mac's lost week (19–24 Nov).** It ran on battery with the lid shut, so the daily refresh skipped every day
   until 24 Nov (13:15–14:03, succeeded). The 23 Nov scorecard came out on 24 Nov at 14:07 with only 18 new picks, and
   10 of 87 finished matches on 20–23 Nov had a card at kickoff (backend's count). Cards' first weekend was lost.
@@ -231,6 +236,7 @@ Check the switches with `Scripts.rag_ingest.core.engine_switches.snapshot()`:
 - `SPIX_BOOKMAKER_SET`
 - `SPIX_CONFIDENCE_LABELS`
 - `SPIX_CARDS_REFERENCE`
+- `SPIX_BEST_BETS`
 
 The tests pin every switch to its default (`Scripts/tests/conftest.py`). After a switch changes, the website must be
 restarted.

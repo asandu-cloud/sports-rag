@@ -12,12 +12,20 @@ Value is the read's released selections (stage 4) in the layer's markets, each w
 fair-price card's minimum odds at the outcome's fair chance, any line; a cards or shots-on-target pick stays out
 until the owner adds those markets (D61). No engine output changes: the lists are compiled from what the
 read already stores. The block reaches the card only when the display switch ``SPIX_RECOMMENDATIONS`` is ``on``.
+
+D129, behind the engine switch ``SPIX_BEST_BETS=fairest``: Most likely becomes the fairest bets in each payout range.
+Options priced ``MIN_PRICE`` to under ``MAX_FAIR_PRICE`` where the bookmaker keeps at most ``MAX_KEEP`` of each stake;
+the fairest under ``PAYOUT_SPLIT``, the fairest from it, then the next fairest, from three markets that can all win
+together, listed fairest first. Each market marks its bet among them, or its own fairest. The rule is the one the
+read recorded when it was made, so a card already shown keeps its bets; a read from before the switch is likeliest.
 """
 from __future__ import annotations
 
 import itertools
 import os
 from typing import Any, Dict, Iterable, List, Mapping, Optional
+
+from Scripts.rag_ingest.core import engine_switches
 
 from . import fair_prices as fp
 
@@ -28,6 +36,10 @@ MAX_MOST_LIKELY = 3
 MAX_VALUE = 2
 LONG_SHOT = 0.25
 MAX_SCORE = 10
+MAX_FAIR_PRICE = 2.00  # D129: from here the fair bets on one match nearly always back the other side
+PAYOUT_SPLIT = 1.60
+MAX_KEEP = 0.06
+BEST_BETS_SWITCH = "SPIX_BEST_BETS"
 MARKETS = ("moneyline", "goals", "btts", "spreads", "corners")
 GOAL_MARKETS = MARKETS[:4]
 
@@ -134,6 +146,65 @@ def most_likely(suggestions: Iterable[Optional[dict]]) -> List[dict]:
     return kept
 
 
+def keeps(option: Mapping[str, Any]) -> Optional[float]:
+    """The bookmaker's share of each stake at the typical price, by the market's own chance; None without a price."""
+    price = option.get("typical_price")
+    return None if price is None else 1 - option["chance"] * price
+
+
+def fair_options(market_options: Iterable[Mapping[str, Any]]) -> List[dict]:
+    """The options priced ``MIN_PRICE`` to under ``MAX_FAIR_PRICE`` where the bookmaker keeps at most ``MAX_KEEP``."""
+    return [o for o in market_options or [] if o.get("typical_price") is not None
+            and MIN_PRICE <= o["typical_price"] < MAX_FAIR_PRICE and keeps(o) <= MAX_KEEP]
+
+
+def _fairness(option: Mapping[str, Any]):
+    return keeps(option), -option["chance"]
+
+
+def _all_win_together(options: List[Mapping[str, Any]]) -> bool:
+    """True when one scoreline wins every goal-market option at once; corners never conflict."""
+    goals = [o for o in options if o.get("market") != "corners"]
+    return any(all(wins(o, h, w) for o in goals) for h, w in _scorelines())
+
+
+def best_bets(market_options: Iterable[Mapping[str, Any]]) -> List[dict]:
+    """D129: the fairest option under ``PAYOUT_SPLIT``, the fairest from it, then the next fairest, from three markets
+    that can all win together and never the same bet twice; listed fairest first."""
+    order = sorted(fair_options(market_options), key=_fairness)
+    kept: List[dict] = []
+    for pool in ([o for o in order if o["typical_price"] < PAYOUT_SPLIT],
+                 [o for o in order if o["typical_price"] >= PAYOUT_SPLIT], order):
+        for option in pool:
+            if len(kept) < MAX_MOST_LIKELY and option not in kept \
+                    and all(k["market"] != option["market"] and not same_bet(k, option) for k in kept) \
+                    and _all_win_together(kept + [option]):
+                kept.append(option)
+                break
+    return sorted(kept, key=_fairness)
+
+
+def fairest_suggestion(market_options: List[dict], picks: List[dict]) -> Optional[dict]:
+    """One market's mark under the fairest rule: its bet among ``picks``, else its fairest option that is not the
+    same bet as one of them."""
+    mine = [p for p in picks if p in (market_options or [])]
+    if mine:
+        return mine[0]
+    fair = [o for o in fair_options(market_options) if not any(same_bet(o, p) for p in picks)]
+    return min(fair, key=_fairness) if fair else None
+
+
+def rule(canonical_results: Iterable[Mapping[str, Any]]) -> str:
+    """The Most likely rule the read recorded with its engine switches; likeliest when it recorded none or another."""
+    default, accepted = engine_switches.SWITCHES[BEST_BETS_SWITCH]
+    for result in canonical_results or []:
+        switches = (result.get("context") or {}).get("engine_switches") if isinstance(result, Mapping) else None
+        if isinstance(switches, Mapping) and BEST_BETS_SWITCH in switches:
+            recorded = str(switches[BEST_BETS_SWITCH]).strip().lower()
+            return recorded if recorded in accepted else default
+    return default
+
+
 def enabled() -> bool:
     """The display switch: the card carries the block only when ``SPIX_RECOMMENDATIONS`` is ``on``."""
     return os.environ.get("SPIX_RECOMMENDATIONS", "").strip().lower() == "on"
@@ -202,12 +273,17 @@ def block(canonical_results: Iterable[Mapping[str, Any]], *, selections: Iterabl
     the score grid same-match goal legs combine through (null when the prices could not fit one)."""
     canonical_results = [r for r in canonical_results or [] if isinstance(r, Mapping)]
     results, by_market = fp._results(canonical_results), options(canonical_results)
-    markets = [{"market": m, "suggestion": suggestion(by_market.get(m, [])), "options": by_market.get(m, [])}
-               for m in MARKETS]
+    if rule(canonical_results) == "fairest":
+        picks = best_bets(o for m in MARKETS for o in by_market.get(m, []))
+        markets = [{"market": m, "suggestion": fairest_suggestion(by_market.get(m, []), picks),
+                    "options": by_market.get(m, [])} for m in MARKETS]
+    else:
+        markets = [{"market": m, "suggestion": suggestion(by_market.get(m, [])), "options": by_market.get(m, [])}
+                   for m in MARKETS]
+        picks = most_likely(m["suggestion"] for m in markets)
     corners = _figure(((results.get("corners") or {}).get("projection") or {}).get("value"))
     fixture = next((r.get("fixture") for r in canonical_results if isinstance(r.get("fixture"), Mapping)), {})
-    likely = [{**o, "why": why(o, metrics, fixture, corners=corners)}
-              for o in most_likely(m["suggestion"] for m in markets)]
+    likely = [{**o, "why": why(o, metrics, fixture, corners=corners)} for o in picks]
     ordered = sorted((s for s in selections or [] if isinstance(s, Mapping)
                       and (s.get("market") or {}).get("group") in MARKETS),  # cards and SoT stay out (D61)
                      key=lambda s: s.get("position") or 0)

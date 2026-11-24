@@ -23,6 +23,7 @@ SWITCHES: Dict[str, tuple] = {
     "SPIX_BOOKMAKER_SET": ("all", frozenset({"all", "romania"})),              # D32, D35: picks only at these books
     "SPIX_CONFIDENCE_LABELS": ("edge", frozenset({"edge", "evidence"})),       # A5.3 (D44): high/low from evidence
     "SPIX_CARDS_REFERENCE": ("off", frozenset({"off", "pinnacle"})),           # A5.4 (D58, D61): cards from Pinnacle
+    "SPIX_BEST_BETS": ("likeliest", frozenset({"likeliest", "fairest"})),     # D129: the match cards' three bets
 }
 
 

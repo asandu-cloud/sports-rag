@@ -15,7 +15,7 @@ def test_defaults_are_todays_behaviour(monkeypatch):
                                           "SPIX_COUNT_DISPERSION": "floors", "SPIX_DEVIG_METHOD": "proportional",
                                           "SPIX_MARKET_ANCHOR": "off", "SPIX_SELECTION_POLICY": "legacy",
                                           "SPIX_BOOKMAKER_SET": "all", "SPIX_CONFIDENCE_LABELS": "edge",
-                                          "SPIX_CARDS_REFERENCE": "off"}
+                                          "SPIX_CARDS_REFERENCE": "off", "SPIX_BEST_BETS": "likeliest"}
     assert prediction_guardrails.fixed_dispersion_enabled() is False
     assert team_resolution.document_store_handle() is None
 
@@ -83,3 +83,12 @@ def test_the_cards_reference_switch_is_off_in_tests_and_listed_in_the_snapshot()
     assert os.environ.get("SPIX_CARDS_REFERENCE") == "off"
     assert engine_switches.snapshot()["SPIX_CARDS_REFERENCE"] == "off"
     assert engine_switches.SWITCHES["SPIX_CARDS_REFERENCE"] == ("off", frozenset({"off", "pinnacle"}))
+
+
+def test_best_bets_switch_defaults_to_the_likeliest_and_fails_closed(monkeypatch):
+    # D129: the match cards' fairest bets only when the owner sets SPIX_BEST_BETS=fairest.
+    assert engine_switches.SWITCHES["SPIX_BEST_BETS"] == ("likeliest", frozenset({"likeliest", "fairest"}))
+    monkeypatch.setenv("SPIX_BEST_BETS", "cheapest")
+    assert engine_switches.value("SPIX_BEST_BETS") == "likeliest"
+    monkeypatch.setenv("SPIX_BEST_BETS", " Fairest ")
+    assert engine_switches.snapshot()["SPIX_BEST_BETS"] == "fairest"
