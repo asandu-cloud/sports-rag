@@ -1081,7 +1081,7 @@ const router = {
     this.positions.set(this.key(this.state), window.scrollY);
     history.replaceState(this.state, '');
   },
-  go(page, tab = 'fixtures', restored = null, researchRoute = null) {
+  go(page, tab = 'fixtures', restored = null, researchRoute = null, extra = {}) {
     const previous = this.state;
     if (!restored) {
       this.remember();
@@ -1089,7 +1089,7 @@ const router = {
     }
     const next = restored || { spix: true, page, tab,
       matchId: tab === 'match' ? appModule.currentMatch?.id : null,
-      researchRoute: tab === 'research' ? researchRoute || appModule.researchRoute || 'players' : null };
+      researchRoute: tab === 'research' ? researchRoute || appModule.researchRoute || 'players' : null, ...extra };
     if (previous && this.key(previous) === this.key(next) && !restored) return;
     ui.modal?.close();
     this.state = next;
@@ -1101,7 +1101,7 @@ const router = {
     document.querySelectorAll('.app-nav').forEach(el => el.classList.toggle('hidden', page !== 'app'));
     auth._updateUI();
     const ready = page === 'app' ? (tab === 'research'
-      ? customElements.whenDefined('spix-research').then(() => document.querySelector('spix-research').showRoute(next.researchRoute || 'players'))
+      ? customElements.whenDefined('spix-research').then(() => document.querySelector('spix-research').showRoute(next.researchRoute || 'players', { backToBoard: Boolean(next.fromBoard) }))
       : tab === 'assistant' ? window.spixAssistant.show() : appModule.init()) : Promise.resolve();
     if (tab === 'research') appModule.researchRoute = next.researchRoute || 'players';
     appModule.currentTab = tab;
@@ -1131,8 +1131,9 @@ const router = {
       }
     }).catch(error => console.warn('Page content could not load', error));
   },
+  // D133: a profile opened from a board name goes back the same way the match page does.
   backToBoard() {
-    if (this.state?.tab === 'match' && this.state.fromBoard) history.back();
+    if (['match', 'research'].includes(this.state?.tab) && this.state.fromBoard) history.back();
     else this.go('app', 'fixtures');
   },
 };
@@ -2785,7 +2786,7 @@ const appModule = {
       event.stopPropagation();
       if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
-      router.go('app', 'research', null, link.dataset.researchRoute);
+      router.go('app', 'research', null, link.dataset.researchRoute, { fromBoard: true });
     }));
   },
 
@@ -3224,6 +3225,7 @@ slip.onChange = () => {
 document.addEventListener('research-navigate', event => {
   router.go('app', 'research', null, event.detail.route);
 });
+document.addEventListener('research-back', () => router.backToBoard());
 window.matchMedia('(max-width: 1100px)').addEventListener('change', () => slip.researchBar());
 // The Research Area's match view adds the read's option the way the match page's Explore options do (D107).
 document.addEventListener('research-add-leg', event => {
