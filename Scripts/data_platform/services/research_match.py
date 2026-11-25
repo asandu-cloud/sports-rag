@@ -117,6 +117,23 @@ def likely_starters(squad_rows: Sequence[Mapping[str, Any]], limit: int = SHOOTE
     return [player for _, player in sorted(ranked, key=lambda item: item[0])[:limit]]
 
 
+def likely_eleven(squad_rows: Sequence[Mapping[str, Any]]) -> List[dict]:
+    """The keeper with most starts in the team's last matches, then ten outfield players as ``likely_starters``
+    ranks them (D135): most starts, never a prediction."""
+    keepers = defaultdict(list)
+    for row in squad_rows:
+        if (row.get("minutes") or 0) > 0:
+            keepers[row["player_id"]].append(row)
+    ranked = []
+    for player_id, rows in keepers.items():
+        starts = sum(starter(row)[0] for row in rows)
+        if most_common_position(rows) == "G" and starts:
+            ranked.append(((-starts, -sum(row["minutes"] for row in rows), rows[0]["name"].casefold(), player_id),
+                           {"player_id": player_id, "name": rows[0]["name"], "position": "G", "starts_last_5": starts}))
+    keeper = [player for _, player in sorted(ranked, key=lambda item: item[0])[:1]]
+    return keeper + likely_starters(squad_rows, limit=10)
+
+
 def appearance(row: Mapping[str, Any]) -> dict:
     played = normalize_research_row("player", row)
     return {"date": iso(row["kickoff_utc"]),
@@ -193,6 +210,42 @@ class ResearchMatchService:
                 "teams": teams, "referee": referee, "h2h": h2h, "lineups": None,
                 "data_basis": {"latest_finished_kickoff": max(dates) if dates else None, "generated_at": iso(now),
                                "source": "canonical_database", "h2h_since_season": H2H_SINCE}}
+
+    def lineup_facts(self, event_id: str) -> dict:
+        """What the line-ups need from the database before asking the provider (D135): the kickoff and each team's
+        likely eleven from its last matches."""
+        with self.repo.session_factory() as session:
+            row = self.repo.fixture(session, int(event_id))
+            if row is None:
+                raise LookupError("Unknown match")
+            before = kickoff_utc(row)
+            likely = {side: likely_eleven(self.repo.squad_rows(session, row[f"{side}_team_id"], before=before,
+                                                               matches=STARTS_WINDOW)) for side in ("home", "away")}
+        return {"kickoff": before, "likely": likely}
+
+    def lineup_block(self, facts: Mapping[str, Any], known: Mapping[str, Any]) -> dict:
+        """The match page's line-ups block (D135): the provider's elevens with each player's Research Area id, null
+        without a profile, and each team's likely eleven, whatever the status."""
+        sides = [known[s] for s in ("home", "away") if known.get(s)]
+        api_ids = {p["api_player_id"] for side in sides for p in side["start_xi"] + side["bench"]
+                   if p["api_player_id"] is not None}
+        likely_ids = {p["player_id"] for team in facts["likely"].values() for p in team}
+        with self.repo.session_factory() as session:
+            by_api = self.repo.player_ids_by_api(session, api_ids)
+            profiled = self.repo.players_with_profiles(session, set(by_api.values()) | likely_ids)
+
+        def player(p):
+            found = by_api.get(p["api_player_id"])
+            return {"player_id": found if found in profiled else None,
+                    **{k: p[k] for k in ("name", "number", "position", "grid")}}
+
+        def side(raw):
+            return raw and {"formation": raw["formation"], "coach": raw["coach"],
+                            "start_xi": [player(p) for p in raw["start_xi"]], "bench": [player(p) for p in raw["bench"]]}
+        return {"status": known["status"], "checked_at": known["checked_at"],
+                "home": side(known.get("home")), "away": side(known.get("away")),
+                "likely": {s: [{**p, "player_id": p["player_id"] if p["player_id"] in profiled else None}
+                               for p in team] for s, team in facts["likely"].items()}}
 
     def _team(self, session, row, side, seasons) -> dict:
         team_id, before, year = row[f"{side}_team_id"], kickoff_utc(row), row["season_year"]

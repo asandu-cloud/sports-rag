@@ -200,6 +200,20 @@ def cmd_backfill_events(args) -> int:
     return 1 if result["errors"] else 0
 
 
+def cmd_remark_substitutes(args) -> int:
+    from .db import get_sessionmaker
+    from .services.refresh_coordination import RefreshBusy
+    from .sync.substitutes import remark_substitutes
+
+    try:
+        result = remark_substitutes(get_sessionmaker(), since=args.since, dry_run=args.dry_run)
+    except RefreshBusy as exc:
+        logger.error("%s", exc)
+        return 1
+    print(json.dumps(result, indent=2))
+    return 0
+
+
 def cmd_sync_schedule(args) -> int:
     from .services.fixture_schedule import sync_fixture_schedule
     from .config import DEFAULT_MATCH_READ_WORKER_LEAGUES
@@ -738,6 +752,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--limit", type=int, help="At most this many requests")
     p.add_argument("--dry-run", action="store_true", help="Print how many requests it would make; make none")
     p.set_defaults(func=cmd_backfill_events)
+
+    p = sub.add_parser("remark-substitutes", help="Mark who started from stored substitution events (D136)")
+    _add_common_args(p)
+    p.add_argument("--since", type=date.fromisoformat, required=True, help="YYYY-MM-DD, kickoff date (UTC)")
+    p.add_argument("--dry-run", action="store_true", help="Count what would change; write nothing")
+    p.set_defaults(func=cmd_remark_substitutes)
 
     p = sub.add_parser("sync-schedule", help="Refresh upcoming schedules only; no player data or embeddings")
     _add_common_args(p)

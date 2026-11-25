@@ -4626,6 +4626,79 @@ behind `SPIX_LINEUPS`); API-Football has no predicted line-ups.
   mocked; Henderson's name opened his profile with Back to Matchday, which returned to the match page at the same
   scroll; Team news shows the same elevens.
 
+**D135 — Confirmed line-ups for the match page, on demand (25 Nov; backend, for the frontend's D134; owner chose the
+plan).** Built behind `SPIX_LINEUPS`, off. It was parked for D136 (owner: fix the substitute flag first, because
+the likely elevens count starts); D136's code is in, so the likely elevens are right once its re-mark runs. To turn it
+on, the owner adds `SPIX_LINEUPS=on` to `.env` and the website restarts. No migration, no job, and no pick, stored read
+or golden fixture changes. Suite: 3,270 passed, plus the 3 known worktree errors (D136's run). The frontend built to
+this shape (D134, e2ba598 on frontend).
+- One trial request (25 Nov, Sabah FA v Barcelona) confirmed that `/fixtures?ids=` returns a `lineups` key, empty
+  before release. A saved `/fixtures/lineups` reply gave the shape: formation, coach, 11 starters with id, name,
+  number, position and grid, and the bench.
+- Built so far, behind `SPIX_LINEUPS` (off):
+  - `services/lineups.py`: in memory, asked only for matches someone opens. It asks from 60 minutes before kickoff,
+    every 5 minutes until both elevens are out, once at kickoff, then every 30 minutes up to 150 minutes after.
+    Up to 20 matches share a request, with a cap of 400 requests a UTC day.
+  - `GET /api/research/matches/{event_id}/lineups`, and the same block in the full match view.
+  - The provider call runs between two short gated reads, never inside the gate.
+  - The block: `status` (confirmed, not_out_yet or unavailable), `checked_at`, `home` and `away` (each with the
+    formation, coach, `start_xi` and `bench`, and each player's Research Area id or null, plus name, number,
+    position and grid), and `likely` (each team's keeper plus ten outfield players with most starts in the last 5).
+  - 11 tests (`test_lineups.py`).
+
+**D136 — Who started comes from the substitution events (25 Nov; backend, owner; found by the frontend).**
+- **The cause is upstream.** Since mid-August 2026, API-Football's own `/fixtures/players` reply says
+  `games.substitute: false` for most players who came on: a saved 24 Nov reply flags players with 5, 12 and 20
+  minutes as starters. The sync copied the field faithfully.
+- **How bad.** Matches with a team showing more than 11 "starters": 1 of 42 in the week of 4 Aug, 26 of 113 by
+  31 Aug, 98 of 134 in the week of 14 Sep, and about 75–80% since. Starts counted appearances in:
+  - the likely starters and shooters;
+  - the "from the bench" marks;
+  - player roles and anything else that counts starts.
+
+  No pick reads the flag (only `research.py` and `research_profiles.py` do).
+- **The fix.** A substitution event names the player going off as `player` and the one coming on as `assist`. On the
+  stored data, the `assist`'s minutes match 90 minus the substitution minute to within 0.4 minutes on average. So:
+  - `upserts.mark_substitutes`: a player who came on, or never played, is a substitute; every other player who
+    played started. A match with no stored events keeps the provider's flag.
+  - The refresh runs it after saving each match's events.
+  - `remark-substitutes --since` fixes the stored rows from the stored events, with no provider call.
+- **Coverage.** Every finished match of October and November has its events stored. In August and September, 206
+  broken matches have none (41 in August, 165 in September): fixing them needs the events fetched (`backfill-events`,
+  one request a match), on the owner's yes.
+- **A fallback for provider gaps.** On the copy, 59 team-matches in October and November still showed more than 11
+  starters. 62 of the 63 extra starters came from substitutions whose `assist` was empty (28) or named a player the
+  match's rows lack (34). For those, the player who came on is the team's played starter whose minutes fit the
+  match's length less the substitution minute, within 5 minutes, and never the player who went off.
+- **On a copy of the database (25 Nov, 00:51), from 1 Aug.** The re-mark covered 785 matches with events and
+  changed 12,834 rows (12,776, then 58 more with the fallback). No provider call.
+
+  | Month | Matches | Starters per team, before | Starters per team, after | Subs per team, after | Teams over 11, before → after |
+  |---|---|---|---|---|---|
+  | May (reference) | 336 | 11.0 | 11.0 | 10.1 | 0 → 0 |
+  | Jul | 38 | 14.3 | 14.3 (no events) | 7.0 | 27 → 27 |
+  | Aug | 326 | 11.2 | 11.2 (no events) | 10.4 | 22 → 22 |
+  | Sep | 364 | 16.2 | 15.4 (11.0 where events exist) | 6.0 | 383 → 325 |
+  | Oct | 457 | 19.2 | 11.0 | 10.4 | 717 → 4 |
+  | Nov | 289 | 19.1 | 11.0 | 10.3 | 450 → 2 |
+
+- **On the real database (25 Nov, owner: "you can go ahead").** No refresh was running, and each step ran under
+  `data_access(writer=True)`.
+  - 01:00: `remark-substitutes --since 2026-08-01` changed 12,796 rows in 785 matches in 1.6 s, the same result as
+    the copy.
+  - Then `backfill-events --since 2026-08-01` made 756 requests and fetched 756 matches (12,425 event rows), with no
+    errors and no empty replies.
+  - 01:05: `remark-substitutes` again changed 3,330 rows in 193 of 1,541 matches.
+  - Starters per team per match: Aug 11.2 → 11.0, Sep 16.2 → 11.0, Oct 19.2 → 11.0, Nov 19.1 → 11.0. Teams over 11:
+    Aug 22 → 20, Sep 383 → 32, Oct 717 → 4, Nov 450 → 2 (substitutions the provider records with no player coming on
+    who fits).
+  - July (38 matches, 14.3 starters per team, mostly qualifiers) is left as it was: it would take about 210 more
+    requests, on the owner's call.
+- **Nothing to rebuild.** The ranks don't use starts; profiles, match views and likely starters count them live from
+  the rows; the stats-questions store doesn't read the flag.
+- 4 new tests (`test_substitutes.py`). Suite: 3,270 passed, plus the 3 known worktree errors. 24 JS test files
+  pass. Golden check: no changes across 54 fixtures.
+
 ## How to resume in a new session
 
 1. Read this file, then `git log --oneline` since the last commit listed above.
