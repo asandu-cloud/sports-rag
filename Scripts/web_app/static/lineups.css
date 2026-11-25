@@ -27,7 +27,9 @@
 .lu-pitch::after { content: ''; position: absolute; left: 0; right: 0; top: 0; border-top: 1px solid var(--border); }
 .lu-row { position: relative; z-index: 1; display: flex; justify-content: space-evenly; }
 .lu-p { display: grid; justify-items: center; gap: 4px; width: 20%; min-width: 0; text-align: center; font-size: 12.5px; line-height: 1.2; color: var(--text); }
-.lu-p .lu-link, .lu-p .lu-name { overflow-wrap: anywhere; }
+/* The padding keeps the underline (3 px below the text) inside the clipped box. */
+.lu-p .lu-link, .lu-p .lu-name { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; padding-bottom: 5px; }
+.lu-long { font-size: 11px; }
 .lu-dot { width: 26px; height: 26px; border-radius: 50%; background: var(--surface); border: 1.5px solid var(--text2); display: grid;
   place-items: center; font-size: 11px; font-weight: 600; color: var(--text2); font-variant-numeric: tabular-nums; }
 .lu-bench { margin: 12px 0 0; font-size: 13.5px; color: var(--text2); line-height: 1.5; }
@@ -47,4 +49,6 @@
 @media (max-width: 720px) {
   .lu-two { grid-template-columns: 1fr; }
   .lu-pitch { aspect-ratio: 4 / 4.8; }
+  .lu-p { font-size: 12px; }
+  .lu-long { font-size: 10.5px; }
 }

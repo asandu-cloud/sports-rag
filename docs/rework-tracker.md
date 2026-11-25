@@ -4601,7 +4601,7 @@ button on a team or referee profile reached from a board card's name (D130) that
 section inside the Match Read, and chose version A (a pitch) from mockups on Crystal Palace v Real Sociedad's real
 match page. The data is the backend's D135 (the `lineups` block of `/api/research/matches/{event_id}`, on demand,
 behind `SPIX_LINEUPS`); API-Football has no predicted line-ups.
-- A section "Line-ups" under the Match Read (`static/lineups.js` and `lineups.css`, at `lineups-20261125b`). A named
+- A section "Line-ups" under the Match Read (`static/lineups.js` and `lineups.css`, at `lineups-20261125d`). A named
   eleven is drawn on a pitch in its formation, keeper at the foot (API-Football's grid when every starter has one,
   else by position), with shirt numbers, coach, formation and bench. Until a team names its eleven, each team's
   players with most starts in the last 5 (the block's `likely` list, or the 8 outfield shooters without one), labelled
@@ -4619,12 +4619,17 @@ behind `SPIX_LINEUPS`); API-Football has no predicted line-ups.
 - Found on the way, sent to the backend as D136: since about September 2026 `fixture_player_stats.substitute` is 0 for
   nearly every substitute (19.2 "starters" per team per match since 1 Oct, against 11), so every "starts" count has
   counted appearances. The past-starts list waits for that fix: merge D134 after D136, and with D135 to show elevens.
-- `app.js` at `lineups-20261125b`; the Research Area's files at `research-20261125a`. 24 JS test files pass (new
+- `app.js` at `lineups-20261125d`; the Research Area's files at `research-20261125a`. 24 JS test files pass (new
   `test_lineups_web.js`: the states, the pitch rows, the short names, the links, when to ask again, the match page's
   loading and the Research Area's wiring). Checked on 8100 on 26 Nov's board at 1440 (light, dark) and 390, with the
   block filled in the browser from the two teams' real players (no numbers or grid yet): pitch and past starts as
   mocked; Henderson's name opened his profile with Back to Matchday, which returned to the match page at the same
   scroll; Team news shows the same elevens.
+- After D135 and D136 reached main (25 Nov): on the pitch, a name with a word over 9 letters is set smaller and ends in
+  an ellipsis rather than breaking mid-word (the full name is the item's title and the link's label). Re-checked on
+  8100 on Sabah FA v Barcelona (25 Nov; Crystal Palace v Real Sociedad had lost its card): the "not out yet" state as
+  served, with D135's `likely` lists (keeper and 10, D136's corrected starts); the confirmed state from both teams' last
+  real elevens and benches filled in the browser (no numbers or grid; no announced eleven before 17:00 UTC).
 
 **D135 — Confirmed line-ups for the match page, on demand (25 Nov; backend, for the frontend's D134; owner chose the
 plan).** Built behind `SPIX_LINEUPS`, off. It was parked for D136 (owner: fix the substitute flag first, because

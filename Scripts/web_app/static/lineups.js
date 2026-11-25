@@ -61,9 +61,11 @@ const luTeamName = (match, side) => match.teams?.[side]?.team?.name || match.fix
 
 function luPlayer(p) {
   const label = [p.name, p.number != null ? `number ${p.number}` : '', LU_POSITIONS[p.position] || ''].filter(Boolean).join(', ');
-  const short = luEsc(luShortName(p.name));
+  const shortName = luShortName(p.name), short = luEsc(shortName);
+  // A word over 9 letters is set smaller and, if it still does not fit, ends in an ellipsis (the title has it whole).
+  const long = shortName.split(' ').some(word => word.length > 9);
   const name = luLink(p, short, label) || `<span class="lu-name"><span aria-hidden="true">${short}</span><span class="lu-sr">${luEsc(label)}</span></span>`;
-  return `<span class="lu-p" role="listitem"><span class="lu-dot" aria-hidden="true">${luEsc(p.number ?? p.position ?? '')}</span>${name}</span>`;
+  return `<span class="lu-p${long ? ' lu-long' : ''}" role="listitem" title="${luEsc(p.name)}"><span class="lu-dot" aria-hidden="true">${luEsc(p.number ?? p.position ?? '')}</span>${name}</span>`;
 }
 
 function luEleven(match, side) {
