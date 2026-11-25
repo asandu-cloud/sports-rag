@@ -2850,6 +2850,31 @@ const appModule = {
       else document.getElementById('matchMarkets').innerHTML = '<div class="empty-state"><p>No market decisions are available for this fixture yet.</p></div>';
     }
     this.switchTab('match');
+    this._loadLineups(f);
+  },
+
+  // Line-ups (D134): from the Research Area's light line-ups route (D135; the names and kickoff are the card's), shown
+  // under the Match Read once it answers and asked again every 5 minutes while an eleven may still come. An error, a
+  // preview card or a missing lineups.js shows nothing; a player's name opens the profile as the board's names do
+  // (D130), so its Back returns here.
+  async _loadLineups(f) {
+    clearTimeout(this._lineupsTimer);
+    const box = document.getElementById('matchLineups');
+    if (!box) return;
+    if (box.dataset.event !== String(f.id)) { box.innerHTML = ''; box.dataset.event = String(f.id); }
+    if (f.isPreview || typeof window.spixLineups !== 'function') return;
+    let match;
+    try {
+      const response = await fetch(`/api/research/matches/${encodeURIComponent(f.id)}/lineups`);
+      if (!response.ok) return;
+      const body = await response.json();
+      match = { fixture: { kickoff: f.kickoff, home: { name: f.home }, away: { name: f.away } }, lineups: body.lineups ?? null };
+    } catch (error) { return; }
+    if (this.currentMatch !== f || router.state?.tab !== 'match') return;
+    box.innerHTML = window.spixLineups(match, { title: '<h2 class="recs-title">Line-ups</h2>' });
+    this._bindProfileLinks(box);
+    const again = window.luRecheckIn(match, new Date());
+    if (again) this._lineupsTimer = setTimeout(() => { if (this.currentMatch === f && router.state?.tab === 'match') this._loadLineups(f); }, again);
   },
 
   _renderMatchReadSummary(f) {

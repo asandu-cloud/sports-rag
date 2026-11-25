@@ -1,0 +1,54 @@
+/* Line-ups (D134, owner 25 Nov, version A): the match page's section and the Research Area's Team news (adopted into
+   its shadow root). Colours come from the page's tokens, so the dark theme follows. */
+#matchLineups:not(:empty) { margin-top: 28px; }
+.lu-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.lu-head h2 { margin: 0; }
+.lu-chip { font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: var(--surface2); color: var(--text2); }
+.lu-chip.ok { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+.lu-when { font-size: 13px; color: var(--text3); font-variant-numeric: tabular-nums; }
+.lu-lead { margin: 6px 0 16px; color: var(--text2); font-size: 15px; line-height: 1.5; max-width: 62ch; }
+.lu-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.lu-team { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 16px; min-width: 0; }
+.lu-th { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.lu-th strong { font-size: 16px; color: var(--text); }
+.lu-th span { font-size: 13px; color: var(--text3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lu-coach { margin: 2px 0 0; font-size: 13px; color: var(--text3); }
+.lu-th + .lu-pitch, .lu-coach + .lu-pitch, .lu-th + .lu-list, .lu-th + .lu-note { margin-top: 12px; }
+.lu-link { color: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); border-radius: 3px; }
+.lu-link:hover { color: var(--accent); text-decoration-color: currentColor; }
+.lu-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lu-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* The pitch: keeper at the foot, the penalty box behind him, the halfway line at the top. */
+.lu-pitch { position: relative; aspect-ratio: 4 / 4.4; border-radius: 8px; background: var(--surface2); display: flex;
+  flex-direction: column-reverse; justify-content: space-around; padding: 10px 4px; overflow: hidden; }
+.lu-pitch::before { content: ''; position: absolute; left: 30%; right: 30%; bottom: 0; height: 15%; border: 1px solid var(--border); border-bottom: 0; }
+.lu-pitch::after { content: ''; position: absolute; left: 0; right: 0; top: 0; border-top: 1px solid var(--border); }
+.lu-row { position: relative; z-index: 1; display: flex; justify-content: space-evenly; }
+.lu-p { display: grid; justify-items: center; gap: 4px; width: 20%; min-width: 0; text-align: center; font-size: 12.5px; line-height: 1.2; color: var(--text); }
+/* The padding keeps the underline (3 px below the text) inside the clipped box. */
+.lu-p .lu-link, .lu-p .lu-name { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; padding-bottom: 5px; }
+.lu-long { font-size: 11px; }
+.lu-dot { width: 26px; height: 26px; border-radius: 50%; background: var(--surface); border: 1.5px solid var(--text2); display: grid;
+  place-items: center; font-size: 11px; font-weight: 600; color: var(--text2); font-variant-numeric: tabular-nums; }
+.lu-bench { margin: 12px 0 0; font-size: 13.5px; color: var(--text2); line-height: 1.5; }
+.lu-bench b { color: var(--text); font-weight: 600; }
+
+/* Past starts. */
+.lu-list { list-style: none; margin: 0; padding: 0; }
+.lu-list li { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid var(--border); font-size: 15px; color: var(--text); }
+.lu-list li:first-child { border-top: 0; }
+.lu-list small { display: block; font-size: 12.5px; color: var(--text3); }
+.lu-sq { display: inline-flex; gap: 3px; }
+.lu-sq i { width: 9px; height: 9px; border-radius: 2px; background: var(--surface2); border: 1px solid var(--border); }
+.lu-sq i.on { background: var(--text2); border-color: var(--text2); }
+.lu-of { font-size: 13px; color: var(--text2); font-variant-numeric: tabular-nums; min-width: 4.5em; text-align: right; }
+.lu-note { margin: 12px 0 0; font-size: 13.5px; color: var(--text3); }
+
+@media (max-width: 720px) {
+  .lu-two { grid-template-columns: 1fr; }
+  .lu-pitch { aspect-ratio: 4 / 4.8; }
+  .lu-p { font-size: 12px; }
+  .lu-long { font-size: 10.5px; }
+}
